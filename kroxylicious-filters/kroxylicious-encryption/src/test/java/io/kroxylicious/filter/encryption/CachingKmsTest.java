@@ -36,7 +36,7 @@ class CachingKmsTest {
         Kms<Long, Long> kms = mock(Kms.class);
         Serde mockSerde = mock(Serde.class);
         Mockito.when(kms.edekSerde()).thenReturn(mockSerde);
-        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8));
+        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8), Duration.ofSeconds(30));
         Serde<Long> longSerde = caching.edekSerde();
         assertThat(longSerde).isSameAs(mockSerde);
         verify(kms).edekSerde();
@@ -47,7 +47,7 @@ class CachingKmsTest {
         Kms<Long, Long> kms = mock(Kms.class);
         DekPair<Long> eDekPair = new DekPair<>(1L, mock(SecretKey.class));
         Mockito.when(kms.generateDekPair(any())).thenReturn(CompletableFuture.completedFuture(eDekPair));
-        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8));
+        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8), Duration.ofSeconds(30));
         CompletionStage<DekPair<Long>> dekPairCompletionStage = caching.generateDekPair(1L);
         assertThat(dekPairCompletionStage).succeedsWithin(5, TimeUnit.SECONDS).isSameAs(eDekPair);
         verify(kms).generateDekPair(1L);
@@ -58,7 +58,7 @@ class CachingKmsTest {
         Kms<Long, Long> kms = mock(Kms.class);
         SecretKey secretKey = mock(SecretKey.class);
         Mockito.when(kms.decryptEdek(any())).thenReturn(CompletableFuture.completedFuture(secretKey));
-        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ofHours(1), 1L, Duration.ZERO, Duration.ofMinutes(8));
+        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ofHours(1), 1L, Duration.ZERO, Duration.ofMinutes(8), Duration.ofSeconds(30));
         assertThat(caching.decryptEdek(1L)).succeedsWithin(5, TimeUnit.SECONDS).isSameAs(secretKey);
         assertThat(caching.decryptEdek(1L)).succeedsWithin(5, TimeUnit.SECONDS).isSameAs(secretKey);
         verify(kms, times(1)).decryptEdek(1L);
@@ -69,7 +69,7 @@ class CachingKmsTest {
         Kms<Long, Long> kms = mock(Kms.class);
         SecretKey secretKey = mock(SecretKey.class);
         Mockito.when(kms.decryptEdek(any())).thenReturn(CompletableFuture.completedFuture(secretKey));
-        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8));
+        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8), Duration.ofSeconds(30));
         assertThat(caching.decryptEdek(1L)).succeedsWithin(5, TimeUnit.SECONDS).isSameAs(secretKey);
         assertThat(caching.decryptEdek(1L)).succeedsWithin(5, TimeUnit.SECONDS).isSameAs(secretKey);
         verify(kms, times(2)).decryptEdek(1L);
@@ -80,7 +80,7 @@ class CachingKmsTest {
         Kms<Long, Long> kms = mock(Kms.class);
         long kekId = 2L;
         Mockito.when(kms.resolveAlias(any())).thenReturn(CompletableFuture.completedFuture(kekId));
-        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8));
+        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8), Duration.ofSeconds(30));
         assertThat(caching.resolveAlias("a")).succeedsWithin(5, TimeUnit.SECONDS).isEqualTo(kekId);
         assertThat(caching.resolveAlias("a")).succeedsWithin(5, TimeUnit.SECONDS).isEqualTo(kekId);
         verify(kms, times(1)).resolveAlias("a");
@@ -90,7 +90,7 @@ class CachingKmsTest {
     void testResolveAliasNotFoundCached() {
         Kms<Long, Long> kms = mock(Kms.class);
         Mockito.when(kms.resolveAlias(any())).thenReturn(CompletableFuture.failedFuture(new UnknownAliasException("fail!")));
-        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8));
+        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8), Duration.ofSeconds(30));
         assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(UnknownAliasException.class);
         assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
@@ -102,7 +102,7 @@ class CachingKmsTest {
     void testResolveAliasNotFoundCompletionExceptionsCached() {
         Kms<Long, Long> kms = mock(Kms.class);
         Mockito.when(kms.resolveAlias(any())).thenReturn(CompletableFuture.failedFuture(new CompletionException(new UnknownAliasException("fail!"))));
-        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8));
+        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8), Duration.ofSeconds(30));
         assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(UnknownAliasException.class);
         assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
@@ -115,7 +115,7 @@ class CachingKmsTest {
         Kms<Long, Long> kms = mock(Kms.class);
         long kekId = 2L;
         Mockito.when(kms.resolveAlias(any())).thenReturn(CompletableFuture.completedFuture(kekId));
-        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8));
+        Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8), Duration.ofSeconds(30));
         assertThat(caching.resolveAlias("a")).succeedsWithin(5, TimeUnit.SECONDS).isEqualTo(kekId);
         assertThat(caching.resolveAlias("a")).succeedsWithin(5, TimeUnit.SECONDS).isEqualTo(kekId);
         verify(kms, times(2)).resolveAlias("a");

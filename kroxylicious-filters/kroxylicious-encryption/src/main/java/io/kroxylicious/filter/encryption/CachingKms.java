@@ -40,8 +40,7 @@ public class CachingKms<K, E> implements Kms<K, E> {
     private final Kms<K, E> delegate;
     private final AsyncLoadingCache<E, SecretKey> decryptDekCache;
     private final AsyncLoadingCache<String, K> resolveAliasCache;
-    private final Cache<String, Long> notFoundAliasCache;
-    private static final Duration CACHE_NOT_FOUND_ALIAS_DURATION = Duration.ofSeconds(30);
+    private final Cache<String, CompletionStage<K>> notFoundAliasCache;
     private static final Logger LOGGER = LoggerFactory.getLogger(CachingKms.class);
 
     private CachingKms(@NonNull Kms<K, E> delegate,
@@ -49,11 +48,12 @@ public class CachingKms<K, E> implements Kms<K, E> {
                        @NonNull Duration decryptDekExpireAfterAccess,
                        long resolveAliasCacheMaxSize,
                        @NonNull Duration resolveAliasExpireAfterWrite,
-                       @NonNull Duration resolveAliasRefreshAfterWrite) {
+                       @NonNull Duration resolveAliasRefreshAfterWrite,
+                       @NonNull Duration notFoundAliasExpireAfterWrite) {
         this.delegate = delegate;
         decryptDekCache = buildDecryptedDekCache(delegate, decryptDekCacheMaxSize, decryptDekExpireAfterAccess);
         resolveAliasCache = buildResolveAliasCache(delegate, resolveAliasCacheMaxSize, resolveAliasExpireAfterWrite, resolveAliasRefreshAfterWrite);
-        notFoundAliasCache = Caffeine.newBuilder().expireAfterWrite(CACHE_NOT_FOUND_ALIAS_DURATION).build();
+        notFoundAliasCache = Caffeine.newBuilder().expireAfterWrite(notFoundAliasExpireAfterWrite).build();
     }
 
     @NonNull
@@ -62,9 +62,10 @@ public class CachingKms<K, E> implements Kms<K, E> {
                                         Duration decryptDekExpireAfterAccess,
                                         long resolveAliasCacheMaxSize,
                                         Duration resolveAliasExpireAfterWrite,
-                                        Duration resolveAliasRefreshAfterWrite) {
+                                        Duration resolveAliasRefreshAfterWrite,
+                                        Duration notFoundAliasExpireAfterWrite) {
         return new CachingKms<>(delegate, decryptDekCacheMaxSize, decryptDekExpireAfterAccess, resolveAliasCacheMaxSize, resolveAliasExpireAfterWrite,
-                resolveAliasRefreshAfterWrite);
+                resolveAliasRefreshAfterWrite, notFoundAliasExpireAfterWrite);
     }
 
     @NonNull
@@ -100,15 +101,15 @@ public class CachingKms<K, E> implements Kms<K, E> {
     @NonNull
     @Override
     public CompletionStage<K> resolveAlias(@NonNull String alias) {
-        Long notFoundSince = notFoundAliasCache.getIfPresent(alias);
-        if (notFoundSince != null) {
-            return CompletableFuture.failedFuture(new UnknownAliasException("alias " + alias + " not found, cached since " + notFoundSince));
+        CompletionStage<K> cachedNotFound = notFoundAliasCache.getIfPresent(alias);
+        if (cachedNotFound != null) {
+            return cachedNotFound;
         }
         CompletableFuture<K> resolved = resolveAliasCache.get(alias);
         resolved.whenComplete((k, throwable) -> {
             if (throwable instanceof UnknownAliasException || (throwable instanceof CompletionException && throwable.getCause() instanceof UnknownAliasException)) {
-                LOGGER.debug("caching unknown alias {} for {}", alias, CACHE_NOT_FOUND_ALIAS_DURATION);
-                notFoundAliasCache.put(alias, System.currentTimeMillis());
+                LOGGER.debug("caching unknown alias {}", alias);
+                notFoundAliasCache.put(alias, CompletableFuture.failedFuture(new UnknownAliasException("alias " + alias + " not found (cached result)")));
             }
         });
         return resolved;

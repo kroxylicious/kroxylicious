@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -27,7 +28,7 @@ class EnvelopeEncryptionTest {
 
     @Test
     void shouldInitAndCreateFilter() {
-        EnvelopeEncryption.Config config = new EnvelopeEncryption.Config("KMS", null, "SELECTOR", null);
+        EnvelopeEncryption.Config config = new EnvelopeEncryption.Config("KMS", null, "SELECTOR", null, null);
         var ee = new EnvelopeEncryption<>();
         var fc = mock(FilterFactoryContext.class);
         var kmsService = mock(KmsService.class);
@@ -51,12 +52,53 @@ class EnvelopeEncryptionTest {
 
     @Test
     void testKmsCacheConfigDefaults() {
-        EnvelopeEncryption.KmsCacheConfig config = new EnvelopeEncryption.Config("vault", 1L, "selector", 1L).kmsCache();
+        EnvelopeEncryption.KmsCacheConfig config = new EnvelopeEncryption.Config("vault", 1L, "selector", 1L, null).kmsCache();
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
         assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
         assertThat(config.resolvedAliasCacheSize()).isEqualTo(1000);
         assertThat(config.resolvedAliasExpireAfterWriteDuration()).isEqualTo(Duration.ofMinutes(10));
         assertThat(config.resolvedAliasRefreshAfterWriteDuration()).isEqualTo(Duration.ofMinutes(8));
+        assertThat(config.notFoundAliasExpireAfterWriteDuration()).isEqualTo(Duration.ofSeconds(30));
+    }
+
+    @Test
+    void testKmsCacheConfigDefaultsWhenPropertiesNull() {
+        HashMap<String, Object> experimental = new HashMap<>();
+        experimental.put("decryptedDekCacheSize", null);
+        experimental.put("decryptedDekExpireAfterAccessSeconds", null);
+        experimental.put("resolvedAliasCacheSize", null);
+        experimental.put("resolvedAliasExpireAfterWriteSeconds", null);
+        experimental.put("resolvedAliasRefreshAfterWriteSeconds", null);
+        experimental.put("notFoundAliasExpireAfterWriteSeconds", null);
+        EnvelopeEncryption.KmsCacheConfig config = new EnvelopeEncryption.Config("vault", 1L, "selector", 1L,
+                experimental).kmsCache();
+        assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
+        assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
+        assertThat(config.resolvedAliasCacheSize()).isEqualTo(1000);
+        assertThat(config.resolvedAliasExpireAfterWriteDuration()).isEqualTo(Duration.ofMinutes(10));
+        assertThat(config.resolvedAliasRefreshAfterWriteDuration()).isEqualTo(Duration.ofMinutes(8));
+        assertThat(config.notFoundAliasExpireAfterWriteDuration()).isEqualTo(Duration.ofSeconds(30));
+    }
+
+    @Test
+    void testKmsCacheConfigOverrides() {
+        EnvelopeEncryption.KmsCacheConfig kmsCacheConfig = new EnvelopeEncryption.KmsCacheConfig(
+                1,
+                Duration.ofSeconds(2L),
+                3,
+                Duration.ofSeconds(4L),
+                Duration.ofSeconds(5L),
+                Duration.ofSeconds(6L));
+
+        HashMap<String, Object> experimental = new HashMap<>();
+        experimental.put("decryptedDekCacheSize", 1);
+        experimental.put("decryptedDekExpireAfterAccessSeconds", 2);
+        experimental.put("resolvedAliasCacheSize", 3);
+        experimental.put("resolvedAliasExpireAfterWriteSeconds", 4);
+        experimental.put("resolvedAliasRefreshAfterWriteSeconds", 5);
+        experimental.put("notFoundAliasExpireAfterWriteSeconds", 6);
+        EnvelopeEncryption.KmsCacheConfig config = new EnvelopeEncryption.Config("vault", 1L, "selector", 1L, experimental).kmsCache();
+        assertThat(config).isEqualTo(kmsCacheConfig);
     }
 
     @Test
