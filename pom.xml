@@ -736,15 +736,6 @@
         </repository>
     </distributionManagement>
 
-    <repositories>
-        <repository>
-            <id>Apache Kafka Staging</id>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <url>https://repository.apache.org/content/groups/staging/</url>
-        </repository>
-    </repositories>
     <profiles>
         <profile>
             <id>qa</id>

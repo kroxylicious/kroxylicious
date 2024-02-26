@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#1029](https://github.com/kroxylicious/kroxylicious/pull/1029): Upgrade to Kafka 3.7.0
 * [#1024](https://github.com/kroxylicious/kroxylicious/pull/1024): Log virtual cluster and metrics binding
 * [#1032](https://github.com/kroxylicious/kroxylicious/pull/1032): Cache unknown alias resolutions temporarily
 * [#1031](https://github.com/kroxylicious/kroxylicious/pull/1031): Fix inconsistently named configuration key in test filter class (FetchResponseTransformationFilter)
