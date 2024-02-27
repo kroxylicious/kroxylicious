@@ -78,7 +78,7 @@ class EnvelopeEncryptionST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithTopicEncryptionFilter(clusterName, 1, topicName, kubeVaultTestKmsFacade.getKmsServiceConfig());
+        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, topicName, kubeVaultTestKmsFacade.getKmsServiceConfig());
         bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.info("And a kafka Topic named {}", topicName);

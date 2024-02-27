@@ -50,12 +50,12 @@ public final class KroxyliciousConfigMapTemplates {
      * @param config config
      * @return the config map builder
      */
-    public static ConfigMapBuilder kroxyliciousTopicEncryptionConfig(String clusterName, String namespaceName, String topicName, Config config) {
+    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, String topicName, Config config) {
         return baseKroxyliciousConfig(namespaceName)
-                .addToData("config.yaml", getTopicEncryptionConfigMap(clusterName, topicName, config));
+                .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, topicName, config));
     }
 
-    private static String getTopicEncryptionConfigMap(String clusterName, String topicName, Config config) {
+    private static String getRecordEncryptionConfigMap(String clusterName, String topicName, Config config) {
         return """
                 adminHttp:
                   endpoints:
