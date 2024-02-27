@@ -203,7 +203,7 @@ jq -r -s '(["Name","Consumed Mi","Consumed Mi/s", "Consumed recs", "Consumed rec
 # Write output for integration with Kibana in the CI pipeline
 # This maintains the existing interface
 if [[ ! -z "${KIBANA_OUTPUT_DIR}" && -d "${KIBANA_OUTPUT_DIR}" ]]; then
-  for PRODUCER_RESULT in ${PRODUCER_RESULTS[@]}
+  for PRODUCER_RESULT in "${PRODUCER_RESULTS[@]}"
   do
     DIR=${KIBANA_OUTPUT_DIR}/$(jq -r '.name' ${PRODUCER_RESULT})
     mkdir -p ${DIR}
