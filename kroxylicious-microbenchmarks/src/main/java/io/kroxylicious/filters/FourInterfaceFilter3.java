@@ -24,9 +24,9 @@ import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
-import static io.kroxylicious.benchmarks.InvokerDispatchBenchmark.CONSUME_TOKENS;
+import static io.kroxylicious.microbenchmarks.InvokerDispatchBenchmark.CONSUME_TOKENS;
 
-public class FourInterfaceFilter2 implements ProduceResponseFilter, ProduceRequestFilter, FetchRequestFilter, FetchResponseFilter {
+public class FourInterfaceFilter3 implements ProduceResponseFilter, ProduceRequestFilter, FetchRequestFilter, FetchResponseFilter {
 
     @Override
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
