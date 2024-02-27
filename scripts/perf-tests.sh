@@ -11,8 +11,8 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 TEST=${TEST:-'[0-9][0-9]-.*'}
 RECORD_SIZE=${RECORD_SIZE:-1024}
 NUM_RECORDS=${NUM_RECORDS:-10000000}
-POST_BROKER_START_WARM_UP_NUM_RECORDS=${POST_BROKER_START_WARM_UP_NUM_RECORDS:-1000}
-PRE_TEST_WARM_UP_NUM_RECORDS=${PRE_TEST_WARM_UP_NUM_RECORDS:-1000}
+WARM_UP_NUM_RECORDS_POST_BROKER_START=${WARM_UP_NUM_RECORDS_POST_BROKER_START:-1000}
+WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 
 ON_SHUTDOWN=()
 PERF_TESTS_DIR=${SCRIPT_DIR}/perf-tests
@@ -50,8 +50,8 @@ doDeleteTopic () {
 
 warmUp() {
   echo -e "${YELLOW}Running warm up${NOCOLOR}"
-  producerPerf $1 $2 ${PRE_TEST_WARM_UP_NUM_RECORDS} /dev/null > /dev/null
-  consumerPerf $1 $2 ${PRE_TEST_WARM_UP_NUM_RECORDS} /dev/null > /dev/null
+  producerPerf $1 $2 ${WARM_UP_NUM_RECORDS_PRE_TEST} /dev/null > /dev/null
+  consumerPerf $1 $2 ${WARM_UP_NUM_RECORDS_PRE_TEST} /dev/null > /dev/null
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -163,7 +163,7 @@ runDockerCompose up --detach --wait kafka
 
 # Warm up the broker - we do this separately as we might want a longer warm-up period
 doCreateTopic broker1:9092 warmup-topic
-warmUp broker1:9092 warmup-topic ${POST_BROKER_START_WARM_UP_NUM_RECORDS}
+warmUp broker1:9092 warmup-topic ${WARM_UP_NUM_RECORDS_POST_BROKER_START}
 doDeleteTopic broker1:9092 warmup-topic
 
 echo -e "${GREEN}Running test cases, number of records = ${NUM_RECORDS}, record size ${RECORD_SIZE}${NOCOLOR}"
