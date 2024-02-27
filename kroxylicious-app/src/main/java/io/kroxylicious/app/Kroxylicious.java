@@ -61,9 +61,9 @@ public class Kroxylicious implements Callable<Integer> {
         try (InputStream stream = Files.newInputStream(configFile.toPath())) {
 
             Configuration config = configParser.parseConfiguration(stream);
+            printBannerAndVersions();
             try (KafkaProxy kafkaProxy = proxyBuilder.apply(configParser, config)) {
                 kafkaProxy.startup();
-                printBannerAndVersions();
                 kafkaProxy.block();
             }
         }

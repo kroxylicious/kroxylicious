@@ -173,6 +173,7 @@ public final class KafkaProxy implements AutoCloseable {
                     .option(ChannelOption.SO_REUSEADDR, true)
                     .channel(eventGroupConfig.clazz())
                     .childHandler(new AdminHttpInitializer(meterRegistries, adminHttpConfig));
+            LOGGER.info("Binding metrics endpoint: {}:{}", adminHttpConfig.host(), adminHttpConfig.port());
             metricsChannel = metricsBootstrap.bind(adminHttpConfig.host(), adminHttpConfig.port()).sync().channel();
         }
     }

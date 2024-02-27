@@ -13,6 +13,9 @@ import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
@@ -41,6 +44,8 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     private final Optional<SslContext> downstreamSslContext;
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualCluster.class);
+
     public VirtualCluster(String clusterName,
                           TargetCluster targetCluster,
                           ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
@@ -60,6 +65,24 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
         this.downstreamSslContext = buildDownstreamSslContext();
+        logVirtualClusterSummary(clusterName, targetCluster, clusterNetworkAddressConfigProvider, tls);
+    }
+
+    @SuppressWarnings("java:S1874") // the classes are deprecated because we don't want them in the API module
+    private static void logVirtualClusterSummary(String clusterName, TargetCluster targetCluster,
+                                                 ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
+                                                 Optional<Tls> tls) {
+        try {
+            var downstreamTls = tls.map(tls1 -> " (TLS)").orElse("");
+            HostPort downstreamBootstrap = clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
+            var upstreamTls = targetCluster.tls().map(tls1 -> " (TLS)").orElse("");
+            HostPort upstreamHostPort = targetCluster.bootstrapServersList().get(0);
+            LOGGER.info("Virtual Cluster: {}, Downstream {}{} => Upstream {}{}",
+                    clusterName, downstreamBootstrap, downstreamTls, upstreamHostPort, upstreamTls);
+        }
+        catch (Exception e) {
+            LOGGER.warn("Failed to log summary for Virtual Cluster: {}", clusterName, e);
+        }
     }
 
     public String getClusterName() {

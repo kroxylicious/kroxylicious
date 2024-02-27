@@ -21,28 +21,8 @@ Configuration:
       AppenderRef:
         - ref: STDOUT
     Logger:
-      - name: io.kroxylicious.proxy.internal.DownstreamNetworkLogger
-        level: INFO
-        additivity: false
-        AppenderRef:
-          - ref: STDOUT
-      - name: io.kroxylicious.proxy.internal.UpstreamNetworkLogger
-        level: INFO
-        additivity: false
-        AppenderRef:
-          - ref: STDOUT
-      - name: io.kroxylicious.proxy.internal.DownstreamFrameLogger
-        level: INFO
-        additivity: false
-        AppenderRef:
-          - ref: STDOUT
-      - name: io.kroxylicious.proxy.internal.UpstreamFrameLogger
-        level: INFO
-        additivity: false
-        AppenderRef:
-          - ref: STDOUT
-      - name: io.kroxylicious.proxy.StartupShutdownLogger
-        level: INFO
+      - name: io.kroxylicious
+        level: "${env:KROXYLICIOUS_APP_LOG_LEVEL:-${env:KROXYLICIOUS_ROOT_LOG_LEVEL:-INFO}}"
         additivity: false
         AppenderRef:
           - ref: STDOUT
