@@ -66,7 +66,7 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
                                     })
                                     .thenApply(kekId -> new Pair<>(topicName, kekId)))
                     .toList();
-            return EnvelopeEncryptionFilter.join(collect).thenApply(list -> {
+            return RecordEncryptionFilter.join(collect).thenApply(list -> {
                 // Note we can't use `java.util.stream...(Collectors.toMap())` to build the map, because it has null values
                 // which Collectors.toMap() does now allow.
                 Map<String, K> map = new HashMap<>();

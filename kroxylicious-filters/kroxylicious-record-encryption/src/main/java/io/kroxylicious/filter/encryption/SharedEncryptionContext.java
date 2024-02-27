@@ -19,7 +19,7 @@ import io.kroxylicious.kms.service.Kms;
  */
 public class SharedEncryptionContext<K, E> {
     private final Kms<K, E> kms;
-    private final EnvelopeEncryption.Config configuration;
+    private final RecordEncryption.Config configuration;
     private final DekManager<K, E> dekManager;
     private final EncryptionDekCache<K, E> encryptionDekCache;
     private final DecryptionDekCache<K, E> decryptionDekCache;
@@ -32,7 +32,7 @@ public class SharedEncryptionContext<K, E> {
      */
     SharedEncryptionContext(
                             Kms<K, E> kms,
-                            EnvelopeEncryption.Config configuration,
+                            RecordEncryption.Config configuration,
                             DekManager<K, E> dekManager,
                             EncryptionDekCache<K, E> encryptionDekCache,
                             DecryptionDekCache<K, E> decryptionDekCache) {
@@ -47,7 +47,7 @@ public class SharedEncryptionContext<K, E> {
         return kms;
     }
 
-    public EnvelopeEncryption.Config configuration() {
+    public RecordEncryption.Config configuration() {
         return configuration;
     }
 

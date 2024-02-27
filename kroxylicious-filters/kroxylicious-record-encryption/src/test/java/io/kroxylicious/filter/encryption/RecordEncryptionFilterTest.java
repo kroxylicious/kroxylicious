@@ -71,7 +71,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class EnvelopeEncryptionFilterTest {
+class RecordEncryptionFilterTest {
 
     private static final String UNENCRYPTED_TOPIC = "unencrypted";
     private static final String ENCRYPTED_TOPIC = "encrypt_me";
@@ -96,7 +96,7 @@ class EnvelopeEncryptionFilterTest {
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
-    private EnvelopeEncryptionFilter<String> encryptionFilter;
+    private RecordEncryptionFilter<String> encryptionFilter;
 
     @BeforeEach
     void setUp() {
@@ -130,7 +130,7 @@ class EnvelopeEncryptionFilterTest {
 
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("decrypt", "decrypt")));
 
-        encryptionFilter = new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run));
+        encryptionFilter = new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run));
     }
 
     @Test

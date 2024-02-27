@@ -34,7 +34,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.filter.encryption.EncryptionVersion;
-import io.kroxylicious.filter.encryption.EnvelopeEncryption;
+import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.proxy.config.FilterDefinition;
@@ -58,7 +58,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * We want to check that we can decode each encryption version and each supported cipher.
  */
 @ExtendWith(KafkaClusterExtension.class)
-class EnvelopeEncryptionDeserializationCompatibilityIT {
+class RecordEncryptionDeserializationCompatibilityIT {
     private static final String ENCRYPTED_AES_TOPIC = "aes-topic";
     private static final String PRE_EXISTING_AES_KEK_SECRET_BYTES = "FwailFttZJR2Jq43YPhwsKTtuTJQNnPPutrFu9uVPx4=";
     private static final String PRE_EXISTING_AES_KEK_UUID = "c32d1cef-9c60-4f86-b56b-281684c98ad0";
@@ -189,7 +189,7 @@ class EnvelopeEncryptionDeserializationCompatibilityIT {
         // when we add support for more ciphers, we could add additional topics with the relevant key material for that cipher
         List<UnitTestingKmsService.Kek> existingKeks = List.of(
                 new UnitTestingKmsService.Kek(PRE_EXISTING_AES_KEK_UUID, kekSecret, "AES", ENCRYPTED_AES_TOPIC));
-        return new FilterDefinitionBuilder(EnvelopeEncryption.class.getSimpleName())
+        return new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
                 .withConfig("kms", UnitTestingKmsService.class.getSimpleName())
                 .withConfig("kmsConfig", new UnitTestingKmsService.Config(12, 128, existingKeks))
                 .withConfig("selector", TemplateKekSelector.class.getSimpleName())

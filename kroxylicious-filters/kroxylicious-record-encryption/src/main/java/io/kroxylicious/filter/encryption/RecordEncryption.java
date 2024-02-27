@@ -40,12 +40,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static java.util.Objects.requireNonNullElse;
 
 /**
- * A {@link FilterFactory} for {@link EnvelopeEncryptionFilter}.
+ * A {@link FilterFactory} for {@link RecordEncryptionFilter}.
  * @param <K> The key reference
  * @param <E> The type of encrypted DEK
  */
-@Plugin(configType = EnvelopeEncryption.Config.class)
-public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, SharedEncryptionContext<K, E>> {
+@Plugin(configType = RecordEncryption.Config.class)
+public class RecordEncryption<K, E> implements FilterFactory<RecordEncryption.Config, SharedEncryptionContext<K, E>> {
 
     static final ScheduledExecutorService RETRY_POOL = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread retryThread = new Thread(r, "kmsRetry");
@@ -53,7 +53,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
         return retryThread;
     });
     private static KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(Metrics.globalRegistry);
-    private static final Logger LOGGER = LoggerFactory.getLogger(EnvelopeEncryption.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryption.class);
 
     record Config(
                   @JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
@@ -153,8 +153,8 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
     @NonNull
     @Override
-    public EnvelopeEncryptionFilter<K> createFilter(FilterFactoryContext context,
-                                                    SharedEncryptionContext<K, E> sharedEncryptionContext) {
+    public RecordEncryptionFilter<K> createFilter(FilterFactoryContext context,
+                                                  SharedEncryptionContext<K, E> sharedEncryptionContext) {
 
         ScheduledExecutorService filterThreadExecutor = context.eventLoop();
         FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
@@ -170,7 +170,7 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, sharedEncryptionContext.configuration().selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(), sharedEncryptionContext.configuration().selectorConfig());
-        return new EnvelopeEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
+        return new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
     }
 
     @NonNull

@@ -29,7 +29,7 @@ import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.filter.encryption.EnvelopeEncryption;
+import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -53,7 +53,7 @@ import static org.hamcrest.Matchers.contains;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(EnvelopeEncryptionTestInvocationContextProvider.class)
-class EnvelopeEncryptionFilterIT {
+class RecordEncryptionFilterIT {
 
     private static final String TEMPLATE_KEK_SELECTOR_PATTERN = "${topicName}";
     private static final String HELLO_WORLD = "hello world";
@@ -403,10 +403,10 @@ class EnvelopeEncryptionFilterIT {
             // This will result in a gap in the offsets.
             var directlyReadRecords = await().atMost(Duration.ofSeconds(30))
                     .pollDelay(Duration.ofSeconds(1))
-                    .until(() -> consumeAll(compactedTopic.name(), 0, directConsumer).map(EnvelopeEncryptionFilterIT::stringifyRecordKeyOffset).toList(),
+                    .until(() -> consumeAll(compactedTopic.name(), 0, directConsumer).map(RecordEncryptionFilterIT::stringifyRecordKeyOffset).toList(),
                             contains("a:0", "b:2", "c:3"));
 
-            var proxyReadRecords = consumeAll(compactedTopic.name(), 0, proxyConsumer).map(EnvelopeEncryptionFilterIT::stringifyRecordKeyOffset).toList();
+            var proxyReadRecords = consumeAll(compactedTopic.name(), 0, proxyConsumer).map(RecordEncryptionFilterIT::stringifyRecordKeyOffset).toList();
 
             assertThat(proxyReadRecords).isEqualTo(directlyReadRecords);
         }
@@ -481,7 +481,7 @@ class EnvelopeEncryptionFilterIT {
     }
 
     private FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
-        return new FilterDefinitionBuilder(EnvelopeEncryption.class.getSimpleName())
+        return new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
                 .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
                 .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
                 .withConfig("selector", TemplateKekSelector.class.getSimpleName())

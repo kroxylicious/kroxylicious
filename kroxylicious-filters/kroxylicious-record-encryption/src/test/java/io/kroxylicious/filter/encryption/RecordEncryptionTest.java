@@ -24,12 +24,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
-class EnvelopeEncryptionTest {
+class RecordEncryptionTest {
 
     @Test
     void shouldInitAndCreateFilter() {
-        EnvelopeEncryption.Config config = new EnvelopeEncryption.Config("KMS", null, "SELECTOR", null, null);
-        var ee = new EnvelopeEncryption<>();
+        RecordEncryption.Config config = new RecordEncryption.Config("KMS", null, "SELECTOR", null, null);
+        var ee = new RecordEncryption<>();
         var fc = mock(FilterFactoryContext.class);
         var kmsService = mock(KmsService.class);
         var kms = mock(Kms.class);
@@ -52,7 +52,7 @@ class EnvelopeEncryptionTest {
 
     @Test
     void testKmsCacheConfigDefaults() {
-        EnvelopeEncryption.KmsCacheConfig config = new EnvelopeEncryption.Config("vault", 1L, "selector", 1L, null).kmsCache();
+        RecordEncryption.KmsCacheConfig config = new RecordEncryption.Config("vault", 1L, "selector", 1L, null).kmsCache();
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
         assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
         assertThat(config.resolvedAliasCacheSize()).isEqualTo(1000);
@@ -70,7 +70,7 @@ class EnvelopeEncryptionTest {
         experimental.put("resolvedAliasExpireAfterWriteSeconds", null);
         experimental.put("resolvedAliasRefreshAfterWriteSeconds", null);
         experimental.put("notFoundAliasExpireAfterWriteSeconds", null);
-        EnvelopeEncryption.KmsCacheConfig config = new EnvelopeEncryption.Config("vault", 1L, "selector", 1L,
+        RecordEncryption.KmsCacheConfig config = new RecordEncryption.Config("vault", 1L, "selector", 1L,
                 experimental).kmsCache();
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
         assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
@@ -82,7 +82,7 @@ class EnvelopeEncryptionTest {
 
     @Test
     void testKmsCacheConfigOverrides() {
-        EnvelopeEncryption.KmsCacheConfig kmsCacheConfig = new EnvelopeEncryption.KmsCacheConfig(
+        RecordEncryption.KmsCacheConfig kmsCacheConfig = new RecordEncryption.KmsCacheConfig(
                 1,
                 Duration.ofSeconds(2L),
                 3,
@@ -97,13 +97,13 @@ class EnvelopeEncryptionTest {
         experimental.put("resolvedAliasExpireAfterWriteSeconds", 4);
         experimental.put("resolvedAliasRefreshAfterWriteSeconds", 5);
         experimental.put("notFoundAliasExpireAfterWriteSeconds", 6);
-        EnvelopeEncryption.KmsCacheConfig config = new EnvelopeEncryption.Config("vault", 1L, "selector", 1L, experimental).kmsCache();
+        RecordEncryption.KmsCacheConfig config = new RecordEncryption.Config("vault", 1L, "selector", 1L, experimental).kmsCache();
         assertThat(config).isEqualTo(kmsCacheConfig);
     }
 
     @Test
     void testRetryPool() {
-        Future<Thread> thread = EnvelopeEncryption.RETRY_POOL.submit(Thread::currentThread);
+        Future<Thread> thread = RecordEncryption.RETRY_POOL.submit(Thread::currentThread);
         assertThat(thread).succeedsWithin(Duration.ofSeconds(5)).satisfies(thread1 -> {
             assertThat(thread1.getName()).isEqualTo("kmsRetry");
             assertThat(thread1.isDaemon()).isTrue();
