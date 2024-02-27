@@ -15,9 +15,13 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import io.kroxylicious.filter.encryption.dek.DekException;
+import io.kroxylicious.kms.service.KmsException;
 
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
@@ -57,6 +61,12 @@ public class EnvelopeEncryptionFilter<K>
     private final DecryptionManager decryptionManager;
     private final FilterThreadExecutor filterThreadExecutor;
 
+    /**
+     * Errors omitted from inflight upstream ProduceRequests to be married up with their ProduceResponses
+     * once they're received. Key for outer map is the correlation id, Key for the inner maps is the topic name.
+     */
+    private final Map<Integer, Map<String, List<ProduceResponseData.PartitionProduceResponse>>> produceErrors = new HashMap<>();
+
     EnvelopeEncryptionFilter(EncryptionManager<K> encryptionManager,
                              DecryptionManager decryptionManager,
                              TopicNameBasedKekSelector<K> kekSelector,
@@ -72,21 +82,6 @@ public class EnvelopeEncryptionFilter<K>
         CompletableFuture<T>[] futures = stages.stream().map(CompletionStage::toCompletableFuture).toArray(CompletableFuture[]::new);
         return CompletableFuture.allOf(futures)
                 .thenApply(ignored -> Stream.of(futures).map(CompletableFuture::join).toList());
-    }
-
-    private final Map<Integer, Map<String, List<ProduceResponseData.PartitionProduceResponse>>> errs = new HashMap<>();
-
-    @Override
-    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion,
-                                                                   ResponseHeaderData header,
-                                                                   ProduceResponseData response,
-                                                                   FilterContext context) {
-        var errMap = errs.remove(header.correlationId());
-        if (errMap != null) {
-            ProduceResponseData.TopicProduceResponseCollection responses = response.responses();
-            appendPartitionErrors(responses, errMap);
-        }
-        return context.forwardResponse(header, response);
     }
 
     private void appendPartitionErrors(ProduceResponseData.TopicProduceResponseCollection responses,
@@ -118,8 +113,8 @@ public class EnvelopeEncryptionFilter<K>
         filterThreadExecutor.completingOnFilterThread(EnvelopeEncryptionFilter.join(new ArrayList<>(keks.values()))) // figure out what keks we need
                 .whenComplete((x, y) -> {
                     var partitioned = partitionBySuccess(keks);
-                    List<Map.Entry<String, CompletionStage<K>>> withoutErrors = partitioned.getOrDefault(true, List.of());
-                    List<Map.Entry<String, CompletionStage<K>>> withErrors = partitioned.getOrDefault(false, List.of());
+                    var withoutErrors = succeeded(partitioned.getOrDefault(true, List.of()));
+                    var withErrors = failed(partitioned.getOrDefault(false, List.of()));
                     final CompletionStage<RequestFilterResult> requestFilterResultCompletionStage;
                     if (withoutErrors.isEmpty()) {
                         // Respond directly, avoiding sending an empty produce request to the broker
@@ -133,9 +128,17 @@ public class EnvelopeEncryptionFilter<K>
         return cf;
     }
 
+    private <K, V> List<Map.Entry<K, V>> succeeded(List<Map.Entry<K, CompletionStage<V>>> list) {
+        return list.stream().map(entry -> Map.entry(entry.getKey(), entry.getValue().toCompletableFuture().join())).toList();
+    }
+
+    private <K, V> List<Map.Entry<K, Throwable>> failed(List<Map.Entry<K, CompletionStage<V>>> list) {
+        return list.stream().map(entry -> Map.entry(entry.getKey(), causeOfFailedStage(entry.getValue()))).toList();
+    }
+
     @NonNull
     private CompletionStage<RequestFilterResult> sendShortcircuitResponse(RequestHeaderData header, FilterContext context,
-                                                                          List<Map.Entry<String, CompletionStage<K>>> withErrors,
+                                                                          List<Map.Entry<String, Throwable>> withErrors,
                                                                           Map<String, TopicProduceData> topicNameToData) {
         final CompletionStage<RequestFilterResult> requestFilterResultCompletionStage;
         ProduceResponseData.TopicProduceResponseCollection topicProduceResponses = new ProduceResponseData.TopicProduceResponseCollection();
@@ -150,8 +153,8 @@ public class EnvelopeEncryptionFilter<K>
     }
 
     private CompletionStage<RequestFilterResult> encryptAndForward(RequestHeaderData header, ProduceRequestData request, FilterContext context,
-                                                                   List<Map.Entry<String, CompletionStage<K>>> withoutErrors,
-                                                                   List<Map.Entry<String, CompletionStage<K>>> withErrors,
+                                                                   List<Map.Entry<String, K>> withoutErrors,
+                                                                   List<Map.Entry<String, Throwable>> withErrors,
                                                                    Map<String, TopicProduceData> topicNameToData) {
         final CompletionStage<RequestFilterResult> requestFilterResultCompletionStage;
         var futures = encryptWithKeks(context, withoutErrors, topicNameToData);
@@ -164,20 +167,26 @@ public class EnvelopeEncryptionFilter<K>
                     return CompletableFuture.failedStage(throwable);
                 })
                 .thenCompose(yy -> {
-                    if (!withErrors.isEmpty()) {
-                        var topicData = request.topicData();
-                        for (var err : withErrors) {
-                            topicData.remove(topicData.find(err.getKey()));
-                        }
-                        errs.put(header.correlationId(), toPartitionErrs(withErrors, topicNameToData));
-                    }
+                    removeTopicsWithErrors(header, request, withErrors, topicNameToData);
                     return context.forwardRequest(header, request);
                 });
         return requestFilterResultCompletionStage;
     }
 
-    @NonNull
-    private Map<Boolean, List<Map.Entry<String, CompletionStage<K>>>> partitionBySuccess(Map<String, CompletionStage<K>> keks) {
+    private void removeTopicsWithErrors(RequestHeaderData header,
+                                        ProduceRequestData request,
+                                        List<Map.Entry<String, Throwable>> withErrors,
+                                        Map<String, TopicProduceData> topicNameToData) {
+        if (!withErrors.isEmpty()) {
+            var topicData = request.topicData();
+            for (var err : withErrors) {
+                topicData.remove(topicData.find(err.getKey()));
+            }
+            produceErrors.put(header.correlationId(), toPartitionErrs(withErrors, topicNameToData));
+        }
+    }
+
+    private @NonNull Map<Boolean, List<Map.Entry<String, CompletionStage<K>>>> partitionBySuccess(Map<String, CompletionStage<K>> keks) {
         return keks.entrySet().stream().collect(Collectors.partitioningBy(entry -> {
             try {
                 entry.getValue().toCompletableFuture().join();
@@ -189,28 +198,48 @@ public class EnvelopeEncryptionFilter<K>
         }));
     }
 
-    @NonNull
-    private Map<String, List<ProduceResponseData.PartitionProduceResponse>> toPartitionErrs(
-                                                                                            List<Map.Entry<String, CompletionStage<K>>> topicToFailedStage,
+    private @NonNull Map<String, List<ProduceResponseData.PartitionProduceResponse>> toPartitionErrs(
+                                                                                            List<Map.Entry<String, Throwable>> withErrors,
                                                                                             Map<String, TopicProduceData> topicNameToData) {
-        return topicToFailedStage.stream().collect(Collectors.toMap(
+        return withErrors.stream().collect(Collectors.toMap(
                 Map.Entry::getKey,
                 entry -> {
                     String topicName = entry.getKey();
-                    Throwable cause = causeOfFailedStage(entry.getValue());
+                    Throwable cause = entry.getValue();
                     return topicNameToData.get(topicName).partitionData().stream()
-                            .map(ppd -> convertProduceError(ppd.index(), cause))
+                            .map(ppd -> {
+                                var partitionProduceResponse = new ProduceResponseData.PartitionProduceResponse();
+                                handleExceptionDuringProduce(cause,
+                                        (error, msg) -> {
+                                            if (cause instanceof UnknownAliasException) {
+                                                if (log.isInfoEnabled()) {
+                                                    log.info("UnknownAliasException from KMS for alias '{}' while handling Produce request for topic '{}'; returning error code {}({}) and message '{}' to client.",
+                                                            cause.getMessage(), topicName, error, error.code(), msg);
+                                                }
+                                            } else {
+                                                if (log.isInfoEnabled()) {
+                                                    log.info("Exception while handling Produce request for topic '{}'; returning error code {}({}) and message '{}' to client.",
+                                                            topicName, error, error.code(), msg, cause);
+                                                }
+                                            }
+                                            partitionProduceResponse
+                                                    .setIndex(ppd.index())
+                                                    .setErrorCode(error.code())
+                                                    .setErrorMessage(msg);
+                                        });
+                                return partitionProduceResponse;
+                            })
                             .toList();
                 }));
     }
 
     @NonNull
     private List<CompletionStage<ProduceRequestData.PartitionProduceData>> encryptWithKeks(FilterContext context,
-                                                                                           List<Map.Entry<String, CompletionStage<K>>> withoutErrors,
+                                                                                           List<Map.Entry<String, K>> withoutErrors,
                                                                                            Map<String, TopicProduceData> topicNameToData) {
         return withoutErrors.stream().flatMap(e -> {
             String topicName = e.getKey();
-            var kekId = e.getValue().toCompletableFuture().join();
+            var kekId = e.getValue();
             TopicProduceData tpd = topicNameToData.get(topicName);
             return tpd.partitionData().stream().map(ppd -> {
                 // handle case where this topic is to be left unencrypted
@@ -229,25 +258,29 @@ public class EnvelopeEncryptionFilter<K>
         }).toList();
     }
 
-    @NonNull
-    private ProduceResponseData.PartitionProduceResponse convertProduceError(int partitionIndex, Throwable cause) {
+    private static void handleExceptionDuringProduce(@NonNull Throwable cause,
+                                                     @NonNull BiConsumer<Errors, String> consumer) {
 
-        Errors error;
-        String message = null;
+        final Errors error;
+        final String clientMessage;
         try {
             throw cause;
         }
         catch (UnknownKeyException | UnknownAliasException e) {
             error = Errors.RESOURCE_NOT_FOUND;
-            message = "Encryption key or alias not known to KMS. See proxy logs for details.";
+            clientMessage = "Encryption key or alias not known to KMS. See proxy logs for details.";
+        }
+        catch (KmsException | EncryptionException | DekException e) {
+            error = Errors.UNKNOWN_SERVER_ERROR;
+            clientMessage = "Unexpected error. See proxy logs for details.";
+            log.warn("", e);
         }
         catch (Throwable t) {
-            error = Errors.NONE;
+            error = Errors.UNKNOWN_SERVER_ERROR;
+            clientMessage = "Unexpected error. See proxy logs for details.";
+            log.warn("", t);
         }
-        return new ProduceResponseData.PartitionProduceResponse()
-                .setIndex(partitionIndex)
-                .setErrorCode(error.code())
-                .setErrorMessage(message);
+        consumer.accept(error, clientMessage);
     }
 
     private static @NonNull Throwable causeOfFailedStage(@NonNull CompletionStage<?> failedStage) {
@@ -266,6 +299,19 @@ public class EnvelopeEncryptionFilter<K>
             return new IllegalStateException("Expected a cause");
         }
         return cause;
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion,
+                                                                   ResponseHeaderData header,
+                                                                   ProduceResponseData response,
+                                                                   FilterContext context) {
+        var errMap = produceErrors.remove(header.correlationId());
+        if (errMap != null) {
+            ProduceResponseData.TopicProduceResponseCollection responses = response.responses();
+            appendPartitionErrors(responses, errMap);
+        }
+        return context.forwardResponse(header, response);
     }
 
     @Override

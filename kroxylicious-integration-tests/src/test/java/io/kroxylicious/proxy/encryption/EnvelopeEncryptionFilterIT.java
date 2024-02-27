@@ -403,6 +403,44 @@ class EnvelopeEncryptionFilterIT {
         }
     }
 
+    @TestTemplate
+    void allTopicsHavingUnknownAlias(KafkaCluster cluster, Topic encryptedTopic, Topic unknownTopic, TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(encryptedTopic.name());
+
+        var builder = proxy(cluster);
+        builder.addToFilters(buildEncryptionFilterDefinitionAllTopics(testKmsFacade));
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer(Map.of(
+                        ProducerConfig.LINGER_MS_CONFIG, 1000,
+                        ProducerConfig.BATCH_SIZE_CONFIG, 2,
+                        ProducerConfig.RETRIES_CONFIG, 0,
+                        ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 2000,
+                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 8000));
+                var consumer = tester.consumer()) {
+
+            var fut1 = producer.send(new ProducerRecord<>(unknownTopic.name(), HELLO_WORLD));
+            producer.flush();
+            assertThat(fut1).failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .havingCause()
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .withMessage("Encryption key or alias not known to KMS. See proxy logs for details.");
+
+            var fut0 = producer.send(new ProducerRecord<>(encryptedTopic.name(), HELLO_SECRET));
+            assertThat(fut0).succeedsWithin(10, TimeUnit.SECONDS);
+            consumer.subscribe(List.of(encryptedTopic.name(), unknownTopic.name()));
+            var records = consumer.poll(Duration.ofSeconds(2));
+            assertThat(records.iterator())
+                    .toIterable()
+                    .extracting(ConsumerRecord::value)
+                    .contains(HELLO_SECRET)
+                    .doesNotContain(HELLO_WORLD);
+        }
+    }
+
     /**
      * Test that ensures that the record offsets returned by the broker are faithfully relayed to the client.
      * @param cluster underlying kafka cluster
