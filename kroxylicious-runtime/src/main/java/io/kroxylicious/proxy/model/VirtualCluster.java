@@ -68,6 +68,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         logVirtualClusterSummary(clusterName, targetCluster, clusterNetworkAddressConfigProvider, tls);
     }
 
+    @SuppressWarnings("java:S1874") // the classes are deprecated because we don't want them in the API module
     private static void logVirtualClusterSummary(String clusterName, TargetCluster targetCluster,
                                                  ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
                                                  Optional<Tls> tls) {
