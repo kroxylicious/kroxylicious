@@ -998,7 +998,7 @@
             <modules>
                 <module>kroxylicious-integration-tests</module>
                 <module>kroxylicious-systemtests</module>
-                <module>kroxylicious-benchmarks</module>
+                <module>kroxylicious-microbenchmarks</module>
             </modules>
         </profile>
         <profile>
