@@ -7,11 +7,16 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
@@ -22,6 +27,7 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -32,7 +38,7 @@ class TemplateKekSelectorTest {
 
     @Test
     void shouldRejectUnknownPlaceholders() {
-        assertThatThrownBy(() -> getSelector(null, "foo-${topicId}-bar"))
+        assertThatThrownBy(() -> getSelectorAny(null, "foo-${topicId}-bar"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unknown template parameter: topicId");
     }
@@ -40,25 +46,76 @@ class TemplateKekSelectorTest {
     @Test
     void shouldResolveWhenAliasExists() {
         var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
-        var selector = getSelector(kms, "topic-${topicName}");
+        var selector = getSelectorExact(kms, "my-topic", "topic-${topicName}");
 
         var kek = kms.generateKey();
         kms.createAlias(kek, "topic-my-topic");
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
+        var map = selector.selectKek(Set.of("my-topic"));
         assertThat(map)
                 .hasSize(1)
-                .containsEntry("my-topic", kek);
+                .containsKey("my-topic")
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(UUID.class)))
+                .succeedsWithin(Duration.ZERO);
     }
 
     @Test
-    void shouldNotThrowWhenAliasDoesNotExist() {
+    void shouldResolveWhenAliasExistsViaPrefix() {
         var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
-        var selector = getSelector(kms, "topic-${topicName}");
+        var selector = getSelector(kms, List.of(new TemplateKekSelector.TopicNameMatcher(null, "my-topic", "key-for-${topicName}")));
 
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
-        assertThat(map)
-                .hasSize(1)
-                .containsEntry("my-topic", null);
+        var kek1 = kms.generateKey();
+        kms.createAlias(kek1, "key-for-my-topic");
+        var kek2 = kms.generateKey();
+        kms.createAlias(kek2, "key-for-my-topic-foo");
+        kms.createAlias(kek2, "key-for-my-topic-bar");
+        kms.createAlias(kek2, "key-for-my-topic-");
+        kms.createAlias(kek2, "key-for-my-topic.");
+        kms.createAlias(kek2, "key-for-my-topic_");
+        kms.createAlias(kek2, "key-for-my-topic0");
+
+        Map<String, UUID> expect = new HashMap<>();
+        expect.put("my-topic", kek1); // exact match
+        expect.put("my-topic-foo", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topic-bar", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topic-", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topic.", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topic_", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topic0", kek2); // prefixed by topic name matcher prefix
+        expect.put("my-topib", null); // precedes topic name matcher prefix
+        expect.put("my-topibZZZZZZZZZZZZ", null); // precedes topic name matcher prefix
+        expect.put("my-topid", null); // succeeds topic name matcher prefix
+
+        var mapAssert = assertThat(selector.selectKek(expect.keySet()))
+                .containsOnlyKeys(expect.keySet());
+        mapAssert
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(Optional.class)))
+                .succeedsWithin(Duration.ZERO)
+                .isEqualTo(Optional.of(kek1));
+        for (var k : expect.entrySet().stream().filter(e -> kek2.equals(e.getValue())).map(e -> e.getKey()).toList()) {
+            mapAssert
+                    .extractingByKey(k, as(InstanceOfAssertFactories.completionStage(Optional.class)))
+                    .succeedsWithin(Duration.ZERO)
+                    .isEqualTo(Optional.of(kek2));
+        }
+        for (var k : expect.entrySet().stream().filter(e -> e.getValue() == null).map(e -> e.getKey()).toList()) {
+            mapAssert
+                    .extractingByKey(k, as(InstanceOfAssertFactories.completionStage(Optional.class)))
+                    .succeedsWithin(Duration.ZERO)
+                    .isEqualTo(Optional.empty());
+        }
+    }
+
+    @Test
+    void shouldThrowWhenAliasDoesNotExist() {
+        var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
+        var selector = getSelectorAny(kms, "topic-${topicName}");
+
+        assertThat(selector.selectKek(Set.of("my-topic")))
+                .containsKey("my-topic")
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(UUID.class)))
+                .failsWithin(Duration.ZERO)
+                .withThrowableThat()
+                .withCauseInstanceOf(UnknownAliasException.class);
     }
 
     @Test
@@ -70,11 +127,13 @@ class TemplateKekSelectorTest {
                     throw new UnknownAliasException("mock alias exception");
                 });
         when(kms.resolveAlias(anyString())).thenReturn(result);
-        var selector = getSelector(kms, "topic-${topicName}");
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().get();
-        assertThat(map)
-                .hasSize(1)
-                .containsEntry("my-topic", null);
+        var selector = getSelectorAny(kms, "topic-${topicName}");
+        assertThat(selector.selectKek(Set.of("my-topic")))
+                .containsKey("my-topic")
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(UUID.class)))
+                .failsWithin(Duration.ZERO)
+                .withThrowableThat()
+                .withCauseInstanceOf(UnknownAliasException.class);
     }
 
     @Test
@@ -83,9 +142,11 @@ class TemplateKekSelectorTest {
         var result = CompletableFuture.<UUID> failedFuture(new KmsException("bang!"));
         when(kms.resolveAlias(anyString())).thenReturn(result);
 
-        var selector = getSelector(kms, "topic-${topicName}");
+        var selector = getSelectorAny(kms, "topic-${topicName}");
         var stage = selector.selectKek(Set.of("my-topic"));
         assertThat(stage)
+                .containsKey("my-topic")
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(UUID.class)))
                 .isCompletedExceptionally()
                 .failsWithin(Duration.ZERO)
                 .withThrowableThat()
@@ -93,8 +154,20 @@ class TemplateKekSelectorTest {
     }
 
     @NonNull
-    private <K> TopicNameBasedKekSelector<K> getSelector(Kms<K, ?> kms, String template) {
-        var config = new TemplateKekSelector.Config(template);
+    private <K> TopicNameBasedKekSelector<K> getSelectorAny(Kms<K, ?> kms, String template) {
+        List<TemplateKekSelector.TopicNameMatcher> templates = List.of(new TemplateKekSelector.TopicNameMatcher(null, "", template));
+        return getSelector(kms, templates);
+    }
+
+    @NonNull
+    private <K> TopicNameBasedKekSelector<K> getSelectorExact(Kms<K, ?> kms, String topicName, String template) {
+        List<TemplateKekSelector.TopicNameMatcher> templates = List.of(new TemplateKekSelector.TopicNameMatcher(null, "", template));
+        return getSelector(kms, templates);
+    }
+
+    @NonNull
+    private <K> TopicNameBasedKekSelector<K> getSelector(Kms<K, ?> kms, List<TemplateKekSelector.TopicNameMatcher> templates) {
+        var config = new TemplateKekSelector.Config(templates);
         return new TemplateKekSelector<K>().buildSelector(kms, config);
     }
 
