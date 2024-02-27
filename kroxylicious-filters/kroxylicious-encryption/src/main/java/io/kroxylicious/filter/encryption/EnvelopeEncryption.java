@@ -7,9 +7,14 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -30,6 +35,9 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static java.util.Objects.requireNonNullElse;
 
 /**
  * A {@link FilterFactory} for {@link EnvelopeEncryptionFilter}.
@@ -45,28 +53,90 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
         return retryThread;
     });
     private static KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(Metrics.globalRegistry);
+    private static final Logger LOGGER = LoggerFactory.getLogger(EnvelopeEncryption.class);
 
     record Config(
                   @JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
                   @PluginImplConfig(implNameProperty = "kms") Object kmsConfig,
 
                   @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
-                  @PluginImplConfig(implNameProperty = "selector") Object selectorConfig) {
-
-        public KmsCacheConfig kmsCache() {
-            return KmsCacheConfig.DEFAULT_CONFIG;
+                  @PluginImplConfig(implNameProperty = "selector") Object selectorConfig,
+                  @JsonProperty Map<String, Object> experimental) {
+        Config {
+            experimental = experimental == null ? Map.of() : experimental;
         }
+
+        KmsCacheConfig kmsCache() {
+            Integer decryptedDekCacheSize = getExperimentalInt("decryptedDekCacheSize");
+            Long decryptedDekExpireAfterAccessSeconds = getExperimentalLong("decryptedDekExpireAfterAccessSeconds");
+            Integer resolvedAliasCacheSize = getExperimentalInt("resolvedAliasCacheSize");
+            Long resolvedAliasExpireAfterWriteSeconds = getExperimentalLong("resolvedAliasExpireAfterWriteSeconds");
+            Long resolvedAliasRefreshAfterWriteSeconds = getExperimentalLong("resolvedAliasRefreshAfterWriteSeconds");
+            Long notFoundAliasExpireAfterWriteSeconds = getExperimentalLong("notFoundAliasExpireAfterWriteSeconds");
+            return new KmsCacheConfig(decryptedDekCacheSize, decryptedDekExpireAfterAccessSeconds, resolvedAliasCacheSize, resolvedAliasExpireAfterWriteSeconds,
+                    resolvedAliasRefreshAfterWriteSeconds, notFoundAliasExpireAfterWriteSeconds);
+        }
+
+        @Nullable
+        private Integer getExperimentalInt(String property) {
+            if (experimental.containsKey(property)) {
+                Object value = experimental.get(property);
+                if (value instanceof Number number) {
+                    return number.intValue();
+                }
+            }
+            return null;
+        }
+
+        @Nullable
+        private Long getExperimentalLong(String property) {
+            if (experimental.containsKey(property)) {
+                Object value = experimental.get(property);
+                if (value instanceof Number number) {
+                    return number.longValue();
+                }
+            }
+            return null;
+        }
+
     }
 
     record KmsCacheConfig(
-                          int decryptedDekCacheSize,
-                          @NonNull Duration decryptedDekExpireAfterAccessDuration,
-                          int resolvedAliasCacheSize,
-                          @NonNull Duration resolvedAliasExpireAfterWriteDuration,
-                          @NonNull Duration resolvedAliasRefreshAfterWriteDuration) {
+                          Integer decryptedDekCacheSize,
+                          Duration decryptedDekExpireAfterAccessDuration,
+                          Integer resolvedAliasCacheSize,
+                          Duration resolvedAliasExpireAfterWriteDuration,
+                          Duration resolvedAliasRefreshAfterWriteDuration,
+                          Duration notFoundAliasExpireAfterWriteDuration) {
 
-        private static final KmsCacheConfig DEFAULT_CONFIG = new KmsCacheConfig(1000, Duration.ofHours(1), 1000, Duration.ofMinutes(10), Duration.ofMinutes(8));
+        KmsCacheConfig {
+            decryptedDekCacheSize = requireNonNullElse(decryptedDekCacheSize, 1000);
+            decryptedDekExpireAfterAccessDuration = requireNonNullElse(decryptedDekExpireAfterAccessDuration, Duration.ofHours(1));
+            resolvedAliasCacheSize = requireNonNullElse(resolvedAliasCacheSize, 1000);
+            resolvedAliasExpireAfterWriteDuration = requireNonNullElse(resolvedAliasExpireAfterWriteDuration, Duration.ofMinutes(10));
+            resolvedAliasRefreshAfterWriteDuration = requireNonNullElse(resolvedAliasRefreshAfterWriteDuration, Duration.ofMinutes(8));
+            notFoundAliasExpireAfterWriteDuration = requireNonNullElse(notFoundAliasExpireAfterWriteDuration, Duration.ofSeconds(30));
+        }
 
+        KmsCacheConfig(Integer decryptedDekCacheSize,
+                       Long decryptedDekExpireAfterAccessSeconds,
+                       Integer resolvedAliasCacheSize,
+                       Long resolvedAliasExpireAfterWriteSeconds,
+                       Long resolvedAliasRefreshAfterWriteSeconds,
+                       Long notFoundAliasExpireAfterWriteSeconds) {
+            this(mapNotNull(decryptedDekCacheSize, Function.identity()),
+                    (Duration) mapNotNull(decryptedDekExpireAfterAccessSeconds, Duration::ofSeconds),
+                    mapNotNull(resolvedAliasCacheSize, Function.identity()),
+                    mapNotNull(resolvedAliasExpireAfterWriteSeconds, Duration::ofSeconds),
+                    mapNotNull(resolvedAliasRefreshAfterWriteSeconds, Duration::ofSeconds),
+                    mapNotNull(notFoundAliasExpireAfterWriteSeconds, Duration::ofSeconds));
+        }
+
+        static <T, Y> Y mapNotNull(T t, Function<T, Y> function) {
+            return t == null ? null : function.apply(t);
+        }
+
+        private static final KmsCacheConfig DEFAULT_CONFIG = new KmsCacheConfig(null, (Long) null, null, null, null, null);
     }
 
     @Override
@@ -118,7 +188,8 @@ public class EnvelopeEncryption<K, E> implements FilterFactory<EnvelopeEncryptio
     @NonNull
     private static <K, E> Kms<K, E> wrapWithCachingKms(Config configuration, Kms<K, E> resilientKms) {
         KmsCacheConfig config = configuration.kmsCache();
+        LOGGER.debug("KMS cache configuration: {}", config);
         return CachingKms.wrap(resilientKms, config.decryptedDekCacheSize, config.decryptedDekExpireAfterAccessDuration, config.resolvedAliasCacheSize,
-                config.resolvedAliasExpireAfterWriteDuration, config.resolvedAliasRefreshAfterWriteDuration);
+                config.resolvedAliasExpireAfterWriteDuration, config.resolvedAliasRefreshAfterWriteDuration, config.notFoundAliasExpireAfterWriteDuration);
     }
 }
