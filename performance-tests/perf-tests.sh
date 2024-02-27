@@ -212,7 +212,7 @@ if [[ ! -z "${KIBANA_OUTPUT_DIR}" && -d "${KIBANA_OUTPUT_DIR}" ]]; then
                           {name: "99th Latency", unit: "ms", value: .percentile99}]' ${PRODUCER_RESULT} > ${DIR}/producer.json
   done
 
-  for CONSUMER_RESULT in ${CONSUMER_RESULTS[@]}
+  for CONSUMER_RESULT in "${CONSUMER_RESULTS[@]}"
   do
     DIR=${KIBANA_OUTPUT_DIR}/$(jq -r '.name' ${CONSUMER_RESULT})
     jq '[.values | last | to_entries[] | { name: .key, value} ]' ${CONSUMER_RESULT} > ${DIR}/consumer.json
