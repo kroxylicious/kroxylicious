@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -15,12 +14,13 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
-
-import io.kroxylicious.kms.service.Kms;
-import io.kroxylicious.proxy.plugin.Plugin;
+import java.util.stream.Collectors;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+
+import io.kroxylicious.kms.service.Kms;
+import io.kroxylicious.proxy.plugin.Plugin;
 
 @Plugin(configType = TemplateKekSelector.Config.class)
 public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSelector.Config, K> {
@@ -76,36 +76,22 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
             this.kms = Objects.requireNonNull(kms);
         }
 
-        private record Pair<K>(@NonNull String topicName, @Nullable K kekId) {}
-
-        @NonNull
         @Override
-        public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames) {
-            var collect = topicNames.stream()
-                    .map(
+        public @NonNull Map<String, CompletionStage<K>> selectKek(@NonNull Set<String> topicNames) {
+            return topicNames.stream()
+                    .collect(Collectors.toMap(
+                            topicName -> topicName,
                             topicName -> {
                                 String template = lookup(topicName);
                                 if (template == null) {
-                                    return CompletableFuture.completedFuture(new Pair<K>(topicName, null));
+                                    return CompletableFuture.completedFuture(null);
                                 }
                                 String alias = evaluateTemplate(template, topicName);
-                                return kms.resolveAlias(alias)
-                                        .thenApply(kekId -> new Pair<>(topicName, kekId));
-                            })
-                    .toList();
-            return EnvelopeEncryptionFilter.join(collect).thenApply(list -> {
-                // Note we can't use `java.util.stream...(Collectors.toMap())` to build the map, because it has null values
-                // which Collectors.toMap() does now allow.
-                Map<String, K> map = new HashMap<>();
-                for (Pair<K> pair : list) {
-                    map.put(pair.topicName(), pair.kekId());
-                }
-                return map;
-            });
+                                return kms.resolveAlias(alias);
+                            }));
         }
 
-        @NonNull
-        String evaluateTemplate(@NonNull String template, @NonNull String topicName) {
+        private @NonNull String evaluateTemplate(@NonNull String template, @NonNull String topicName) {
 
             var matcher = PATTERN.matcher(template);
             StringBuilder sb = new StringBuilder();

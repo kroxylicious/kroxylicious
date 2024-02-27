@@ -15,6 +15,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
@@ -25,6 +26,7 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -47,10 +49,12 @@ class TemplateKekSelectorTest {
 
         var kek = kms.generateKey();
         kms.createAlias(kek, "topic-my-topic");
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
+        var map = selector.selectKek(Set.of("my-topic"));
         assertThat(map)
                 .hasSize(1)
-                .containsEntry("my-topic", kek);
+                .containsKey("my-topic")
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(UUID.class)))
+                .succeedsWithin(Duration.ZERO);
     }
 
     @Test
@@ -80,8 +84,24 @@ class TemplateKekSelectorTest {
         expect.put("my-topibZZZZZZZZZZZZ", null); // precedes topic name matcher prefix
         expect.put("my-topid", null); // succeeds topic name matcher prefix
 
-        assertThat(selector.selectKek(expect.keySet()).toCompletableFuture().join())
-                .isEqualTo(expect);
+        var mapAssert = assertThat(selector.selectKek(expect.keySet()))
+                .containsOnlyKeys(expect.keySet());
+        mapAssert
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(UUID.class)))
+                .succeedsWithin(Duration.ZERO)
+                .isEqualTo(kek1);
+        for (var k : expect.entrySet().stream().filter(e -> kek2.equals(e.getValue())).map(e -> e.getKey()).toList()) {
+            mapAssert
+                    .extractingByKey(k, as(InstanceOfAssertFactories.completionStage(UUID.class)))
+                    .succeedsWithin(Duration.ZERO)
+                    .isEqualTo(kek2);
+        }
+        for (var k : expect.entrySet().stream().filter(e -> e.getValue() == null).map(e -> e.getKey()).toList()) {
+            mapAssert
+                    .extractingByKey(k, as(InstanceOfAssertFactories.completionStage(UUID.class)))
+                    .succeedsWithin(Duration.ZERO)
+                    .isNull();
+        }
     }
 
     @Test
@@ -90,6 +110,8 @@ class TemplateKekSelectorTest {
         var selector = getSelectorAny(kms, "topic-${topicName}");
 
         assertThat(selector.selectKek(Set.of("my-topic")))
+                .containsKey("my-topic")
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(UUID.class)))
                 .failsWithin(Duration.ZERO)
                 .withThrowableThat()
                 .withCauseInstanceOf(UnknownAliasException.class);
@@ -106,6 +128,8 @@ class TemplateKekSelectorTest {
         when(kms.resolveAlias(anyString())).thenReturn(result);
         var selector = getSelectorAny(kms, "topic-${topicName}");
         assertThat(selector.selectKek(Set.of("my-topic")))
+                .containsKey("my-topic")
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(UUID.class)))
                 .failsWithin(Duration.ZERO)
                 .withThrowableThat()
                 .withCauseInstanceOf(UnknownAliasException.class);
@@ -120,6 +144,8 @@ class TemplateKekSelectorTest {
         var selector = getSelectorAny(kms, "topic-${topicName}");
         var stage = selector.selectKek(Set.of("my-topic"));
         assertThat(stage)
+                .containsKey("my-topic")
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(UUID.class)))
                 .isCompletedExceptionally()
                 .failsWithin(Duration.ZERO)
                 .withThrowableThat()

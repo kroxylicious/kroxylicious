@@ -19,6 +19,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.LongStream;
 
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -65,6 +66,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -115,15 +117,15 @@ class EnvelopeEncryptionFilterTest {
             return new ByteBufferOutputStream(capacity);
         });
 
-        final Map<String, String> topicNameToKekId = new HashMap<>();
-        topicNameToKekId.put(UNENCRYPTED_TOPIC, null);
-        topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
+        final Map<String, CompletionStage<String>> topicNameToKekId = new HashMap<>();
+        topicNameToKekId.put(UNENCRYPTED_TOPIC, CompletableFuture.completedFuture(null));
+        topicNameToKekId.put(ENCRYPTED_TOPIC, CompletableFuture.completedFuture(KEK_ID_1));
 
         when(kekSelector.selectKek(anySet())).thenAnswer(invocationOnMock -> {
             Set<String> wanted = invocationOnMock.getArgument(0);
             var copy = new HashMap<>(topicNameToKekId);
             copy.keySet().retainAll(wanted);
-            return CompletableFuture.completedFuture(copy);
+            return copy;
         });
 
         when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
@@ -205,7 +207,10 @@ class EnvelopeEncryptionFilterTest {
                 .setName(ENCRYPTED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
         RuntimeException exception = new RuntimeException("boom");
-        when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.failedFuture(exception));
+        doAnswer(i -> {
+            Set<String> topicNames = i.getArgument(0);
+            return topicNames.stream().collect(Collectors.toMap(topicName -> topicName, topicName -> CompletableFuture.failedFuture(exception)));
+        }).when(kekSelector).selectKek(anySet());
 
         // When
         CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
