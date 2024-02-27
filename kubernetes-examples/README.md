@@ -10,7 +10,7 @@ The instructions for running the examples are given below.
 
 | example                                                | showcases                                                                              |
 |--------------------------------------------------------|----------------------------------------------------------------------------------------|
-| [envelope-encryption](./envelope-encryption/README.md) | kroxylicious providing encryption-at-rest.                                             |
+| [record-encryption](record-encryption/README.md)       | kroxylicious providing encryption-at-rest.                                             |
 | [multi-tenant](./multi-tenant/README.md)               | kroxylicious providing multi-tenancy - present one kafka cluster as if it were many.   |
 | [portperbroker_plain](./portperbroker_plain/README.md) | kroxylicious+strimzi using plain connections upstream/downstream.                      |
 | [snirouting_tls](./snirouting_tls/README.md)           | kroxylicious+strimzi using TLS upstream/downstream connections with SNI based routing. |
