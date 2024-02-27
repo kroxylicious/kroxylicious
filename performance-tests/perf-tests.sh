@@ -6,7 +6,7 @@
 #
 
 set -eo pipefail
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+PERF_TESTS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 TEST=${TEST:-'[0-9][0-9]-.*'}
 RECORD_SIZE=${RECORD_SIZE:-1024}
@@ -15,16 +15,16 @@ WARM_UP_NUM_RECORDS_POST_BROKER_START=${WARM_UP_NUM_RECORDS_POST_BROKER_START:-1
 WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 
 ON_SHUTDOWN=()
-PERF_TESTS_DIR=${SCRIPT_DIR}/perf-tests
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NOCOLOR='\033[0m'
 
-KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${SCRIPT_DIR}/..}
+KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
 
 KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout)}
 STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
 KAFKA_TOOL_IMAGE=${KAFKA_TOOL_IMAGE:-quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}}
+PERF_NETWORK=performance-tests_perf_network
 export KAFKA_VERSION KAFKA_TOOL_IMAGE
 
 runDockerCompose () {
@@ -35,7 +35,7 @@ doCreateTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
-  docker run --rm --network perf-tests_perf_network ${KAFKA_TOOL_IMAGE}  \
+  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-topics.sh --create --topic ${TOPIC} --bootstrap-server ${ENDPOINT} 1>/dev/null
 }
 
@@ -44,7 +44,7 @@ doDeleteTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
-  docker run --rm --network perf-tests_perf_network ${KAFKA_TOOL_IMAGE}  \
+  docker run --rm --network  ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-topics.sh --delete --topic ${TOPIC} --bootstrap-server ${ENDPOINT}
 }
 
@@ -77,7 +77,7 @@ producerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  docker run --rm --network perf-tests_perf_network ${KAFKA_TOOL_IMAGE}  \
+  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-producer-perf-test.sh --topic ${TOPIC} --throughput -1 --num-records ${NUM_RECORDS} --record-size ${RECORD_SIZE} \
       --producer-props acks=all bootstrap.servers=${ENDPOINT} | \
       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
@@ -117,7 +117,7 @@ consumerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  docker run --rm --network perf-tests_perf_network ${KAFKA_TOOL_IMAGE}  \
+  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-consumer-perf-test.sh --topic ${TOPIC} --messages ${NUM_RECORDS} --hide-header \
       --bootstrap-server ${ENDPOINT} |
        jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<start.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +

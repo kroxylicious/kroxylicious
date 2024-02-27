@@ -34,7 +34,7 @@ The tested scenarios are:
 The performance tests are invoked using a script
 
 ```shell
-./scripts/perf-tests.sh
+./performance-tests/perf-tests.sh
 ```
 
 The script will produce output like this:
