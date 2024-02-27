@@ -23,7 +23,7 @@
     <packaging>pom</packaging>
 
     <modules>
-        <module>kroxylicious-encryption</module>
+        <module>kroxylicious-record-encryption</module>
         <module>kroxylicious-multitenant</module>
         <module>kroxylicious-record-validation</module>
         <module>kroxylicious-simple-transform</module>

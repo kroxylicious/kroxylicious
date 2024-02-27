@@ -50,7 +50,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-encryption</artifactId>
+            <artifactId>kroxylicious-record-encryption</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
