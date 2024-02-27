@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
@@ -24,5 +25,5 @@ public abstract class TopicNameBasedKekSelector<K> {
      * @param topicNames A set of topic names
      * @return A completion stage for the map form topic name to KEK id.
      */
-    public abstract @NonNull Map<String, CompletionStage<K>> selectKek(@NonNull Set<String> topicNames);
+    public abstract @NonNull Map<String, CompletionStage<Optional<K>>> selectKek(@NonNull Set<String> topicNames);
 }

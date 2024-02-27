@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -87,20 +88,20 @@ class TemplateKekSelectorTest {
         var mapAssert = assertThat(selector.selectKek(expect.keySet()))
                 .containsOnlyKeys(expect.keySet());
         mapAssert
-                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(UUID.class)))
+                .extractingByKey("my-topic", as(InstanceOfAssertFactories.completionStage(Optional.class)))
                 .succeedsWithin(Duration.ZERO)
-                .isEqualTo(kek1);
+                .isEqualTo(Optional.of(kek1));
         for (var k : expect.entrySet().stream().filter(e -> kek2.equals(e.getValue())).map(e -> e.getKey()).toList()) {
             mapAssert
-                    .extractingByKey(k, as(InstanceOfAssertFactories.completionStage(UUID.class)))
+                    .extractingByKey(k, as(InstanceOfAssertFactories.completionStage(Optional.class)))
                     .succeedsWithin(Duration.ZERO)
-                    .isEqualTo(kek2);
+                    .isEqualTo(Optional.of(kek2));
         }
         for (var k : expect.entrySet().stream().filter(e -> e.getValue() == null).map(e -> e.getKey()).toList()) {
             mapAssert
-                    .extractingByKey(k, as(InstanceOfAssertFactories.completionStage(UUID.class)))
+                    .extractingByKey(k, as(InstanceOfAssertFactories.completionStage(Optional.class)))
                     .succeedsWithin(Duration.ZERO)
-                    .isNull();
+                    .isEqualTo(Optional.empty());
         }
     }
 

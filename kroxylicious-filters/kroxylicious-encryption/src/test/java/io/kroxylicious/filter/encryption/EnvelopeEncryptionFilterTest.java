@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -29,9 +30,11 @@ import org.apache.kafka.common.message.FetchResponseData.PartitionData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
+import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
@@ -45,15 +48,24 @@ import org.assertj.core.matcher.AssertionMatcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.filter.encryption.dek.DekException;
+import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.kms.service.UnknownAliasException;
+import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -67,6 +79,7 @@ import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -95,6 +108,9 @@ class EnvelopeEncryptionFilterTest {
     @Mock(strictness = LENIENT)
     private FilterContext context;
 
+    @Mock(strictness = LENIENT, extraInterfaces = CloseOrTerminalStage.class)
+    private RequestFilterResultBuilder resultBuilder;
+
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
@@ -117,9 +133,12 @@ class EnvelopeEncryptionFilterTest {
             return new ByteBufferOutputStream(capacity);
         });
 
-        final Map<String, CompletionStage<String>> topicNameToKekId = new HashMap<>();
-        topicNameToKekId.put(UNENCRYPTED_TOPIC, CompletableFuture.completedFuture(null));
-        topicNameToKekId.put(ENCRYPTED_TOPIC, CompletableFuture.completedFuture(KEK_ID_1));
+        doReturn(resultBuilder).when(resultBuilder).shortCircuitResponse(any(), any());
+        when(context.requestFilterResultBuilder()).thenReturn(resultBuilder);
+
+        final Map<String, CompletionStage<Optional<String>>> topicNameToKekId = new HashMap<>();
+        topicNameToKekId.put(UNENCRYPTED_TOPIC, CompletableFuture.completedFuture(Optional.empty()));
+        topicNameToKekId.put(ENCRYPTED_TOPIC, CompletableFuture.completedFuture(Optional.of(KEK_ID_1)));
 
         when(kekSelector.selectKek(anySet())).thenAnswer(invocationOnMock -> {
             Set<String> wanted = invocationOnMock.getArgument(0);
@@ -200,24 +219,43 @@ class EnvelopeEncryptionFilterTest {
                 .isInstanceOf(FetchResponseData.class).isEqualTo(fetchResponseData)));
     }
 
-    @Test
-    void shouldPropagateRequestExceptions() {
+    static List<Arguments> shouldReturnErrorCodesForExceptions() {
+        return List.of(
+                Arguments.of(new RuntimeException("boom"), Errors.UNKNOWN_SERVER_ERROR, "Unexpected error. See proxy logs for details."),
+                Arguments.of(new UnknownAliasException("someAlias"), Errors.RESOURCE_NOT_FOUND, "Encryption key or alias not known to KMS. See proxy logs for details."),
+                Arguments.of(new UnknownKeyException("someKey"), Errors.RESOURCE_NOT_FOUND, "Encryption key or alias not known to KMS. See proxy logs for details."),
+                Arguments.of(new KmsException("whatever"), Errors.UNKNOWN_SERVER_ERROR, "Unexpected error. See proxy logs for details."),
+                Arguments.of(new DekException("whatever"), Errors.UNKNOWN_SERVER_ERROR, "Unexpected error. See proxy logs for details."),
+                Arguments.of(new EncryptionException("whatever"), Errors.UNKNOWN_SERVER_ERROR, "Unexpected error. See proxy logs for details."));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void shouldReturnErrorCodesForExceptions(Throwable error, Errors expectedError, String expectedErrorMessage) {
         // Given
         var produceRequestData = buildProduceRequestData(new TopicProduceData()
                 .setName(ENCRYPTED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
-        RuntimeException exception = new RuntimeException("boom");
         doAnswer(i -> {
             Set<String> topicNames = i.getArgument(0);
-            return topicNames.stream().collect(Collectors.toMap(topicName -> topicName, topicName -> CompletableFuture.failedFuture(exception)));
+            return topicNames.stream().collect(Collectors
+                    .toMap(
+                            topicName -> topicName,
+                            topicName -> CompletableFuture.failedFuture(error)));
         }).when(kekSelector).selectKek(anySet());
 
         // When
         CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
-                new RequestHeaderData(), produceRequestData, context);
+                new RequestHeaderData().setCorrelationId(42), produceRequestData, context);
 
         // Then
-        assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
+        assertThat(stage.toCompletableFuture()).isCompletedWithValue(null);
+        verify(context).requestFilterResultBuilder();
+        verify(resultBuilder).shortCircuitResponse(any(), EnvelopeEncryptionFilterTest.<ProduceResponseData> argThat(r -> {
+            var actual = r.responses().find(ENCRYPTED_TOPIC).partitionResponses().get(0);
+            assertThat(actual.errorCode()).isEqualTo(expectedError.code());
+            assertThat(actual.errorMessage()).isEqualTo(expectedErrorMessage);
+        }));
     }
 
     @Test

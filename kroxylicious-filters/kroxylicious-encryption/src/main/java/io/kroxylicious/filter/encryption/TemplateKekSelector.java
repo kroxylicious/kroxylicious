@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
@@ -16,11 +17,11 @@ import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.proxy.plugin.Plugin;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 @Plugin(configType = TemplateKekSelector.Config.class)
 public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSelector.Config, K> {
@@ -77,17 +78,17 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateKekSel
         }
 
         @Override
-        public @NonNull Map<String, CompletionStage<K>> selectKek(@NonNull Set<String> topicNames) {
+        public @NonNull Map<String, CompletionStage<Optional<K>>> selectKek(@NonNull Set<String> topicNames) {
             return topicNames.stream()
                     .collect(Collectors.toMap(
                             topicName -> topicName,
                             topicName -> {
                                 String template = lookup(topicName);
                                 if (template == null) {
-                                    return CompletableFuture.completedFuture(null);
+                                    return CompletableFuture.completedFuture(Optional.<K> empty());
                                 }
                                 String alias = evaluateTemplate(template, topicName);
-                                return kms.resolveAlias(alias);
+                                return kms.resolveAlias(alias).thenApply(Optional::ofNullable);
                             }));
         }
 
