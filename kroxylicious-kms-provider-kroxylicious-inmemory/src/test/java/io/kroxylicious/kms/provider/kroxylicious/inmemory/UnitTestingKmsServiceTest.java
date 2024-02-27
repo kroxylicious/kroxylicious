@@ -8,6 +8,7 @@ package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -36,12 +37,14 @@ class UnitTestingKmsServiceTest {
     @Test
     void shouldRejectOutOfBoundIvBytes() {
         // given
-        assertThrows(IllegalArgumentException.class, () -> new UnitTestingKmsService.Config(0, 128));
+        List<UnitTestingKmsService.Kek> existingKeks = List.of();
+        assertThrows(IllegalArgumentException.class, () -> new UnitTestingKmsService.Config(0, 128, existingKeks));
     }
 
     @Test
     void shouldRejectOutOfBoundAuthBits() {
-        assertThrows(IllegalArgumentException.class, () -> new UnitTestingKmsService.Config(12, 0));
+        List<UnitTestingKmsService.Kek> existingKeks = List.of();
+        assertThrows(IllegalArgumentException.class, () -> new UnitTestingKmsService.Config(12, 0, existingKeks));
     }
 
     @Test
