@@ -11,8 +11,6 @@ import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.crypto.SecretKey;
-
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
@@ -63,14 +61,7 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
     @NonNull
     @Override
     public InMemoryKms buildKms(Config options) {
-        return KMSES.computeIfAbsent(options.name(), ignored -> {
-            var keys = new ConcurrentHashMap<UUID, SecretKey>();
-            var aliases = new ConcurrentHashMap<String, UUID>();
-            return new InMemoryKms(12,
-                    128,
-                    keys,
-                    aliases);
-        });
+        return KMSES.computeIfAbsent(options.name(), ignored -> new InMemoryKms(12, 128, Map.of(), Map.of()));
     }
 
     public static void delete(String name) {

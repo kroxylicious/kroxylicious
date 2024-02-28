@@ -8,6 +8,7 @@ package io.kroxylicious.filter.encryption.dek;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -26,7 +27,7 @@ class DekManagerTest {
     void testResolveAlias() {
         // Given
         UnitTestingKmsService unitTestingKmsService = UnitTestingKmsService.newInstance();
-        UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96);
+        UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96, List.of());
         var kms = unitTestingKmsService.buildKms(options);
         var kekId = kms.generateKey();
         kms.createAlias(kekId, "foo");
@@ -44,7 +45,7 @@ class DekManagerTest {
     void testLimitsNumbersOfEncryptors(CipherSpec cipherSpec) {
         // Given
         UnitTestingKmsService unitTestingKmsService = UnitTestingKmsService.newInstance();
-        UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96);
+        UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96, List.of());
         var kms = unitTestingKmsService.buildKms(options);
         var kekId = kms.generateKey();
         kms.createAlias(kekId, "foo");
@@ -62,7 +63,7 @@ class DekManagerTest {
     void testDecryptedEdekIsGoodForDecryptingData(CipherSpec cipherSpec) {
         // Given
         UnitTestingKmsService unitTestingKmsService = UnitTestingKmsService.newInstance();
-        UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96);
+        UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96, List.of());
         var kms = unitTestingKmsService.buildKms(options);
         var kekId = kms.generateKey();
         kms.createAlias(kekId, "foo");

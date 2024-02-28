@@ -1,4 +1,4 @@
-# Performance Tests
+# Micro Benchmarks
 
 This module contains micro-benchmark code used for adhoc performance experiments.
 
@@ -14,18 +14,18 @@ mvn clean install -DskipTests
 
 ### 2. Run Benchmarks
 
-To run a benchmark like [io.kroxylicious.benchmarks.InvokerScalabilityBenchmark](src/main/java/io/kroxylicious/benchmarks/InvokerScalabilityBenchmark.java)
+To run a benchmark like [io.kroxylicious.microbenchmarks.InvokerScalabilityBenchmark](src/main/java/io/kroxylicious/microbenchmarks/InvokerScalabilityBenchmark.java)
 ```shell
-java -jar performance-tests/target/benchmarks.jar io.kroxylicious.benchmarks.InvokerScalabilityBenchmark
+java -jar kroxylicious-microbenchmarks/target/microbenchmarks.jar io.kroxylicious.microbenchmarks.InvokerScalabilityBenchmark
 ```
 
 To run specific benchmark methods within a class you can use regex matching:
 ```shell
-java -jar performance-tests/target/benchmarks.jar io.kroxylicious.benchmarks.InvokerScalabilityBenchmark.methodNamePattern
+java -jar kroxylicious-microbenchmarks/target/microbenchmarks.jar io.kroxylicious.microbenchmarks.InvokerScalabilityBenchmark.methodNamePattern
 ```
 
 You can control how many forks/warmup-iterations/iterations etc. are run using command line arguments, see 
-`java -jar performance-tests/target/benchmarks.jar -h` for details.
+`java -jar kroxylicious-microbenchmarks/target/microbenchmarks.jar -h` for details.
 
 ### 3. Profilers
 

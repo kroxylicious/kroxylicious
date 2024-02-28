@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
@@ -50,11 +51,12 @@ public class InMemoryKms implements
     private final Map<String, UUID> aliases;
     private final List<DekPair<InMemoryEdek>> edeksGenerated = new CopyOnWriteArrayList<>();
 
-    InMemoryKms(int numIvBytes, int numAuthBits,
+    InMemoryKms(int numIvBytes,
+                int numAuthBits,
                 Map<UUID, SecretKey> keys,
                 Map<String, UUID> aliases) {
-        this.keys = keys;
-        this.aliases = aliases;
+        this.keys = new ConcurrentHashMap<>(keys);
+        this.aliases = new ConcurrentHashMap<>(aliases);
         this.secureRandom = new SecureRandom();
         this.numIvBytes = numIvBytes;
         this.numAuthBits = numAuthBits;

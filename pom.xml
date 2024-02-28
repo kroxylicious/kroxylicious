@@ -45,14 +45,14 @@
         <log4j.version>2.22.1</log4j.version>
         <caffeine.version>3.1.8</caffeine.version>
         <picocli.version>4.7.5</picocli.version>
-        <netty.version>4.1.106.Final</netty.version>
+        <netty.version>4.1.107.Final</netty.version>
         <netty.io_uring.version>0.0.24.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.25.3</assertj-core.version>
         <mockito.version>5.10.0</mockito.version>
-        <micrometer.version>1.12.2</micrometer.version>
+        <micrometer.version>1.12.3</micrometer.version>
         <slf4j.version>2.0.12</slf4j.version>
         <sundr-builder-annotations.version>0.101.3</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.8.3</spotbugs-annotations.version>
@@ -67,7 +67,7 @@
         <maven.core.version>3.9.6</maven.core.version>
         <awaitility.version>4.2.0</awaitility.version>
         <commons.io.version>2.15.1</commons.io.version>
-        <testcontainers.version>1.19.5</testcontainers.version>
+        <testcontainers.version>1.19.6</testcontainers.version>
         <bouncycastle.version>1.77</bouncycastle.version>
     </properties>
 
@@ -998,7 +998,7 @@
             <modules>
                 <module>kroxylicious-integration-tests</module>
                 <module>kroxylicious-systemtests</module>
-                <module>performance-tests</module>
+                <module>kroxylicious-microbenchmarks</module>
             </modules>
         </profile>
         <profile>
