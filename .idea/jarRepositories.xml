@@ -7,11 +7,6 @@
       <option name="url" value="https://repo.maven.apache.org/maven2" />
     </remote-repository>
     <remote-repository>
-      <option name="id" value="Apache Kafka Staging" />
-      <option name="name" value="Apache Kafka Staging" />
-      <option name="url" value="https://repository.apache.org/content/groups/staging/" />
-    </remote-repository>
-    <remote-repository>
       <option name="id" value="central" />
       <option name="name" value="Maven Central repository" />
       <option name="url" value="https://repo1.maven.org/maven2" />
