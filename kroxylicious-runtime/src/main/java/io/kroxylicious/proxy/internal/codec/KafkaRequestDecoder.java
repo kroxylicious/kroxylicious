@@ -144,7 +144,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             if (apiVersion < 9) { // Last non-flexible version
                 transactionIdLength = in.readShort();
             }
-            else if (apiVersion == 9) { // First flexible version
+            else if (apiVersion == 9 || apiVersion == 10) { // Flexible versions
                 transactionIdLength = ByteBufAccessorImpl.readUnsignedVarint(in);
             }
             else {

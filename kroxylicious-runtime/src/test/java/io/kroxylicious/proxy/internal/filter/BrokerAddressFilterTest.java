@@ -19,11 +19,14 @@ import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -47,7 +50,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class BrokerAddressFilterTest {
@@ -76,6 +78,12 @@ class BrokerAddressFilterTest {
     @Mock
     private FilterContext context;
 
+    @Captor
+    private ArgumentCaptor<ApiMessage> apiMessageCaptor;
+
+    @Captor
+    private ArgumentCaptor<ResponseHeaderData> responseHeaderDataCaptor;
+
     private BrokerAddressFilter filter;
 
     private FilterInvoker invoker;
@@ -97,7 +105,7 @@ class BrokerAddressFilterTest {
     public void beforeEach() {
         filter = new BrokerAddressFilter(virtualCluster, endpointReconciler);
         invoker = getOnlyElement(FilterAndInvoker.build(filter)).invoker();
-        when(virtualCluster.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
+        lenient().when(virtualCluster.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
 
         var nodeMap = Map.of(0, HostPort.parse("upstream:9199"));
         lenient().when(endpointReconciler.reconcile(Mockito.eq(virtualCluster), Mockito.eq(nodeMap)))
@@ -129,7 +137,7 @@ class BrokerAddressFilterTest {
 
         var marshalled = responseWriter.apply(response, header.requestApiVersion());
 
-        when(context.responseFilterResultBuilder()).thenReturn(new ResponseFilterResultBuilderImpl());
+        configureContextResponseStubbing();
 
         ResponseHeaderData headerData = new ResponseHeaderData();
         var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
@@ -140,4 +148,9 @@ class BrokerAddressFilterTest {
         assertThat(JsonDiff.asJson(marshalled, filtered)).isEqualTo(responseTestDef.expectedPatch());
     }
 
+    private void configureContextResponseStubbing() {
+        lenient().when(context.responseFilterResultBuilder()).thenReturn(new ResponseFilterResultBuilderImpl());
+        lenient().when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture()))
+                .thenAnswer((x) -> new ResponseFilterResultBuilderImpl().forward(responseHeaderDataCaptor.getValue(), apiMessageCaptor.getValue()).completed());
+    }
 }

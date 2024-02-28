@@ -22,6 +22,10 @@
         The intention of this module is to test Kroxylicious against a kafka instance deployed in a kubernetes cluster/minikube
         using Strimzi, to simulate a real scenario for end-to-end testing treating Kroxylicious as a black box.
     </description>
+
+    <properties>
+        <kafka.version>3.6.1</kafka.version>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>

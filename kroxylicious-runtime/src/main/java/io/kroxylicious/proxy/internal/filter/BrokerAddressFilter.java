@@ -15,19 +15,23 @@ import java.util.function.ToIntFunction;
 
 import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.message.DescribeClusterResponseData.DescribeClusterBroker;
+import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData.Coordinator;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
+import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.DescribeClusterResponseFilter;
+import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
+import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.model.VirtualCluster;
@@ -37,7 +41,8 @@ import io.kroxylicious.proxy.service.HostPort;
  * An internal filter that rewrites broker addresses in all relevant responses to the corresponding proxy address. It also
  * is responsible for updating the virtual cluster's cache of upstream broker endpoints.
  */
-public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordinatorResponseFilter, DescribeClusterResponseFilter {
+public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordinatorResponseFilter, DescribeClusterResponseFilter,
+        ProduceResponseFilter, FetchResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
@@ -87,7 +92,41 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
             apply(context, data, FindCoordinatorResponseData::nodeId, FindCoordinatorResponseData::host, FindCoordinatorResponseData::port,
                     FindCoordinatorResponseData::setHost, FindCoordinatorResponseData::setPort);
         }
-        return context.responseFilterResultBuilder().forward(header, data).completed();
+        return context.forwardResponse(header, data);
+    }
+
+    @Override
+    public boolean shouldHandleProduceResponse(short apiVersion) {
+        return apiVersion >= 10;
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response, FilterContext context) {
+        // KIP-951, Version 10
+        if (response.nodeEndpoints() != null) {
+            response.nodeEndpoints()
+                    .forEach(ne -> apply(context, ne, ProduceResponseData.NodeEndpoint::nodeId,
+                            ProduceResponseData.NodeEndpoint::host, ProduceResponseData.NodeEndpoint::port,
+                            ProduceResponseData.NodeEndpoint::setHost, ProduceResponseData.NodeEndpoint::setPort));
+        }
+        return context.forwardResponse(header, response);
+    }
+
+    @Override
+    public boolean shouldHandleFetchResponse(short apiVersion) {
+        return apiVersion >= 16;
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, FilterContext context) {
+        // KIP-951, Version 16
+        if (response.nodeEndpoints() != null) {
+            response.nodeEndpoints()
+                    .forEach(ne -> apply(context, ne, FetchResponseData.NodeEndpoint::nodeId,
+                            FetchResponseData.NodeEndpoint::host, FetchResponseData.NodeEndpoint::port,
+                            FetchResponseData.NodeEndpoint::setHost, FetchResponseData.NodeEndpoint::setPort));
+        }
+        return context.forwardResponse(header, response);
     }
 
     private <T> void apply(FilterContext context, T broker, Function<T, Integer> nodeIdGetter, Function<T, String> hostGetter, ToIntFunction<T> portGetter,
