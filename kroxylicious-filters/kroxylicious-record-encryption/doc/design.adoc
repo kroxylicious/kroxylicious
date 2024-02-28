@@ -4,11 +4,11 @@ Tom Bentley <tbentley@redhat.com>
 :icons: font
 :source-highlighter: pygments
 
-Design documentation on the encryption filter.
+Design documentation on the record encryption filter using envelope encryption.
 
 == Scope
 
-The encryption filter is designed to provide confidentiality and integrity guarantees for data stored in Apache Kafka(TM), under the threat models described later in this document.
+The record encryption filter is designed to provide confidentiality and integrity guarantees for data stored in Apache Kafka(TM), under the threat models described later in this document.
 
 Some assumptions are necessary in order to provide these guarantees, and these guarantees are not absolute. In other words, depending on how the proxy and filter are configured and deployed, it's possible that the actual security provided is less than what is described in this document. We will try to call-out in this document where we're making assumptions that affect the quality of security provided.
 
