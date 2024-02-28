@@ -27,6 +27,7 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class MultiTenantTransformationFilterTest {
+
     private MultiTenantTransformationFilter multiTenantTransformationFilter;
     @Mock
     private FilterContext filterContext;
