@@ -2,7 +2,7 @@
 :encryption-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-encryption
 :design-doc: https://github.com/kroxylicious/kroxylicious/blob/main/kroxylicious-filters/kroxylicious-encryption/doc/design.adoc
 
-= Envelope Encryption
+= Record Encryption
 
 == What is it?
 
