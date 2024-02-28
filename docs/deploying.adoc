@@ -86,11 +86,12 @@ If present, it will be replaced by the https://kafka.apache.org/documentation/#b
 For example if your configuration looks like the above and your cluster has three brokers, your Kafka Client will receive
 broker address information like this:
 
-```
-0.  `mybroker-0.mycluster.kafka.com:9193`
-1.  `mybroker-1.mycluster.kafka.com:9194`
-2.  `mybroker-2.mycluster.kafka.com:9194`
-```
+[source]
+----
+0.  mybroker-0.mycluster.kafka.com:9193
+1.  mybroker-1.mycluster.kafka.com:9194
+2.  mybroker-2.mycluster.kafka.com:9194
+----
 
 NOTE: It is a responsibility for the deployer of Kroxylicious to ensure that the bootstrap and generated broker
 DNS names are resolvable and routable by the Kafka Client.
