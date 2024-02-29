@@ -86,16 +86,16 @@ micrometer:
   - type: "CommonTagsHook"
     config:
       commonTags:
-        zone: "euc-1a" #1
+        zone: "euc-1a" # <1>
   - type: "StandardBindersHook"
     config:
       binderNames:
-      - "JvmGcMetrics" #2
+      - "JvmGcMetrics" # <2>
 ----
 This configuration:
 
-1. configures a common tag on the global micrometer registry of `zone: euc-1a` to add to all metrics (becomes a label in prometheus)
-2. registers a JvmGcMetrics binder with the global registry (shipped with micrometer)
+<1> configures a common tag on the global micrometer registry of `zone: euc-1a` to add to all metrics (becomes a label in prometheus)
+<2> registers a JvmGcMetrics binder with the global registry (shipped with micrometer)
 
 Prometheus is connected to the micrometer global registry so Filters can record metrics against
 it, and they will be available as part of the Prometheus scrape data.
