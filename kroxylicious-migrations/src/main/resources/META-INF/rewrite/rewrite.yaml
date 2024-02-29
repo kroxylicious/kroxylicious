@@ -7,10 +7,19 @@
 ---
 type: specs.openrewrite.org/v1beta/recipe
 name: io.kroxylicious.rewrite.maven.EncryptionModuleToRecordEncryption
-displayName: Change Maven dependency example
+displayName: "Update replaced maven artifact io.kroxylicious:kroxylicious-encryption with kroxylicious-record-encryption"
 recipeList:
   - org.openrewrite.maven.ChangeDependencyGroupIdAndArtifactId:
       oldGroupId: io.kroxylicious
       oldArtifactId: kroxylicious-encryption
       newGroupId: io.kroxylicious
       newArtifactId: kroxylicious-record-encryption
+---
+type: specs.openrewrite.org/v1beta/recipe
+name: io.kroxylicious.rewrite.filterConfig.EnvelopeEncryptionFilterToRecordEncryptionFilter
+displayName: "Replace usages of EnvelopeEncryption Filter in config files with the RecordEncryption Filter"
+recipeList:
+  - org.openrewrite.yaml.ChangeValue:
+      keyPath: $.filters.*.type[?(@ == 'EnvelopeEncryption')]
+      value: RecordEncryption
+
