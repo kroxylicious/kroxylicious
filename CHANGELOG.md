@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#10??](https://github.com/kroxylicious/kroxylicious/pull/10??): Add deprecated EnvelopeEncryption filter to ease migration to RecordEncryption filter
 * [#1043](https://github.com/kroxylicious/kroxylicious/pull/1043): Rename EnvelopeEncryption filter to RecordEncryption
 * [#1029](https://github.com/kroxylicious/kroxylicious/pull/1029): Upgrade to Kafka 3.7.0
 * [#1011](https://github.com/kroxylicious/kroxylicious/pull/1011): Bump io.netty:netty-bom from 4.1.106.Final to 4.1.107.Final

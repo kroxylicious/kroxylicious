@@ -134,7 +134,7 @@ The filter is configured as part of the filter chain in the following way:
 [source, yaml]
 ----
 filters:
-- type: EnvelopeEncryption                                        # <1>
+- type: RecordEncryption                                        # <1>
   config:
     kms: <KMS service name>                                       # <2>
     kmsConfig:                                                    # <3>
@@ -143,7 +143,7 @@ filters:
     selectorConfig:                                               # <5>
       ..:
 ----
-<1> The name of the filter. This must be `EnvelopeEncryption`.
+<1> The name of the filter. This must be `RecordEncryption`, the filter was previously known `EnvelopEncryption`.
 <2> The KMS service name.
 <3> Object providing configuration understood by KMS provider.
 <4> The KEK selector service name.
