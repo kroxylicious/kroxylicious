@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#1050](https://github.com/kroxylicious/kroxylicious/pull/1050): Change AES GCM cipher to require a 256bit key
 * [#1049](https://github.com/kroxylicious/kroxylicious/pull/1049): Add deprecated EnvelopeEncryption filter to ease migration to RecordEncryption filter
 * [#1043](https://github.com/kroxylicious/kroxylicious/pull/1043): Rename EnvelopeEncryption filter to RecordEncryption
 * [#1029](https://github.com/kroxylicious/kroxylicious/pull/1029): Upgrade to Kafka 3.7.0

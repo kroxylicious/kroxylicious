@@ -29,11 +29,11 @@ import javax.crypto.spec.IvParameterSpec;
 public enum CipherSpec {
 
     /**
-     * AES/GCM with 128-bit key, 96-bit IV and 128-bit tag.
+     * AES/GCM with 256-bit key, 96-bit IV and 128-bit tag.
      * @see <a href="https://www.ietf.org/rfc/rfc5116.txt">RFC-5116</a>
      */
-    AES_128_GCM_128((byte) 0,
-            "AES/GCM/NoPadding",
+    AES_256_GCM_128((byte) 0,
+            "AES_256/GCM/NoPadding",
             1L << 32 // 2^32
     ) {
 
@@ -128,7 +128,7 @@ public enum CipherSpec {
     public static CipherSpec fromPersistentId(int persistentId) {
         switch (persistentId) {
             case 0:
-                return CipherSpec.AES_128_GCM_128;
+                return CipherSpec.AES_256_GCM_128;
             case 1:
                 return CipherSpec.CHACHA20_POLY1305;
             default:

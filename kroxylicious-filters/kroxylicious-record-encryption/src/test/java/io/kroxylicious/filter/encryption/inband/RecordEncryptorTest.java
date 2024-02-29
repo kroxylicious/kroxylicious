@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.encryption.inband;
 
 import java.nio.ByteBuffer;
-import java.security.NoSuchAlgorithmException;
 import java.util.Set;
 
 import javax.crypto.KeyGenerator;
@@ -26,6 +25,7 @@ import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
+import io.kroxylicious.filter.encryption.dek.DekException;
 import io.kroxylicious.filter.encryption.records.RecordTransform;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.test.assertj.KafkaAssertions;
@@ -33,69 +33,95 @@ import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 class RecordEncryptorTest {
 
-    private static Dek.Decryptor DECRYPTOR;
+    private static TestComponents components;
 
-    private static Dek.Encryptor ENCRYPTOR;
-    private static ByteBuffer EDEK;
-    private static Serde<ByteBuffer> EDEK_SERDE;
+    record TestComponents(
+                          Dek.Encryptor encryptor,
+                          Dek.Decryptor decryptor,
+                          Serde<ByteBuffer> edekSerde) {}
 
     @BeforeAll
-    public static void initKeyContext() throws NoSuchAlgorithmException, ReflectiveOperationException {
-        var generator = KeyGenerator.getInstance("AES");
-        var key = generator.generateKey();
-        EDEK = ByteBuffer.wrap(key.getEncoded()); // it doesn't matter for this test that it's not encrypted
-
-        var dek = mock(Dek.class);
-        doReturn(EDEK).when(dek).edek();
-        var encryptorConstructor = Dek.Encryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class, Integer.TYPE);
-        encryptorConstructor.setAccessible(true);
-        ENCRYPTOR = encryptorConstructor.newInstance(dek, CipherSpec.AES_128_GCM_128, key, 1_000_000);
-        doReturn(ENCRYPTOR).when(dek).encryptor(anyInt());
-
-        var decryptorConstructor = Dek.Decryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class);
-        decryptorConstructor.setAccessible(true);
-        DECRYPTOR = decryptorConstructor.newInstance(dek, CipherSpec.AES_128_GCM_128, key);
-        doReturn(DECRYPTOR).when(dek).decryptor();
-
-        EDEK_SERDE = new Serde<ByteBuffer>() {
-            @Override
-            public int sizeOf(ByteBuffer object) {
-                return object.remaining();
-            }
-
-            @Override
-            public void serialize(
-                                  ByteBuffer object,
-                                  @NonNull ByteBuffer buffer) {
-                var p0 = object.position();
-                buffer.put(object);
-                object.position(p0);
-            }
-
-            @Override
-            public ByteBuffer deserialize(@NonNull ByteBuffer buffer) {
-                throw new UnsupportedOperationException();
-            }
-        };
+    public static void initKeyContext() {
+        components = setup(256);
     }
 
-    private Record encryptSingleRecord(Set<RecordField> fields, long offset, long timestamp, String key, String value, Header... headers) {
+    static TestComponents setup(int keysize) {
+        try {
+            var generator = KeyGenerator.getInstance("AES");
+            generator.init(keysize);
+            var key = generator.generateKey();
+            var EDEK = ByteBuffer.wrap(key.getEncoded()); // it doesn't matter for this test that it's not encrypted
+
+            var dek = mock(Dek.class);
+            doReturn(EDEK).when(dek).edek();
+            var encryptorConstructor = Dek.Encryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class, Integer.TYPE);
+            encryptorConstructor.setAccessible(true);
+            var ENCRYPTOR = encryptorConstructor.newInstance(dek, CipherSpec.AES_256_GCM_128, key, 1_000_000);
+            doReturn(ENCRYPTOR).when(dek).encryptor(anyInt());
+
+            var decryptorConstructor = Dek.Decryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class);
+            decryptorConstructor.setAccessible(true);
+            var DECRYPTOR = decryptorConstructor.newInstance(dek, CipherSpec.AES_256_GCM_128, key);
+            doReturn(DECRYPTOR).when(dek).decryptor();
+
+            var EDEK_SERDE = new Serde<ByteBuffer>() {
+                @Override
+                public int sizeOf(ByteBuffer object) {
+                    return object.remaining();
+                }
+
+                @Override
+                public void serialize(
+                                      ByteBuffer object,
+                                      @NonNull ByteBuffer buffer) {
+                    var p0 = object.position();
+                    buffer.put(object);
+                    object.position(p0);
+                }
+
+                @Override
+                public ByteBuffer deserialize(@NonNull ByteBuffer buffer) {
+                    throw new UnsupportedOperationException();
+                }
+            };
+            return new TestComponents(ENCRYPTOR, DECRYPTOR, EDEK_SERDE);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void aes256KeyMustBe256bits() {
+        TestComponents componentsWith128BitDek = setup(128);
+        Set<RecordField> fields = Set.of(RecordField.RECORD_VALUE);
+        long offset = 55L;
+        long timestamp = System.currentTimeMillis();
+        var key = "hello";
+        var value = "world";
+
+        assertThatThrownBy(() -> encryptSingleRecord(componentsWith128BitDek, fields, offset, timestamp, key, value)).isInstanceOf(DekException.class)
+                .hasMessageContaining("The key must be 32 bytes");
+    }
+
+    private Record encryptSingleRecord(TestComponents components, Set<RecordField> fields, long offset, long timestamp, String key, String value, Header... headers) {
         var re = new RecordEncryptor(
                 "topic", 0,
                 EncryptionVersion.V1,
                 new EncryptionScheme<>("key", fields),
-                EDEK_SERDE,
+                components.edekSerde,
                 ByteBuffer.allocate(100));
 
         Record record = RecordTestUtils.record(RecordBatch.MAGIC_VALUE_V2, offset, timestamp, key, value, headers);
 
-        return transformRecord(re, ENCRYPTOR, record);
+        return transformRecord(re, components.encryptor, record);
     }
 
     private <S> Record transformRecord(RecordTransform<S> recordTransform, S state, Record record) {
@@ -120,7 +146,7 @@ class RecordEncryptorTest {
         var value = "world";
 
         // When
-        var t = encryptSingleRecord(fields, offset, timestamp, key, value);
+        var t = encryptSingleRecord(components, fields, offset, timestamp, key, value);
 
         // Then
         KafkaAssertions.assertThat(t)
@@ -134,7 +160,7 @@ class RecordEncryptorTest {
 
         // And when
         var rd = new RecordDecryptor("topic", 0);
-        var rt = transformRecord(rd, new DecryptState(EncryptionVersion.V1).withDecryptor(DECRYPTOR), t);
+        var rt = transformRecord(rd, new DecryptState(EncryptionVersion.V1).withDecryptor(components.decryptor), t);
 
         // Then
         KafkaAssertions.assertThat(rt)
@@ -158,7 +184,7 @@ class RecordEncryptorTest {
         var header = new RecordHeader("bob", null);
 
         // When
-        var t = encryptSingleRecord(fields, offset, timestamp, key, value, header);
+        var t = encryptSingleRecord(components, fields, offset, timestamp, key, value, header);
 
         // Then
         KafkaAssertions.assertThat(t)
@@ -173,7 +199,7 @@ class RecordEncryptorTest {
         // And when
         var rd = new RecordDecryptor("topic", 0); // index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR)
 
-        var rt = transformRecord(rd, new DecryptState(EncryptionVersion.V1).withDecryptor(DECRYPTOR), t);
+        var rt = transformRecord(rd, new DecryptState(EncryptionVersion.V1).withDecryptor(components.decryptor), t);
 
         // Then
         KafkaAssertions.assertThat(rt)
@@ -196,7 +222,7 @@ class RecordEncryptorTest {
         var value = (String) null;
 
         // When
-        var t = encryptSingleRecord(fields, offset, timestamp, key, value);
+        var t = encryptSingleRecord(components, fields, offset, timestamp, key, value);
 
         // Then
         KafkaAssertions.assertThat(t)
@@ -230,7 +256,7 @@ class RecordEncryptorTest {
         var header = new RecordHeader("bob", null);
 
         // When
-        var t = encryptSingleRecord(fields, offset, timestamp, key, value, header);
+        var t = encryptSingleRecord(components, fields, offset, timestamp, key, value, header);
 
         // Then
         KafkaAssertions.assertThat(t)
@@ -244,7 +270,7 @@ class RecordEncryptorTest {
 
         // And when
         var rd = new RecordDecryptor("topic", 0);
-        var rt = transformRecord(rd, new DecryptState<>(EncryptionVersion.V1).withDecryptor(DECRYPTOR), t);
+        var rt = transformRecord(rd, new DecryptState<>(EncryptionVersion.V1).withDecryptor(components.decryptor), t);
 
         // Then
         KafkaAssertions.assertThat(rt)
@@ -269,7 +295,7 @@ class RecordEncryptorTest {
         var header = new RecordHeader("bob", null);
 
         // When
-        var t = encryptSingleRecord(fields, offset, timestamp, key, value, header);
+        var t = encryptSingleRecord(components, fields, offset, timestamp, key, value, header);
 
         // Then
         KafkaAssertions.assertThat(t)
@@ -296,7 +322,7 @@ class RecordEncryptorTest {
         var header = new RecordHeader("bob", null);
 
         // When
-        var t = encryptSingleRecord(fields, offset, timestamp, key, value, header);
+        var t = encryptSingleRecord(components, fields, offset, timestamp, key, value, header);
 
         // Then
         KafkaAssertions.assertThat(t)
@@ -323,7 +349,7 @@ class RecordEncryptorTest {
         var header = new RecordHeader("bob", null);
 
         // When
-        var t = encryptSingleRecord(fields, offset, timestamp, key, value, header);
+        var t = encryptSingleRecord(components, fields, offset, timestamp, key, value, header);
 
         // Then
         KafkaAssertions.assertThat(t)
