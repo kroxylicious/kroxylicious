@@ -398,6 +398,7 @@
         <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
         <module>kroxylicious-migrations</module>
+        <module>kubernetes-examples</module>
     </modules>
 
 
