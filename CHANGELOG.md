@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#1043](https://github.com/kroxylicious/kroxylicious/pull/1043): Rename EnvelopeEncryption filter to RecordEncryption
 * [#1029](https://github.com/kroxylicious/kroxylicious/pull/1029): Upgrade to Kafka 3.7.0
 * [#1011](https://github.com/kroxylicious/kroxylicious/pull/1011): Bump io.netty:netty-bom from 4.1.106.Final to 4.1.107.Final
 * [#1010](https://github.com/kroxylicious/kroxylicious/pull/1010): Bump io.micrometer:micrometer-bom from 1.12.2 to 1.12.3
@@ -31,6 +32,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ### Changes, deprecations and removals
 
+* **We have renamed the EnvelopeEncryption filter** it is now the **RecordEncryption** filter. As this is a more accurate description of its role. We have not changed the way we deliver the encryption-at-rest we are still using  Envelope Encryption.
 * When configuring TLS, the property `filePath` for specifying the location of a file providing the password is now
   deprecated.  Use `passwordFile` instead.
 * When configuring TLS, it is no longer valid to pass a null inline password like `"storePassword": {"password": null}` instead use `"storePassword": null`

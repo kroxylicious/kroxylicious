@@ -4,7 +4,7 @@
 
 The following filters are provided built-in as part of the distribution.
 
-include::available-filters/envelope-encryption/envelope-encryption.adoc[leveloffset=2]
+include::available-filters/record-encryption/record-encryption.adoc[leveloffset=2]
 include::available-filters/multi-tenancy/multi-tenancy.adoc[leveloffset=2]
 include::available-filters//schema-validation/schema-validation.adoc[leveloffset=2]
 

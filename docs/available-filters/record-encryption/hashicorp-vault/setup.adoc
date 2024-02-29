@@ -1,0 +1,149 @@
+:hashicorp-vault: https://developer.hashicorp.com/vault
+
+= HashiCorp Vault
+
+== Enable the Transit Engine
+
+The filter integrates with the {hashicorp-vault}/docs/secrets/transit[HashiCorp Vault *Transit
+Engine*].   Vault does not enable the Transit Engine by default.  It must be
+{hashicorp-vault}/docs/secrets/transit#setup[enabled] before it can be used with the filter.
+
+[#_vault_transit_engine_url]
+== Vault Transit Engine URL
+
+The Vault Transit Engine URL is required so the filter knows the location of the Transit Engine within the
+Vault instance.
+
+The URL is formed from the concatenation of the `Api Address` (reported by Vault reported by during
+{hashicorp-vault}/tutorials/getting-started/getting-started-dev-server#starting-the-dev-server[starts up]) with the
+complete path to Transit Engine, including the name of the engine itself. If
+{hashicorp-vault}/docs/enterprise/namespaces[Namespacing] is used on the Vault instance, the path needs to include the
+namespace(s). The URL will end with `/transit` unless the `-path` parameter was used when
+{hashicorp-vault}/docs/secrets/transit#setup[enabling the engine].
+
+If namespacing is not in use, the URL will look like this:
+
+[source,shell]
+----
+https://myvaultinstance:8200/v1/transit
+----
+
+If namespacing is in use, the path must include the namespaces. For example, if there is a parent namespace is `a` and
+a child namespace is `b`, the URL will look like this:
+
+[source,shell]
+----
+https://myvaultinstance:8200/v1/a/b/transit
+----
+
+If the name of the Transit engine was changed (using the `-path` argument to the `vault secrets enable transit` command)
+the URL will look like this:
+
+[source,shell]
+----
+https://myvaultinstance:8200/v1/mytransit
+----
+
+== Establish the naming convention for keys within Vault hierarchy
+
+It is necessary to determine a naming convention for the KEKs within Vault.  This will allow the keys used by the
+filter to be kept separate from any keys used by other systems.  This document assumes that the naming convention
+will be to prefix the keys used by the filter with the word `KEK_`.  If a different naming convention is used, adapt
+the instructions accordingly.
+
+== Administrator Actor
+
+To use the filter, there must be an administrative actor established.  This actor, which is likely to be a human,
+has the responsibility to create keys within Vault for use by the filter.
+
+The Administrator must have permissions to log in to Vault and create keys beneath `transit/keys/KEK_*` in the
+Vault hierarchy.
+
+The exact steps required to establish an administrative actor will depend on the way that Vault instance has been
+{hashicorp-vault}/tutorials/auth-methods[setup].
+
+A minimal Vault policy required by the Administrator is as follows:
+
+[source,shell]
+----
+path "transit/keys/KEK_*" {
+capabilities = ["read", "write"]
+}
+----
+
+== Filter Actor
+
+To use the filter, there must be a Vault identity established for the filter itself.  This identity must have
+permissions to perform the operations needed for envelope encryption (generating and decrypting DEKs).
+
+Create a Vault policy for the filter actor:
+
+[source,shell]
+----
+vault policy write kroxylicious_encryption_filter_policy - << EOF
+path "transit/keys/KEK_*" {
+capabilities = ["read"]
+}
+path "/transit/datakey/plaintext/KEK_*" {
+capabilities = ["update"]
+}
+path "transit/decrypt/KEK_*" {
+capabilities = [ "update"]
+}
+EOF
+----
+
+Create a {hashicorp-vault}/docs/concepts/tokens#periodic-tokens[Periodic] (long-lived) Vault Token
+for the filterfootnote:[The example token create command illustrates the use of `-no-default-policy`
+and `-orphan`. The use of these flags is not functionally important.  You may adapt the
+configuration of the token to suit the standards required by your organization]:
+
+[source,shell]
+----
+vault token create -display-name "kroxylicious encryption filter" \
+                   -policy=kroxylicious_encryption_filter_policy \
+                   -period=768h \                                     <1>
+                   -no-default-policy \                               <2>
+                   -orphan                                            <3>
+
+----
+<1> Causes the token to be periodic (with every renewal using the given period).
+<2> Detach the "default" policy from the policy set for this token.  This is done so the token has least-privilege.
+<3> Create the token with no parent. This is done so that expiration of a parent won't expire the token used by the filter.
+
+The `token create` command yields the `token`. The `token` value is required later when configuring the vault within the
+filter.
+
+[source]
+----
+token              hvs.CAESIFJ_HHo0VnnW6DSbioJ80NqmuYm2WlON-QxAPmiJScZUGh4KHGh2cy5KdkdFZUJMZmhDY0JCSVhnY2JrbUNEWnE
+token_accessor     4uQZJbEnxW4YtbDBaW6yVzwP
+token_policies     [kroxylicious_encryption_filter_policy]
+----
+
+The token must be {hashicorp-vault}/docs/concepts/tokens#token-time-to-live-periodic-tokens-and-explicit-max-ttls[renewed]
+before expiration.  It is the responsibility of the Administrator to do this.
+
+This can be done with a command like:
+
+[source,shell]
+----
+vault token renew --accessor <token_accessor>
+----
+
+== Testing the Kroxylicious Vault Token using the CLI
+
+To test whether the Kroxylicious Vault Token and the policy are working correctly, a
+https://raw.githubusercontent.com/kroxylicious/kroxylicious/main/scripts/validate_vault_token.sh[script] can be used.
+
+First, as an Administrator, create a KEK in the hierarchy at this path `transit/keys/KEK_testkey`.
+
+[source,shell]
+----
+VAULT_TOKEN=<kroxylicious encryption filter token> validate_vault_token.sh <kek path>
+----
+
+The script should respond 'Ok'.  If errors are reported check the policy/token configuration.
+
+`transit/keys/KEK_testkey` can now be removed.
+
