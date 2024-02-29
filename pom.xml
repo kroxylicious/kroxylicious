@@ -397,6 +397,7 @@
         <module>kroxylicious-runtime</module>
         <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
+        <module>kroxylicious-migrations</module>
     </modules>
 
 
