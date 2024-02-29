@@ -43,6 +43,8 @@ offer:
 - Prometheus scrape endpoint at `/metrics`
 
 #### minimal configuration example
+
+[source,yaml]
 ----
 adminHttp:
   endpoints:
@@ -56,14 +58,16 @@ is not created.
 [source,yaml]
 ----
 adminHttp:
-  host: localhost #1
-  port: 9999 #1
+  host: localhost   # <1>
+  port: 9999        # <2>
   endpoints:
-    prometheus: {} #2
+    prometheus: {}  # <3>
 ----
 
-1. offers an insecure admin HTTP endpoint listening on localhost:9999
-2. offers a prometheus scrape endpoint at `/metrics` on the admin endpoint
+<1> Bind address for the server specified using either a hostname or interface address. If omitted, it will bind to all interfaces
+    (i.e. `0.0.0.0`).
+<2> Port number to be bound. If omitted port `9190` will be bound.
+<3> Enables the prometheus endpoint.
 
 === Micrometer Metrics
 
