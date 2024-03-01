@@ -71,7 +71,7 @@ public final class KroxyliciousConfigMapTemplates {
                       bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
                     logFrames: false
                 filters:
-                - type: EnvelopeEncryption
+                - type: RecordEncryption
                   config:
                     kms: VaultKmsService
                     kmsConfig:
