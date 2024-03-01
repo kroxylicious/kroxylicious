@@ -33,7 +33,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ### Changes, deprecations and removals
 
-* **We have renamed the EnvelopeEncryption filter** it is now the **RecordEncryption** filter. As this is a more accurate description of its role. We have not changed the way we deliver the encryption-at-rest we are still using  Envelope Encryption.
+* **We have renamed the EnvelopeEncryption filter** it is now the **RecordEncryption** filter. As this is a more accurate description of its role. We have not changed the way we deliver the encryption-at-rest as we are still using Envelope Encryption. Note we have preserved an `EnvelopeEncryption` factory, albeit deprecated, to avoid runtime failures for users upgrading from `0.4.x`. 
 * When configuring TLS, the property `filePath` for specifying the location of a file providing the password is now
   deprecated.  Use `passwordFile` instead.
 * When configuring TLS, it is no longer valid to pass a null inline password like `"storePassword": {"password": null}` instead use `"storePassword": null`
