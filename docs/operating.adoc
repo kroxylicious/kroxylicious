@@ -43,6 +43,8 @@ offer:
 - Prometheus scrape endpoint at `/metrics`
 
 #### minimal configuration example
+
+[source,yaml]
 ----
 adminHttp:
   endpoints:
@@ -56,14 +58,16 @@ is not created.
 [source,yaml]
 ----
 adminHttp:
-  host: localhost #1
-  port: 9999 #1
+  host: localhost   # <1>
+  port: 9999        # <2>
   endpoints:
-    prometheus: {} #2
+    prometheus: {}  # <3>
 ----
 
-1. offers an insecure admin HTTP endpoint listening on localhost:9999
-2. offers a prometheus scrape endpoint at `/metrics` on the admin endpoint
+<1> Bind address for the server specified using either a hostname or interface address. If omitted, it will bind to all interfaces
+    (i.e. `0.0.0.0`).
+<2> Port number to be bound. If omitted port `9190` will be bound.
+<3> Enables the prometheus endpoint.
 
 === Micrometer Metrics
 
@@ -82,16 +86,16 @@ micrometer:
   - type: "CommonTagsHook"
     config:
       commonTags:
-        zone: "euc-1a" #1
+        zone: "euc-1a" # <1>
   - type: "StandardBindersHook"
     config:
       binderNames:
-      - "JvmGcMetrics" #2
+      - "JvmGcMetrics" # <2>
 ----
 This configuration:
 
-1. configures a common tag on the global micrometer registry of `zone: euc-1a` to add to all metrics (becomes a label in prometheus)
-2. registers a JvmGcMetrics binder with the global registry (shipped with micrometer)
+<1> configures a common tag on the global micrometer registry of `zone: euc-1a` to add to all metrics (becomes a label in prometheus)
+<2> registers a JvmGcMetrics binder with the global registry (shipped with micrometer)
 
 Prometheus is connected to the micrometer global registry so Filters can record metrics against
 it, and they will be available as part of the Prometheus scrape data.
