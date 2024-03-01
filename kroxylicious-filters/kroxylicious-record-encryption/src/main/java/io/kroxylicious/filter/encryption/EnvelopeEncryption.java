@@ -16,7 +16,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
  * @param <E> The type of encrypted DEK
  */
 @Deprecated(since = "0.5.0", forRemoval = true)
-@Plugin(configType = EnvelopeEncryption.Config.class)
-public class EnvelopeEncryption<K, E> extends RecordEncryption<K, E> implements FilterFactory<EnvelopeEncryption.Config, SharedEncryptionContext<K, E>> {
+@Plugin(configType = RecordEncryption.Config.class)
+public class EnvelopeEncryption<K, E> extends RecordEncryption<K, E> implements FilterFactory<RecordEncryption.Config, SharedEncryptionContext<K, E>> {
 
 }
