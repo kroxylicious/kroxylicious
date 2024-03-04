@@ -57,21 +57,21 @@ class RecordEncryptorTest {
             var generator = KeyGenerator.getInstance("AES");
             generator.init(keysize);
             var key = generator.generateKey();
-            var EDEK = ByteBuffer.wrap(key.getEncoded()); // it doesn't matter for this test that it's not encrypted
+            var edek = ByteBuffer.wrap(key.getEncoded()); // it doesn't matter for this test that it's not encrypted
 
             var dek = mock(Dek.class);
-            doReturn(EDEK).when(dek).edek();
+            doReturn(edek).when(dek).edek();
             var encryptorConstructor = Dek.Encryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class, Integer.TYPE);
             encryptorConstructor.setAccessible(true);
-            var ENCRYPTOR = encryptorConstructor.newInstance(dek, CipherSpec.AES_256_GCM_128, key, 1_000_000);
-            doReturn(ENCRYPTOR).when(dek).encryptor(anyInt());
+            var encryptor = encryptorConstructor.newInstance(dek, CipherSpec.AES_256_GCM_128, key, 1_000_000);
+            doReturn(encryptor).when(dek).encryptor(anyInt());
 
             var decryptorConstructor = Dek.Decryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class);
             decryptorConstructor.setAccessible(true);
-            var DECRYPTOR = decryptorConstructor.newInstance(dek, CipherSpec.AES_256_GCM_128, key);
-            doReturn(DECRYPTOR).when(dek).decryptor();
+            var decryptor = decryptorConstructor.newInstance(dek, CipherSpec.AES_256_GCM_128, key);
+            doReturn(decryptor).when(dek).decryptor();
 
-            var EDEK_SERDE = new Serde<ByteBuffer>() {
+            var edekSerde = new Serde<ByteBuffer>() {
                 @Override
                 public int sizeOf(ByteBuffer object) {
                     return object.remaining();
@@ -91,7 +91,7 @@ class RecordEncryptorTest {
                     throw new UnsupportedOperationException();
                 }
             };
-            return new TestComponents(ENCRYPTOR, DECRYPTOR, EDEK_SERDE);
+            return new TestComponents(encryptor, decryptor, edekSerde);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
