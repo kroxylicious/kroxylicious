@@ -6,16 +6,17 @@
 
 package io.kroxylicious.filter.encryption.inband;
 
+import java.io.Closeable;
 import java.nio.ByteBuffer;
 import java.util.Set;
-
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -26,72 +27,50 @@ import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekException;
+import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.filter.encryption.records.RecordTransform;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.test.record.RecordTestUtils;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 class RecordEncryptorTest {
 
     private static TestComponents components;
+    private static FixedDekKmsService fixedDekKmsService;
 
     record TestComponents(
                           Dek.Encryptor encryptor,
                           Dek.Decryptor decryptor,
-                          Serde<ByteBuffer> edekSerde) {}
+                          Serde<ByteBuffer> edekSerde)
+            implements Closeable {
+        public void close() {
+            encryptor.close();
+            decryptor.close();
+        }
+    }
 
     @BeforeAll
     public static void initKeyContext() {
         components = setup(256);
     }
 
+    @AfterAll
+    public static void teardown() {
+        components.close();
+    }
+
     static TestComponents setup(int keysize) {
         try {
-            var generator = KeyGenerator.getInstance("AES");
-            generator.init(keysize);
-            var key = generator.generateKey();
-            var edek = ByteBuffer.wrap(key.getEncoded()); // it doesn't matter for this test that it's not encrypted
-
-            var dek = mock(Dek.class);
-            doReturn(edek).when(dek).edek();
-            var encryptorConstructor = Dek.Encryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class, Integer.TYPE);
-            encryptorConstructor.setAccessible(true);
-            var encryptor = encryptorConstructor.newInstance(dek, CipherSpec.AES_256_GCM_128, key, 1_000_000);
-            doReturn(encryptor).when(dek).encryptor(anyInt());
-
-            var decryptorConstructor = Dek.Decryptor.class.getDeclaredConstructor(Dek.class, CipherSpec.class, SecretKey.class);
-            decryptorConstructor.setAccessible(true);
-            var decryptor = decryptorConstructor.newInstance(dek, CipherSpec.AES_256_GCM_128, key);
-            doReturn(decryptor).when(dek).decryptor();
-
-            var edekSerde = new Serde<ByteBuffer>() {
-                @Override
-                public int sizeOf(ByteBuffer object) {
-                    return object.remaining();
-                }
-
-                @Override
-                public void serialize(
-                                      ByteBuffer object,
-                                      @NonNull ByteBuffer buffer) {
-                    var p0 = object.position();
-                    buffer.put(object);
-                    object.position(p0);
-                }
-
-                @Override
-                public ByteBuffer deserialize(@NonNull ByteBuffer buffer) {
-                    throw new UnsupportedOperationException();
-                }
-            };
-            return new TestComponents(encryptor, decryptor, edekSerde);
+            fixedDekKmsService = new FixedDekKmsService(keysize);
+            DekManager<ByteBuffer, ByteBuffer> manager = new DekManager<>(fixedDekKmsService, new FixedDekKmsService.Config(), 10000);
+            CompletionStage<Dek<ByteBuffer>> dekCompletionStage = manager.generateDek(fixedDekKmsService.getKekId(), CipherSpec.AES_256_GCM_128);
+            Dek<ByteBuffer> dek = dekCompletionStage.toCompletableFuture().get(0, TimeUnit.SECONDS);
+            var encryptor = dek.encryptor(1000);
+            var decryptor = dek.decryptor();
+            return new TestComponents(encryptor, decryptor, fixedDekKmsService.edekSerde());
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -100,15 +79,16 @@ class RecordEncryptorTest {
 
     @Test
     void aes256KeyMustBe256bits() {
-        TestComponents componentsWith128BitDek = setup(128);
-        Set<RecordField> fields = Set.of(RecordField.RECORD_VALUE);
-        long offset = 55L;
-        long timestamp = System.currentTimeMillis();
-        var key = "hello";
-        var value = "world";
+        try (TestComponents componentsWith128BitDek = setup(128)) {
+            Set<RecordField> fields = Set.of(RecordField.RECORD_VALUE);
+            long offset = 55L;
+            long timestamp = System.currentTimeMillis();
+            var key = "hello";
+            var value = "world";
 
-        assertThatThrownBy(() -> encryptSingleRecord(componentsWith128BitDek, fields, offset, timestamp, key, value)).isInstanceOf(DekException.class)
-                .hasMessageContaining("The key must be 32 bytes");
+            assertThatThrownBy(() -> encryptSingleRecord(componentsWith128BitDek, fields, offset, timestamp, key, value)).isInstanceOf(DekException.class)
+                    .hasMessageContaining("The key must be 32 bytes");
+        }
     }
 
     private Record encryptSingleRecord(TestComponents components, Set<RecordField> fields, long offset, long timestamp, String key, String value, Header... headers) {
