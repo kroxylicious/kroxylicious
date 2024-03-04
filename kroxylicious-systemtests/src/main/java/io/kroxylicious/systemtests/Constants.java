@@ -112,11 +112,16 @@ public interface Constants {
     /**
      * Global timeout in milliseconds
      */
-    long GLOBAL_TIMEOUT_MILLIS = Duration.ofMinutes(5).toMillis();
+    long GLOBAL_TIMEOUT = Duration.ofMinutes(5).toMillis();
     /**
      * Global Poll interval in milliseconds
      */
-    long GLOBAL_POLL_INTERVAL_MILLIS = Duration.ofSeconds(1).toMillis();
+    long GLOBAL_POLL_INTERVAL = Duration.ofSeconds(1).toMillis();
+    long RECONCILIATION_INTERVAL = Duration.ofSeconds(30).toMillis();
+    long GLOBAL_POLL_INTERVAL_MEDIUM = Duration.ofSeconds(10).toMillis();
+    long GLOBAL_STATUS_TIMEOUT = Duration.ofMinutes(3).toMillis();
+    long GLOBAL_TIMEOUT_SHORT = Duration.ofMinutes(2).toMillis();
+    long POLL_INTERVAL_FOR_RESOURCE_READINESS = Duration.ofSeconds(1).toMillis();
 
     /**
      * Kubernetes related constants
@@ -156,4 +161,12 @@ public interface Constants {
     String DONT_USE_KRAFT_MODE = "-UseKRaft";
     String USE_KAFKA_NODE_POOLS = "+KafkaNodePools";
     String DONT_USE_KAFKA_NODE_POOLS = "-KafkaNodePools";
+
+    /**
+     * Scraper pod labels
+     */
+    String SCRAPER_LABEL_KEY = "user-test-app";
+    String SCRAPER_LABEL_VALUE = "scraper";
+    String SCRAPER_NAME = "scraper";
+    String DEPLOYMENT_TYPE = "deployment-type";
 }

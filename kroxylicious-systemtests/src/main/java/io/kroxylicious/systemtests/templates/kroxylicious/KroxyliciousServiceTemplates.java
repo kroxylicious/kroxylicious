@@ -37,7 +37,6 @@ public class KroxyliciousServiceTemplates {
 
     private static List<ServicePort> getPlainServicePorts() {
         List<ServicePort> servicePorts = new ArrayList<>();
-        servicePorts.add(createServicePort("port-9190", 9190, 9190));
         servicePorts.add(createServicePort("port-9292", 9292, 9292));
         servicePorts.add(createServicePort("port-9293", 9293, 9293));
         servicePorts.add(createServicePort("port-9294", 9294, 9294));

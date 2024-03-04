@@ -89,7 +89,7 @@ public class KroxyliciousDeploymentTemplates {
 
     private static List<ContainerPort> getPlainContainerPortList() {
         List<ContainerPort> portList = new ArrayList<>();
-        portList.add(createContainerPort(9190));
+        portList.add(createContainerPort("metrics", 9190));
         portList.add(createContainerPort(9292));
         portList.add(createContainerPort(9293));
         portList.add(createContainerPort(9294));
@@ -99,8 +99,17 @@ public class KroxyliciousDeploymentTemplates {
     }
 
     private static ContainerPort createContainerPort(int port) {
-        return new ContainerPortBuilder()
-                .withContainerPort(port)
+        return baseContainerPort(port).build();
+    }
+
+    private static ContainerPort createContainerPort(String name, int port) {
+        return baseContainerPort(port)
+                .withName(name)
                 .build();
+    }
+
+    private static ContainerPortBuilder baseContainerPort(int port) {
+        return new ContainerPortBuilder()
+                .withContainerPort(port);
     }
 }

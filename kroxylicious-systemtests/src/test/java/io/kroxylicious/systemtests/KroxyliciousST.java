@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.BDDAssumptions.given;
 
 /**
- * The type Acceptance st.
+ * The Kroxylicious system tests.
  */
 @ExtendWith(KroxyliciousExtension.class)
 class KroxyliciousST extends AbstractST {
