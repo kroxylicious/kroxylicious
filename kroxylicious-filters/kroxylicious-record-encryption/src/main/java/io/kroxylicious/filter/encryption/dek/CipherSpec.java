@@ -156,7 +156,7 @@ public enum CipherSpec {
         return maxEncryptionsPerKey;
     }
 
-    Cipher newCipher() {
+    public Cipher newCipher() {
         try {
             return Cipher.getInstance(transformation);
         }
@@ -201,4 +201,13 @@ public enum CipherSpec {
     abstract AlgorithmParameterSpec readParameters(ByteBuffer parametersBuffer);
 
     public static final int VARIABLE_SIZE_PARAMETERS = -1;
+
+    @Override
+    public String toString() {
+        return "CipherSpec{" +
+                "persistentId=" + persistentId +
+                ", transformation='" + transformation + '\'' +
+                ", maxEncryptionsPerKey=" + maxEncryptionsPerKey +
+                '}';
+    }
 }
