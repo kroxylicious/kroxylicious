@@ -41,7 +41,7 @@ public class EncryptionDekCache<K, E> {
     private record CacheKey<K>(K kek, CipherSpec cipherSpec) {}
 
     private static <K> CacheKey<K> cacheKey(EncryptionScheme<K> encryptionScheme) {
-        return new CacheKey<>(encryptionScheme.kekId(), CipherSpec.AES_128_GCM_128);
+        return new CacheKey<>(encryptionScheme.kekId(), CipherSpec.AES_256_GCM_128);
     }
 
     private final DekManager<K, E> dekManager;
