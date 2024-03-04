@@ -35,6 +35,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ### Changes, deprecations and removals
 
+* EncryptionVersion 1 is no longer supported, we found that it had diverged from our design document and have corrected it. From release 0.5.0 we guarantee backwards compatibility from EncryptionVersion 2 onwards.
 * **We have renamed the EnvelopeEncryption filter** it is now the **RecordEncryption** filter. As this is a more accurate description of its role. We have not changed the way we deliver the encryption-at-rest as we are still using Envelope Encryption. Note we have preserved an `EnvelopeEncryption` factory, albeit deprecated, to avoid runtime failures for users upgrading from `0.4.x`. 
 * When configuring TLS, the property `filePath` for specifying the location of a file providing the password is now
   deprecated.  Use `passwordFile` instead.

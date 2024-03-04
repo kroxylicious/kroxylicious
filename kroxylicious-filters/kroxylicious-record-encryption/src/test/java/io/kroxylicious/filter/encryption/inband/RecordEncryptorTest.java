@@ -94,7 +94,7 @@ class RecordEncryptorTest {
     private Record encryptSingleRecord(TestComponents components, Set<RecordField> fields, long offset, long timestamp, String key, String value, Header... headers) {
         var re = new RecordEncryptor(
                 "topic", 0,
-                EncryptionVersion.V1,
+                EncryptionVersion.V2,
                 new EncryptionScheme<>("key", fields),
                 components.edekSerde,
                 ByteBuffer.allocate(100));
@@ -136,11 +136,11 @@ class RecordEncryptorTest {
                 .hasValueNotEqualTo(value)
                 .singleHeader()
                 .hasKeyEqualTo("kroxylicious.io/encryption")
-                .hasValueEqualTo(new byte[]{ 1 });
+                .hasValueEqualTo(new byte[]{ 2 });
 
         // And when
         var rd = new RecordDecryptor("topic", 0);
-        var rt = transformRecord(rd, new DecryptState(EncryptionVersion.V1).withDecryptor(components.decryptor), t);
+        var rt = transformRecord(rd, new DecryptState(EncryptionVersion.V2).withDecryptor(components.decryptor), t);
 
         // Then
         KafkaAssertions.assertThat(rt)
@@ -179,7 +179,7 @@ class RecordEncryptorTest {
         // And when
         var rd = new RecordDecryptor("topic", 0); // index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR)
 
-        var rt = transformRecord(rd, new DecryptState(EncryptionVersion.V1).withDecryptor(components.decryptor), t);
+        var rt = transformRecord(rd, new DecryptState(EncryptionVersion.V2).withDecryptor(components.decryptor), t);
 
         // Then
         KafkaAssertions.assertThat(rt)
@@ -246,11 +246,11 @@ class RecordEncryptorTest {
                 .hasValueNotEqualTo(value)
                 .singleHeader()
                 .hasKeyEqualTo("kroxylicious.io/encryption")
-                .hasValueEqualTo(new byte[]{ 1 });
+                .hasValueEqualTo(new byte[]{ 2 });
 
         // And when
         var rd = new RecordDecryptor("topic", 0);
-        var rt = transformRecord(rd, new DecryptState<>(EncryptionVersion.V1).withDecryptor(components.decryptor), t);
+        var rt = transformRecord(rd, new DecryptState<>(EncryptionVersion.V2).withDecryptor(components.decryptor), t);
 
         // Then
         KafkaAssertions.assertThat(rt)

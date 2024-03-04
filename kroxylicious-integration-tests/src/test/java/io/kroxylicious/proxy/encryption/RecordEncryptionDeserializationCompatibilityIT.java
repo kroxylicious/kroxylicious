@@ -62,20 +62,20 @@ class RecordEncryptionDeserializationCompatibilityIT {
     private static final String ENCRYPTED_AES_TOPIC = "aes-topic";
     private static final String PRE_EXISTING_AES_KEK_SECRET_BYTES = "FwailFttZJR2Jq43YPhwsKTtuTJQNnPPutrFu9uVPx4=";
     private static final String PRE_EXISTING_AES_KEK_UUID = "c32d1cef-9c60-4f86-b56b-281684c98ad0";
-    private static final TestCase V1_VALUE_NOT_NULL = new TestCase(EncryptionVersion.V1, "value not null", ENCRYPTED_AES_TOPIC,
-            new SerializedRecord(List.of(new SerializedHeader("kroxylicious.io/encryption", "AQ==")),
+    private static final TestCase V2_VALUE_NOT_NULL = new TestCase(EncryptionVersion.V2, "value not null", ENCRYPTED_AES_TOPIC,
+            new SerializedRecord(List.of(new SerializedHeader("kroxylicious.io/encryption", "Ag==")),
                     "YQ==",
                     "AE6ADMHU4V/OFRDILMd8AsMtHO+cYE+GtWsoFoTJitA0Y8iY9RZBcQDxGqsIylR5ugQ57JYiqOOwLVPwm6X2t9iT/3VoUjJ/M8xFWpiczFIAT5ZR6To+WDLYniREKe+0/f6lRFsCb/MGEZhfVgkb3g=="),
             new DeserializedRecord(List.of(), "a", "b"));
 
     // null values are serialized as-is with no encryption header, we need to forward null on to support tombstoning compacted topics
-    private static final TestCase V1_VALUE_NULL = new TestCase(EncryptionVersion.V1, "value null", ENCRYPTED_AES_TOPIC,
+    private static final TestCase V2_VALUE_NULL = new TestCase(EncryptionVersion.V2, "value null", ENCRYPTED_AES_TOPIC,
             new SerializedRecord(List.of(),
                     "YQ==",
                     null),
             new DeserializedRecord(List.of(), "a", null));
-    private static final TestCase V1_OTHER_HEADERS = new TestCase(EncryptionVersion.V1, "other headers are preserved", ENCRYPTED_AES_TOPIC,
-            new SerializedRecord(List.of(new SerializedHeader("kroxylicious.io/encryption", "AQ=="), new SerializedHeader("x", "eQ==")),
+    private static final TestCase V2_OTHER_HEADERS = new TestCase(EncryptionVersion.V2, "other headers are preserved", ENCRYPTED_AES_TOPIC,
+            new SerializedRecord(List.of(new SerializedHeader("kroxylicious.io/encryption", "Ag=="), new SerializedHeader("x", "eQ==")),
                     "YQ==",
                     "AE6ADMNIqL7qk5zZDYBSp8MtHO+cYE+GtWsoFoTJitDZbCqfZvPsulMdhpO06acCIQ8unRSmTypxUAuaRyY5rZhrKP+WxohB5BUDHnMPztQAsUYlZQzgsNt3kbv4O7aPzm7Bh9FP2bl8c4fDXH33uA=="),
             new DeserializedRecord(List.of(new DeserializedHeader("x", "y")), "a", "b"));
@@ -126,7 +126,7 @@ class RecordEncryptionDeserializationCompatibilityIT {
     }
 
     static Stream<Arguments> testCases() {
-        return Stream.of(V1_VALUE_NOT_NULL, V1_OTHER_HEADERS, V1_VALUE_NULL).map(testCase -> Arguments.of(testCase.version, testCase.name, testCase));
+        return Stream.of(V2_VALUE_NOT_NULL, V2_OTHER_HEADERS, V2_VALUE_NULL).map(testCase -> Arguments.of(testCase.version, testCase.name, testCase));
     }
 
     @ParameterizedTest(name = "encryption version: {0} - {1}")
