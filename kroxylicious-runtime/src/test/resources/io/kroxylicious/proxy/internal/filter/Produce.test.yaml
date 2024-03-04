@@ -1,0 +1,84 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: PRODUCE
+  description: Produce v9 - passed through without change
+  version: 9
+  response:
+    payload:
+      responses:
+        - name: topic
+          partitionResponses:
+            - index: 0
+              errorCode: 0
+              baseOffset: 0
+              logAppendTimeMs: 0
+              logStartOffset: 0
+              recordErrors:
+                - batchIndex: 0
+                  batchIndexErrorMessage: null
+              errorMessage: null
+      throttleTimeMs: 0
+    diff: []
+  disabled: false
+- apiMessageType: PRODUCE
+  description: Produce v10 with nodeEndpoints
+  version: 10
+  response:
+    payload:
+      responses:
+        - name: notleader
+          partitionResponses:
+            - index: 0
+              errorCode: 6 # NOT_LEADER_OR_FOLLOWER
+              baseOffset: 0
+              logAppendTimeMs: 0
+              logStartOffset: 0
+              currentLeader:
+                leaderId: 0
+                leaderEpoch: -2
+              recordErrors:
+                - batchIndex: 0
+                  batchIndexErrorMessage: null
+              errorMessage: null
+      nodeEndpoints:
+        - nodeId: 0
+          host: upstreamz
+          port: 9199
+          rack: a
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/nodeEndpoints/0/host"
+        value: downstream
+      - op: replace
+        path: "/nodeEndpoints/0/port"
+        value: 19199
+  disabled: false
+- apiMessageType: PRODUCE
+  description: Fetch v10 without nodeEndpoints
+  version: 10
+  response:
+    payload:
+      responses:
+        - name: leader
+          partitionResponses:
+            - index: 0
+              errorCode: 0
+              baseOffset: 0
+              logAppendTimeMs: 0
+              logStartOffset: 0
+              currentLeader:
+                leaderId: 0
+                leaderEpoch: -1
+              recordErrors:
+                - batchIndex: 0
+                  batchIndexErrorMessage: null
+              errorMessage: null
+      nodeEndpoints: []
+      throttleTimeMs: 0
+    diff: []
+  disabled: false

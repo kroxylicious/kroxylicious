@@ -51,10 +51,10 @@ public class Kroxylicious {
         resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
     }
 
-    private void createTopicEncryptionFilterConfigMap(String clusterName, String topicName, Config config) {
+    private void createRecordEncryptionFilterConfigMap(String clusterName, String topicName, Config config) {
         LOGGER.info("Deploy Kroxylicious config Map without filters in {} namespace", deploymentNamespace);
         resourceManager
-                .createResourceWithWait(KroxyliciousConfigMapTemplates.kroxyliciousTopicEncryptionConfig(clusterName, deploymentNamespace, topicName, config).build());
+                .createResourceWithWait(KroxyliciousConfigMapTemplates.kroxyliciousRecordEncryptionConfig(clusterName, deploymentNamespace, topicName, config).build());
     }
 
     private void deployPortPerBrokerPlain(int replicas) {
@@ -93,8 +93,8 @@ public class Kroxylicious {
      * @param topicName the topic name
      * @param config config
      */
-    public void deployPortPerBrokerPlainWithTopicEncryptionFilter(String clusterName, int replicas, String topicName, Config config) {
-        createTopicEncryptionFilterConfigMap(clusterName, topicName, config);
+    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, int replicas, String topicName, Config config) {
+        createRecordEncryptionFilterConfigMap(clusterName, topicName, config);
         deployPortPerBrokerPlain(replicas);
     }
 

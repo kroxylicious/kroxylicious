@@ -1,0 +1,218 @@
+:kms-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-kms/latest
+:encryption-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-encryption
+:design-doc: https://github.com/kroxylicious/kroxylicious/blob/main/kroxylicious-filters/kroxylicious-encryption/doc/design.adoc
+
+= Record Encryption
+
+== What is it?
+
+A filter that transparently provides an https://kroxylicious.io/use-cases/[encryption-at-rest solution] for Apache Kafka.
+
+At a high level, the filter works in the following way.  First, let's consider the produce side:
+
+1. The filter intercepts produce requests sent from producing Kafka Clients.
+2. The filter disassembles the produce request.
+3. Each record within it is encrypted.
+4. The produce request is reassembled, replacing the original records with their encrypted counterparts.
+5. The filter forwards the modified produce request onto the Kafka Broker.
+6. The broker handles the records in the normal way (writing them to the topic's log etc).  The broker has no knowledge
+   that the records are encrypted - to it, they are just opaque bytes.
+
+Now, let's consider the consume side:
+
+1. The filter intercepts the fetch responses sent by the Kafka Broker to the consuming Kafka Client.
+2. The filter disassembles the fetch response.
+3. Each record is decrypted.
+4. The fetch response is reassembled, replacing the encrypted records with their unencrypted counterparts.
+5. The filter forwards the modified fetch response onto the Kafka Client. The client has no knowledge that the record was encrypted.
+
+The entire process is transparent from the point of view of both Kafka Client and Kafka Broker.  Neither are
+aware that the records are being encrypted.  Neither client nor broker have any access to the encryption keys or have
+any influence on the ciphering process.
+
+The filter encrypts the records using symmetric encryption keys.  The encryption technique employed is
+known as *Envelope Encryption*, which is a technique suited for encrypting large volumes of data in an efficient manner.
+Envelope Encryption is described in the next section.
+
+The filter integrates with a Key Management Service (KMS).  It is the Key Management Service (KMS) that has
+ultimate responsibility for the safe storage of key material.  The role of the KMS is discussed later.
+
+=== Envelope Encryption
+
+Envelope Encryption is a technique described by https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf[NIST
+Special Publication 800-57 Part 1 Revision 5]. It is the practice of encrypting the data with a Data Encryption Key (DEK),
+then wrapping (encrypting) the DEK with a Key Encryption Key (KEK).  In this section we discuss how Envelope Encryption is
+employed by the filter to encrypt Kafka records.  For more detail, refer to the {design-doc}[design].
+
+On the produce path, the filter is encrypting records.  The filter uses a selector to determine which KEK to apply. It then
+requests that the KMS generates a DEK for the KEK.  It is the DEK that is used to encrypt the record.  The original record
+in the produce request is replaced by a *cipher record* which comprises the encrypted record, the encrypted DEK and some other
+metadata.
+
+On the fetch path, the filter is decrypting records.  The filter receives the *cipher record* from the Kafka Broker. The
+filter reverses the process used to construct the *cipher record* and uses the KMS to decrypt the DEK.  The decrypted DEK is
+used to decrypt the encrypted record.  The cipher record in the fetch response is then replaced with the decrypted record.
+
+On the produce path, the filter employs a DEK reuse strategy. This means that records sent by a single connection to
+the same topic will be encrypted using the same DEK (until a time-out or encryption operations limit is reached, whichever
+occurs first).  This prevents key exhaustion and prevents excessive interactions with the KMS.
+
+On the fetch path, the filter employs an LRU strategy to keep recently encountered DEKs decrypted in memory. This
+prevents excessive interactions with the KMS.
+
+=== Role of the KMS
+
+The Key Management Service (KMS) is the *secure repository* for Key Encryption Keys (KEKs). The key material of the KEK
+*never* leaves the confines of the KMS.  The KMS exposes cryptographic functions that operate against the KEKs stored
+within it.
+
+The KMS is also the *source* of Data Encryption Keys (DEKs).  When the KMS generates a DEK for a given KEK, it returns
+the DEK (which is securely generated random data), together with the encrypted DEK (which is the same data, encrypted
+using the KEK).  Note that the KMS does not *store* the DEKs - DEKs are stored encrypted as part of the Kafka record held
+by the broker.
+
+The filter uses the services of the KMS to generate DEKs, and decrypt encrypted DEKs.
+
+The KMS must be available at runtime. If the KMS is unavailable, it will become impossible to produce or consume
+records through the filter until the KMS service is restored.
+
+The filter currently has a single KMS integration with https://www.hashicorp.com/[HashiCorp Vault&#174;].  More KMS
+integrations are planned. It is also possible for a user to implement their own KMS integration.  The implementation
+must implement the {kms-api-javadoc}/io/kroxylicious/kms/service/KmsService.html[KMS public API] and make the
+implementation available on the classpath with the service loader mechanism.
+
+IMPORTANT: It is recommended to use a KMS in a highly available configuration.
+
+=== Key rotation
+
+Key rotation is the practice of periodically replacing cryptographic keys with new ones.  Using key rotation is
+considered cryptographic best-practice.
+
+The filter allows for the rotation of KEKs within the KMS. When a KEK is rotated, the new key material will be applied
+to newly produced records. Existing records (which were encrypted with older versions of the KEK) remain decryptable
+as long as the previous KEK version remains present in the KMS.
+
+WARNING: If the previous KEK version is removed from the KMS, the records encrypted with that key version will become
+un-consumable (that is, the fetch will fail). In this case, the consumer offset must be advanced beyond those records.
+
+=== What exactly gets encrypted?
+
+The filter currently encrypts only *record values*.  Record keys, headers, timestamps are not encrypted.
+
+Null record values (which represent deletes, or _tombstones_, in compacted topics) sent by producers are passed through
+to the broker unencrypted. This means encryption may be applied to compacted topics too. Deletes will function normally.
+
+The presence of unencrypted records on a topic configured for encryption is allowed.  The unencrypted records will get
+passed through to consumer as normal. This supports the use-case where encryption is introduced to an against system where
+topics are already populated with unencrypted content.
+
+The filter supports use-cases where some Kafka topics are configured for encryption while others are left to be
+unencrypted.
+
+Transactions producing to both encrypted and unencrypted topics are supported.
+
+== How to use the filter
+
+There are three steps to using the filter.
+
+1. Setting up the KMS.
+2. Configuring the filter within Kroxylicious.
+3. Establishing the encryption key(s) within the KMS that will be used to encrypt the topics.
+
+These steps are described in the next sections.
+
+=== Setting up the KMS
+
+In order to set up the KMS provider ready to use with the filter, follow these KMS provider specific steps.
+
+include::hashicorp-vault/setup.adoc[leveloffset=3]
+
+=== Filter Configuration
+
+The filter is configured as part of the filter chain in the following way:
+
+[source, yaml]
+----
+filters:
+- type: RecordEncryption                                        # <1>
+  config:
+    kms: <KMS service name>                                       # <2>
+    kmsConfig:                                                    # <3>
+      ..:
+    selector: <KEK selector service name>                         # <4>
+    selectorConfig:                                               # <5>
+      ..:
+----
+<1> The name of the filter. This must be `RecordEncryption`, the filter was previously known `EnvelopEncryption`.
+<2> The KMS service name.
+<3> Object providing configuration understood by KMS provider.
+<4> The KEK selector service name.
+<5> Object providing configuration understood by key selector.
+
+==== KMS Service configuration
+
+In order to configure the KMS Service, follow these KMS provider specific steps.
+
+include::hashicorp-vault/service.adoc[leveloffset=3]
+
+==== KEK selector configuration
+
+The role of the KEK selector is to map from the topic name to key name.  The filter looks up the resulting
+key name in the KMS.
+
+NOTE: If the filter is unable to find the key in the KMS, the filter will pass through the
+records belonging to that topic in the produce request without encrypting them.
+
+===== Template KEK Selector
+
+The `TemplateKekSelector` maps from topic name to key name.  The template understands the substitution token
+`$\{topicName}` which is replaced by the name of the topic.  It can be used to build key names
+that include the topic name being encrypted.
+
+Use the `$\{topicName}` is optional. It is possible to pass a literal string.  This will result in all topics being
+encrypted using the same key.
+
+[source, yaml]
+----
+selector: TemplateKekSelector                                 # <1>
+selectorConfig:
+  template: "KEK_${topicName}"                                # <2>
+----
+<1> The name of the KEK selector. This must be `TemplateKekSelector`.
+<2> Template used to build the key name from the topic name.
+
+=== Establishing the keys in the KMS
+
+It is the role of the Administrator to create KEKs in the KMS that will be used to
+encrypt the records.  This must be done using whatever management interface the KMS provides.
+
+The names (or aliases) of the encryption keys must match the naming conventions established above.  If the selector
+generates a key name that doesn't exist within the KMS, records will be sent to the topic without encryption.
+
+For example, if using the `TemplateKekSelector` with the template `KEK_$\{topicName}`, create a key for every topic that
+is to be encrypted with the key name matching the topic name, prefixed by the string `KEK_`.
+
+include::hashicorp-vault/creating_keys.adoc[leveloffset=3]
+
+=== Verifying that encryption is occurring
+
+To verify that records sent to topics are indeed being encrypted, use `kafka-console-consumer` to consume the
+records *directly from the target Kafka Cluster*.  Verify that encrypted text is seen rather than whatever plain text
+that was sent by producer.
+
+[source]
+----
+kafka-console-consumer --bootstrap-server mycluster:8092 --topic trades --from-beginning
+----
+
+The record values seen will look something like this:
+
+[source]
+----
+tradesvault:v1:+EfJ977UG1XkjI9yh7vxpgN2E1DKaIkDuxE+eCprVTKr+sskFuChcTe/KpR/c8ZDyP76W3itExmEzLOl����x)�Ũ�z�:S�������tБ��v���
+----
+
+
+
+
+

@@ -1,0 +1,2 @@
+io.kroxylicious.filter.encryption.RecordEncryption
+io.kroxylicious.filter.encryption.EnvelopeEncryption

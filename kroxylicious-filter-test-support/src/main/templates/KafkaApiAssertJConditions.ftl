@@ -28,8 +28,8 @@ package ${outputPackage};
 import java.util.function.Predicate;
 
 import org.apache.kafka.common.message.${dataClass};
-<#if requestName?starts_with("FetchSnapshot")>
-<#--Suppres the import for the FetchSnapshot special snowflakes-->
+<#if requestName?matches("^(FetchSnapshot|UpdateMetadata|LeaderAndIsr).*$")>
+<#--Suppress the import for the final AbstractControl implementations (FetchSnapshot etc)-->
 <#else>
 import org.apache.kafka.common.requests.${requestName};
 </#if>
@@ -49,7 +49,7 @@ public class ${conditionClassName} extends Condition<ApiMessage> {
 
     @Override
     public boolean matches(ApiMessage apiMessage) {
-        <#if requestName?starts_with("FetchSnapshot")>
+        <#if requestName?matches("^(FetchSnapshot|UpdateMetadata|LeaderAndIsr).*$")>
         if (apiMessage instanceof ${dataClass}) {
             ${dataClass} ${apiMessageVarName} = (${dataClass}) apiMessage;
             return predicate.test(${apiMessageVarName});

@@ -16,11 +16,14 @@ import org.apache.kafka.common.message.AlterPartitionRequestData;
 import org.apache.kafka.common.message.AlterReplicaLogDirsRequestData;
 import org.apache.kafka.common.message.AlterUserScramCredentialsRequestData;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.AssignReplicasToDirsRequestData;
 import org.apache.kafka.common.message.BeginQuorumEpochRequestData;
 import org.apache.kafka.common.message.BrokerHeartbeatRequestData;
 import org.apache.kafka.common.message.BrokerRegistrationRequestData;
+import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.ControlledShutdownRequestData;
+import org.apache.kafka.common.message.ControllerRegistrationRequestData;
 import org.apache.kafka.common.message.CreateAclsRequestData;
 import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
 import org.apache.kafka.common.message.CreatePartitionsRequestData;
@@ -48,12 +51,14 @@ import org.apache.kafka.common.message.ExpireDelegationTokenRequestData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchSnapshotRequestData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
+import org.apache.kafka.common.message.GetTelemetrySubscriptionsRequestData;
 import org.apache.kafka.common.message.HeartbeatRequestData;
 import org.apache.kafka.common.message.IncrementalAlterConfigsRequestData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.LeaderAndIsrRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
+import org.apache.kafka.common.message.ListClientMetricsResourcesRequestData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ListPartitionReassignmentsRequestData;
@@ -64,6 +69,7 @@ import org.apache.kafka.common.message.OffsetDeleteRequestData;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.PushTelemetryRequestData;
 import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
@@ -154,6 +160,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
             case API_VERSIONS:
                 state = ((ApiVersionsRequestFilter) this).onApiVersionsRequest((ApiVersionsRequestData) decodedFrame.body(), filterContext);
                 break;
+            case ASSIGN_REPLICAS_TO_DIRS:
+                state = ((AssignReplicasToDirsRequestFilter) this).onAssignReplicasToDirsRequest((AssignReplicasToDirsRequestData) decodedFrame.body(), filterContext);
+                break;
             case BEGIN_QUORUM_EPOCH:
                 state = ((BeginQuorumEpochRequestFilter) this).onBeginQuorumEpochRequest((BeginQuorumEpochRequestData) decodedFrame.body(), filterContext);
                 break;
@@ -163,11 +172,17 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
             case BROKER_REGISTRATION:
                 state = ((BrokerRegistrationRequestFilter) this).onBrokerRegistrationRequest((BrokerRegistrationRequestData) decodedFrame.body(), filterContext);
                 break;
+            case CONSUMER_GROUP_DESCRIBE:
+                state = ((ConsumerGroupDescribeRequestFilter) this).onConsumerGroupDescribeRequest((ConsumerGroupDescribeRequestData) decodedFrame.body(), filterContext);
+                break;
             case CONSUMER_GROUP_HEARTBEAT:
                 state = ((ConsumerGroupHeartbeatRequestFilter) this).onConsumerGroupHeartbeatRequest((ConsumerGroupHeartbeatRequestData) decodedFrame.body(), filterContext);
                 break;
             case CONTROLLED_SHUTDOWN:
                 state = ((ControlledShutdownRequestFilter) this).onControlledShutdownRequest((ControlledShutdownRequestData) decodedFrame.body(), filterContext);
+                break;
+            case CONTROLLER_REGISTRATION:
+                state = ((ControllerRegistrationRequestFilter) this).onControllerRegistrationRequest((ControllerRegistrationRequestData) decodedFrame.body(), filterContext);
                 break;
             case CREATE_ACLS:
                 state = ((CreateAclsRequestFilter) this).onCreateAclsRequest((CreateAclsRequestData) decodedFrame.body(), filterContext);
@@ -250,6 +265,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
             case FIND_COORDINATOR:
                 state = ((FindCoordinatorRequestFilter) this).onFindCoordinatorRequest((FindCoordinatorRequestData) decodedFrame.body(), filterContext);
                 break;
+            case GET_TELEMETRY_SUBSCRIPTIONS:
+                state = ((GetTelemetrySubscriptionsRequestFilter) this).onGetTelemetrySubscriptionsRequest((GetTelemetrySubscriptionsRequestData) decodedFrame.body(), filterContext);
+                break;
             case HEARTBEAT:
                 state = ((HeartbeatRequestFilter) this).onHeartbeatRequest((HeartbeatRequestData) decodedFrame.body(), filterContext);
                 break;
@@ -267,6 +285,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 break;
             case LEAVE_GROUP:
                 state = ((LeaveGroupRequestFilter) this).onLeaveGroupRequest((LeaveGroupRequestData) decodedFrame.body(), filterContext);
+                break;
+            case LIST_CLIENT_METRICS_RESOURCES:
+                state = ((ListClientMetricsResourcesRequestFilter) this).onListClientMetricsResourcesRequest((ListClientMetricsResourcesRequestData) decodedFrame.body(), filterContext);
                 break;
             case LIST_GROUPS:
                 state = ((ListGroupsRequestFilter) this).onListGroupsRequest((ListGroupsRequestData) decodedFrame.body(), filterContext);
@@ -297,6 +318,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 break;
             case PRODUCE:
                 state = ((ProduceRequestFilter) this).onProduceRequest((ProduceRequestData) decodedFrame.body(), filterContext);
+                break;
+            case PUSH_TELEMETRY:
+                state = ((PushTelemetryRequestFilter) this).onPushTelemetryRequest((PushTelemetryRequestData) decodedFrame.body(), filterContext);
                 break;
             case RENEW_DELEGATION_TOKEN:
                 state = ((RenewDelegationTokenRequestFilter) this).onRenewDelegationTokenRequest((RenewDelegationTokenRequestData) decodedFrame.body(), filterContext);
@@ -375,16 +399,22 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof AlterUserScramCredentialsRequestFilter;
             case API_VERSIONS:
                 return this instanceof ApiVersionsRequestFilter;
+            case ASSIGN_REPLICAS_TO_DIRS:
+                return this instanceof AssignReplicasToDirsRequestFilter;
             case BEGIN_QUORUM_EPOCH:
                 return this instanceof BeginQuorumEpochRequestFilter;
             case BROKER_HEARTBEAT:
                 return this instanceof BrokerHeartbeatRequestFilter;
             case BROKER_REGISTRATION:
                 return this instanceof BrokerRegistrationRequestFilter;
+            case CONSUMER_GROUP_DESCRIBE:
+                return this instanceof ConsumerGroupDescribeRequestFilter;
             case CONSUMER_GROUP_HEARTBEAT:
                 return this instanceof ConsumerGroupHeartbeatRequestFilter;
             case CONTROLLED_SHUTDOWN:
                 return this instanceof ControlledShutdownRequestFilter;
+            case CONTROLLER_REGISTRATION:
+                return this instanceof ControllerRegistrationRequestFilter;
             case CREATE_ACLS:
                 return this instanceof CreateAclsRequestFilter;
             case CREATE_DELEGATION_TOKEN:
@@ -439,6 +469,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof FetchSnapshotRequestFilter;
             case FIND_COORDINATOR:
                 return this instanceof FindCoordinatorRequestFilter;
+            case GET_TELEMETRY_SUBSCRIPTIONS:
+                return this instanceof GetTelemetrySubscriptionsRequestFilter;
             case HEARTBEAT:
                 return this instanceof HeartbeatRequestFilter;
             case INCREMENTAL_ALTER_CONFIGS:
@@ -451,6 +483,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof LeaderAndIsrRequestFilter;
             case LEAVE_GROUP:
                 return this instanceof LeaveGroupRequestFilter;
+            case LIST_CLIENT_METRICS_RESOURCES:
+                return this instanceof ListClientMetricsResourcesRequestFilter;
             case LIST_GROUPS:
                 return this instanceof ListGroupsRequestFilter;
             case LIST_OFFSETS:
@@ -471,6 +505,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof OffsetForLeaderEpochRequestFilter;
             case PRODUCE:
                 return this instanceof ProduceRequestFilter;
+            case PUSH_TELEMETRY:
+                return this instanceof PushTelemetryRequestFilter;
             case RENEW_DELEGATION_TOKEN:
                 return this instanceof RenewDelegationTokenRequestFilter;
             case SASL_AUTHENTICATE:

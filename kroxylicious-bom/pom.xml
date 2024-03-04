@@ -137,7 +137,7 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-encryption</artifactId>
+                <artifactId>kroxylicious-record-encryption</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
