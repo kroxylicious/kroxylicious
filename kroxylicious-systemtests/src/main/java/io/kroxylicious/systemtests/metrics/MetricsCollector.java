@@ -221,9 +221,9 @@ public class MetricsCollector {
     }
 
     /**
-     * To builder metrics collector . builder.
+     * To builder metrics collector.
      *
-     * @return the metrics collector . builder
+     * @return the metrics collector
      */
     public MetricsCollector.Builder toBuilder() {
         return updateBuilder(newBuilder());

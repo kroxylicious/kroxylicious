@@ -27,7 +27,7 @@ public class ScraperTemplates {
         Map<String, String> label = new HashMap<>();
 
         label.put(Constants.SCRAPER_LABEL_KEY, Constants.SCRAPER_LABEL_VALUE);
-        label.put(Constants.DEPLOYMENT_TYPE, "Scraper");
+        label.put(Constants.DEPLOYMENT_TYPE_LABEL_KEY, Constants.SCRAPER_NAME);
 
         return new DeploymentBuilder()
                 .withNewMetadata()

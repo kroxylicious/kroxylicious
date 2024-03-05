@@ -166,6 +166,6 @@ public interface Constants {
      */
     String SCRAPER_LABEL_KEY = "user-test-app";
     String SCRAPER_LABEL_VALUE = "scraper";
-    String SCRAPER_NAME = "scraper";
-    String DEPLOYMENT_TYPE = "deployment-type";
+    String SCRAPER_NAME = "Scraper";
+    String DEPLOYMENT_TYPE_LABEL_KEY = "deployment-type";
 }

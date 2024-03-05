@@ -119,13 +119,13 @@ public class MetricsST extends AbstractST {
 
     @BeforeEach
     void beforeEach(String namespace) throws InterruptedException {
-        final String scraperName = namespace + "-" + Constants.SCRAPER_NAME;
+        final String scraperName = namespace + "-" + Constants.SCRAPER_LABEL_VALUE;
         resourceManager.createResourceWithWait(ScraperTemplates.scraperPod(namespace, scraperName).build());
         cluster.setNamespace(namespace);
 
-        LOGGER.info("Sleeping for {} to give operators and operands some time to stable the metrics values before collecting",
-                Constants.RECONCILIATION_INTERVAL);
-        Thread.sleep(Constants.RECONCILIATION_INTERVAL);
+        LOGGER.info("Sleeping for {} seconds to give operators and operands some time to stable the metrics values before collecting",
+                Constants.RECONCILIATION_INTERVAL.toSeconds());
+        Thread.sleep(Constants.RECONCILIATION_INTERVAL.toMillis());
 
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
         kroxylicious = new Kroxylicious(namespace);

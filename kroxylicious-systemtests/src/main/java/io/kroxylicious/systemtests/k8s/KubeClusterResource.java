@@ -75,6 +75,7 @@ public class KubeClusterResource {
      */
     public String setNamespace(String futureNamespace) {
         String previousNamespace = namespace;
+        LOGGER.info("Previous namespace used: {}", previousNamespace);
         LOGGER.info("Client use Namespace: {}", futureNamespace);
         namespace = futureNamespace;
         return previousNamespace;
