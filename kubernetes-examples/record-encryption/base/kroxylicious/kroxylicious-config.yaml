@@ -12,7 +12,6 @@ metadata:
 data:
   config.yaml: |
     adminHttp:
-      port: 30090
       endpoints:
         prometheus: {}
     virtualClusters:

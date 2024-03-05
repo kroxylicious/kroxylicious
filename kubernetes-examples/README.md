@@ -53,3 +53,16 @@ This `run-example.sh` script does the following:
 1. installs a Kafka cluster using Strimzi into minikube
 1. installs kroxylicious into minikube, configured to proxy the cluster
 
+## Metrics
+
+All the examples configure Kroxylicious to emit metrics on the default port `9190`, however
+there is nothing configured to scrape them.
+
+You can make an adhoc observation of the metric like this:
+
+```shell
+kubectl run --restart=Never --attach=true --rm=true -n kroxylicious metrics --image=busybox -- wget -O - http://$(kubectl get pods -n kroxylicious -l app=kroxylicious -o jsonpath="{.items[0].status.podIP}"):9190/metrics
+```
+
+For anything above an adhoc observation, use Prometheus to consume the metrics and something
+like Grafana to visualise them.
