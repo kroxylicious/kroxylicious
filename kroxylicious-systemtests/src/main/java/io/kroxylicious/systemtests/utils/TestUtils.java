@@ -11,6 +11,7 @@ import java.io.StringWriter;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Duration;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 
@@ -26,32 +27,33 @@ public class TestUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestUtils.class);
 
     /**
-     * Poll the given {@code ready} function every {@code pollIntervalMs} milliseconds until it returns true,
-     * or throw a WaitException if it doesn't return true within {@code timeoutMs} milliseconds.
+     * Poll the given {@code ready} function every {@code pollInterval} until it returns true,
+     * or throw a WaitException if it doesn't return true within {@code timeout}.
+     *
      * @param description the description
-     * @param pollIntervalMs the poll interval ms
-     * @param timeoutMs the timeout ms
+     * @param pollInterval the poll interval
+     * @param timeout the timeout
      * @param ready the ready
      * @return The remaining time left until timeout occurs (helpful if you have several calls which need to share a common timeout),
      */
-    public static long waitFor(String description, long pollIntervalMs, long timeoutMs, BooleanSupplier ready) {
-        return waitFor(description, pollIntervalMs, timeoutMs, ready, () -> {
+    public static long waitFor(String description, Duration pollInterval, Duration timeout, BooleanSupplier ready) {
+        return waitFor(description, pollInterval, timeout, ready, () -> {
         });
     }
 
     /**
-     * Wait for long.
+     * Wait for.
      *
      * @param description the description
-     * @param pollIntervalMs the poll interval ms
-     * @param timeoutMs the timeout ms
+     * @param pollInterval the poll interval
+     * @param timeout the timeout
      * @param ready the ready
      * @param onTimeout the on timeout
      * @return the long
      */
-    public static long waitFor(String description, long pollIntervalMs, long timeoutMs, BooleanSupplier ready, Runnable onTimeout) {
+    public static long waitFor(String description, Duration pollInterval, Duration timeout, BooleanSupplier ready, Runnable onTimeout) {
         LOGGER.debug("Waiting for {}", description);
-        long deadline = System.currentTimeMillis() + timeoutMs;
+        long deadline = System.currentTimeMillis() + timeout.toMillis();
         String exceptionMessage = null;
         int exceptionCount = 0;
         StringWriter stackTraceError = new StringWriter();
@@ -85,11 +87,11 @@ public class TestUtils {
                     }
                 }
                 onTimeout.run();
-                WaitException waitException = new WaitException("Timeout after " + timeoutMs + " ms waiting for " + description);
+                WaitException waitException = new WaitException("Timeout after " + timeout + " ms waiting for " + description);
                 LOGGER.error(waitException.getMessage());
                 throw waitException;
             }
-            long sleepTime = Math.min(pollIntervalMs, timeLeft);
+            long sleepTime = Math.min(pollInterval.toMillis(), timeLeft);
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("{} not ready, will try again in {} ms ({}ms till timeout)", description, sleepTime, timeLeft);
             }

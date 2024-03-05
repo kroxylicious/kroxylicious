@@ -103,25 +103,24 @@ public interface Constants {
     /**
      * Polls and timeouts constants
      */
-    long POLL_INTERVAL_FOR_RESOURCE_READINESS_MILLIS = Duration.ofSeconds(5).toMillis();
+    Duration POLL_INTERVAL_FOR_RESOURCE_READINESS = Duration.ofSeconds(2);
     /**
-     * Poll interval for resource deletion in milliseconds
+     * Poll interval for resource deletion
      */
-    long POLL_INTERVAL_FOR_RESOURCE_DELETION_MILLIS = Duration.ofSeconds(1).toMillis();
+    Duration POLL_INTERVAL_FOR_RESOURCE_DELETION = Duration.ofSeconds(1);
 
     /**
-     * Global timeout in milliseconds
+     * Global timeout
      */
-    long GLOBAL_TIMEOUT = Duration.ofMinutes(5).toMillis();
+    Duration GLOBAL_TIMEOUT = Duration.ofMinutes(5);
     /**
-     * Global Poll interval in milliseconds
+     * Global Poll interval
      */
-    long GLOBAL_POLL_INTERVAL = Duration.ofSeconds(1).toMillis();
-    long RECONCILIATION_INTERVAL = Duration.ofSeconds(30).toMillis();
-    long GLOBAL_POLL_INTERVAL_MEDIUM = Duration.ofSeconds(10).toMillis();
-    long GLOBAL_STATUS_TIMEOUT = Duration.ofMinutes(3).toMillis();
-    long GLOBAL_TIMEOUT_SHORT = Duration.ofMinutes(2).toMillis();
-    long POLL_INTERVAL_FOR_RESOURCE_READINESS = Duration.ofSeconds(1).toMillis();
+    Duration GLOBAL_POLL_INTERVAL = Duration.ofSeconds(1);
+    Duration RECONCILIATION_INTERVAL = Duration.ofSeconds(30);
+    Duration GLOBAL_POLL_INTERVAL_MEDIUM = Duration.ofSeconds(10);
+    Duration GLOBAL_STATUS_TIMEOUT = Duration.ofMinutes(3);
+    Duration GLOBAL_TIMEOUT_SHORT = Duration.ofMinutes(2);
 
     /**
      * Kubernetes related constants

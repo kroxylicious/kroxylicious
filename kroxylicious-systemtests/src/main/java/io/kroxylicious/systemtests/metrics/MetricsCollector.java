@@ -235,19 +235,24 @@ public class MetricsCollector {
      * @param builder the builder
      */
     protected MetricsCollector(Builder builder) {
-        if (builder.namespaceName == null || builder.namespaceName.isEmpty())
+        if (builder.namespaceName == null || builder.namespaceName.isEmpty()) {
             builder.namespaceName = kubeClient().getNamespace();
-        if (builder.scraperPodName == null || builder.scraperPodName.isEmpty())
+        }
+        if (builder.scraperPodName == null || builder.scraperPodName.isEmpty()) {
             throw new InvalidParameterException("Scraper Pod name is not set");
-        if (builder.componentType == null)
+        }
+        if (builder.componentType == null) {
             throw new InvalidParameterException("Component type is not set");
+        }
 
         componentType = builder.componentType;
 
-        if (builder.metricsPort <= 0)
+        if (builder.metricsPort <= 0) {
             builder.metricsPort = getDefaultMetricsPort();
-        if (builder.metricsPath == null || builder.metricsPath.isEmpty())
+        }
+        if (builder.metricsPath == null || builder.metricsPath.isEmpty()) {
             builder.metricsPath = getDefaultMetricsPath();
+        }
 
         namespaceName = builder.namespaceName;
         scraperPodName = builder.scraperPodName;

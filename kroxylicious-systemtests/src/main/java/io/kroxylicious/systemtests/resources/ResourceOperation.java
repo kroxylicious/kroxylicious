@@ -21,7 +21,7 @@ public class ResourceOperation {
      *
      * @return the timeout for resource readiness
      */
-    public static long getTimeoutForResourceReadiness() {
+    public static Duration getTimeoutForResourceReadiness() {
         return getTimeoutForResourceReadiness("default");
     }
 
@@ -31,11 +31,11 @@ public class ResourceOperation {
      * @param kind the kind
      * @return the timeout for resource readiness
      */
-    public static long getTimeoutForResourceReadiness(String kind) {
+    public static Duration getTimeoutForResourceReadiness(String kind) {
         return switch (kind) {
-            case Kafka.RESOURCE_KIND -> Duration.ofMinutes(10).toMillis();
-            case Constants.DEPLOYMENT -> Duration.ofMinutes(6).toMillis();
-            default -> Duration.ofMinutes(3).toMillis();
+            case Kafka.RESOURCE_KIND -> Duration.ofMinutes(10);
+            case Constants.DEPLOYMENT -> Duration.ofMinutes(6);
+            default -> Duration.ofMinutes(3);
         };
     }
 

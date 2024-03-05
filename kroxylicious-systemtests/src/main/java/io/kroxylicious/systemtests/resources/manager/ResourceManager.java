@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.resources.manager;
 
+import java.time.Duration;
 import java.util.Objects;
 
 import org.slf4j.Logger;
@@ -128,7 +129,7 @@ public class ResourceManager {
     /**
      * Delete resource.
      *
-     * @param <T>      the type parameter
+     * @param <T> the type parameter
      * @param resources the resources
      */
     @SafeVarargs
@@ -158,9 +159,9 @@ public class ResourceManager {
     }
 
     /**
-     * Wait resource condition boolean.
+     * Wait resource condition.
      *
-     * @param <T>      the type parameter
+     * @param <T> the type parameter
      * @param resource the resource
      * @param condition the condition
      * @return the boolean
@@ -201,55 +202,55 @@ public class ResourceManager {
 
     /**
      * Wait until the CR is in desired state
-     * @param <T>      the type parameter
+     * @param <T> the type parameter
      * @param operation - client of CR - for example kafkaClient()
      * @param resource - custom resource
      * @param resourceTimeout the resource timeout
      * @return returns CR
      */
     public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, T resource,
-                                                                                                                  long resourceTimeout) {
+                                                                                                                  Duration resourceTimeout) {
         return waitForResourceStatusReady(operation, resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName(),
                 ConditionStatus.TRUE, resourceTimeout);
     }
 
     /**
-     * Wait for resource status boolean.
+     * Wait for resource status.
      *
-     * @param <T>      the type parameter
+     * @param <T> the type parameter
      * @param operation the operation
      * @param kind the kind
      * @param namespace the namespace
      * @param name the name
-     * @param resourceTimeoutMs the resource timeout ms
+     * @param resourceTimeout the resource timeout
      * @return the boolean
      */
     public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, String kind,
                                                                                                                   String namespace, String name,
-                                                                                                                  long resourceTimeoutMs) {
-        return waitForResourceStatusReady(operation, kind, namespace, name, ConditionStatus.TRUE, resourceTimeoutMs);
+                                                                                                                  Duration resourceTimeout) {
+        return waitForResourceStatusReady(operation, kind, namespace, name, ConditionStatus.TRUE, resourceTimeout);
     }
 
     /**
-     * Wait for resource status boolean.
+     * Wait for resource status.
      *
-     * @param <T>      the type parameter
+     * @param <T> the type parameter
      * @param operation the operation
      * @param kind the kind
      * @param namespace the namespace
      * @param name the name
      * @param conditionStatus the condition status
-     * @param resourceTimeoutMs the resource timeout ms
+     * @param resourceTimeout the resource timeout
      * @return the boolean
      */
     public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, String kind,
                                                                                                                   String namespace, String name,
                                                                                                                   ConditionStatus conditionStatus,
-                                                                                                                  long resourceTimeoutMs) {
+                                                                                                                  Duration resourceTimeout) {
         LOGGER.info("Waiting for {}: {}/{} will have desired state 'Ready'", kind, namespace, name);
 
         TestUtils.waitFor(String.format("%s: %s/%s will have desired state 'Ready'", kind, namespace, name),
-                Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS_MILLIS, resourceTimeoutMs,
+                Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS, resourceTimeout,
                 () -> {
                     final Status status = operation.inNamespace(namespace)
                             .withName(name)
@@ -275,7 +276,7 @@ public class ResourceManager {
      * @return the boolean
      */
     public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, T resource) {
-        long resourceTimeout = ResourceOperation.getTimeoutForResourceReadiness(resource.getKind());
+        Duration resourceTimeout = ResourceOperation.getTimeoutForResourceReadiness(resource.getKind());
         return waitForResourceStatusReady(operation, resource, resourceTimeout);
     }
 }
