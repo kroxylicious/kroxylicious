@@ -202,7 +202,7 @@ public class KubeClient {
      * @param deploymentName the deployment name
      * @return the deployment selectors
      */
-    public LabelSelector getDeploymentSelectors(String namespaceName, String deploymentName) {
+    public LabelSelector getPodSelectorFromDeployment(String namespaceName, String deploymentName) {
         return client.apps().deployments().inNamespace(namespaceName).withName(deploymentName).get().getSpec().getSelector();
     }
 

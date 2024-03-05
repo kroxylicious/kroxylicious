@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -235,36 +236,24 @@ public class MetricsCollector {
      * @param builder the builder
      */
     protected MetricsCollector(Builder builder) {
-        if (builder.namespaceName == null || builder.namespaceName.isEmpty()) {
-            builder.namespaceName = kubeClient().getNamespace();
-        }
-        if (builder.scraperPodName == null || builder.scraperPodName.isEmpty()) {
+        Objects.requireNonNull(builder.componentType, "Component type not set");
+
+        if (Optional.ofNullable(builder.scraperPodName).isEmpty()) {
             throw new InvalidParameterException("Scraper Pod name is not set");
         }
-        if (builder.componentType == null) {
-            throw new InvalidParameterException("Component type is not set");
-        }
 
-        componentType = builder.componentType;
-
-        if (builder.metricsPort <= 0) {
-            builder.metricsPort = getDefaultMetricsPort();
-        }
-        if (builder.metricsPath == null || builder.metricsPath.isEmpty()) {
-            builder.metricsPath = getDefaultMetricsPath();
-        }
-
-        namespaceName = builder.namespaceName;
         scraperPodName = builder.scraperPodName;
-        metricsPort = builder.metricsPort;
-        metricsPath = builder.metricsPath;
+        namespaceName = (Optional.ofNullable(builder.namespaceName).isEmpty()) ? kubeClient().getNamespace() : builder.namespaceName;
+        metricsPort = (builder.metricsPort <= 0) ? getDefaultMetricsPort() : builder.metricsPort;
+        metricsPath = (Optional.ofNullable(builder.metricsPath).isEmpty()) ? getDefaultMetricsPath() : builder.metricsPath;
+        componentType = builder.componentType;
         componentName = builder.componentName;
         componentLabelSelector = getLabelSelectorForResource();
     }
 
     private LabelSelector getLabelSelectorForResource() {
-        if (Objects.requireNonNull(this.componentType) == ComponentType.Kroxylicious) {
-            return kubeClient().getDeploymentSelectors(namespaceName, componentName);
+        if (this.componentType == ComponentType.Kroxylicious) {
+            return kubeClient().getPodSelectorFromDeployment(namespaceName, componentName);
         }
         return new LabelSelector();
     }
