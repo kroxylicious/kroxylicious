@@ -51,9 +51,8 @@ public class DeploymentUtils {
     public static void waitForDeploymentReady(String namespaceName, String deploymentName) {
         LOGGER.info("Waiting for Deployment: {}/{} to be ready", namespaceName, deploymentName);
 
-        TestUtils.waitFor("readiness of Deployment: " + namespaceName + "/" + deploymentName,
-                Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS, READINESS_TIMEOUT,
-                () -> kubeClient(namespaceName).isDeploymentReady(namespaceName, deploymentName));
+        await().atMost(READINESS_TIMEOUT).pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS)
+                .until(() -> kubeClient(namespaceName).isDeploymentReady(namespaceName, deploymentName));
 
         LOGGER.info("Deployment: {}/{} is ready", namespaceName, deploymentName);
     }
@@ -65,8 +64,8 @@ public class DeploymentUtils {
      */
     public static void waitForDeploymentDeletion(String namespaceName, String name) {
         LOGGER.debug("Waiting for Deployment: {}/{} deletion", namespaceName, name);
-        TestUtils.waitFor("deletion of Deployment: " + namespaceName + "/" + name, Constants.POLL_INTERVAL_FOR_RESOURCE_DELETION, DELETION_TIMEOUT,
-                () -> {
+        await().atMost(DELETION_TIMEOUT).pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_DELETION)
+                .until(() -> {
                     if (kubeClient(namespaceName).getDeployment(namespaceName, name) == null) {
                         return true;
                     }

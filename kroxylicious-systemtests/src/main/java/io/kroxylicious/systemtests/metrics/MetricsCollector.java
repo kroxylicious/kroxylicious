@@ -27,10 +27,10 @@ import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.resources.ComponentType;
-import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.awaitility.Awaitility.await;
 
 /**
  * The type Metrics collector.
@@ -295,8 +295,8 @@ public class MetricsCollector {
         ArrayList<Double> values = collectSpecificMetric(pattern);
 
         if (values.isEmpty()) {
-            TestUtils.waitFor(String.format("metrics contain pattern: %s", pattern.toString()), Constants.GLOBAL_POLL_INTERVAL_MEDIUM, Constants.GLOBAL_STATUS_TIMEOUT,
-                    () -> {
+            await().atMost(Constants.GLOBAL_STATUS_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL_MEDIUM)
+                    .until(() -> {
                         this.collectMetricsFromPods();
                         LOGGER.debug("Collected data: {}", collectedData);
                         ArrayList<Double> vals = this.collectSpecificMetric(pattern);
@@ -339,8 +339,8 @@ public class MetricsCollector {
     @SuppressWarnings("unchecked")
     public void collectMetricsFromPods() {
         Map<String, String>[] metricsData = (Map<String, String>[]) new HashMap[1];
-        TestUtils.waitFor("metrics to contain data", Constants.GLOBAL_POLL_INTERVAL, Constants.GLOBAL_TIMEOUT,
-                () -> {
+        await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                .until(() -> {
                     metricsData[0] = collectMetricsFromPodsWithoutWait();
 
                     // KafkaExporter metrics should be non-empty

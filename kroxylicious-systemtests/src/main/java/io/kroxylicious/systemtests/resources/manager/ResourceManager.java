@@ -33,8 +33,8 @@ import io.kroxylicious.systemtests.resources.kroxylicious.ServiceResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaUserResource;
-import io.kroxylicious.systemtests.utils.TestUtils;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
@@ -167,18 +167,17 @@ public class ResourceManager {
      * @return the boolean
      */
     public final <T extends HasMetadata> boolean waitResourceCondition(T resource, ResourceCondition<T> condition) {
-        assertNotNull(resource);
-        assertNotNull(resource.getMetadata());
-        assertNotNull(resource.getMetadata().getName());
+        Objects.requireNonNull(resource);
+        Objects.requireNonNull(resource.getMetadata());
+        Objects.requireNonNull(resource.getMetadata().getName());
 
         ResourceType<T> type = findResourceType(resource);
         assertNotNull(type);
         boolean[] resourceReady = new boolean[1];
 
-        TestUtils.waitFor(
-                "resource condition: " + condition.getConditionName() + " to be fulfilled for resource " + resource.getKind() + ":" + resource.getMetadata().getName(),
-                Constants.GLOBAL_POLL_INTERVAL, ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()),
-                () -> {
+        LOGGER.debug("Resource condition: {} to be fulfilled for resource {}: {}", condition.getConditionName(), resource.getKind(), resource.getMetadata().getName());
+        await().atMost(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind())).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                .until(() -> {
                     T res = type.get(resource.getMetadata().getNamespace(), resource.getMetadata().getName());
                     resourceReady[0] = condition.getPredicate().test(res);
                     if (!resourceReady[0]) {
@@ -248,10 +247,8 @@ public class ResourceManager {
                                                                                                                   ConditionStatus conditionStatus,
                                                                                                                   Duration resourceTimeout) {
         LOGGER.info("Waiting for {}: {}/{} will have desired state 'Ready'", kind, namespace, name);
-
-        TestUtils.waitFor(String.format("%s: %s/%s will have desired state 'Ready'", kind, namespace, name),
-                Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS, resourceTimeout,
-                () -> {
+        await().atMost(resourceTimeout).pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS)
+                .until(() -> {
                     final Status status = operation.inNamespace(namespace)
                             .withName(name)
                             .get()
