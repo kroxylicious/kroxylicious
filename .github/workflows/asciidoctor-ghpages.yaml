@@ -1,12 +1,17 @@
 name: GitHub Pages Publish
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: [Main Push Trigger]
+    types: [completed]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: echo event
+        run: cat $GITHUB_EVENT_PATH
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_commit.id }}
       - name: asciidoctor-ghpages
         uses: manoelcampos/asciidoctor-ghpages-action@v2
         with:

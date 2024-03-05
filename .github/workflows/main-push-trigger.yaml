@@ -1,0 +1,10 @@
+name: Main Push Trigger
+on:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: echo
+        run: echo "action exists only to trigger another workflow to workaround dependabot permissions"
