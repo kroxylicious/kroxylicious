@@ -3,6 +3,8 @@ on:
   workflow_run:
     workflows: [Main Push Trigger]
     types: [completed]
+concurrency:
+  group: ${{ github.workflow }}
 jobs:
   build:
     runs-on: ubuntu-latest
