@@ -26,6 +26,7 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaResponseDecoder.class);
+    private static final Metrics METRICS = Metrics.forGlobalRegistry();
 
     private final CorrelationManager correlationManager;
 
@@ -70,7 +71,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
             Filter recipient = correlation.recipient();
-            Metrics.payloadSizeBytesDownstreamSummary(apiKey, apiVersion).record(length);
+            METRICS.payloadSizeBytesResponseSummary(apiKey, apiVersion).record(length);
             if (recipient == null) {
                 frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
             }

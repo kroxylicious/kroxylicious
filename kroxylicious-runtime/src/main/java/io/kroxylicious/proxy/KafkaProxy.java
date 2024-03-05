@@ -54,6 +54,7 @@ public final class KafkaProxy implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
     private static final Logger STARTUP_SHUTDOWN_LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
+    private static final Metrics METRICS = Metrics.forGlobalRegistry();
 
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
@@ -121,8 +122,8 @@ public final class KafkaProxy implements AutoCloseable {
 
         // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
         // TODO add a virtual host tag to metrics
-        Metrics.inboundDownstreamMessagesCounter();
-        Metrics.inboundDownstreamDecodedMessagesCounter();
+        METRICS.receivedRequestMessagesCounter();
+        METRICS.decodedRequestMessagesCounter();
         return this;
     }
 
