@@ -6,11 +6,8 @@
 
 package io.kroxylicious.systemtests.utils;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import io.kroxylicious.systemtests.metrics.MetricsCollector;
 
@@ -22,7 +19,6 @@ import static org.hamcrest.Matchers.notNullValue;
  *  Provides auxiliary methods for Scraper Pod, which reaches Kroxylicious in the Kubernetes cluster.
  */
 public class MetricsUtils {
-    private static final Logger LOGGER = LogManager.getLogger(MetricsUtils.class);
 
     private MetricsUtils() {
     }
@@ -33,7 +29,7 @@ public class MetricsUtils {
     }
 
     public static void assertMetricValueNotNull(MetricsCollector collector, String metric) {
-        ArrayList<Double> values = createPatternAndCollect(collector, metric);
+        List<Double> values = createPatternAndCollect(collector, metric);
         double actualValue = values.stream().mapToDouble(i -> i).count();
         assertThat(String.format("metric '%s' doesn't exist", metric), actualValue, notNullValue());
     }
@@ -47,37 +43,37 @@ public class MetricsUtils {
     }
 
     public static void assertMetricValue(MetricsCollector collector, String metric, int expectedValue) {
-        ArrayList<Double> values = createPatternAndCollect(collector, metric);
+        List<Double> values = createPatternAndCollect(collector, metric);
         double actualValue = values.stream().mapToDouble(i -> i).sum();
         assertThat(String.format("metric '%s' actual value %s is different than expected %s", metric, actualValue, expectedValue), actualValue,
                 is((double) expectedValue));
     }
 
     public static void assertMetricValueCount(MetricsCollector collector, String metric, long expectedValue) {
-        ArrayList<Double> values = createPatternAndCollect(collector, metric);
+        List<Double> values = createPatternAndCollect(collector, metric);
         double actualValue = values.stream().mapToDouble(i -> i).count();
         assertThat(String.format("metric '%s' actual value %s is different than expected %s", actualValue, expectedValue, metric), actualValue,
                 is((double) expectedValue));
     }
 
     public static void assertMetricCountHigherThan(MetricsCollector collector, String metric, long expectedValue) {
-        ArrayList<Double> values = createPatternAndCollect(collector, metric);
+        List<Double> values = createPatternAndCollect(collector, metric);
         double actualValue = values.stream().mapToDouble(i -> i).count();
         assertThat(String.format("metric '%s' actual value %s not is higher than expected %s", metric, actualValue, expectedValue), actualValue > expectedValue);
     }
 
     public static void assertMetricValueHigherThan(MetricsCollector collector, String metric, int expectedValue) {
-        ArrayList<Double> values = createPatternAndCollect(collector, metric);
+        List<Double> values = createPatternAndCollect(collector, metric);
         double actualValue = values.stream().mapToDouble(i -> i).sum();
         assertThat(String.format("metric '%s' actual value %s is different than expected %s", metric, actualValue, expectedValue), actualValue > expectedValue);
     }
 
-    private static ArrayList<Double> createPatternAndCollect(MetricsCollector collector, String metric) {
+    private static List<Double> createPatternAndCollect(MetricsCollector collector, String metric) {
         Pattern pattern = Pattern.compile(metric + "\\{.*\\} ([\\d.][^\\n]+)", Pattern.CASE_INSENSITIVE);
         return collector.waitForSpecificMetricAndCollect(pattern);
     }
 
-    private static ArrayList<Double> createPatternAndCollectWithoutWait(MetricsCollector collector, String metric) {
+    private static List<Double> createPatternAndCollectWithoutWait(MetricsCollector collector, String metric) {
         Pattern pattern = Pattern.compile(metric + "\\{.*\\} ([\\d.][^\\n]+)", Pattern.CASE_INSENSITIVE);
         return collector.collectSpecificMetric(pattern);
     }

@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
  * Disabled to focus on kubernetes system tests
  */
 @Disabled
-public class KroxyliciousAppST extends AbstractST {
+class KroxyliciousAppST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousAppST.class);
     private static KroxyliciousApp kroxyliciousApp;
     private final String clusterName = "my-external-cluster";

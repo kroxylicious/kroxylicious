@@ -236,6 +236,9 @@ public class MetricsCollector {
      * @param builder the builder
      */
     protected MetricsCollector(Builder builder) {
+        String DEFAULT_METRICS_PATH = "/metrics";
+        int DEFAULT_METRICS_PORT = 9190;
+
         Objects.requireNonNull(builder.componentType, "Component type not set");
 
         if (Optional.ofNullable(builder.scraperPodName).isEmpty()) {
@@ -243,9 +246,9 @@ public class MetricsCollector {
         }
 
         scraperPodName = builder.scraperPodName;
-        namespaceName = (Optional.ofNullable(builder.namespaceName).isEmpty()) ? kubeClient().getNamespace() : builder.namespaceName;
-        metricsPort = (builder.metricsPort <= 0) ? getDefaultMetricsPort() : builder.metricsPort;
-        metricsPath = (Optional.ofNullable(builder.metricsPath).isEmpty()) ? getDefaultMetricsPath() : builder.metricsPath;
+        namespaceName = Optional.ofNullable(builder.namespaceName).orElse(kubeClient().getNamespace());
+        metricsPort = (builder.metricsPort <= 0) ? DEFAULT_METRICS_PORT : builder.metricsPort;
+        metricsPath = Optional.ofNullable(builder.metricsPath).orElse(DEFAULT_METRICS_PATH);
         componentType = builder.componentType;
         componentName = builder.componentName;
         componentLabelSelector = getLabelSelectorForResource();
@@ -258,21 +261,13 @@ public class MetricsCollector {
         return new LabelSelector();
     }
 
-    private String getDefaultMetricsPath() {
-        return "/metrics";
-    }
-
-    private int getDefaultMetricsPort() {
-        return 9190;
-    }
-
     /**
      * Parse out specific metric from whole metrics file
      * @param pattern regex pattern for specific metric
      * @return list of parsed values
      */
-    public ArrayList<Double> collectSpecificMetric(Pattern pattern) {
-        ArrayList<Double> values = new ArrayList<>();
+    public List<Double> collectSpecificMetric(Pattern pattern) {
+        List<Double> values = new ArrayList<>();
 
         if (collectedData != null && !collectedData.isEmpty()) {
             for (Map.Entry<String, String> entry : collectedData.entrySet()) {
@@ -291,15 +286,15 @@ public class MetricsCollector {
      * @param pattern Pattern of metric which is desired
      * @return ArrayList of values collected from the metrics
      */
-    public synchronized ArrayList<Double> waitForSpecificMetricAndCollect(Pattern pattern) {
-        ArrayList<Double> values = collectSpecificMetric(pattern);
+    public synchronized List<Double> waitForSpecificMetricAndCollect(Pattern pattern) {
+        List<Double> values = collectSpecificMetric(pattern);
 
         if (values.isEmpty()) {
             await().atMost(Constants.GLOBAL_STATUS_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL_MEDIUM)
                     .until(() -> {
                         this.collectMetricsFromPods();
                         LOGGER.debug("Collected data: {}", collectedData);
-                        ArrayList<Double> vals = this.collectSpecificMetric(pattern);
+                        List<Double> vals = this.collectSpecificMetric(pattern);
 
                         if (!vals.isEmpty()) {
                             values.addAll(vals);
@@ -330,6 +325,11 @@ public class MetricsCollector {
 
         LOGGER.info("Metrics collection for Pod: {}/{}({}) from Pod: {}/{} finished with return code: {}", namespaceName, podName, metricsPodIp, namespaceName,
                 scraperPodName, ret);
+
+        if (ret != 0) {
+            throw new IOException("Cannot collect the metrics using " + executableCommand + " command");
+        }
+
         return exec.out();
     }
 
