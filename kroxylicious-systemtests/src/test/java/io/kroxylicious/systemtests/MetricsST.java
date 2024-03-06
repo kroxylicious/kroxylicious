@@ -80,7 +80,7 @@ class MetricsST extends AbstractST {
     }
 
     @Test
-    void testKroxyliciousPayloadSize(String namespace) {
+    void kroxyliciousPayloadSize(String namespace) {
         int numberOfMessages = 1;
 
         String bootstrap = kroxylicious.getBootstrap();
