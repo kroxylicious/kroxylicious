@@ -51,21 +51,21 @@ public class MetricsUtils {
 
     public static void assertMetricValueCount(MetricsCollector collector, String metric, long expectedValue) {
         List<Double> values = createPatternAndCollect(collector, metric);
-        double actualValue = values.stream().mapToDouble(i -> i).count();
-        assertThat(String.format("metric '%s' actual value %s is different than expected %s", actualValue, expectedValue, metric), actualValue,
+        double actualCount = values.stream().mapToDouble(i -> i).count();
+        assertThat(String.format("metric '%s' count %s is different than expected %s", actualCount, expectedValue, metric), actualCount,
                 is((double) expectedValue));
     }
 
     public static void assertMetricCountHigherThan(MetricsCollector collector, String metric, long expectedValue) {
         List<Double> values = createPatternAndCollect(collector, metric);
         double actualValue = values.stream().mapToDouble(i -> i).count();
-        assertThat(String.format("metric '%s' actual value %s not is higher than expected %s", metric, actualValue, expectedValue), actualValue > expectedValue);
+        assertThat(String.format("metric '%s' actual count value %s is not higher than expected %s", metric, actualValue, expectedValue), actualValue > expectedValue);
     }
 
     public static void assertMetricValueHigherThan(MetricsCollector collector, String metric, int expectedValue) {
         List<Double> values = createPatternAndCollect(collector, metric);
         double actualValue = values.stream().mapToDouble(i -> i).sum();
-        assertThat(String.format("metric '%s' actual value %s is different than expected %s", metric, actualValue, expectedValue), actualValue > expectedValue);
+        assertThat(String.format("metric '%s' actual value %s is not higher than expected %s", metric, actualValue, expectedValue), actualValue > expectedValue);
     }
 
     private static List<Double> createPatternAndCollect(MetricsCollector collector, String metric) {
