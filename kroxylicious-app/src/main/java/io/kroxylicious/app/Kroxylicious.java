@@ -79,8 +79,16 @@ public class Kroxylicious implements Callable<Integer> {
         new BannerLogger().log();
         String[] versions = new VersionProvider().getVersion();
         for (String version : versions) {
-            LOGGER.info(version);
+            LOGGER.info("{}", version);
         }
+        LOGGER.atInfo()
+                .setMessage("Platform: Java {}({}) running on {} {}/{}")
+                .addArgument(Runtime::version)
+                .addArgument(() -> System.getProperty("java.vendor"))
+                .addArgument(() -> System.getProperty("os.name"))
+                .addArgument(() -> System.getProperty("os.version"))
+                .addArgument(() -> System.getProperty("os.arch"))
+                .log();
     }
 
     /**
