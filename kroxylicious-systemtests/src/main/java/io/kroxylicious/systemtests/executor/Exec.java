@@ -294,7 +294,7 @@ public class Exec {
      *
      * @param input the input
      * @param commands arguments for command
-     * @param timeout timeout in for kill
+     * @param timeout timeout allowed for the process's execution. If the timeout is exceed the process will be killed.
      * @param dir the dir
      * @return returns ecode of execution
      * @throws IOException the io exception
