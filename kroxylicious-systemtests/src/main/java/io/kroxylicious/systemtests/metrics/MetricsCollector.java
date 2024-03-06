@@ -18,18 +18,16 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import io.kroxylicious.systemtests.executor.ExecResult;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.message.Message;
 
 import io.fabric8.kubernetes.api.model.LabelSelector;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.executor.Exec;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.resources.ComponentType;
-
-import org.apache.logging.log4j.message.Message;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -321,7 +319,8 @@ public class MetricsCollector {
 
         ExecResult result = Exec.exec(null, executableCommand, Duration.ofSeconds(20), true, false, null);
 
-        Message message = LOGGER.getMessageFactory().newMessage("Metrics collection for Pod: {}/{}({}) from Pod: {}/{} finished with return code: {}", namespaceName, podName, metricsPodIp, namespaceName,
+        Message message = LOGGER.getMessageFactory().newMessage("Metrics collection for Pod: {}/{}({}) from Pod: {}/{} finished with return code: {}", namespaceName,
+                podName, metricsPodIp, namespaceName,
                 scraperPodName, result.returnCode());
 
         if (!result.isSuccess()) {
