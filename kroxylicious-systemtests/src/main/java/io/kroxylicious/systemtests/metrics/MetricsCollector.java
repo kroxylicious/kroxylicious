@@ -320,8 +320,7 @@ public class MetricsCollector {
         ExecResult result = Exec.exec(null, executableCommand, Duration.ofSeconds(20), true, false, null);
 
         Message message = LOGGER.getMessageFactory().newMessage("Metrics collection for Pod: {}/{}({}) from Pod: {}/{} finished with return code: {}", namespaceName,
-                podName, metricsPodIp, namespaceName,
-                scraperPodName, result.returnCode());
+                podName, metricsPodIp, namespaceName, scraperPodName, result.returnCode());
 
         if (!result.isSuccess()) {
             LOGGER.warn(message);
