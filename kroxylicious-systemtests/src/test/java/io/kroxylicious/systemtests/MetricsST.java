@@ -48,7 +48,7 @@ class MetricsST extends AbstractST {
     private MetricsCollector kroxyliciousCollector;
 
     @Test
-    void testKroxyliciousMetricsBeforeSendingMessages() {
+    void kroxyliciousMetricsBeforeSendingMessages() {
         LOGGER.info("Metrics: " + kroxyliciousCollector.getCollectedData().values());
         assertAll("Checking the presence of the metrics",
                 () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 1),
