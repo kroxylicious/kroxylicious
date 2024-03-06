@@ -156,13 +156,13 @@ public enum WrapperVersion {
             var aadSpec = AadSpec.fromPersistentId(wrapper.get());
 
             var parametersBuffer = wrapper.slice();
-            int parametersSize;
             if (cipherSpec.constantParamsSize() == CipherSpec.VARIABLE_SIZE_PARAMETERS) {
-                parametersSize = ByteUtils.readUnsignedVarint(parametersBuffer);
+                // when we implement this we need to read parameterSize from the varint and
+                // ensure the parametersBuffer limit includes the length of the varint and
+                // ensure we include the length of the varint when skipping over the parameters in the wrapper
+                throw new EncryptionException("variable size cipher parameters not supported yet");
             }
-            else {
-                parametersSize = cipherSpec.constantParamsSize();
-            }
+            int parametersSize = cipherSpec.constantParamsSize();
             parametersBuffer.limit(parametersSize);
             var ciphertext = wrapper.position(wrapper.position() + parametersSize).slice();
 
