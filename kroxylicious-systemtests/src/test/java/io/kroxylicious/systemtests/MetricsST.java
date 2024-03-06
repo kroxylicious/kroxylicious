@@ -59,7 +59,7 @@ class MetricsST extends AbstractST {
     }
 
     @Test
-    void testKroxyliciousDownstreamMessages(String namespace) {
+    void kroxyliciousDownstreamMessages(String namespace) {
         int numberOfMessages = 1;
 
         String bootstrap = kroxylicious.getBootstrap();
