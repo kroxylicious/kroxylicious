@@ -19,10 +19,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.Kafka;
 
+import io.kroxylicious.systemtests.enums.ComponentType;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.metrics.MetricsCollector;
-import io.kroxylicious.systemtests.enums.ComponentType;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.metrics.ScraperTemplates;
