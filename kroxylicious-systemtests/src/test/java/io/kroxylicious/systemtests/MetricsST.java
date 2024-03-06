@@ -36,7 +36,7 @@ import static io.kroxylicious.systemtests.utils.MetricsUtils.assertMetricValueHi
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
- * @description This test suite is designed for testing metrics exposed by kroxylicious.
+ * This test suite is designed for testing metrics exposed by kroxylicious.
  */
 @ExtendWith(KroxyliciousExtension.class)
 class MetricsST extends AbstractST {
