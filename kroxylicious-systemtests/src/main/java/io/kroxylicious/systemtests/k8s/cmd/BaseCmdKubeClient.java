@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.k8s.cmd;
 
 import java.io.File;
 import java.nio.file.NoSuchFileException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -95,7 +96,7 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         for (File f : files) {
             if (f.isFile()) {
                 if (f.getName().endsWith(".yaml")) {
-                    execResults.put(f, Exec.exec(null, namespacedCommand(subcommand, "-f", f.getAbsolutePath()), 0, false, false, null));
+                    execResults.put(f, Exec.exec(null, namespacedCommand(subcommand, "-f", f.getAbsolutePath()), Duration.ZERO, false, false, null));
                 }
             }
             else if (f.isDirectory()) {
@@ -121,6 +122,6 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
     public ExecResult execInPod(String pod, boolean throwErrors, String... command) {
         List<String> cmd = namespacedCommand("exec", pod, "--");
         cmd.addAll(asList(command));
-        return Exec.exec(null, cmd, 0, throwErrors);
+        return Exec.exec(null, cmd, Duration.ZERO, true, throwErrors, null);
     }
 }

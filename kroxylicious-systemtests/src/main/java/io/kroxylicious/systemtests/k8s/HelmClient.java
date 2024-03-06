@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.k8s;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -93,7 +94,7 @@ public class HelmClient {
         overrideFile.map(Path::toString).ifPresent(v -> cmd.addAll(List.of("--values", v)));
         overrideMap.filter(not(Map::isEmpty)).ifPresent(m -> cmd.addAll(List.of("--set", mapToValuesParameterArgument(m))));
 
-        Exec.exec(null, wait(cmd), 0, true);
+        Exec.exec(null, wait(cmd), Duration.ZERO, true);
         return this;
     }
 
@@ -108,7 +109,7 @@ public class HelmClient {
         LOGGER.info("Adding repo {}", repoName);
         Exec.exec(null, command("repo", "add",
                 repoName,
-                repoUrl), 0, true);
+                repoUrl), Duration.ZERO, true);
         return this;
     }
 
@@ -130,7 +131,7 @@ public class HelmClient {
      */
     public HelmClient delete(String namespace, String releaseName) {
         LOGGER.info("Deleting helm-chart:{} in namespace:{}", releaseName, namespace);
-        Exec.exec(null, wait(command("uninstall", releaseName, "--namespace", namespace)), 0, true);
+        Exec.exec(null, wait(command("uninstall", releaseName, "--namespace", namespace)), Duration.ZERO, true);
         return this;
     }
 

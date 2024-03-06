@@ -6,8 +6,8 @@
 
 package io.kroxylicious.systemtests.metrics;
 
-import java.io.IOException;
 import java.security.InvalidParameterException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -15,9 +15,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import io.kroxylicious.systemtests.executor.ExecResult;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,6 +28,8 @@ import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.resources.ComponentType;
+
+import org.apache.logging.log4j.message.Message;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -236,9 +239,6 @@ public class MetricsCollector {
      * @param builder the builder
      */
     protected MetricsCollector(Builder builder) {
-        String DEFAULT_METRICS_PATH = "/metrics";
-        int DEFAULT_METRICS_PORT = 9190;
-
         Objects.requireNonNull(builder.componentType, "Component type not set");
 
         if (Optional.ofNullable(builder.scraperPodName).isEmpty()) {
@@ -247,8 +247,8 @@ public class MetricsCollector {
 
         scraperPodName = builder.scraperPodName;
         namespaceName = Optional.ofNullable(builder.namespaceName).orElse(kubeClient().getNamespace());
-        metricsPort = (builder.metricsPort <= 0) ? DEFAULT_METRICS_PORT : builder.metricsPort;
-        metricsPath = Optional.ofNullable(builder.metricsPath).orElse(DEFAULT_METRICS_PATH);
+        metricsPort = (builder.metricsPort <= 0) ? 9190 : builder.metricsPort;
+        metricsPath = Optional.ofNullable(builder.metricsPath).orElse("/metrics");
         componentType = builder.componentType;
         componentName = builder.componentName;
         componentLabelSelector = getLabelSelectorForResource();
@@ -312,51 +312,35 @@ public class MetricsCollector {
      * Collect metrics from specific pod
      * @return collected metrics
      */
-    private String collectMetrics(String metricsPodIp, String podName) throws InterruptedException, ExecutionException, IOException {
+    private String collectMetrics(String metricsPodIp, String podName) {
         List<String> executableCommand = Arrays.asList(cmdKubeClient(namespaceName).toString(), "exec", scraperPodName,
                 "-n", namespaceName,
                 "--", "curl", metricsPodIp + ":" + metricsPort + metricsPath);
 
         LOGGER.debug("Executing command:{} for scrape the metrics", executableCommand);
 
-        Exec exec = new Exec();
-        // 20 seconds should be enough for collect data from the pod
-        int ret = exec.execute(null, executableCommand, 20_000, null);
+        ExecResult result = Exec.exec(null, executableCommand, Duration.ofSeconds(20), true, false, null);
 
-        LOGGER.info("Metrics collection for Pod: {}/{}({}) from Pod: {}/{} finished with return code: {}", namespaceName, podName, metricsPodIp, namespaceName,
-                scraperPodName, ret);
+        Message message = LOGGER.getMessageFactory().newMessage("Metrics collection for Pod: {}/{}({}) from Pod: {}/{} finished with return code: {}", namespaceName, podName, metricsPodIp, namespaceName,
+                scraperPodName, result.returnCode());
 
-        if (ret != 0) {
-            throw new IOException("Cannot collect the metrics using " + executableCommand + " command");
+        if (!result.isSuccess()) {
+            LOGGER.warn(message);
+        }
+        else {
+            LOGGER.info(message);
         }
 
-        return exec.out();
+        return result.out();
     }
 
     /**
      * Collect metrics from all Pods with specific selector with wait
      */
-    @SuppressWarnings("unchecked")
     public void collectMetricsFromPods() {
-        Map<String, String>[] metricsData = (Map<String, String>[]) new HashMap[1];
-        await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
-                .until(() -> {
-                    metricsData[0] = collectMetricsFromPodsWithoutWait();
-
-                    // KafkaExporter metrics should be non-empty
-                    if (metricsData[0].isEmpty()) {
-                        return false;
-                    }
-
-                    for (Map.Entry<String, String> item : metricsData[0].entrySet()) {
-                        if (item.getValue().isEmpty()) {
-                            return false;
-                        }
-                    }
-                    return true;
-                });
-
-        collectedData = metricsData[0];
+        collectedData = await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                .until(this::collectMetricsFromPodsWithoutWait,
+                        collected -> !(collected.isEmpty() || collected.entrySet().stream().anyMatch(e -> e.getValue().isEmpty())));
     }
 
     /**
@@ -367,14 +351,9 @@ public class MetricsCollector {
     public Map<String, String> collectMetricsFromPodsWithoutWait() {
         Map<String, String> map = new HashMap<>();
         kubeClient(namespaceName).listPods(namespaceName, componentLabelSelector).forEach(p -> {
-            try {
-                final String podName = p.getMetadata().getName();
-                String podIP = p.getStatus().getPodIP();
-                map.put(podName, collectMetrics(podIP, podName));
-            }
-            catch (InterruptedException | ExecutionException | IOException e) {
-                throw new RuntimeException(e);
-            }
+            final String podName = p.getMetadata().getName();
+            String podIP = p.getStatus().getPodIP();
+            map.put(podName, collectMetrics(podIP, podName));
         });
         return map;
     }
