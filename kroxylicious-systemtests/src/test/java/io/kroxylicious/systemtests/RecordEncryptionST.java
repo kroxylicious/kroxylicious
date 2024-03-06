@@ -36,9 +36,9 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KroxyliciousExtension.class)
-class EnvelopeEncryptionST extends AbstractST {
+class RecordEncryptionST extends AbstractST {
     protected static final String BROKER_NODE_NAME = "kafka";
-    private static final Logger LOGGER = LoggerFactory.getLogger(EnvelopeEncryptionST.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryptionST.class);
     private static final String MESSAGE = "Hello-world";
     private static KubeVaultTestKmsFacade kubeVaultTestKmsFacade;
     private final String clusterName = "my-cluster";

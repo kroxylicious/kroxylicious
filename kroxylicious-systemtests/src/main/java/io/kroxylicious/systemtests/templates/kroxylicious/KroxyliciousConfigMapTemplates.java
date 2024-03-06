@@ -42,7 +42,7 @@ public final class KroxyliciousConfigMapTemplates {
     }
 
     /**
-     * Kroxylicious topic encryption config.
+     * Kroxylicious record encryption config.
      *
      * @param clusterName the cluster name
      * @param namespaceName the namespace name

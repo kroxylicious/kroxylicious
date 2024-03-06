@@ -52,7 +52,7 @@ public class Kroxylicious {
     }
 
     private void createRecordEncryptionFilterConfigMap(String clusterName, String topicName, Config config) {
-        LOGGER.info("Deploy Kroxylicious config Map without filters in {} namespace", deploymentNamespace);
+        LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
         resourceManager
                 .createResourceWithWait(KroxyliciousConfigMapTemplates.kroxyliciousRecordEncryptionConfig(clusterName, deploymentNamespace, topicName, config).build());
     }
@@ -86,7 +86,7 @@ public class Kroxylicious {
     }
 
     /**
-     * Deploy port per broker plain with topic encryption filter.
+     * Deploy port per broker plain with record encryption filter.
      *
      * @param clusterName the cluster name
      * @param replicas the replicas
