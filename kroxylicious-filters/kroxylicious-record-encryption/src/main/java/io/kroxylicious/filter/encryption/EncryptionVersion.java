@@ -35,7 +35,7 @@ public enum EncryptionVersion {
         switch (code) {
             case 1:
                 // we guarantee backwards compatibility going forward from v2
-                throw new EncryptionException("Deserialization of EncryptionVersion=1 records is not supported by this version of the encryption filter.");
+                return V1_UNSUPPORTED;
             case 2:
                 return V2;
             default:

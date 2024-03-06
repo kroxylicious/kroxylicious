@@ -40,12 +40,25 @@ public enum WrapperVersion {
         @Override
         public <E> void read(@NonNull ParcelVersion parcelVersion, @NonNull String topicName, int partition, @NonNull RecordBatch batch, @NonNull Record record,
                              ByteBuffer wrapper, Dek<E>.Decryptor decryptor, @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {
-            throw unsupportedVersionException();
+            var edekLength = ByteUtils.readUnsignedVarint(wrapper);
+            wrapper.position(wrapper.position() + edekLength);
+            wrapper.get(); // skip aadSpec id
+            wrapper.get(); // skip cipherSpec id
+            wrapper.get(); // skip parcel version id
+            var parametersBuffer = wrapper.slice();
+            int parametersSize = parametersBuffer.get();
+            parametersBuffer.limit(parametersSize + 1);
+            var ciphertext = wrapper.position(wrapper.position() + parametersSize + 1).slice();
+            ByteBuffer plaintextParcel = decryptParcel(ciphertext, null, parametersBuffer, decryptor);
+            Parcel.readParcel(parcelVersion, plaintextParcel, record, consumer);
         }
 
         @Override
         public <E, T> T readSpecAndEdek(ByteBuffer wrapper, Serde<E> serde, BiFunction<CipherSpec, E, T> fn) {
-            throw unsupportedVersionException();
+            var edekLength = ByteUtils.readUnsignedVarint(wrapper);
+            ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
+            E edek = serde.deserialize(slice);
+            return fn.apply(CipherSpec.AES_256_GCM_128, edek);
         }
 
         @NonNull

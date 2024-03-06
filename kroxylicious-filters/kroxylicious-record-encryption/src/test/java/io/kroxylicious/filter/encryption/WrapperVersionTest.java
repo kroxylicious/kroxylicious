@@ -17,8 +17,6 @@ class WrapperVersionTest {
     @Test
     void unsupportedWrapperVersionThrowsOnUsage() {
         assertUnsupported(() -> V1_UNSUPPORTED.writeWrapper(null, null, null, 1, null, null, null, null, null, null, null));
-        assertUnsupported(() -> V1_UNSUPPORTED.read(null, null, 1, null, null, null, null, null));
-        assertUnsupported(() -> V1_UNSUPPORTED.readSpecAndEdek(null, null, null));
     }
 
     private void assertUnsupported(ThrowableAssert.ThrowingCallable op) {
