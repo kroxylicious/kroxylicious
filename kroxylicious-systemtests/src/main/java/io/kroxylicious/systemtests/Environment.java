@@ -32,7 +32,6 @@ public class Environment {
     private static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
     private static final String VAULT_CHART_VERSION_ENV = "VAULT_CHART_VERSION";
     private static final String SKIP_STRIMZI_INSTALL_ENV = "SKIP_STRIMZI_INSTALL";
-    private static final String SCRAPER_IMAGE_ENV = "SCRAPER_IMAGE";
 
     /**
      * The kafka version default value
@@ -99,8 +98,6 @@ public class Environment {
     public static final boolean SKIP_STRIMZI_INSTALL = Boolean.parseBoolean(getOrDefault(SKIP_STRIMZI_INSTALL_ENV, SKIP_STRIMZI_INSTALL_DEFAULT));
 
     public static final String VAULT_CHART_VERSION = getOrDefault(VAULT_CHART_VERSION_ENV, VAULT_CHART_VERSION_DEFAULT);
-    private static final String SCRAPER_IMAGE_DEFAULT = KROXY_IMAGE_REPO_DEFAULT + ":" + KROXY_VERSION;
-    public static final String SCRAPER_IMAGE = getOrDefault(SCRAPER_IMAGE_ENV, SCRAPER_IMAGE_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);

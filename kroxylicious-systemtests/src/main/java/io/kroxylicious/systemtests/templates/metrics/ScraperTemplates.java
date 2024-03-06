@@ -11,8 +11,6 @@ import java.util.Map;
 
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 
 import io.kroxylicious.systemtests.Constants;
@@ -28,6 +26,8 @@ public class ScraperTemplates {
 
         label.put(Constants.SCRAPER_LABEL_KEY, Constants.SCRAPER_LABEL_VALUE);
         label.put(Constants.DEPLOYMENT_TYPE_LABEL_KEY, Constants.SCRAPER_NAME);
+        String kroxyRepoUrl = Environment.KROXY_IMAGE_REPO + (Environment.KROXY_IMAGE_REPO.endsWith(":") ? "" : ":");
+        String scraperImage = kroxyRepoUrl + Environment.KROXY_VERSION;
 
         return new DeploymentBuilder()
                 .withNewMetadata()
@@ -50,7 +50,7 @@ public class ScraperTemplates {
                 .withContainers(
                         new ContainerBuilder()
                                 .withName(podName)
-                                .withImage(Environment.SCRAPER_IMAGE)
+                                .withImage(scraperImage)
                                 .withCommand("sleep")
                                 .withArgs("infinity")
                                 .withImagePullPolicy("IfNotPresent")
