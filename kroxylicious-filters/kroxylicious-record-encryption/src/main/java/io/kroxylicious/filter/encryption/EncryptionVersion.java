@@ -18,7 +18,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public enum EncryptionVersion {
 
-    V1((byte) 1, ParcelVersion.V1, WrapperVersion.V1);
+    V1_UNSUPPORTED((byte) 1, ParcelVersion.V1, WrapperVersion.V1_UNSUPPORTED),
+    V2((byte) 2, ParcelVersion.V1, WrapperVersion.V2);
 
     private final ParcelVersion parcelVersion;
     private final WrapperVersion wrapperVersion;
@@ -33,7 +34,10 @@ public enum EncryptionVersion {
     public static EncryptionVersion fromCode(byte code) {
         switch (code) {
             case 1:
-                return V1;
+                // we guarantee backwards compatibility going forward from v2
+                throw new EncryptionException("Deserialization of EncryptionVersion=1 records is not supported by this version of the encryption filter.");
+            case 2:
+                return V2;
             default:
                 throw new EncryptionException("Unknown EncryptionVersion: " + code);
         }
