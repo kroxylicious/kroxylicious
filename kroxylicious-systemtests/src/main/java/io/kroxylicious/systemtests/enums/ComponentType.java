@@ -4,8 +4,8 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.resources;
+package io.kroxylicious.systemtests.enums;
 
 public enum ComponentType {
-    Kroxylicious
+    KROXYLICIOUS
 }

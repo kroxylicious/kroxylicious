@@ -22,7 +22,7 @@ import io.strimzi.api.kafka.model.Kafka;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.metrics.MetricsCollector;
-import io.kroxylicious.systemtests.resources.ComponentType;
+import io.kroxylicious.systemtests.enums.ComponentType;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.metrics.ScraperTemplates;
@@ -117,6 +117,7 @@ class MetricsST extends AbstractST {
                 kafka);
     }
 
+    @SuppressWarnings("java:S2925")
     @BeforeEach
     void beforeEach(String namespace) throws InterruptedException {
         final String scraperName = namespace + "-" + Constants.SCRAPER_LABEL_VALUE;
@@ -133,7 +134,7 @@ class MetricsST extends AbstractST {
         kroxyliciousCollector = new MetricsCollector.Builder()
                 .withScraperPodName(scraperPodName)
                 .withNamespaceName(namespace)
-                .withComponentType(ComponentType.Kroxylicious)
+                .withComponentType(ComponentType.KROXYLICIOUS)
                 .withComponentName(Constants.KROXY_DEPLOYMENT_NAME)
                 .build();
         kroxyliciousCollector.collectMetricsFromPods();

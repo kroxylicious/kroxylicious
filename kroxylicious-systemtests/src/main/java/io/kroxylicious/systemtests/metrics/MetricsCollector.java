@@ -27,7 +27,7 @@ import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
-import io.kroxylicious.systemtests.resources.ComponentType;
+import io.kroxylicious.systemtests.enums.ComponentType;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -253,7 +253,7 @@ public class MetricsCollector {
     }
 
     private LabelSelector getLabelSelectorForResource() {
-        if (this.componentType == ComponentType.Kroxylicious) {
+        if (this.componentType == ComponentType.KROXYLICIOUS) {
             return kubeClient().getPodSelectorFromDeployment(namespaceName, componentName);
         }
         return new LabelSelector();
