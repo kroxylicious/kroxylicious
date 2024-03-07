@@ -25,7 +25,7 @@ public enum AadSpec {
     /**
      * No AAD
      */
-    NONE((byte) 0, EncryptionVersion.V1) {
+    NONE((byte) 0, EncryptionVersion.V1_UNSUPPORTED) {
         @Override
         ByteBuffer computeAad(
                               String topicName,

@@ -29,9 +29,34 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * The version of the wrapper schema used to persist information in the wrapper.
  */
 public enum WrapperVersion {
+    V1_UNSUPPORTED {
+        @Override
+        public <E> void writeWrapper(@NonNull Serde<E> edekSerde, @NonNull E edek, @NonNull String topicName, int partitionId, @NonNull RecordBatch batch,
+                                     @NonNull Record kafkaRecord, @NonNull Dek<E>.Encryptor encryptor, @NonNull ParcelVersion parcelVersion, @NonNull AadSpec aadSpec,
+                                     @NonNull Set<RecordField> recordFields, @NonNull ByteBuffer buffer) {
+            throw unsupportedVersionException();
+        }
+
+        @Override
+        public <E> void read(@NonNull ParcelVersion parcelVersion, @NonNull String topicName, int partition, @NonNull RecordBatch batch, @NonNull Record record,
+                             ByteBuffer wrapper, Dek<E>.Decryptor decryptor, @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {
+            throw unsupportedVersionException();
+        }
+
+        @Override
+        public <E, T> T readSpecAndEdek(ByteBuffer wrapper, Serde<E> serde, BiFunction<CipherSpec, E, T> fn) {
+            throw unsupportedVersionException();
+        }
+
+        @NonNull
+        private static EncryptionException unsupportedVersionException() {
+            return new EncryptionException("V1 wrappers are unsupported");
+        }
+    },
+
     /**
      * <pre>
-     * wrapper_v1               = cipher_id
+     * wrapper_v2               = cipher_id
      *                            edek_length
      *                            edek
      *                            aead_id
@@ -47,7 +72,7 @@ public enum WrapperVersion {
      * parcel_ciphertext        = *OCTET                       ; whatever is left in the buffer
      * </pre>
      */
-    V1 {
+    V2 {
 
         @Override
         public <E> void writeWrapper(@NonNull Serde<E> edekSerde,
@@ -131,13 +156,13 @@ public enum WrapperVersion {
             var aadSpec = AadSpec.fromPersistentId(wrapper.get());
 
             var parametersBuffer = wrapper.slice();
-            int parametersSize;
             if (cipherSpec.constantParamsSize() == CipherSpec.VARIABLE_SIZE_PARAMETERS) {
-                parametersSize = ByteUtils.readUnsignedVarint(parametersBuffer);
+                // when we implement this we need to read parameterSize from the varint and
+                // ensure the parametersBuffer limit includes the length of the varint and
+                // ensure we include the length of the varint when skipping over the parameters in the wrapper
+                throw new EncryptionException("variable size cipher parameters not supported yet");
             }
-            else {
-                parametersSize = cipherSpec.constantParamsSize();
-            }
+            int parametersSize = cipherSpec.constantParamsSize();
             parametersBuffer.limit(parametersSize);
             var ciphertext = wrapper.position(wrapper.position() + parametersSize).slice();
 

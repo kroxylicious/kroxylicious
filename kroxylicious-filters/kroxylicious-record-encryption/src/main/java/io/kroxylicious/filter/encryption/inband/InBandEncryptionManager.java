@@ -82,7 +82,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                    @NonNull EncryptionDekCache<K, E> dekCache,
                                    @NonNull FilterThreadExecutor filterThreadExecutor) {
         this.filterThreadExecutor = filterThreadExecutor;
-        this.encryptionVersion = EncryptionVersion.V1; // TODO read from config
+        this.encryptionVersion = EncryptionVersion.V2; // TODO read from config
         this.edekSerde = Objects.requireNonNull(edekSerde);
         if (recordBufferInitialBytes <= 0) {
             throw new IllegalArgumentException();
