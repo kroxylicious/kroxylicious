@@ -16,6 +16,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -58,7 +59,7 @@ public class Exec {
     /**
      * Instantiates a new Exec.
      */
-    public Exec() {
+    private Exec() {
     }
 
     /**
@@ -142,7 +143,7 @@ public class Exec {
      * @return execution results
      */
     public static ExecResult exec(List<String> command, File dir) {
-        return exec(null, command, 0, false, dir);
+        return exec(null, command, Duration.ZERO, false, dir);
     }
 
     /**
@@ -152,7 +153,7 @@ public class Exec {
      * @return the exec result
      */
     public static ExecResult exec(List<String> command) {
-        return exec(null, command, 0, false);
+        return exec(null, command, Duration.ZERO, false);
     }
 
     /**
@@ -163,7 +164,7 @@ public class Exec {
      * @return execution results
      */
     public static ExecResult exec(String input, List<String> command) {
-        return exec(input, command, 0, false);
+        return exec(input, command, Duration.ZERO, false);
     }
 
     /**
@@ -175,7 +176,7 @@ public class Exec {
      * @param dir the dir
      * @return execution results
      */
-    public static ExecResult exec(String input, List<String> command, int timeout, boolean logToOutput, File dir) {
+    public static ExecResult exec(String input, List<String> command, Duration timeout, boolean logToOutput, File dir) {
         return exec(input, command, timeout, logToOutput, true, dir);
     }
 
@@ -199,7 +200,7 @@ public class Exec {
      * @param logToOutput the log to output
      * @return the exec result
      */
-    public static ExecResult exec(String input, List<String> command, int timeout, boolean logToOutput) {
+    public static ExecResult exec(String input, List<String> command, Duration timeout, boolean logToOutput) {
         return exec(input, command, timeout, logToOutput, true, null);
     }
 
@@ -213,7 +214,7 @@ public class Exec {
      * @param dir the dir
      * @return execution results
      */
-    public static ExecResult exec(String input, List<String> command, int timeout, boolean logToOutput, boolean throwErrors, File dir) {
+    public static ExecResult exec(String input, List<String> command, Duration timeout, boolean logToOutput, boolean throwErrors, File dir) {
         int ret;
         ExecResult execResult;
         try {
@@ -293,14 +294,14 @@ public class Exec {
      *
      * @param input the input
      * @param commands arguments for command
-     * @param timeoutMs timeout in ms for kill
+     * @param timeout timeout allowed for the process's execution. If the timeout is exceed the process will be killed.
      * @param dir the dir
      * @return returns ecode of execution
      * @throws IOException the io exception
      * @throws InterruptedException the interrupted exception
      * @throws ExecutionException the execution exception
      */
-    public int execute(String input, List<String> commands, long timeoutMs, File dir) throws IOException, InterruptedException, ExecutionException {
+    public int execute(String input, List<String> commands, Duration timeout, File dir) throws IOException, InterruptedException, ExecutionException {
         LOGGER.debug("Running command - {}", String.join(" ", commands.toArray(new String[0])));
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
@@ -319,8 +320,8 @@ public class Exec {
         Future<String> error = readStdError();
 
         int retCode = 1;
-        if (timeoutMs > 0) {
-            if (process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)) {
+        if (timeout.toMillis() > 0) {
+            if (process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
                 retCode = process.exitValue();
             }
             else {

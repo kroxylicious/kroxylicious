@@ -53,7 +53,7 @@ public class DeploymentResource implements ResourceType<Deployment> {
     @Override
     public boolean waitForReadiness(Deployment resource) {
         deploymentClient().inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName())
-                .waitUntilReady(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()), TimeUnit.MILLISECONDS);
+                .waitUntilReady(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()).toMillis(), TimeUnit.MILLISECONDS);
         return true;
     }
 

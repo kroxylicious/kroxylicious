@@ -53,7 +53,7 @@ public class ServiceResource implements ResourceType<Service> {
     @Override
     public boolean waitForReadiness(Service resource) {
         serviceClient().inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName())
-                .waitUntilReady(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()), TimeUnit.MILLISECONDS);
+                .waitUntilReady(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()).toMillis(), TimeUnit.MILLISECONDS);
         return true;
     }
 

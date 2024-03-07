@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
+import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -135,6 +136,10 @@ public class KubeClient {
         return client.pods().inNamespace(namespaceName).list().getItems();
     }
 
+    public List<Pod> listPods(String namespaceName, LabelSelector selector) {
+        return client.pods().inNamespace(namespaceName).withLabelSelector(selector).list().getItems();
+    }
+
     /**
      * Returns list of pods by prefix in pod name
      * @param namespaceName Namespace name
@@ -189,6 +194,16 @@ public class KubeClient {
      */
     public Deployment getDeployment(String namespaceName, String deploymentName) {
         return client.apps().deployments().inNamespace(namespaceName).withName(deploymentName).get();
+    }
+
+    /**
+     * Gets deployment selectors
+     * @param namespaceName the namespace name
+     * @param deploymentName the deployment name
+     * @return the deployment selectors
+     */
+    public LabelSelector getPodSelectorFromDeployment(String namespaceName, String deploymentName) {
+        return client.apps().deployments().inNamespace(namespaceName).withName(deploymentName).get().getSpec().getSelector();
     }
 
     /**

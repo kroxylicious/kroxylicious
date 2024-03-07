@@ -69,6 +69,19 @@ public class KubeClusterResource {
     }
 
     /**
+     * Sets the namespace value for Kubernetes clients
+     * @param futureNamespace Namespace which should be used in Kubernetes clients
+     * @return Previous namespace which was used in Kubernetes clients
+     */
+    public String setNamespace(String futureNamespace) {
+        String previousNamespace = namespace;
+        LOGGER.info("Previous namespace used: {}", previousNamespace);
+        LOGGER.info("Client use Namespace: {}", futureNamespace);
+        namespace = futureNamespace;
+        return previousNamespace;
+    }
+
+    /**
      * Provides appropriate CMD client for running cluster
      * @return CMD client
      */

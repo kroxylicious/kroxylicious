@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.systemtests.Constants;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.awaitility.Awaitility.await;
 
 /**
  * The type Namespace utils.
@@ -28,8 +29,8 @@ public class NamespaceUtils {
     public static void deleteNamespaceWithWait(String namespace) {
         LOGGER.info("Deleting namespace: {}", namespace);
         kubeClient().deleteNamespace(namespace);
-        TestUtils.waitFor("namespace to be deleted", Constants.GLOBAL_POLL_INTERVAL_MILLIS, Constants.GLOBAL_TIMEOUT_MILLIS,
-                () -> kubeClient().getNamespace(namespace) == null);
+        await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                .until(() -> kubeClient().getNamespace(namespace) == null);
 
         LOGGER.info("Namespace: {} deleted", namespace);
     }
@@ -46,8 +47,8 @@ public class NamespaceUtils {
             return;
         }
         kubeClient().createNamespace(namespace);
-        TestUtils.waitFor("namespace to be created", Constants.GLOBAL_POLL_INTERVAL_MILLIS, Constants.GLOBAL_TIMEOUT_MILLIS,
-                () -> kubeClient().getNamespace(namespace) != null);
+        await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                .until(() -> kubeClient().getNamespace(namespace) != null);
 
         LOGGER.info("Namespace: {} created", namespace);
     }
