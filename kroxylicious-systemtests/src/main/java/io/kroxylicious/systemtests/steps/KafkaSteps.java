@@ -64,7 +64,7 @@ public class KafkaSteps {
      * @param bootstrap the bootstrap
      */
     public static void deleteTopic(String deployNamespace, String topicName, String bootstrap) {
-        if(!isTopicPresent(deployNamespace, topicName, bootstrap)) {
+        if(!topicExists(deployNamespace, topicName, bootstrap)) {
             LOGGER.warn("Nothing to delete. Topic was not created");
             return;
         }
@@ -83,7 +83,7 @@ public class KafkaSteps {
         LOGGER.debug("Admin client delete pod log: {}", log);
     }
 
-    private static boolean isTopicPresent(String deployNamespace, String topicName, String bootstrap) {
+    private static boolean topicExists(String deployNamespace, String topicName, String bootstrap) {
         LOGGER.info("Deleting topic {}", topicName);
         String podName = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-list";
         kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
