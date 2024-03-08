@@ -64,7 +64,7 @@ public class KafkaSteps {
      * @param bootstrap the bootstrap
      */
     public static void deleteTopic(String deployNamespace, String topicName, String bootstrap) {
-        if(!topicExists(deployNamespace, topicName, bootstrap)) {
+        if (!topicExists(deployNamespace, topicName, bootstrap)) {
             LOGGER.warn("Nothing to delete. Topic was not created");
             return;
         }
