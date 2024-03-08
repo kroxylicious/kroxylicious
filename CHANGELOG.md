@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## 0.5.0
 
+* [#1074](https://github.com/kroxylicious/kroxylicious/pull/1074): Port-per-broker Exposition: make lowest broker id configurable
 * [#1066](https://github.com/kroxylicious/kroxylicious/pull/1066): Log platform information on startup
 * [#1050](https://github.com/kroxylicious/kroxylicious/pull/1050): Change AES GCM cipher to require a 256bit key
 * [#1049](https://github.com/kroxylicious/kroxylicious/pull/1049): Add deprecated EnvelopeEncryption filter to ease migration to RecordEncryption filter
