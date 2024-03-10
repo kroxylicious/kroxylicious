@@ -15,11 +15,11 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junitpioneer.jupiter.RestoreSystemProperties;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -46,6 +46,8 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.assertj.core.api.Assumptions.assumeThatCode;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -269,138 +271,152 @@ class ConfigParserTest {
 
     }
 
-    @Test
-    void systemPropertyExpansion() {
+    static Stream<Arguments> interpolation() {
+        return Stream.of(
+                Arguments.of("sys property interpolation (string)",
+                        (Runnable) () -> System.setProperty("bootstrapAddress", "mybootstrap"),
+                        """
+                                virtualClusters:
+                                  demo1:
+                                    clusterNetworkAddressConfigProvider:
+                                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                                      config:
+                                        bootstrapAddress: ${sys:bootstrapAddress}:9193
+                                    targetCluster:
+                                      bootstrap_servers: target:1234
+                                """,
+                        new PortPerBrokerClusterNetworkAddressConfigProviderConfig(HostPort.parse("mybootstrap:9193"), null, null, null, 3)),
+                Arguments.of("sys property interpolation (int)",
+                        (Runnable) () -> System.setProperty("brokerStartPort", "109193"),
+                        """
+                                virtualClusters:
+                                  demo1:
+                                    clusterNetworkAddressConfigProvider:
+                                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                                      config:
+                                        bootstrapAddress: host:9193
+                                        brokerStartPort: ${sys:brokerStartPort}
+                                    targetCluster:
+                                      bootstrap_servers: target:1234
+                                """,
+                        new PortPerBrokerClusterNetworkAddressConfigProviderConfig(HostPort.parse("host:9193"), null, 109193, null, 3)),
+                Arguments.of("sys property interpolation fallback to default",
+                        (Runnable) () -> System.clearProperty("bootstrapAddress"),
+                        """
+                                virtualClusters:
+                                  demo1:
+                                    clusterNetworkAddressConfigProvider:
+                                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                                      config:
+                                        bootstrapAddress: ${sys:bootstrapAddress:-myfallback}:9193
+                                    targetCluster:
+                                      bootstrap_servers: target:1234
+                                """,
+                        new PortPerBrokerClusterNetworkAddressConfigProviderConfig(HostPort.parse("myfallback:9193"), null, null, null, 3)),
+                Arguments.of("env variable interpolation (string)",
+                        (Runnable) () -> {
+                            var user = System.getenv("USER");
+                            assumeThat(user)
+                                    .withFailMessage("no suitable environment variable present in environment")
+                                    .isNotNull();
+                            assumeThatCode(() -> HostPort.parse("%s:1234".formatted(user)))
+                                    .withFailMessage("no suitable environment variable present in environment")
+                                    .doesNotThrowAnyException();
 
-        System.setProperty("bootstrap", "zzzz");
-        System.setProperty("port", "1234");
-        System.setProperty("numberOfBrokerPorts", "1");
+                        },
+                        """
+                                virtualClusters:
+                                  demo1:
+                                    clusterNetworkAddressConfigProvider:
+                                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                                      config:
+                                        bootstrapAddress: ${env:USER}:9193
+                                    targetCluster:
+                                      bootstrap_servers: target:1234
+                                """,
+                        new PortPerBrokerClusterNetworkAddressConfigProviderConfig(HostPort.parse("%s:9193".formatted(System.getenv("USER"))), null, null, null, 3)));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    @RestoreSystemProperties
+    void interpolation(String testName, Runnable setUp, String yaml, PortPerBrokerClusterNetworkAddressConfigProviderConfig expected) {
+
+        setUp.run();
 
         // Given
-        Configuration configuration = configParser.parseConfiguration("""
-                virtualClusters:
-                  demo1:
-                    targetCluster:
-                      bootstrap_servers: ${sys:bootstrap}:${sys:port}
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
-                        bootstrapAddress: cluster:9193
-                        numberOfBrokerPorts: ${sys:numberOfBrokerPorts}0
-                """);
+        Configuration configuration = configParser.parseConfiguration(yaml);
 
         var actualValidClusters = configuration.virtualClusters();
 
         // Then
-        assertThat(actualValidClusters)
-                .flatExtracting("demo1")
-                .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
-                .extracting(VirtualCluster::targetCluster)
-                .extracting(TargetCluster::bootstrapServers)
-                .isEqualTo("zzzz:1234");
-
         assertThat(actualValidClusters)
                 .flatExtracting("demo1")
                 .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
                 .extracting(VirtualCluster::clusterNetworkAddressConfigProvider)
                 .extracting("config")
-                .extracting("numberOfBrokerPorts")
-                .isEqualTo(10);
-
-        System.clearProperty("bootstrap");
-        System.clearProperty("port");
-        System.clearProperty("numberOfBrokerPorts");
+                .isEqualTo(expected);
     }
 
-    @Test
-    void envVarExpansion() {
-
-        var user = System.getenv().get("USER");
-        assertThat(user).isNotNull();
-
-        // Given
-        Configuration configuration = configParser.parseConfiguration("""
-                virtualClusters:
-                  demo1:
-                    targetCluster:
-                      bootstrap_servers: ${env:USER}:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
-                        bootstrapAddress: cluster:9193
-                """);
-
-        var actualValidClusters = configuration.virtualClusters();
-
-        // Then
-        assertThat(actualValidClusters)
-                .flatExtracting("demo1")
-                .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
-                .extracting(VirtualCluster::targetCluster)
-                .extracting(TargetCluster::bootstrapServers)
-                .isEqualTo("%s:1234".formatted(user));
-
+    static Stream<Arguments> interpolationErrorsDetected() {
+        return Stream.of(
+                Arguments.of("unknown system property",
+                        (Runnable) () -> System.clearProperty("notSet"),
+                        """
+                                virtualClusters:
+                                  demo1:
+                                    clusterNetworkAddressConfigProvider:
+                                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                                      config:
+                                        bootstrapAddress: ${sys:notSet}:9193
+                                    targetCluster:
+                                      bootstrap_servers: target:1234
+                                """,
+                        IllegalArgumentException.class,
+                        "Cannot resolve variable 'sys:notSet'"),
+                Arguments.of("infinite loop",
+                        (Runnable) () -> System.setProperty("cycle", "${sys:cycle}"),
+                        """
+                                virtualClusters:
+                                  demo1:
+                                    clusterNetworkAddressConfigProvider:
+                                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                                      config:
+                                        bootstrapAddress: ${sys:cycle}:9193
+                                    targetCluster:
+                                      bootstrap_servers: target:1234
+                                """,
+                        IllegalStateException.class,
+                        "Infinite loop in property interpolation"),
+                Arguments.of("infinite loop",
+                        (Runnable) () -> {
+                            System.setProperty("foo", "${sys:bar}");
+                            System.setProperty("bar", "${sys:foo}");
+                        },
+                        """
+                                virtualClusters:
+                                  demo1:
+                                    clusterNetworkAddressConfigProvider:
+                                      type: PortPerBrokerClusterNetworkAddressConfigProvider
+                                      config:
+                                        bootstrapAddress: ${sys:foo}:9193
+                                    targetCluster:
+                                      bootstrap_servers: target:1234
+                                """,
+                        IllegalStateException.class,
+                        "Infinite loop in property interpolation"));
     }
 
-    @Test
-    void absentEnvVarFallbackToDefault() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    @RestoreSystemProperties
+    void interpolationErrorsDetected(String testName, Runnable setUp, String yaml, Class<Exception> clazz, String expectedMessage) {
 
-        assertThat(System.getenv()).doesNotContainKey("NOT_AN_ENV_VAR");
+        setUp.run();
 
-        // Given
-        Configuration configuration = configParser.parseConfiguration("""
-                virtualClusters:
-                  demo1:
-                    targetCluster:
-                      bootstrap_servers: ${env:NOT_AN_ENV_VAR:-localhost}:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
-                        bootstrapAddress: cluster:9193
-                """);
-
-        var actualValidClusters = configuration.virtualClusters();
-
-        // Then
-        assertThat(actualValidClusters)
-                .flatExtracting("demo1")
-                .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
-                .extracting(VirtualCluster::targetCluster)
-                .extracting(TargetCluster::bootstrapServers)
-                .isEqualTo("localhost:1234");
-
-    }
-
-    @Test
-    @Disabled
-    void absentEnvVarFallbackToDefaultWhichIsVar() {
-
-        // Do we care about this?
-
-        assertThat(System.getenv()).doesNotContainKey("NOT_AN_ENV_VAR");
-
-        // Given
-        Configuration configuration = configParser.parseConfiguration("""
-                virtualClusters:
-                  demo1:
-                    targetCluster:
-                      bootstrap_servers: ${env:NOT_AN_ENV_VAR:-${env:HOME}}:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
-                        bootstrapAddress: cluster:9193
-                """);
-
-        var actualValidClusters = configuration.virtualClusters();
-
-        // Then
-        assertThat(actualValidClusters)
-                .flatExtracting("demo1")
-                .singleElement(InstanceOfAssertFactories.type(VirtualCluster.class))
-                .extracting(VirtualCluster::targetCluster)
-                .extracting(TargetCluster::bootstrapServers)
-                .isEqualTo("localhost:1234");
-
+        assertThatThrownBy(() -> configParser.parseConfiguration(yaml))
+                .isInstanceOf(clazz)
+                .hasMessageContaining(expectedMessage);
     }
 
     @Test

@@ -102,12 +102,8 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
     /**
      * Creates the configuration for this provider.
      */
-    public static class PortPerBrokerClusterNetworkAddressConfigProviderConfig {
-        private final HostPort bootstrapAddress;
-        private final String brokerAddressPattern;
-        private final int brokerStartPort;
-        private final int lowestTargetBrokerId;
-        private final int numberOfBrokerPorts;
+    public record PortPerBrokerClusterNetworkAddressConfigProviderConfig(HostPort bootstrapAddress, String brokerAddressPattern, Integer brokerStartPort,
+                                                                         Integer lowestTargetBrokerId, Integer numberOfBrokerPorts) {
 
         public PortPerBrokerClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
                                                                       @JsonProperty(required = false) String brokerAddressPattern,

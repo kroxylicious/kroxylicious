@@ -84,8 +84,11 @@ public class ConfigParser implements PluginFactoryRegistry {
     }
 
     public static ObjectMapper createObjectMapper() {
+        var interpolator = StringSubstitutor
+                .createInterpolator()
+                .setEnableUndefinedVariableException(true);
         return (ObjectMapper) new ObjectMapper(
-                TextNodeReplacingJsonFactoryWrapper.wrap(new YAMLFactory(), (text) -> StringSubstitutor.createInterpolator().replace(text)))
+                TextNodeReplacingJsonFactoryWrapper.wrap(new YAMLFactory(), interpolator::replace))
                 .registerModule(new ParameterNamesModule())
                 .registerModule(new Jdk8Module())
                 .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))
