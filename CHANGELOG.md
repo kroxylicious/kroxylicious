@@ -2,6 +2,7 @@
 
 Please enumerate **all user-facing** changes using format `<githib issue/pr number>: <short description>`, with changes ordered in reverse chronological order.
 
+## SNAPSHOT
 ## 0.5.0
 
 * [#1074](https://github.com/kroxylicious/kroxylicious/pull/1074): Port-per-broker Exposition: make lowest broker id configurable
