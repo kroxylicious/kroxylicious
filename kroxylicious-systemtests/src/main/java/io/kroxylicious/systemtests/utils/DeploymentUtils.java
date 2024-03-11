@@ -142,9 +142,8 @@ public class DeploymentUtils {
      *
      * @param namespaceName the namespace name
      * @param podName the pod name
-     * @param timeout the timeout
      */
-    public static void waitForPodRunSucceeded(String namespaceName, String podName, Duration timeout) {
+    public static void waitForPodRunSucceeded(String namespaceName, String podName) {
         LOGGER.info("Waiting for pod run: {}/{} to be succeeded", namespaceName, podName);
         with().conditionEvaluationListener(new ConditionEvaluationListener<>() {
             @Override
@@ -156,7 +155,7 @@ public class DeploymentUtils {
             public void conditionEvaluated(EvaluatedCondition condition) {
                 // unused
             }
-        }).await().atMost(timeout).pollInterval(Duration.ofMillis(200))
+        }).await().atMost(Duration.ofMinutes(1)).pollInterval(Duration.ofMillis(200))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
                         && kubeClient().isPodRunSucceeded(namespaceName, podName));
     }

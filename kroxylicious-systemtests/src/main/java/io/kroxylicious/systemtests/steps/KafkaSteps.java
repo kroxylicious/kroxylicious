@@ -51,7 +51,7 @@ public class KafkaSteps {
                         "--topic-rep-factor=" + replicas)
                 .done();
 
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofMinutes(1));
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName);
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.debug("Admin client create pod log: {}", log);
     }
@@ -78,7 +78,7 @@ public class KafkaSteps {
                 .withArgs(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName)
                 .done();
 
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName);
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.debug("Admin client delete pod log: {}", log);
     }
@@ -94,7 +94,7 @@ public class KafkaSteps {
                 .withArgs(TOPIC_COMMAND, "list", BOOTSTRAP_ARG + bootstrap)
                 .done();
 
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName);
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.debug("Admin client list pod log: {}", log);
         return log.contains(topicName);
