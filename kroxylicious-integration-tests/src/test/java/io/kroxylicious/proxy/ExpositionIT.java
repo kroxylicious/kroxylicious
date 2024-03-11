@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -50,6 +51,7 @@ import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.SaslPlainAuth;
+import io.kroxylicious.testing.kafka.common.ZooKeeperCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -437,6 +439,32 @@ class ExpositionIT extends BaseIT {
                 assertThat(updatedNodes).describedAs("new node should appear in the describeCluster response").anyMatch(n -> n.id() == newNodeId);
             }
 
+            verifyAllBrokersAvailableViaProxy(tester, cluster);
+        }
+    }
+
+    // we currently cannot influence the node ids, so we start a 2 node cluster and shutdown node 0
+    // cannot use KRaft as node 0 is a controller
+    @Test
+    void canConfigureLowestBrokerIdWithPortPerBroker(@ZooKeeperCluster @BrokerCluster(numBrokers = 2) KafkaCluster cluster, Admin admin) throws Exception {
+        cluster.removeBroker(0);
+        await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                n -> n.size() == 1 && n.iterator().next().id() == 1);
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .endTargetCluster()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                        .withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                        .withConfig("lowestTargetBrokerId", 1)
+                                        .withConfig("numberOfBrokerPorts", 1)
+                                        .build())
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder)) {
+            assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
             verifyAllBrokersAvailableViaProxy(tester, cluster);
         }
     }
