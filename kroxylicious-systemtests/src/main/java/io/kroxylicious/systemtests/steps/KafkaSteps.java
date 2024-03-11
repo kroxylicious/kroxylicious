@@ -6,12 +6,18 @@
 
 package io.kroxylicious.systemtests.steps;
 
+import io.fabric8.kubernetes.api.model.PodSecurityContext;
+
+import io.fabric8.kubernetes.api.model.PodSecurityContextBuilder;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
+
+import java.time.Duration;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -49,7 +55,7 @@ public class KafkaSteps {
                         "--topic-rep-factor=" + replicas)
                 .done();
 
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName);
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.debug("Admin client create pod log: {}", log);
     }
@@ -76,7 +82,7 @@ public class KafkaSteps {
                 .withArgs(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName)
                 .done();
 
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName);
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.debug("Admin client delete pod log: {}", log);
     }
@@ -92,7 +98,7 @@ public class KafkaSteps {
                 .withArgs(TOPIC_COMMAND, "list", BOOTSTRAP_ARG + bootstrap)
                 .done();
 
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName);
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.debug("Admin client list pod log: {}", log);
         return log.contains(topicName);

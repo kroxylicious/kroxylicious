@@ -13,6 +13,8 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 import org.apache.commons.io.FileUtils;
 import org.awaitility.core.ConditionEvaluationListener;
@@ -23,6 +25,8 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodStatus;
 
 import io.kroxylicious.systemtests.Constants;
 
@@ -142,9 +146,16 @@ public class DeploymentUtils {
      *
      * @param namespaceName the namespace name
      * @param podName the pod name
+     * @param timeout the timeout
      */
-    public static void waitForPodRunSucceeded(String namespaceName, String podName) {
+    public static void waitForPodRunSucceeded(String namespaceName, String podName, Duration timeout) {
         LOGGER.info("Waiting for pod run: {}/{} to be succeeded", namespaceName, podName);
+
+        with().alias("await pod to leave pending phase")
+                .timeout(Duration.ofMinutes(1))
+                .until(() -> Optional.of(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus),
+                        s -> s.map(PodStatus::getPhase).filter(Predicate.not("pending"::equalsIgnoreCase)).isPresent());
+
         with().conditionEvaluationListener(new ConditionEvaluationListener<>() {
             @Override
             public void onTimeout(TimeoutEvent timeoutEvent) {
@@ -155,7 +166,7 @@ public class DeploymentUtils {
             public void conditionEvaluated(EvaluatedCondition condition) {
                 // unused
             }
-        }).await().atMost(Duration.ofMinutes(1)).pollInterval(Duration.ofMillis(200))
+        }).await().atMost(timeout).pollInterval(Duration.ofMillis(200))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
                         && kubeClient().isPodRunSucceeded(namespaceName, podName));
     }
