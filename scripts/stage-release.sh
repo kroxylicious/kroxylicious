@@ -128,6 +128,7 @@ if [[ "${DRY_RUN:-false}" == true ]]; then
     # shellcheck disable=SC2059
     printf "${BLUE}Dry-run mode:${NC} no remote tags or PRs will be created, artefacts will be deployed to: ${DEPLOY_DRY_RUN_DIR}\n"
     MVN_DEPLOY_DRYRUN="-DaltDeploymentRepository=ossrh::file:${DEPLOY_DRY_RUN_DIR}"
+    GIT_DRYRUN="--dry-run"
 else
     MVN_DEPLOY_DRYRUN=""
 fi
