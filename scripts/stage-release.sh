@@ -101,12 +101,15 @@ cleanup() {
 }
 
 setVersion() {
-  local VERSION=$1
-  mvn -q -B versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
+  local NEW_VERSION=$1
+  local CURRENT_VERSION
+
+  CURRENT_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
+  mvn -q -B versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
 
   # Bump version ref in files not controlled by Maven
   # shellcheck disable=SC2046
-  ${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+  ${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${NEW_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
 
   git add '**/*.yaml' '**/pom.xml' 'pom.xml'
 }
