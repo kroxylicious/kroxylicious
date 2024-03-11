@@ -6,8 +6,6 @@
 
 package io.kroxylicious.systemtests.steps;
 
-import java.time.Duration;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
