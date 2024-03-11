@@ -6,9 +6,7 @@
 
 package io.kroxylicious.systemtests.steps;
 
-import io.fabric8.kubernetes.api.model.PodSecurityContext;
-
-import io.fabric8.kubernetes.api.model.PodSecurityContextBuilder;
+import java.time.Duration;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,8 +14,6 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
-
-import java.time.Duration;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.hamcrest.MatcherAssert.assertThat;
