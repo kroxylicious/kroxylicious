@@ -9,7 +9,6 @@ set -eo pipefail
 PERF_TESTS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 TEST=${TEST:-'[0-9][0-9]-.*'}
-ENGINE=${ENGINE:-docker}
 RECORD_SIZE=${RECORD_SIZE:-1024}
 NUM_RECORDS=${NUM_RECORDS:-10000000}
 PRODUCER_PROPERTIES=${PRODUCER_PROPERTIES:-"acks=all"}
@@ -30,14 +29,14 @@ PERF_NETWORK=performance-tests_perf_network
 export KAFKA_VERSION KAFKA_TOOL_IMAGE
 
 runDockerCompose () {
-  ${ENGINE}-compose -f ${PERF_TESTS_DIR}/docker-compose.yaml "${@}"
+  docker-compose -f ${PERF_TESTS_DIR}/docker-compose.yaml "${@}"
 }
 
 doCreateTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
-  ${ENGINE} run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
+  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-topics.sh --create --topic ${TOPIC} --bootstrap-server ${ENDPOINT} 1>/dev/null
 }
 
@@ -46,11 +45,8 @@ doDeleteTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
-<<<<<<< Updated upstream
-  ${ENGINE} run --rm --network  ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
-=======
+
   docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
->>>>>>> Stashed changes
       bin/kafka-topics.sh --delete --topic ${TOPIC} --bootstrap-server ${ENDPOINT}
 }
 
@@ -83,7 +79,7 @@ producerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  ${ENGINE} run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
+  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-producer-perf-test.sh --topic ${TOPIC} --throughput -1 --num-records ${NUM_RECORDS} --record-size ${RECORD_SIZE} \
       --producer-props ${PRODUCER_PROPERTIES} bootstrap.servers=${ENDPOINT} | \
       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
@@ -123,7 +119,7 @@ consumerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  ${ENGINE} run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
+  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-consumer-perf-test.sh --topic ${TOPIC} --messages ${NUM_RECORDS} --hide-header \
       --bootstrap-server ${ENDPOINT} |
        jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<start.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
@@ -166,14 +162,7 @@ ON_SHUTDOWN+=("rm -rf ${TMP}")
 ON_SHUTDOWN+=("runDockerCompose down")
 export KAFKA_IMAGE=${KAFKA_IMAGE:-"quay.io/ogunalp/kafka-native:latest-kafka-${KAFKA_VERSION}"}
 runDockerCompose pull
-
-if [[ "${ENGINE}" == "podman" ]]; then
-  runDockerCompose up --detach
-  sleep 10
-else
-  runDockerCompose up --detach --wait kafka
-fi
-
+runDockerCompose up --detach --wait kafka
 
 # Warm up the broker - we do this separately as we might want a longer warm-up period
 doCreateTopic broker1:9092 warmup-topic
