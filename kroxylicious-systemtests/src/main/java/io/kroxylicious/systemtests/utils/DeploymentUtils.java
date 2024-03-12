@@ -17,6 +17,8 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+
 import org.apache.commons.io.FileUtils;
 import org.awaitility.core.ConditionEvaluationListener;
 import org.awaitility.core.EvaluatedCondition;
@@ -167,7 +169,7 @@ public class DeploymentUtils {
 
         if (!isSucceededPhase(terminalPhase.orElseThrow())) {
             LOGGER.atError().setMessage("Run failed! Error: {}").addArgument(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)).log();
-            throw new RuntimeException("Pod %s failed to execute".formatted(podName));
+            throw new KubeClusterException("Pod %s failed to execute".formatted(podName));
         }
     }
 
