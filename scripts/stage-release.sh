@@ -100,13 +100,14 @@ cleanup() {
     fi
 }
 
-setVersion() {
-  local VERSION=$1
-  mvn -q -B versions:set -DnewVersion="${VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
+updateVersions() {
+  local FROM_VERSION=$1
+  local NEW_VERSION=$2
+  mvn -q -B versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
 
   # Bump version ref in files not controlled by Maven
   # shellcheck disable=SC2046
-  ${SED} -i -e "s#${CURRENT_VERSION//./\\.}#${VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+  ${SED} -i -e "s#${FROM_VERSION//./\\.}#${NEW_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
 
   git add '**/*.yaml' '**/pom.xml' 'pom.xml'
 }
@@ -116,7 +117,7 @@ trap cleanup EXIT
 git stash --all
 echo "Creating release branch from ${BRANCH_FROM}"
 git fetch -q "${REPOSITORY}"
-CURRENT_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
+INITIAL_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)
 
 RELEASE_DATE=$(date -u '+%Y-%m-%d')
 TEMPORARY_RELEASE_BRANCH="prepare-release-${RELEASE_DATE}"
@@ -139,7 +140,7 @@ if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
 fi
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
-setVersion "${RELEASE_VERSION}"
+updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
 #Set the release version in the Changelog
 ${SED} -i -e "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 git add 'CHANGELOG.md'
@@ -166,7 +167,7 @@ echo "Release deployed, preparing for development of ${DEVELOPMENT_VERSION}"
 PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
 git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
-setVersion "${DEVELOPMENT_VERSION}"
+updateVersions "${RELEASE_VERSION}" "${DEVELOPMENT_VERSION}"
 # bump the Changelog to the next SNAPSHOT version. We do it this way so the changelog has the new release as the first entry
 ${SED} -i -e "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
