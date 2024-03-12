@@ -17,8 +17,6 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
-
 import org.apache.commons.io.FileUtils;
 import org.awaitility.core.ConditionEvaluationListener;
 import org.awaitility.core.EvaluatedCondition;
@@ -32,6 +30,7 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
