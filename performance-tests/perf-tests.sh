@@ -12,6 +12,7 @@ TEST=${TEST:-'[0-9][0-9]-.*'}
 ENGINE=${ENGINE:-docker}
 RECORD_SIZE=${RECORD_SIZE:-1024}
 NUM_RECORDS=${NUM_RECORDS:-10000000}
+PRODUCER_PROPERTIES=${PRODUCER_PROPERTIES:-"acks=all"}
 WARM_UP_NUM_RECORDS_POST_BROKER_START=${WARM_UP_NUM_RECORDS_POST_BROKER_START:-1000}
 WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 
@@ -45,7 +46,11 @@ doDeleteTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
+<<<<<<< Updated upstream
   ${ENGINE} run --rm --network  ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
+=======
+  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
+>>>>>>> Stashed changes
       bin/kafka-topics.sh --delete --topic ${TOPIC} --bootstrap-server ${ENDPOINT}
 }
 
@@ -80,7 +85,7 @@ producerPerf() {
 
   ${ENGINE} run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-producer-perf-test.sh --topic ${TOPIC} --throughput -1 --num-records ${NUM_RECORDS} --record-size ${RECORD_SIZE} \
-      --producer-props acks=all bootstrap.servers=${ENDPOINT} | \
+      --producer-props ${PRODUCER_PROPERTIES} bootstrap.servers=${ENDPOINT} | \
       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
                                     ", *(?<rate_rps>\\d+[.]?\\d*) records/sec [(](?<rate_mips>\\d+[.]?\\d*) MB/sec[)]" +
                                     ", *(?<avg_lat_ms>\\d+[.]?\\d*) ms avg latency" +
