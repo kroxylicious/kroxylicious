@@ -11,7 +11,7 @@ networks:
 
 services:
   kafka:
-    image: ${KAFKA_IMAGE:-"quay.io/ogunalp/kafka-native:latest-kafka-${KAFKA_VERSION}"}
+    image: ${KAFKA_IMAGE:-quay.io/ogunalp/kafka-native:latest-kafka-${KAFKA_VERSION}}
     ports:
       - "9094:9092"
     hostname: broker1
