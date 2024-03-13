@@ -44,7 +44,7 @@ usage: $0 -k keyid -v version [-b branch] [-r repository] [-s] [-d] [-h]
  -k short key id used to sign the release
  -v version number e.g. 0.3.0
  -b branch to release from (defaults to 'main')
- -n snapshot index to increment when opening main for new development (defaults to '2')
+ -n development version e.g. 0.4.0-SNAPSHOT
  -r the remote name of the kroxylicious repository (defaults to 'origin')
  -s skips validation
  -d dry-run mode
