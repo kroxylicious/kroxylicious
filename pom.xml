@@ -13,7 +13,7 @@
 
     <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.6.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -42,11 +42,11 @@
         <junit.version>5.10.2</junit.version>
         <kafka.version>3.7.0</kafka.version>
         <kroxy.extension.version>0.8.1</kroxy.extension.version>
-        <log4j.version>2.22.1</log4j.version>
+        <log4j.version>2.23.1</log4j.version>
         <caffeine.version>3.1.8</caffeine.version>
         <picocli.version>4.7.5</picocli.version>
         <netty.version>4.1.107.Final</netty.version>
-        <netty.io_uring.version>0.0.24.Final</netty.io_uring.version>
+        <netty.io_uring.version>0.0.25.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
