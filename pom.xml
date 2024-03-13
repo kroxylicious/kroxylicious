@@ -13,7 +13,7 @@
 
     <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-parent</artifactId>
-    <version>0.5.0-SNAPSHOT</version>
+    <version>0.6.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -42,11 +42,11 @@
         <junit.version>5.10.2</junit.version>
         <kafka.version>3.7.0</kafka.version>
         <kroxy.extension.version>0.8.1</kroxy.extension.version>
-        <log4j.version>2.22.1</log4j.version>
+        <log4j.version>2.23.1</log4j.version>
         <caffeine.version>3.1.8</caffeine.version>
         <picocli.version>4.7.5</picocli.version>
         <netty.version>4.1.107.Final</netty.version>
-        <netty.io_uring.version>0.0.24.Final</netty.io_uring.version>
+        <netty.io_uring.version>0.0.25.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
@@ -67,7 +67,7 @@
         <maven.core.version>3.9.6</maven.core.version>
         <awaitility.version>4.2.0</awaitility.version>
         <commons.io.version>2.15.1</commons.io.version>
-        <testcontainers.version>1.19.6</testcontainers.version>
+        <testcontainers.version>1.19.7</testcontainers.version>
         <bouncycastle.version>1.77</bouncycastle.version>
     </properties>
 
@@ -427,7 +427,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-assembly-plugin</artifactId>
-                    <version>3.6.0</version>
+                    <version>3.7.0</version>
                     <configuration>
                         <tarLongFileMode>posix</tarLongFileMode>
                     </configuration>
@@ -435,7 +435,7 @@
                 <plugin>
                     <groupId>io.github.git-commit-id</groupId>
                     <artifactId>git-commit-id-maven-plugin</artifactId>
-                    <version>8.0.0</version>
+                    <version>8.0.1</version>
                 </plugin>
                 <plugin>
                     <groupId>com.mycila</groupId>

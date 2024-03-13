@@ -46,6 +46,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
     private final Set<Integer> exclusivePorts;
     private final int brokerEndPortExclusive;
     private final int numberOfBrokerPorts;
+    private final int lowestTargetBrokerId;
 
     /**
      * Creates the provider.
@@ -57,6 +58,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
         this.brokerAddressPattern = config.brokerAddressPattern;
         this.brokerStartPort = config.brokerStartPort;
         this.numberOfBrokerPorts = config.numberOfBrokerPorts;
+        this.lowestTargetBrokerId = config.lowestTargetBrokerId;
         this.brokerEndPortExclusive = brokerStartPort + numberOfBrokerPorts;
 
         var exclusivePorts = IntStream.range(brokerStartPort, brokerEndPortExclusive).boxed().collect(Collectors.toCollection(HashSet::new));
@@ -70,10 +72,9 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
     }
 
     @Override
-
     public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
-        int port = brokerStartPort + nodeId;
-        if (port >= brokerEndPortExclusive) {
+        int port = brokerStartPort + nodeId - lowestTargetBrokerId;
+        if (port < brokerStartPort || port >= brokerEndPortExclusive) {
             throw new IllegalArgumentException(
                     "Cannot generate broker address for node id %d as port %d would fall outside port range %d-%d that is defined for provider with downstream bootstrap %s)"
                             .formatted(
@@ -94,7 +95,8 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
 
     @Override
     public Map<Integer, HostPort> discoveryAddressMap() {
-        return IntStream.range(0, numberOfBrokerPorts).boxed().collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
+        return IntStream.range(lowestTargetBrokerId, lowestTargetBrokerId + numberOfBrokerPorts).boxed()
+                .collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
     }
 
     /**
@@ -104,17 +106,20 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider implements Cluster
         private final HostPort bootstrapAddress;
         private final String brokerAddressPattern;
         private final int brokerStartPort;
+        private final int lowestTargetBrokerId;
         private final int numberOfBrokerPorts;
 
         public PortPerBrokerClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
                                                                       @JsonProperty(required = false) String brokerAddressPattern,
                                                                       @JsonProperty(required = false) Integer brokerStartPort,
+                                                                      @JsonProperty(required = false, defaultValue = "0") Integer lowestTargetBrokerId,
                                                                       @JsonProperty(required = false, defaultValue = "3") Integer numberOfBrokerPorts) {
             Objects.requireNonNull(bootstrapAddress, "bootstrapAddress cannot be null");
 
             this.bootstrapAddress = bootstrapAddress;
             this.brokerAddressPattern = brokerAddressPattern != null ? brokerAddressPattern : bootstrapAddress.host();
             this.brokerStartPort = brokerStartPort != null ? brokerStartPort : (bootstrapAddress.port() + 1);
+            this.lowestTargetBrokerId = lowestTargetBrokerId != null ? lowestTargetBrokerId : 0;
             this.numberOfBrokerPorts = numberOfBrokerPorts != null ? numberOfBrokerPorts : 3;
 
             if (this.brokerAddressPattern.isBlank()) {

@@ -9,10 +9,13 @@ package io.kroxylicious.systemtests.utils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URL;
+import java.net.URI;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import org.apache.commons.io.FileUtils;
 import org.awaitility.core.ConditionEvaluationListener;
@@ -21,15 +24,17 @@ import org.awaitility.core.TimeoutEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
-import static org.awaitility.Awaitility.with;
 
 /**
  * The type Deployment utils.
@@ -88,7 +93,7 @@ public class DeploymentUtils {
     public static FileInputStream getDeploymentFileFromURL(String url) throws IOException {
         File deploymentFile = Files.createTempFile("deploy", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
         FileUtils.copyURLToFile(
-                new URL(url),
+                URI.create(url).toURL(),
                 deploymentFile,
                 5000,
                 10000);
@@ -145,20 +150,26 @@ public class DeploymentUtils {
      * @param timeout the timeout
      */
     public static void waitForPodRunSucceeded(String namespaceName, String podName, Duration timeout) {
-        LOGGER.info("Waiting for pod run: {}/{} to be succeeded", namespaceName, podName);
-        with().conditionEvaluationListener(new ConditionEvaluationListener<>() {
-            @Override
-            public void onTimeout(TimeoutEvent timeoutEvent) {
-                LOGGER.error("Run failed! Error: {}", kubeClient().logsInSpecificNamespace(namespaceName, podName));
-            }
+        LOGGER.info("Waiting for pod run: {}/{} to succeeded", namespaceName, podName);
 
-            @Override
-            public void conditionEvaluated(EvaluatedCondition condition) {
-                // unused
-            }
-        }).await().atMost(timeout).pollInterval(Duration.ofMillis(200))
-                .until(() -> kubeClient().getPod(namespaceName, podName) != null
-                        && kubeClient().isPodRunSucceeded(namespaceName, podName));
+        var pollInterval = 200;
+        await().alias("await pod to leave pending phase")
+                .atMost(Duration.ofMinutes(1))
+                .pollInterval(Duration.ofMillis(pollInterval))
+                .until(() -> Optional.of(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
+                        s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent());
+
+        var terminalPhase = await().alias("await pod to reach terminal phase")
+                .atMost(timeout)
+                .pollInterval(Duration.ofMillis(pollInterval))
+                .conditionEvaluationListener(new TimeoutLoggingEvaluationListener(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)))
+                .until(() -> Optional.of(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
+                        p -> p.map(DeploymentUtils::hasReachedTerminalPhase).orElse(false));
+
+        if (!isSucceededPhase(terminalPhase.orElseThrow())) {
+            LOGGER.atError().setMessage("Run failed! Error: {}").addArgument(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)).log();
+            throw new KubeClusterException("Pod %s failed to execute".formatted(podName));
+        }
     }
 
     /**
@@ -173,5 +184,29 @@ public class DeploymentUtils {
         await().atMost(timeout).pollInterval(Duration.ofMillis(200))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
                         && kubeClient().isDeploymentRunning(namespaceName, podName));
+    }
+
+    private static boolean hasReachedTerminalPhase(String p) {
+        return "failed".equalsIgnoreCase(p) || isSucceededPhase(p);
+    }
+
+    private static boolean isSucceededPhase(String p) {
+        return "succeeded".equalsIgnoreCase(p);
+    }
+
+    private static boolean isPendingPhase(String p) {
+        return "pending".equalsIgnoreCase(p);
+    }
+
+    private record TimeoutLoggingEvaluationListener(Supplier<String> messageSupplier) implements ConditionEvaluationListener<PodStatus> {
+        @Override
+        public void onTimeout(TimeoutEvent timeoutEvent) {
+            LOGGER.atError().setMessage("Run failed! Error: {}").addArgument(messageSupplier).log();
+        }
+
+        @Override
+        public void conditionEvaluated(EvaluatedCondition<PodStatus> condition) {
+            // unused
+        }
     }
 }
