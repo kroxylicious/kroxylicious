@@ -11,6 +11,7 @@ PERF_TESTS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pw
 TEST=${TEST:-'[0-9][0-9]-.*'}
 RECORD_SIZE=${RECORD_SIZE:-1024}
 NUM_RECORDS=${NUM_RECORDS:-10000000}
+PRODUCER_PROPERTIES=${PRODUCER_PROPERTIES:-"acks=all"}
 WARM_UP_NUM_RECORDS_POST_BROKER_START=${WARM_UP_NUM_RECORDS_POST_BROKER_START:-1000}
 WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 
@@ -21,11 +22,12 @@ NOCOLOR='\033[0m'
 
 KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
 
-KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout)}
+KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout -pl kroxylicious-systemtests)}
 STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
 KAFKA_TOOL_IMAGE=${KAFKA_TOOL_IMAGE:-quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}}
+KAFKA_IMAGE=${KAFKA_IMAGE:-"quay.io/ogunalp/kafka-native:latest-kafka-${KAFKA_VERSION}"}
 PERF_NETWORK=performance-tests_perf_network
-export KAFKA_VERSION KAFKA_TOOL_IMAGE
+export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE
 
 runDockerCompose () {
   docker-compose -f ${PERF_TESTS_DIR}/docker-compose.yaml "${@}"
@@ -44,7 +46,8 @@ doDeleteTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
-  docker run --rm --network  ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
+
+  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-topics.sh --delete --topic ${TOPIC} --bootstrap-server ${ENDPOINT}
 }
 
@@ -79,7 +82,7 @@ producerPerf() {
 
   docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
       bin/kafka-producer-perf-test.sh --topic ${TOPIC} --throughput -1 --num-records ${NUM_RECORDS} --record-size ${RECORD_SIZE} \
-      --producer-props acks=all bootstrap.servers=${ENDPOINT} | \
+      --producer-props ${PRODUCER_PROPERTIES} bootstrap.servers=${ENDPOINT} | \
       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
                                     ", *(?<rate_rps>\\d+[.]?\\d*) records/sec [(](?<rate_mips>\\d+[.]?\\d*) MB/sec[)]" +
                                     ", *(?<avg_lat_ms>\\d+[.]?\\d*) ms avg latency" +
