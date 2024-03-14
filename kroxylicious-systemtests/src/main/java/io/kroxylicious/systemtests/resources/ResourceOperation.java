@@ -8,7 +8,7 @@ package io.kroxylicious.systemtests.resources;
 
 import java.time.Duration;
 
-import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.systemtests.Constants;
 
