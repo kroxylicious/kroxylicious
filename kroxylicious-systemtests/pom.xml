@@ -23,9 +23,6 @@
         using Strimzi, to simulate a real scenario for end-to-end testing treating Kroxylicious as a black box.
     </description>
 
-    <properties>
-        <kafka.version>3.7.0</kafka.version>
-    </properties>
     <dependencies>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
