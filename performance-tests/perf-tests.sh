@@ -24,7 +24,7 @@ KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
 
 KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout -pl kroxylicious-systemtests)}
 STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
-KROXYLICIOUS_VERSION=${STRIMZI_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
+KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
 KAFKA_TOOL_IMAGE=${KAFKA_TOOL_IMAGE:-quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}}
 KAFKA_IMAGE=${KAFKA_IMAGE:-"quay.io/ogunalp/kafka-native:latest-kafka-${KAFKA_VERSION}"}
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-"quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}"}
