@@ -7,7 +7,7 @@
 package io.kroxylicious.systemtests.resources.strimzi;
 
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.strimzi.api.kafka.KafkaNodePoolList;
+import io.strimzi.api.kafka.model.nodepool.KafkaNodePoolList;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 
 import io.kroxylicious.systemtests.Constants;

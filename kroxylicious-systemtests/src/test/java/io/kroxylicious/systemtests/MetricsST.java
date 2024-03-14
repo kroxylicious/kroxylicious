@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.fabric8.kubernetes.api.model.Pod;
-import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.systemtests.enums.ComponentType;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;

@@ -24,7 +24,7 @@
     </description>
 
     <properties>
-        <kafka.version>3.6.1</kafka.version>
+        <kafka.version>3.7.0</kafka.version>
     </properties>
     <dependencies>
         <dependency>

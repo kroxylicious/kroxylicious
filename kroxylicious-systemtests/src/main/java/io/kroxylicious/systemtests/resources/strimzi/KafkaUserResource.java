@@ -8,8 +8,8 @@ package io.kroxylicious.systemtests.resources.strimzi;
 
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.strimzi.api.kafka.KafkaUserList;
-import io.strimzi.api.kafka.model.KafkaUser;
+import io.strimzi.api.kafka.model.user.KafkaUserList;
+import io.strimzi.api.kafka.model.user.KafkaUser;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.ResourceType;

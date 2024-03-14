@@ -6,7 +6,7 @@
 
 package io.kroxylicious.systemtests.templates.strimzi;
 
-import io.strimzi.api.kafka.model.KafkaUserBuilder;
+import io.strimzi.api.kafka.model.user.KafkaUserBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 
