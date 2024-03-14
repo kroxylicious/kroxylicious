@@ -107,7 +107,7 @@ updateVersions() {
 
   # Bump version ref in files not controlled by Maven
   # shellcheck disable=SC2046
-  ${SED} -i -e "s#${FROM_VERSION//./\\.}#${NEW_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
+  ${SED} -i -e "s#${FROM_VERSION//./\\.}#${NEW_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f) $(find . -name 'docker-compose.yaml')
 
   git add '**/*.yaml' '**/pom.xml' 'pom.xml'
 }
