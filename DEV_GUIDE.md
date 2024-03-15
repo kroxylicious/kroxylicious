@@ -29,7 +29,8 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Launch system tests](#launch-system-tests)
   * [Rendering documentation](#rendering-documentation)
   * [Producing an Asciinema Cast](#producing-an-asciinema-cast)
-  * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
+  * [Continuous Integration](#continuous-integration)
+    * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
 <!-- TOC -->
 
 ## Build status
@@ -422,7 +423,12 @@ asciinema-edit quantize --range 5 demo.cast > demo_processed.cast
 asciinema upload demo_processed.cast
 ```
 
-## Using the GitHub CI workflows against a fork
+## Continuous Integration
+
+We use Github actions for our build and release workflows. See [.github/README.md](.github/README.md) for information
+about working with the actions.
+
+### Using the GitHub CI workflows against a fork
 
 All CI [workflows](.github/workflows) defined by the project are expected to execute within the context of a fork, apart from [docker workflow](.github/workflows/docker.yaml).
 To enable the docker workflow, you need to configure three repository [variables](https://docs.github.com/en/actions/learn-github-actions/variables)
