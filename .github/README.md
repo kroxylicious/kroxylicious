@@ -17,4 +17,4 @@ those PRs via comments on the PR (enabling us to queue up dependency merges). Ho
 Dependabot actor have a different security scope than user initiated actions. The Dependabot actions cannot use Secrets
 that user initiated actions can, you have to create a separate set of Secrets at organisation or repo level. See the 
 [docs](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/configuring-access-to-private-registries-for-dependabot).
-In practise this means we have some duplicated secrets across `Actions` and `Dependabot`.
+In practice this means we have some duplicated secrets across `Actions` and `Dependabot`.
