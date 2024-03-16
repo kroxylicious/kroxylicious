@@ -33,7 +33,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilter {
 
-    public static final int DISPATCH_THREAD = 499;
+    public static final int IN_FILTER_THREAD = 499;
     public static final int FILTER_NAME_TAG = 500;
     private final FilterFactoryContext constructionContext;
     private final String name;
@@ -73,10 +73,9 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
                 .thenCompose(taggedRequest -> context.forwardResponse(header, taggedRequest));
     }
 
-    private static void tagWithDispatchThread(ApiMessage body) {
-        Thread currentThread = Thread.currentThread();
-        String identifier = currentThread.getName() + "::" + currentThread.threadId();
-        body.unknownTaggedFields().add(new RawTaggedField(DISPATCH_THREAD, identifier.getBytes()));
+    private void tagWithDispatchThread(ApiMessage body) {
+        String inDispatchThread = Boolean.toString(constructionContext.filterThreadExecutor().isInFilterThread());
+        body.unknownTaggedFields().add(new RawTaggedField(IN_FILTER_THREAD, inDispatchThread.getBytes(UTF_8)));
     }
 
     private ApiMessage applyTaggedField(ApiMessage body, RequestResponseMarkingFilterFactory.Direction direction, String name) {
