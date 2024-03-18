@@ -11,16 +11,23 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodStatus;
+
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static io.kroxylicious.systemtests.utils.KafkaUtils.getPodNameByLabel;
+import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
@@ -63,6 +70,11 @@ public class KafkaSteps {
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
+        await().alias("await pod to leave pending phase")
+                .atMost(Duration.ofMinutes(1))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> Optional.of(kubeClient().getPod(deployNamespace, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
+                        s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent());
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.debug("Admin client create pod log: {}", log);
     }

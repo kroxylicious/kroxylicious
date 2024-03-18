@@ -194,7 +194,7 @@ public class DeploymentUtils {
         return "succeeded".equalsIgnoreCase(p);
     }
 
-    private static boolean isPendingPhase(String p) {
+    public static boolean isPendingPhase(String p) {
         return "pending".equalsIgnoreCase(p);
     }
 
