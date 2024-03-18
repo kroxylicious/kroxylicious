@@ -65,7 +65,7 @@
         <kubernetes-client.version>6.10.0</kubernetes-client.version>
         <enforcer.api.version>3.4.1</enforcer.api.version>
         <maven.core.version>3.9.6</maven.core.version>
-        <awaitility.version>4.2.0</awaitility.version>
+        <awaitility.version>4.2.1</awaitility.version>
         <commons.io.version>2.15.1</commons.io.version>
         <testcontainers.version>1.19.7</testcontainers.version>
         <bouncycastle.version>1.77</bouncycastle.version>
