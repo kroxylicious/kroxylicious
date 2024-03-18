@@ -65,7 +65,7 @@
         <kubernetes-client.version>6.10.0</kubernetes-client.version>
         <enforcer.api.version>3.4.1</enforcer.api.version>
         <maven.core.version>3.9.6</maven.core.version>
-        <awaitility.version>4.2.0</awaitility.version>
+        <awaitility.version>4.2.1</awaitility.version>
         <commons.io.version>2.15.1</commons.io.version>
         <testcontainers.version>1.19.7</testcontainers.version>
         <bouncycastle.version>1.77</bouncycastle.version>
@@ -255,18 +255,10 @@
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
+                <artifactId>slf4j-bom</artifactId>
                 <version>${slf4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-simple</artifactId>
-                <version>${slf4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-jdk-platform-logging</artifactId>
-                <version>${slf4j.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
             </dependency>
             <dependency>
                 <groupId>org.hamcrest</groupId>
@@ -307,18 +299,6 @@
                 <version>${junit.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.junit.jupiter</groupId>
-                <artifactId>junit-jupiter-engine</artifactId>
-                <scope>test</scope>
-                <version>${junit.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.junit.jupiter</groupId>
-                <artifactId>junit-jupiter-params</artifactId>
-                <scope>test</scope>
-                <version>${junit.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
