@@ -33,10 +33,12 @@ import static org.awaitility.Awaitility.await;
 public class DeploymentUtils {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DeploymentUtils.class);
-
     private static final Duration READINESS_TIMEOUT = Duration.ofMinutes(6);
     private static final Duration DELETION_TIMEOUT = Duration.ofMinutes(5);
     private static final String TEST_LOAD_BALANCER_NAME = "test-load-balancer";
+
+    private DeploymentUtils() {
+    }
 
     /**
      * Wait for deployment ready.
