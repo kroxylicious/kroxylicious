@@ -11,14 +11,9 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.function.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodStatus;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -26,7 +21,6 @@ import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
@@ -34,11 +28,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
  */
 public class KafkaSteps {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaSteps.class);
-    // private static final String ADMIN_CLIENT_COMMAND = "admin-client";
     private static final String ADMIN_CLIENT_TEMPLATE = "kafka-admin-client-template.yaml";
+    private static final String DELIMITER = "\",\"";
     private static final String TOPIC_COMMAND = "topic";
     private static final String BOOTSTRAP_ARG = "--bootstrap-server=";
-    // private static final String NEVER_POLICY = "Never";
     private static final String NAMESPACE_VAR = "%NAMESPACE%";
     private static final String NAME_VAR = "%NAME%";
     private static final String ARGS_VAR = "%ARGS%";
@@ -64,16 +57,12 @@ public class KafkaSteps {
         InputStream file = KafkaUtils.replaceStringInResourceFile(ADMIN_CLIENT_TEMPLATE, Map.of(
                 NAMESPACE_VAR, deployNamespace,
                 NAME_VAR, name,
-                ARGS_VAR, String.join("\",\"", args),
+                ARGS_VAR, String.join(DELIMITER, args),
                 KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
-        await().alias("await pod to leave pending phase")
-                .atMost(Duration.ofMinutes(1))
-                .pollInterval(Duration.ofMillis(200))
-                .until(() -> Optional.of(kubeClient().getPod(deployNamespace, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
-                        s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent());
+        DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofSeconds(30));
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.debug("Admin client create pod log: {}", log);
     }
@@ -96,34 +85,15 @@ public class KafkaSteps {
         InputStream file = KafkaUtils.replaceStringInResourceFile(ADMIN_CLIENT_TEMPLATE, Map.of(
                 NAMESPACE_VAR, deployNamespace,
                 NAME_VAR, name,
-                ARGS_VAR, String.join("\",\"", args),
+                ARGS_VAR, String.join(DELIMITER, args),
                 KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
+        DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofSeconds(30));
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.debug("Admin client delete pod log: {}", log);
     }
-
-    // public static void deleteTopic2(String deployNamespace, String topicName, String bootstrap) {
-    // if (!topicExists(deployNamespace, topicName, bootstrap)) {
-    // LOGGER.warn("Nothing to delete. Topic was not created");
-    // return;
-    // }
-    // LOGGER.info("Deleting topic {}", topicName);
-    // String podName = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-delete";
-    // kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
-    // .withImage(Constants.TEST_CLIENTS_IMAGE)
-    // .withName(podName)
-    // .withRestartPolicy(NEVER_POLICY)
-    // .withCommand(ADMIN_CLIENT_COMMAND)
-    // .withArgs(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName)
-    // .done();
-    //
-    // DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
-    // String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-    // LOGGER.debug("Admin client delete pod log: {}", log);
-    // }
 
     private static boolean topicExists(String deployNamespace, String topicName, String bootstrap) {
         LOGGER.debug("List '{}' topic", topicName);
@@ -132,32 +102,16 @@ public class KafkaSteps {
         InputStream file = KafkaUtils.replaceStringInResourceFile(ADMIN_CLIENT_TEMPLATE, Map.of(
                 NAMESPACE_VAR, deployNamespace,
                 NAME_VAR, name,
-                ARGS_VAR, String.join("\",\"", args),
+                ARGS_VAR, String.join(DELIMITER, args),
                 KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
 
         kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
+        DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofSeconds(30));
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.debug("Admin client list pod log: {}", log);
         return log.contains(topicName);
     }
-
-    // private static boolean topicExists2(String deployNamespace, String topicName, String bootstrap) {
-    // LOGGER.info("Deleting topic {}", topicName);
-    // String podName = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-list";
-    // kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
-    // .withImage(Constants.TEST_CLIENTS_IMAGE)
-    // .withName(podName)
-    // .withRestartPolicy(NEVER_POLICY)
-    // .withCommand(ADMIN_CLIENT_COMMAND)
-    // .withArgs(TOPIC_COMMAND, "list", BOOTSTRAP_ARG + bootstrap)
-    // .done();
-    //
-    // DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
-    // String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-    // LOGGER.debug("Admin client list pod log: {}", log);
-    // return log.contains(topicName);
-    // }
 
     /**
      * Restart kafka broker.
