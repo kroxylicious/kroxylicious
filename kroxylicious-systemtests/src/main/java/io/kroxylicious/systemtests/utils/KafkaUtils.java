@@ -95,7 +95,7 @@ public class KafkaUtils {
         return consumeMessages(deployNamespace, topicName, bootstrap, numOfMessages, "key: kroxylicious.io/encryption", timeout);
     }
 
-    private static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {
+    public static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {
         await().atMost(timeout).until(() -> {
             var podList = kubeClient().listPods(deployNamespace, labelKey, labelValue);
             return !podList.isEmpty();
@@ -127,7 +127,7 @@ public class KafkaUtils {
         return getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10));
     }
 
-    private static InputStream replaceStringInResourceFile(String resourceTemplateFileName, Map<String, String> replacements) {
+    public static InputStream replaceStringInResourceFile(String resourceTemplateFileName, Map<String, String> replacements) {
         Path path = Path.of(Objects.requireNonNull(KafkaUtils.class
                 .getClassLoader().getResource(resourceTemplateFileName)).getPath());
         Charset charset = StandardCharsets.UTF_8;
