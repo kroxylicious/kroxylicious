@@ -27,3 +27,10 @@ spec:
           image: quay.io/strimzi-test-clients/test-clients:latest-kafka-%KAFKA_VERSION%
           command: [ "admin-client" ]
           args: [ "%ARGS%" ]
+          securityContext:
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
