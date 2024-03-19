@@ -28,13 +28,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
  */
 public class KafkaSteps {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaSteps.class);
-    private static final String ADMIN_CLIENT_TEMPLATE = "kafka-admin-client-template.yaml";
-    private static final String DELIMITER = "\",\"";
     private static final String TOPIC_COMMAND = "topic";
     private static final String BOOTSTRAP_ARG = "--bootstrap-server=";
-    private static final String NAME_VAR = "%NAME%";
-    private static final String ARGS_VAR = "%ARGS%";
-    private static final String KAFKA_VERSION_VAR = "%KAFKA_VERSION%";
 
     private KafkaSteps() {
     }
