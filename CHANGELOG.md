@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## SNAPSHOT
 
+* [#1107](https://github.com/kroxylicious/kroxylicious/pull/1107): Replace deprecated FilePasswordFilePath class with @JsonAlias. #1107
 * [#1103](https://github.com/kroxylicious/kroxylicious/pull/1103): Bump com.fasterxml.jackson:jackson-bom from 2.16.1 to 2.17.0
 
 ## 0.5.0
