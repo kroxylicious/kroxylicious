@@ -98,8 +98,9 @@ public class KafkaSteps {
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+        List<String> existingTopicNames = Arrays.stream(log.split("\n")).toList();
         LOGGER.debug("Admin client list pod log: {}", log);
-        return log.contains(topicName);
+        return existingTopicNames.contains(topicName);
     }
 
     /**
