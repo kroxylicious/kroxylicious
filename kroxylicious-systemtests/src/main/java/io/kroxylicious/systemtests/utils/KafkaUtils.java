@@ -45,6 +45,9 @@ public class KafkaUtils {
     private static final String MESSAGE_VAR = "%MESSAGE%";
     private static final String KAFKA_VERSION_VAR = "%KAFKA_VERSION%";
 
+    private KafkaUtils() {
+    }
+
     private static String consumeMessages(String deployNamespace, String topicName, String bootstrap, int numOfMessages, String messageToCheck, Duration timeout) {
         LOGGER.debug("Consuming messages from '{}' topic", topicName);
         InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
@@ -95,12 +98,18 @@ public class KafkaUtils {
         return consumeMessages(deployNamespace, topicName, bootstrap, numOfMessages, "key: kroxylicious.io/encryption", timeout);
     }
 
+    /**
+     * Gets pod name by label.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param labelKey the label key
+     * @param labelValue the label value
+     * @param timeout the timeout
+     * @return the pod name by label
+     */
     public static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {
-        await().atMost(timeout).until(() -> {
-            var podList = kubeClient().listPods(deployNamespace, labelKey, labelValue);
-            return !podList.isEmpty();
-        });
-        var pods = kubeClient().listPods(deployNamespace, labelKey, labelValue);
+        List<Pod> pods = await().atMost(timeout).until(() -> kubeClient().listPods(deployNamespace, labelKey, labelValue),
+                p -> ! p.isEmpty());
         return pods.get(pods.size() - 1).getMetadata().getName();
     }
 
