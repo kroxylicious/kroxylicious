@@ -16,7 +16,6 @@ import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
 import io.kroxylicious.proxy.config.secret.FilePassword;
-import io.kroxylicious.proxy.config.secret.FilePasswordFilePath;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -203,7 +202,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePasswordFilePath("/tmp/pass"), null)));
+        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null)));
     }
 
     @Test
