@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## SNAPSHOT
 
+* [#1099](https://github.com/kroxylicious/kroxylicious/pull/1099): Bump io.micrometer:micrometer-bom from 1.12.3 to 1.12.4
 * [#1103](https://github.com/kroxylicious/kroxylicious/pull/1103): Bump com.fasterxml.jackson:jackson-bom from 2.16.1 to 2.17.0
 
 ## 0.5.0
