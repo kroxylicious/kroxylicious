@@ -136,7 +136,7 @@ public class KafkaUtils {
         return getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10));
     }
 
-    public static InputStream replaceStringInResourceFile(String resourceTemplateFileName, Map<String, String> replacements) {
+    private static InputStream replaceStringInResourceFile(String resourceTemplateFileName, Map<String, String> replacements) {
         Path path = Path.of(Objects.requireNonNull(KafkaUtils.class
                 .getClassLoader().getResource(resourceTemplateFileName)).getPath());
         Charset charset = StandardCharsets.UTF_8;
