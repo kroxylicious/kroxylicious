@@ -6,21 +6,17 @@
 
 package io.kroxylicious.systemtests.steps;
 
-import java.io.InputStream;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-
-import io.fabric8.kubernetes.api.model.batch.v1.Job;
-
-import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.batch.v1.Job;
+
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
