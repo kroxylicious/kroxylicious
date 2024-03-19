@@ -50,7 +50,7 @@ public class KafkaSteps {
      * @param replicas the replicas
      */
     public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas) {
-        LOGGER.debug("Consuming messages from '{}' topic", topicName);
+        LOGGER.debug("Creating topic '{}' topic", topicName);
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
         List<String> args = Arrays.asList(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
                 "--topic-rep-factor=" + replicas);
