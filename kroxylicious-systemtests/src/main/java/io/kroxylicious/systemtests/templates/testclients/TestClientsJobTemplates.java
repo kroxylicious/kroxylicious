@@ -54,7 +54,7 @@ public class TestClientsJobTemplates {
                 .withNewSpec()
                 .withContainers(new ContainerBuilder()
                         .withName("admin")
-                        .withImage("quay.io/strimzi-test-clients/test-clients:latest-kafka-" + Environment.KAFKA_VERSION)
+                        .withImage(Constants.TEST_CLIENTS_IMAGE)
                         .withImagePullPolicy("IfNotPresent")
                         .withCommand("admin-client")
                         .withArgs(args)
