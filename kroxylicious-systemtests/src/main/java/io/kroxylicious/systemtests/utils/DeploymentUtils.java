@@ -42,10 +42,12 @@ import static org.awaitility.Awaitility.await;
 public class DeploymentUtils {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DeploymentUtils.class);
-
     private static final Duration READINESS_TIMEOUT = Duration.ofMinutes(6);
     private static final Duration DELETION_TIMEOUT = Duration.ofMinutes(5);
     private static final String TEST_LOAD_BALANCER_NAME = "test-load-balancer";
+
+    private DeploymentUtils() {
+    }
 
     /**
      * Wait for deployment ready.
@@ -143,6 +145,20 @@ public class DeploymentUtils {
     }
 
     /**
+     * Wait for deployment running.
+     *
+     * @param namespaceName the namespace name
+     * @param podName the pod name
+     * @param timeout the timeout
+     */
+    public static void waitForDeploymentRunning(String namespaceName, String podName, Duration timeout) {
+        LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, podName);
+        await().atMost(timeout).pollInterval(Duration.ofMillis(200))
+                .until(() -> kubeClient().getPod(namespaceName, podName) != null
+                        && kubeClient().isDeploymentRunning(namespaceName, podName));
+    }
+
+    /**
      * Wait for run succeeded boolean.
      *
      * @param namespaceName the namespace name
@@ -150,7 +166,7 @@ public class DeploymentUtils {
      * @param timeout the timeout
      */
     public static void waitForPodRunSucceeded(String namespaceName, String podName, Duration timeout) {
-        LOGGER.info("Waiting for pod run: {}/{} to succeeded", namespaceName, podName);
+        LOGGER.info("Waiting for pod run: {}/{} to succeed", namespaceName, podName);
 
         var pollInterval = 200;
         await().alias("await pod to leave pending phase")
@@ -170,20 +186,6 @@ public class DeploymentUtils {
             LOGGER.atError().setMessage("Run failed! Error: {}").addArgument(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)).log();
             throw new KubeClusterException("Pod %s failed to execute".formatted(podName));
         }
-    }
-
-    /**
-     * Wait for deployment running.
-     *
-     * @param namespaceName the namespace name
-     * @param podName the pod name
-     * @param timeout the timeout
-     */
-    public static void waitForDeploymentRunning(String namespaceName, String podName, Duration timeout) {
-        LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, podName);
-        await().atMost(timeout).pollInterval(Duration.ofMillis(200))
-                .until(() -> kubeClient().getPod(namespaceName, podName) != null
-                        && kubeClient().isDeploymentRunning(namespaceName, podName));
     }
 
     private static boolean hasReachedTerminalPhase(String p) {
