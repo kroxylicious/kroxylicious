@@ -425,7 +425,7 @@ asciinema upload demo_processed.cast
 
 ## Continuous Integration
 
-We use Github actions for our build and release workflows. See [.github/README.md](.github/README.md) for information
+We use Github actions for our build and release workflows. See [.github/AUTOMATION_README.md](.github/AUTOMATION_README.md) for information
 about working with the actions.
 
 ### Using the GitHub CI workflows against a fork
