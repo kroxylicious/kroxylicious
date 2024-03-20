@@ -45,16 +45,14 @@ public class BodyDecoder {
     * @throws IllegalArgumentException if an unhandled ApiKey is encountered
     */
     static ApiMessage decodeRequest(ApiKeys apiKey, short apiVersion, Readable accessor) {
-        switch (apiKey) {
+        return switch (apiKey) {
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(messageSpec)}:
-                return new ${messageSpec.name}Data(accessor, apiVersion);
+            case ${retrieveApiKey(messageSpec)} -> new ${messageSpec.name}Data(accessor, apiVersion);
     </#if>
 </#list>
-            default:
-                throw new IllegalArgumentException("Unsupported RPC " + apiKey);
-        }
+            default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);
+        };
     }
 
     /**
@@ -66,16 +64,14 @@ public class BodyDecoder {
     * @throws IllegalArgumentException if an unhandled ApiKey is encountered
     */
     static ApiMessage decodeResponse(ApiKeys apiKey, short apiVersion, Readable accessor) {
-        switch (apiKey) {
+        return switch (apiKey) {
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'response'>
-            case ${retrieveApiKey(messageSpec)}:
-                return new ${messageSpec.name}Data(accessor, apiVersion);
+            case ${retrieveApiKey(messageSpec)} -> new ${messageSpec.name}Data(accessor, apiVersion);
     </#if>
 </#list>
-            default:
-                throw new IllegalArgumentException("Unsupported RPC " + apiKey);
-        }
+            default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);
+        };
     }
 
 }
