@@ -68,6 +68,11 @@ public interface Constants {
     String CONFIG_MAP_KIND = "ConfigMap";
 
     /**
+     * Kind of jobs
+     */
+    String JOB = "Job";
+
+    /**
      * Kind of services
      */
     String SERVICE_KIND = "Service";

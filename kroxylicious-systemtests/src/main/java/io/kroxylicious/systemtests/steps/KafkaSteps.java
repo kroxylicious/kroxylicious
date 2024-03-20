@@ -7,11 +7,16 @@
 package io.kroxylicious.systemtests.steps;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.batch.v1.Job;
+
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
@@ -23,10 +28,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
  */
 public class KafkaSteps {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaSteps.class);
-    private static final String ADMIN_CLIENT_COMMAND = "admin-client";
     private static final String TOPIC_COMMAND = "topic";
     private static final String BOOTSTRAP_ARG = "--bootstrap-server=";
-    private static final String NEVER_POLICY = "Never";
 
     private KafkaSteps() {
     }
@@ -41,19 +44,16 @@ public class KafkaSteps {
      * @param replicas the replicas
      */
     public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas) {
-        String podName = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
-        kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
-                .withImage(Constants.TEST_CLIENTS_IMAGE)
-                .withName(podName)
-                .withRestartPolicy(NEVER_POLICY)
-                .withCommand(ADMIN_CLIENT_COMMAND)
-                .withArgs(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
-                        "--topic-rep-factor=" + replicas)
-                .done();
+        LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
+        String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
+        List<String> args = Arrays.asList(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
+                "--topic-rep-factor=" + replicas);
 
+        Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
+        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
+        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
-        String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-        LOGGER.debug("Admin client create pod log: {}", log);
+        LOGGER.atDebug().setMessage("Admin client create pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
     }
 
     /**
@@ -65,39 +65,34 @@ public class KafkaSteps {
      */
     public static void deleteTopic(String deployNamespace, String topicName, String bootstrap) {
         if (!topicExists(deployNamespace, topicName, bootstrap)) {
-            LOGGER.warn("Nothing to delete. Topic was not created");
+            LOGGER.atWarn().log("Nothing to delete. Topic was not created");
             return;
         }
-        LOGGER.info("Deleting topic {}", topicName);
-        String podName = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-delete";
-        kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
-                .withImage(Constants.TEST_CLIENTS_IMAGE)
-                .withName(podName)
-                .withRestartPolicy(NEVER_POLICY)
-                .withCommand(ADMIN_CLIENT_COMMAND)
-                .withArgs(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName)
-                .done();
+        LOGGER.atDebug().setMessage("Deleting '{}' topic").addArgument(topicName).log();
+        String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-delete";
+        List<String> args = Arrays.asList(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName);
 
+        Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
+        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
+
+        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
-        String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-        LOGGER.debug("Admin client delete pod log: {}", log);
+        LOGGER.atDebug().setMessage("Admin client delete pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
     }
 
     private static boolean topicExists(String deployNamespace, String topicName, String bootstrap) {
-        LOGGER.info("Deleting topic {}", topicName);
-        String podName = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-list";
-        kubeClient().getClient().run().inNamespace(deployNamespace).withNewRunConfig()
-                .withImage(Constants.TEST_CLIENTS_IMAGE)
-                .withName(podName)
-                .withRestartPolicy(NEVER_POLICY)
-                .withCommand(ADMIN_CLIENT_COMMAND)
-                .withArgs(TOPIC_COMMAND, "list", BOOTSTRAP_ARG + bootstrap)
-                .done();
+        LOGGER.debug("List '{}' topic", topicName);
+        String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-list";
+        List<String> args = Arrays.asList(TOPIC_COMMAND, "list", BOOTSTRAP_ARG + bootstrap);
 
+        Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
+        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
+
+        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-        LOGGER.debug("Admin client list pod log: {}", log);
-        return log.contains(topicName);
+        LOGGER.atDebug().setMessage("Admin client list pod log: {}").addArgument(log).log();
+        return log.lines().anyMatch(topicName::equals);
     }
 
     /**
