@@ -44,7 +44,7 @@ public class KafkaSteps {
      * @param replicas the replicas
      */
     public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas) {
-        LOGGER.debug("Creating topic '{}' topic", topicName);
+        LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
         List<String> args = Arrays.asList(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
                 "--topic-rep-factor=" + replicas);
@@ -53,8 +53,7 @@ public class KafkaSteps {
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
-        String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-        LOGGER.debug("Admin client create pod log: {}", log);
+        LOGGER.atDebug().setMessage("Admin client create pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
     }
 
     /**
@@ -66,10 +65,10 @@ public class KafkaSteps {
      */
     public static void deleteTopic(String deployNamespace, String topicName, String bootstrap) {
         if (!topicExists(deployNamespace, topicName, bootstrap)) {
-            LOGGER.warn("Nothing to delete. Topic was not created");
+            LOGGER.atWarn().log("Nothing to delete. Topic was not created");
             return;
         }
-        LOGGER.debug("Deleting '{}' topic", topicName);
+        LOGGER.atDebug().setMessage("Deleting '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-delete";
         List<String> args = Arrays.asList(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName);
 
@@ -78,8 +77,7 @@ public class KafkaSteps {
 
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
-        String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-        LOGGER.debug("Admin client delete pod log: {}", log);
+        LOGGER.atDebug().setMessage("Admin client delete pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
     }
 
     private static boolean topicExists(String deployNamespace, String topicName, String bootstrap) {
@@ -94,7 +92,7 @@ public class KafkaSteps {
         DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         List<String> existingTopicNames = Arrays.stream(log.split("\n")).toList();
-        LOGGER.debug("Admin client list pod log: {}", log);
+        LOGGER.atDebug().setMessage("Admin client list pod log: {}").addArgument(log).log();
         return existingTopicNames.contains(topicName);
     }
 
