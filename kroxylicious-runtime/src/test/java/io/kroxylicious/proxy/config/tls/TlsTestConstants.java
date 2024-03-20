@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.config.tls;
 
 import io.kroxylicious.proxy.config.secret.FilePassword;
-import io.kroxylicious.proxy.config.secret.FilePasswordFilePath;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
@@ -23,10 +22,6 @@ public class TlsTestConstants {
     static final PasswordProvider BADPASS = new InlinePassword("badpass");
     static final PasswordProvider KEYSTORE_FILE_PASSWORD = new FilePassword(getResourceLocationOnFilesystem("storepass.password"));
     static final PasswordProvider KEYPASS_FILE_PASSWORD = new FilePassword(getResourceLocationOnFilesystem("keypass.password"));
-    @SuppressWarnings("java:S5738") // java:S5738 warns of the use of the deprecated class.
-    static final PasswordProvider KEYSTORE_FILE_PASSWORD_FILE_PATH = new FilePasswordFilePath(getResourceLocationOnFilesystem("storepass.password"));
-    @SuppressWarnings("java:S5738") // java:S5738 warns of the use of the deprecated class.
-    static final PasswordProvider KEYPASS_FILE_PASSWORD_FILE_PATH = new FilePasswordFilePath(getResourceLocationOnFilesystem("keypass.password"));
 
     public static final String NOT_EXIST = "/does/not/exist";
 
