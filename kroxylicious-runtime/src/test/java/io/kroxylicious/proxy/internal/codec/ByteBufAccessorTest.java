@@ -130,6 +130,15 @@ public class ByteBufAccessorTest {
     }
 
     @Test
+    void testReaderIndex() {
+        var bbuf = Unpooled.buffer(2).writeZero(2);
+        var kp = new ByteBufAccessorImpl(bbuf);
+        assertThat(kp.readerIndex()).isZero();
+        bbuf.readerIndex(1);
+        assertThat(kp.readerIndex()).isEqualTo(1);
+    }
+
+    @Test
     void testWriterIndex() {
         var bbuf = Unpooled.buffer(2);
         var kp = new ByteBufAccessorImpl(bbuf);
