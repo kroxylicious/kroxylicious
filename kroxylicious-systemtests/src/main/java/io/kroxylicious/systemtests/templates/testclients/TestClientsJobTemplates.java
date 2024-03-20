@@ -16,7 +16,6 @@ import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.Environment;
 
 /**
  * The type Test Clients job templates.
