@@ -19,8 +19,6 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 import io.kroxylicious.proxy.config.substitution.lookup.StringLookup;
 import io.kroxylicious.proxy.config.substitution.lookup.StringLookupFactory;
-import io.kroxylicious.proxy.config.substitution.matcher.StringMatcher;
-import io.kroxylicious.proxy.config.substitution.matcher.StringMatcherFactory;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -71,8 +69,6 @@ public class StringSubstitutorTest {
             assertNull(substitutor.replace((char[]) null, 0, 100));
             assertNull(substitutor.replace((StringBuilder) null));
             assertNull(substitutor.replace((StringBuilder) null, 0, 100));
-            assertFalse(substitutor.replaceIn((StringBuilder) null));
-            assertFalse(substitutor.replaceIn((StringBuilder) null, 0, 100));
         }
         else {
             assertEquals(replaceTemplate, replace(substitutor, replaceTemplate));
@@ -106,17 +102,6 @@ public class StringSubstitutorTest {
         if (substring) {
             assertEquals(expectedShortResult, sub.replace(builder, 1, builder.length() - 2));
         }
-
-        // replace in StringBuilder
-        builder = new StringBuilder(replaceTemplate);
-        assertTrue(sub.replaceIn(builder));
-        assertEquals(expectedResult, builder.toString());
-        if (substring) {
-            builder = new StringBuilder(replaceTemplate);
-            assertTrue(sub.replaceIn(builder, 1, builder.length() - 2));
-            assertEquals(expectedResult, builder.toString()); // expect full result as remainder is untouched
-        }
-
     }
 
     private int indexOfDifference(String expectedResult, String actual) {
@@ -470,91 +455,6 @@ public class StringSubstitutorTest {
     @Test
     public void testReplaceIncompletePrefix() throws IOException {
         doReplace("The {animal} jumps over the lazy dog.", "The {animal} jumps over the ${target}.", true);
-    }
-
-    @Test
-    public void testReplaceInTakingStringBuilderWithNonNull() {
-        final StringLookup strLookup = StringLookupFactory.INSTANCE.systemPropertyStringLookup();
-        final StringSubstitutor strSubstitutor = new StringSubstitutor(strLookup, "b<H", "b<H", '\'');
-        final StringBuilder stringBuilder = new StringBuilder((CharSequence) "b<H");
-
-        assertEquals('\'', strSubstitutor.getEscapeChar());
-        assertFalse(strSubstitutor.replaceIn(stringBuilder));
-    }
-
-    @Test
-    public void testReplaceInTakingStringBuilderWithNull() {
-        final Map<String, Object> map = new HashMap<>();
-        final StringSubstitutor strSubstitutor = new StringSubstitutor(map, "", "", 'T',
-                "K+<'f");
-
-        assertFalse(strSubstitutor.replaceIn((StringBuilder) null));
-    }
-
-    @Test
-    public void testReplaceInTakingTwoAndThreeIntsReturningFalse() {
-        final Map<String, Object> hashMap = new HashMap<>();
-        final StringLookup mapStringLookup = StringLookupFactory.INSTANCE.mapStringLookup(hashMap);
-        final StringMatcher strMatcher = StringMatcherFactory.INSTANCE.tabMatcher();
-        final StringSubstitutor strSubstitutor = new StringSubstitutor(mapStringLookup, strMatcher, strMatcher, 'b',
-                strMatcher);
-
-        assertFalse(strSubstitutor.replaceIn((StringBuilder) null, 1315, -1369));
-        assertEquals('b', strSubstitutor.getEscapeChar());
-        assertFalse(strSubstitutor.isPreserveEscapes());
-    }
-
-    /**
-     * Tests whether a variable can be replaced in a variable name.
-     */
-    @Test
-    public void testReplaceInVariable() throws IOException {
-        values.put("animal.1", "fox");
-        values.put("animal.2", "mouse");
-        values.put("species", "2");
-        final StringSubstitutor sub = new StringSubstitutor(values);
-        sub.setEnableSubstitutionInVariables(true);
-        assertEqualsCharSeq("The mouse jumps over the lazy dog.",
-                replace(sub, "The ${animal.${species}} jumps over the ${target}."));
-        values.put("species", "1");
-        assertEqualsCharSeq("The fox jumps over the lazy dog.",
-                replace(sub, "The ${animal.${species}} jumps over the ${target}."));
-        assertEqualsCharSeq("The fox jumps over the lazy dog.", replace(sub,
-                "The ${unknown.animal.${unknown.species:-1}:-fox} " + "jumps over the ${unknow.target:-lazy dog}."));
-    }
-
-    /**
-     * Tests whether substitution in variable names is disabled per default.
-     */
-    @Test
-    public void testReplaceInVariableDisabled() throws IOException {
-        values.put("animal.1", "fox");
-        values.put("animal.2", "mouse");
-        values.put("species", "2");
-        final StringSubstitutor sub = new StringSubstitutor(values);
-        assertEqualsCharSeq("The ${animal.${species}} jumps over the lazy dog.",
-                replace(sub, "The ${animal.${species}} jumps over the ${target}."));
-        assertEqualsCharSeq("The ${animal.${species:-1}} jumps over the lazy dog.",
-                replace(sub, "The ${animal.${species:-1}} jumps over the ${target}."));
-    }
-
-    /**
-     * Tests complex and recursive substitution in variable names.
-     */
-    @Test
-    public void testReplaceInVariableRecursive() throws IOException {
-        values.put("animal.2", "brown fox");
-        values.put("animal.1", "white mouse");
-        values.put("color", "white");
-        values.put("species.white", "1");
-        values.put("species.brown", "2");
-        final StringSubstitutor sub = new StringSubstitutor(values);
-        sub.setEnableSubstitutionInVariables(true);
-        assertEqualsCharSeq("white mouse", replace(sub, "${animal.${species.${color}}}"));
-        assertEqualsCharSeq("The white mouse jumps over the lazy dog.",
-                replace(sub, "The ${animal.${species.${color}}} jumps over the ${target}."));
-        assertEqualsCharSeq("The brown fox jumps over the lazy dog.",
-                replace(sub, "The ${animal.${species.${unknownColor:-brown}}} jumps over the ${target}."));
     }
 
     /**
@@ -954,8 +854,6 @@ public class StringSubstitutorTest {
                 return "jakarta";
             }
         };
-        sub.replaceIn(builder);
-        assertEqualsCharSeq("Hi jakarta!", builder.toString());
     }
 
     @Test

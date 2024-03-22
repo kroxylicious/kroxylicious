@@ -660,9 +660,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        var buf = new StringBuilder(source.length).append(source);
-        substitute(buf, 0, source.length);
-        return buf.toString();
+        return replace(source, 0, source.length);
     }
 
     /**
@@ -807,9 +805,7 @@ public class StringSubstitutor {
         if (source == null) {
             return null;
         }
-        var buf = new StringBuilder(source.length()).append(source);
-        substitute(buf, 0, buf.length());
-        return buf.toString();
+        return replace(source, 0, source.length());
     }
 
     /**
@@ -833,41 +829,6 @@ public class StringSubstitutor {
         var buf = new StringBuilder(length).append(source, offset, offset + length);
         substitute(buf, 0, length);
         return buf.toString();
-    }
-
-    /**
-     * Replaces all the occurrences of variables within the given source buffer with their matching values from the
-     * resolver. The buffer is updated with the result.
-     *
-     * @param source the buffer to replace in, updated, null returns zero
-     * @return true if altered
-     */
-    public boolean replaceIn(final StringBuilder source) {
-        if (source == null) {
-            return false;
-        }
-        return replaceIn(source, 0, source.length());
-    }
-
-    /**
-     * Replaces all the occurrences of variables within the given source builder with their matching values from the
-     * resolver. The builder is updated with the result.
-     * <p>
-     * Only the specified portion of the buffer will be processed. The rest of the buffer is not processed, but it is
-     * not deleted.
-     * </p>
-     *
-     * @param source the buffer to replace in, updated, null returns zero
-     * @param offset the start offset within the source, must be valid
-     * @param length the length within the source to be processed, must be valid
-     * @return true if altered
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public boolean replaceIn(final StringBuilder source, final int offset, final int length) {
-        if (source == null) {
-            return false;
-        }
-        return substitute(source, offset, length);
     }
 
     /**
@@ -1299,7 +1260,6 @@ public class StringSubstitutor {
     }
 
     private String midString(StringBuilder builder, int index, final int length) {
-
         if (index < 0) {
             index = 0;
         }
