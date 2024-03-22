@@ -30,6 +30,10 @@ class InternalCompletionStage<T> implements CompletionStage<T> {
         return completionStage instanceof InternalCompletionStage ? completionStage : new InternalCompletionStage<>(completionStage);
     }
 
+    private <U> CompletionStage<U> unwrap(CompletionStage<U> completionStage) {
+        return completionStage instanceof InternalCompletionStage ? ((InternalCompletionStage<U>) completionStage).getUnderlyingCompletableFuture() : completionStage;
+    }
+
     @Override
     public <U> CompletionStage<U> thenApply(Function<? super T, ? extends U> fn) {
         return wrap(completionStage.thenApply(fn));
@@ -77,107 +81,107 @@ class InternalCompletionStage<T> implements CompletionStage<T> {
 
     @Override
     public <U, V> CompletionStage<V> thenCombine(CompletionStage<? extends U> other, BiFunction<? super T, ? super U, ? extends V> fn) {
-        return wrap(completionStage.thenCombine(other, fn));
+        return wrap(completionStage.thenCombine(unwrap(other), fn));
     }
 
     @Override
     public <U, V> CompletionStage<V> thenCombineAsync(CompletionStage<? extends U> other, BiFunction<? super T, ? super U, ? extends V> fn) {
-        return wrap(completionStage.thenCombineAsync(other, fn));
+        return wrap(completionStage.thenCombineAsync(unwrap(other), fn));
     }
 
     @Override
     public <U, V> CompletionStage<V> thenCombineAsync(CompletionStage<? extends U> other, BiFunction<? super T, ? super U, ? extends V> fn, Executor executor) {
-        return wrap(completionStage.thenCombineAsync(other, fn, executor));
+        return wrap(completionStage.thenCombineAsync(unwrap(other), fn, executor));
     }
 
     @Override
     public <U> CompletionStage<Void> thenAcceptBoth(CompletionStage<? extends U> other, BiConsumer<? super T, ? super U> action) {
-        return wrap(completionStage.thenAcceptBoth(other, action));
+        return wrap(completionStage.thenAcceptBoth(unwrap(other), action));
     }
 
     @Override
     public <U> CompletionStage<Void> thenAcceptBothAsync(CompletionStage<? extends U> other, BiConsumer<? super T, ? super U> action) {
-        return wrap(completionStage.thenAcceptBothAsync(other, action));
+        return wrap(completionStage.thenAcceptBothAsync(unwrap(other), action));
     }
 
     @Override
     public <U> CompletionStage<Void> thenAcceptBothAsync(CompletionStage<? extends U> other, BiConsumer<? super T, ? super U> action, Executor executor) {
-        return wrap(completionStage.thenAcceptBothAsync(other, action, executor));
+        return wrap(completionStage.thenAcceptBothAsync(unwrap(other), action, executor));
     }
 
     @Override
     public CompletionStage<Void> runAfterBoth(CompletionStage<?> other, Runnable action) {
-        return wrap(completionStage.runAfterBoth(other, action));
+        return wrap(completionStage.runAfterBoth(unwrap(other), action));
     }
 
     @Override
     public CompletionStage<Void> runAfterBothAsync(CompletionStage<?> other, Runnable action) {
-        return wrap(completionStage.runAfterBothAsync(other, action));
+        return wrap(completionStage.runAfterBothAsync(unwrap(other), action));
     }
 
     @Override
     public CompletionStage<Void> runAfterBothAsync(CompletionStage<?> other, Runnable action, Executor executor) {
-        return wrap(completionStage.runAfterBothAsync(other, action, executor));
+        return wrap(completionStage.runAfterBothAsync(unwrap(other), action, executor));
     }
 
     @Override
     public <U> CompletionStage<U> applyToEither(CompletionStage<? extends T> other, Function<? super T, U> fn) {
-        return wrap(completionStage.applyToEither(other, fn));
+        return wrap(completionStage.applyToEither(unwrap(other), fn));
     }
 
     @Override
     public <U> CompletionStage<U> applyToEitherAsync(CompletionStage<? extends T> other, Function<? super T, U> fn) {
-        return wrap(completionStage.applyToEitherAsync(other, fn));
+        return wrap(completionStage.applyToEitherAsync(unwrap(other), fn));
     }
 
     @Override
     public <U> CompletionStage<U> applyToEitherAsync(CompletionStage<? extends T> other, Function<? super T, U> fn, Executor executor) {
-        return wrap(completionStage.applyToEitherAsync(other, fn, executor));
+        return wrap(completionStage.applyToEitherAsync(unwrap(other), fn, executor));
     }
 
     @Override
     public CompletionStage<Void> acceptEither(CompletionStage<? extends T> other, Consumer<? super T> action) {
-        return wrap(completionStage.acceptEither(other, action));
+        return wrap(completionStage.acceptEither(unwrap(other), action));
     }
 
     @Override
     public CompletionStage<Void> acceptEitherAsync(CompletionStage<? extends T> other, Consumer<? super T> action) {
-        return wrap(completionStage.acceptEitherAsync(other, action));
+        return wrap(completionStage.acceptEitherAsync(unwrap(other), action));
     }
 
     @Override
     public CompletionStage<Void> acceptEitherAsync(CompletionStage<? extends T> other, Consumer<? super T> action, Executor executor) {
-        return wrap(completionStage.acceptEitherAsync(other, action, executor));
+        return wrap(completionStage.acceptEitherAsync(unwrap(other), action, executor));
     }
 
     @Override
     public CompletionStage<Void> runAfterEither(CompletionStage<?> other, Runnable action) {
-        return wrap(completionStage.runAfterEither(other, action));
+        return wrap(completionStage.runAfterEither(unwrap(other), action));
     }
 
     @Override
     public CompletionStage<Void> runAfterEitherAsync(CompletionStage<?> other, Runnable action) {
-        return wrap(completionStage.runAfterEitherAsync(other, action));
+        return wrap(completionStage.runAfterEitherAsync(unwrap(other), action));
     }
 
     @Override
     public CompletionStage<Void> runAfterEitherAsync(CompletionStage<?> other, Runnable action, Executor executor) {
-        return wrap(completionStage.runAfterEitherAsync(other, action, executor));
+        return wrap(completionStage.runAfterEitherAsync(unwrap(other), action, executor));
     }
 
     @Override
     public <U> CompletionStage<U> thenCompose(Function<? super T, ? extends CompletionStage<U>> fn) {
-        return wrap(completionStage.thenCompose(fn));
+        return wrap(completionStage.thenCompose(fn.andThen(this::unwrap)));
     }
 
     @Override
     public <U> CompletionStage<U> thenComposeAsync(Function<? super T, ? extends CompletionStage<U>> fn) {
-        return wrap(completionStage.thenComposeAsync(fn));
+        return wrap(completionStage.thenComposeAsync(fn.andThen(this::unwrap)));
     }
 
     @Override
     public <U> CompletionStage<U> thenComposeAsync(Function<? super T, ? extends CompletionStage<U>> fn, Executor executor) {
-        return wrap(completionStage.thenComposeAsync(fn, executor));
+        return wrap(completionStage.thenComposeAsync(fn.andThen(this::unwrap), executor));
     }
 
     @Override
@@ -227,17 +231,17 @@ class InternalCompletionStage<T> implements CompletionStage<T> {
 
     @Override
     public CompletionStage<T> exceptionallyCompose(Function<Throwable, ? extends CompletionStage<T>> fn) {
-        return wrap(completionStage.exceptionallyCompose(fn));
+        return wrap(completionStage.exceptionallyCompose(fn.andThen(this::unwrap)));
     }
 
     @Override
     public CompletionStage<T> exceptionallyComposeAsync(Function<Throwable, ? extends CompletionStage<T>> fn) {
-        return wrap(completionStage.exceptionallyComposeAsync(fn));
+        return wrap(completionStage.exceptionallyComposeAsync(fn.andThen(this::unwrap)));
     }
 
     @Override
     public CompletionStage<T> exceptionallyComposeAsync(Function<Throwable, ? extends CompletionStage<T>> fn, Executor executor) {
-        return wrap(completionStage.exceptionallyComposeAsync(fn, executor));
+        return wrap(completionStage.exceptionallyComposeAsync(fn.andThen(this::unwrap), executor));
     }
 
     @Override
