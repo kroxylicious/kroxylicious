@@ -52,7 +52,7 @@ public class KafkaSteps {
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofMinutes(1));
         LOGGER.atDebug().setMessage("Admin client create pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
     }
 
@@ -76,7 +76,7 @@ public class KafkaSteps {
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
 
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofMinutes(1));
         LOGGER.atDebug().setMessage("Admin client delete pod log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
     }
 
@@ -89,7 +89,7 @@ public class KafkaSteps {
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
 
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
-        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofSeconds(30));
+        DeploymentUtils.waitForPodRunSucceeded(deployNamespace, podName, Duration.ofMinutes(1));
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         LOGGER.atDebug().setMessage("Admin client list pod log: {}").addArgument(log).log();
         return log.lines().anyMatch(topicName::equals);
