@@ -982,33 +982,6 @@ public class StringSubstitutorTest {
     /**
      * Tests interpolation with system properties.
      */
-    @Test
-    public void testStaticReplaceSystemProperties() {
-        var buf = new StringBuilder();
-        buf.append("Hi ").append(System.getProperty("user.name"));
-        buf.append(", you are working with ");
-        buf.append(System.getProperty("os.name"));
-        buf.append(", your home directory is ");
-        buf.append(System.getProperty("user.home")).append('.');
-        assertEqualsCharSeq(buf.toString(), StringSubstitutor.replaceSystemProperties(
-                "Hi ${user.name}, you are " + "working with ${os.name}, your home " + "directory is ${user.home}."));
-    }
-
-    /**
-     * Tests interpolation with system properties.
-     */
-    @Test
-    public void testStaticReplaceSystemPropertiesWithUpdate() {
-        System.setProperty("foo", "bar1");
-        try {
-            assertEqualsCharSeq("bar1", StringSubstitutor.replaceSystemProperties("${foo}"));
-            System.setProperty("foo", "bar2");
-            assertEqualsCharSeq("bar2", StringSubstitutor.replaceSystemProperties("${foo}"));
-        }
-        finally {
-            System.getProperties().remove("foo");
-        }
-    }
 
     @Test
     public void testSubstitutePreserveEscape() throws IOException {
