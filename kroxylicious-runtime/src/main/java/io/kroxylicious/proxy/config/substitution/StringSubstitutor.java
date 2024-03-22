@@ -25,15 +25,6 @@ import io.kroxylicious.proxy.config.substitution.matcher.StringMatcherFactory;
  * Variable values are typically resolved from a map, but could also be resolved from system properties, or by supplying
  * a custom variable resolver.
  * </p>
- * <h2>Using System Properties</h2>
- * <p>
- * The simplest example is to use this class to replace Java System properties. For example:
- * </p>
- *
- * <pre>
- * StringSubstitutor
- *     .replaceSystemProperties("You are running with java.version = ${java.version} and os.name = ${os.name}.");
- * </pre>
  *
  * <h2>Using a Custom Map</h2>
  * <p>
@@ -113,12 +104,6 @@ import io.kroxylicious.proxy.config.substitution.matcher.StringMatcherFactory;
  * {@link #setEnableUndefinedVariableException(boolean)} with {@code true}.
  * </p>
  *
- * <h2>Reusing Instances</h2>
- * <p>
- * Static shortcut methods cover the most common use cases. If multiple replace operations are to be performed, creating
- * and reusing an instance of this class will be more efficient.
- * </p>
- *
  * <h2>Using Interpolation</h2>
  * <p>
  * The default interpolator lets you use string lookups like:
@@ -132,10 +117,6 @@ import io.kroxylicious.proxy.config.substitution.matcher.StringMatcherFactory;
  * </pre>
  * <p>
  * For documentation and a full list of available lookups, see {@link StringLookupFactory}.
- * </p>
- * <p><strong>NOTE:</strong> The list of lookups available by default in {@link #createInterpolator()} changed
- * in version {@code 1.10.0}. See the {@link StringLookupFactory} documentation for details and an explanation
- * on how to reproduce the previous functionality.
  * </p>
  *
  * <h2>Using Recursive Variable Replacement</h2>
@@ -188,24 +169,8 @@ import io.kroxylicious.proxy.config.substitution.matcher.StringMatcherFactory;
  * This class is <b>not</b> thread safe.
  * </p>
  *
- * @since 1.3
  */
 public class StringSubstitutor {
-
-    /**
-     * The low-level result of a substitution.
-     *
-     * @since 1.9
-     * @param altered  Whether the buffer is altered.
-     * @param lengthChange  The length of change.
-     */
-    private record Result(boolean altered, int lengthChange) {
-
-        @Override
-        public String toString() {
-            return "Result [altered=" + altered + ", lengthChange=" + lengthChange + "]";
-        }
-    }
 
     /**
      * Constant for the default escape character.
@@ -631,216 +596,6 @@ public class StringSubstitutor {
     }
 
     /**
-     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
-     * array as a template. The array is not altered by this method.
-     *
-     * @param source the character array to replace in, not altered, null returns null
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public String replace(final char[] source) {
-        if (source == null) {
-            return null;
-        }
-        return replace(source, 0, source.length);
-    }
-
-    /**
-     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
-     * array as a template. The array is not altered by this method.
-     * <p>
-     * Only the specified portion of the array will be processed. The rest of the array is not processed, and is not
-     * returned.
-     * </p>
-     *
-     * @param source the character array to replace in, not altered, null returns null
-     * @param offset the start offset within the array, must be valid
-     * @param length the length within the array to be processed, must be valid
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     * @throws StringIndexOutOfBoundsException if {@code offset} is not in the
-     *  range {@code 0 <= offset <= chars.length}
-     * @throws StringIndexOutOfBoundsException if {@code length < 0}
-     * @throws StringIndexOutOfBoundsException if {@code offset + length > chars.length}
-     */
-    public String replace(final char[] source, final int offset, final int length) {
-        if (source == null) {
-            return null;
-        }
-        var buf = new StringBuilder(length).append(source, offset, length);
-        substitute(buf, 0, length);
-        return buf.toString();
-    }
-
-    /**
-     * Replaces all the occurrences of variables with their matching values from the resolver using the given source as
-     * a template. The source is not altered by this method.
-     *
-     * @param source the buffer to use as a template, not changed, null returns null
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public String replace(final CharSequence source) {
-        if (source == null) {
-            return null;
-        }
-        return replace(source, 0, source.length());
-    }
-
-    /**
-     * Replaces all the occurrences of variables with their matching values from the resolver using the given source as
-     * a template. The source is not altered by this method.
-     * <p>
-     * Only the specified portion of the buffer will be processed. The rest of the buffer is not processed, and is not
-     * returned.
-     * </p>
-     *
-     * @param source the buffer to use as a template, not changed, null returns null
-     * @param offset the start offset within the array, must be valid
-     * @param length the length within the array to be processed, must be valid
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public String replace(final CharSequence source, final int offset, final int length) {
-        if (source == null) {
-            return null;
-        }
-        var buf = new StringBuilder(length).append(source.toString(), offset, length);
-        substitute(buf, 0, length);
-        return buf.toString();
-    }
-
-    /**
-     * Replaces all the occurrences of variables in the given source object with their matching values from the
-     * resolver. The input source object is converted to a string using {@code toString} and is not altered.
-     *
-     * @param source the source to replace in, null returns null
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if a variable is not found and enableUndefinedVariableException is true
-     */
-    public String replace(final Object source) {
-        if (source == null) {
-            return null;
-        }
-        var buf = new StringBuilder().append(source);
-        substitute(buf, 0, buf.length());
-        return buf.toString();
-    }
-
-    /**
-     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
-     * string as a template.
-     *
-     * @param source the string to replace in, null returns null
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when it is allowed to throw exception
-     */
-    public String replace(final String source) {
-        if (source == null) {
-            return null;
-        }
-        var buf = new StringBuilder(source);
-        if (!substitute(buf, 0, source.length())) {
-            return source;
-        }
-        return buf.toString();
-    }
-
-    /**
-     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
-     * string as a template.
-     * <p>
-     * Only the specified portion of the string will be processed. The rest of the string is not processed, and is not
-     * returned.
-     * </p>
-     *
-     * @param source the string to replace in, null returns null
-     * @param offset the start offset within the source, must be valid
-     * @param length the length within the source to be processed, must be valid
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     * @throws StringIndexOutOfBoundsException if {@code offset} is not in the
-     *  range {@code 0 <= offset <= source.length()}
-     * @throws StringIndexOutOfBoundsException if {@code length < 0}
-     * @throws StringIndexOutOfBoundsException if {@code offset + length > source.length()}
-     */
-    public String replace(final String source, final int offset, final int length) {
-        if (source == null) {
-            return null;
-        }
-        var buf = new StringBuilder(length).append(source, offset, offset + length);
-        if (!substitute(buf, 0, length)) {
-            return source.substring(offset, offset + length);
-        }
-        return buf.toString();
-    }
-
-    /**
-     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
-     * buffer as a template. The buffer is not altered by this method.
-     *
-     * @param source the buffer to use as a template, not changed, null returns null
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public String replace(final StringBuilder source) {
-        if (source == null) {
-            return null;
-        }
-        return replace(source, 0, source.length());
-    }
-
-    /**
-     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
-     * buffer as a template. The buffer is not altered by this method.
-     * <p>
-     * Only the specified portion of the buffer will be processed. The rest of the buffer is not processed, and is not
-     * returned.
-     * </p>
-     *
-     * @param source the buffer to use as a template, not changed, null returns null
-     * @param offset the start offset within the source, must be valid
-     * @param length the length within the source to be processed, must be valid
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
-     */
-    public String replace(final StringBuilder source, final int offset, final int length) {
-        if (source == null) {
-            return null;
-        }
-        var buf = new StringBuilder(length).append(source, offset, offset + length);
-        substitute(buf, 0, length);
-        return buf.toString();
-    }
-
-    /**
-     * Internal method that resolves the value of a variable.
-     * <p>
-     * Most users of this class do not need to call this method. This method is called automatically by the substitution
-     * process.
-     * </p>
-     * <p>
-     * Writers of subclasses can override this method if they need to alter how each substitution occurs. The method is
-     * passed the variable's name and must return the corresponding value. This implementation uses the
-     * {@link #getStringLookup()} with the variable's name as the key.
-     * </p>
-     *
-     * @param variableName the name of the variable, not null
-     * @param buf the buffer where the substitution is occurring, not null
-     * @param startPos the start position of the variable including the prefix, valid
-     * @param endPos the end position of the variable including the suffix, valid
-     * @return The variable's value or <b>null</b> if the variable is unknown
-     */
-    protected String resolveVariable(final String variableName, final StringBuilder buf, final int startPos,
-                                     final int endPos) {
-        final StringLookup resolver = getStringLookup();
-        if (resolver == null) {
-            return null;
-        }
-        return resolver.lookup(variableName);
-    }
-
-    /**
      * Sets a flag whether substitution is done in variable values (recursive).
      *
      * @param disableSubstitutionInValues true if substitution in variable value are disabled
@@ -1062,6 +817,216 @@ public class StringSubstitutor {
     }
 
     /**
+     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
+     * array as a template. The array is not altered by this method.
+     *
+     * @param source the character array to replace in, not altered, null returns null
+     * @return The result of the replace operation
+     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
+     */
+    public String replace(final char[] source) {
+        if (source == null) {
+            return null;
+        }
+        return replace(source, 0, source.length);
+    }
+
+    /**
+     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
+     * array as a template. The array is not altered by this method.
+     * <p>
+     * Only the specified portion of the array will be processed. The rest of the array is not processed, and is not
+     * returned.
+     * </p>
+     *
+     * @param source the character array to replace in, not altered, null returns null
+     * @param offset the start offset within the array, must be valid
+     * @param length the length within the array to be processed, must be valid
+     * @return The result of the replace operation
+     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
+     * @throws StringIndexOutOfBoundsException if {@code offset} is not in the
+     *  range {@code 0 <= offset <= chars.length}
+     * @throws StringIndexOutOfBoundsException if {@code length < 0}
+     * @throws StringIndexOutOfBoundsException if {@code offset + length > chars.length}
+     */
+    public String replace(final char[] source, final int offset, final int length) {
+        if (source == null) {
+            return null;
+        }
+        var buf = new StringBuilder(length).append(source, offset, length);
+        substitute(buf, 0, length);
+        return buf.toString();
+    }
+
+    /**
+     * Replaces all the occurrences of variables with their matching values from the resolver using the given source as
+     * a template. The source is not altered by this method.
+     *
+     * @param source the buffer to use as a template, not changed, null returns null
+     * @return The result of the replace operation
+     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
+     */
+    public String replace(final CharSequence source) {
+        if (source == null) {
+            return null;
+        }
+        return replace(source, 0, source.length());
+    }
+
+    /**
+     * Replaces all the occurrences of variables with their matching values from the resolver using the given source as
+     * a template. The source is not altered by this method.
+     * <p>
+     * Only the specified portion of the buffer will be processed. The rest of the buffer is not processed, and is not
+     * returned.
+     * </p>
+     *
+     * @param source the buffer to use as a template, not changed, null returns null
+     * @param offset the start offset within the array, must be valid
+     * @param length the length within the array to be processed, must be valid
+     * @return The result of the replace operation
+     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
+     */
+    public String replace(final CharSequence source, final int offset, final int length) {
+        if (source == null) {
+            return null;
+        }
+        var buf = new StringBuilder(length).append(source.toString(), offset, length);
+        substitute(buf, 0, length);
+        return buf.toString();
+    }
+
+    /**
+     * Replaces all the occurrences of variables in the given source object with their matching values from the
+     * resolver. The input source object is converted to a string using {@code toString} and is not altered.
+     *
+     * @param source the source to replace in, null returns null
+     * @return The result of the replace operation
+     * @throws IllegalArgumentException if a variable is not found and enableUndefinedVariableException is true
+     */
+    public String replace(final Object source) {
+        if (source == null) {
+            return null;
+        }
+        var buf = new StringBuilder().append(source);
+        substitute(buf, 0, buf.length());
+        return buf.toString();
+    }
+
+    /**
+     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
+     * string as a template.
+     *
+     * @param source the string to replace in, null returns null
+     * @return The result of the replace operation
+     * @throws IllegalArgumentException if variable is not found when it is allowed to throw exception
+     */
+    public String replace(final String source) {
+        if (source == null) {
+            return null;
+        }
+        var buf = new StringBuilder(source);
+        if (!substitute(buf, 0, source.length())) {
+            return source;
+        }
+        return buf.toString();
+    }
+
+    /**
+     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
+     * string as a template.
+     * <p>
+     * Only the specified portion of the string will be processed. The rest of the string is not processed, and is not
+     * returned.
+     * </p>
+     *
+     * @param source the string to replace in, null returns null
+     * @param offset the start offset within the source, must be valid
+     * @param length the length within the source to be processed, must be valid
+     * @return The result of the replace operation
+     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
+     * @throws StringIndexOutOfBoundsException if {@code offset} is not in the
+     *  range {@code 0 <= offset <= source.length()}
+     * @throws StringIndexOutOfBoundsException if {@code length < 0}
+     * @throws StringIndexOutOfBoundsException if {@code offset + length > source.length()}
+     */
+    public String replace(final String source, final int offset, final int length) {
+        if (source == null) {
+            return null;
+        }
+        var buf = new StringBuilder(length).append(source, offset, offset + length);
+        if (!substitute(buf, 0, length)) {
+            return source.substring(offset, offset + length);
+        }
+        return buf.toString();
+    }
+
+    /**
+     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
+     * buffer as a template. The buffer is not altered by this method.
+     *
+     * @param source the buffer to use as a template, not changed, null returns null
+     * @return The result of the replace operation
+     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
+     */
+    public String replace(final StringBuilder source) {
+        if (source == null) {
+            return null;
+        }
+        return replace(source, 0, source.length());
+    }
+
+    /**
+     * Replaces all the occurrences of variables with their matching values from the resolver using the given source
+     * buffer as a template. The buffer is not altered by this method.
+     * <p>
+     * Only the specified portion of the buffer will be processed. The rest of the buffer is not processed, and is not
+     * returned.
+     * </p>
+     *
+     * @param source the buffer to use as a template, not changed, null returns null
+     * @param offset the start offset within the source, must be valid
+     * @param length the length within the source to be processed, must be valid
+     * @return The result of the replace operation
+     * @throws IllegalArgumentException if variable is not found when its allowed to throw exception
+     */
+    public String replace(final StringBuilder source, final int offset, final int length) {
+        if (source == null) {
+            return null;
+        }
+        var buf = new StringBuilder(length).append(source, offset, offset + length);
+        substitute(buf, 0, length);
+        return buf.toString();
+    }
+
+    /**
+     * Internal method that resolves the value of a variable.
+     * <p>
+     * Most users of this class do not need to call this method. This method is called automatically by the substitution
+     * process.
+     * </p>
+     * <p>
+     * Writers of subclasses can override this method if they need to alter how each substitution occurs. The method is
+     * passed the variable's name and must return the corresponding value. This implementation uses the
+     * {@link #getStringLookup()} with the variable's name as the key.
+     * </p>
+     *
+     * @param variableName the name of the variable, not null
+     * @param buf the buffer where the substitution is occurring, not null
+     * @param startPos the start position of the variable including the prefix, valid
+     * @param endPos the end position of the variable including the suffix, valid
+     * @return The variable's value or <b>null</b> if the variable is unknown
+     */
+    protected String resolveVariable(final String variableName, final StringBuilder buf, final int startPos,
+                                     final int endPos) {
+        final StringLookup resolver = getStringLookup();
+        if (resolver == null) {
+            return null;
+        }
+        return resolver.lookup(variableName);
+    }
+
+    /**
      * Internal method that substitutes the variables.
      * <p>
      * Most users of this class do not need to call this method. This method will be called automatically by another
@@ -1091,7 +1056,6 @@ public class StringSubstitutor {
      * @param priorVariables the stack keeping track of the replaced variables, may be null
      * @return The result.
      * @throws IllegalArgumentException if variable is not found and <pre>isEnableUndefinedVariableException()==true</pre>
-     * @since 1.9
      */
     private Result substitute(final StringBuilder builder, final int offset, final int length,
                               List<String> priorVariables) {
@@ -1270,5 +1234,18 @@ public class StringSubstitutor {
                 .append(preserveEscapes).append(", suffixMatcher=").append(suffixMatcher).append(", valueDelimiterMatcher=").append(valueDelimiterMatcher)
                 .append(", variableResolver=").append(variableResolver).append("]");
         return builder.toString();
+    }
+
+    /**
+     * The low-level result of a substitution.
+     *
+     * @param altered  Whether the buffer is altered.
+     * @param lengthChange  The length of change.
+     */
+    private record Result(boolean altered, int lengthChange) {
+        @Override
+        public String toString() {
+            return "Result [altered=" + altered + ", lengthChange=" + lengthChange + "]";
+        }
     }
 }
