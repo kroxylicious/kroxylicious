@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.config.substitution;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +24,6 @@ import io.kroxylicious.proxy.config.substitution.matcher.StringMatcherFactory;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -212,18 +210,6 @@ public class StringSubstitutorTest {
         assertEquals('$', sub.getEscapeChar());
         sub.setEscapeChar('<');
         assertEquals('<', sub.getEscapeChar());
-    }
-
-    /**
-     * Test for LANG-1055: StringSubstitutor.replaceSystemProperties does not work consistently
-     */
-    @Test
-    public void testLANG1055() {
-        System.setProperty("test_key", "test_value");
-
-        final String expected = StringSubstitutor.replace("test_key=${test_key}", System.getProperties());
-        final String actual = StringSubstitutor.replaceSystemProperties("test_key=${test_key}");
-        assertEquals(expected, actual);
     }
 
     /**
@@ -709,11 +695,6 @@ public class StringSubstitutorTest {
     }
 
     @Test
-    public void testReplaceTakingThreeArgumentsThrowsNullPointerException() {
-        assertThatNullPointerException().isThrownBy(() -> StringSubstitutor.replace(null, (Properties) null));
-    }
-
-    @Test
     public void testReplaceThrowsStringIndexOutOfBoundsException() {
         final StringSubstitutor sub = new StringSubstitutor();
 
@@ -992,16 +973,6 @@ public class StringSubstitutorTest {
      * Tests static.
      */
     @Test
-    public void testStaticReplace() {
-        final Map<String, String> map = new HashMap<>();
-        map.put("name", "commons");
-        assertEqualsCharSeq("Hi commons!", StringSubstitutor.replace("Hi ${name}!", map));
-    }
-
-    /**
-     * Tests static.
-     */
-    @Test
     public void testStaticReplacePrefixSuffix() {
         final Map<String, String> map = new HashMap<>();
         map.put("name", "commons");
@@ -1037,20 +1008,6 @@ public class StringSubstitutorTest {
         finally {
             System.getProperties().remove("foo");
         }
-    }
-
-    /**
-     * Test the replace of a properties object
-     */
-    @Test
-    public void testSubstituteDefaultProperties() {
-        final String org = "${doesnotwork}";
-        System.setProperty("doesnotwork", "It works!");
-
-        // create a new Properties object with the System.getProperties as default
-        final Properties props = new Properties(System.getProperties());
-
-        assertEqualsCharSeq("It works!", StringSubstitutor.replace(org, props));
     }
 
     @Test

@@ -9,9 +9,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Properties;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.config.substitution.lookup.StringLookup;
 import io.kroxylicious.proxy.config.substitution.lookup.StringLookupFactory;
@@ -199,19 +196,10 @@ public class StringSubstitutor {
      * The low-level result of a substitution.
      *
      * @since 1.9
+     * @param altered  Whether the buffer is altered.
+     * @param lengthChange  The length of change.
      */
-    private static final class Result {
-
-        /** Whether the buffer is altered. */
-        public final boolean altered;
-
-        /** The length of change. */
-        public final int lengthChange;
-
-        private Result(final boolean altered, final int lengthChange) {
-            this.altered = altered;
-            this.lengthChange = lengthChange;
-        }
+    private record Result(boolean altered, int lengthChange) {
 
         @Override
         public String toString() {
@@ -336,23 +324,6 @@ public class StringSubstitutor {
     public static <V> String replace(final Object source, final Map<String, V> valueMap, final String prefix,
                                      final String suffix) {
         return new StringSubstitutor(valueMap, prefix, suffix).replace(source);
-    }
-
-    /**
-     * Replaces all the occurrences of variables in the given source object with their matching values from the
-     * properties.
-     *
-     * @param source the source text containing the variables to substitute, null returns null
-     * @param valueProperties the properties with values, may be null
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if a variable is not found and enableUndefinedVariableException is true
-     */
-    public static String replace(final Object source, final Properties valueProperties) {
-        if (valueProperties == null) {
-            return source.toString();
-        }
-        return StringSubstitutor.replace(source,
-                valueProperties.stringPropertyNames().stream().collect(Collectors.toMap(Function.identity(), valueProperties::getProperty)));
     }
 
     /**
