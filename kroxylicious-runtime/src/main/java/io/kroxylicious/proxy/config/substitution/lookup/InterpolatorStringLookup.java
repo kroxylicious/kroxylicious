@@ -83,15 +83,6 @@ class InterpolatorStringLookup implements StringLookup {
     }
 
     /**
-     * Gets the lookup map.
-     *
-     * @return The lookup map.
-     */
-    public Map<String, StringLookup> getStringLookupMap() {
-        return stringLookupMap;
-    }
-
-    /**
      * Resolves the specified variable. This implementation will try to extract a variable prefix from the given
      * variable name (the first colon (':') is used as prefix separator). It then passes the name of the variable with
      * the prefix stripped to the lookup object registered for this prefix. If no prefix can be found or if the
