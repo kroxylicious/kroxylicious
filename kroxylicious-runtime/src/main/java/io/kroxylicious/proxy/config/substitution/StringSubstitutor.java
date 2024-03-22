@@ -296,24 +296,6 @@ public class StringSubstitutor {
     }
 
     /**
-     * Replaces all the occurrences of variables in the given source object with their matching values from the map.
-     * This method allows to specify a custom variable prefix and suffix
-     *
-     * @param <V> the type of the values in the map
-     * @param source the source text containing the variables to substitute, null returns null
-     * @param valueMap the map with the values, may be null
-     * @param prefix the prefix of variables, not null
-     * @param suffix the suffix of variables, not null
-     * @return The result of the replace operation
-     * @throws IllegalArgumentException if the prefix or suffix is null
-     * @throws IllegalArgumentException if a variable is not found and enableUndefinedVariableException is true
-     */
-    public static <V> String replace(final Object source, final Map<String, V> valueMap, final String prefix,
-                                     final String suffix) {
-        return new StringSubstitutor(valueMap, prefix, suffix).replace(source);
-    }
-
-    /**
      * The flag whether substitution in variable values is disabled.
      */
     private boolean disableSubstitutionInValues;
