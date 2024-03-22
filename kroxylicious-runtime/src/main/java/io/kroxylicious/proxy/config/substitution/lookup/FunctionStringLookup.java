@@ -16,7 +16,7 @@ import java.util.function.Function;
  *
  * @since 1.9
  */
-final class FunctionStringLookup<V> extends AbstractStringLookup {
+final class FunctionStringLookup<V> implements StringLookup {
 
     /**
      * Creates a new instance backed by a Function.

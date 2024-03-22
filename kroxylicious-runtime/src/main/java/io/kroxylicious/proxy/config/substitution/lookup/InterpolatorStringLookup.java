@@ -16,14 +16,14 @@ import java.util.stream.Collectors;
  * Uses the {@link StringLookupFactory default lookups}.
  * </p>
  */
-class InterpolatorStringLookup extends AbstractStringLookup {
+class InterpolatorStringLookup implements StringLookup {
 
     /**
      * Defines the singleton for this class.
      *
      * @since 1.6
      */
-    static final AbstractStringLookup INSTANCE = new InterpolatorStringLookup();
+    static final StringLookup INSTANCE = new InterpolatorStringLookup();
 
     /** Constant for the prefix separator. */
     private static final char PREFIX_SEPARATOR = ':';
