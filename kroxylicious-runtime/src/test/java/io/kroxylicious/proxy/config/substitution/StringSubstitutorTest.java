@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.substitution.lookup.StringLookup;
-import io.kroxylicious.proxy.config.substitution.lookup.StringLookupFactory;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
@@ -166,7 +165,7 @@ class StringSubstitutorTest {
         source.setEscapeChar('e');
         source.setValueDelimiter('d');
         source.setVariablePrefix('p');
-        source.setVariableResolver(StringLookupFactory.INSTANCE.nullStringLookup());
+        source.setVariableResolver(key -> null);
         source.setVariableSuffix('s');
         //
         final StringSubstitutor target = new StringSubstitutor(source);

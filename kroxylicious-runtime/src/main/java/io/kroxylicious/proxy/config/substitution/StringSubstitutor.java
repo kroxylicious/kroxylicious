@@ -10,8 +10,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import io.kroxylicious.proxy.config.substitution.lookup.FunctionStringLookup;
+import io.kroxylicious.proxy.config.substitution.lookup.InterpolatorLookupFactory;
 import io.kroxylicious.proxy.config.substitution.lookup.StringLookup;
-import io.kroxylicious.proxy.config.substitution.lookup.StringLookupFactory;
 import io.kroxylicious.proxy.config.substitution.matcher.StringMatcher;
 import io.kroxylicious.proxy.config.substitution.matcher.StringMatcherFactory;
 
@@ -115,9 +116,6 @@ import io.kroxylicious.proxy.config.substitution.matcher.StringMatcherFactory;
  *     + "Environment Variable:  ${env:USERNAME}\n"
  *     + "System Property:       ${sys:user.dir}\n"
  * </pre>
- * <p>
- * For documentation and a full list of available lookups, see {@link StringLookupFactory}.
- * </p>
  *
  * <h2>Using Recursive Variable Replacement</h2>
  * <p>
@@ -215,8 +213,7 @@ public class StringSubstitutor {
             .stringMatcher(DEFAULT_VAR_DEFAULT);
 
     /**
-     * Creates a new instance using the interpolator string lookup
-     * {@link StringLookupFactory#interpolatorStringLookup()}.
+     * Creates a new instance using the interpolator string lookup.
      * <p>
      * This StringSubstitutor lets you perform substitutions like:
      * </p>
@@ -226,10 +223,7 @@ public class StringSubstitutor {
      *   "OS name: ${sys:os.name}, user: ${env:USER}");
      * </pre>
      *
-     * <p>The table below lists the lookups available by default in the returned instance. These
-     * may be modified through the use of the
-     * {@value StringLookupFactory#DEFAULT_STRING_LOOKUPS_PROPERTY}
-     * system property, as described in the {@link StringLookupFactory} documentation.</p>
+     * <p>The table below lists the lookups available by default in the returned instance.</p>
      *
      * <p><strong>NOTE:</strong> The list of lookups available by default changed in version {@code 1.10.0}.
      * Configuration via system property (as mentioned above) may be necessary to reproduce previous functionality.
@@ -242,22 +236,21 @@ public class StringSubstitutor {
      * <th>Lookup</th>
      * </tr>
      * <tr>
-     * <td>{@value StringLookupFactory#KEY_ENV}</td>
-     * <td>{@link StringLookupFactory#environmentVariableStringLookup()}</td>
+     * <td>{@code env}</td>
+     * <td>{@link io.kroxylicious.proxy.config.substitution.lookup.EnvironmentInterpolatorStringLookupFactory}</td>
      * </tr>
      * <tr>
      * <tr>
-     * <td>{@value StringLookupFactory#KEY_SYS}</td>
-     * <td>{@link StringLookupFactory#systemPropertyStringLookup()}</td>
+     * <td>{@code env}</td>
+     * <td>{@link io.kroxylicious.proxy.config.substitution.lookup.SystemPropertyInterpolatorStringLookupFactory}</td>
      * </tr>
      * </table>
      *
      * @return a new instance using the interpolator string lookup.
-     * @see StringLookupFactory#interpolatorStringLookup()
      * @since 1.8
      */
     public static StringSubstitutor createInterpolator() {
-        return new StringSubstitutor(StringLookupFactory.INSTANCE.interpolatorStringLookup());
+        return new StringSubstitutor(InterpolatorLookupFactory.interpolatorStringLookup());
     }
 
     /**
@@ -320,7 +313,7 @@ public class StringSubstitutor {
      * @param valueMap the map with the variables' values, may be null
      */
     public <V> StringSubstitutor(final Map<String, V> valueMap) {
-        this(StringLookupFactory.INSTANCE.mapStringLookup(valueMap), DEFAULT_PREFIX, DEFAULT_SUFFIX, DEFAULT_ESCAPE);
+        this(FunctionStringLookup.on(valueMap), DEFAULT_PREFIX, DEFAULT_SUFFIX, DEFAULT_ESCAPE);
     }
 
     /**
@@ -333,7 +326,7 @@ public class StringSubstitutor {
      * @throws IllegalArgumentException if the prefix or suffix is null
      */
     public <V> StringSubstitutor(final Map<String, V> valueMap, final String prefix, final String suffix) {
-        this(StringLookupFactory.INSTANCE.mapStringLookup(valueMap), prefix, suffix, DEFAULT_ESCAPE);
+        this(FunctionStringLookup.on(valueMap), prefix, suffix, DEFAULT_ESCAPE);
     }
 
     /**
@@ -348,7 +341,7 @@ public class StringSubstitutor {
      */
     public <V> StringSubstitutor(final Map<String, V> valueMap, final String prefix, final String suffix,
                                  final char escape) {
-        this(StringLookupFactory.INSTANCE.mapStringLookup(valueMap), prefix, suffix, escape);
+        this(FunctionStringLookup.on(valueMap), prefix, suffix, escape);
     }
 
     /**
@@ -364,7 +357,7 @@ public class StringSubstitutor {
      */
     public <V> StringSubstitutor(final Map<String, V> valueMap, final String prefix, final String suffix,
                                  final char escape, final String valueDelimiter) {
-        this(StringLookupFactory.INSTANCE.mapStringLookup(valueMap), prefix, suffix, escape, valueDelimiter);
+        this(FunctionStringLookup.on(valueMap), prefix, suffix, escape, valueDelimiter);
     }
 
     /**

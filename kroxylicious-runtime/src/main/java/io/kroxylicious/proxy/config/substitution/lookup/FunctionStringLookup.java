@@ -14,9 +14,8 @@ import java.util.function.Function;
  *
  * @param <V> A function's input type
  *
- * @since 1.9
  */
-final class FunctionStringLookup<V> implements StringLookup {
+public final class FunctionStringLookup<V> implements StringLookup {
 
     /**
      * Creates a new instance backed by a Function.
@@ -37,7 +36,7 @@ final class FunctionStringLookup<V> implements StringLookup {
      * @return a new instance backed by the given map.
      */
     public static <V> FunctionStringLookup<V> on(final Map<String, V> map) {
-        return on(StringLookupFactory.toMap(map)::get);
+        return on(k -> map.get(k));
     }
 
     /**
