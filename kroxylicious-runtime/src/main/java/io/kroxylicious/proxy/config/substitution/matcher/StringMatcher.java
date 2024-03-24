@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.config.substitution.matcher;
 
 /**
  * Determines if a character array portion matches.
- *
- * @since 1.3
  */
 public interface StringMatcher {
 
@@ -66,26 +64,8 @@ public interface StringMatcher {
      * @param bufferStart the first active index in the buffer, valid in {@code buffer}.
      * @param bufferEnd the end index (exclusive) of the active buffer, valid in {@code buffer}.
      * @return The number of matching characters, zero if there is no match.
-     * @since 1.9
      */
-    default int isMatch(final CharSequence buffer, final int start, final int bufferStart, final int bufferEnd) {
-        char[] result;
-        if (buffer == null) {
-            result = new char[]{};
-        }
-        else if (buffer instanceof String str) {
-            result = str.toCharArray();
-        }
-        else {
-            final int len = buffer.length();
-            final char[] array = new char[len];
-            for (int i = 0; i < len; i++) {
-                array[i] = buffer.charAt(i);
-            }
-            result = array;
-        }
-        return isMatch(result, start, bufferEnd, bufferEnd);
-    }
+    int isMatch(CharSequence buffer, int start, int bufferStart, int bufferEnd);
 
     /**
      * Returns the size of the matching string. Defaults to 0.

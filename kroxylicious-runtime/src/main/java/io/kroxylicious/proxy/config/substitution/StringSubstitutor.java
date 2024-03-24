@@ -309,7 +309,7 @@ public class StringSubstitutor {
      * Creates a new instance with defaults for variable prefix and suffix and the escaping character.
      */
     public StringSubstitutor() {
-        this((StringLookup) null, DEFAULT_PREFIX, DEFAULT_SUFFIX, DEFAULT_ESCAPE);
+        this(null, DEFAULT_PREFIX, DEFAULT_SUFFIX, DEFAULT_ESCAPE);
     }
 
     /**

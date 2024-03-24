@@ -16,8 +16,6 @@ package io.kroxylicious.proxy.config.substitution.lookup;
  * For example, it would be possible to implement a lookup that used the key as a primary key, and looked up the value
  * on demand from the database.
  * </p>
- *
- * @since 1.3
  */
 @FunctionalInterface
 public interface StringLookup {

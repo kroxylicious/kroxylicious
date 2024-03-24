@@ -158,7 +158,7 @@ class StringSubstitutorTest {
     }
 
     @Test
-    void ConstructorStringSubstitutor() {
+    void constructorStringSubstitutor() {
         final StringSubstitutor source = new StringSubstitutor();
         source.setDisableSubstitutionInValues(true);
         source.setEnableSubstitutionInVariables(true);

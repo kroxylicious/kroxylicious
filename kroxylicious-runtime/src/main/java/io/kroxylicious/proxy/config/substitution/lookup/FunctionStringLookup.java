@@ -36,7 +36,7 @@ final class FunctionStringLookup<V> implements StringLookup {
      * @param map the map of keys to values, may be null.
      * @return a new instance backed by the given map.
      */
-    static <V> FunctionStringLookup<V> on(final Map<String, V> map) {
+    public static <V> FunctionStringLookup<V> on(final Map<String, V> map) {
         return on(StringLookupFactory.toMap(map)::get);
     }
 

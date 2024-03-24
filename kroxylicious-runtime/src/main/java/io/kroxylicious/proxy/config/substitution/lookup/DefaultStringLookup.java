@@ -10,15 +10,9 @@ package io.kroxylicious.proxy.config.substitution.lookup;
  * <p>
  * This enum was adapted and expanded from Apache Commons Configuration 2.4.
  * </p>
- * <p><strong>NOTE:</strong> Starting in version 1.10.0, not all lookups defined in this class are
- * included by default in the
- * {@link StringLookupFactory#addDefaultStringLookups(java.util.Map) StringLookupFactory.addDefaultStringLookups}
- * method. See the {@link StringLookupFactory} class documentation for details.
- * </p>
  *
  * @see StringLookupFactory
  * @see StringLookup
- * @since 1.7
  */
 public enum DefaultStringLookup {
 
