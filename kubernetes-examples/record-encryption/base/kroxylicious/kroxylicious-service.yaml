@@ -14,12 +14,6 @@ spec:
   selector:
     app: kroxylicious
   ports:
-  - name: port-30090
-    protocol: TCP
-    port: 30090
-    targetPort: 30090
-    nodePort: 30090
-
   - name: port-30192
     protocol: TCP
     port: 30192
