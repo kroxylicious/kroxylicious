@@ -69,6 +69,7 @@
         <commons.io.version>2.15.1</commons.io.version>
         <testcontainers.version>1.19.7</testcontainers.version>
         <bouncycastle.version>1.77</bouncycastle.version>
+        <junit-pioneer.version>2.2.0</junit-pioneer.version>
     </properties>
 
     <name>Parent POM</name>
@@ -299,6 +300,12 @@
                 <version>${junit.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit-pioneer</groupId>
+                <artifactId>junit-pioneer</artifactId>
+                <scope>test</scope>
+                <version>${junit-pioneer.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
