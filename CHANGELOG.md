@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 
 ## SNAPSHOT
 
+* [#1115](https://github.com/kroxylicious/kroxylicious/pull/1115): Bump io.netty:netty-bom from 4.1.107.Final to 4.1.108.Final
 * [#1110](https://github.com/kroxylicious/kroxylicious/pull/1110): Body decoder now supports older versions of ApiVersionsResponse
 * [#1107](https://github.com/kroxylicious/kroxylicious/pull/1107): Replace deprecated FilePasswordFilePath class with @JsonAlias.
 * [#1099](https://github.com/kroxylicious/kroxylicious/pull/1099): Bump io.micrometer:micrometer-bom from 1.12.3 to 1.12.4
