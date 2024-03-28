@@ -9,6 +9,7 @@ Please enumerate **all user-facing** changes using format `<githib issue/pr numb
 * [#1107](https://github.com/kroxylicious/kroxylicious/pull/1107): Replace deprecated FilePasswordFilePath class with @JsonAlias.
 * [#1099](https://github.com/kroxylicious/kroxylicious/pull/1099): Bump io.micrometer:micrometer-bom from 1.12.3 to 1.12.4
 * [#1103](https://github.com/kroxylicious/kroxylicious/pull/1103): Bump com.fasterxml.jackson:jackson-bom from 2.16.1 to 2.17.0
+* [#1057](https://github.com/kroxylicious/kroxylicious/pull/1057): Check platform supports all record encryption ciphers at configuration time
 
 ## 0.5.0
 

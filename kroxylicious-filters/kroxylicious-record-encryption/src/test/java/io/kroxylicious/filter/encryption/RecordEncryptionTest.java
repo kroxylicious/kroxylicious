@@ -11,20 +11,41 @@ import java.util.HashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
+import javax.crypto.Cipher;
+
+import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.filter.encryption.dek.CipherSpec;
+import io.kroxylicious.filter.encryption.dek.DekException;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 class RecordEncryptionTest {
+
+    static Cipher arbitraryCipher = aesCipher();
+
+    @NonNull
+    private static Cipher aesCipher() {
+        try {
+            return Cipher.getInstance("AES/GCM/NoPadding");
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     @Test
     void shouldInitAndCreateFilter() {
@@ -109,4 +130,23 @@ class RecordEncryptionTest {
             assertThat(thread1.isDaemon()).isTrue();
         });
     }
+
+    @Test
+    void checkCipherSuiteFailure() {
+        AbstractThrowableAssert<?, ? extends Throwable> throwableAssert = assertThatThrownBy(() -> {
+            RecordEncryption.checkCipherSuite(cipherSpec -> {
+                throw new DekException("Could not construct cipher for " + cipherSpec);
+            });
+        }).isInstanceOf(EncryptionConfigurationException.class);
+        throwableAssert.hasMessageContaining("Cipher Suite check failed, one or more ciphers could not be loaded");
+        for (CipherSpec value : CipherSpec.values()) {
+            throwableAssert.hasMessageContaining(value.name());
+        }
+    }
+
+    @Test
+    void checkCipherSuiteSuccess() {
+        assertThatCode(() -> RecordEncryption.checkCipherSuite(cipherSpec -> arbitraryCipher)).doesNotThrowAnyException();
+    }
+
 }
