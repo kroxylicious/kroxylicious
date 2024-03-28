@@ -186,6 +186,7 @@
                 <version>0.18.0</version>
                 <configuration>
                     <oldVersion>
+                        <!-- specify the old version directly so its deterministic -->
                         <dependency>
                             <groupId>${project.groupId}</groupId>
                             <artifactId>${project.artifactId}</artifactId>
@@ -195,8 +196,12 @@
                     </oldVersion>
                     <parameter>
                         <accessModifier>public</accessModifier>
+                        <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
                         <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
-                        <breakBuildBasedOnSemanticVersioningForMajorVersionZero>true</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
+                        <breakBuildBasedOnSemanticVersioningForMajorVersionZero>false</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
+                        <excludes>
+                            <exclude>io.kroxylicious.proxy.config.secret.FilePasswordFilePath</exclude>  <!-- used purely in config files and the name still exists (as a JSON alias) -->
+                        </excludes>
                         <!-- see documentation -->
                     </parameter>
                 </configuration>
