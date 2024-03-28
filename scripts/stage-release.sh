@@ -190,7 +190,10 @@ gh repo set-default "$(git remote get-url "${REPOSITORY}")"
 # create GitHub release via CLI https://cli.github.com/manual/gh_release_create
 # it is created as a draft, the deploy_release workflow will publish it.
 echo "Creating draft release notes."
-gh release create "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* --title "${RELEASE_TAG}" --notes-file "CHANGELOG.md" --draft
+API_COMPATABILITY_REPORT=kroxylicious-api/target/japicmp/"${RELEASE_VERSION}"-compatability.html
+cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
+gh release create --title "${RELEASE_TAG}" --notes-file "CHANGELOG.md" --draft "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* "${API_COMPATABILITY_REPORT}"
+
 
 BODY="Release version ${RELEASE_VERSION}"
 
