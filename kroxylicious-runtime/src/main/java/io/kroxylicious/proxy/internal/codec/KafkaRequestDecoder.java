@@ -24,6 +24,7 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestDecoder.class);
+    private static final Metrics METRICS = Metrics.forGlobalRegistry();
 
     private final DecodePredicate decodePredicate;
 
@@ -57,15 +58,15 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
         RequestHeaderData header = null;
         final ByteBufAccessorImpl accessor;
-        Metrics.inboundDownstreamMessagesCounter().increment();
+        METRICS.receivedRequestMessagesCounter().increment();
         var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} response? {}, Predicate {}", apiKey, apiVersion, decodeResponse, decodePredicate);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         if (decodeRequest) {
-            Metrics.inboundDownstreamDecodedMessagesCounter().increment();
-            Metrics.payloadSizeBytesUpstreamSummary(apiKey, apiVersion).record(length);
+            METRICS.decodedRequestMessagesCounter().increment();
+            METRICS.payloadSizeBytesRequestSummary(apiKey, apiVersion).record(length);
             if (log().isTraceEnabled()) { // avoid boxing
                 log().trace("{}: headerVersion {}", ctx, headerVersion);
             }
