@@ -24,7 +24,8 @@
 
     <properties>
         <libs.dir>libs</libs.dir>
-        <ApiCompatabilityReferenceVersion>0.5.0</ApiCompatabilityReferenceVersion>
+        <ApiCompatability.ReferenceVersion>0.5.0</ApiCompatability.ReferenceVersion>
+        <ApiCompatability.EnforceForMajorVersionZero>false</ApiCompatability.EnforceForMajorVersionZero>
     </properties>
 
     <name>Kroxylicious API</name>
@@ -190,7 +191,7 @@
                         <dependency>
                             <groupId>${project.groupId}</groupId>
                             <artifactId>${project.artifactId}</artifactId>
-                            <version>${ApiCompatabilityReferenceVersion}</version>
+                            <version>${ApiCompatability.ReferenceVersion}</version>
                             <type>jar</type>
                         </dependency>
                     </oldVersion>
@@ -198,7 +199,7 @@
                         <accessModifier>public</accessModifier>
                         <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
                         <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
-                        <breakBuildBasedOnSemanticVersioningForMajorVersionZero>false</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
+                        <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
                         <excludes>
                             <exclude>io.kroxylicious.proxy.config.secret.FilePasswordFilePath</exclude>  <!-- used purely in config files and the name still exists (as a JSON alias) -->
                         </excludes>
