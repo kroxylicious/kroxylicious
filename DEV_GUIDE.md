@@ -18,15 +18,16 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Installing WSL](#installing-wsl)
     * [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
   * [Running Integration Tests on Podman](#running-integration-tests-on-podman)
-    * [DOCKER_HOST environment variable](#dockerhost-environment-variable)
+    * [DOCKER_HOST environment variable](#docker_host-environment-variable)
     * [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
-    * [MacOS X](#macos-x)
+    * [macOS](#macos)
     * [Linux](#linux)
     * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
   * [Running system tests locally](#running-system-tests-locally)
     * [Prerequisites](#prerequisites)
     * [Environment variables](#environment-variables)
     * [Launch system tests](#launch-system-tests)
+    * [Jenkins pipeline for system tests](#jenkins-pipeline-for-system-tests)
   * [Rendering documentation](#rendering-documentation)
   * [Producing an Asciinema Cast](#producing-an-asciinema-cast)
   * [Continuous Integration](#continuous-integration)
@@ -277,16 +278,16 @@ There is an incompatibility between HTTP connection timeout expectations of
 can result in sporadic test failures when running the Integration Tests under Podman.  It manifests as
 failed or hanging REST API calls that leads to test failures and test hangs.
 
-It affects Linux and Mac OS X.
+It affects Linux and macOS.
 On Linux it manifests as Http calls failing with a `Broken Pipe` exception. 
-Similarly on MacOS we see a `localhost:XXX failed to respond`.
+Similarly on macOS we see a `localhost:XXX failed to respond`.
 
 To workaround around the issue, tune the `service_timeout` so that the timeout is in sympathy with the
 expectations of the underlying HttpClient defaults.
 
 Do so by following these instructions.
 
-### MacOS X
+### macOS
 
 Start the `podman` machine as normal, then:
 
@@ -308,7 +309,7 @@ On Linux, start this command:
 ```shell
 socat - UNIX-CONNECT:$(podman info --format '{{.Host.RemoteSocket.Path}}')
 ```
-On Mac OSX, Start this command:
+On macOS, start this command:
 ```shell
 time socat - UNIX-CONNECT:/var/run/docker.sock
 ```
