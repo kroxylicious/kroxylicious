@@ -26,7 +26,7 @@ First let's define the concepts in the landscape surrounding Kroxylicious.
 . _Downstream_ refers to the area between Kafka Client and Kroxylicious.
 . _Upstream_ refers to the area between Kroxylicious and a Kafka Cluster.
 
-.Kroxylious landscape
+.Kroxylicious landscape
 [a2s, format="svg"]
 ....
 .---------------------------------------------------------------------------.
