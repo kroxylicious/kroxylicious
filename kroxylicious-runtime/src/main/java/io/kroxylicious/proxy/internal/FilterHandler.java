@@ -525,13 +525,14 @@ public class FilterHandler extends ChannelDuplexHandler {
                 });
             }
 
-            ctx.executor().schedule(() -> {
+            var timeoutFuture = ctx.executor().schedule(() -> {
                 LOGGER.debug("{}: Timing out {} request after {}ms", ctx, apiKey, timeoutMs);
                 filterPromise
                         .completeExceptionally(
                                 new TimeoutException("Asynchronous %s request made by filter %s was timed-out.".formatted(apiKey, filterDescriptor())));
             }, timeoutMs, TimeUnit.MILLISECONDS);
-            return filterPromise.minimalCompletionStage();
+            return filterPromise.whenComplete((p, throwable) -> timeoutFuture.cancel(false))
+                    .minimalCompletionStage();
         }
 
         @Override
