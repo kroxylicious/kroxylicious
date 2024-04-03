@@ -71,6 +71,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private ChannelHandlerContext ctx;
+    private PromiseFactory promiseFactory;
 
     public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualCluster virtualCluster, Channel inboundChannel,
                          ApiVersionsServiceImpl apiVersionService) {
@@ -90,6 +91,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         this.ctx = ctx;
+        this.promiseFactory = new PromiseFactory(ctx.executor(), timeoutMs, TimeUnit.MILLISECONDS);
         super.channelActive(ctx);
     }
 
@@ -499,7 +501,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
 
             var hasResponse = apiKey != ApiKeys.PRODUCE || ((ProduceRequestData) request).acks() != 0;
-            var filterPromise = new InternalCompletableFuture<M>(ctx.executor());
+            CompletableFuture<M> filterPromise = promiseFactory.newTimeLimitedPromise(
+                    () -> "Asynchronous %s request made by filter %s was timed-out.".formatted(apiKey, filterDescriptor()));
             var frame = new InternalRequestFrame<>(
                     header.requestApiVersion(), header.correlationId(), hasResponse,
                     filter, filterPromise, header, request);
@@ -525,12 +528,6 @@ public class FilterHandler extends ChannelDuplexHandler {
                 });
             }
 
-            ctx.executor().schedule(() -> {
-                LOGGER.debug("{}: Timing out {} request after {}ms", ctx, apiKey, timeoutMs);
-                filterPromise
-                        .completeExceptionally(
-                                new TimeoutException("Asynchronous %s request made by filter %s was timed-out.".formatted(apiKey, filterDescriptor())));
-            }, timeoutMs, TimeUnit.MILLISECONDS);
             return filterPromise.minimalCompletionStage();
         }
 
@@ -540,4 +537,5 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
     }
+
 }
