@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
+
 import javax.annotation.Nullable;
 
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -27,8 +28,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import io.kroxylicious.proxy.ApiVersionsService;
 import io.kroxylicious.proxy.filter.Filter;
@@ -51,6 +50,8 @@ import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 import io.kroxylicious.proxy.model.VirtualCluster;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
@@ -299,8 +300,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
         inboundChannel.config().setAutoRead(false);
         promiseFactory.wrapWithTimeLimit(future,
-                () -> "Filter %s was timed-out.".formatted(filterDescriptor())
-        );
+                () -> "Filter %s was timed-out.".formatted(filterDescriptor()));
 
         return future.thenApplyAsync(filterResult -> filterResult, ctx.executor());
     }
