@@ -31,7 +31,7 @@ public class PromiseFactory {
     public <T> CompletableFuture<T> newTimeLimitedPromise(Callable<String> messageGenerator) {
         return wrapWithTimeLimit(new InternalCompletableFuture<T>(executorService), messageGenerator);
     }
-    
+
     public <T> CompletableFuture<T> wrapWithTimeLimit(CompletableFuture<T> promise, Callable<String> exceptionMessageGenerator) {
         var timeoutFuture = executorService.schedule(() -> {
             final String message;
