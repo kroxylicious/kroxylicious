@@ -33,11 +33,12 @@ class PromiseFactoryTest {
 
     private static final int TIMEOUT = 50;
     private static final TimeUnit TIMEOUT_UNIT = TimeUnit.MILLISECONDS;
+    public static final String TEST_LOGGER = "TestLogger";
     private PromiseFactory promiseFactory;
 
     @BeforeEach
     void setUp() {
-        promiseFactory = new PromiseFactory(Executors.newSingleThreadScheduledExecutor(), TIMEOUT, TIMEOUT_UNIT);
+        promiseFactory = new PromiseFactory(Executors.newSingleThreadScheduledExecutor(), TIMEOUT, TIMEOUT_UNIT, TEST_LOGGER);
     }
 
     @Test
@@ -68,7 +69,7 @@ class PromiseFactoryTest {
     void shouldCreatePromiseWithTimeout() {
         // Given
         final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
-        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT);
+        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT, TEST_LOGGER);
         when(executorService.schedule(any(Runnable.class), anyLong(), any())).thenReturn(mock(ScheduledFuture.class));
 
         // When
@@ -87,7 +88,7 @@ class PromiseFactoryTest {
         final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         try {
             final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
-            promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT);
+            promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT, TEST_LOGGER);
 
             final AtomicReference<ScheduledFuture<?>> timeoutFuture = new AtomicReference<>();
             when(executorService.schedule(any(Runnable.class), anyLong(), any())).thenAnswer(invocationOnMock -> {
@@ -117,7 +118,7 @@ class PromiseFactoryTest {
     void shouldWrapPromiseWithTimeout() {
         // Given
         final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
-        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT);
+        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT, TEST_LOGGER);
         when(executorService.schedule(any(Runnable.class), anyLong(), any())).thenReturn(mock(ScheduledFuture.class));
         final CompletableFuture<Object> incomingFuture = new CompletableFuture<>();
 
@@ -135,7 +136,7 @@ class PromiseFactoryTest {
     void shouldCancelTimeTimeoutWhenIncomingFutureCompletes() {
         // Given
         final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
-        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT);
+        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT, TEST_LOGGER);
         final ScheduledFuture scheduledFuture = mock(ScheduledFuture.class);
         when(executorService.schedule(any(Runnable.class), anyLong(), any())).thenReturn(scheduledFuture);
         final CompletableFuture<Object> incomingFuture = new CompletableFuture<>();
@@ -154,7 +155,7 @@ class PromiseFactoryTest {
     void shouldCompleteIncomingFutureExceptionallyWhenTimeoutTriggered() {
         // Given
         final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
-        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT);
+        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT, TEST_LOGGER);
         when(executorService.schedule(any(Runnable.class), anyLong(), any())).thenReturn(mock(ScheduledFuture.class));
         final CompletableFuture<Object> incomingFuture = new CompletableFuture<>();
         final CompletableFuture<Object> promise = promiseFactory.wrapWithTimeLimit(incomingFuture, () -> "");
