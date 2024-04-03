@@ -121,6 +121,8 @@ class MetricsST extends AbstractST {
     @BeforeEach
     void beforeEach(String namespace) throws InterruptedException {
         final String scraperName = namespace + "-" + Constants.SCRAPER_LABEL_VALUE;
+        kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.createSecrets();
         resourceManager.createResourceWithWait(ScraperTemplates.scraperPod(namespace, scraperName).build());
         cluster.setNamespace(namespace);
 
@@ -129,7 +131,6 @@ class MetricsST extends AbstractST {
         Thread.sleep(Constants.RECONCILIATION_INTERVAL.toMillis());
 
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
-        kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         kroxyliciousCollector = new MetricsCollector.Builder()
                 .withScraperPodName(scraperPodName)

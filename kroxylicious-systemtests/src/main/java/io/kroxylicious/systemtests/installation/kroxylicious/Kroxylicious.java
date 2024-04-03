@@ -67,7 +67,7 @@ public class Kroxylicious {
     /**
      * Needed for downstream Kroxylicious images
      */
-    private void createSecrets() {
+    public void createSecrets() {
         String configFolder = Environment.CONTAINER_CONFIG_PATH;
         SecretBuilder secretBuilder = KroxyliciousSecretTemplates.createRegistryCredentialsSecret(configFolder, deploymentNamespace);
         if (secretBuilder != null) {
