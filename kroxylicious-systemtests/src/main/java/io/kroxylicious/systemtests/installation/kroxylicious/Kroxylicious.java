@@ -11,6 +11,7 @@ import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
@@ -71,7 +72,12 @@ public class Kroxylicious {
         String configFolder = Environment.CONTAINER_CONFIG_PATH;
         SecretBuilder secretBuilder = KroxyliciousSecretTemplates.createRegistryCredentialsSecret(configFolder, deploymentNamespace);
         if (secretBuilder != null) {
-            resourceManager.createResourceWithWait(secretBuilder.build());
+            Secret secret = secretBuilder.build();
+            if(kubeClient().getClient().secrets().inNamespace(deploymentNamespace).withName(secret.getMetadata().getName()).get() != null) {
+                LOGGER.atWarn().setMessage("Skipping secrets creation as it was already created").log();
+                return;
+            }
+            resourceManager.createResourceWithWait(secret);
         }
     }
 
