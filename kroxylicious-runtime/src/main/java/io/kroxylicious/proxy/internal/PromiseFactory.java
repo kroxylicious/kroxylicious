@@ -12,16 +12,21 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class PromiseFactory {
 
     private final ScheduledExecutorService executorService;
     private final long timeout;
     private final TimeUnit timeoutUnit;
+    private final Logger logger;
 
-    public PromiseFactory(ScheduledExecutorService executorService, long timeout, TimeUnit timeoutUnit) {
+    public PromiseFactory(ScheduledExecutorService executorService, long timeout, TimeUnit timeoutUnit, String loggerName) {
         this.executorService = executorService;
         this.timeout = timeout;
         this.timeoutUnit = timeoutUnit;
+        this.logger = LoggerFactory.getLogger(loggerName);
     }
 
     public <T> CompletableFuture<T> newPromise() {
@@ -37,6 +42,7 @@ public class PromiseFactory {
             final String message;
             try {
                 message = exceptionMessageGenerator.call();
+                logger.warn(message);
                 promise.completeExceptionally(new TimeoutException(message));
             }
             catch (Exception e) {

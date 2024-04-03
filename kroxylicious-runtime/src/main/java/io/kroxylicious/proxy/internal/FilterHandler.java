@@ -90,7 +90,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         this.ctx = ctx;
-        this.promiseFactory = new PromiseFactory(ctx.executor(), timeoutMs, TimeUnit.MILLISECONDS);
+        this.promiseFactory = new PromiseFactory(ctx.executor(), timeoutMs, TimeUnit.MILLISECONDS, LOGGER.getName());
         super.channelActive(ctx);
     }
 
