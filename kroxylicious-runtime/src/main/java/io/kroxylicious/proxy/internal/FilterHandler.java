@@ -10,8 +10,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import javax.annotation.Nullable;
 
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -29,6 +27,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import io.kroxylicious.proxy.ApiVersionsService;
 import io.kroxylicious.proxy.filter.Filter;
@@ -51,8 +51,6 @@ import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 import io.kroxylicious.proxy.model.VirtualCluster;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
@@ -300,16 +298,11 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
         inboundChannel.config().setAutoRead(false);
-        var timeoutFuture = ctx.executor().schedule(() -> {
-            if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn("{}: Filter {} was timed-out whilst processing {} {}", channelDescriptor(), filterDescriptor(),
-                        decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey());
-            }
-            future.completeExceptionally(new TimeoutException("Filter %s was timed-out.".formatted(filterDescriptor())));
-        }, timeoutMs, TimeUnit.MILLISECONDS);
-        return future.whenComplete((f, throwable) -> {
-            timeoutFuture.cancel(false);
-        }).thenApplyAsync(filterResult -> filterResult, ctx.executor());
+        promiseFactory.wrapWithTimeLimit(future,
+                () -> "Filter %s was timed-out.".formatted(filterDescriptor())
+        );
+
+        return future.thenApplyAsync(filterResult -> filterResult, ctx.executor());
     }
 
     private void deferredResponseCompleted(ResponseFilterResult ignored, Throwable throwable) {

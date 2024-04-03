@@ -6,12 +6,15 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.assertj.core.api.Assertions;
@@ -20,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -107,4 +111,64 @@ class PromiseFactoryTest {
             scheduledExecutorService.shutdownNow();
         }
     }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldWrapPromiseWithTimeout() {
+        // Given
+        final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
+        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT);
+        when(executorService.schedule(any(Runnable.class), anyLong(), any())).thenReturn(mock(ScheduledFuture.class));
+        final CompletableFuture<Object> incomingFuture = new CompletableFuture<>();
+
+        // When
+        final CompletableFuture<Object> promise = promiseFactory.wrapWithTimeLimit(incomingFuture, () -> "");
+
+        // Then
+        assertThat(promise).isNotNull().isNotDone();
+        assertThat(incomingFuture).isNotDone();
+        verify(executorService).schedule(any(Runnable.class), anyLong(), any());
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    @Test
+    void shouldCancelTimeTimeoutWhenIncomingFutureCompletes() {
+        // Given
+        final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
+        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT);
+        final ScheduledFuture scheduledFuture = mock(ScheduledFuture.class);
+        when(executorService.schedule(any(Runnable.class), anyLong(), any())).thenReturn(scheduledFuture);
+        final CompletableFuture<Object> incomingFuture = new CompletableFuture<>();
+        final CompletableFuture<Object> promise = promiseFactory.wrapWithTimeLimit(incomingFuture, () -> "");
+
+        // When
+        incomingFuture.complete(null);
+
+        // Then
+        verify(scheduledFuture).cancel(anyBoolean());
+        assertThat(promise).isDone();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void shouldCompleteIncomingFutureExceptionallyWhenTimeoutTriggered() {
+        // Given
+        final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
+        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT);
+        when(executorService.schedule(any(Runnable.class), anyLong(), any())).thenReturn(mock(ScheduledFuture.class));
+        final CompletableFuture<Object> incomingFuture = new CompletableFuture<>();
+        final CompletableFuture<Object> promise = promiseFactory.wrapWithTimeLimit(incomingFuture, () -> "");
+
+        // When
+        // Completing the promise directly in lieu of executor service executing it after a delay
+        promise.completeExceptionally(new TimeoutException("Too Slow!"));
+
+        // Then
+        assertThat(incomingFuture).isDone().isCompletedExceptionally()
+                .failsWithin(Duration.ZERO)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(TimeoutException.class)
+                .withMessageContaining("Too Slow!");
+    }
+
 }
