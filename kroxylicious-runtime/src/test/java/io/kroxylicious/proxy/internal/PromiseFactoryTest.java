@@ -84,7 +84,7 @@ class PromiseFactoryTest {
     void shouldCancelTimeoutWhenTaskCompletes() {
 
         // ScheduledExecutorService is only auto closeable in JDK 19+
-        // noinspection resource
+        @SuppressWarnings("resource")
         final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
         try {
             final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
@@ -133,7 +133,7 @@ class PromiseFactoryTest {
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @Test
-    void shouldCancelTimeTimeoutWhenIncomingFutureCompletes() {
+    void shouldCancelTimeoutWhenIncomingFutureCompletes() {
         // Given
         final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
         promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT, TEST_LOGGER);
