@@ -300,7 +300,8 @@ public class FilterHandler extends ChannelDuplexHandler {
     private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
         inboundChannel.config().setAutoRead(false);
         promiseFactory.wrapWithTimeLimit(future,
-                () -> "Filter %s was timed-out whilst processing %s %s".formatted(filterDescriptor(), decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey()));
+                () -> "Filter %s was timed-out whilst processing %s %s".formatted(filterDescriptor(),
+                        decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey()));
         return future.thenApplyAsync(filterResult -> filterResult, ctx.executor());
     }
 
