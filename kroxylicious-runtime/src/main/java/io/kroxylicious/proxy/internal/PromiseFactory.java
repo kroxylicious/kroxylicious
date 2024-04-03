@@ -24,16 +24,19 @@ public class PromiseFactory {
         this.timeoutUnit = timeoutUnit;
     }
 
-    <T> CompletableFuture<T> newPromise() {
+    public <T> CompletableFuture<T> newPromise() {
         return new InternalCompletableFuture<>(executorService);
     }
 
-    <T> CompletableFuture<T> newTimeLimitedPromise(Callable<String> messageGenerator) {
-        final InternalCompletableFuture<T> promise = new InternalCompletableFuture<>(executorService);
+    public <T> CompletableFuture<T> newTimeLimitedPromise(Callable<String> messageGenerator) {
+        return wrapWithTimeLimit(new InternalCompletableFuture<T>(executorService), messageGenerator);
+    }
+    
+    public <T> CompletableFuture<T> wrapWithTimeLimit(CompletableFuture<T> promise, Callable<String> exceptionMessageGenerator) {
         var timeoutFuture = executorService.schedule(() -> {
             final String message;
             try {
-                message = messageGenerator.call();
+                message = exceptionMessageGenerator.call();
                 promise.completeExceptionally(new TimeoutException(message));
             }
             catch (Exception e) {
