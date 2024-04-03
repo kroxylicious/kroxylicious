@@ -7,8 +7,6 @@ package io.kroxylicious.proxy.internal.codec;
 
 import java.nio.ByteBuffer;
 
-import org.apache.kafka.common.protocol.Readable;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 
@@ -23,7 +21,7 @@ import io.kroxylicious.proxy.frame.ByteBufAccessor;
  * depends on NIO ByteBuffer, so copying between ByteBuffer and ByteBuf cannot
  * always be avoided.
  */
-public class ByteBufAccessorImpl implements ByteBufAccessor, Readable {
+public class ByteBufAccessorImpl implements ByteBufAccessor {
 
     private final ByteBuf buf;
 
@@ -176,6 +174,16 @@ public class ByteBufAccessorImpl implements ByteBufAccessor, Readable {
     @Override
     public int remaining() {
         return buf.writerIndex() - buf.readerIndex();
+    }
+
+    @Override
+    public int readerIndex() {
+        return buf.readerIndex();
+    }
+
+    @Override
+    public void readerIndex(int readerIndex) {
+        buf.readerIndex(readerIndex);
     }
 
     @Override

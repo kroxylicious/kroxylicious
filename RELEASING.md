@@ -29,8 +29,7 @@ To export your key run something like
 gpg --armor --export-secret-key ${KEY_ID} | pbcopy
 ```
 
-While `pbcopy` os MacOS specific similar utilities exist for Linux see [StackExchange](https://superuser.com/a/288333) 
-
+While `pbcopy` is macOS specific, similar utilities exist for Linux see [StackExchange](https://superuser.com/a/288333)
 
 ## Release steps
 
@@ -47,7 +46,7 @@ This will:
 * raise single PR that will contain two commits:
   1. the first will version the artefacts at `release-version`.  A `release-version` tag will point at this commit.
   2. the second will re-open main for development, at the next snapshot.
-* stage a release [Nexus UI](https://s01.oss.sonatype.org/). It'll be named `iokroxylious-nn`.
+* stage a release [Nexus UI](https://s01.oss.sonatype.org/). It'll be named `iokroxylicious-nn`.
 
 ### Verify the Release
 

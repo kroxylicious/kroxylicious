@@ -6,8 +6,11 @@
 package io.kroxylicious.proxy.internal.codec;
 
 import java.util.ArrayList;
+import java.util.List;
 
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
@@ -126,4 +130,25 @@ class ResponseDecoderTest extends AbstractCodecTest {
         });
     }
 
+    @Test
+    void supportsFallbackToApiResponseV0() {
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
+
+        // given
+        ByteBuf buffer = Unpooled.wrappedBuffer(serializeUsingKafkaApis((short) 0,
+                exampleResponseHeader(),
+                (short) 0,
+                new ApiVersionsResponseData()
+                        .setErrorCode(Errors.UNSUPPORTED_VERSION.code())));
+        List<Object> objects = new ArrayList<>();
+
+        // when
+        responseDecoder.decode(null, buffer, objects);
+
+        // then
+        assertThat(objects)
+                .singleElement()
+                .extracting("body")
+                .isEqualTo(new ApiVersionsResponseData().setErrorCode(Errors.UNSUPPORTED_VERSION.code()));
+    }
 }
