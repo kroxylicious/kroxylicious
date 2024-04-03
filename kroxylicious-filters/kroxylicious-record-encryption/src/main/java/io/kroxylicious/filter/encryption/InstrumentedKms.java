@@ -11,6 +11,7 @@ import java.util.concurrent.CompletionStage;
 import javax.crypto.SecretKey;
 
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -43,7 +44,7 @@ public class InstrumentedKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull E edek) {
+    public CompletionStage<DestroyableRawSecretKey> decryptEdek(@NonNull E edek) {
         metrics.countDecryptEdekAttempt();
         return delegate.decryptEdek(edek).whenComplete((eDekPair, throwable) -> {
             KmsMetrics.OperationOutcome outcome = classify(throwable);

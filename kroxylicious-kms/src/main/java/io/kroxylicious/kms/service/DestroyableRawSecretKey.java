@@ -4,12 +4,16 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.encryption.dek;
+package io.kroxylicious.kms.service;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.crypto.SecretKey;
+import javax.security.auth.DestroyFailedException;
 
 /**
  * A SecretKey that has RAW encoding and can be {@linkplain #destroy() destroyed}
@@ -23,8 +27,23 @@ public final class DestroyableRawSecretKey implements SecretKey {
     private final byte[] key;
 
     public DestroyableRawSecretKey(String algorithm, byte[] bytes) {
+        this(algorithm, bytes, true);
+    }
+
+    private DestroyableRawSecretKey(String algorithm, byte[] bytes, boolean cloneBytes) {
         this.algorithm = algorithm;
-        this.key = bytes.clone();
+        this.key = cloneBytes ? bytes.clone() : bytes;
+    }
+
+    public static DestroyableRawSecretKey toDestroyableKey(@NonNull SecretKey source) {
+        Objects.requireNonNull(source);
+        var result = new DestroyableRawSecretKey(source.getAlgorithm(), Objects.requireNonNull(source.getEncoded()), false);
+        try {
+            source.destroy();
+        } catch (DestroyFailedException e) {
+
+        }
+        return result;
     }
 
     @Override

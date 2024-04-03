@@ -42,7 +42,7 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions
      */
     @NonNull
-    CompletionStage<SecretKey> decryptEdek(@NonNull E edek);
+    CompletionStage<DestroyableRawSecretKey> decryptEdek(@NonNull E edek);
 
     /**
      * Get a serializer for encrypted DEKs.

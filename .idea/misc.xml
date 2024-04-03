@@ -6,9 +6,9 @@
       <list>
         <option value="$PROJECT_DIR$/pom.xml" />
         <option value="$PROJECT_DIR$/kroxylicious-systemtests/pom.xml" />
+        <option value="$PROJECT_DIR$/performance-tests/dependency-reduced-pom.xml" />
       </list>
     </option>
-    <option name="workspaceImportForciblyTurnedOn" value="true" />
   </component>
   <component name="NullableNotNullManager">
     <option name="myDefaultNullable" value="edu.umd.cs.findbugs.annotations.Nullable" />

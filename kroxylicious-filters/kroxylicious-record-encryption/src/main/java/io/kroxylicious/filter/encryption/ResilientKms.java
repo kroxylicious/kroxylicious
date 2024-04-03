@@ -16,6 +16,8 @@ import java.util.function.Supplier;
 
 import javax.crypto.SecretKey;
 
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +68,7 @@ public class ResilientKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull E edek) {
+    public CompletionStage<DestroyableRawSecretKey> decryptEdek(@NonNull E edek) {
         return retry("decryptEdek", () -> inner.decryptEdek(edek));
     }
 

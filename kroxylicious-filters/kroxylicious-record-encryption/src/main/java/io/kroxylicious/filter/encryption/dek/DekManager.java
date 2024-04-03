@@ -12,6 +12,7 @@ import java.util.concurrent.CompletionStage;
 import javax.annotation.concurrent.ThreadSafe;
 import javax.crypto.SecretKey;
 
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;

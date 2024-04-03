@@ -25,6 +25,7 @@ import javax.crypto.ShortBufferException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 
 /**
  * <p>A Data Encryption Key (DEK) is an opaque handle on a key that can be used to encrypt and decrypt with some specific cipher.

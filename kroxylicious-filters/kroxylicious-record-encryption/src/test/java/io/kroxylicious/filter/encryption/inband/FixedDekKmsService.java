@@ -10,20 +10,19 @@ import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-
 import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config, ByteBuffer, ByteBuffer> {
 
-    private final SecretKey dek;
+    private final DestroyableRawSecretKey dek;
     private final ByteBuffer edek;
     private static final ByteBuffer KEK_ID = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
     private final FixedEdekKms fixedEdekKms = new FixedEdekKms();
@@ -32,7 +31,7 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
         try {
             KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(keysize);
-            dek = generator.generateKey();
+            dek = DestroyableRawSecretKey.toDestroyableKey(generator.generateKey());
             edek = ByteBuffer.wrap(dek.getEncoded()); // not concerned with wrapping/unwrapping
         }
         catch (NoSuchAlgorithmException e) {
@@ -66,7 +65,7 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
 
         @NonNull
         @Override
-        public CompletionStage<SecretKey> decryptEdek(@NonNull ByteBuffer edek) {
+        public CompletionStage<DestroyableRawSecretKey> decryptEdek(@NonNull ByteBuffer edek) {
             return CompletableFuture.completedFuture(dek);
         }
 
