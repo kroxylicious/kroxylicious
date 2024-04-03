@@ -73,7 +73,7 @@ public class Kroxylicious {
         SecretBuilder secretBuilder = KroxyliciousSecretTemplates.createRegistryCredentialsSecret(configFolder, deploymentNamespace);
         if (secretBuilder != null) {
             Secret secret = secretBuilder.build();
-            if(kubeClient().getClient().secrets().inNamespace(deploymentNamespace).withName(secret.getMetadata().getName()).get() != null) {
+            if (kubeClient().getClient().secrets().inNamespace(deploymentNamespace).withName(secret.getMetadata().getName()).get() != null) {
                 LOGGER.atWarn().setMessage("Skipping secrets creation as it was already created").log();
                 return;
             }
