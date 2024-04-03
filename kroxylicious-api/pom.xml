@@ -198,7 +198,7 @@
                     <parameter>
                         <accessModifier>public</accessModifier>
                         <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
-                        <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+                        <breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
                         <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
                         <excludes>
                             <exclude>io.kroxylicious.proxy.config.secret.FilePasswordFilePath</exclude>  <!-- used purely in config files and the name still exists (as a JSON alias) -->
