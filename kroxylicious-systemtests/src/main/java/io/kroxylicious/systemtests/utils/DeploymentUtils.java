@@ -216,7 +216,7 @@ public class DeploymentUtils {
             LOGGER.atInfo().setMessage("Creating 'regcred' secret").log();
             Secret secret = secretBuilder.build();
             if (kubeClient().getClient().secrets().inNamespace(namespace).withName(secret.getMetadata().getName()).get() != null) {
-                LOGGER.atInfo().setMessage("Skipping secrets creation as it was already created").log();
+                LOGGER.atInfo().setMessage("Skipping registry secret creation as it was already created").log();
                 return;
             }
             kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).create();
