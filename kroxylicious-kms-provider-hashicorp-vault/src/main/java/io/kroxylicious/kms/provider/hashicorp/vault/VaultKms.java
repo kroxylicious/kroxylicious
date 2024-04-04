@@ -13,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -179,7 +180,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
     private static <T> VaultResponse<T> decodeJson(TypeReference<VaultResponse<T>> valueTypeRef, byte[] bytes) {
         try {
-            return OBJECT_MAPPER.readValue(bytes, valueTypeRef);
+            VaultResponse<T> result = OBJECT_MAPPER.readValue(bytes, valueTypeRef);
+            Arrays.fill(bytes, (byte) 0);
+            return result;
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
