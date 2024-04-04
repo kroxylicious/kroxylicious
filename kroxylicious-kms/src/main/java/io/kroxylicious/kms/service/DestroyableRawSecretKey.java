@@ -67,7 +67,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
             source.destroy();
         }
         catch (DestroyFailedException e) {
-
+            // Ignore
         }
         return result;
     }
