@@ -26,14 +26,14 @@ record VaultResponse<D>(D data) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record DecryptData(String plaintext) {
+    record DecryptData(byte[] plaintext) {
         DecryptData {
             Objects.requireNonNull(plaintext);
         }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record DataKeyData(String plaintext, String ciphertext) {
+    record DataKeyData(byte[] plaintext, String ciphertext) {
         DataKeyData {
             Objects.requireNonNull(plaintext);
             Objects.requireNonNull(ciphertext);

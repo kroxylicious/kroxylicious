@@ -13,7 +13,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -115,7 +114,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
         return sendAsync(kekRef, request, DATA_KEY_DATA_TYPE_REF, UnknownKeyException::new)
                 .thenApply(data -> {
-                    var secretKey = DestroyableRawSecretKey.byOwnershipTransfer(AES_KEY_ALGO, Base64.getDecoder().decode(data.plaintext()));
+                    var secretKey = DestroyableRawSecretKey.byOwnershipTransfer(AES_KEY_ALGO, data.plaintext());
                     return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
                 });
 
@@ -138,7 +137,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .build();
 
         return sendAsync(edek.kekRef(), request, DECRYPT_DATA_TYPE_REF, UnknownKeyException::new)
-                .thenApply(data -> DestroyableRawSecretKey.byOwnershipTransfer(AES_KEY_ALGO, Base64.getDecoder().decode(data.plaintext())));
+                .thenApply(data -> DestroyableRawSecretKey.byOwnershipTransfer(AES_KEY_ALGO, data.plaintext()));
     }
 
     private String createDecryptPostBody(@NonNull VaultEdek edek) {
