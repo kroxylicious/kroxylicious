@@ -28,18 +28,41 @@ public final class DestroyableRawSecretKey implements SecretKey {
     private boolean destroyed = false;
     private final byte[] key;
 
-    public DestroyableRawSecretKey(String algorithm, byte[] bytes) {
-        this(algorithm, bytes, true);
-    }
-
-    private DestroyableRawSecretKey(String algorithm, byte[] bytes, boolean cloneBytes) {
+    private DestroyableRawSecretKey(String algorithm, byte[] bytes) {
         this.algorithm = Objects.requireNonNull(algorithm).toLowerCase(Locale.ENGLISH);
-        this.key = cloneBytes ? Objects.requireNonNull(bytes).clone() : bytes;
+        this.key = Objects.requireNonNull(bytes);
     }
 
+    /**
+     * Create a new key by becoming owner of the given key material.
+     * The caller should not modify the given bytes after calling this method.
+     * @param algorithm The key algorithm
+     * @param bytes The key material
+     * @return The new key
+     */
+    public static DestroyableRawSecretKey byOwnershipTransfer(String algorithm, byte[] bytes) {
+        return new DestroyableRawSecretKey(algorithm, bytes);
+    }
+
+    /**
+     * Create a new key by creating a copy of the given key material.
+     * @param algorithm The key algorithm
+     * @param bytes The key material
+     * @return The new key
+     */
+    public static DestroyableRawSecretKey byClone(String algorithm, byte[] bytes) {
+        return new DestroyableRawSecretKey(algorithm, Objects.requireNonNull(bytes).clone());
+    }
+
+    /**
+     * Convert the given key to a destroyable key, attempting to destroy the given key.
+     * @param source The key to convert
+     * @return The new destroyable key.
+     */
     public static DestroyableRawSecretKey toDestroyableKey(@NonNull SecretKey source) {
         Objects.requireNonNull(source);
-        var result = new DestroyableRawSecretKey(source.getAlgorithm(), Objects.requireNonNull(source.getEncoded()), false);
+        // no need to copy, because getEncoded should itself return a copy of the key material
+        var result = byOwnershipTransfer(source.getAlgorithm(), source.getEncoded());
         try {
             source.destroy();
         }

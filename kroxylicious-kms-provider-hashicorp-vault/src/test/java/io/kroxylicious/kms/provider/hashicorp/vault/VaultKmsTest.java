@@ -104,7 +104,7 @@ class VaultKmsTest {
                 "}\n";
         withMockVaultWithSingleResponse(response, vaultKms -> {
             Assertions.assertThat(vaultKms.generateDekPair("alias")).succeedsWithin(Duration.ofSeconds(5))
-                    .isEqualTo(new DekPair<>(new VaultEdek("alias", ciphertext.getBytes(StandardCharsets.UTF_8)), new DestroyableRawSecretKey("AES", decoded)));
+                    .isEqualTo(new DekPair<>(new VaultEdek("alias", ciphertext.getBytes(StandardCharsets.UTF_8)), DestroyableRawSecretKey.byClone("AES", decoded)));
         });
     }
 
@@ -129,7 +129,7 @@ class VaultKmsTest {
                 "}\n";
         withMockVaultWithSingleResponse(response, vaultKms -> {
             Assertions.assertThat(vaultKms.decryptEdek(new VaultEdek("kek", edekBytes))).succeedsWithin(Duration.ofSeconds(5))
-                    .isEqualTo(new DestroyableRawSecretKey("AES", plaintextBytes));
+                    .isEqualTo(DestroyableRawSecretKey.byClone("AES", plaintextBytes));
         });
     }
 
