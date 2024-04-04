@@ -23,6 +23,8 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -909,6 +911,62 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
         assertThat(eventLoopThreadFuture).isCompleted();
         return eventLoopThreadFuture.getNow(null);
+    }
+
+    @Test
+    void sendMultipleRequests() {
+        var firstRequestBody = new FetchRequestData();
+        var secondRequestBody = new MetadataRequestData();
+        var snoopedFirstRequestResponseStage = new AtomicReference<CompletionStage<FetchResponseData>>();
+        var snoopedSecondRequestResponseStage = new AtomicReference<CompletionStage<MetadataResponseData>>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            assertNull(snoopedFirstRequestResponseStage.get(), "Expected to only be called once");
+            snoopedFirstRequestResponseStage.set(context.sendRequest(new RequestHeaderData(), firstRequestBody));
+            return snoopedFirstRequestResponseStage.get()
+                    .thenCompose(u -> {
+                        assertNull(snoopedSecondRequestResponseStage.get(), "Expected to only be called once");
+                        snoopedSecondRequestResponseStage.set(context.sendRequest(new RequestHeaderData(), secondRequestBody));
+                        return snoopedSecondRequestResponseStage.get();
+                    })
+                    .thenComposeAsync(u -> context.forwardRequest(header, request));
+        };
+
+        buildChannel(filter);
+
+        // trigger filter
+        var requestFrame = writeRequest(new ApiVersionsRequestData());
+
+        // verify filter has sent the send first request.
+        InternalRequestFrame<?> propagatedFirstRequest = channel.readOutbound();
+        assertThat(propagatedFirstRequest.body()).isEqualTo(firstRequestBody);
+        assertThat(propagatedFirstRequest.header()).isNotNull();
+
+        // verify first request response future is in the expected state
+        assertThat(snoopedFirstRequestResponseStage).isNotNull();
+        var snoopedFirstRequestResponseFuture = toCompletableFuture(snoopedFirstRequestResponseStage.get());
+        assertThat(snoopedFirstRequestResponseFuture).withFailMessage("out-of-band request response future was expected to be pending but it is done.").isNotDone();
+
+        // mimic the broker sending the first response
+        var firstResponseFrame = writeInternalResponse(propagatedFirstRequest.header().correlationId(), new FetchResponseData());
+        assertThat(snoopedFirstRequestResponseFuture).isCompletedWithValueMatching(r -> Objects.equals(r, firstResponseFrame.body()));
+
+        // verify filter has sent the send second request.
+        InternalRequestFrame<?> propagatedSecondRequest = channel.readOutbound();
+        assertThat(propagatedSecondRequest.body()).isEqualTo(secondRequestBody);
+        assertThat(propagatedSecondRequest.header()).isNotNull();
+
+        // verify second request response future is in the expected state
+        assertThat(snoopedSecondRequestResponseStage).isNotNull();
+        var snoopedSecondRequestResponseFuture = toCompletableFuture(snoopedSecondRequestResponseStage.get());
+        assertThat(snoopedSecondRequestResponseFuture).withFailMessage("out-of-band request response future was expected to be pending but it is done.").isNotDone();
+
+        // mimic the broker sending the second response
+        var secondResponseFrame = writeInternalResponse(propagatedSecondRequest.header().correlationId(), new MetadataResponseData());
+        assertThat(snoopedSecondRequestResponseFuture).isCompletedWithValueMatching(r -> Objects.equals(r, secondResponseFrame.body()));
+
+        // verify the filter has forwarded the request showing the that OOB request future completed.
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isEqualTo(requestFrame);
     }
 
     @Test

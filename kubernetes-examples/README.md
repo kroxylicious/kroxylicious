@@ -22,7 +22,7 @@ The instructions for running the examples are given below.
 * [kustomize](https://kubectl.docs.kubernetes.io/installation/kustomize/)
 * [helm](https://helm.sh/docs/helm/helm_install/)
 * [kaf](https://github.com/birdayz/kaf)
-* Mac OS X users must have [`gsed`](https://formulae.brew.sh/formula/gnu-sed)
+* macOS users must have [`gsed`](https://formulae.brew.sh/formula/gnu-sed)
 
 If you want build your own kroxylicious images you'll additionally need: 
 

@@ -37,7 +37,7 @@ virtualClusters:
 by the clients.
 
 This configuration declares a virtual cluster called `demo`.  The physical Kafka Cluster being proxied is the defined
-by the `targetCluster` element.  In this example, the `PortPerBroker` scheme is used by Kroxlicious to present the
+by the `targetCluster` element.  In this example, the `PortPerBroker` scheme is used by Kroxylicious to present the
 virtual cluster to the clients.  Under this schema, Kroxylicious will open a port for each broker of the target cluster
 with port numbers beginning at `9192` +1.  So, if the target cluster has three brokers, Kroxylicious will bind 9192 for
 bootstrap and 9193-9195 inclusive to allow the clients to connect to each broker.

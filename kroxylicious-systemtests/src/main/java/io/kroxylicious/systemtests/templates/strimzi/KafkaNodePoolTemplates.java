@@ -9,7 +9,7 @@ package io.kroxylicious.systemtests.templates.strimzi;
 import java.util.List;
 import java.util.Map;
 
-import io.strimzi.api.kafka.model.Kafka;
+import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.nodepool.KafkaNodePoolBuilder;
 import io.strimzi.api.kafka.model.nodepool.ProcessRoles;
 

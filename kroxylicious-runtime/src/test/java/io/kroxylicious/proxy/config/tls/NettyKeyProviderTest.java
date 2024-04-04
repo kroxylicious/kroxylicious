@@ -28,9 +28,7 @@ import static io.kroxylicious.proxy.config.tls.TlsTestConstants.BADPASS;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.JKS;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.KEYPASS;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.KEYPASS_FILE_PASSWORD;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.KEYPASS_FILE_PASSWORD_FILE_PATH;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.KEYSTORE_FILE_PASSWORD;
-import static io.kroxylicious.proxy.config.tls.TlsTestConstants.KEYSTORE_FILE_PASSWORD_FILE_PATH;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.NOT_EXIST;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.PEM;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.PKCS_12;
@@ -50,9 +48,7 @@ class NettyKeyProviderTest {
                 Arguments.of("PKCS12", PKCS_12, "server.p12", STOREPASS, null),
                 Arguments.of("Combined key/crt PEM passed as keyStore (KIP-651)", PEM, "server_key_crt.pem", null, null),
                 Arguments.of("Combined key/crt PEM passed as keyStore (KIP-651) with encrypted key", PEM, "server_crt_encrypted_key.pem", null, KEYPASS),
-                Arguments.of("JKS keystore from file", JKS, "server_diff_keypass.jks", KEYSTORE_FILE_PASSWORD, KEYPASS_FILE_PASSWORD),
-                Arguments.of("JKS keystore from file (deprecated provider)", JKS, "server_diff_keypass.jks", KEYSTORE_FILE_PASSWORD_FILE_PATH,
-                        KEYPASS_FILE_PASSWORD_FILE_PATH));
+                Arguments.of("JKS keystore from file", JKS, "server_diff_keypass.jks", KEYSTORE_FILE_PASSWORD, KEYPASS_FILE_PASSWORD));
     }
 
     public static Stream<Arguments> serverWithKeyStore() {

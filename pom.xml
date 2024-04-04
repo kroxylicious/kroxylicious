@@ -36,23 +36,23 @@
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
         <freemarker.version>2.3.32</freemarker.version>
-        <guava.version>33.0.0-jre</guava.version>
+        <guava.version>33.1.0-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
-        <jackson.version>2.16.1</jackson.version>
+        <jackson.version>2.17.0</jackson.version>
         <junit.version>5.10.2</junit.version>
         <kafka.version>3.7.0</kafka.version>
         <kroxy.extension.version>0.8.1</kroxy.extension.version>
         <log4j.version>2.23.1</log4j.version>
         <caffeine.version>3.1.8</caffeine.version>
         <picocli.version>4.7.5</picocli.version>
-        <netty.version>4.1.107.Final</netty.version>
+        <netty.version>4.1.108.Final</netty.version>
         <netty.io_uring.version>0.0.25.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.25.3</assertj-core.version>
         <mockito.version>5.11.0</mockito.version>
-        <micrometer.version>1.12.3</micrometer.version>
+        <micrometer.version>1.12.4</micrometer.version>
         <slf4j.version>2.0.12</slf4j.version>
         <sundr-builder-annotations.version>0.101.3</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.8.3</spotbugs-annotations.version>
@@ -61,12 +61,12 @@
         <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
 
         <!-- Test dependencies -->
-        <strimzi.version>0.39.0</strimzi.version>
-        <kubernetes-client.version>6.10.0</kubernetes-client.version>
+        <strimzi.version>0.40.0</strimzi.version>
+        <kubernetes-client.version>6.11.0</kubernetes-client.version>
         <enforcer.api.version>3.4.1</enforcer.api.version>
         <maven.core.version>3.9.6</maven.core.version>
-        <awaitility.version>4.2.0</awaitility.version>
-        <commons.io.version>2.15.1</commons.io.version>
+        <awaitility.version>4.2.1</awaitility.version>
+        <commons.io.version>2.16.0</commons.io.version>
         <testcontainers.version>1.19.7</testcontainers.version>
         <bouncycastle.version>1.77</bouncycastle.version>
     </properties>
@@ -255,18 +255,10 @@
             </dependency>
             <dependency>
                 <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
+                <artifactId>slf4j-bom</artifactId>
                 <version>${slf4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-simple</artifactId>
-                <version>${slf4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-jdk-platform-logging</artifactId>
-                <version>${slf4j.version}</version>
+                <scope>import</scope>
+                <type>pom</type>
             </dependency>
             <dependency>
                 <groupId>org.hamcrest</groupId>
@@ -307,18 +299,6 @@
                 <version>${junit.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.junit.jupiter</groupId>
-                <artifactId>junit-jupiter-engine</artifactId>
-                <scope>test</scope>
-                <version>${junit.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.junit.jupiter</groupId>
-                <artifactId>junit-jupiter-params</artifactId>
-                <scope>test</scope>
-                <version>${junit.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.mockito</groupId>
@@ -417,7 +397,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-gpg-plugin</artifactId>
-                    <version>3.1.0</version>
+                    <version>3.2.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -427,7 +407,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-assembly-plugin</artifactId>
-                    <version>3.7.0</version>
+                    <version>3.7.1</version>
                     <configuration>
                         <tarLongFileMode>posix</tarLongFileMode>
                     </configuration>
@@ -435,7 +415,7 @@
                 <plugin>
                     <groupId>io.github.git-commit-id</groupId>
                     <artifactId>git-commit-id-maven-plugin</artifactId>
-                    <version>8.0.1</version>
+                    <version>8.0.2</version>
                 </plugin>
                 <plugin>
                     <groupId>com.mycila</groupId>
@@ -503,7 +483,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
-                    <version>3.12.1</version>
+                    <version>3.13.0</version>
                     <configuration>
                         <parameters>true</parameters>
                     </configuration>

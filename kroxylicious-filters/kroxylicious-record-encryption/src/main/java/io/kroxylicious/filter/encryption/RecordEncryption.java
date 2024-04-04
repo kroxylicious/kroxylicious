@@ -7,11 +7,17 @@
 package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import javax.crypto.Cipher;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.micrometer.core.instrument.Metrics;
 
+import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.filter.encryption.inband.DecryptionDekCache;
 import io.kroxylicious.filter.encryption.inband.EncryptionDekCache;
@@ -139,10 +146,37 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryption.Co
         private static final KmsCacheConfig DEFAULT_CONFIG = new KmsCacheConfig(null, (Long) null, null, null, null, null);
     }
 
+    /**
+     * Checks that we can build a Cipher for all known CipherSpecs. This prevents us from
+     * finding out at decrypt time that we cannot build a Cipher for data encrypted with
+     * a known CipherSpec. Instead, we fail early, which stops the Proxy from starting.
+     */
+    private static void checkCipherSuite() {
+        checkCipherSuite(CipherSpec::newCipher);
+    }
+
+    /* exposed for testing */ static void checkCipherSuite(Function<CipherSpec, Cipher> cipherFunc) {
+        List<CipherSpec> failures = Arrays.stream(CipherSpec.values()).flatMap(cipherSpec -> {
+            try {
+                cipherFunc.apply(cipherSpec);
+                return Stream.empty();
+            }
+            catch (Exception e) {
+                LOGGER.error("A Cipher could not be constructed for CipherSpec {}", cipherSpec, e);
+                return Stream.of(cipherSpec);
+            }
+        }).toList();
+        if (!failures.isEmpty()) {
+            String failedCipherSpecs = failures.stream().map(Enum::name).collect(Collectors.joining(","));
+            throw new EncryptionConfigurationException("Cipher Suite check failed, one or more ciphers could not be loaded: " + failedCipherSpecs);
+        }
+    }
+
     @Override
     public SharedEncryptionContext<K, E> initialize(FilterFactoryContext context,
                                                     Config configuration)
             throws PluginConfigurationException {
+        checkCipherSuite();
         Kms<K, E> kms = buildKms(context, configuration);
 
         DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, 5_000_000);

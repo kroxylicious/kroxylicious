@@ -37,7 +37,7 @@ Kroxylicious uses micrometer as a facade for gathering metrics. A Prometheus bac
 
 === Admin HTTP Endpoint
 
-Kroxylicious offers a configurable, insecure, HTTP endpoint for adminstration purposes. It can
+Kroxylicious offers a configurable, insecure, HTTP endpoint for administration purposes. It can
 offer:
 
 - Prometheus scrape endpoint at `/metrics`
