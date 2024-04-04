@@ -23,10 +23,10 @@ class DestroyableRawSecretKeyTest {
         assertThat(dk.isDestroyed()).isFalse();
         dk.destroy();
         assertThat(dk.isDestroyed()).isTrue();
-        assertThat(bytes).isEqualTo(new byte[]{0, 0, 0});
+        assertThat(bytes).isEqualTo(new byte[]{ 0, 0, 0 });
         assertThatThrownBy(dk::getEncoded).isExactlyInstanceOf(IllegalStateException.class);
         dk.destroy(); // should be idempotent
-        assertThat(encoded).isEqualTo(new byte[]{0, 1, 2});
+        assertThat(encoded).isEqualTo(new byte[]{ 0, 1, 2 });
     }
 
     @Test
