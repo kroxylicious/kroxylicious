@@ -27,6 +27,8 @@ spec:
         imagePullPolicy: Always
         args: ["--config", "/opt/kroxylicious/config/config.yaml"]
         ports:
+        - containerPort: 9190
+          name: metrics
         - containerPort: 9092
         volumeMounts:
         - name: config-volume
