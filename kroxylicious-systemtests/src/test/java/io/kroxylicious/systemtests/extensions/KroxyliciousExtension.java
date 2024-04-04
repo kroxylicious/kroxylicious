@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 /**
@@ -66,6 +67,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
         final String k8sNamespace = Constants.KAFKA_DEFAULT_NAMESPACE + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
         extensionContext.getStore(junitNamespace).put(K8S_NAMESPACE_KEY, k8sNamespace);
         NamespaceUtils.createNamespaceWithWait(k8sNamespace);
+        DeploymentUtils.registryCredentialsSecret(k8sNamespace);
     }
 
     private String extractK8sNamespace(ExtensionContext extensionContext) {

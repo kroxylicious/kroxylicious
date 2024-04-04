@@ -26,11 +26,15 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodStatus;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -198,6 +202,26 @@ public class DeploymentUtils {
 
     private static boolean isPendingPhase(String p) {
         return "pending".equalsIgnoreCase(p);
+    }
+
+    /**
+     * Registry credentials secret.
+     *
+     * @param namespace the namespace
+     */
+    public static void registryCredentialsSecret(String namespace) {
+        String configFolder = Environment.CONTAINER_CONFIG_PATH;
+        SecretBuilder secretBuilder = KroxyliciousSecretTemplates.createRegistryCredentialsSecret(configFolder, namespace);
+        if (secretBuilder != null) {
+            LOGGER.atInfo().setMessage("Creating 'regcred' secret").log();
+            Secret secret = secretBuilder.build();
+            if (kubeClient().getClient().secrets().inNamespace(namespace).withName(secret.getMetadata().getName()).get() != null) {
+                LOGGER.atInfo().setMessage("Skipping registry secret creation as it was already created").log();
+                return;
+            }
+            kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).create();
+            await().atMost(Duration.ofSeconds(10)).until(() -> kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).get() != null);
+        }
     }
 
     private record TimeoutLoggingEvaluationListener(Supplier<String> messageSupplier) implements ConditionEvaluationListener<PodStatus> {
