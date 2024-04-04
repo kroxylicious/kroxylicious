@@ -11,14 +11,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 
-import javax.crypto.SecretKey;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -39,7 +38,7 @@ class InstrumentedKmsTest {
     @Mock
     KmsMetrics metrics;
     @Mock
-    SecretKey secretKey;
+    DestroyableRawSecretKey secretKey;
     @Mock
     Serde<String> serde;
 
@@ -112,7 +111,7 @@ class InstrumentedKmsTest {
     void testDecryptEdekSuccess() {
         Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.completedFuture(secretKey));
-        CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
+        CompletionStage<DestroyableRawSecretKey> stage = instrument.decryptEdek("edek");
         assertThat(stage).succeedsWithin(Duration.ZERO).isSameAs(secretKey);
         verify(metrics).countDecryptEdekAttempt();
         verify(metrics).countDecryptEdekOutcome(SUCCESS);
@@ -123,7 +122,7 @@ class InstrumentedKmsTest {
         Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         NullPointerException cause = new NullPointerException("fail");
         when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.failedFuture(cause));
-        CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
+        CompletionStage<DestroyableRawSecretKey> stage = instrument.decryptEdek("edek");
         assertStageFailsWithCause(stage, cause);
         verify(metrics).countDecryptEdekAttempt();
         verify(metrics).countDecryptEdekOutcome(EXCEPTION);
@@ -134,7 +133,7 @@ class InstrumentedKmsTest {
         Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         UnknownKeyException cause = new UnknownKeyException("unknown");
         when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.failedFuture(cause));
-        CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
+        CompletionStage<DestroyableRawSecretKey> stage = instrument.decryptEdek("edek");
         assertStageFailsWithCause(stage, cause);
         verify(metrics).countDecryptEdekAttempt();
         verify(metrics).countDecryptEdekOutcome(NOT_FOUND);

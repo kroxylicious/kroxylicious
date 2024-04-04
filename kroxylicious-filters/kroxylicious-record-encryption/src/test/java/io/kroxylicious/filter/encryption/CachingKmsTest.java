@@ -13,12 +13,11 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import javax.crypto.SecretKey;
-
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -45,7 +44,7 @@ class CachingKmsTest {
     @Test
     void testGenerateDekPairDelegated() {
         Kms<Long, Long> kms = mock(Kms.class);
-        DekPair<Long> eDekPair = new DekPair<>(1L, mock(SecretKey.class));
+        DekPair<Long> eDekPair = new DekPair<>(1L, mock(DestroyableRawSecretKey.class));
         Mockito.when(kms.generateDekPair(any())).thenReturn(CompletableFuture.completedFuture(eDekPair));
         Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8), Duration.ofSeconds(30));
         CompletionStage<DekPair<Long>> dekPairCompletionStage = caching.generateDekPair(1L);
@@ -56,7 +55,7 @@ class CachingKmsTest {
     @Test
     void testDecryptEdekCached() {
         Kms<Long, Long> kms = mock(Kms.class);
-        SecretKey secretKey = mock(SecretKey.class);
+        DestroyableRawSecretKey secretKey = mock(DestroyableRawSecretKey.class);
         Mockito.when(kms.decryptEdek(any())).thenReturn(CompletableFuture.completedFuture(secretKey));
         Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ofHours(1), 1L, Duration.ZERO, Duration.ofMinutes(8), Duration.ofSeconds(30));
         assertThat(caching.decryptEdek(1L)).succeedsWithin(5, TimeUnit.SECONDS).isSameAs(secretKey);
@@ -67,7 +66,7 @@ class CachingKmsTest {
     @Test
     void testDecryptEdekNotCachedIfExpiryZero() {
         Kms<Long, Long> kms = mock(Kms.class);
-        SecretKey secretKey = mock(SecretKey.class);
+        DestroyableRawSecretKey secretKey = mock(DestroyableRawSecretKey.class);
         Mockito.when(kms.decryptEdek(any())).thenReturn(CompletableFuture.completedFuture(secretKey));
         Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ZERO, Duration.ofMinutes(8), Duration.ofSeconds(30));
         assertThat(caching.decryptEdek(1L)).succeedsWithin(5, TimeUnit.SECONDS).isSameAs(secretKey);

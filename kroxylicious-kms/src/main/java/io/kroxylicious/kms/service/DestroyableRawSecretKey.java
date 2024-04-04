@@ -6,14 +6,16 @@
 
 package io.kroxylicious.kms.service;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
+import java.security.MessageDigest;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Objects;
 
 import javax.annotation.concurrent.NotThreadSafe;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A SecretKey that has RAW encoding and can be {@linkplain #destroy() destroyed}
@@ -31,8 +33,8 @@ public final class DestroyableRawSecretKey implements SecretKey {
     }
 
     private DestroyableRawSecretKey(String algorithm, byte[] bytes, boolean cloneBytes) {
-        this.algorithm = algorithm;
-        this.key = cloneBytes ? bytes.clone() : bytes;
+        this.algorithm = Objects.requireNonNull(algorithm).toLowerCase(Locale.ENGLISH);
+        this.key = cloneBytes ? Objects.requireNonNull(bytes).clone() : bytes;
     }
 
     public static DestroyableRawSecretKey toDestroyableKey(@NonNull SecretKey source) {
@@ -40,7 +42,8 @@ public final class DestroyableRawSecretKey implements SecretKey {
         var result = new DestroyableRawSecretKey(source.getAlgorithm(), Objects.requireNonNull(source.getEncoded()), false);
         try {
             source.destroy();
-        } catch (DestroyFailedException e) {
+        }
+        catch (DestroyFailedException e) {
 
         }
         return result;
@@ -83,5 +86,28 @@ public final class DestroyableRawSecretKey implements SecretKey {
     @Override
     public boolean isDestroyed() {
         return destroyed;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        DestroyableRawSecretKey that = (DestroyableRawSecretKey) o;
+        return destroyed == that.destroyed
+                && algorithm.equals(that.algorithm)
+                && MessageDigest.isEqual(key, that.key); // note: constant time impl
+    }
+
+    @Override
+    public int hashCode() {
+        int retval = 0;
+        for (int i = 1; i < this.key.length; i++) {
+            retval += this.key[i] * i;
+        }
+        return retval ^ this.algorithm.hashCode();
     }
 }

@@ -20,8 +20,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -32,6 +30,7 @@ import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.DataKeyData;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.DecryptData;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
@@ -116,7 +115,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
         return sendAsync(kekRef, request, DATA_KEY_DATA_TYPE_REF, UnknownKeyException::new)
                 .thenApply(data -> {
-                    var secretKey = new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO);
+                    var secretKey = new DestroyableRawSecretKey(AES_KEY_ALGO, Base64.getDecoder().decode(data.plaintext()));
                     return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
                 });
 
@@ -129,7 +128,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull VaultEdek edek) {
+    public CompletionStage<DestroyableRawSecretKey> decryptEdek(@NonNull VaultEdek edek) {
 
         var body = createDecryptPostBody(edek);
 
@@ -139,7 +138,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .build();
 
         return sendAsync(edek.kekRef(), request, DECRYPT_DATA_TYPE_REF, UnknownKeyException::new)
-                .thenApply(data -> new SecretKeySpec(Base64.getDecoder().decode(data.plaintext()), AES_KEY_ALGO));
+                .thenApply(data -> new DestroyableRawSecretKey(AES_KEY_ALGO, Base64.getDecoder().decode(data.plaintext())));
     }
 
     private String createDecryptPostBody(@NonNull VaultEdek edek) {

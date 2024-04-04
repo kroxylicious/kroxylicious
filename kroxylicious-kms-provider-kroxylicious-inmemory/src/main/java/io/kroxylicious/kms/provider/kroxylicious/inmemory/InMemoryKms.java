@@ -25,6 +25,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
@@ -43,7 +44,7 @@ public class InMemoryKms implements
 
     private static final String AES_WRAP_ALGO = "AES_256/GCM/NoPadding";
     public static final String AES_KEY_ALGO = "AES";
-    private final Map<UUID, SecretKey> keys;
+    private final Map<UUID, DestroyableRawSecretKey> keys;
     private final KeyGenerator aes;
     private final int numIvBytes;
     private final int numAuthBits;
@@ -53,7 +54,7 @@ public class InMemoryKms implements
 
     InMemoryKms(int numIvBytes,
                 int numAuthBits,
-                Map<UUID, SecretKey> keys,
+                Map<UUID, DestroyableRawSecretKey> keys,
                 Map<String, UUID> aliases) {
         this.keys = new ConcurrentHashMap<>(keys);
         this.aliases = new ConcurrentHashMap<>(aliases);
@@ -75,7 +76,7 @@ public class InMemoryKms implements
      * @return The id of the KEK
      */
     public UUID generateKey() {
-        var key = aes.generateKey();
+        var key = DestroyableRawSecretKey.toDestroyableKey(aes.generateKey());
         var ref = UUID.randomUUID();
         keys.put(ref, key);
         return ref;
@@ -119,7 +120,7 @@ public class InMemoryKms implements
     @Override
     public CompletableFuture<DekPair<InMemoryEdek>> generateDekPair(@NonNull UUID kekRef) {
         try {
-            var dek = this.aes.generateKey();
+            var dek = DestroyableRawSecretKey.toDestroyableKey(this.aes.generateKey());
             var edek = wrap(kekRef, () -> dek);
             DekPair<InMemoryEdek> dekPair = new DekPair<>(edek, dek);
             edeksGenerated.add(dekPair);
@@ -143,8 +144,8 @@ public class InMemoryKms implements
         return spec;
     }
 
-    private SecretKey lookupKey(UUID kekRef) {
-        SecretKey kek = this.keys.get(kekRef);
+    private DestroyableRawSecretKey lookupKey(UUID kekRef) {
+        DestroyableRawSecretKey kek = this.keys.get(kekRef);
         if (kek == null) {
             throw new UnknownKeyException();
         }
@@ -153,12 +154,12 @@ public class InMemoryKms implements
 
     @NonNull
     @Override
-    public CompletableFuture<SecretKey> decryptEdek(@NonNull InMemoryEdek edek) {
+    public CompletableFuture<DestroyableRawSecretKey> decryptEdek(@NonNull InMemoryEdek edek) {
         try {
             var kek = lookupKey(edek.kekRef());
             Cipher aesCipher = aesGcm();
             initializeforUnwrap(aesCipher, edek, kek);
-            SecretKey key = unwrap(edek, aesCipher);
+            DestroyableRawSecretKey key = unwrap(edek, aesCipher);
             return CompletableFuture.completedFuture(key);
         }
         catch (KmsException e) {
@@ -166,9 +167,9 @@ public class InMemoryKms implements
         }
     }
 
-    private static SecretKey unwrap(@NonNull InMemoryEdek edek, Cipher aesCipher) {
+    private static DestroyableRawSecretKey unwrap(@NonNull InMemoryEdek edek, Cipher aesCipher) {
         try {
-            return (SecretKey) aesCipher.unwrap(edek.edek(), AES_KEY_ALGO, Cipher.SECRET_KEY);
+            return DestroyableRawSecretKey.toDestroyableKey((SecretKey) aesCipher.unwrap(edek.edek(), AES_KEY_ALGO, Cipher.SECRET_KEY));
         }
         catch (GeneralSecurityException e) {
             throw new KmsException("Error unwrapping DEK", e);

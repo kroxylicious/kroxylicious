@@ -8,8 +8,6 @@ package io.kroxylicious.kms.service;
 
 import java.util.concurrent.CompletionStage;
 
-import javax.crypto.SecretKey;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**

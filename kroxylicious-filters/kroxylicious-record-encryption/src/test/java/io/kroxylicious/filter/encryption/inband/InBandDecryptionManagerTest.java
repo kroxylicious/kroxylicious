@@ -22,8 +22,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
-import javax.crypto.SecretKey;
-
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.CompressionType;
@@ -53,6 +51,7 @@ import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.test.assertj.MemoryRecordsAssert;
 import io.kroxylicious.test.record.RecordTestUtils;
@@ -808,7 +807,7 @@ class InBandDecryptionManagerTest {
 
         // intercept the decryptEdek requests and organise for the first n-1 deks to decrypt only after the last
         var trigger = new CompletableFuture<Void>();
-        doAnswer((Answer<CompletableFuture<SecretKey>>) invocation -> {
+        doAnswer((Answer<CompletableFuture<DestroyableRawSecretKey>>) invocation -> {
             var edek = argument.getValue();
             var underlying = kms.decryptEdek(edek);
             if (Objects.equals(argument.getValue(), lastEdek)) {

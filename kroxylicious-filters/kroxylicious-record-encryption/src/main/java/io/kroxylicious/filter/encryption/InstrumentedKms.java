@@ -8,8 +8,6 @@ package io.kroxylicious.filter.encryption;
 
 import java.util.concurrent.CompletionStage;
 
-import javax.crypto.SecretKey;
-
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;

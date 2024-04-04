@@ -12,11 +12,9 @@ import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
@@ -84,7 +82,7 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
     public InMemoryKms buildKms(Config options) {
         return kmsMap.computeIfAbsent(options, config -> {
             List<Kek> kekDefs = options.existingKeks();
-            Map<UUID, SecretKey> keys = kekDefs.stream().collect(toMap(k -> UUID.fromString(k.uuid), k -> new SecretKeySpec(k.key, k.algorithm)));
+            Map<UUID, DestroyableRawSecretKey> keys = kekDefs.stream().collect(toMap(k -> UUID.fromString(k.uuid), k -> new DestroyableRawSecretKey(k.algorithm, k.key)));
             Map<String, UUID> aliases = kekDefs.stream().collect(toMap(k -> k.alias, k -> UUID.fromString(k.uuid)));
             return new InMemoryKms(options.numIvBytes(),
                     options.numAuthBits(),
