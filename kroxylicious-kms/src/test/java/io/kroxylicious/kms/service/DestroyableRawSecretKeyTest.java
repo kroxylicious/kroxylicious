@@ -37,17 +37,20 @@ class DestroyableRawSecretKeyTest {
         byte[] bytes3 = { 9, 8, 7 };
         var dk3 = DestroyableRawSecretKey.byOwnershipTransfer("foo", bytes3);
 
-        assertThat(dk1).isEqualTo(dk2);
-        assertThat(dk2).isEqualTo(dk1);
-        assertThat(dk1).isEqualTo(dk1);
-        assertThat(dk1).isNotEqualTo(dk3);
-        assertThat(dk2).isNotEqualTo(dk3);
-        assertThat(dk3).isNotEqualTo(dk1);
-        assertThat(dk3).isNotEqualTo(dk2);
+        assertThat(dk1).isEqualTo(dk1)
+                .isEqualTo(dk2)
+                .isNotEqualTo(dk3);
+        assertThat(dk2)
+                .isEqualTo(dk2)
+                .isEqualTo(dk1)
+                .isNotEqualTo(dk3);
+        assertThat(dk3)
+                .isNotEqualTo(dk1)
+                .isNotEqualTo(dk2);
 
-        assertThat(dk1.hashCode()).isEqualTo(dk2.hashCode());
-        assertThat(dk1.hashCode()).isNotEqualTo(dk3.hashCode());
-        assertThat(dk2.hashCode()).isNotEqualTo(dk3.hashCode());
+        assertThat(dk1).hasSameHashCodeAs(dk2)
+                .doesNotHaveSameHashCodeAs(dk3);
+        assertThat(dk2).doesNotHaveSameHashCodeAs(dk3);
     }
 
     @Test
