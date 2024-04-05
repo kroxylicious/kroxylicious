@@ -172,7 +172,7 @@ class PromiseFactoryTest {
         // Given
         final CompletableFuture<Object> incomingFuture = new CompletableFuture<>();
         final Runnable timeoutTask = promiseFactory.timeoutTask(incomingFuture, () -> {
-            throw new RuntimeException("whoopsie!");
+            throw new RuntimeException("Message generator go boom!");
         });
 
         // When
