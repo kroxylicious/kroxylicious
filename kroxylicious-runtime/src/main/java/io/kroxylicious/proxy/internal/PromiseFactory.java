@@ -20,7 +20,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 /**
  * Applies standard patterns to futures to ensure consistent behaviour across async execution.
  */
-public class PromiseFactory {
+class PromiseFactory {
 
     private final ScheduledExecutorService executorService;
     private final long timeout;
@@ -34,14 +34,14 @@ public class PromiseFactory {
      * @param timeoutUnit Defines the unit for the timeout period
      * @param loggerName Which logger should the factory use when logging events.
      */
-    public PromiseFactory(ScheduledExecutorService executorService, long timeout, TimeUnit timeoutUnit, String loggerName) {
+    PromiseFactory(ScheduledExecutorService executorService, long timeout, TimeUnit timeoutUnit, String loggerName) {
         this.executorService = executorService;
         this.timeout = timeout;
         this.timeoutUnit = timeoutUnit;
         this.logger = LoggerFactory.getLogger(loggerName);
     }
 
-    public <T> CompletableFuture<T> newPromise() {
+    <T> CompletableFuture<T> newPromise() {
         return new InternalCompletableFuture<>(executorService);
     }
 
@@ -51,7 +51,7 @@ public class PromiseFactory {
      * @return a time limited future.
      * @param <T> the type of the result of the future.
      */
-    public <T> CompletableFuture<T> newTimeLimitedPromise(Callable<String> exceptionMessageGenerator) {
+    <T> CompletableFuture<T> newTimeLimitedPromise(Callable<String> exceptionMessageGenerator) {
         return wrapWithTimeLimit(newPromise(), exceptionMessageGenerator);
     }
 
@@ -62,7 +62,7 @@ public class PromiseFactory {
      * @return a time limited future.
      * @param <T> the type of the result of the future.
      */
-    public <T> CompletableFuture<T> wrapWithTimeLimit(CompletableFuture<T> promise, Callable<String> exceptionMessageGenerator) {
+    <T> CompletableFuture<T> wrapWithTimeLimit(CompletableFuture<T> promise, Callable<String> exceptionMessageGenerator) {
         var timeoutFuture = executorService.schedule(timeoutTask(promise, exceptionMessageGenerator), timeout, timeoutUnit);
         promise.whenComplete((p, throwable) -> timeoutFuture.cancel(false));
         return promise;
