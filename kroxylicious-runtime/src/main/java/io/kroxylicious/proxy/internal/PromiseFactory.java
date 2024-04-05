@@ -15,6 +15,8 @@ import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 public class PromiseFactory {
 
     private final ScheduledExecutorService executorService;
@@ -38,7 +40,14 @@ public class PromiseFactory {
     }
 
     public <T> CompletableFuture<T> wrapWithTimeLimit(CompletableFuture<T> promise, Callable<String> exceptionMessageGenerator) {
-        var timeoutFuture = executorService.schedule(() -> {
+        var timeoutFuture = executorService.schedule(timeoutTask(promise, exceptionMessageGenerator), timeout, timeoutUnit);
+        promise.whenComplete((p, throwable) -> timeoutFuture.cancel(false));
+        return promise;
+    }
+
+    @VisibleForTesting
+    protected <T> Runnable timeoutTask(CompletableFuture<T> promise, Callable<String> exceptionMessageGenerator) {
+        return () -> {
             final String message;
             try {
                 message = exceptionMessageGenerator.call();
@@ -47,10 +56,7 @@ public class PromiseFactory {
             }
             catch (Exception e) {
                 promise.completeExceptionally(new TimeoutException("Promise Timed out"));
-
             }
-        }, timeout, timeoutUnit);
-        promise.whenComplete((p, throwable) -> timeoutFuture.cancel(false));
-        return promise;
+        };
     }
 }

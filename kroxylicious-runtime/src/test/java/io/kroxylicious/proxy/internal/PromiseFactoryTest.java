@@ -150,19 +150,14 @@ class PromiseFactoryTest {
         assertThat(promise).isDone();
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     void shouldCompleteIncomingFutureExceptionallyWhenTimeoutTriggered() {
         // Given
-        final ScheduledExecutorService executorService = mock(ScheduledExecutorService.class);
-        promiseFactory = new PromiseFactory(executorService, TIMEOUT, TIMEOUT_UNIT, TEST_LOGGER);
-        when(executorService.schedule(any(Runnable.class), anyLong(), any())).thenReturn(mock(ScheduledFuture.class));
         final CompletableFuture<Object> incomingFuture = new CompletableFuture<>();
-        final CompletableFuture<Object> promise = promiseFactory.wrapWithTimeLimit(incomingFuture, () -> "");
+        final Runnable timeoutTask = promiseFactory.timeoutTask(incomingFuture, () -> "Too Slow!");
 
         // When
-        // Completing the promise directly in lieu of executor service executing it after a delay
-        promise.completeExceptionally(new TimeoutException("Too Slow!"));
+        timeoutTask.run();
 
         // Then
         assertThat(incomingFuture).isDone().isCompletedExceptionally()
@@ -172,4 +167,22 @@ class PromiseFactoryTest {
                 .withMessageContaining("Too Slow!");
     }
 
+    @Test
+    void shouldCompleteIncomingFutureExceptionallyWhenMessageGeneratorFails() {
+        // Given
+        final CompletableFuture<Object> incomingFuture = new CompletableFuture<>();
+        final Runnable timeoutTask = promiseFactory.timeoutTask(incomingFuture, () -> {
+            throw new RuntimeException("whoopsie!");
+        });
+
+        // When
+        timeoutTask.run();
+
+        // Then
+        assertThat(incomingFuture).isDone().isCompletedExceptionally()
+                .failsWithin(Duration.ZERO)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(TimeoutException.class)
+                .withMessageContaining("Promise Timed out");
+    }
 }
