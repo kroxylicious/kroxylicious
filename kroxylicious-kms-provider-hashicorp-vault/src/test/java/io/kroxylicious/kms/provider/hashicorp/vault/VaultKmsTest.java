@@ -17,6 +17,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -34,7 +35,6 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
-import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
@@ -104,7 +104,8 @@ class VaultKmsTest {
                 "}\n";
         withMockVaultWithSingleResponse(response, vaultKms -> {
             Assertions.assertThat(vaultKms.generateDekPair("alias")).succeedsWithin(Duration.ofSeconds(5))
-                    .isEqualTo(new DekPair<>(new VaultEdek("alias", ciphertext.getBytes(StandardCharsets.UTF_8)), DestroyableRawSecretKey.byClone("AES", decoded)));
+                    .matches(dekPair -> Objects.equals(dekPair.edek(), new VaultEdek("alias", ciphertext.getBytes(StandardCharsets.UTF_8))))
+                    .matches(dekPair -> DestroyableRawSecretKey.same(dekPair.dek(), DestroyableRawSecretKey.byClone("AES", decoded)));
         });
     }
 
@@ -129,7 +130,7 @@ class VaultKmsTest {
                 "}\n";
         withMockVaultWithSingleResponse(response, vaultKms -> {
             Assertions.assertThat(vaultKms.decryptEdek(new VaultEdek("kek", edekBytes))).succeedsWithin(Duration.ofSeconds(5))
-                    .isEqualTo(DestroyableRawSecretKey.byClone("AES", plaintextBytes));
+                    .matches(x -> DestroyableRawSecretKey.same(x, DestroyableRawSecretKey.byClone("AES", plaintextBytes)));
         });
     }
 

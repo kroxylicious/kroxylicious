@@ -112,26 +112,13 @@ public final class DestroyableRawSecretKey implements SecretKey {
         return destroyed;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
+    public static boolean same(@NonNull DestroyableRawSecretKey thisKey, @NonNull DestroyableRawSecretKey thatKey) {
+        if (thisKey == thatKey) {
             return true;
         }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        DestroyableRawSecretKey that = (DestroyableRawSecretKey) o;
-        return destroyed == that.destroyed
-                && algorithm.equals(that.algorithm)
-                && MessageDigest.isEqual(key, that.key); // note: constant time impl
-    }
-
-    @Override
-    public int hashCode() {
-        int retval = 0;
-        for (int i = 1; i < this.key.length; i++) {
-            retval += this.key[i] * i;
-        }
-        return retval ^ this.algorithm.hashCode();
+        Objects.requireNonNull(thisKey).checkNotDestroyed();
+        Objects.requireNonNull(thatKey).checkNotDestroyed();
+        return thisKey.algorithm.equals(thatKey.algorithm)
+                && MessageDigest.isEqual(thisKey.key, thatKey.key); // note: constant time impl
     }
 }

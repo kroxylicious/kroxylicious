@@ -30,27 +30,29 @@ class DestroyableRawSecretKeyTest {
     }
 
     @Test
-    void hashcodeAndEquals() {
+    void same() {
         byte[] bytes1 = { 0, 1, 2 };
         var dk1 = DestroyableRawSecretKey.byOwnershipTransfer("foo", bytes1);
         var dk2 = DestroyableRawSecretKey.byClone("foo", bytes1);
         byte[] bytes3 = { 9, 8, 7 };
         var dk3 = DestroyableRawSecretKey.byOwnershipTransfer("foo", bytes3);
 
-        assertThat(dk1).isEqualTo(dk1)
-                .isEqualTo(dk2)
-                .isNotEqualTo(dk3);
-        assertThat(dk2)
-                .isEqualTo(dk2)
-                .isEqualTo(dk1)
-                .isNotEqualTo(dk3);
-        assertThat(dk3)
-                .isNotEqualTo(dk1)
-                .isNotEqualTo(dk2);
+        assertThat(DestroyableRawSecretKey.same(dk1, dk1)).isTrue();
+        assertThat(DestroyableRawSecretKey.same(dk1, dk2)).isTrue();
+        assertThat(DestroyableRawSecretKey.same(dk1, dk3)).isFalse();
 
-        assertThat(dk1).hasSameHashCodeAs(dk2)
-                .doesNotHaveSameHashCodeAs(dk3);
-        assertThat(dk2).doesNotHaveSameHashCodeAs(dk3);
+        assertThat(DestroyableRawSecretKey.same(dk2, dk2)).isTrue();
+        assertThat(DestroyableRawSecretKey.same(dk2, dk1)).isTrue();
+        assertThat(DestroyableRawSecretKey.same(dk2, dk3)).isFalse();
+
+        assertThat(DestroyableRawSecretKey.same(dk3, dk1)).isFalse();
+        assertThat(DestroyableRawSecretKey.same(dk3, dk2)).isFalse();
+        assertThat(DestroyableRawSecretKey.same(dk3, dk3)).isTrue();
+
+        dk1.destroy();
+        assertThatThrownBy(() -> DestroyableRawSecretKey.same(dk1, dk3)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> DestroyableRawSecretKey.same(dk3, dk1)).isInstanceOf(IllegalStateException.class);
+
     }
 
     @Test
