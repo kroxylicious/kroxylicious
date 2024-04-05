@@ -55,6 +55,7 @@ public class PromiseFactory {
                 promise.completeExceptionally(new TimeoutException(message));
             }
             catch (Exception e) {
+                logger.warn("Timeout exceptionMessageGenerator failed with {}. The promise has still been timed out.", e.getMessage(), e);
                 promise.completeExceptionally(new TimeoutException("Promise Timed out"));
             }
         };
