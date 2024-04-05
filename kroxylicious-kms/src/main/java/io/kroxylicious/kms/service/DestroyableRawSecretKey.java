@@ -29,7 +29,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
     private final byte[] key;
 
     private DestroyableRawSecretKey(String algorithm, byte[] bytes) {
-        this.algorithm = Objects.requireNonNull(algorithm).toLowerCase(Locale.ENGLISH);
+        this.algorithm = Objects.requireNonNull(algorithm).toLowerCase(Locale.ROOT);
         this.key = Objects.requireNonNull(bytes);
     }
 
@@ -40,7 +40,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
      * @param bytes The key material
      * @return The new key
      */
-    public static DestroyableRawSecretKey byOwnershipTransfer(String algorithm, byte[] bytes) {
+    public static @NonNull DestroyableRawSecretKey byOwnershipTransfer(@NonNull String algorithm, @NonNull byte[] bytes) {
         return new DestroyableRawSecretKey(algorithm, bytes);
     }
 
@@ -50,7 +50,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
      * @param bytes The key material
      * @return The new key
      */
-    public static DestroyableRawSecretKey byClone(String algorithm, byte[] bytes) {
+    public static @NonNull DestroyableRawSecretKey byClone(@NonNull String algorithm, @NonNull byte[] bytes) {
         return new DestroyableRawSecretKey(algorithm, Objects.requireNonNull(bytes).clone());
     }
 
@@ -59,7 +59,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
      * @param source The key to convert
      * @return The new destroyable key.
      */
-    public static DestroyableRawSecretKey toDestroyableKey(@NonNull SecretKey source) {
+    public static @NonNull DestroyableRawSecretKey toDestroyableKey(@NonNull SecretKey source) {
         Objects.requireNonNull(source);
         // no need to copy, because getEncoded should itself return a copy of the key material
         var result = byOwnershipTransfer(source.getAlgorithm(), source.getEncoded());
@@ -73,12 +73,12 @@ public final class DestroyableRawSecretKey implements SecretKey {
     }
 
     @Override
-    public String getAlgorithm() {
+    public @NonNull String getAlgorithm() {
         return algorithm;
     }
 
     @Override
-    public String getFormat() {
+    public @NonNull String getFormat() {
         return "RAW";
     }
 
@@ -87,9 +87,10 @@ public final class DestroyableRawSecretKey implements SecretKey {
      * This is a copy the key. It is the callers responsibility to destroy this key material
      * when it's no longer needed.
      * @return The RAW-encoded key.
+     * @throws IllegalStateException if the key has been destroyed
      */
     @Override
-    public byte[] getEncoded() {
+    public @NonNull byte[] getEncoded() {
         checkNotDestroyed();
         return key.clone();
     }

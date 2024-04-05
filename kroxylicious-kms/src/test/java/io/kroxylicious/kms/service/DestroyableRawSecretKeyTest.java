@@ -14,7 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class DestroyableRawSecretKeyTest {
 
     @Test
-    void testDestroy() {
+    void destroy() {
         byte[] bytes = { 0, 1, 2 };
         var dk = DestroyableRawSecretKey.byOwnershipTransfer("foo", bytes);
         assertThat(dk.getFormat()).isEqualTo("RAW");
@@ -30,7 +30,7 @@ class DestroyableRawSecretKeyTest {
     }
 
     @Test
-    void testHashcodeAndEquals() {
+    void hashcodeAndEquals() {
         byte[] bytes1 = { 0, 1, 2 };
         var dk1 = DestroyableRawSecretKey.byOwnershipTransfer("foo", bytes1);
         var dk2 = DestroyableRawSecretKey.byClone("foo", bytes1);
@@ -54,7 +54,7 @@ class DestroyableRawSecretKeyTest {
     }
 
     @Test
-    void testToDestroyableKey() {
+    void toDestroyableKey() {
         byte[] bytes1 = { 0, 1, 2 };
         var dk1 = DestroyableRawSecretKey.byClone("foo", bytes1);
         var dk2 = DestroyableRawSecretKey.toDestroyableKey(dk1);
