@@ -109,7 +109,8 @@ class UnitTestingKmsServiceTest {
         var decryptedDek = kms.decryptEdek(pair.edek()).join();
 
         // then
-        assertTrue(DestroyableRawSecretKey.same(pair.dek(), decryptedDek), "Expect the decrypted DEK to equal the originally generated DEK");
+        assertTrue(DestroyableRawSecretKey.same((DestroyableRawSecretKey) pair.dek(), (DestroyableRawSecretKey) decryptedDek),
+                "Expect the decrypted DEK to equal the originally generated DEK");
     }
 
     @Test

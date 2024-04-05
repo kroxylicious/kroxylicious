@@ -11,6 +11,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 
+import javax.crypto.SecretKey;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -111,7 +113,7 @@ class InstrumentedKmsTest {
     void testDecryptEdekSuccess() {
         Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.completedFuture(secretKey));
-        CompletionStage<DestroyableRawSecretKey> stage = instrument.decryptEdek("edek");
+        CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
         assertThat(stage).succeedsWithin(Duration.ZERO).isSameAs(secretKey);
         verify(metrics).countDecryptEdekAttempt();
         verify(metrics).countDecryptEdekOutcome(SUCCESS);
@@ -122,7 +124,7 @@ class InstrumentedKmsTest {
         Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         NullPointerException cause = new NullPointerException("fail");
         when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.failedFuture(cause));
-        CompletionStage<DestroyableRawSecretKey> stage = instrument.decryptEdek("edek");
+        CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
         assertStageFailsWithCause(stage, cause);
         verify(metrics).countDecryptEdekAttempt();
         verify(metrics).countDecryptEdekOutcome(EXCEPTION);
@@ -133,7 +135,7 @@ class InstrumentedKmsTest {
         Kms<String, String> instrument = InstrumentedKms.wrap(kms, metrics);
         UnknownKeyException cause = new UnknownKeyException("unknown");
         when(kms.decryptEdek("edek")).thenReturn(CompletableFuture.failedFuture(cause));
-        CompletionStage<DestroyableRawSecretKey> stage = instrument.decryptEdek("edek");
+        CompletionStage<SecretKey> stage = instrument.decryptEdek("edek");
         assertStageFailsWithCause(stage, cause);
         verify(metrics).countDecryptEdekAttempt();
         verify(metrics).countDecryptEdekOutcome(NOT_FOUND);

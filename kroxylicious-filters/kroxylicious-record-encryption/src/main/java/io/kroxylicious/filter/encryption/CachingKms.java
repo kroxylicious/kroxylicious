@@ -11,6 +11,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 
+import javax.crypto.SecretKey;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +21,6 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.kroxylicious.kms.service.DekPair;
-import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -37,7 +38,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class CachingKms<K, E> implements Kms<K, E> {
     private final Kms<K, E> delegate;
-    private final AsyncLoadingCache<E, DestroyableRawSecretKey> decryptDekCache;
+    private final AsyncLoadingCache<E, SecretKey> decryptDekCache;
     private final AsyncLoadingCache<String, K> resolveAliasCache;
     private final Cache<String, CompletionStage<K>> notFoundAliasCache;
     private static final Logger LOGGER = LoggerFactory.getLogger(CachingKms.class);
@@ -74,7 +75,7 @@ public class CachingKms<K, E> implements Kms<K, E> {
     }
 
     @NonNull
-    private static <K, E> AsyncLoadingCache<E, DestroyableRawSecretKey> buildDecryptedDekCache(Kms<K, E> delegate, long maxSize, Duration expireAfterAccess) {
+    private static <K, E> AsyncLoadingCache<E, SecretKey> buildDecryptedDekCache(Kms<K, E> delegate, long maxSize, Duration expireAfterAccess) {
         return Caffeine.newBuilder().maximumSize(maxSize).expireAfterAccess(expireAfterAccess)
                 .buildAsync((key, executor) -> delegate.decryptEdek(key).toCompletableFuture());
     }
@@ -87,7 +88,7 @@ public class CachingKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<DestroyableRawSecretKey> decryptEdek(@NonNull E edek) {
+    public CompletionStage<SecretKey> decryptEdek(@NonNull E edek) {
         return decryptDekCache.get(edek);
     }
 

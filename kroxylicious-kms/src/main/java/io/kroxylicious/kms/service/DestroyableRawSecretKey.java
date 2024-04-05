@@ -15,6 +15,9 @@ import javax.annotation.concurrent.NotThreadSafe;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -23,6 +26,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 @NotThreadSafe
 public final class DestroyableRawSecretKey implements SecretKey {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DestroyableRawSecretKey.class);
 
     private final String algorithm;
     private boolean destroyed = false;
@@ -67,7 +72,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
             source.destroy();
         }
         catch (DestroyFailedException e) {
-            // Ignore
+            LOGGER.warn("Failed to destroy key of " + source.getClass());
         }
         return result;
     }
@@ -112,6 +117,12 @@ public final class DestroyableRawSecretKey implements SecretKey {
         return destroyed;
     }
 
+    /**
+     * Tests whether the arguments represent the same key.
+     * @param thisKey The one key
+     * @param thatKey The other key
+     * @return true if they keys have the same algorithm and key material.
+     */
     public static boolean same(@NonNull DestroyableRawSecretKey thisKey, @NonNull DestroyableRawSecretKey thatKey) {
         if (thisKey == thatKey) {
             return true;

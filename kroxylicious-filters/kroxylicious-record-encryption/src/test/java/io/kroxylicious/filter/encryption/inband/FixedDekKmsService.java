@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
@@ -66,7 +67,7 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
 
         @NonNull
         @Override
-        public CompletionStage<DestroyableRawSecretKey> decryptEdek(@NonNull ByteBuffer edek) {
+        public CompletionStage<SecretKey> decryptEdek(@NonNull ByteBuffer edek) {
             return CompletableFuture.completedFuture(dek);
         }
 

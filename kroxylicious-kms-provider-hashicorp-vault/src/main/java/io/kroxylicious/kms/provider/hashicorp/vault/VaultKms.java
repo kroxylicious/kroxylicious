@@ -20,6 +20,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
+import javax.crypto.SecretKey;
 import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -128,7 +129,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<DestroyableRawSecretKey> decryptEdek(@NonNull VaultEdek edek) {
+    public CompletionStage<SecretKey> decryptEdek(@NonNull VaultEdek edek) {
 
         var body = createDecryptPostBody(edek);
 

@@ -13,6 +13,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import javax.crypto.SecretKey;
+
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -93,7 +95,7 @@ class ResilientKmsTest {
         Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
-        CompletionStage<DestroyableRawSecretKey> dek = resilientKms.decryptEdek(1L);
+        CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
 
         // then
         assertThat(dek).succeedsWithin(5, TimeUnit.SECONDS).isEqualTo(SECRET_KEY);
@@ -148,7 +150,7 @@ class ResilientKmsTest {
         Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
-        CompletionStage<DestroyableRawSecretKey> dek = resilientKms.decryptEdek(1L);
+        CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
 
         // then
         assertThat(dek).succeedsWithin(5, TimeUnit.SECONDS).isEqualTo(SECRET_KEY);
@@ -261,7 +263,7 @@ class ResilientKmsTest {
         Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
-        CompletionStage<DestroyableRawSecretKey> dek = resilientKms.decryptEdek(1L);
+        CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
 
         // then
         assertThat(dek).succeedsWithin(5, TimeUnit.SECONDS).isEqualTo(SECRET_KEY);
@@ -279,7 +281,7 @@ class ResilientKmsTest {
         Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, 3);
 
         // when
-        CompletionStage<DestroyableRawSecretKey> dek = resilientKms.decryptEdek(1L);
+        CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
 
         // then
         assertThat(dek).failsWithin(5, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("unknown key");
@@ -338,7 +340,7 @@ class ResilientKmsTest {
         Kms<Long, Long> resilientKms = ResilientKms.wrap(kms, mockExecutor, strategy, retries);
 
         // when
-        CompletionStage<DestroyableRawSecretKey> dek = resilientKms.decryptEdek(1L);
+        CompletionStage<SecretKey> dek = resilientKms.decryptEdek(1L);
 
         // then
         assertThat(dek).failsWithin(5, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("decryptEdek failed after " + retries + " attempts");

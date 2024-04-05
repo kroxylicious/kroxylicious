@@ -154,7 +154,7 @@ public class InMemoryKms implements
 
     @NonNull
     @Override
-    public CompletableFuture<DestroyableRawSecretKey> decryptEdek(@NonNull InMemoryEdek edek) {
+    public CompletableFuture<SecretKey> decryptEdek(@NonNull InMemoryEdek edek) {
         try {
             var kek = lookupKey(edek.kekRef());
             Cipher aesCipher = aesGcm();

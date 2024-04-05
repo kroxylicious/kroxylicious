@@ -11,6 +11,7 @@ import java.util.concurrent.CompletionStage;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
@@ -64,7 +65,8 @@ public class DekManager<K, E> {
     public CompletionStage<Dek<E>> generateDek(@NonNull K kekRef, @NonNull CipherSpec cipherSpec) {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(cipherSpec);
-        return kms.generateDekPair(kekRef).thenApply(dekPair -> new Dek<>(dekPair.edek(), dekPair.dek(), cipherSpec, maxEncryptionsPerDek));
+        return kms.generateDekPair(kekRef)
+                .thenApply(dekPair -> new Dek<>(dekPair.edek(), DestroyableRawSecretKey.toDestroyableKey(dekPair.dek()), cipherSpec, maxEncryptionsPerDek));
     }
 
     /**
@@ -78,6 +80,8 @@ public class DekManager<K, E> {
     public CompletionStage<Dek<E>> decryptEdek(@NonNull E edek, @NonNull CipherSpec cipherSpec) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(cipherSpec);
-        return kms.decryptEdek(edek).thenApply(key -> new Dek<>(edek, key, cipherSpec, 0));
+        return kms.decryptEdek(edek).thenApply(key -> {
+            return new Dek<>(edek, DestroyableRawSecretKey.toDestroyableKey(key), cipherSpec, 0);
+        });
     }
 }
