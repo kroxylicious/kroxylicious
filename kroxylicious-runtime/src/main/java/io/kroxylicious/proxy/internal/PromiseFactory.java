@@ -17,6 +17,9 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+/**
+ * Applies standard patterns to futures to ensure consistent behaviour across async execution.
+ */
 public class PromiseFactory {
 
     private final ScheduledExecutorService executorService;
@@ -24,6 +27,13 @@ public class PromiseFactory {
     private final TimeUnit timeoutUnit;
     private final Logger logger;
 
+    /**
+     *
+     * @param executorService Used to schedule background tasks such as timeouts.
+     * @param timeout Factory wide limit on how long to wait for a given future to complete.
+     * @param timeoutUnit Defines the unit for the timeout period
+     * @param loggerName Which logger should the factory use when logging events.
+     */
     public PromiseFactory(ScheduledExecutorService executorService, long timeout, TimeUnit timeoutUnit, String loggerName) {
         this.executorService = executorService;
         this.timeout = timeout;
@@ -35,10 +45,23 @@ public class PromiseFactory {
         return new InternalCompletableFuture<>(executorService);
     }
 
-    public <T> CompletableFuture<T> newTimeLimitedPromise(Callable<String> messageGenerator) {
-        return wrapWithTimeLimit(new InternalCompletableFuture<T>(executorService), messageGenerator);
+    /**
+     * Ensure that a new promise is completed within the factories configured time limit
+     * @param exceptionMessageGenerator a callable to be invoked when the time limit expires.
+     * @return a time limited future.
+     * @param <T> the type of the result of the future.
+     */
+    public <T> CompletableFuture<T> newTimeLimitedPromise(Callable<String> exceptionMessageGenerator) {
+        return wrapWithTimeLimit(newPromise(), exceptionMessageGenerator);
     }
 
+    /**
+     * Ensure that the supplied promise is completed within the factories configured time limit
+     * @param promise the promise to be completed within the specified time.
+     * @param exceptionMessageGenerator a callable to be invoked when the time limit expires.
+     * @return a time limited future.
+     * @param <T> the type of the result of the future.
+     */
     public <T> CompletableFuture<T> wrapWithTimeLimit(CompletableFuture<T> promise, Callable<String> exceptionMessageGenerator) {
         var timeoutFuture = executorService.schedule(timeoutTask(promise, exceptionMessageGenerator), timeout, timeoutUnit);
         promise.whenComplete((p, throwable) -> timeoutFuture.cancel(false));
