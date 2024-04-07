@@ -66,13 +66,16 @@ public final class DestroyableRawSecretKey implements SecretKey {
      */
     public static @NonNull DestroyableRawSecretKey toDestroyableKey(@NonNull SecretKey source) {
         Objects.requireNonNull(source);
+        if (!"RAW".equalsIgnoreCase(source.getFormat())) {
+            throw new IllegalArgumentException("RAW-format key required");
+        }
         // no need to copy, because getEncoded should itself return a copy of the key material
         var result = byOwnershipTransfer(source.getAlgorithm(), source.getEncoded());
         try {
             source.destroy();
         }
         catch (DestroyFailedException e) {
-            LOGGER.warn("Failed to destroy key of " + source.getClass());
+            LOGGER.warn("Failed to destroy key of {}", source.getClass());
         }
         return result;
     }
