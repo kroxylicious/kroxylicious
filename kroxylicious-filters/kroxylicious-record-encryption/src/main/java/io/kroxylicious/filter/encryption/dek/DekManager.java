@@ -80,8 +80,6 @@ public class DekManager<K, E> {
     public CompletionStage<Dek<E>> decryptEdek(@NonNull E edek, @NonNull CipherSpec cipherSpec) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(cipherSpec);
-        return kms.decryptEdek(edek).thenApply(key -> {
-            return new Dek<>(edek, DestroyableRawSecretKey.toDestroyableKey(key), cipherSpec, 0);
-        });
+        return kms.decryptEdek(edek).thenApply(key -> new Dek<>(edek, DestroyableRawSecretKey.toDestroyableKey(key), cipherSpec, 0));
     }
 }
