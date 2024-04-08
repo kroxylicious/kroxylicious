@@ -182,7 +182,7 @@ public class TestClientsJobTemplates {
                         .withName("kafka-go-producer")
                         .withImage("ppatierno/kafka-go-producer:latest")
                         .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
-                        .withEnv(saramaProducerEnvVars(bootstrap, topicName))
+                        .withEnv(kafkaGoProducerEnvVars(bootstrap, topicName))
                         .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
@@ -207,7 +207,7 @@ public class TestClientsJobTemplates {
                         .withName("kafka-go-consumer")
                         .withImage("ppatierno/kafka-go-consumer:latest")
                         .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
-                        .withEnv(saramaConsumerEnvVars(bootstrap, topicName))
+                        .withEnv(kafkaGoConsumerEnvVars(bootstrap, topicName))
                         .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
@@ -283,7 +283,7 @@ public class TestClientsJobTemplates {
         return envVarList;
     }
 
-    private static List<EnvVar> saramaProducerEnvVars(String bootstrap, String topicName) {
+    private static List<EnvVar> kafkaGoProducerEnvVars(String bootstrap, String topicName) {
         List<EnvVar> envVarList = new ArrayList<>();
         envVarList.add(new EnvVarBuilder()
                 .withName(BOOTSTRAP_VAR)
@@ -297,8 +297,8 @@ public class TestClientsJobTemplates {
         return envVarList;
     }
 
-    private static List<EnvVar> saramaConsumerEnvVars(String bootstrap, String topicName) {
-        List<EnvVar> envVarList = saramaProducerEnvVars(bootstrap, topicName);
+    private static List<EnvVar> kafkaGoConsumerEnvVars(String bootstrap, String topicName) {
+        List<EnvVar> envVarList = kafkaGoProducerEnvVars(bootstrap, topicName);
         envVarList.add(new EnvVarBuilder()
                 .withName(GROUP_ID_VAR)
                 .withValue("my-kafka-go-group")
