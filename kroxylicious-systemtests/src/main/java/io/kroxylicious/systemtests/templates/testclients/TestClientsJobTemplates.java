@@ -15,6 +15,7 @@ import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.SeccompProfileBuilder;
+import io.fabric8.kubernetes.api.model.SecurityContext;
 import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 
@@ -24,6 +25,15 @@ import io.kroxylicious.systemtests.Constants;
  * The type Test Clients job templates.
  */
 public class TestClientsJobTemplates {
+    private static final String BOOTSTRAP_VAR = "BOOTSTRAP_SERVERS";
+    private static final String TOPIC_VAR = "TOPIC";
+    private static final String MESSAGE_VAR = "MESSAGE";
+    private static final String MESSAGE_COUNT_VAR = "MESSAGE_COUNT";
+    private static final String GROUP_ID_VAR = "GROUP_ID";
+    private static final String LOG_LEVEL_VAR = "LOG_LEVEL";
+    private static final String CLIENT_TYPE_VAR = "CLIENT_TYPE";
+    private static final String PRODUCER_ACKS_VAR = "PRODUCER_ACKS";
+    private static final String DELAY_MS_VAR = "DELAY_MS";
 
     private TestClientsJobTemplates() {
     }
@@ -68,74 +78,76 @@ public class TestClientsJobTemplates {
                 .withContainers(new ContainerBuilder()
                         .withName("admin")
                         .withImage(Constants.TEST_CLIENTS_IMAGE)
-                        .withImagePullPolicy("IfNotPresent")
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withCommand("admin-client")
                         .withArgs(args)
-                        .withSecurityContext(new SecurityContextBuilder()
-                                .withAllowPrivilegeEscalation(false)
-                                .withSeccompProfile(new SeccompProfileBuilder()
-                                        .withType("RuntimeDefault")
-                                        .build())
-                                .withCapabilities(new CapabilitiesBuilder()
-                                        .withDrop("ALL")
-                                        .build())
-                                .build())
+                        .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
                 .endTemplate()
                 .endSpec();
     }
 
+    /**
+     * Default test client producer job builder.
+     *
+     * @param jobName the job name
+     * @param bootstrap the bootstrap
+     * @param topicName the topic name
+     * @param numOfMessages the num of messages
+     * @param message the message
+     * @return the job builder
+     */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message) {
         return baseClientJob(jobName)
                 .editSpec()
                 .editTemplate()
                 .editSpec()
                 .withContainers(new ContainerBuilder()
-                        .withName("admin")
+                        .withName("test-client-producer")
                         .withImage(Constants.TEST_CLIENTS_IMAGE)
-                        .withImagePullPolicy("IfNotPresent")
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withEnv(testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message))
-                        .withSecurityContext(new SecurityContextBuilder()
-                                .withAllowPrivilegeEscalation(false)
-                                .withSeccompProfile(new SeccompProfileBuilder()
-                                        .withType("RuntimeDefault")
-                                        .build())
-                                .withCapabilities(new CapabilitiesBuilder()
-                                        .withDrop("ALL")
-                                        .build())
-                                .build())
+                        .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
                 .endTemplate()
                 .endSpec();
     }
 
+    /**
+     * Default test client consumer job builder.
+     *
+     * @param jobName the job name
+     * @param bootstrap the bootstrap
+     * @param topicName the topic name
+     * @param numOfMessages the num of messages
+     * @return the job builder
+     */
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages) {
         return baseClientJob(jobName)
                 .editSpec()
                 .editTemplate()
                 .editSpec()
                 .withContainers(new ContainerBuilder()
-                        .withName("admin")
+                        .withName("test-client-consumer")
                         .withImage(Constants.TEST_CLIENTS_IMAGE)
-                        .withImagePullPolicy("IfNotPresent")
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withEnv(testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages))
-                        .withSecurityContext(new SecurityContextBuilder()
-                                .withAllowPrivilegeEscalation(false)
-                                .withSeccompProfile(new SeccompProfileBuilder()
-                                        .withType("RuntimeDefault")
-                                        .build())
-                                .withCapabilities(new CapabilitiesBuilder()
-                                        .withDrop("ALL")
-                                        .build())
-                                .build())
+                        .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
                 .endTemplate()
                 .endSpec();
     }
 
+    /**
+     * Default kcat job builder.
+     *
+     * @param jobName the job name
+     * @param args the args
+     * @return the job builder
+     */
     public static JobBuilder defaultKcatJob(String jobName, List<String> args) {
         return baseClientJob(jobName)
                 .editSpec()
@@ -144,23 +156,23 @@ public class TestClientsJobTemplates {
                 .withContainers(new ContainerBuilder()
                         .withName("kcat")
                         .withImage("edenhill/kcat:1.7.1")
-                        .withImagePullPolicy("IfNotPresent")
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withArgs(args)
-                        .withSecurityContext(new SecurityContextBuilder()
-                                .withAllowPrivilegeEscalation(false)
-                                .withSeccompProfile(new SeccompProfileBuilder()
-                                        .withType("RuntimeDefault")
-                                        .build())
-                                .withCapabilities(new CapabilitiesBuilder()
-                                        .withDrop("ALL")
-                                        .build())
-                                .build())
+                        .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
                 .endTemplate()
                 .endSpec();
     }
 
+    /**
+     * Default sarama producer job builder.
+     *
+     * @param jobName the job name
+     * @param bootstrap the bootstrap
+     * @param topicName the topic name
+     * @return the job builder
+     */
     public static JobBuilder defaultSaramaProducerJob(String jobName, String bootstrap, String topicName) {
         return baseClientJob(jobName)
                 .editSpec()
@@ -169,23 +181,23 @@ public class TestClientsJobTemplates {
                 .withContainers(new ContainerBuilder()
                         .withName("kafka-go-producer")
                         .withImage("ppatierno/kafka-go-producer:latest")
-                        .withImagePullPolicy("IfNotPresent")
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withEnv(saramaProducerEnvVars(bootstrap, topicName))
-                        .withSecurityContext(new SecurityContextBuilder()
-                                .withAllowPrivilegeEscalation(false)
-                                .withSeccompProfile(new SeccompProfileBuilder()
-                                        .withType("RuntimeDefault")
-                                        .build())
-                                .withCapabilities(new CapabilitiesBuilder()
-                                        .withDrop("ALL")
-                                        .build())
-                                .build())
+                        .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
                 .endTemplate()
                 .endSpec();
     }
 
+    /**
+     * Default sarama consumer job builder.
+     *
+     * @param jobName the job name
+     * @param bootstrap the bootstrap
+     * @param topicName the topic name
+     * @return the job builder
+     */
     public static JobBuilder defaultSaramaConsumerJob(String jobName, String bootstrap, String topicName) {
         return baseClientJob(jobName)
                 .editSpec()
@@ -194,17 +206,9 @@ public class TestClientsJobTemplates {
                 .withContainers(new ContainerBuilder()
                         .withName("kafka-go-consumer")
                         .withImage("ppatierno/kafka-go-consumer:latest")
-                        .withImagePullPolicy("IfNotPresent")
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withEnv(saramaConsumerEnvVars(bootstrap, topicName))
-                        .withSecurityContext(new SecurityContextBuilder()
-                                .withAllowPrivilegeEscalation(false)
-                                .withSeccompProfile(new SeccompProfileBuilder()
-                                        .withType("RuntimeDefault")
-                                        .build())
-                                .withCapabilities(new CapabilitiesBuilder()
-                                        .withDrop("ALL")
-                                        .build())
-                                .build())
+                        .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
                 .endTemplate()
@@ -214,35 +218,35 @@ public class TestClientsJobTemplates {
     private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message) {
         List<EnvVar> envVarList = new ArrayList<>();
         envVarList.add(new EnvVarBuilder()
-                .withName("BOOTSTRAP_SERVERS")
+                .withName(BOOTSTRAP_VAR)
                 .withValue(bootstrap)
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("DELAY_MS")
+                .withName(DELAY_MS_VAR)
                 .withValue("1000")
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("TOPIC")
+                .withName(TOPIC_VAR)
                 .withValue(topicName)
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("MESSAGE_COUNT")
+                .withName(MESSAGE_COUNT_VAR)
                 .withValue(String.valueOf(numOfMessages))
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("MESSAGE")
+                .withName(MESSAGE_VAR)
                 .withValue(message)
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("PRODUCER_ACKS")
+                .withName(PRODUCER_ACKS_VAR)
                 .withValue("all")
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("LOG_LEVEL")
+                .withName(LOG_LEVEL_VAR)
                 .withValue("INFO")
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("CLIENT_TYPE")
+                .withName(CLIENT_TYPE_VAR)
                 .withValue("KafkaProducer")
                 .build());
 
@@ -252,27 +256,27 @@ public class TestClientsJobTemplates {
     private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages) {
         List<EnvVar> envVarList = new ArrayList<>();
         envVarList.add(new EnvVarBuilder()
-                .withName("BOOTSTRAP_SERVERS")
+                .withName(BOOTSTRAP_VAR)
                 .withValue(bootstrap)
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("TOPIC")
+                .withName(TOPIC_VAR)
                 .withValue(topicName)
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("MESSAGE_COUNT")
+                .withName(MESSAGE_COUNT_VAR)
                 .withValue(String.valueOf(numOfMessages))
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("GROUP_ID")
+                .withName(GROUP_ID_VAR)
                 .withValue("my-group")
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("LOG_LEVEL")
+                .withName(LOG_LEVEL_VAR)
                 .withValue("INFO")
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("CLIENT_TYPE")
+                .withName(CLIENT_TYPE_VAR)
                 .withValue("KafkaConsumer")
                 .build());
 
@@ -282,11 +286,11 @@ public class TestClientsJobTemplates {
     private static List<EnvVar> saramaProducerEnvVars(String bootstrap, String topicName) {
         List<EnvVar> envVarList = new ArrayList<>();
         envVarList.add(new EnvVarBuilder()
-                .withName("BOOTSTRAP_SERVERS")
+                .withName(BOOTSTRAP_VAR)
                 .withValue(bootstrap)
                 .build());
         envVarList.add(new EnvVarBuilder()
-                .withName("TOPIC")
+                .withName(TOPIC_VAR)
                 .withValue(topicName)
                 .build());
 
@@ -296,10 +300,22 @@ public class TestClientsJobTemplates {
     private static List<EnvVar> saramaConsumerEnvVars(String bootstrap, String topicName) {
         List<EnvVar> envVarList = saramaProducerEnvVars(bootstrap, topicName);
         envVarList.add(new EnvVarBuilder()
-                .withName("GROUP_ID")
+                .withName(GROUP_ID_VAR)
                 .withValue("my-kafka-go-group")
                 .build());
 
         return envVarList;
+    }
+
+    private static SecurityContext jobsSecurityContext() {
+        return new SecurityContextBuilder()
+                .withAllowPrivilegeEscalation(false)
+                .withSeccompProfile(new SeccompProfileBuilder()
+                        .withType("RuntimeDefault")
+                        .build())
+                .withCapabilities(new CapabilitiesBuilder()
+                        .withDrop("ALL")
+                        .build())
+                .build();
     }
 }

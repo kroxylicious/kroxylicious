@@ -157,6 +157,10 @@ public interface Constants {
      * kafka admin client label to identify the admin test client
      */
     String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
+    /**
+     * Image pull if not present.
+     */
+    String PULL_IMAGE_IF_NOT_PRESENT = "IfNotPresent";
 
     /**
      * Feature gate related constants
