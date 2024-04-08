@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
-import io.kroxylicious.kms.service.DestroyableRawSecretKeyTest;
+import io.kroxylicious.kms.service.SecretKeyUtils;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
@@ -110,7 +110,7 @@ class UnitTestingKmsServiceTest {
         var decryptedDek = kms.decryptEdek(pair.edek()).join();
 
         // then
-        assertTrue(DestroyableRawSecretKeyTest.same((DestroyableRawSecretKey) pair.dek(), (DestroyableRawSecretKey) decryptedDek),
+        assertTrue(SecretKeyUtils.same((DestroyableRawSecretKey) pair.dek(), (DestroyableRawSecretKey) decryptedDek),
                 "Expect the decrypted DEK to equal the originally generated DEK");
     }
 

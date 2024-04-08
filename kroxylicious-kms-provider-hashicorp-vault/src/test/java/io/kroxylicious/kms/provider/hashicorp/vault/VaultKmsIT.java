@@ -20,7 +20,7 @@ import io.kroxylicious.kms.provider.hashicorp.vault.VaultResponse.ReadKeyData;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
-import io.kroxylicious.kms.service.DestroyableRawSecretKeyTest;
+import io.kroxylicious.kms.service.SecretKeyUtils;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
@@ -88,7 +88,7 @@ class VaultKmsIT {
         var decryptedDekStage = service.decryptEdek(pair.edek());
         assertThat(decryptedDekStage)
                 .succeedsWithin(Duration.ofSeconds(5))
-                .matches(sk -> DestroyableRawSecretKeyTest.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
+                .matches(sk -> SecretKeyUtils.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
     }
 
     @Test
@@ -108,7 +108,7 @@ class VaultKmsIT {
         var decryptedDekStage = service.decryptEdek(pair.edek());
         assertThat(decryptedDekStage)
                 .succeedsWithin(Duration.ofSeconds(5))
-                .matches(sk -> DestroyableRawSecretKeyTest.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
+                .matches(sk -> SecretKeyUtils.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
     }
 
     @Test

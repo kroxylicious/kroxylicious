@@ -36,7 +36,7 @@ import com.sun.net.httpserver.HttpServer;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
-import io.kroxylicious.kms.service.DestroyableRawSecretKeyTest;
+import io.kroxylicious.kms.service.SecretKeyUtils;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
@@ -106,7 +106,7 @@ class VaultKmsTest {
         withMockVaultWithSingleResponse(response, vaultKms -> {
             Assertions.assertThat(vaultKms.generateDekPair("alias")).succeedsWithin(Duration.ofSeconds(5))
                     .matches(dekPair -> Objects.equals(dekPair.edek(), new VaultEdek("alias", ciphertext.getBytes(StandardCharsets.UTF_8))))
-                    .matches(dekPair -> DestroyableRawSecretKeyTest.same((DestroyableRawSecretKey) dekPair.dek(), DestroyableRawSecretKey.takeCopyOf("AES", decoded)));
+                    .matches(dekPair -> SecretKeyUtils.same((DestroyableRawSecretKey) dekPair.dek(), DestroyableRawSecretKey.takeCopyOf("AES", decoded)));
         });
     }
 
@@ -132,7 +132,7 @@ class VaultKmsTest {
         withMockVaultWithSingleResponse(response, vaultKms -> {
             Assertions.assertThat(vaultKms.decryptEdek(new VaultEdek("kek", edekBytes))).succeedsWithin(Duration.ofSeconds(5))
                     .isInstanceOf(DestroyableRawSecretKey.class)
-                    .matches(key -> DestroyableRawSecretKeyTest.same((DestroyableRawSecretKey) key, DestroyableRawSecretKey.takeCopyOf("AES", plaintextBytes)));
+                    .matches(key -> SecretKeyUtils.same((DestroyableRawSecretKey) key, DestroyableRawSecretKey.takeCopyOf("AES", plaintextBytes)));
         });
     }
 

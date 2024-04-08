@@ -6,33 +6,12 @@
 
 package io.kroxylicious.kms.service;
 
-import java.security.MessageDigest;
-import java.util.Objects;
-
 import org.junit.jupiter.api.Test;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class DestroyableRawSecretKeyTest {
-
-    /**
-     * Tests whether the arguments represent the same key.
-     * @param thisKey The one key
-     * @param thatKey The other key
-     * @return true if they keys have the same algorithm and key material.
-     */
-    public static boolean same(@NonNull DestroyableRawSecretKey thisKey, @NonNull DestroyableRawSecretKey thatKey) {
-        if (thisKey == thatKey) {
-            return true;
-        }
-        Objects.requireNonNull(thisKey).checkNotDestroyed();
-        Objects.requireNonNull(thatKey).checkNotDestroyed();
-        return thisKey.getAlgorithm().equals(thatKey.getAlgorithm())
-                && MessageDigest.isEqual(thisKey.getEncoded(), thatKey.getEncoded()); // note: constant time impl
-    }
 
     @Test
     void destroy() {
@@ -48,32 +27,6 @@ public class DestroyableRawSecretKeyTest {
         assertThatThrownBy(dk::getEncoded).isExactlyInstanceOf(IllegalStateException.class);
         dk.destroy(); // should be idempotent
         assertThat(encoded).isEqualTo(new byte[]{ 0, 1, 2 });
-    }
-
-    @Test
-    void same() {
-        byte[] bytes1 = { 0, 1, 2 };
-        var dk1 = DestroyableRawSecretKey.takeOwnershipOf("foo", bytes1);
-        var dk2 = DestroyableRawSecretKey.takeCopyOf("foo", bytes1);
-        byte[] bytes3 = { 9, 8, 7 };
-        var dk3 = DestroyableRawSecretKey.takeOwnershipOf("foo", bytes3);
-
-        assertThat(same(dk1, dk1)).isTrue();
-        assertThat(same(dk1, dk2)).isTrue();
-        assertThat(same(dk1, dk3)).isFalse();
-
-        assertThat(same(dk2, dk2)).isTrue();
-        assertThat(same(dk2, dk1)).isTrue();
-        assertThat(same(dk2, dk3)).isFalse();
-
-        assertThat(same(dk3, dk1)).isFalse();
-        assertThat(same(dk3, dk2)).isFalse();
-        assertThat(same(dk3, dk3)).isTrue();
-
-        dk1.destroy();
-        assertThatThrownBy(() -> same(dk1, dk3)).isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> same(dk3, dk1)).isInstanceOf(IllegalStateException.class);
-
     }
 
     @Test

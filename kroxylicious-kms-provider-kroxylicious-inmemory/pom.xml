@@ -32,13 +32,6 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms</artifactId>
-            <version>${project.version}</version>
-            <classifier>tests</classifier>
-            <scope>test</scope>
-        </dependency>
 
         <!-- third party dependencies - build and compile -->
         <dependency>
@@ -58,6 +51,11 @@
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-test-support</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
