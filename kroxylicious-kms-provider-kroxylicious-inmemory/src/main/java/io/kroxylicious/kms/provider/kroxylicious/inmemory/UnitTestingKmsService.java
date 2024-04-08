@@ -83,7 +83,7 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
         return kmsMap.computeIfAbsent(options, config -> {
             List<Kek> kekDefs = options.existingKeks();
             Map<UUID, DestroyableRawSecretKey> keys = kekDefs.stream()
-                    .collect(toMap(k -> UUID.fromString(k.uuid), k -> DestroyableRawSecretKey.takeCopyOf(k.algorithm, k.key)));
+                    .collect(toMap(k -> UUID.fromString(k.uuid), k -> DestroyableRawSecretKey.takeCopyOf(k.key, k.algorithm)));
             Map<String, UUID> aliases = kekDefs.stream().collect(toMap(k -> k.alias, k -> UUID.fromString(k.uuid)));
             return new InMemoryKms(options.numIvBytes(),
                     options.numAuthBits(),

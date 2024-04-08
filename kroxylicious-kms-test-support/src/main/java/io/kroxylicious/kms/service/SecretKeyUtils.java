@@ -22,8 +22,8 @@ public class SecretKeyUtils {
         if (thisKey == thatKey) {
             return true;
         }
-        Objects.requireNonNull(thisKey).checkNotDestroyed();
-        Objects.requireNonNull(thatKey).checkNotDestroyed();
+        DestroyableRawSecretKey.checkNotDestroyed(Objects.requireNonNull(thisKey));
+        DestroyableRawSecretKey.checkNotDestroyed(Objects.requireNonNull(thatKey));
         return thisKey.getAlgorithm().equals(thatKey.getAlgorithm())
                 && MessageDigest.isEqual(thisKey.getEncoded(), thatKey.getEncoded()); // note: constant time impl
     }

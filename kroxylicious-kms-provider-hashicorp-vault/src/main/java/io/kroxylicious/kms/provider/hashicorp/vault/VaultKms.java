@@ -116,7 +116,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
 
         return sendAsync(kekRef, request, DATA_KEY_DATA_TYPE_REF, UnknownKeyException::new)
                 .thenApply(data -> {
-                    var secretKey = DestroyableRawSecretKey.takeOwnershipOf(AES_KEY_ALGO, data.plaintext());
+                    var secretKey = DestroyableRawSecretKey.takeOwnershipOf(data.plaintext(), AES_KEY_ALGO);
                     return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
                 });
 
@@ -139,7 +139,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
                 .build();
 
         return sendAsync(edek.kekRef(), request, DECRYPT_DATA_TYPE_REF, UnknownKeyException::new)
-                .thenApply(data -> DestroyableRawSecretKey.takeOwnershipOf(AES_KEY_ALGO, data.plaintext()));
+                .thenApply(data -> DestroyableRawSecretKey.takeOwnershipOf(data.plaintext(), AES_KEY_ALGO));
     }
 
     private String createDecryptPostBody(@NonNull VaultEdek edek) {

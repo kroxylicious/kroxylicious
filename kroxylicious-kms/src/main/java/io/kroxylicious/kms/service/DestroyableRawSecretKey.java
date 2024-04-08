@@ -32,7 +32,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
     private boolean destroyed = false;
     private final byte[] key;
 
-    private DestroyableRawSecretKey(String algorithm, byte[] bytes) {
+    private DestroyableRawSecretKey(byte[] bytes, String algorithm) {
         this.algorithm = Objects.requireNonNull(algorithm).toLowerCase(Locale.ROOT);
         this.key = Objects.requireNonNull(bytes);
     }
@@ -40,22 +40,24 @@ public final class DestroyableRawSecretKey implements SecretKey {
     /**
      * Create a new key by becoming owner of the given key material.
      * The caller should not modify the given bytes after calling this method.
-     * @param algorithm The key algorithm
+     *
      * @param bytes The key material
+     * @param algorithm The key algorithm
      * @return The new key
      */
-    public static @NonNull DestroyableRawSecretKey takeOwnershipOf(@NonNull String algorithm, @NonNull byte[] bytes) {
-        return new DestroyableRawSecretKey(algorithm, bytes);
+    public static @NonNull DestroyableRawSecretKey takeOwnershipOf(@NonNull byte[] bytes, @NonNull String algorithm) {
+        return new DestroyableRawSecretKey(bytes, algorithm);
     }
 
     /**
      * Create a new key by creating a copy of the given key material.
-     * @param algorithm The key algorithm
+     *
      * @param bytes The key material
+     * @param algorithm The key algorithm
      * @return The new key
      */
-    public static @NonNull DestroyableRawSecretKey takeCopyOf(@NonNull String algorithm, @NonNull byte[] bytes) {
-        return new DestroyableRawSecretKey(algorithm, Objects.requireNonNull(bytes).clone());
+    public static @NonNull DestroyableRawSecretKey takeCopyOf(@NonNull byte[] bytes, @NonNull String algorithm) {
+        return new DestroyableRawSecretKey(Objects.requireNonNull(bytes).clone(), algorithm);
     }
 
     /**
@@ -64,12 +66,15 @@ public final class DestroyableRawSecretKey implements SecretKey {
      * @return The new destroyable key.
      */
     public static @NonNull DestroyableRawSecretKey toDestroyableKey(@NonNull SecretKey source) {
-        Objects.requireNonNull(source);
+        checkNotDestroyed(Objects.requireNonNull(source));
+        if (source instanceof DestroyableRawSecretKey destroyableRawSecretKey) {
+            return destroyableRawSecretKey;
+        }
         if (!"RAW".equalsIgnoreCase(source.getFormat())) {
             throw new IllegalArgumentException("RAW-format key required");
         }
         // no need to copy, because getEncoded should itself return a copy of the key material
-        var result = takeOwnershipOf(source.getAlgorithm(), source.getEncoded());
+        var result = takeOwnershipOf(source.getEncoded(), source.getAlgorithm());
         try {
             source.destroy();
         }
@@ -91,20 +96,20 @@ public final class DestroyableRawSecretKey implements SecretKey {
 
     /**
      * Returns the RAW-encoded key.
-     * This is a copy the key. It is the callers responsibility to destroy this key material
+     * This is a copy the key. It is the caller's responsibility to destroy this key material
      * when it's no longer needed.
      * @return The RAW-encoded key.
      * @throws IllegalStateException if the key has been destroyed
      */
     @Override
     public @NonNull byte[] getEncoded() {
-        checkNotDestroyed();
+        checkNotDestroyed(this);
         return key.clone();
     }
 
-    void checkNotDestroyed() {
-        if (isDestroyed()) {
-            throw new IllegalStateException();
+    static void checkNotDestroyed(SecretKey key) {
+        if (key.isDestroyed()) {
+            throw new IllegalStateException("Key has been destroyed");
         }
     }
 

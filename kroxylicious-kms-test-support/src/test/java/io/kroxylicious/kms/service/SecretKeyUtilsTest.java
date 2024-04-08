@@ -16,10 +16,10 @@ class SecretKeyUtilsTest {
     @Test
     void same() {
         byte[] bytes1 = { 0, 1, 2 };
-        var dk1 = DestroyableRawSecretKey.takeOwnershipOf("foo", bytes1);
-        var dk2 = DestroyableRawSecretKey.takeCopyOf("foo", bytes1);
+        var dk1 = DestroyableRawSecretKey.takeOwnershipOf(bytes1, "foo");
+        var dk2 = DestroyableRawSecretKey.takeCopyOf(bytes1, "foo");
         byte[] bytes3 = { 9, 8, 7 };
-        var dk3 = DestroyableRawSecretKey.takeOwnershipOf("foo", bytes3);
+        var dk3 = DestroyableRawSecretKey.takeOwnershipOf(bytes3, "foo");
 
         assertThat(SecretKeyUtils.same(dk1, dk1)).isTrue();
         assertThat(SecretKeyUtils.same(dk1, dk2)).isTrue();

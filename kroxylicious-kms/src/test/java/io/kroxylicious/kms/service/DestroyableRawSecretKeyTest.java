@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kms.service;
 
+import javax.crypto.spec.SecretKeySpec;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,7 +18,7 @@ public class DestroyableRawSecretKeyTest {
     @Test
     void destroy() {
         byte[] bytes = { 0, 1, 2 };
-        var dk = DestroyableRawSecretKey.takeOwnershipOf("foo", bytes);
+        var dk = DestroyableRawSecretKey.takeOwnershipOf(bytes, "foo");
         assertThat(dk.getFormat()).isEqualTo("RAW");
         assertThat(dk.getAlgorithm()).isEqualTo("foo");
         var encoded = dk.getEncoded();
@@ -32,12 +34,28 @@ public class DestroyableRawSecretKeyTest {
     @Test
     void toDestroyableKey() {
         byte[] bytes1 = { 0, 1, 2 };
-        var dk1 = DestroyableRawSecretKey.takeCopyOf("foo", bytes1);
-        var dk2 = DestroyableRawSecretKey.toDestroyableKey(dk1);
-        assertThat(dk1.isDestroyed()).isTrue();
+        var sk1 = new SecretKeySpec(bytes1, "foo") {
+            boolean destroyed = false;
+
+            @Override
+            public void destroy() {
+                destroyed = true;
+            }
+
+            @Override
+            public boolean isDestroyed() {
+                return destroyed;
+            }
+        };
+        var dk2 = DestroyableRawSecretKey.toDestroyableKey(sk1);
+        assertThat(sk1.isDestroyed()).isTrue();
         assertThat(dk2.isDestroyed()).isFalse();
         assertThat(dk2.getEncoded()).isEqualTo(bytes1);
         assertThat(dk2.getAlgorithm()).isEqualTo("foo");
+
+        var dk3 = DestroyableRawSecretKey.toDestroyableKey(dk2);
+        assertThat(dk3).isSameAs(dk2);
+        assertThat(dk3.isDestroyed()).isFalse();
     }
 
 }
