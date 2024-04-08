@@ -166,14 +166,14 @@ public class TestClientsJobTemplates {
     }
 
     /**
-     * Default sarama producer job builder.
+     * Default kafka go producer job builder.
      *
      * @param jobName the job name
      * @param bootstrap the bootstrap
      * @param topicName the topic name
      * @return the job builder
      */
-    public static JobBuilder defaultSaramaProducerJob(String jobName, String bootstrap, String topicName) {
+    public static JobBuilder defaultKafkaGoProducerJob(String jobName, String bootstrap, String topicName) {
         return baseClientJob(jobName)
                 .editSpec()
                 .editTemplate()
@@ -198,7 +198,7 @@ public class TestClientsJobTemplates {
      * @param topicName the topic name
      * @return the job builder
      */
-    public static JobBuilder defaultSaramaConsumerJob(String jobName, String bootstrap, String topicName) {
+    public static JobBuilder defaultKafkaGoConsumerJob(String jobName, String bootstrap, String topicName) {
         return baseClientJob(jobName)
                 .editSpec()
                 .editTemplate()

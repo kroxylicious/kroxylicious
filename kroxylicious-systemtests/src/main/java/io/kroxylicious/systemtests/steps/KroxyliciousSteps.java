@@ -45,14 +45,14 @@ public class KroxyliciousSteps {
     }
 
     /**
-     * Produce messages with sarama.
+     * Produce messages with kafka go.
      *
      * @param namespace the namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      */
-    public static void produceMessagesWithSarama(String namespace, String topicName, String bootstrap) {
-        KafkaUtils.produceMessagesWithSarama(namespace, topicName, bootstrap);
+    public static void produceMessagesWithKafkaGo(String namespace, String topicName, String bootstrap) {
+        KafkaUtils.produceMessagesWithKafkaGo(namespace, topicName, bootstrap);
     }
 
     /**
@@ -84,7 +84,7 @@ public class KroxyliciousSteps {
     }
 
     /**
-     * Consume messages with sarama
+     * Consume messages with kafka go
      *
      * @param namespace the namespace
      * @param topicName the topic name
@@ -93,8 +93,8 @@ public class KroxyliciousSteps {
      * @param timeout the timeout
      * @return the string
      */
-    public static String consumeMessagesWithSarama(String namespace, String topicName, String bootstrap, String message, Duration timeout) {
-        return KafkaUtils.consumeMessagesWithSarama(namespace, topicName, bootstrap, message, timeout);
+    public static String consumeMessagesWithKafkaGo(String namespace, String topicName, String bootstrap, String message, Duration timeout) {
+        return KafkaUtils.consumeMessagesWithKafkaGo(namespace, topicName, bootstrap, message, timeout);
     }
 
     /**

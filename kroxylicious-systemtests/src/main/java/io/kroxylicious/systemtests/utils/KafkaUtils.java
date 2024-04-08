@@ -95,7 +95,7 @@ public class KafkaUtils {
     }
 
     /**
-     * Consume messages with sarama.
+     * Consume messages with kafka go.
      *
      * @param deployNamespace the deploy namespace
      * @param topicName the topic name
@@ -104,9 +104,9 @@ public class KafkaUtils {
      * @param timeout the timeout
      * @return the string
      */
-    public static String consumeMessagesWithSarama(String deployNamespace, String topicName, String bootstrap, String messageToCheck, Duration timeout) {
-        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-sarama";
-        Job saramaClientJob = TestClientsJobTemplates.defaultSaramaConsumerJob(name, bootstrap, topicName).build();
+    public static String consumeMessagesWithKafkaGo(String deployNamespace, String topicName, String bootstrap, String messageToCheck, Duration timeout) {
+        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kafka-go";
+        Job saramaClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, bootstrap, topicName).build();
         return consumeMessages(topicName, name, deployNamespace, saramaClientJob, messageToCheck, timeout);
     }
 
@@ -185,15 +185,15 @@ public class KafkaUtils {
     }
 
     /**
-     * Produce message with sarama.
+     * Produce message with kafka go.
      *
      * @param deployNamespace the deploy namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      */
-    public static void produceMessagesWithSarama(String deployNamespace, String topicName, String bootstrap) {
-        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-sarama";
-        Job saramaClientJob = TestClientsJobTemplates.defaultSaramaProducerJob(name, bootstrap, topicName).build();
+    public static void produceMessagesWithKafkaGo(String deployNamespace, String topicName, String bootstrap) {
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kafka-go";
+        Job saramaClientJob = TestClientsJobTemplates.defaultKafkaGoProducerJob(name, bootstrap, topicName).build();
         produceMessages(deployNamespace, topicName, name, saramaClientJob);
     }
 

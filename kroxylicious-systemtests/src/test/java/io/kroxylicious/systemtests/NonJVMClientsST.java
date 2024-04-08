@@ -83,10 +83,10 @@ class NonJVMClientsST extends AbstractST {
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
         LOGGER.info("When the messages '{}' are sent to the topic '{}'", MESSAGE, topicName);
-        KroxyliciousSteps.produceMessagesWithSarama(namespace, topicName, bootstrap);
+        KroxyliciousSteps.produceMessagesWithKafkaGo(namespace, topicName, bootstrap);
 
         LOGGER.info("Then the messages are consumed");
-        String result = KroxyliciousSteps.consumeMessagesWithSarama(namespace, topicName, bootstrap, expectedMessage, Duration.ofMinutes(2));
+        String result = KroxyliciousSteps.consumeMessagesWithKafkaGo(namespace, topicName, bootstrap, expectedMessage, Duration.ofMinutes(2));
         LOGGER.info("Received: " + result);
 
         assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
