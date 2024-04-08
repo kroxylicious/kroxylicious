@@ -106,8 +106,8 @@ public class KafkaUtils {
      */
     public static String consumeMessagesWithKafkaGo(String deployNamespace, String topicName, String bootstrap, String messageToCheck, Duration timeout) {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kafka-go";
-        Job saramaClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, bootstrap, topicName).build();
-        return consumeMessages(topicName, name, deployNamespace, saramaClientJob, messageToCheck, timeout);
+        Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, bootstrap, topicName).build();
+        return consumeMessages(topicName, name, deployNamespace, goClientJob, messageToCheck, timeout);
     }
 
     /**
@@ -193,8 +193,8 @@ public class KafkaUtils {
      */
     public static void produceMessagesWithKafkaGo(String deployNamespace, String topicName, String bootstrap) {
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kafka-go";
-        Job saramaClientJob = TestClientsJobTemplates.defaultKafkaGoProducerJob(name, bootstrap, topicName).build();
-        produceMessages(deployNamespace, topicName, name, saramaClientJob);
+        Job goClientJob = TestClientsJobTemplates.defaultKafkaGoProducerJob(name, bootstrap, topicName).build();
+        produceMessages(deployNamespace, topicName, name, goClientJob);
     }
 
     /**
