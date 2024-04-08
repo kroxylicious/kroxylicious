@@ -6,17 +6,9 @@
 
 package io.kroxylicious.systemtests.utils;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
@@ -24,12 +16,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.executor.Exec;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
 
@@ -38,27 +34,22 @@ import static org.awaitility.Awaitility.await;
  */
 public class KafkaUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaUtils.class);
-    private static final String BOOTSTRAP_SERVERS_VAR = "%BOOTSTRAP_SERVERS%";
-    private static final String NAMESPACE_VAR = "%NAMESPACE%";
-    private static final String TOPIC_NAME_VAR = "%TOPIC_NAME%";
-    private static final String MESSAGE_COUNT_VAR = "%MESSAGE_COUNT%";
-    private static final String MESSAGE_VAR = "%MESSAGE%";
-    private static final String KAFKA_VERSION_VAR = "%KAFKA_VERSION%";
 
     private KafkaUtils() {
     }
 
-    private static String consumeMessages(String deployNamespace, String topicName, String bootstrap, int numOfMessages, String messageToCheck, Duration timeout) {
-        LOGGER.debug("Consuming messages from '{}' topic", topicName);
-        InputStream file = replaceStringInResourceFile("kafka-consumer-template.yaml", Map.of(
-                BOOTSTRAP_SERVERS_VAR, bootstrap,
-                NAMESPACE_VAR, deployNamespace,
-                TOPIC_NAME_VAR, topicName,
-                MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\"",
-                KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
+    private static void produceMessages(String deployNamespace, String topicName, String name, Job clientJob) {
+        LOGGER.atInfo().setMessage("Producing messages in '{}' topic").addArgument(topicName).log();
+        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(clientJob).create();
+        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
+        DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofSeconds(30));
+        LOGGER.atInfo().setMessage("client producer log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
+    }
 
-        kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
-        String podName = getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_CONSUMER_CLIENT_LABEL, timeout);
+    private static String consumeMessages(String topicName, String name, String deployNamespace, Job clientJob, String messageToCheck, Duration timeout) {
+        LOGGER.atInfo().setMessage("Consuming messages from '{}' topic").addArgument(topicName).log();
+        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(clientJob).create();
+        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         return await().alias("Consumer waiting to receive messages")
                 .ignoreException(KubernetesClientException.class)
                 .atMost(timeout)
@@ -81,7 +72,42 @@ public class KafkaUtils {
      * @return the log of the pod
      */
     public static String consumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, Duration timeout) {
-        return consumeMessages(deployNamespace, topicName, bootstrap, numOfMessages, " - " + (numOfMessages - 1), timeout);
+        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL;
+        Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
+        return consumeMessages(topicName, name, deployNamespace, testClientJob, " - " + (numOfMessages - 1), timeout);
+    }
+
+    /**
+     * Consume messages with kcat.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param messageToCheck the message to check
+     * @param timeout the timeout
+     * @return the string
+     */
+    public static String consumeMessagesWithKcat(String deployNamespace, String topicName, String bootstrap, String messageToCheck, Duration timeout) {
+        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat";
+        List<String> args = Arrays.asList("-b", bootstrap, "-t", topicName, "-C");
+        Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
+        return consumeMessages(topicName, name, deployNamespace, kCatClientJob, messageToCheck, timeout);
+    }
+
+    /**
+     * Consume messages with sarama.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param messageToCheck the message to check
+     * @param timeout the timeout
+     * @return the string
+     */
+    public static String consumeMessagesWithSarama(String deployNamespace, String topicName, String bootstrap, String messageToCheck, Duration timeout) {
+        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-sarama";
+        Job saramaClientJob = TestClientsJobTemplates.defaultSaramaConsumerJob(name, bootstrap, topicName).build();
+        return consumeMessages(topicName, name, deployNamespace, saramaClientJob, messageToCheck, timeout);
     }
 
     /**
@@ -95,7 +121,9 @@ public class KafkaUtils {
      * @return the string
      */
     public static String consumeEncryptedMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, Duration timeout) {
-        return consumeMessages(deployNamespace, topicName, bootstrap, numOfMessages, "key: kroxylicious.io/encryption", timeout);
+        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL;
+        Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
+        return consumeMessages(topicName, name, deployNamespace, testClientJob, "key: kroxylicious.io/encryption", timeout);
     }
 
     /**
@@ -121,37 +149,52 @@ public class KafkaUtils {
      * @param bootstrap the bootstrap
      * @param message the message
      * @param numOfMessages the num of messages
-     * @return the name of the pod
      */
-    public static String produceMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages) {
-        LOGGER.debug("Producing {} messages in '{}' topic", numOfMessages, topicName);
-        InputStream file = replaceStringInResourceFile("kafka-producer-template.yaml", Map.of(
-                BOOTSTRAP_SERVERS_VAR, bootstrap,
-                NAMESPACE_VAR, deployNamespace,
-                TOPIC_NAME_VAR, topicName,
-                MESSAGE_COUNT_VAR, "\"" + numOfMessages + "\"",
-                MESSAGE_VAR, message,
-                KAFKA_VERSION_VAR, Environment.KAFKA_VERSION));
-        kubeClient().getClient().load(file).inNamespace(deployNamespace).create();
-        return getPodNameByLabel(deployNamespace, "app", Constants.KAFKA_PRODUCER_CLIENT_LABEL, Duration.ofSeconds(10));
+    public static void produceMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages) {
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL;
+        Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message).build();
+        produceMessages(deployNamespace, topicName, name, testClientJob);
     }
 
-    private static InputStream replaceStringInResourceFile(String resourceTemplateFileName, Map<String, String> replacements) {
-        Path path = Path.of(Objects.requireNonNull(KafkaUtils.class
-                .getClassLoader().getResource(resourceTemplateFileName)).getPath());
-        Charset charset = StandardCharsets.UTF_8;
+    /**
+     * Produce message with kcat.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param numOfMessages the num of messages
+     */
+    public static void produceMessageWithKcat(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages) {
+        LOGGER.atInfo().setMessage("Producing {} messages in '{}' topic").addArgument(numOfMessages).addArgument(topicName).log();
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kcat";
+        List<String> executableCommand = Arrays.asList(cmdKubeClient(deployNamespace).toString(), "run", "-i",
+                "-n", deployNamespace, name,
+                "--image=edenhill/kcat:1.7.1",
+                "--", "-b", bootstrap, "-t", topicName, "-P");
 
-        String content;
-        try {
-            content = Files.readString(path, charset);
+        LOGGER.atInfo().setMessage("Executing command: {} for running kcat producer").addArgument(executableCommand).log();
+        ExecResult result = Exec.exec(message, executableCommand, Duration.ofSeconds(30), true, false, null);
+
+        if (result.isSuccess()) {
+            LOGGER.atInfo().setMessage("kcat client produce log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, name)).log();
         }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
+        else {
+            LOGGER.atError().setMessage("error producing messages with kcat: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, name)).log();
         }
-        for (Map.Entry<String, String> entry : replacements.entrySet()) {
-            content = content.replaceAll(entry.getKey(), entry.getValue());
-        }
-        return new ByteArrayInputStream(content.getBytes());
+    }
+
+    /**
+     * Produce message with sarama.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     */
+    public static void produceMessagesWithSarama(String deployNamespace, String topicName, String bootstrap) {
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-sarama";
+        Job saramaClientJob = TestClientsJobTemplates.defaultSaramaProducerJob(name, bootstrap, topicName).build();
+        produceMessages(deployNamespace, topicName, name, saramaClientJob);
     }
 
     /**
