@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kms.service;
 
-import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
@@ -45,7 +44,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
      * @param bytes The key material
      * @return The new key
      */
-    public static @NonNull DestroyableRawSecretKey byOwnershipTransfer(@NonNull String algorithm, @NonNull byte[] bytes) {
+    public static @NonNull DestroyableRawSecretKey takeOwnershipOf(@NonNull String algorithm, @NonNull byte[] bytes) {
         return new DestroyableRawSecretKey(algorithm, bytes);
     }
 
@@ -55,7 +54,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
      * @param bytes The key material
      * @return The new key
      */
-    public static @NonNull DestroyableRawSecretKey byClone(@NonNull String algorithm, @NonNull byte[] bytes) {
+    public static @NonNull DestroyableRawSecretKey takeCopyOf(@NonNull String algorithm, @NonNull byte[] bytes) {
         return new DestroyableRawSecretKey(algorithm, Objects.requireNonNull(bytes).clone());
     }
 
@@ -70,12 +69,12 @@ public final class DestroyableRawSecretKey implements SecretKey {
             throw new IllegalArgumentException("RAW-format key required");
         }
         // no need to copy, because getEncoded should itself return a copy of the key material
-        var result = byOwnershipTransfer(source.getAlgorithm(), source.getEncoded());
+        var result = takeOwnershipOf(source.getAlgorithm(), source.getEncoded());
         try {
             source.destroy();
         }
         catch (DestroyFailedException e) {
-            LOGGER.warn("Failed to destroy key of {}", source.getClass());
+            LOGGER.warn("Failed to destroy key of {}: {}", source.getClass(), e);
         }
         return result;
     }
@@ -103,7 +102,7 @@ public final class DestroyableRawSecretKey implements SecretKey {
         return key.clone();
     }
 
-    private void checkNotDestroyed() {
+    void checkNotDestroyed() {
         if (isDestroyed()) {
             throw new IllegalStateException();
         }
@@ -120,19 +119,4 @@ public final class DestroyableRawSecretKey implements SecretKey {
         return destroyed;
     }
 
-    /**
-     * Tests whether the arguments represent the same key.
-     * @param thisKey The one key
-     * @param thatKey The other key
-     * @return true if they keys have the same algorithm and key material.
-     */
-    public static boolean same(@NonNull DestroyableRawSecretKey thisKey, @NonNull DestroyableRawSecretKey thatKey) {
-        if (thisKey == thatKey) {
-            return true;
-        }
-        Objects.requireNonNull(thisKey).checkNotDestroyed();
-        Objects.requireNonNull(thatKey).checkNotDestroyed();
-        return thisKey.algorithm.equals(thatKey.algorithm)
-                && MessageDigest.isEqual(thisKey.key, thatKey.key); // note: constant time impl
-    }
 }

@@ -105,7 +105,7 @@ class VaultKmsTest {
         withMockVaultWithSingleResponse(response, vaultKms -> {
             Assertions.assertThat(vaultKms.generateDekPair("alias")).succeedsWithin(Duration.ofSeconds(5))
                     .matches(dekPair -> Objects.equals(dekPair.edek(), new VaultEdek("alias", ciphertext.getBytes(StandardCharsets.UTF_8))))
-                    .matches(dekPair -> DestroyableRawSecretKey.same((DestroyableRawSecretKey) dekPair.dek(), DestroyableRawSecretKey.byClone("AES", decoded)));
+                    .matches(dekPair -> DestroyableRawSecretKeyTest.same((DestroyableRawSecretKey) dekPair.dek(), DestroyableRawSecretKey.takeCopyOf("AES", decoded)));
         });
     }
 
@@ -131,7 +131,7 @@ class VaultKmsTest {
         withMockVaultWithSingleResponse(response, vaultKms -> {
             Assertions.assertThat(vaultKms.decryptEdek(new VaultEdek("kek", edekBytes))).succeedsWithin(Duration.ofSeconds(5))
                     .isInstanceOf(DestroyableRawSecretKey.class)
-                    .matches(key -> DestroyableRawSecretKey.same((DestroyableRawSecretKey) key, DestroyableRawSecretKey.byClone("AES", plaintextBytes)));
+                    .matches(key -> DestroyableRawSecretKeyTest.same((DestroyableRawSecretKey) key, DestroyableRawSecretKey.takeCopyOf("AES", plaintextBytes)));
         });
     }
 

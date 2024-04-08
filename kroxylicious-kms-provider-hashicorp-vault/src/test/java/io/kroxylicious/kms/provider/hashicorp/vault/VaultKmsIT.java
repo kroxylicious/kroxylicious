@@ -87,7 +87,7 @@ class VaultKmsIT {
         var decryptedDekStage = service.decryptEdek(pair.edek());
         assertThat(decryptedDekStage)
                 .succeedsWithin(Duration.ofSeconds(5))
-                .matches(sk -> DestroyableRawSecretKey.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
+                .matches(sk -> DestroyableRawSecretKeyTest.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
     }
 
     @Test
@@ -107,7 +107,7 @@ class VaultKmsIT {
         var decryptedDekStage = service.decryptEdek(pair.edek());
         assertThat(decryptedDekStage)
                 .succeedsWithin(Duration.ofSeconds(5))
-                .matches(sk -> DestroyableRawSecretKey.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
+                .matches(sk -> DestroyableRawSecretKeyTest.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
     }
 
     @Test

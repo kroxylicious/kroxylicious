@@ -56,7 +56,7 @@ class DekTest {
 
     @NonNull
     private DestroyableRawSecretKey makeKey() {
-        return DestroyableRawSecretKey.byClone("AES", new byte[]{ 1 });
+        return DestroyableRawSecretKey.takeCopyOf("AES", new byte[]{ 1 });
     }
 
     @ParameterizedTest
@@ -471,7 +471,7 @@ class DekTest {
         // Given
         var generator = KeyGenerator.getInstance("AES");
         SecretKey secretKey = generator.generateKey();
-        var key = DestroyableRawSecretKey.byOwnershipTransfer(secretKey.getAlgorithm(), secretKey.getEncoded());
+        var key = DestroyableRawSecretKey.takeOwnershipOf(secretKey.getAlgorithm(), secretKey.getEncoded());
         // We need a copy of the key, because the key will be destroyed as a side-effect of using up the last encryption
         var safeKey = DestroyableRawSecretKey.toDestroyableKey(secretKey);
         var edek = key.getEncoded(); // For this test it doesn't matter than it's not, in fact, encrypted
