@@ -191,7 +191,7 @@ public class TestClientsJobTemplates {
     }
 
     /**
-     * Default sarama consumer job builder.
+     * Default kafka go consumer job builder.
      *
      * @param jobName the job name
      * @param bootstrap the bootstrap
