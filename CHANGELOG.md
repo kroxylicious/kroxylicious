@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<github issue/pr numb
 
 ## SNAPSHOT
 
+* [#1129](https://github.com/kroxylicious/kroxylicious/pull/1129): Ensure timeouts are cancelled when sendRequest completes normally. Thanks to @luozhenyu for spotting the issue.
 * [#1115](https://github.com/kroxylicious/kroxylicious/pull/1115): Bump io.netty:netty-bom from 4.1.107.Final to 4.1.108.Final
 * [#1110](https://github.com/kroxylicious/kroxylicious/pull/1110): Body decoder now supports older versions of ApiVersionsResponse
 * [#1107](https://github.com/kroxylicious/kroxylicious/pull/1107): Replace deprecated FilePasswordFilePath class with @JsonAlias.

@@ -63,6 +63,7 @@ class FilterHandlerTest extends FilterHarness {
 
     private static final int ARBITRARY_TAG = 500;
     private static final RawTaggedField MARK = createTag(ARBITRARY_TAG, "mark");
+    public static final long TIMEOUT_MS = 50L;
 
     @Test
     void testForwardRequest() {
@@ -349,11 +350,10 @@ class FilterHandlerTest extends FilterHarness {
     void testDeferredRequestTimeout() {
         var filterFuture = new CompletableFuture<RequestFilterResult>();
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
-        long timeoutMs = 50L;
-        timeout(timeoutMs).buildChannel(filter);
+        timeout(TIMEOUT_MS).buildChannel(filter);
         channel.freezeTime();
         writeRequest(new ApiVersionsRequestData());
-        channel.advanceTimeBy(timeoutMs - 1, TimeUnit.MILLISECONDS);
+        channel.advanceTimeBy(TIMEOUT_MS - 1, TimeUnit.MILLISECONDS);
         channel.runPendingTasks();
         assertThat(filterFuture).isNotDone();
         channel.advanceTimeBy(1, TimeUnit.MILLISECONDS);
@@ -368,11 +368,10 @@ class FilterHandlerTest extends FilterHarness {
     void testDeferredResponseTimeout() {
         var filterFuture = new CompletableFuture<ResponseFilterResult>();
         ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> filterFuture;
-        long timeoutMs = 50L;
-        timeout(timeoutMs).buildChannel(filter);
+        timeout(TIMEOUT_MS).buildChannel(filter);
         channel.freezeTime();
         writeResponse(new ApiVersionsResponseData());
-        channel.advanceTimeBy(timeoutMs - 1, TimeUnit.MILLISECONDS);
+        channel.advanceTimeBy(TIMEOUT_MS - 1, TimeUnit.MILLISECONDS);
         channel.runPendingTasks();
         assertThat(filterFuture).isNotDone();
         channel.advanceTimeBy(1, TimeUnit.MILLISECONDS);
@@ -386,7 +385,7 @@ class FilterHandlerTest extends FilterHarness {
     @Test
     void testUserResponseFilterReturnsNullFuture() {
         ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> null;
-        timeout(50L).buildChannel(filter);
+        timeout(TIMEOUT_MS).buildChannel(filter);
         writeResponse(new ApiVersionsResponseData());
         assertThat(channel.isOpen()).isFalse();
     }
@@ -395,7 +394,7 @@ class FilterHandlerTest extends FilterHarness {
     void testUserResponseFilterReturnsEmptyFuture() {
         CompletableFuture<ResponseFilterResult> filterFuture = CompletableFuture.completedFuture(null);
         ApiVersionsResponseFilter filter = (apiVersion, header, request, context) -> filterFuture;
-        timeout(50L).buildChannel(filter);
+        timeout(TIMEOUT_MS).buildChannel(filter);
         writeResponse(new ApiVersionsResponseData());
         assertThat(channel.isOpen()).isFalse();
     }
@@ -403,7 +402,7 @@ class FilterHandlerTest extends FilterHarness {
     @Test
     void testUserRequestFilterReturnsNullFuture() {
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> null;
-        timeout(50L).buildChannel(filter);
+        timeout(TIMEOUT_MS).buildChannel(filter);
         writeRequest(new ApiVersionsRequestData());
         assertThat(channel.isOpen()).isFalse();
     }
@@ -412,7 +411,7 @@ class FilterHandlerTest extends FilterHarness {
     void testUserRequestFilterReturnsEmptyFuture() {
         CompletableFuture<RequestFilterResult> filterFuture = CompletableFuture.completedFuture(null);
         ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> filterFuture;
-        timeout(50L).buildChannel(filter);
+        timeout(TIMEOUT_MS).buildChannel(filter);
         writeRequest(new ApiVersionsRequestData());
         assertThat(channel.isOpen()).isFalse();
     }
@@ -671,6 +670,33 @@ class FilterHandlerTest extends FilterHarness {
         assertThat(propagated).isEqualTo(requestFrame);
     }
 
+    @Test
+    void shouldTimeoutSendRequest() {
+        var oobRequestBody = new FetchRequestData();
+        var snoopedOobRequestResponseStage = new AtomicReference<CompletionStage<FetchResponseData>>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            assertNull(snoopedOobRequestResponseStage.get(), "Expected to only be called once");
+            snoopedOobRequestResponseStage.set(context.sendRequest(new RequestHeaderData(), oobRequestBody));
+            return snoopedOobRequestResponseStage.get()
+                    .thenCompose(u -> context.forwardRequest(header, request));
+        };
+
+        timeout(TIMEOUT_MS).buildChannel(filter);
+
+        // trigger filter
+        writeRequest(new ApiVersionsRequestData());
+        channel.readOutbound();
+
+        var snoopedOobRequestResponseFuture = toCompletableFuture(snoopedOobRequestResponseStage.get());
+
+        // When
+        channel.advanceTimeBy(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        channel.runPendingTasks();
+
+        // Then
+        assertThat(snoopedOobRequestResponseFuture).isDone().isCompletedExceptionally();
+    }
+
     static Stream<Arguments> sendRequestRejectsNulls() {
         return Stream.of(
                 Arguments.of(new RequestHeaderData(), null),
@@ -830,7 +856,7 @@ class FilterHandlerTest extends FilterHarness {
             return context.requestFilterResultBuilder().drop().completed();
         };
 
-        timeout(50L).buildChannel(filter);
+        timeout(TIMEOUT_MS).buildChannel(filter);
         channel.freezeTime();
 
         // trigger filter
@@ -855,7 +881,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         assertThat(snoopedOobRequestResponseFuture).withFailMessage("Future should be finished").isCompletedExceptionally();
-        assertThatThrownBy(() -> snoopedOobRequestResponseFuture.get()).hasCauseInstanceOf(TimeoutException.class).hasMessageContaining("was timed-out");
+        assertThatThrownBy(() -> snoopedOobRequestResponseFuture.get()).hasCauseInstanceOf(TimeoutException.class).hasMessageContaining("failed to complete within");
     }
 
     @Test

@@ -10,7 +10,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import javax.annotation.Nullable;
 
@@ -71,6 +70,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private ChannelHandlerContext ctx;
+    private PromiseFactory promiseFactory;
 
     public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualCluster virtualCluster, Channel inboundChannel,
                          ApiVersionsServiceImpl apiVersionService) {
@@ -90,6 +90,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         this.ctx = ctx;
+        this.promiseFactory = new PromiseFactory(ctx.executor(), timeoutMs, TimeUnit.MILLISECONDS, LOGGER.getName());
         super.channelActive(ctx);
     }
 
@@ -298,16 +299,10 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
         inboundChannel.config().setAutoRead(false);
-        var timeoutFuture = ctx.executor().schedule(() -> {
-            if (LOGGER.isWarnEnabled()) {
-                LOGGER.warn("{}: Filter {} was timed-out whilst processing {} {}", channelDescriptor(), filterDescriptor(),
-                        decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey());
-            }
-            future.completeExceptionally(new TimeoutException("Filter %s was timed-out.".formatted(filterDescriptor())));
-        }, timeoutMs, TimeUnit.MILLISECONDS);
-        return future.whenComplete((f, throwable) -> {
-            timeoutFuture.cancel(false);
-        }).thenApplyAsync(filterResult -> filterResult, ctx.executor());
+        promiseFactory.wrapWithTimeLimit(future,
+                () -> "Deferred work for filter %s did not complete processing within %s ms %s %s".formatted(filterDescriptor(), timeoutMs,
+                        decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey()));
+        return future.thenApplyAsync(filterResult -> filterResult, ctx.executor());
     }
 
     private void deferredResponseCompleted(ResponseFilterResult ignored, Throwable throwable) {
@@ -499,7 +494,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
 
             var hasResponse = apiKey != ApiKeys.PRODUCE || ((ProduceRequestData) request).acks() != 0;
-            var filterPromise = new InternalCompletableFuture<M>(ctx.executor());
+            CompletableFuture<M> filterPromise = promiseFactory.newTimeLimitedPromise(
+                    () -> "Asynchronous %s request made by filter %s failed to complete within %s ms.".formatted(apiKey, filterDescriptor(), timeoutMs));
             var frame = new InternalRequestFrame<>(
                     header.requestApiVersion(), header.correlationId(), hasResponse,
                     filter, filterPromise, header, request);
@@ -525,12 +521,6 @@ public class FilterHandler extends ChannelDuplexHandler {
                 });
             }
 
-            ctx.executor().schedule(() -> {
-                LOGGER.debug("{}: Timing out {} request after {}ms", ctx, apiKey, timeoutMs);
-                filterPromise
-                        .completeExceptionally(
-                                new TimeoutException("Asynchronous %s request made by filter %s was timed-out.".formatted(apiKey, filterDescriptor())));
-            }, timeoutMs, TimeUnit.MILLISECONDS);
             return filterPromise.minimalCompletionStage();
         }
 
@@ -540,4 +530,5 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
     }
+
 }

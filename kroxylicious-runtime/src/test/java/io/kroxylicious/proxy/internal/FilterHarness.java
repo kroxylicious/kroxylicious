@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -37,17 +38,20 @@ import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * A test harness for {@link Filter} implementations.
  */
 public abstract class FilterHarness {
     public static final String TEST_CLIENT = "test-client";
+    public static final List<HostPort> TARGET_CLUSTER_BOOTSTRAP = List.of(HostPort.parse("targetCluster:9091"));
     protected EmbeddedChannel channel;
     private final AtomicInteger outboundCorrelationId = new AtomicInteger(1);
     private final Map<Integer, Correlation> pendingInternalRequestMap = new HashMap<>();
@@ -72,7 +76,9 @@ public abstract class FilterHarness {
     protected void buildChannel(Filter... filters) {
         assertNull(channel, "Channel already built");
 
-        var testVirtualCluster = new VirtualCluster("TestVirtualCluster", mock(TargetCluster.class), mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(),
+        final TargetCluster targetCluster = mock(TargetCluster.class);
+        when(targetCluster.bootstrapServersList()).thenReturn(TARGET_CLUSTER_BOOTSTRAP);
+        var testVirtualCluster = new VirtualCluster("TestVirtualCluster", targetCluster, mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(),
                 false, false);
         var inboundChannel = new EmbeddedChannel();
         var apiVersionService = new ApiVersionsServiceImpl();
