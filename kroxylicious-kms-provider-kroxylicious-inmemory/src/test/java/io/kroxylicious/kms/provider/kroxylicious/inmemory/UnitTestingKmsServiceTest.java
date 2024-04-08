@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
+import io.kroxylicious.kms.service.DestroyableRawSecretKeyTest;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 

@@ -36,6 +36,7 @@ import com.sun.net.httpserver.HttpServer;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
+import io.kroxylicious.kms.service.DestroyableRawSecretKeyTest;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;

@@ -6,12 +6,12 @@
 
 package io.kroxylicious.kms.service;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import java.security.MessageDigest;
+import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
 
-import java.security.MessageDigest;
-import java.util.Objects;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
