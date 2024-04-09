@@ -98,30 +98,21 @@ public class TestClientsJobTemplates {
      * @return the job builder
      */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message) {
-        return baseClientJob(jobName)
-                .editSpec()
-                .editTemplate()
-                .editSpec()
-                .withContainers(new ContainerBuilder()
-                        .withName("test-client-producer")
-                        .withImage(Constants.TEST_CLIENTS_IMAGE)
-                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
-                        .withEnv(testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message))
-                        .withSecurityContext(jobsSecurityContext())
-                        .build())
-                .endSpec()
-                .endTemplate()
-                .endSpec();
+        return newJobForContainer(jobName,
+                "test-client-producer",
+                Constants.TEST_CLIENTS_IMAGE,
+                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message)
+        );
     }
 
-private JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
+    private static JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
        return baseClientJob(jobName)
                 .editSpec()
                 .editTemplate()
                 .editSpec()
                 .withContainers(new ContainerBuilder()
                         .withName(containerName)
-                        .withImage(iamge)
+                        .withImage(image)
                         .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withEnv(envVars)
                         .withSecurityContext(jobsSecurityContext())
@@ -145,7 +136,7 @@ private JobBuilder newJobForContainer(String jobName, String containerName, Stri
             "test-client-consumer", 
             Constants.TEST_CLIENTS_IMAGE, 
             testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages)
-            );
+        );
     }
 
     /**
