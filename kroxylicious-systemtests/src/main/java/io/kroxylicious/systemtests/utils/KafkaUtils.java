@@ -170,7 +170,7 @@ public class KafkaUtils {
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kcat";
         List<String> executableCommand = Arrays.asList(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
-                "--image=edenhill/kcat:1.7.1",
+                "--image=" + Constants.KCAT_CLIENT_IMAGE,
                 "--", "-b", bootstrap, "-t", topicName, "-P");
 
         LOGGER.atInfo().setMessage("Executing command: {} for running kcat producer").addArgument(executableCommand).log();

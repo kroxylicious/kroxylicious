@@ -155,7 +155,7 @@ public class TestClientsJobTemplates {
                 .editSpec()
                 .withContainers(new ContainerBuilder()
                         .withName("kcat")
-                        .withImage("edenhill/kcat:1.7.1")
+                        .withImage(Constants.KCAT_CLIENT_IMAGE)
                         .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withArgs(args)
                         .withSecurityContext(jobsSecurityContext())
@@ -215,95 +215,44 @@ public class TestClientsJobTemplates {
                 .endSpec();
     }
 
-    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message) {
-        List<EnvVar> envVarList = new ArrayList<>();
-        envVarList.add(new EnvVarBuilder()
-                .withName(BOOTSTRAP_VAR)
-                .withValue(bootstrap)
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(DELAY_MS_VAR)
-                .withValue("1000")
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(TOPIC_VAR)
-                .withValue(topicName)
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(MESSAGE_COUNT_VAR)
-                .withValue(String.valueOf(numOfMessages))
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(MESSAGE_VAR)
-                .withValue(message)
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(PRODUCER_ACKS_VAR)
-                .withValue("all")
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(LOG_LEVEL_VAR)
-                .withValue("INFO")
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(CLIENT_TYPE_VAR)
-                .withValue("KafkaProducer")
-                .build());
+    private static EnvVar envVar(String name, String value) {
+        return new EnvVarBuilder()
+                .withName(name)
+                .withValue(value)
+                .build();
+    }
 
-        return envVarList;
+    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message) {
+        return List.of(
+                envVar(BOOTSTRAP_VAR, bootstrap),
+                envVar(DELAY_MS_VAR, "1000"),
+                envVar(TOPIC_VAR, topicName),
+                envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
+                envVar(MESSAGE_VAR, message),
+                envVar(PRODUCER_ACKS_VAR, "all"),
+                envVar(LOG_LEVEL_VAR, "INFO"),
+                envVar(CLIENT_TYPE_VAR, "KafkaProducer"));
     }
 
     private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages) {
-        List<EnvVar> envVarList = new ArrayList<>();
-        envVarList.add(new EnvVarBuilder()
-                .withName(BOOTSTRAP_VAR)
-                .withValue(bootstrap)
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(TOPIC_VAR)
-                .withValue(topicName)
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(MESSAGE_COUNT_VAR)
-                .withValue(String.valueOf(numOfMessages))
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(GROUP_ID_VAR)
-                .withValue("my-group")
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(LOG_LEVEL_VAR)
-                .withValue("INFO")
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(CLIENT_TYPE_VAR)
-                .withValue("KafkaConsumer")
-                .build());
-
-        return envVarList;
+        return List.of(
+                envVar(BOOTSTRAP_VAR, bootstrap),
+                envVar(TOPIC_VAR, topicName),
+                envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
+                envVar(GROUP_ID_VAR, "my-group"),
+                envVar(LOG_LEVEL_VAR, "INFO"),
+                envVar(CLIENT_TYPE_VAR, "KafkaConsumer"));
     }
 
     private static List<EnvVar> kafkaGoProducerEnvVars(String bootstrap, String topicName) {
-        List<EnvVar> envVarList = new ArrayList<>();
-        envVarList.add(new EnvVarBuilder()
-                .withName(BOOTSTRAP_VAR)
-                .withValue(bootstrap)
-                .build());
-        envVarList.add(new EnvVarBuilder()
-                .withName(TOPIC_VAR)
-                .withValue(topicName)
-                .build());
-
-        return envVarList;
+        return List.of(
+                envVar(BOOTSTRAP_VAR, bootstrap),
+                envVar(TOPIC_VAR, topicName));
     }
 
     private static List<EnvVar> kafkaGoConsumerEnvVars(String bootstrap, String topicName) {
-        List<EnvVar> envVarList = kafkaGoProducerEnvVars(bootstrap, topicName);
-        envVarList.add(new EnvVarBuilder()
-                .withName(GROUP_ID_VAR)
-                .withValue("my-kafka-go-group")
-                .build());
-
+        List<EnvVar> envVarList = new ArrayList<>(kafkaGoProducerEnvVars(bootstrap, topicName));
+        envVarList.add(envVar(GROUP_ID_VAR, "my-kafka-go-group"));
         return envVarList;
     }
 
