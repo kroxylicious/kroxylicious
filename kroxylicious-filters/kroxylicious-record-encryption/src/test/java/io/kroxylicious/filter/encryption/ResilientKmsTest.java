@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import io.kroxylicious.kms.service.DekPair;
-import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -45,7 +44,7 @@ class ResilientKmsTest {
 
     private static final long RESULT = 7L;
     private static final long DELAY = 10;
-    public static final DestroyableRawSecretKey SECRET_KEY = mock(DestroyableRawSecretKey.class);
+    public static final SecretKey SECRET_KEY = mock(SecretKey.class);
     public static final DekPair<Long> DEK_PAIR = new DekPair<>(2L, SECRET_KEY);
 
     @Test

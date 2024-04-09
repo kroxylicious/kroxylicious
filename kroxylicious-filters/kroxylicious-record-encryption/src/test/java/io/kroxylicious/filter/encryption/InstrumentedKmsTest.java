@@ -19,7 +19,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.kms.service.DekPair;
-import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
@@ -40,7 +39,7 @@ class InstrumentedKmsTest {
     @Mock
     KmsMetrics metrics;
     @Mock
-    DestroyableRawSecretKey secretKey;
+    SecretKey secretKey;
     @Mock
     Serde<String> serde;
 

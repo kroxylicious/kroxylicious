@@ -24,7 +24,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config, ByteBuffer, ByteBuffer> {
 
-    private final DestroyableRawSecretKey dek;
+    private final SecretKey dek;
     private final ByteBuffer edek;
     private static final ByteBuffer KEK_ID = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
     private final FixedEdekKms fixedEdekKms = new FixedEdekKms();
