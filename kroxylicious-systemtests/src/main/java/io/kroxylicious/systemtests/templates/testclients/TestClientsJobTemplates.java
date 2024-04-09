@@ -114,6 +114,23 @@ public class TestClientsJobTemplates {
                 .endSpec();
     }
 
+private JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
+       return baseClientJob(jobName)
+                .editSpec()
+                .editTemplate()
+                .editSpec()
+                .withContainers(new ContainerBuilder()
+                        .withName(containerName)
+                        .withImage(iamge)
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                        .withEnv(envVars)
+                        .withSecurityContext(jobsSecurityContext())
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();           
+    }
+
     /**
      * Default test client consumer job builder.
      *
@@ -124,20 +141,11 @@ public class TestClientsJobTemplates {
      * @return the job builder
      */
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages) {
-        return baseClientJob(jobName)
-                .editSpec()
-                .editTemplate()
-                .editSpec()
-                .withContainers(new ContainerBuilder()
-                        .withName("test-client-consumer")
-                        .withImage(Constants.TEST_CLIENTS_IMAGE)
-                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
-                        .withEnv(testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages))
-                        .withSecurityContext(jobsSecurityContext())
-                        .build())
-                .endSpec()
-                .endTemplate()
-                .endSpec();
+        return newJobForContainer(jobName, 
+            "test-client-consumer", 
+            Constants.TEST_CLIENTS_IMAGE, 
+            testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages)
+            );
     }
 
     /**
