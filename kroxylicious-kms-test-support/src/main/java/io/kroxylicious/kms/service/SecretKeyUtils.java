@@ -12,6 +12,10 @@ import java.util.Objects;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class SecretKeyUtils {
+
+    private SecretKeyUtils() {
+    }
+
     /**
      * Tests whether the arguments represent the same key.
      * @param thisKey The one key
