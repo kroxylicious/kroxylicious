@@ -101,12 +101,11 @@ public class TestClientsJobTemplates {
         return newJobForContainer(jobName,
                 "test-client-producer",
                 Constants.TEST_CLIENTS_IMAGE,
-                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message)
-        );
+                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message));
     }
 
     private static JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
-       return baseClientJob(jobName)
+        return baseClientJob(jobName)
                 .editSpec()
                 .editTemplate()
                 .editSpec()
@@ -119,7 +118,7 @@ public class TestClientsJobTemplates {
                         .build())
                 .endSpec()
                 .endTemplate()
-                .endSpec();           
+                .endSpec();
     }
 
     /**
@@ -132,11 +131,10 @@ public class TestClientsJobTemplates {
      * @return the job builder
      */
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages) {
-        return newJobForContainer(jobName, 
-            "test-client-consumer", 
-            Constants.TEST_CLIENTS_IMAGE, 
-            testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages)
-        );
+        return newJobForContainer(jobName,
+                "test-client-consumer",
+                Constants.TEST_CLIENTS_IMAGE,
+                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages));
     }
 
     /**
