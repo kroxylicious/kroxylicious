@@ -11,7 +11,11 @@ import javax.crypto.SecretKey;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * A Data Encryption Key as both plaintext and encrypted.
+ * <p>A Data Encryption Key as both plaintext and encrypted.</p>
+ *
+ * <p><strong>Note:</strong> It is strongly recommended that the implementation of {@code SecretKey} used for
+ * {@code dek} overrides {@link SecretKey#destroy()} to actually destroy the key material.
+ * {@link DestroyableRawSecretKey} provides such an implementation for use by implementers.</p>
  * @param edek The encrypted DEK.
  * @param dek The plaintext DEK.
  * @param <E> The type of encrypted DEK.

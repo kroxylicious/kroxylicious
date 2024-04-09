@@ -25,15 +25,17 @@ record VaultResponse<D>(D data) {
         }
     }
 
+    @SuppressWarnings("java:S6218") // no need for toString, equals, hashCode to go deep on the byte[]
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record DecryptData(String plaintext) {
+    record DecryptData(byte[] plaintext) {
         DecryptData {
             Objects.requireNonNull(plaintext);
         }
     }
 
+    @SuppressWarnings("java:S6218") // no need for toString, equals, hashCode to go deep on the byte[]
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record DataKeyData(String plaintext, String ciphertext) {
+    record DataKeyData(byte[] plaintext, String ciphertext) {
         DataKeyData {
             Objects.requireNonNull(plaintext);
             Objects.requireNonNull(ciphertext);

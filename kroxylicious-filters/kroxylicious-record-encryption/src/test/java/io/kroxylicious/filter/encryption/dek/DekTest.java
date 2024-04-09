@@ -18,6 +18,8 @@ import javax.security.auth.DestroyFailedException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,7 +56,7 @@ class DekTest {
 
     @NonNull
     private DestroyableRawSecretKey makeKey() {
-        return new DestroyableRawSecretKey("AES", new byte[]{ 1 });
+        return DestroyableRawSecretKey.takeCopyOf(new byte[]{ 1 }, "AES");
     }
 
     @ParameterizedTest
@@ -469,9 +471,9 @@ class DekTest {
         // Given
         var generator = KeyGenerator.getInstance("AES");
         SecretKey secretKey = generator.generateKey();
-        var key = new DestroyableRawSecretKey(secretKey.getAlgorithm(), secretKey.getEncoded());
+        var key = DestroyableRawSecretKey.takeOwnershipOf(secretKey.getEncoded(), secretKey.getAlgorithm());
         // We need a copy of the key, because the key will be destroyed as a side-effect of using up the last encryption
-        var safeKey = new DestroyableRawSecretKey(secretKey.getAlgorithm(), key.getEncoded());
+        var safeKey = DestroyableRawSecretKey.toDestroyableKey(secretKey);
         var edek = key.getEncoded(); // For this test it doesn't matter than it's not, in fact, encrypted
         var dek = new Dek<>(edek, key, cipherSpec, 1);
         var encryptor = dek.encryptor(1);
