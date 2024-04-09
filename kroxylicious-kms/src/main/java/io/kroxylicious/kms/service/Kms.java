@@ -34,7 +34,12 @@ public interface Kms<K, E> {
     CompletionStage<DekPair<E>> generateDekPair(@NonNull K kekRef);
 
     /**
-     * Asynchronously decrypts a data encryption key that was {@linkplain #generateDekPair(Object) previously encrypted}.
+     * <p>Asynchronously decrypts a data encryption key that was {@linkplain #generateDekPair(Object) previously encrypted}.</p>
+     *
+     * <p><strong>Note:</strong> It is strongly recommended that the implementation of {@code SecretKey} returned in the {@code CompletionStage}
+     * overrides {@link SecretKey#destroy()} to actually destroy the key material.
+     * {@link DestroyableRawSecretKey} provides such an implementation for use by implementers.</p>
+     *
      * @param edek The encrypted data encryption key.
      * @return A completion stage for the data encryption key
      * @throws UnknownKeyException If the edek was not encrypted by a KEK known to this KMS.
