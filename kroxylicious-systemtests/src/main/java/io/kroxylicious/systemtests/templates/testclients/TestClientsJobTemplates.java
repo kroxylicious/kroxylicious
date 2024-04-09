@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests.templates.testclients;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -166,48 +165,22 @@ public class TestClientsJobTemplates {
     }
 
     /**
-     * Default kafka go producer job builder.
-     *
-     * @param jobName the job name
-     * @param bootstrap the bootstrap
-     * @param topicName the topic name
-     * @return the job builder
-     */
-    public static JobBuilder defaultKafkaGoProducerJob(String jobName, String bootstrap, String topicName) {
-        return baseClientJob(jobName)
-                .editSpec()
-                .editTemplate()
-                .editSpec()
-                .withContainers(new ContainerBuilder()
-                        .withName("kafka-go-producer")
-                        .withImage("ppatierno/kafka-go-producer:latest")
-                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
-                        .withEnv(kafkaGoProducerEnvVars(bootstrap, topicName))
-                        .withSecurityContext(jobsSecurityContext())
-                        .build())
-                .endSpec()
-                .endTemplate()
-                .endSpec();
-    }
-
-    /**
      * Default kafka go consumer job builder.
      *
      * @param jobName the job name
-     * @param bootstrap the bootstrap
-     * @param topicName the topic name
+     * @param args the args
      * @return the job builder
      */
-    public static JobBuilder defaultKafkaGoConsumerJob(String jobName, String bootstrap, String topicName) {
+    public static JobBuilder defaultKafkaGoConsumerJob(String jobName, List<String> args) {
         return baseClientJob(jobName)
                 .editSpec()
                 .editTemplate()
                 .editSpec()
                 .withContainers(new ContainerBuilder()
                         .withName("kafka-go-consumer")
-                        .withImage("ppatierno/kafka-go-consumer:latest")
+                        .withImage(Constants.KAF_CLIENT_IMAGE)
                         .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
-                        .withEnv(kafkaGoConsumerEnvVars(bootstrap, topicName))
+                        .withArgs(args)
                         .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
@@ -242,18 +215,6 @@ public class TestClientsJobTemplates {
                 envVar(GROUP_ID_VAR, "my-group"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
                 envVar(CLIENT_TYPE_VAR, "KafkaConsumer"));
-    }
-
-    private static List<EnvVar> kafkaGoProducerEnvVars(String bootstrap, String topicName) {
-        return List.of(
-                envVar(BOOTSTRAP_VAR, bootstrap),
-                envVar(TOPIC_VAR, topicName));
-    }
-
-    private static List<EnvVar> kafkaGoConsumerEnvVars(String bootstrap, String topicName) {
-        List<EnvVar> envVarList = new ArrayList<>(kafkaGoProducerEnvVars(bootstrap, topicName));
-        envVarList.add(envVar(GROUP_ID_VAR, "my-kafka-go-group"));
-        return envVarList;
     }
 
     private static SecurityContext jobsSecurityContext() {

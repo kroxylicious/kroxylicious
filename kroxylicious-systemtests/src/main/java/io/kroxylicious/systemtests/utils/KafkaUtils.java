@@ -67,14 +67,15 @@ public class KafkaUtils {
      * @param deployNamespace the deploy namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
+     * @param message the message
      * @param numOfMessages the num of messages
      * @param timeout the timeout
      * @return the log of the pod
      */
-    public static String consumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, Duration timeout) {
+    public static String consumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages, Duration timeout) {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL;
         Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
-        return consumeMessages(topicName, name, deployNamespace, testClientJob, " - " + (numOfMessages - 1), timeout);
+        return consumeMessages(topicName, name, deployNamespace, testClientJob, message, timeout);
     }
 
     /**
@@ -106,7 +107,8 @@ public class KafkaUtils {
      */
     public static String consumeMessagesWithKafkaGo(String deployNamespace, String topicName, String bootstrap, String messageToCheck, Duration timeout) {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kafka-go";
-        Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, bootstrap, topicName).build();
+        List<String> args = Arrays.asList("kaf", "-b", bootstrap, "consume", topicName);
+        Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
         return consumeMessages(topicName, name, deployNamespace, goClientJob, messageToCheck, timeout);
     }
 
@@ -157,16 +159,15 @@ public class KafkaUtils {
     }
 
     /**
-     * Produce message with kcat.
+     * Produce single message with kcat.
      *
      * @param deployNamespace the deploy namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
      * @param message the message
-     * @param numOfMessages the num of messages
      */
-    public static void produceMessageWithKcat(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages) {
-        LOGGER.atInfo().setMessage("Producing {} messages in '{}' topic").addArgument(numOfMessages).addArgument(topicName).log();
+    public static void produceSingleMessageWithKcat(String deployNamespace, String topicName, String bootstrap, String message) {
+        LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kcat").addArgument(topicName).log();
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kcat";
         List<String> executableCommand = Arrays.asList(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
@@ -185,16 +186,30 @@ public class KafkaUtils {
     }
 
     /**
-     * Produce message with kafka go.
+     * Produce single message with kafka go.
      *
      * @param deployNamespace the deploy namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
+     * @param message the message
      */
-    public static void produceMessagesWithKafkaGo(String deployNamespace, String topicName, String bootstrap) {
-        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kafka-go";
-        Job goClientJob = TestClientsJobTemplates.defaultKafkaGoProducerJob(name, bootstrap, topicName).build();
-        produceMessages(deployNamespace, topicName, name, goClientJob);
+    public static void produceSingleMessageWithKafkaGo(String deployNamespace, String topicName, String bootstrap, String message) {
+        LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf";
+        List<String> executableCommand = Arrays.asList(cmdKubeClient(deployNamespace).toString(), "run", "-i",
+                "-n", deployNamespace, name,
+                "--image=" + Constants.KAF_CLIENT_IMAGE,
+                "--", "kaf", "-b", bootstrap, "produce", topicName);
+
+        LOGGER.atInfo().setMessage("Executing command: {} for running kaf producer").addArgument(executableCommand).log();
+        ExecResult result = Exec.exec(message, executableCommand, Duration.ofSeconds(30), true, false, null);
+
+        if (result.isSuccess()) {
+            LOGGER.atInfo().setMessage("kaf client produce log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, name)).log();
+        }
+        else {
+            LOGGER.atError().setMessage("error producing messages with kaf: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, name)).log();
+        }
     }
 
     /**

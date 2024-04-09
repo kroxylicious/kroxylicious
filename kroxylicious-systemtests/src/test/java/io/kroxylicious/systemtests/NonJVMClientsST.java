@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -34,62 +35,122 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(KroxyliciousExtension.class)
 class NonJVMClientsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(NonJVMClientsST.class);
-    private static Kroxylicious kroxylicious;
     private final String clusterName = "my-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Message";
+    private String bootstrap;
 
     /**
-     * Produce and consume message.
+     * Produce and consume message with kcat.
      *
      * @param namespace the namespace
      */
     @Test
-    void kCatClients(String namespace) {
-        int numberOfMessages = 1;
-        String expectedMessage = MESSAGE;
+    void produceAndConsumeWithKcatClients(String namespace) {
+        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceSingleMessageWithKcat(namespace, topicName, bootstrap, MESSAGE);
 
-        // start Kroxylicious
-        LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        String bootstrap = kroxylicious.getBootstrap();
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        String result = KroxyliciousSteps.consumeMessagesWithKcat(namespace, topicName, bootstrap, MESSAGE, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        LOGGER.info("And a kafka Topic named {}", topicName);
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
-
-        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
-        KroxyliciousSteps.produceMessagesWithKcat(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
-
-        LOGGER.info("Then the {} messages are consumed", numberOfMessages);
-        String result = KroxyliciousSteps.consumeMessagesWithKcat(namespace, topicName, bootstrap, expectedMessage, Duration.ofMinutes(2));
-        LOGGER.info("Received: " + result);
-
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
     }
 
+    /**
+     * Produce and consume message with kaf.
+     *
+     * @param namespace the namespace
+     */
     @Test
-    void kafkaGoClients(String namespace) {
-        int numberOfMessages = 1;
-        String expectedMessage = MESSAGE + "-" + (numberOfMessages);
+    void produceAndConsumeWithKafkaGoClients(String namespace) {
+        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessagesWithKafkaGo(namespace, topicName, bootstrap, MESSAGE);
 
-        // start Kroxylicious
-        LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
-        kroxylicious = new Kroxylicious(namespace);
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        String result = KroxyliciousSteps.consumeMessagesWithKafkaGo(namespace, topicName, bootstrap, MESSAGE, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+    }
+
+    /**
+     * Produce with kcat and consume message with java test clients.
+     *
+     * @param namespace the namespace
+     */
+    @Test
+    void produceWithKcatAndConsumeWithTestClients(String namespace) {
+        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceSingleMessageWithKcat(namespace, topicName, bootstrap, MESSAGE);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, 1, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+    }
+
+    /**
+     * Produce with java test clients and consume message with kcat.
+     *
+     * @param namespace the namespace
+     */
+    @Test
+    void produceWithTestClientsAndConsumeWithKcat(String namespace) {
+        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, 1);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        String result = KroxyliciousSteps.consumeMessagesWithKcat(namespace, topicName, bootstrap, MESSAGE, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+    }
+
+    /**
+     * Produce with kaf and consume message with java test clients.
+     *
+     * @param namespace the namespace
+     */
+    @Test
+    void produceWithKafkaGoAndConsumeWithTestClients(String namespace) {
+        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessagesWithKafkaGo(namespace, topicName, bootstrap, MESSAGE);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, 1, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+    }
+
+    /**
+     * Produce with java test clients and consume message with kaf.
+     *
+     * @param namespace the namespace
+     */
+    @Test
+    void produceWithTestClientsAndConsumeWithKafkaGo(String namespace) {
+        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, 1);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        String result = KroxyliciousSteps.consumeMessagesWithKafkaGo(namespace, topicName, bootstrap, MESSAGE, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+    }
+
+    @BeforeEach
+    void setUpBeforeEach(String namespace) {
+        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        String bootstrap = kroxylicious.getBootstrap();
+        bootstrap = kroxylicious.getBootstrap();
 
-        LOGGER.info("And a kafka Topic named {}", topicName);
+        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
-
-        LOGGER.info("When the messages '{}' are sent to the topic '{}'", MESSAGE, topicName);
-        KroxyliciousSteps.produceMessagesWithKafkaGo(namespace, topicName, bootstrap);
-
-        LOGGER.info("Then the messages are consumed");
-        String result = KroxyliciousSteps.consumeMessagesWithKafkaGo(namespace, topicName, bootstrap, expectedMessage, Duration.ofMinutes(2));
-        LOGGER.info("Received: " + result);
-
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
     /**
