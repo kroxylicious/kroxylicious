@@ -13,9 +13,6 @@ import java.util.concurrent.ExecutionException;
 
 import javax.crypto.SecretKey;
 
-import io.kroxylicious.filter.encryption.kms.InstrumentedKms;
-import io.kroxylicious.filter.encryption.kms.KmsMetrics;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

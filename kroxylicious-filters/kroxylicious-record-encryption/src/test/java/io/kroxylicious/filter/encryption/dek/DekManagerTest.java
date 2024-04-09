@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.kroxylicious.filter.encryption.config.CipherSpec;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.Serde;
@@ -43,6 +44,7 @@ class DekManagerTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void testLimitsNumbersOfEncryptors(CipherSpec cipherSpec) {
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         // Given
         UnitTestingKmsService unitTestingKmsService = UnitTestingKmsService.newInstance();
         UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96, List.of());
@@ -52,7 +54,7 @@ class DekManagerTest {
         var dm = new DekManager<>(unitTestingKmsService, options, 1);
 
         // When
-        var dek = dm.generateDek(kekId, cipherSpec).toCompletableFuture().join();
+        var dek = dm.generateDek(kekId, cipherManager).toCompletableFuture().join();
 
         // Then
         assertThatThrownBy(() -> dek.encryptor(2)).isExactlyInstanceOf(ExhaustedDekException.class);
@@ -61,6 +63,7 @@ class DekManagerTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void testDecryptedEdekIsGoodForDecryptingData(CipherSpec cipherSpec) {
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         // Given
         UnitTestingKmsService unitTestingKmsService = UnitTestingKmsService.newInstance();
         UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96, List.of());
@@ -70,7 +73,7 @@ class DekManagerTest {
         var dm = new DekManager<>(unitTestingKmsService, options, 1_000);
 
         // Generate a DEK anduse it to encrypt
-        var dek = dm.generateDek(kekId, cipherSpec).toCompletableFuture().join();
+        var dek = dm.generateDek(kekId, cipherManager).toCompletableFuture().join();
         ByteBuffer plaintext = ByteBuffer.wrap("hello, world".getBytes(StandardCharsets.UTF_8));
         ByteBuffer aad = null;
         ByteBuffer[] ciphertext = new ByteBuffer[1];
@@ -89,7 +92,7 @@ class DekManagerTest {
         edekBuffer.flip();
 
         // When
-        var decrypted = dm.decryptEdek(inMemoryEdekSerde.deserialize(edekBuffer), cipherSpec).toCompletableFuture().join();
+        var decrypted = dm.decryptEdek(inMemoryEdekSerde.deserialize(edekBuffer), cipherManager).toCompletableFuture().join();
 
         // Then
         assertThatThrownBy(() -> decrypted.encryptor(1)).isExactlyInstanceOf(ExhaustedDekException.class);

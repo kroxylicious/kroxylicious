@@ -29,7 +29,7 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
     private static final ByteBuffer KEK_ID = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
     private final FixedEdekKms fixedEdekKms = new FixedEdekKms();
 
-    FixedDekKmsService(int keysize) {
+    public FixedDekKmsService(int keysize) {
         try {
             KeyGenerator generator = KeyGenerator.getInstance("AES");
             generator.init(keysize);
@@ -55,7 +55,7 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
         return fixedEdekKms.edekSerde();
     }
 
-    record Config() {}
+    public record Config() {}
 
     private class FixedEdekKms implements Kms<ByteBuffer, ByteBuffer> {
 

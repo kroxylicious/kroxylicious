@@ -18,6 +18,7 @@ import javax.security.auth.DestroyFailedException;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.kroxylicious.filter.encryption.config.CipherSpec;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -30,9 +31,10 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void constructorThrowsOnDestroyedKey(CipherSpec cipherSpec) {
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
         key.destroy();
-        assertThatThrownBy(() -> new Dek<>("edek", key, cipherSpec, 100))
+        assertThatThrownBy(() -> new Dek<>("edek", key, cipherManager, 100))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
 
     }
@@ -40,16 +42,18 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void constructorThrowsOnNegativeExceptions(CipherSpec cipherSpec) {
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        assertThatThrownBy(() -> new Dek<>("edek", key, cipherSpec, -1))
+        assertThatThrownBy(() -> new Dek<>("edek", key, cipherManager, -1))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void encryptorThrowsExhaustedDekExceptionOnDekWithZeroEncryptions(CipherSpec cipherSpec) {
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 0);
+        var dek = new Dek<>("edek", key, cipherManager, 0);
         assertThatThrownBy(() -> dek.encryptor(1))
                 .isExactlyInstanceOf(ExhaustedDekException.class);
     }
@@ -62,8 +66,9 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void encryptorThrowsOnZeroEncryptions(CipherSpec cipherSpec) {
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 1);
+        var dek = new Dek<>("edek", key, cipherManager, 1);
         assertThatThrownBy(() -> dek.encryptor(0))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
@@ -71,8 +76,9 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void encryptorThrowsOnNegativeEncryptions(CipherSpec cipherSpec) {
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 1);
+        var dek = new Dek<>("edek", key, cipherManager, 1);
         assertThatThrownBy(() -> dek.encryptor(-1))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
@@ -80,9 +86,10 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void returnsEdek(CipherSpec cipherSpec) {
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
         String edek = "edek";
-        Dek<String> dek = new Dek<>(edek, key, cipherSpec, 100);
+        Dek<String> dek = new Dek<>(edek, key, cipherManager, 100);
         assertThat(dek.encryptor(1).edek()).isSameAs(edek);
 
     }
@@ -90,9 +97,10 @@ class DekTest {
     @ParameterizedTest
     @EnumSource(CipherSpec.class)
     void destroyUnusedDek(CipherSpec cipherSpec) throws DestroyFailedException {
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         // Given
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 100);
+        var dek = new Dek<>("edek", key, cipherManager, 100);
 
         // When
         dek.destroy();
@@ -110,8 +118,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Encryptor_destroyThenClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 100);
+        var dek = new Dek<>("edek", key, cipherManager, 100);
         var cryptor = dek.encryptor(100);
 
         // When
@@ -131,8 +140,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Encryptor_closeThenDestroy(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 100);
+        var dek = new Dek<>("edek", key, cipherManager, 100);
         var cryptor = dek.encryptor(100);
 
         cryptor.close();
@@ -151,8 +161,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy2Encryptor(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 101);
+        var dek = new Dek<>("edek", key, cipherManager, 101);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.encryptor(50);
 
@@ -183,8 +194,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy2EncryptorMultiClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 100);
+        var dek = new Dek<>("edek", key, cipherManager, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.encryptor(50);
 
@@ -211,8 +223,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Decryptor_destroyThenClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 0);
+        var dek = new Dek<>("edek", key, cipherManager, 0);
         var cryptor = dek.decryptor();
 
         // When
@@ -232,8 +245,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Decryptor_closeThenDestroy(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 0);
+        var dek = new Dek<>("edek", key, cipherManager, 0);
         var cryptor = dek.decryptor();
 
         // When
@@ -251,8 +265,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy2Decryptor(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 1);
+        var dek = new Dek<>("edek", key, cipherManager, 1);
         var cryptor1 = dek.decryptor();
         var cryptor2 = dek.decryptor();
 
@@ -284,8 +299,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy2DecryptorMultiClose(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 0);
+        var dek = new Dek<>("edek", key, cipherManager, 0);
         var cryptor1 = dek.decryptor();
         var cryptor2 = dek.decryptor();
 
@@ -312,8 +328,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Encryptor1Decryptor_destroy(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 100);
+        var dek = new Dek<>("edek", key, cipherManager, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.decryptor();
 
@@ -339,8 +356,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Encryptor1Decryptor_destroyForEncrypt(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 100);
+        var dek = new Dek<>("edek", key, cipherManager, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.decryptor();
 
@@ -370,8 +388,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroy1Encryptor1Decryptor_destroyForDecrypt(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 100);
+        var dek = new Dek<>("edek", key, cipherManager, 100);
         var cryptor1 = dek.encryptor(50);
         var cryptor2 = dek.decryptor();
 
@@ -401,8 +420,9 @@ class DekTest {
     @EnumSource(CipherSpec.class)
     void destroyWhen0InitialEncryptions(CipherSpec cipherSpec) throws DestroyFailedException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var key = makeKey();
-        var dek = new Dek<>("edek", key, cipherSpec, 0);
+        var dek = new Dek<>("edek", key, cipherManager, 0);
 
         assertThat(dek.isDestroyed()).isFalse();
         assertThat(key.isDestroyed()).isFalse();
@@ -450,10 +470,11 @@ class DekTest {
     }
 
     private String decrypt(CipherSpec cipherSpec, ByteBuffer aad, EncryptInfo encryptInfo) {
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var params = encryptInfo.params();
         var ciphertext = encryptInfo.ciphertext();
 
-        var dek = new Dek<>(encryptInfo.key().getEncoded(), encryptInfo.key(), cipherSpec, 1);
+        var dek = new Dek<>(encryptInfo.key().getEncoded(), encryptInfo.key(), cipherManager, 1);
         var decryptor = dek.decryptor();
 
         // Note, we use a common buffer backing both the plaintext and the ciphertext so that we're testing that
@@ -469,13 +490,14 @@ class DekTest {
 
     private EncryptInfo encrypt(CipherSpec cipherSpec, ByteBuffer aad, String plaintext) throws NoSuchAlgorithmException {
         // Given
+        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
         var generator = KeyGenerator.getInstance("AES");
         SecretKey secretKey = generator.generateKey();
         var key = DestroyableRawSecretKey.takeOwnershipOf(secretKey.getEncoded(), secretKey.getAlgorithm());
         // We need a copy of the key, because the key will be destroyed as a side-effect of using up the last encryption
         var safeKey = DestroyableRawSecretKey.toDestroyableKey(secretKey);
         var edek = key.getEncoded(); // For this test it doesn't matter than it's not, in fact, encrypted
-        var dek = new Dek<>(edek, key, cipherSpec, 1);
+        var dek = new Dek<>(edek, key, cipherManager, 1);
         var encryptor = dek.encryptor(1);
 
         // Destroy the DEK: We expect the encryptor should still be usable

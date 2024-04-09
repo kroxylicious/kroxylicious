@@ -11,7 +11,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Random;
 import java.util.stream.Stream;
 
-import io.kroxylicious.filter.encryption.kms.ExponentialJitterBackoffStrategy;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

@@ -15,9 +15,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 
-import io.kroxylicious.filter.encryption.kms.BackoffStrategy;
-import io.kroxylicious.filter.encryption.kms.ResilientKms;
-
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 

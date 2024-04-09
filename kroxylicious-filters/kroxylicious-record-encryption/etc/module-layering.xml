@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<!DOCTYPE import-control PUBLIC
+        "-//Checkstyle//DTD ImportControl Configuration 1.4//EN"
+        "https://checkstyle.org/dtds/import_control_1_4.dtd">
+
+<import-control pkg="io.kroxylicious.filter.encryption">
+    <!-- Allowed globally -->
+    <allow pkg="javax?\..*" regex="true"/>
+    <allow pkg="edu.umd.cs.findbugs.annotations"/>
+    <allow pkg="org.slf4j"/>
+    <allow pkg="io.micrometer.core.instrument"/>
+    <allow pkg="io.kroxylicious.proxy.tag"/>
+    <allow pkg="io.kroxylicious.filter.encryption.common"/>
+
+    <!-- top level package (these are all local-only=true)  -->
+    <allow pkg="org.apache.kafka.common.message" local-only="true"/>
+    <allow pkg="org.apache.kafka.common.record" local-only="true"/>
+    <allow pkg="io.kroxylicious.proxy.filter" local-only="true"/> <!-- the filter api -->
+    <allow pkg="io.kroxylicious.proxy.plugin" local-only="true"/> <!-- the plugin api -->
+    <allow pkg="io.kroxylicious.kms.service" local-only="true"/> <!-- the kms api -->
+    <allow pkg="io.kroxylicious.filter.encryption" regex="true" local-only="true"/><!-- all subpackages -->
+
+    <subpackage name="common">
+        <allow pkg="org.apache.kafka.common.record"/>
+        <allow pkg="org.apache.kafka.common.utils"/>
+    </subpackage>
+    <subpackage name="config">
+        <allow pkg="com.fasterxml.jackson.annotation"/>
+        <allow pkg="io.kroxylicious.proxy.plugin"/>
+        <allow pkg="io.kroxylicious.kms.service"/>
+    </subpackage>
+    <subpackage name="records">
+        <allow pkg="org.apache.kafka.common.record"/>
+        <allow pkg="org.apache.kafka.common.utils"/>
+        <allow pkg="org.apache.kafka.common.header"/>
+    </subpackage>
+    <subpackage name="dek">
+        <allow pkg="io.kroxylicious.kms.service"/>
+        <!-- allowed deps in this module: -->
+        <allow pkg="io.kroxylicious.filter.encryption.config"/>
+    </subpackage>
+    <subpackage name="crypto">
+        <allow pkg="org.apache.kafka.common.utils"/>
+        <allow pkg="org.apache.kafka.common.record"/>
+        <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="io.kroxylicious.kms.service"/> <!-- serde -->
+        <!-- allowed deps in this module: -->
+        <allow pkg="io.kroxylicious.filter.encryption.config"/>
+        <allow pkg="io.kroxylicious.filter.encryption.dek"/>
+    </subpackage>
+    <subpackage name="kms">
+        <allow pkg="io.kroxylicious.kms.service"/>
+        <allow pkg="com.github.benmanes.caffeine.cache"/>
+    </subpackage>
+    <subpackage name="encrypt">
+        <allow pkg="org.apache.kafka.common.record"/>
+        <allow pkg="org.apache.kafka.common.utils"/>
+        <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="com.github.benmanes.caffeine.cache"/>
+        <allow pkg="io.kroxylicious.kms.service"/> <!-- serde -->
+        <!-- allowed deps in this module: -->
+        <allow pkg="io.kroxylicious.filter.encryption.common"/>
+        <allow pkg="io.kroxylicious.filter.encryption.config"/>
+        <allow pkg="io.kroxylicious.filter.encryption.records"/>
+        <allow pkg="io.kroxylicious.filter.encryption.dek"/>
+        <allow pkg="io.kroxylicious.filter.encryption.crypto"/>
+    </subpackage>
+    <subpackage name="decrypt">
+        <allow pkg="org.apache.kafka.common.record"/>
+        <allow pkg="org.apache.kafka.common.utils"/>
+        <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="com.github.benmanes.caffeine.cache"/>
+        <allow pkg="io.kroxylicious.kms.service"/> <!-- serde -->
+        <!-- allowed deps in this module: -->
+        <allow pkg="io.kroxylicious.filter.encryption.common"/>
+        <allow pkg="io.kroxylicious.filter.encryption.config"/>
+        <allow pkg="io.kroxylicious.filter.encryption.records"/>
+        <allow pkg="io.kroxylicious.filter.encryption.dek"/>
+        <allow pkg="io.kroxylicious.filter.encryption.crypto"/>
+    </subpackage>
+
+
+
+</import-control>

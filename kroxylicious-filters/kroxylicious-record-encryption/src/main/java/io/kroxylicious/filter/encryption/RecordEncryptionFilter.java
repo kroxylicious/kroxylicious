@@ -14,7 +14,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
@@ -26,6 +25,13 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.slf4j.Logger;
 
+import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
+import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
+import io.kroxylicious.filter.encryption.config.RecordField;
+import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
+import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
+import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
+import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
@@ -57,13 +63,6 @@ public class RecordEncryptionFilter<K>
         this.encryptionManager = encryptionManager;
         this.decryptionManager = decryptionManager;
         this.filterThreadExecutor = filterThreadExecutor;
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T> CompletionStage<List<T>> join(List<? extends CompletionStage<T>> stages) {
-        CompletableFuture<T>[] futures = stages.stream().map(CompletionStage::toCompletableFuture).toArray(CompletableFuture[]::new);
-        return CompletableFuture.allOf(futures)
-                .thenApply(ignored -> Stream.of(futures).map(CompletableFuture::join).toList());
     }
 
     @Override
@@ -99,7 +98,7 @@ public class RecordEncryptionFilter<K>
                                     .thenApply(ppd::setRecords);
                         });
                     }).toList();
-                    return join(futures).thenApply(x -> request);
+                    return RecordEncryptionUtil.join(futures).thenApply(x -> request);
                 }).exceptionallyCompose(throwable -> {
                     log.atWarn().setMessage("failed to encrypt records, cause message: {}")
                             .addArgument(throwable.getMessage())
@@ -130,7 +129,7 @@ public class RecordEncryptionFilter<K>
                 return topicData;
             }));
         }
-        return join(result);
+        return RecordEncryptionUtil.join(result);
     }
 
     private CompletionStage<List<PartitionData>> maybeDecodePartitions(String topicName,
@@ -143,7 +142,7 @@ public class RecordEncryptionFilter<K>
             }
             result.add(maybeDecodeRecords(topicName, partitionData, (MemoryRecords) partitionData.records(), context));
         }
-        return join(result);
+        return RecordEncryptionUtil.join(result);
     }
 
     private CompletionStage<PartitionData> maybeDecodeRecords(String topicName,

@@ -6,7 +6,10 @@
 
 package io.kroxylicious.filter.encryption;
 
+import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
+import io.kroxylicious.filter.encryption.decrypt.DecryptionDekCache;
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.filter.encryption.encrypt.EncryptionDekCache;
 import io.kroxylicious.kms.service.Kms;
 
 /**
@@ -17,7 +20,7 @@ import io.kroxylicious.kms.service.Kms;
  */
 public class SharedEncryptionContext<K, E> {
     private final Kms<K, E> kms;
-    private final RecordEncryption.Config configuration;
+    private final RecordEncryptionConfig configuration;
     private final DekManager<K, E> dekManager;
     private final EncryptionDekCache<K, E> encryptionDekCache;
     private final DecryptionDekCache<K, E> decryptionDekCache;
@@ -30,7 +33,7 @@ public class SharedEncryptionContext<K, E> {
      */
     SharedEncryptionContext(
                             Kms<K, E> kms,
-                            RecordEncryption.Config configuration,
+                            RecordEncryptionConfig configuration,
                             DekManager<K, E> dekManager,
                             EncryptionDekCache<K, E> encryptionDekCache,
                             DecryptionDekCache<K, E> decryptionDekCache) {
@@ -45,7 +48,7 @@ public class SharedEncryptionContext<K, E> {
         return kms;
     }
 
-    public RecordEncryption.Config configuration() {
+    public RecordEncryptionConfig configuration() {
         return configuration;
     }
 

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption;
 
+import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.plugin.Plugin;
 
@@ -16,7 +17,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
  * @param <E> The type of encrypted DEK
  */
 @Deprecated(since = "0.5.0", forRemoval = true)
-@Plugin(configType = RecordEncryption.Config.class)
-public class EnvelopeEncryption<K, E> extends RecordEncryption<K, E> implements FilterFactory<RecordEncryption.Config, SharedEncryptionContext<K, E>> {
+@Plugin(configType = RecordEncryptionConfig.class)
+public class EnvelopeEncryption<K, E> extends RecordEncryption<K, E> implements FilterFactory<RecordEncryptionConfig, SharedEncryptionContext<K, E>> {
 
 }
