@@ -4,9 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.encryption.inband;
-
-import io.kroxylicious.filter.encryption.EncryptionException;
+package io.kroxylicious.filter.encryption;
 
 /**
  * Request could not be satisfied. Indicates that there was some logical reason

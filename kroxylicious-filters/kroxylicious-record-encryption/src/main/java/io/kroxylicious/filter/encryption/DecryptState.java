@@ -4,11 +4,10 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.encryption.inband;
+package io.kroxylicious.filter.encryption;
 
 import java.util.Objects;
 
-import io.kroxylicious.filter.encryption.EncryptionVersion;
 import io.kroxylicious.filter.encryption.dek.Dek;
 
 import edu.umd.cs.findbugs.annotations.Nullable;

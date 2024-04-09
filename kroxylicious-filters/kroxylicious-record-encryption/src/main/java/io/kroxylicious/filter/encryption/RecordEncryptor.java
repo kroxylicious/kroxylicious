@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.encryption.inband;
+package io.kroxylicious.filter.encryption;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -14,9 +14,6 @@ import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 
-import io.kroxylicious.filter.encryption.EncryptionScheme;
-import io.kroxylicious.filter.encryption.EncryptionVersion;
-import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.records.RecordTransform;

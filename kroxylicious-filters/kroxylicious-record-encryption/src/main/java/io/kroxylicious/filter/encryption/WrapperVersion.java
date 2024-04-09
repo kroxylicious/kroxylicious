@@ -20,7 +20,6 @@ import org.apache.kafka.common.utils.ByteUtils;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
-import io.kroxylicious.filter.encryption.inband.Parcel;
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;

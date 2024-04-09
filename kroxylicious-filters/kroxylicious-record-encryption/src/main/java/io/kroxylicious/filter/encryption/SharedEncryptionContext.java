@@ -7,8 +7,6 @@
 package io.kroxylicious.filter.encryption;
 
 import io.kroxylicious.filter.encryption.dek.DekManager;
-import io.kroxylicious.filter.encryption.inband.DecryptionDekCache;
-import io.kroxylicious.filter.encryption.inband.EncryptionDekCache;
 import io.kroxylicious.kms.service.Kms;
 
 /**

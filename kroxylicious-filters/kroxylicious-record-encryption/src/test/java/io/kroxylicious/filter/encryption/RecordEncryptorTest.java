@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.encryption.inband;
+package io.kroxylicious.filter.encryption;
 
 import java.io.Closeable;
 import java.nio.ByteBuffer;
@@ -21,9 +21,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.filter.encryption.EncryptionScheme;
-import io.kroxylicious.filter.encryption.EncryptionVersion;
-import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekException;

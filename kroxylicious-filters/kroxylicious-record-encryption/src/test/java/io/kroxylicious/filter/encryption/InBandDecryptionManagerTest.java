@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.encryption.inband;
+package io.kroxylicious.filter.encryption;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -43,10 +43,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
-import io.kroxylicious.filter.encryption.EncryptionException;
-import io.kroxylicious.filter.encryption.EncryptionScheme;
-import io.kroxylicious.filter.encryption.FilterThreadExecutor;
-import io.kroxylicious.filter.encryption.RecordField;
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
@@ -276,14 +272,16 @@ class InBandDecryptionManagerTest {
     }
 
     @NonNull
-    private static CompletionStage<Void> doDecrypt(InBandDecryptionManager<UUID, InMemoryEdek> decryptionManager, String topic, int partition, List<Record> encrypted,
+    private static CompletionStage<Void> doDecrypt(
+                                                   InBandDecryptionManager<UUID, InMemoryEdek> decryptionManager, String topic, int partition, List<Record> encrypted,
                                                    List<Record> decrypted) {
         return decryptionManager.decrypt(topic, partition, RecordTestUtils.memoryRecords(encrypted), ByteBufferOutputStream::new)
                 .thenAccept(records -> records.records().forEach(decrypted::add));
     }
 
     @NonNull
-    private static CompletionStage<Void> doEncrypt(InBandEncryptionManager<UUID, InMemoryEdek> encryptionManager,
+    private static CompletionStage<Void> doEncrypt(
+                                                   InBandEncryptionManager<UUID, InMemoryEdek> encryptionManager,
                                                    String topic,
                                                    int partition,
                                                    EncryptionScheme<UUID> scheme,

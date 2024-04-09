@@ -28,10 +28,6 @@ import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.dek.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.DekManager;
-import io.kroxylicious.filter.encryption.inband.DecryptionDekCache;
-import io.kroxylicious.filter.encryption.inband.EncryptionDekCache;
-import io.kroxylicious.filter.encryption.inband.InBandDecryptionManager;
-import io.kroxylicious.filter.encryption.inband.InBandEncryptionManager;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.filter.FilterFactory;
