@@ -19,6 +19,13 @@ import java.util.stream.Stream;
 
 import javax.crypto.Cipher;
 
+import io.kroxylicious.filter.encryption.kms.CachingKms;
+import io.kroxylicious.filter.encryption.kms.ExponentialJitterBackoffStrategy;
+import io.kroxylicious.filter.encryption.kms.InstrumentedKms;
+import io.kroxylicious.filter.encryption.kms.KmsMetrics;
+import io.kroxylicious.filter.encryption.kms.MicrometerKmsMetrics;
+import io.kroxylicious.filter.encryption.kms.ResilientKms;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.encryption;
+package io.kroxylicious.filter.encryption.kms;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
@@ -12,6 +12,9 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 
 import javax.crypto.SecretKey;
+
+import io.kroxylicious.filter.encryption.kms.InstrumentedKms;
+import io.kroxylicious.filter.encryption.kms.KmsMetrics;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,9 +27,9 @@ import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
-import static io.kroxylicious.filter.encryption.KmsMetrics.OperationOutcome.EXCEPTION;
-import static io.kroxylicious.filter.encryption.KmsMetrics.OperationOutcome.NOT_FOUND;
-import static io.kroxylicious.filter.encryption.KmsMetrics.OperationOutcome.SUCCESS;
+import static io.kroxylicious.filter.encryption.kms.KmsMetrics.OperationOutcome.EXCEPTION;
+import static io.kroxylicious.filter.encryption.kms.KmsMetrics.OperationOutcome.NOT_FOUND;
+import static io.kroxylicious.filter.encryption.kms.KmsMetrics.OperationOutcome.SUCCESS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
