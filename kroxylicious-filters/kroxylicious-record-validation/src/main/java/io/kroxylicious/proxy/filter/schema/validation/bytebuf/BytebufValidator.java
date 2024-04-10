@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.record.Record;
 
@@ -31,5 +32,5 @@ public interface BytebufValidator {
      * @param isKey true if the buffer is the key of the record, false if it is the value of the record
      * @return a valid result if the buffer is valid
      */
-    Result validate(ByteBuffer buffer, int length, Record record, boolean isKey);
+    CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey);
 }

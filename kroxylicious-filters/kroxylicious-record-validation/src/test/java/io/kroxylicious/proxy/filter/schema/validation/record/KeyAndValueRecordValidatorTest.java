@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter.schema.validation.record;
 
+import java.util.concurrent.CompletableFuture;
+
 import org.apache.kafka.common.record.Record;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -21,8 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class KeyAndValueRecordValidatorTest {
 
     public static final String FAIL_MESSAGE = "fail";
-    public static final BytebufValidator INVALID = (buffer, length, record, isKey) -> new Result(false, FAIL_MESSAGE);
-    public static final BytebufValidator VALID = (buffer, length, record, isKey) -> Result.VALID;
+    public static final BytebufValidator INVALID = (buffer, length, record, isKey) -> CompletableFuture.completedFuture(new Result(false, FAIL_MESSAGE));
+    public static final BytebufValidator VALID = (buffer, length, record, isKey) -> CompletableFuture.completedFuture(Result.VALID);
 
     @Test
     void testInvalidKey() {

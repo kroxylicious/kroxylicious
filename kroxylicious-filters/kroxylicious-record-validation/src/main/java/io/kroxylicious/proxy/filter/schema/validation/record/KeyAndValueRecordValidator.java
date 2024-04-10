@@ -36,15 +36,27 @@ public class KeyAndValueRecordValidator implements RecordValidator {
 
     @Override
     public CompletionStage<Result> validate(Record record) {
-        Result keyValid = keyValidator.validate(record.key(), record.keySize(), record, true);
-        if (!keyValid.valid()) {
-            return CompletableFuture.completedFuture(new Result(false, "Key was invalid: " + keyValid.errorMessage()));
-        }
-        Result valueValid = valueValidator.validate(record.value(), record.valueSize(), record, false);
-        if (!valueValid.valid()) {
-            return CompletableFuture.completedFuture(new Result(false, "Value was invalid: " + valueValid.errorMessage()));
-        }
-        return CompletableFuture.completedFuture(Result.VALID);
+        CompletionStage<Result> keyValid = keyValidator.validate(record.key(), record.keySize(), record, true);
+        return keyValid.thenCompose(result -> {
+            if (!result.valid()) {
+                return CompletableFuture.completedFuture(new Result(false, "Key was invalid: " + result.errorMessage()));
+            }
+            else {
+                return validateValue(record);
+            }
+        });
+    }
+
+    private CompletionStage<Result> validateValue(Record record) {
+        CompletionStage<Result> valueValid = valueValidator.validate(record.value(), record.valueSize(), record, false);
+        return valueValid.thenCompose(result1 -> {
+            if (!result1.valid()) {
+                return CompletableFuture.completedFuture(new Result(false, "Value was invalid: " + result1.errorMessage()));
+            }
+            else {
+                return CompletableFuture.completedFuture(Result.VALID);
+            }
+        });
     }
 
     /**
