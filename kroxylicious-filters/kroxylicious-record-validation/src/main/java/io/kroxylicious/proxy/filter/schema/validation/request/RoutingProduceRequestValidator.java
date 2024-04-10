@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.filter.schema.validation.request;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -56,9 +57,14 @@ public class RoutingProduceRequestValidator implements ProduceRequestValidator {
 
     @Override
     public CompletionStage<ProduceRequestValidationResult> validateRequest(ProduceRequestData request) {
-        Map<String, TopicValidationResult> collect = request.topicData().stream().collect(
-                Collectors.toMap(ProduceRequestData.TopicProduceData::name, topicProduceData -> getTopicValidator(topicProduceData).validateTopicData(topicProduceData)));
-        return CompletableFuture.completedFuture(new ProduceRequestValidationResult(collect));
+        CompletableFuture<TopicValidationResult>[] results = request.topicData().stream()
+                .map(topicProduceData -> getTopicValidator(topicProduceData).validateTopicData(topicProduceData).toCompletableFuture())
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(results).thenApply(unused -> {
+            Map<String, TopicValidationResult> result = Arrays.stream(results).map(CompletableFuture::join)
+                    .collect(Collectors.toMap(TopicValidationResult::topicName, r -> r));
+            return new ProduceRequestValidationResult(result);
+        });
     }
 
     private TopicValidator getTopicValidator(ProduceRequestData.TopicProduceData topicProduceData) {

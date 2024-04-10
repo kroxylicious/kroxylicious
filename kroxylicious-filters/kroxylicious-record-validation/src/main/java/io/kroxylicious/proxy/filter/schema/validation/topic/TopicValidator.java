@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter.schema.validation.topic;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.ProduceRequestData;
 
 /**
@@ -18,5 +20,5 @@ public interface TopicValidator {
      * @param request the request
      * @return result describing whether any partitions were invalid, and details of any invalid partitions/records
      */
-    TopicValidationResult validateTopicData(ProduceRequestData.TopicProduceData request);
+    CompletionStage<TopicValidationResult> validateTopicData(ProduceRequestData.TopicProduceData request);
 }

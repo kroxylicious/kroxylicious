@@ -6,11 +6,14 @@
 
 package io.kroxylicious.proxy.filter.schema.validation.topic;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.ProduceRequestData;
 
 class AllValidTopicValidator implements TopicValidator {
     @Override
-    public TopicValidationResult validateTopicData(ProduceRequestData.TopicProduceData request) {
-        return new AllValidTopicValidationResult(request.name());
+    public CompletionStage<TopicValidationResult> validateTopicData(ProduceRequestData.TopicProduceData request) {
+        return CompletableFuture.completedFuture(new AllValidTopicValidationResult(request.name()));
     }
 }

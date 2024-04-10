@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.filter.schema.validation.topic;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -31,9 +33,11 @@ class PerRecordTopicValidator implements TopicValidator {
     }
 
     @Override
-    public TopicValidationResult validateTopicData(ProduceRequestData.TopicProduceData topicProduceData) {
-        return new PerPartitionTopicValidationResult(topicProduceData.name(), topicProduceData.partitionData().stream().collect(Collectors.toMap(
-                ProduceRequestData.PartitionProduceData::index, this::validateTopicPartition)));
+    public CompletionStage<TopicValidationResult> validateTopicData(ProduceRequestData.TopicProduceData topicProduceData) {
+        PerPartitionTopicValidationResult result = new PerPartitionTopicValidationResult(topicProduceData.name(),
+                topicProduceData.partitionData().stream().collect(Collectors.toMap(
+                        ProduceRequestData.PartitionProduceData::index, this::validateTopicPartition)));
+        return CompletableFuture.completedFuture(result);
     }
 
     private PartitionValidationResult validateTopicPartition(ProduceRequestData.PartitionProduceData partitionProduceData) {
