@@ -16,7 +16,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Configuration for validating a Bytebuffer holding a value.
  */
 public class BytebufValidation {
+
+    // mutually exclusive with apicurioSchemaValidationConfig
     private final SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig;
+
+    // mutually exclusive with syntacticallyCorrectJsonConfig
+    private final ApicurioSchemaValidationConfig apicurioSchemaValidationConfig;
     private final boolean allowNulls;
     private final boolean allowEmpty;
 
@@ -28,9 +33,14 @@ public class BytebufValidation {
      */
     @JsonCreator
     public BytebufValidation(@JsonProperty("syntacticallyCorrectJson") SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig,
+                             @JsonProperty("hasApicurioSchema") ApicurioSchemaValidationConfig apicurioSchemaValidationConfig,
                              @JsonProperty(value = "allowNulls", defaultValue = "true") Boolean allowNulls,
                              @JsonProperty(value = "allowEmpty", defaultValue = "false") Boolean allowEmpty) {
+        if (syntacticallyCorrectJsonConfig != null && apicurioSchemaValidationConfig != null) {
+            throw new IllegalArgumentException("both syntactically correct json and apicurio schema validation configured");
+        }
         this.syntacticallyCorrectJsonConfig = syntacticallyCorrectJsonConfig;
+        this.apicurioSchemaValidationConfig = apicurioSchemaValidationConfig;
         this.allowNulls = allowNulls == null || allowNulls;
         this.allowEmpty = allowEmpty != null && allowEmpty;
     }
@@ -41,6 +51,14 @@ public class BytebufValidation {
      */
     public Optional<SyntacticallyCorrectJsonConfig> getSyntacticallyCorrectJsonConfig() {
         return Optional.ofNullable(syntacticallyCorrectJsonConfig);
+    }
+
+    /**
+     * Get apicurio schema validation config.
+     * @return optional containing apicurioSchemaValidationConfig if non-null, empty otherwise
+     */
+    public Optional<ApicurioSchemaValidationConfig> getApicurioSchemaValidationConfig() {
+        return Optional.ofNullable(apicurioSchemaValidationConfig);
     }
 
     /**
@@ -68,19 +86,20 @@ public class BytebufValidation {
             return false;
         }
         BytebufValidation that = (BytebufValidation) o;
-        return allowNulls == that.allowNulls && allowEmpty == that.allowEmpty && Objects.equals(syntacticallyCorrectJsonConfig,
-                that.syntacticallyCorrectJsonConfig);
+        return allowNulls == that.allowNulls && allowEmpty == that.allowEmpty && Objects.equals(syntacticallyCorrectJsonConfig, that.syntacticallyCorrectJsonConfig)
+                && Objects.equals(apicurioSchemaValidationConfig, that.apicurioSchemaValidationConfig);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(syntacticallyCorrectJsonConfig, allowNulls, allowEmpty);
+        return Objects.hash(syntacticallyCorrectJsonConfig, apicurioSchemaValidationConfig, allowNulls, allowEmpty);
     }
 
     @Override
     public String toString() {
         return "BytebufValidation{" +
                 "syntacticallyCorrectJsonConfig=" + syntacticallyCorrectJsonConfig +
+                ", apicurioSchemaValidationConfig=" + apicurioSchemaValidationConfig +
                 ", allowNulls=" + allowNulls +
                 ", allowEmpty=" + allowEmpty +
                 '}';

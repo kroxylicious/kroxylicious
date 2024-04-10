@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 
+import io.kroxylicious.proxy.filter.schema.validation.bytebuf.apicurio.ApiCurioSchemaBytebufValidator;
+
 /**
  * Static factory methods for creating/getting ${@link BytebufValidator} instances
  */
@@ -43,5 +45,9 @@ public class BytebufValidators {
      */
     public static BytebufValidator jsonSyntaxValidator(boolean validateObjectKeysUnique) {
         return new JsonSyntaxBytebufValidator(validateObjectKeysUnique);
+    }
+
+    public static BytebufValidator apicurioSchemaValidator() {
+        return new ApiCurioSchemaBytebufValidator();
     }
 }

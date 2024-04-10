@@ -53,7 +53,8 @@ public class ProduceValidationFilterBuilder {
 
     private static BytebufValidator toValidator(BytebufValidation valueRule) {
         return valueRule.getSyntacticallyCorrectJsonConfig().map(config -> BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique()))
-                .orElse(BytebufValidators.allValid());
+                .orElse(valueRule.getApicurioSchemaValidationConfig().map(config -> BytebufValidators.apicurioSchemaValidator())
+                        .orElse(BytebufValidators.allValid()));
     }
 
 }
