@@ -32,13 +32,14 @@ public class ChaChaPoly implements CipherManager {
     @Override
     public Cipher newCipher() {
         try {
-            return Cipher.getInstance("ChaCha20-Poly1305");
+            return Cipher.getInstance("ChaCha20-Poly1305/NONE/NoPadding");
         }
         catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             throw new DekException(e);
         }
     }
 
+    @SuppressWarnings("java:S3329") // Sonar isn't able to understand that this _is_ a dynamically-generated, random IV.
     @Override
     public Supplier<AlgorithmParameterSpec> paramSupplier() {
         // Per https://www.rfc-editor.org/rfc/rfc7539#section-4
