@@ -27,7 +27,7 @@ class KeyAndValueRecordValidatorTest {
     @Test
     void testInvalidKey() {
         RecordValidator recordValidator = keyAndValueValidator(INVALID, VALID);
-        Result validate = recordValidator.validate(Mockito.mock(Record.class));
+        Result validate = recordValidator.validate(Mockito.mock(Record.class)).toCompletableFuture().join();
         assertFalse(validate.valid());
         assertEquals("Key was invalid: " + FAIL_MESSAGE, validate.errorMessage());
     }
@@ -35,7 +35,7 @@ class KeyAndValueRecordValidatorTest {
     @Test
     void testInvalidValue() {
         RecordValidator recordValidator = keyAndValueValidator(VALID, INVALID);
-        Result validate = recordValidator.validate(Mockito.mock(Record.class));
+        Result validate = recordValidator.validate(Mockito.mock(Record.class)).toCompletableFuture().join();
         assertFalse(validate.valid());
         assertEquals("Value was invalid: " + FAIL_MESSAGE, validate.errorMessage());
     }
@@ -43,7 +43,7 @@ class KeyAndValueRecordValidatorTest {
     @Test
     void testInvalidKeyAndValue() {
         RecordValidator recordValidator = keyAndValueValidator(INVALID, INVALID);
-        Result validate = recordValidator.validate(Mockito.mock(Record.class));
+        Result validate = recordValidator.validate(Mockito.mock(Record.class)).toCompletableFuture().join();
         assertFalse(validate.valid());
         assertEquals("Key was invalid: " + FAIL_MESSAGE, validate.errorMessage());
     }
@@ -51,7 +51,7 @@ class KeyAndValueRecordValidatorTest {
     @Test
     void testValidKeyAndValue() {
         RecordValidator recordValidator = keyAndValueValidator(VALID, VALID);
-        Result validate = recordValidator.validate(Mockito.mock(Record.class));
+        Result validate = recordValidator.validate(Mockito.mock(Record.class)).toCompletableFuture().join();
         assertTrue(validate.valid());
     }
 

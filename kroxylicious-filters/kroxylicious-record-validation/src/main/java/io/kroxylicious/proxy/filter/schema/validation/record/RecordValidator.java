@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter.schema.validation.record;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.record.Record;
 
 import io.kroxylicious.proxy.filter.schema.validation.Result;
@@ -20,5 +22,5 @@ public interface RecordValidator {
      * @param record the record to be validated
      * @return a Result describing if the record is valid and any failure message/exception if it is not.
      */
-    Result validate(Record record);
+    CompletionStage<Result> validate(Record record);
 }

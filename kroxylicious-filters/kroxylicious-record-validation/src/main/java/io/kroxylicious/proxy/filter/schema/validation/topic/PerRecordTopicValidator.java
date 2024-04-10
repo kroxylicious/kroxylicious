@@ -52,9 +52,10 @@ class PerRecordTopicValidator implements TopicValidator {
         List<RecordValidationFailure> failures = new ArrayList<>();
         for (MutableRecordBatch batch : ((MemoryRecords) records).batches()) {
             for (Record record : batch) {
-                Result result = validator.validate(record);
-                if (!result.valid()) {
-                    failures.add(new RecordValidationFailure(recordIndex, result.errorMessage()));
+                // todo make partition validation async to avoid joining
+                CompletableFuture<Result> result = validator.validate(record).toCompletableFuture();
+                if (!result.join().valid()) {
+                    failures.add(new RecordValidationFailure(recordIndex, result.join().errorMessage()));
                 }
                 recordIndex++;
             }

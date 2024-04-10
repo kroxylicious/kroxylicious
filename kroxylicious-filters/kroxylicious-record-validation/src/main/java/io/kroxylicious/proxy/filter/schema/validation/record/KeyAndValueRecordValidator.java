@@ -6,6 +6,9 @@
 
 package io.kroxylicious.proxy.filter.schema.validation.record;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.record.Record;
 
 import io.kroxylicious.proxy.filter.schema.validation.Result;
@@ -32,16 +35,16 @@ public class KeyAndValueRecordValidator implements RecordValidator {
     }
 
     @Override
-    public Result validate(Record record) {
+    public CompletionStage<Result> validate(Record record) {
         Result keyValid = keyValidator.validate(record.key(), record.keySize(), record, true);
         if (!keyValid.valid()) {
-            return new Result(false, "Key was invalid: " + keyValid.errorMessage());
+            return CompletableFuture.completedFuture(new Result(false, "Key was invalid: " + keyValid.errorMessage()));
         }
         Result valueValid = valueValidator.validate(record.value(), record.valueSize(), record, false);
         if (!valueValid.valid()) {
-            return new Result(false, "Value was invalid: " + valueValid.errorMessage());
+            return CompletableFuture.completedFuture(new Result(false, "Value was invalid: " + valueValid.errorMessage()));
         }
-        return Result.VALID;
+        return CompletableFuture.completedFuture(Result.VALID);
     }
 
     /**
