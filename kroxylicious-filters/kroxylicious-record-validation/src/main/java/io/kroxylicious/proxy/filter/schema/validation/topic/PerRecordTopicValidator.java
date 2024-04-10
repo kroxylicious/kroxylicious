@@ -7,7 +7,9 @@
 package io.kroxylicious.proxy.filter.schema.validation.topic;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
@@ -34,14 +36,18 @@ class PerRecordTopicValidator implements TopicValidator {
 
     @Override
     public CompletionStage<TopicValidationResult> validateTopicData(ProduceRequestData.TopicProduceData topicProduceData) {
-        PerPartitionTopicValidationResult result = new PerPartitionTopicValidationResult(topicProduceData.name(),
-                topicProduceData.partitionData().stream().collect(Collectors.toMap(
-                        ProduceRequestData.PartitionProduceData::index, this::validateTopicPartition)));
-        return CompletableFuture.completedFuture(result);
+        CompletableFuture<PartitionValidationResult>[] result = topicProduceData.partitionData().stream().map(this::validateTopicPartition)
+                .map(CompletionStage::toCompletableFuture)
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(result).thenApply(unused -> {
+            Map<Integer, PartitionValidationResult> collect = Arrays.stream(result).map(CompletableFuture::join)
+                    .collect(Collectors.toMap(PartitionValidationResult::index, x -> x));
+            return new PerPartitionTopicValidationResult(topicProduceData.name(), collect);
+        });
     }
 
-    private PartitionValidationResult validateTopicPartition(ProduceRequestData.PartitionProduceData partitionProduceData) {
-        return new PartitionValidationResult(partitionProduceData.index(), validateRecords(partitionProduceData.records()));
+    private CompletionStage<PartitionValidationResult> validateTopicPartition(ProduceRequestData.PartitionProduceData partitionProduceData) {
+        return CompletableFuture.completedFuture(new PartitionValidationResult(partitionProduceData.index(), validateRecords(partitionProduceData.records())));
     }
 
     private List<RecordValidationFailure> validateRecords(BaseRecords records) {
