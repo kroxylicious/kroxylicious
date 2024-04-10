@@ -35,6 +35,8 @@
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
+        <avro.version>1.11.3</avro.version>
+        <apicurio.version>2.5.10.Final</apicurio.version>
         <freemarker.version>2.3.32</freemarker.version>
         <guava.version>33.1.0-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
@@ -195,6 +197,30 @@
                 <scope>provided</scope>
             </dependency>
 
+            <dependency>
+                <groupId>org.apache.avro</groupId>
+                <artifactId>avro</artifactId>
+                <version>${avro.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-serdes-avro-serde</artifactId>
+                <version>${apicurio.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-serde-common</artifactId>
+                <version>${apicurio.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-schema-resolver</artifactId>
+                <version>${apicurio.version}</version>
+                <scope>test</scope>
+            </dependency>
             <dependency>
                 <groupId>info.picocli</groupId>
                 <artifactId>picocli</artifactId>
