@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -53,10 +55,10 @@ public class RoutingProduceRequestValidator implements ProduceRequestValidator {
     }
 
     @Override
-    public ProduceRequestValidationResult validateRequest(ProduceRequestData request) {
+    public CompletionStage<ProduceRequestValidationResult> validateRequest(ProduceRequestData request) {
         Map<String, TopicValidationResult> collect = request.topicData().stream().collect(
                 Collectors.toMap(ProduceRequestData.TopicProduceData::name, topicProduceData -> getTopicValidator(topicProduceData).validateTopicData(topicProduceData)));
-        return new ProduceRequestValidationResult(collect);
+        return CompletableFuture.completedFuture(new ProduceRequestValidationResult(collect));
     }
 
     private TopicValidator getTopicValidator(ProduceRequestData.TopicProduceData topicProduceData) {

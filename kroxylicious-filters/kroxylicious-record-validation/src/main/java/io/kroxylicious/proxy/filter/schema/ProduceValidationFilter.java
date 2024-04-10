@@ -67,13 +67,15 @@ public class ProduceValidationFilter implements ProduceRequestFilter, ProduceRes
 
     @Override
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
-        ProduceRequestValidationResult result = validator.validateRequest(request);
-        if (result.isAnyTopicPartitionInvalid()) {
-            return handleInvalidTopicPartitions(header, request, context, result);
-        }
-        else {
-            return context.forwardRequest(header, request);
-        }
+        CompletionStage<ProduceRequestValidationResult> validationStage = validator.validateRequest(request);
+        return validationStage.thenCompose(result -> {
+            if (result.isAnyTopicPartitionInvalid()) {
+                return handleInvalidTopicPartitions(header, request, context, result);
+            }
+            else {
+                return context.forwardRequest(header, request);
+            }
+        });
     }
 
     private CompletionStage<RequestFilterResult> handleInvalidTopicPartitions(RequestHeaderData header, ProduceRequestData request, FilterContext context,

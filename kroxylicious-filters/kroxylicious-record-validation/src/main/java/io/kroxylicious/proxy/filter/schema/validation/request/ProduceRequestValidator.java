@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter.schema.validation.request;
 
+import java.util.concurrent.CompletionStage;
+
 import org.apache.kafka.common.message.ProduceRequestData;
 
 /**
@@ -19,5 +21,5 @@ public interface ProduceRequestValidator {
      * @param request the request
      * @return result describing a validation outcome for all topic partitions and details of records that failed validation
      */
-    ProduceRequestValidationResult validateRequest(ProduceRequestData request);
+    CompletionStage<ProduceRequestValidationResult> validateRequest(ProduceRequestData request);
 }
