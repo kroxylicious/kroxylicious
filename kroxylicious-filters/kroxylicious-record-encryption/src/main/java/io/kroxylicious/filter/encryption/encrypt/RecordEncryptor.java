@@ -14,10 +14,9 @@ import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 
-import io.kroxylicious.filter.encryption.config.EncryptionVersion;
 import io.kroxylicious.filter.encryption.config.RecordField;
+import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
-import io.kroxylicious.filter.encryption.crypto.WrapperVersionResolver;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.records.RecordTransform;
@@ -32,7 +31,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> {
 
-    private final EncryptionVersion encryptionVersion;
+    private final Encryption encryption;
     private final EncryptionScheme<K> encryptionScheme;
     private final Serde<E> edekSerde;
     private final String topicName;
@@ -51,24 +50,24 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
 
     /**
      * Constructor (obviously).
-     * @param encryptionVersion The encryption version
+     * @param encryption The encryption version
      * @param encryptionScheme The encryption scheme for this key
      * @param edekSerde Serde for the encrypted DEK.
      * @param recordBuffer A buffer
      */
     public RecordEncryptor(@NonNull String topicName,
                            int partition,
-                           @NonNull EncryptionVersion encryptionVersion,
+                           @NonNull Encryption encryption,
                            @NonNull EncryptionScheme<K> encryptionScheme,
                            @NonNull Serde<E> edekSerde,
                            @NonNull ByteBuffer recordBuffer) {
         this.topicName = Objects.requireNonNull(topicName);
         this.partition = partition;
-        this.encryptionVersion = Objects.requireNonNull(encryptionVersion);
+        this.encryption = Objects.requireNonNull(encryption);
         this.encryptionScheme = Objects.requireNonNull(encryptionScheme);
         this.edekSerde = Objects.requireNonNull(edekSerde);
         this.recordBuffer = Objects.requireNonNull(recordBuffer);
-        this.encryptionHeader = new Header[]{ new RecordHeader(EncryptionHeader.ENCRYPTION_HEADER_NAME, new byte[]{ encryptionVersion.code() }) };
+        this.encryptionHeader = new Header[]{ new RecordHeader(EncryptionHeader.ENCRYPTION_HEADER_NAME, new byte[]{ encryption.serializedId() }) };
     }
 
     @Override
@@ -132,14 +131,14 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
     private ByteBuffer writeWrapper(@NonNull Record kafkaRecord,
                                     @NonNull ByteBuffer buffer)
             throws BufferTooSmallException {
-        WrapperVersionResolver.fromEncryptionVersion(encryptionVersion).writeWrapper(edekSerde,
+        encryption.wrapper().writeWrapper(edekSerde,
                 Objects.requireNonNull(encryptor.edek()),
                 topicName,
                 partition,
                 batch,
                 kafkaRecord,
                 encryptor,
-                encryptionVersion.parcelVersion(),
+                encryption.parcel(),
                 encryptionScheme.aadSpec(),
                 encryptionScheme.recordFields(),
                 buffer);

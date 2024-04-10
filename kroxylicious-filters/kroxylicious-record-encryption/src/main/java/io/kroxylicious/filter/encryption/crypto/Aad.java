@@ -10,6 +10,9 @@ import java.nio.ByteBuffer;
 
 import org.apache.kafka.common.record.RecordBatch;
 
-public interface Aad {
+import io.kroxylicious.filter.encryption.common.PersistedIdentifiable;
+import io.kroxylicious.filter.encryption.config.AadSpec;
+
+public interface Aad extends PersistedIdentifiable<AadSpec> {
     ByteBuffer computeAad(String topicName, int partitionId, RecordBatch batch);
 }

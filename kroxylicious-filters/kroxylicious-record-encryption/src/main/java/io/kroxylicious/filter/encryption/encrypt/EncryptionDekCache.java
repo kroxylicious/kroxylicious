@@ -37,6 +37,7 @@ public class EncryptionDekCache<K, E> {
     private static final Logger LOGGER = LoggerFactory.getLogger(EncryptionDekCache.class);
 
     public static final int NO_MAX_CACHE_SIZE = -1;
+    private CipherSpecResolver cipherSpecResolver;
 
     private record CacheKey<K>(K kek, CipherSpec cipherSpec) {}
 
@@ -52,6 +53,7 @@ public class EncryptionDekCache<K, E> {
                               @Nullable Executor dekCacheExecutor,
                               int dekCacheMaxItems) {
         this.dekManager = Objects.requireNonNull(dekManager);
+        this.cipherSpecResolver = CipherSpecResolver.ALL;
         Caffeine<Object, Object> cache = Caffeine.newBuilder();
         if (dekCacheMaxItems != NO_MAX_CACHE_SIZE) {
             cache = cache.maximumSize(dekCacheMaxItems);
@@ -71,7 +73,7 @@ public class EncryptionDekCache<K, E> {
      */
     private CompletableFuture<Dek<E>> requestGenerateDek(@NonNull CacheKey<K> cacheKey,
                                                          @NonNull Executor executor) {
-        return dekManager.generateDek(cacheKey.kek(), CipherSpecResolver.INSTANCE.fromSpec(cacheKey.cipherSpec()))
+        return dekManager.generateDek(cacheKey.kek(), cipherSpecResolver.fromName(cacheKey.cipherSpec()))
                 .thenApply(dek -> {
                     if (LOGGER.isTraceEnabled()) {
                         LOGGER.trace("Adding DEK to cache: {}", dek);

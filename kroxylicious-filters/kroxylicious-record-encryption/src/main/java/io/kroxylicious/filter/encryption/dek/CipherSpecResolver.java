@@ -6,56 +6,33 @@
 
 package io.kroxylicious.filter.encryption.dek;
 
-import java.util.Objects;
+import java.util.Collection;
+import java.util.List;
 
+import io.kroxylicious.filter.encryption.common.AbstractResolver;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+public class CipherSpecResolver extends AbstractResolver<CipherSpec, CipherManager, CipherSpecResolver> {
 
-public interface CipherSpecResolver {
+    public static final CipherSpecResolver ALL = new CipherSpecResolver(List.of(
+            Aes.AES_256_GCM_128,
+            ChaChaPoly.INSTANCE));
 
-    CipherSpecResolver INSTANCE = new CipherSpecResolver() {
-        @Override
-        public CipherManager fromPersistentId(int persistentId) {
-            switch (persistentId) {
-                case 0:
-                    return Aes.AES_256_GCM_128;
-                case 1:
-                    return ChaChaPoly.INSTANCE;
-                default:
-                    throw new UnknownCipherSpecException("Cipher spec with persistent id " + persistentId + " is not known");
-            }
-        }
+    CipherSpecResolver(Collection<CipherManager> impls) {
+        super(impls);
+    }
 
-        @Override
-        public byte persistentId(@NonNull CipherManager manager) {
-            Objects.requireNonNull(manager);
-            if (manager instanceof Aes) {
-                return 0;
-            }
-            else if (manager instanceof ChaChaPoly) {
-                return 1;
-            }
-            throw new UnknownCipherSpecException("Unknown CipherManager " + manager.getClass());
-        }
+    @Override
+    protected RuntimeException newException(String msg) {
+        return new UnknownCipherSpecException(msg);
+    }
 
-        @Override
-        public CipherManager fromSpec(CipherSpec spec) {
-            switch (spec) {
-                case AES_256_GCM_128:
-                    return Aes.AES_256_GCM_128;
-                case CHACHA20_POLY1305:
-                    return ChaChaPoly.INSTANCE;
-                default:
-                    throw new UnknownCipherSpecException("Cipher spec " + spec + " is not known");
-            }
-        }
-    };
+    public static CipherSpecResolver of(CipherSpec... cipherSpec) {
+        return ALL.subset(cipherSpec);
+    }
 
-    CipherManager fromPersistentId(int persistentId);
-
-    byte persistentId(@NonNull CipherManager manager);
-
-    CipherManager fromSpec(CipherSpec spec);
-
+    @Override
+    protected CipherSpecResolver newInstance(Collection<CipherManager> values) {
+        return new CipherSpecResolver(values);
+    }
 }

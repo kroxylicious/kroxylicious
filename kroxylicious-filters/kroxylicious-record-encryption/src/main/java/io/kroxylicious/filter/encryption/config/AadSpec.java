@@ -20,18 +20,11 @@ public enum AadSpec {
     /**
      * No AAD
      */
-    NONE(EncryptionVersion.V1_UNSUPPORTED);
+    NONE,
 
-    private final EncryptionVersion fromVersion;
-
-    AadSpec(EncryptionVersion fromVersion) {
-        this.fromVersion = fromVersion;
-    }
-
-    public void check(EncryptionVersion encryptionVersion) {
-        if (encryptionVersion.compareTo(fromVersion) < 0) {
-            throw new EncryptionConfigurationException("AAD " + this + " only supported from encryption version " + fromVersion);
-        }
-    }
+    /**
+     * No AAD
+     */
+    BATCH_METADATA;
 
 }

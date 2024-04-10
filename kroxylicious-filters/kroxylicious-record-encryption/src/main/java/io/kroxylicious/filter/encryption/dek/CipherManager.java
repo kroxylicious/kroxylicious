@@ -12,9 +12,18 @@ import java.util.function.Supplier;
 
 import javax.crypto.Cipher;
 
-public interface CipherManager {
+import io.kroxylicious.filter.encryption.common.PersistedIdentifiable;
+import io.kroxylicious.filter.encryption.config.CipherSpec;
+
+public interface CipherManager extends PersistedIdentifiable<CipherSpec> {
 
     int VARIABLE_SIZE_PARAMETERS = -1;
+
+    @Override
+    byte serializedId();
+
+    @Override
+    CipherSpec name();
 
     long maxEncryptionsPerKey();
 

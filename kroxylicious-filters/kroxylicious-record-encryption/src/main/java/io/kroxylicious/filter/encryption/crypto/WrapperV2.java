@@ -18,8 +18,8 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.utils.ByteUtils;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
-import io.kroxylicious.filter.encryption.config.ParcelVersion;
 import io.kroxylicious.filter.encryption.config.RecordField;
+import io.kroxylicious.filter.encryption.config.WrapperVersion;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.CipherManager;
 import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
@@ -33,14 +33,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * wrapper_v2               = cipher_id
  *                            edek_length
  *                            edek
- *                            aead_id
+ *                            aad_id
  *                            [ cipher_parameters_length ] ; iff {@link CipherManager#constantParamsSize()} returns -1
  *                            cipher_parameters
  *                            parcel_ciphertext
- * cipher_id                = OCTET                        ; {@link CipherSpecResolver#persistentId(CipherManager)}
+ * cipher_id                = OCTET                        ; {@link CipherSpecResolver#toSerializedId(PersistedIdentifiable)}}
  * edek_length              = 1*OCTET                      ; unsigned VARINT {@link Serde#sizeOf(Object)}
  * edek                     = *OCTET                       ; edek_length bytes {@link Serde#serialize(Object, ByteBuffer)}
- * aead_id                  = OCTET                        ; {@link io.kroxylicious.filter.encryption.crypto.AadResolver#persistentId(Aad)} }
+ * aad_id                   = OCTET                        ; {@link AadResolver#toSerializedId}
  * cipher_parameters_length = 1*OCTET                      ; unsigned VARINT
  * cipher_parameters        = *OCTET                       ; cipher_parameters_length bytes
  * parcel_ciphertext        = *OCTET                       ; whatever is left in the buffer
@@ -48,7 +48,24 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class WrapperV2 implements Wrapper {
 
-    public static WrapperV2 INSTANCE = new WrapperV2();
+    public final CipherSpecResolver cipherSpecResolver;
+    public final AadResolver aadResolver;
+
+    public WrapperV2(CipherSpecResolver cipherSpecResolver,
+                     AadResolver aadResolver) {
+        this.cipherSpecResolver = cipherSpecResolver;
+        this.aadResolver = aadResolver;
+    }
+
+    @Override
+    public byte serializedId() {
+        return 1;
+    }
+
+    @Override
+    public WrapperVersion name() {
+        return WrapperVersion.V2;
+    }
 
     @Override
     public <E> void writeWrapper(@NonNull Serde<E> edekSerde,
@@ -58,32 +75,32 @@ public class WrapperV2 implements Wrapper {
                                  @NonNull RecordBatch batch,
                                  @NonNull Record kafkaRecord,
                                  @NonNull Dek<E>.Encryptor encryptor,
-                                 @NonNull ParcelVersion parcelVersion,
-                                 @NonNull Aad aadSpec,
+                                 @NonNull Parcel parcel,
+                                 @NonNull Aad aad,
                                  @NonNull Set<RecordField> recordFields,
                                  @NonNull ByteBuffer buffer)
             throws BufferTooSmallException {
         try {
             CipherManager cipherManager = encryptor.cipherManager();
-            buffer.put(CipherSpecResolver.INSTANCE.persistentId(cipherManager));
+            buffer.put(cipherSpecResolver.toSerializedId(cipherManager));
             short edekSize = (short) edekSerde.sizeOf(edek);
             ByteUtils.writeUnsignedVarint(edekSize, buffer);
             edekSerde.serialize(edek, buffer);
-            buffer.put(AadResolver.INSTANCE.persistentId(aadSpec));
+            buffer.put(aadResolver.toSerializedId(aad));
 
-            ByteBuffer aad = aadSpec.computeAad(topicName, partitionId, batch);
+            ByteBuffer aadBuffer = aad.computeAad(topicName, partitionId, batch);
 
             // Write the parameters
             writeParameters(encryptor, cipherManager, buffer);
 
             // Write the parcel of data that will be encrypted (the plaintext)
             var parcelBuffer = buffer.slice();
-            Parcel.writeParcel(parcelVersion, recordFields, kafkaRecord, parcelBuffer);
+            parcel.writeParcel(recordFields, kafkaRecord, parcelBuffer);
             parcelBuffer.flip();
 
             // Overwrite the parcel with the cipher text
             var ct = encryptor.encrypt(parcelBuffer,
-                    aad,
+                    aadBuffer,
                     size -> buffer.slice());
             buffer.position(buffer.position() + ct.remaining());
         }
@@ -109,7 +126,7 @@ public class WrapperV2 implements Wrapper {
     }
 
     public <E, T> T readSpecAndEdek(ByteBuffer wrapper, Serde<E> serde, BiFunction<CipherManager, E, T> function) {
-        CipherManager cipherManager = CipherSpecResolver.INSTANCE.fromPersistentId(wrapper.get());
+        CipherManager cipherManager = cipherSpecResolver.fromSerializedId(wrapper.get());
         var edekLength = ByteUtils.readUnsignedVarint(wrapper);
         ByteBuffer slice = wrapper.slice(wrapper.position(), edekLength);
         E edek = serde.deserialize(slice);
@@ -117,7 +134,7 @@ public class WrapperV2 implements Wrapper {
     }
 
     @Override
-    public <E> void read(@NonNull ParcelVersion parcelVersion,
+    public <E> void read(@NonNull Parcel parcel,
                          @NonNull String topicName,
                          int partition,
                          @NonNull RecordBatch batch,
@@ -125,11 +142,11 @@ public class WrapperV2 implements Wrapper {
                          ByteBuffer wrapper,
                          Dek<E>.Decryptor decryptor,
                          @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {
-        CipherManager cipherManager = CipherSpecResolver.INSTANCE.fromPersistentId(wrapper.get());
+        CipherManager cipherManager = cipherSpecResolver.fromSerializedId(wrapper.get());
         var edekLength = ByteUtils.readUnsignedVarint(wrapper);
         wrapper.position(wrapper.position() + edekLength);
 
-        var aadSpec = AadResolver.INSTANCE.fromPersistentId(wrapper.get());
+        var aadSpec = aadResolver.fromSerializedId(wrapper.get());
 
         var parametersBuffer = wrapper.slice();
         if (cipherManager.constantParamsSize() == CipherManager.VARIABLE_SIZE_PARAMETERS) {
@@ -145,6 +162,6 @@ public class WrapperV2 implements Wrapper {
         ByteBuffer aad = aadSpec.computeAad(topicName, partition, batch);
 
         ByteBuffer plaintextParcel = Wrapper.decryptParcel(ciphertext, aad, parametersBuffer, decryptor);
-        Parcel.readParcel(parcelVersion, plaintextParcel, record, consumer);
+        parcel.readParcel(plaintextParcel, record, consumer);
     }
 }

@@ -8,7 +8,7 @@ package io.kroxylicious.filter.encryption.decrypt;
 
 import java.util.Objects;
 
-import io.kroxylicious.filter.encryption.config.EncryptionVersion;
+import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.dek.Dek;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -27,18 +27,18 @@ public final class DecryptState<E> {
         return NONE;
     }
 
-    private final EncryptionVersion decryptionVersion;
+    private final Encryption encryptionUsed;
     @Nullable
     private Dek<E>.Decryptor decryptor;
 
     public DecryptState(
-                        EncryptionVersion decryptionVersion) {
-        this.decryptionVersion = decryptionVersion;
+                        Encryption encryptionUsed) {
+        this.encryptionUsed = encryptionUsed;
         this.decryptor = null;
     }
 
     public boolean isNone() {
-        return decryptionVersion == null;
+        return encryptionUsed == null;
     }
 
     public DecryptState<E> withDecryptor(Dek<E>.Decryptor decryptor) {
@@ -46,8 +46,8 @@ public final class DecryptState<E> {
         return this;
     }
 
-    public EncryptionVersion decryptionVersion() {
-        return decryptionVersion;
+    public Encryption encryptionUsed() {
+        return encryptionUsed;
     }
 
     @Nullable
@@ -64,19 +64,19 @@ public final class DecryptState<E> {
             return false;
         }
         var that = (DecryptState) obj;
-        return Objects.equals(this.decryptionVersion, that.decryptionVersion) &&
+        return Objects.equals(this.encryptionUsed, that.encryptionUsed) &&
                 Objects.equals(this.decryptor, that.decryptor);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(decryptionVersion, decryptor);
+        return Objects.hash(encryptionUsed, decryptor);
     }
 
     @Override
     public String toString() {
         return "DecryptState[" +
-                "decryptionVersion=" + decryptionVersion + ", " +
+                "decryptionVersion=" + encryptionUsed + ", " +
                 "decryptor=" + decryptor + ']';
     }
 

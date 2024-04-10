@@ -6,46 +6,26 @@
 
 package io.kroxylicious.filter.encryption.crypto;
 
-import java.util.Objects;
+import java.util.Collection;
+import java.util.List;
 
-import io.kroxylicious.filter.encryption.common.EncryptionException;
+import io.kroxylicious.filter.encryption.common.AbstractResolver;
 import io.kroxylicious.filter.encryption.config.AadSpec;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+public class AadResolver extends AbstractResolver<AadSpec, Aad, AadResolver> {
 
-public interface AadResolver {
-    AadResolver INSTANCE = new AadResolver() {
-        public byte persistentId(@NonNull Aad aad) {
-            Objects.requireNonNull(aad);
-            if (aad instanceof AadNone) {
-                return 0;
-            }
-            else {
-                throw new EncryptionException("Unknown AAD " + aad.getClass());
-            }
-        }
+    private static final AadResolver ALL = new AadResolver(List.of(new AadNone()));
 
-        public Aad fromSpec(AadSpec spec) {
-            Objects.requireNonNull(spec);
-            switch (spec) {
-                case NONE -> {
-                    return new AadNone();
-                }
-            }
-            throw new EncryptionException("Unknown AAD " + spec);
-        }
+    AadResolver(Collection<Aad> impls) {
+        super(impls);
+    }
 
-        public Aad fromPersistentId(byte persistentId) {
-            switch (persistentId) {
-                case 0:
-                    return new AadNone();
-                default:
-                    throw new EncryptionException("Unknown AAD persistent id " + persistentId);
-            }
-        }
-    };
+    public static AadResolver of(AadSpec... aadSpec) {
+        return ALL.subset(aadSpec);
+    }
 
-    byte persistentId(@NonNull Aad aad);
-
-    Aad fromPersistentId(byte persistentId);
+    @Override
+    protected AadResolver newInstance(Collection<Aad> values) {
+        return new AadResolver(values);
+    }
 }

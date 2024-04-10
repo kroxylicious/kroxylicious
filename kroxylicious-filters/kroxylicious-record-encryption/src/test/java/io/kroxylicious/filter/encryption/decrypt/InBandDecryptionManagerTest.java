@@ -48,7 +48,9 @@ import io.kroxylicious.filter.encryption.TestingDek;
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.RecordField;
+import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
+import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
 import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
@@ -991,7 +993,7 @@ class InBandDecryptionManagerTest {
                 .filter(testingRecord -> Stream.of(testingRecord.headers()).anyMatch(header -> header.key().equals(EncryptionHeader.ENCRYPTION_HEADER_NAME)))
                 .map(testingRecord -> {
                     ByteBuffer wrapper = testingRecord.value();
-                    CipherSpecResolver.INSTANCE.fromPersistentId(wrapper.get());
+                    CipherSpecResolver.ALL.fromSerializedId(wrapper.get());
                     var edekLength = ByteUtils.readUnsignedVarint(wrapper);
                     byte[] edekBytes = new byte[edekLength];
                     wrapper.get(edekBytes);
@@ -1005,7 +1007,8 @@ class InBandDecryptionManagerTest {
 
         DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, 1);
         var dekCache = new DecryptionDekCache<>(dekManager, directExecutor(), DecryptionDekCache.NO_MAX_CACHE_SIZE);
-        return new InBandDecryptionManager<>(dekManager,
+        return new InBandDecryptionManager<>(EncryptionResolver.ALL,
+                dekManager,
                 dekCache,
                 new FilterThreadExecutor(directExecutor()));
     }
@@ -1028,7 +1031,8 @@ class InBandDecryptionManagerTest {
 
         DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, maxEncryptionsPerDek);
         var cache = new EncryptionDekCache<>(dekManager, directExecutor(), maxCacheSize);
-        return new InBandEncryptionManager<>(dekManager.edekSerde(),
+        return new InBandEncryptionManager<>(Encryption.V2,
+                dekManager.edekSerde(),
                 recordBufferInitialBytes,
                 recordBufferMaxBytes,
                 cache,

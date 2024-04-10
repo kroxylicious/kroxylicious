@@ -16,12 +16,24 @@ import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 
+import io.kroxylicious.filter.encryption.config.CipherSpec;
+
 public class ChaChaPoly implements CipherManager {
     private static final int NONCE_SIZE_BYTES = 12;
 
     public static ChaChaPoly INSTANCE = new ChaChaPoly();
 
     private ChaChaPoly() {
+    }
+
+    @Override
+    public byte serializedId() {
+        return 1;
+    }
+
+    @Override
+    public CipherSpec name() {
+        return CipherSpec.CHACHA20_POLY1305;
     }
 
     @Override

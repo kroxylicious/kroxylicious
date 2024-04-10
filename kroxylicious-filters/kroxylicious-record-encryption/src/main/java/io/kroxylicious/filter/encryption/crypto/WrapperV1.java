@@ -16,8 +16,8 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
-import io.kroxylicious.filter.encryption.config.ParcelVersion;
 import io.kroxylicious.filter.encryption.config.RecordField;
+import io.kroxylicious.filter.encryption.config.WrapperVersion;
 import io.kroxylicious.filter.encryption.dek.CipherManager;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.kms.service.Serde;
@@ -29,14 +29,24 @@ public class WrapperV1 implements Wrapper {
     public static final WrapperV1 INSTANCE = new WrapperV1();
 
     @Override
+    public byte serializedId() {
+        return 0;
+    }
+
+    @Override
+    public WrapperVersion name() {
+        return WrapperVersion.V1_UNSUPPORTED;
+    }
+
+    @Override
     public <E> void writeWrapper(@NonNull Serde<E> edekSerde, @NonNull E edek, @NonNull String topicName, int partitionId, @NonNull RecordBatch batch,
-                                 @NonNull Record kafkaRecord, @NonNull Dek<E>.Encryptor encryptor, @NonNull ParcelVersion parcelVersion, @NonNull Aad aadSpec,
+                                 @NonNull Record kafkaRecord, @NonNull Dek<E>.Encryptor encryptor, @NonNull Parcel parcel, @NonNull Aad aadSpec,
                                  @NonNull Set<RecordField> recordFields, @NonNull ByteBuffer buffer) {
         throw unsupportedVersionException();
     }
 
     @Override
-    public <E> void read(@NonNull ParcelVersion parcelVersion, @NonNull String topicName, int partition, @NonNull RecordBatch batch, @NonNull Record record,
+    public <E> void read(@NonNull Parcel parcel, @NonNull String topicName, int partition, @NonNull RecordBatch batch, @NonNull Record record,
                          ByteBuffer wrapper, Dek<E>.Decryptor decryptor, @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {
         throw unsupportedVersionException();
     }

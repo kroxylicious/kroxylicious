@@ -65,15 +65,16 @@ class ParcelTest {
     @MethodSource
     void shouldRoundTrip(Set<RecordField> fields, Record record) {
         var expectedValue = record.hasValue() ? record.value().duplicate() : null;
-        int size = Parcel.sizeOfParcel(ParcelVersion.V1, fields, record);
+        Parcel parcel = ParcelVersionResolver.ALL.fromName(ParcelVersion.V1);
+        int size = parcel.sizeOfParcel(fields, record);
         var buffer = ByteBuffer.allocate(size);
-        Parcel.writeParcel(ParcelVersion.V1, fields, record, buffer);
+        parcel.writeParcel(fields, record, buffer);
         assertThat(buffer.remaining()).isEqualTo(0);
 
         buffer.flip();
 
         BatchAwareMemoryRecordsBuilder mockBuilder = Mockito.mock(BatchAwareMemoryRecordsBuilder.class);
-        Parcel.readParcel(ParcelVersion.V1, buffer, record, (v, h) -> mockBuilder.appendWithOffset(record.offset(), record.timestamp(), record.key(), v, h));
+        parcel.readParcel(buffer, record, (v, h) -> mockBuilder.appendWithOffset(record.offset(), record.timestamp(), record.key(), v, h));
         verify(mockBuilder).appendWithOffset(record.offset(), record.timestamp(), record.key(), expectedValue, record.headers());
         assertThat(buffer.remaining()).isEqualTo(0);
     }
@@ -149,7 +150,7 @@ class ParcelTest {
         when(mock.headers()).thenReturn(new org.apache.kafka.common.header.Header[0]);
         ParcelContents expected = exemplar.deserializedParcelContents;
         try {
-            Parcel.readParcel(exemplar.version, exemplar.serialized(), mock, (byteBuffer, headers) -> {
+            ParcelVersionResolver.ALL.fromName(exemplar.version).readParcel(exemplar.serialized(), mock, (byteBuffer, headers) -> {
                 assertThat(expected.kafkaHeaders()).describedAs("headers").isEqualTo(headers);
                 assertThat(toBase64(byteBuffer)).describedAs("parcel originalRecordContents buffer").isEqualTo(toBase64(expected.valueBase64));
             });
@@ -182,7 +183,7 @@ class ParcelTest {
     private static String serialize(ParcelContents parcelContents, ParcelVersion version, SerializationOptions serializationOptions) {
         Record record = RecordTestUtils.record(parcelContents.valueBase64(), parcelContents.kafkaHeaders());
         ByteBuffer parcelBuffer = ByteBuffer.allocate(1024);
-        Parcel.writeParcel(version, serializationOptions.recordFields, record, parcelBuffer);
+        ParcelVersionResolver.ALL.fromName(version).writeParcel(serializationOptions.recordFields, record, parcelBuffer);
         parcelBuffer.flip();
         return toBase64(parcelBuffer);
     }

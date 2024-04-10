@@ -15,15 +15,16 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 
-import io.kroxylicious.filter.encryption.config.ParcelVersion;
+import io.kroxylicious.filter.encryption.common.PersistedIdentifiable;
 import io.kroxylicious.filter.encryption.config.RecordField;
+import io.kroxylicious.filter.encryption.config.WrapperVersion;
 import io.kroxylicious.filter.encryption.dek.CipherManager;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public interface Wrapper {
+public interface Wrapper extends PersistedIdentifiable<WrapperVersion> {
     static <E> ByteBuffer decryptParcel(
                                         ByteBuffer ciphertextParcel,
                                         ByteBuffer aad,
@@ -43,13 +44,13 @@ public interface Wrapper {
                           @NonNull RecordBatch batch,
                           @NonNull Record kafkaRecord,
                           @NonNull Dek<E>.Encryptor encryptor,
-                          @NonNull ParcelVersion parcelVersion,
+                          @NonNull Parcel parcel,
                           @NonNull Aad aadSpec,
                           @NonNull Set<RecordField> recordFields,
                           @NonNull ByteBuffer buffer);
 
     <E> void read(
-                  @NonNull ParcelVersion parcelVersion,
+                  @NonNull Parcel parcel,
                   @NonNull String topicName,
                   int partition,
                   @NonNull RecordBatch batch,

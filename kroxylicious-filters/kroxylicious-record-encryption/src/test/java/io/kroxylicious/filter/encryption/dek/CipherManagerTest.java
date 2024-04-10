@@ -9,13 +9,16 @@ package io.kroxylicious.filter.encryption.dek;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
+import java.util.List;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 
@@ -23,14 +26,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class CipherManagerTest {
 
+    public static List<Arguments> allCipherManagers() {
+        return Arrays.stream(CipherSpec.values()).map(cs -> Arguments.of(CipherSpecResolver.ALL.fromName(cs))).toList();
+    }
+
     @ParameterizedTest
-    @EnumSource(CipherSpec.class)
-    void serializedParamsGoodForDecrypt(CipherSpec spec) throws GeneralSecurityException {
+    @MethodSource("allCipherManagers")
+    void serializedParamsGoodForDecrypt(CipherManager cipherManager) throws GeneralSecurityException {
 
-        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(spec);
-
-        assertThat(CipherSpecResolver.INSTANCE.fromPersistentId(
-                CipherSpecResolver.INSTANCE.persistentId(cipherManager))).isSameAs(cipherManager);
+        assertThat(CipherSpecResolver.ALL.fromSerializedId(
+                CipherSpecResolver.ALL.toSerializedId(cipherManager))).isSameAs(cipherManager);
 
         var params = cipherManager.paramSupplier().get();
 

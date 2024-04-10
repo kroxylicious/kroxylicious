@@ -16,16 +16,32 @@ import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
 
+import io.kroxylicious.filter.encryption.config.CipherSpec;
+
 public class Aes implements CipherManager {
 
-    public static Aes AES_256_GCM_128 = new Aes("AES_256/GCM/NoPadding");
+    public static Aes AES_256_GCM_128 = new Aes("AES_256/GCM/NoPadding", (byte) 0, CipherSpec.AES_256_GCM_128);
 
     private static final int IV_SIZE_BYTES = 12;
     private static final int TAG_LENGTH_BITS = 128;
     private final String transformation;
+    private final byte serializedId;
+    private final CipherSpec spec;
 
-    private Aes(String transformation) {
+    private Aes(String transformation, byte serializedId, CipherSpec spec) {
         this.transformation = transformation;
+        this.serializedId = serializedId;
+        this.spec = spec;
+    }
+
+    @Override
+    public byte serializedId() {
+        return serializedId;
+    }
+
+    @Override
+    public CipherSpec name() {
+        return spec;
     }
 
     @Override

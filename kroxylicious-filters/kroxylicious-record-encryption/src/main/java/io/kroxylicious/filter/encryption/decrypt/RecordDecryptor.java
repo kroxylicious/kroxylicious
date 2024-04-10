@@ -13,7 +13,6 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 
-import io.kroxylicious.filter.encryption.crypto.WrapperVersionResolver;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.records.RecordTransform;
 
@@ -62,7 +61,7 @@ public class RecordDecryptor<E> implements RecordTransform<DecryptState<E>> {
         }
 
         var wrapper = record.value();
-        WrapperVersionResolver.fromEncryptionVersion(decryptState.decryptionVersion()).read(decryptState.decryptionVersion().parcelVersion(),
+        decryptState.encryptionUsed().wrapper().read(decryptState.encryptionUsed().parcel(),
                 topicName,
                 partition,
                 batch,

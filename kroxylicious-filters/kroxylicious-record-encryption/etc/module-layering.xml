@@ -25,7 +25,7 @@
     <allow pkg="io.kroxylicious.proxy.filter" local-only="true"/> <!-- the filter api -->
     <allow pkg="io.kroxylicious.proxy.plugin" local-only="true"/> <!-- the plugin api -->
     <allow pkg="io.kroxylicious.kms.service" local-only="true"/> <!-- the kms api -->
-    <allow pkg="io.kroxylicious.filter.encryption" regex="true" local-only="true"/><!-- all subpackages -->
+    <allow pkg="io.kroxylicious.filter.encryption" local-only="true"/><!-- all subpackages -->
 
     <subpackage name="common">
         <allow pkg="org.apache.kafka.common.record"/>

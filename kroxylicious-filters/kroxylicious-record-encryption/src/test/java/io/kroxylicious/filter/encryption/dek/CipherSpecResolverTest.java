@@ -19,12 +19,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class CipherSpecResolverTest {
     @Test
     void fromPersistentIdShouldThrowIfUnknownPersistentId() {
-        assertThatThrownBy(() -> CipherSpecResolver.INSTANCE.fromPersistentId(123)).isExactlyInstanceOf(UnknownCipherSpecException.class);
+        assertThatThrownBy(() -> CipherSpecResolver.ALL.fromSerializedId((byte) 123)).isExactlyInstanceOf(UnknownCipherSpecException.class);
     }
 
     @Test
     void persistentIdsShouldBeUnique() {
-        assertThat(Arrays.stream(CipherSpec.values()).map(CipherSpecResolver.INSTANCE::fromSpec).collect(Collectors.toSet()))
+        assertThat(Arrays.stream(CipherSpec.values()).map(CipherSpecResolver.ALL::fromName).collect(Collectors.toSet()))
                 .hasSize(CipherSpec.values().length);
     }
 }

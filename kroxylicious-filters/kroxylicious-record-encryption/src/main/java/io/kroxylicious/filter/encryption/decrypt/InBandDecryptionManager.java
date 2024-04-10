@@ -24,9 +24,9 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
-import io.kroxylicious.filter.encryption.config.EncryptionVersion;
+import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
-import io.kroxylicious.filter.encryption.crypto.WrapperVersionResolver;
+import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.filter.encryption.records.RecordStream;
@@ -48,9 +48,13 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
     private final FilterThreadExecutor filterThreadExecutor;
     private final DecryptionDekCache<K, E> dekCache;
 
-    public InBandDecryptionManager(@NonNull DekManager<K, E> dekManager,
+    private final EncryptionResolver encryptionResolver;
+
+    public InBandDecryptionManager(EncryptionResolver encryptionResolver,
+                                   @NonNull DekManager<K, E> dekManager,
                                    @NonNull DecryptionDekCache<K, E> dekCache,
                                    @Nullable FilterThreadExecutor filterThreadExecutor) {
+        this.encryptionResolver = encryptionResolver;
         this.dekManager = Objects.requireNonNull(dekManager);
         this.dekCache = Objects.requireNonNull(dekCache);
         this.filterThreadExecutor = filterThreadExecutor;
@@ -63,9 +67,9 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
      * @param kafkaRecord The record.
      * @return The encryption header, or null if it's missing (indicating that the record wasn't encrypted).
      */
-    static EncryptionVersion decryptionVersion(@NonNull String topicName,
-                                               int partition,
-                                               @NonNull Record kafkaRecord) {
+    Encryption decryptionVersion(@NonNull String topicName,
+                                 int partition,
+                                 @NonNull Record kafkaRecord) {
         for (Header header : kafkaRecord.headers()) {
             if (EncryptionHeader.ENCRYPTION_HEADER_NAME.equals(header.key())) {
                 byte[] value = header.value();
@@ -75,7 +79,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
                             + " in partition " + partition
                             + " of topic " + topicName);
                 }
-                return EncryptionVersion.fromCode(value[0]);
+                return encryptionResolver.fromSerializedId(value[0]);
             }
         }
         return null;
@@ -145,7 +149,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
             var decryptionVersion = decryptionVersion(topicName, partition, record);
             if (decryptionVersion != null) {
                 ByteBuffer wrapper = record.value();
-                cacheKeys.add(WrapperVersionResolver.fromEncryptionVersion(decryptionVersion).readSpecAndEdek(wrapper, serde, DecryptionDekCache.CacheKey::new));
+                cacheKeys.add(decryptionVersion.wrapper().readSpecAndEdek(wrapper, serde, DecryptionDekCache.CacheKey::new));
                 states.add(new DecryptState<>(decryptionVersion));
             }
             else {

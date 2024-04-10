@@ -12,9 +12,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import io.kroxylicious.filter.encryption.config.CipherSpec;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.Serde;
@@ -42,9 +41,8 @@ class DekManagerTest {
     }
 
     @ParameterizedTest
-    @EnumSource(CipherSpec.class)
-    void testLimitsNumbersOfEncryptors(CipherSpec cipherSpec) {
-        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
+    @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
+    void testLimitsNumbersOfEncryptors(CipherManager cipherManager) {
         // Given
         UnitTestingKmsService unitTestingKmsService = UnitTestingKmsService.newInstance();
         UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96, List.of());
@@ -61,9 +59,8 @@ class DekManagerTest {
     }
 
     @ParameterizedTest
-    @EnumSource(CipherSpec.class)
-    void testDecryptedEdekIsGoodForDecryptingData(CipherSpec cipherSpec) {
-        var cipherManager = CipherSpecResolver.INSTANCE.fromSpec(cipherSpec);
+    @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
+    void testDecryptedEdekIsGoodForDecryptingData(CipherManager cipherManager) {
         // Given
         UnitTestingKmsService unitTestingKmsService = UnitTestingKmsService.newInstance();
         UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96, List.of());

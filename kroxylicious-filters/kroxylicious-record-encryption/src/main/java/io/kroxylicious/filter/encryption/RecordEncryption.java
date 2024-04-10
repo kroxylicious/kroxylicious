@@ -30,6 +30,8 @@ import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
 import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
+import io.kroxylicious.filter.encryption.crypto.Encryption;
+import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionDekCache;
 import io.kroxylicious.filter.encryption.decrypt.InBandDecryptionManager;
 import io.kroxylicious.filter.encryption.dek.CipherManager;
@@ -80,7 +82,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     /* exposed for testing */ static void checkCipherSuite(Function<CipherManager, Cipher> cipherFunc) {
         List<CipherSpec> failures = Arrays.stream(CipherSpec.values()).flatMap(cipherSpec -> {
             try {
-                cipherFunc.apply(CipherSpecResolver.INSTANCE.fromSpec(cipherSpec));
+                cipherFunc.apply(CipherSpecResolver.ALL.fromName(cipherSpec));
                 return Stream.empty();
             }
             catch (Exception e) {
@@ -114,13 +116,15 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
         ScheduledExecutorService filterThreadExecutor = context.eventLoop();
         FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
-        var encryptionManager = new InBandEncryptionManager<>(sharedEncryptionContext.dekManager().edekSerde(),
+        var encryptionManager = new InBandEncryptionManager<>(Encryption.V2,
+                sharedEncryptionContext.dekManager().edekSerde(),
                 1024 * 1024,
                 8 * 1024 * 1024,
                 sharedEncryptionContext.encryptionDekCache(),
                 executor);
 
-        var decryptionManager = new InBandDecryptionManager<>(sharedEncryptionContext.dekManager(),
+        var decryptionManager = new InBandDecryptionManager<>(EncryptionResolver.ALL,
+                sharedEncryptionContext.dekManager(),
                 sharedEncryptionContext.decryptionDekCache(),
                 executor);
 

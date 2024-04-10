@@ -19,7 +19,7 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
-import io.kroxylicious.filter.encryption.config.EncryptionVersion;
+import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.Dek;
@@ -39,7 +39,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     * Note that the encryption version used on the fetch path is read from the
     * {@link EncryptionHeader#ENCRYPTION_HEADER_NAME} header.
     */
-    private final EncryptionVersion encryptionVersion;
+    private final Encryption encryption;
     private final Serde<E> edekSerde;
     private final EncryptionDekCache<K, E> dekCache;
     @NonNull
@@ -47,13 +47,14 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private final int recordBufferInitialBytes;
     private final int recordBufferMaxBytes;
 
-    public InBandEncryptionManager(@NonNull Serde<E> edekSerde,
+    public InBandEncryptionManager(@NonNull Encryption encryption,
+                                   @NonNull Serde<E> edekSerde,
                                    int recordBufferInitialBytes,
                                    int recordBufferMaxBytes,
                                    @NonNull EncryptionDekCache<K, E> dekCache,
                                    @NonNull FilterThreadExecutor filterThreadExecutor) {
         this.filterThreadExecutor = filterThreadExecutor;
-        this.encryptionVersion = EncryptionVersion.V2; // TODO read from config
+        this.encryption = Objects.requireNonNull(encryption); // TODO read from config
         this.edekSerde = Objects.requireNonNull(edekSerde);
         if (recordBufferInitialBytes <= 0) {
             throw new IllegalArgumentException();
@@ -161,7 +162,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                         .toMemoryRecords(allocateBufferForEncrypt(memoryRecords, bufferAllocator),
                                 new RecordEncryptor<>(topicName,
                                         partition,
-                                        encryptionVersion,
+                                        encryption,
                                         encryptionScheme,
                                         edekSerde,
                                         recordBuffer));
