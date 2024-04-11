@@ -50,5 +50,16 @@ RUN set -ex; \
         echo "${TINI_SHA256_AMD64} */usr/bin/tini" | sha256sum -c; \
         chmod +x /usr/bin/tini; \
     fi
+
+
+# Async Profiler
+RUN microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y tar gzip
+RUN mkdir /usr/local/async-profiler/ &&\
+      curl -L -o /usr/local/async-profiler/async-profiler.tar.gz https://github.com/async-profiler/async-profiler/releases/download/v3.0/async-profiler-3.0-linux-arm64.tar.gz &&\
+      cd /usr/local/async-profiler/ &&\
+      tar -xvzf async-profiler.tar.gz --strip-components=1  &&\
+      rm -f /usr/local/async-profiler/async-profiler.tar.gz
+
+
 COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious/
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]
