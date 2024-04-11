@@ -45,6 +45,9 @@ services:
     image: ${KROXYLICIOUS_IMAGE}
     hostname: kroxylicious
     container_name: kroxylicious
+    # this is to enable async_profiler
+    security_opt:
+      - seccomp:unconfined
     command:
       - "--config"
       - "/opt/kroxylicious/config/config.yaml"

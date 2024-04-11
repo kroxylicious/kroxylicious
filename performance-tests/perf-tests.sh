@@ -15,9 +15,13 @@ PRODUCER_PROPERTIES=${PRODUCER_PROPERTIES:-"acks=all"}
 WARM_UP_NUM_RECORDS_POST_BROKER_START=${WARM_UP_NUM_RECORDS_POST_BROKER_START:-1000}
 WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 
+
+PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/results"}
+
 ON_SHUTDOWN=()
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+PURPLE='\033[1;35m'
 NOCOLOR='\033[0m'
 
 KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
@@ -30,6 +34,15 @@ KAFKA_IMAGE=${KAFKA_IMAGE:-"quay.io/ogunalp/kafka-native:latest-kafka-${KAFKA_VE
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-"quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}"}
 PERF_NETWORK=performance-tests_perf_network
 export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE
+
+
+
+printf "KAFKA_VERSION: ${KAFKA_VERSION}\n"
+printf "STRIMZI_VERSION: ${STRIMZI_VERSION}\n"
+printf "KROXYLICIOUS_VERSION ${KROXYLICIOUS_VERSION}\n"
+printf "Kafka Image: ${KAFKA_IMAGE}\n"
+printf "KROXYLICIOUS_IMAGE: ${KROXYLICIOUS_IMAGE}\n"
+
 
 runDockerCompose () {
   docker compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
@@ -57,6 +70,27 @@ warmUp() {
   echo -e "${YELLOW}Running warm up${NOCOLOR}"
   producerPerf "$1" "$2" "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
   consumerPerf "$1" "$2" "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
+}
+
+startAsyncProfilerKroxy() {
+
+  echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
+  /usr/local/async-profiler/bin/asprof start ${KROXY_PID}
+}
+
+stopAsyncProfilerKroxy() {
+  /usr/local/async-profiler/bin/asprof status ${KROXY_PID}
+
+  echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
+
+  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /tmp/asprof-results
+  /usr/local/async-profiler/bin/asprof stop ${KROXY_PID} -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
+
+  mkdir -p ${PROFILING_OUTPUT_DIRECTORY}
+  docker cp ${KROXYLICIOUS_CONTAINER_ID}:/tmp/asprof-results/. ${PROFILING_OUTPUT_DIRECTORY}
+
+  unset KROXYLICIOUS_CONTAINER_ID
+  unset KROXY_PID
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -143,7 +177,20 @@ doPerfTest () {
   doCreateTopic "${ENDPOINT}" "${TOPIC}"
   warmUp "${ENDPOINT}" "${TOPIC}"
 
+  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ]
+  then
+    echo -e "${PURPLE}KROXYLICIOUS_CONTAINER_ID set to $KROXYLICIOUS_CONTAINER_ID${NOCOLOR}"
+    startAsyncProfilerKroxy
+  fi
+
+
   producerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${PRODUCER_RESULT}"
+
+  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ]
+  then
+    stopAsyncProfilerKroxy
+  fi
+
   consumerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${CONSUMER_RESULT}"
 
   doDeleteTopic "${ENDPOINT}" "${TOPIC}"
@@ -163,7 +210,9 @@ ON_SHUTDOWN+=("rm -rf ${TMP}")
 
 # Bring up Kafka
 ON_SHUTDOWN+=("runDockerCompose down")
-runDockerCompose pull
+
+# This doesn't work with podman if I want to push to the local repository
+#runDockerCompose pull
 runDockerCompose up --detach --wait kafka
 
 # Warm up the broker - we do this separately as we might want a longer warm-up period
