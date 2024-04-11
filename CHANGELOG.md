@@ -2,6 +2,7 @@
 
 Please enumerate **all user-facing** changes using format `<github issue/pr number>: <short description>`, with changes ordered in reverse chronological order.
 
+## SNAPSHOT
 ## 0.5.2
 ## 0.5.1
 
