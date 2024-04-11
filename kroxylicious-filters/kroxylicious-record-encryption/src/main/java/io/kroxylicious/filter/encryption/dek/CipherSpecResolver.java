@@ -18,7 +18,7 @@ public class CipherSpecResolver extends AbstractResolver<CipherSpec, CipherManag
             Aes.AES_256_GCM_128,
             ChaChaPoly.INSTANCE));
 
-    CipherSpecResolver(Collection<CipherManager> impls) {
+    public CipherSpecResolver(Collection<CipherManager> impls) {
         super(impls);
     }
 

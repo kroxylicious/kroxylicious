@@ -20,11 +20,6 @@ public enum AadSpec {
     /**
      * No AAD
      */
-    NONE,
-
-    /**
-     * No AAD
-     */
-    BATCH_METADATA;
+    NONE;
 
 }

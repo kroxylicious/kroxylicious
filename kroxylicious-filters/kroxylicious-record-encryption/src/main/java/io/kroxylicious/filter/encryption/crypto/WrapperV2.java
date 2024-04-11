@@ -25,6 +25,7 @@ import io.kroxylicious.filter.encryption.dek.CipherManager;
 import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -55,6 +56,16 @@ public class WrapperV2 implements Wrapper {
                      AadResolver aadResolver) {
         this.cipherSpecResolver = cipherSpecResolver;
         this.aadResolver = aadResolver;
+    }
+
+    @VisibleForTesting
+    CipherSpecResolver cipherSpecResolver() {
+        return cipherSpecResolver;
+    }
+
+    @VisibleForTesting
+    AadResolver aadResolver() {
+        return aadResolver;
     }
 
     @Override

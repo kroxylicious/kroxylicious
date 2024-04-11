@@ -40,9 +40,9 @@ public class DecryptionDekCache<K, E> {
     public static final int NO_MAX_CACHE_SIZE = -1;
     private final DekManager<K, E> dekManager;
 
-    record CacheKey<E>(
-                       @Nullable CipherManager cipherManager,
-                       @Nullable E edek) {
+    public record CacheKey<E>(
+                              @Nullable CipherManager cipherManager,
+                              @Nullable E edek) {
         public CacheKey {
             if (cipherManager == null ^ edek == null) {
                 throw new IllegalArgumentException();
