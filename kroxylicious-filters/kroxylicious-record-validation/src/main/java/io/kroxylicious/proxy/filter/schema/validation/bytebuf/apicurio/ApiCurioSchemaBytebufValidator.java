@@ -20,8 +20,8 @@ import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidator;
 
 public class ApiCurioSchemaBytebufValidator implements BytebufValidator {
 
-    private static final String valueSchemaHeader = "apicurio.value.globalId";
-    private static final String keySchemaHeader = "apicurio.key.globalId";
+    private static final String VALUE_SCHEMA_HEADER = "apicurio.value.globalId";
+    private static final String KEY_SCHEMA_HEADER = "apicurio.key.globalId";
 
     @Override
     public CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
@@ -29,7 +29,7 @@ public class ApiCurioSchemaBytebufValidator implements BytebufValidator {
         if (buffer == null) {
             return CompletableFuture.completedFuture(Result.VALID);
         }
-        String header = isKey ? keySchemaHeader : valueSchemaHeader;
+        String header = isKey ? KEY_SCHEMA_HEADER : VALUE_SCHEMA_HEADER;
         Optional<Header> first = Arrays.stream(record.headers()).filter(h -> h.key().equals(header)).findFirst();
         if (first.isEmpty()) {
             return CompletableFuture.completedFuture(new Result(false, "record headers did not contain: " + header));

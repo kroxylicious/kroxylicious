@@ -18,102 +18,106 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.filter.schema.validation.Result;
 import io.kroxylicious.proxy.filter.schema.validation.TestRecords;
+import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidator;
+import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidators;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ApiCurioSchemaBytebufValidatorTest {
 
+    public static final BytebufValidator APICURIO_SCHEMA_VALIDATOR = BytebufValidators.apicurioSchemaValidator();
+
     @Test
-    public void testNullValueAllowed() {
-        Result result = validateValue(new ApiCurioSchemaBytebufValidator(), null, 0, TestRecords.createRecord(null, null));
+    void testNullValueAllowed() {
+        Result result = validateValue(APICURIO_SCHEMA_VALIDATOR, null, 0, TestRecords.createRecord(null, null));
         assertThat(result.valid()).isTrue();
     }
 
     @Test
-    public void testValueHeaderNotLong() {
+    void testValueHeaderNotLong() {
         Header[] headers = { new RecordHeader("apicurio.value.globalId", new byte[]{ 1, 2, 3, 4, 5, 6, 7 }) };
         ByteBuffer arbitrary = ByteBuffer.allocate(1);
-        Result result = validateValue(new ApiCurioSchemaBytebufValidator(), arbitrary, 0, TestRecords.createRecord(null, null, headers));
+        Result result = validateValue(APICURIO_SCHEMA_VALIDATOR, arbitrary, 0, TestRecords.createRecord(null, null, headers));
         assertThat(result.valid()).isFalse();
         assertThat(result.errorMessage()).contains("header apicurio.value.globalId value is not 8 bytes");
     }
 
     @Test
-    public void testValueHeaderLong() {
+    void testValueHeaderLong() {
         Header[] headers = { new RecordHeader("apicurio.value.globalId", new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8 }) };
         ByteBuffer arbitrary = ByteBuffer.allocate(1);
-        Result result = validateValue(new ApiCurioSchemaBytebufValidator(), arbitrary, 0, TestRecords.createRecord(null, null, headers));
+        Result result = validateValue(APICURIO_SCHEMA_VALIDATOR, arbitrary, 0, TestRecords.createRecord(null, null, headers));
         assertThat(result.valid()).isTrue();
     }
 
     @Test
-    public void testValueHeaderEmpty() {
+    void testValueHeaderEmpty() {
         Header[] headers = { new RecordHeader("apicurio.value.globalId", new byte[0]) };
         ByteBuffer arbitrary = ByteBuffer.allocate(1);
-        Result result = validateValue(new ApiCurioSchemaBytebufValidator(), arbitrary, 0, TestRecords.createRecord(null, null, headers));
+        Result result = validateValue(APICURIO_SCHEMA_VALIDATOR, arbitrary, 0, TestRecords.createRecord(null, null, headers));
         assertThat(result.valid()).isFalse();
         assertThat(result.errorMessage()).contains("header apicurio.value.globalId value is not 8 bytes");
     }
 
     @Test
-    public void testValueHeaderMissingIsInvalid() {
+    void testValueHeaderMissingIsInvalid() {
         ByteBuffer arbitrary = ByteBuffer.allocate(1);
-        Result result = validateValue(new ApiCurioSchemaBytebufValidator(), arbitrary, arbitrary.limit(), TestRecords.createRecord(null, null));
+        Result result = validateValue(APICURIO_SCHEMA_VALIDATOR, arbitrary, arbitrary.limit(), TestRecords.createRecord(null, null));
         assertThat(result.valid()).isFalse();
         assertThat(result.errorMessage()).contains("record headers did not contain: apicurio.value.globalId");
     }
 
     @Test
-    public void testNullKeyAllowed() {
-        Result result = validateKey(new ApiCurioSchemaBytebufValidator(), null, 0, TestRecords.createRecord(null, null));
+    void testNullKeyAllowed() {
+        Result result = validateKey(APICURIO_SCHEMA_VALIDATOR, null, 0, TestRecords.createRecord(null, null));
         assertThat(result.valid()).isTrue();
     }
 
     @Test
-    public void testKeyHeaderMissingIsInvalid() {
+    void testKeyHeaderMissingIsInvalid() {
         ByteBuffer arbitrary = ByteBuffer.allocate(1);
-        Result result = validateKey(new ApiCurioSchemaBytebufValidator(), arbitrary, arbitrary.limit(), TestRecords.createRecord(null, null));
+        Result result = validateKey(APICURIO_SCHEMA_VALIDATOR, arbitrary, arbitrary.limit(), TestRecords.createRecord(null, null));
         assertThat(result.valid()).isFalse();
         assertThat(result.errorMessage()).contains("record headers did not contain: apicurio.key.globalId");
     }
 
     @Test
-    public void testKeyHeaderNotLong() {
+    void testKeyHeaderNotLong() {
         Header[] headers = { new RecordHeader("apicurio.key.globalId", new byte[]{ 1, 2, 3, 4, 5, 6, 7 }) };
         ByteBuffer arbitrary = ByteBuffer.allocate(1);
-        Result result = validateKey(new ApiCurioSchemaBytebufValidator(), arbitrary, 0, TestRecords.createRecord(null, null, headers));
+        Result result = validateKey(APICURIO_SCHEMA_VALIDATOR, arbitrary, 0, TestRecords.createRecord(null, null, headers));
         assertThat(result.valid()).isFalse();
         assertThat(result.errorMessage()).contains("header apicurio.key.globalId value is not 8 bytes");
     }
 
     @Test
-    public void testKeyHeaderLong() {
+    void testKeyHeaderLong() {
         Header[] headers = { new RecordHeader("apicurio.key.globalId", new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8 }) };
         ByteBuffer arbitrary = ByteBuffer.allocate(1);
-        Result result = validateKey(new ApiCurioSchemaBytebufValidator(), arbitrary, 0, TestRecords.createRecord(null, null, headers));
+        Result result = validateKey(APICURIO_SCHEMA_VALIDATOR, arbitrary, 0, TestRecords.createRecord(null, null, headers));
         assertThat(result.valid()).isTrue();
     }
 
     @Test
-    public void testKeyHeaderEmpty() {
+    void testKeyHeaderEmpty() {
         Header[] headers = { new RecordHeader("apicurio.key.globalId", new byte[0]) };
         ByteBuffer arbitrary = ByteBuffer.allocate(1);
-        Result result = validateKey(new ApiCurioSchemaBytebufValidator(), arbitrary, 0, TestRecords.createRecord(null, null, headers));
+        Result result = validateKey(APICURIO_SCHEMA_VALIDATOR, arbitrary, 0, TestRecords.createRecord(null, null, headers));
         assertThat(result.valid()).isFalse();
         assertThat(result.errorMessage()).contains("header apicurio.key.globalId value is not 8 bytes");
     }
 
-    private static Result validateValue(ApiCurioSchemaBytebufValidator apiCurioSchemaBytebufValidator, ByteBuffer buffer, int length, Record record) {
-        return validate(apiCurioSchemaBytebufValidator, buffer, length, record, false);
+    private static Result validateValue(BytebufValidator validator, ByteBuffer buffer, int length, Record record) {
+        return validate(validator, buffer, length, record, false);
     }
 
-    private static Result validateKey(ApiCurioSchemaBytebufValidator apiCurioSchemaBytebufValidator, ByteBuffer buffer, int length, Record record) {
-        return validate(apiCurioSchemaBytebufValidator, buffer, length, record, true);
+    private static Result validateKey(BytebufValidator validator, ByteBuffer buffer, int length, Record record) {
+        return validate(validator, buffer, length, record, true);
     }
 
-    private static Result validate(ApiCurioSchemaBytebufValidator apiCurioSchemaBytebufValidator, ByteBuffer buffer, int length, Record record, boolean isKey) {
+    private static Result validate(BytebufValidator validator, ByteBuffer buffer, int length, Record record, boolean isKey) {
         try {
-            return apiCurioSchemaBytebufValidator.validate(buffer, length, record, isKey).toCompletableFuture().get(5, TimeUnit.SECONDS);
+            return validator.validate(buffer, length, record, isKey).toCompletableFuture().get(5, TimeUnit.SECONDS);
         }
         catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);
