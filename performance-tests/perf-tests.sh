@@ -132,6 +132,27 @@ stopAsyncProfilerKroxy() {
   unset KROXY_PID
 }
 
+startAsyncProfilerKroxy() {
+
+  echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
+  /usr/local/async-profiler/bin/asprof start ${KROXY_PID}
+}
+
+stopAsyncProfilerKroxy() {
+  /usr/local/async-profiler/bin/asprof status ${KROXY_PID}
+
+  echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
+
+  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /tmp/asprof-results
+  /usr/local/async-profiler/bin/asprof stop ${KROXY_PID} -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
+
+  mkdir -p ${PROFILING_OUTPUT_DIRECTORY}
+  docker cp ${KROXYLICIOUS_CONTAINER_ID}:/tmp/asprof-results/. ${PROFILING_OUTPUT_DIRECTORY}
+
+  unset KROXYLICIOUS_CONTAINER_ID
+  unset KROXY_PID
+}
+
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
 producerPerf() {
   local ENDPOINT
@@ -250,6 +271,9 @@ ON_SHUTDOWN+=("rm -rf ${TMP}")
 
 # Bring up Kafka
 ON_SHUTDOWN+=("runDockerCompose down")
+
+# This doesn't work with podman if I want to push to the local repository
+#runDockerCompose pull
 
 setupAsyncProfilerKroxy
 ON_SHUTDOWN+=("deleteAsyncProfilerKroxy")
