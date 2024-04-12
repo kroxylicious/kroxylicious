@@ -25,6 +25,7 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
         implements Resolver<E, T> {
     private final Map<E, T> nameMapping;
     private final Map<Byte, T> idMapping;
+    private final Map<T, Byte> reverseIdMapping;
 
     protected AbstractResolver(Collection<T> impls) {
         if (Objects.requireNonNull(impls).isEmpty()) {
@@ -33,17 +34,10 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
         // each T can have multiple names, but each name must uniquely identify a T
         // each T has a unique id
         this.nameMapping = impls.stream().collect(Collectors.toMap(T::name, tx -> tx));
-        if (nameMapping.size() < impls.size()) {
-            throw new IllegalArgumentException();
-        }
+
         this.idMapping = impls.stream().collect(Collectors.toMap(T::serializedId, tx -> tx));
-        if (idMapping.size() != impls.size()) {
-            throw new IllegalArgumentException();
-        }
-        var reverseIdMapping = impls.stream().collect(Collectors.toMap(tx -> tx, T::serializedId));
-        if (idMapping.size() != reverseIdMapping.size()) {
-            throw new IllegalArgumentException();
-        }
+
+        this.reverseIdMapping = impls.stream().collect(Collectors.toMap(tx -> tx, T::serializedId));
     }
 
     /**
@@ -86,7 +80,6 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
 
     @Override
     public @NonNull T fromSerializedId(byte id) {
-        Objects.requireNonNull(id);
         var impl = idMapping.get(id);
         if (impl == null) {
             throw newException("Unknown " + enumName() + " id: " + id);
@@ -95,7 +88,13 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
     }
 
     public byte toSerializedId(@NonNull T impl) {
-        return impl.serializedId();
+        // Don't just call impl.serializedId because that doesn't check that this result knows about the id
+        Objects.requireNonNull(impl);
+        var id = reverseIdMapping.get(impl);
+        if (id == null) {
+            throw newException("Unknown " + enumName() + " impl: " + impl);
+        }
+        return id;
     }
 
 }
