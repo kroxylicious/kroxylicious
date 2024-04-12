@@ -44,13 +44,14 @@ public class RecordEncryptionUtil {
         Integer count = batch.countOrNull();
         if (count == null) {
             // for magic <2 count will be null
-            CloseableIterator<Record> iterator = batch.skipKeyValueIterator(BufferSupplier.NO_CACHING);
-            int c = 0;
-            while (iterator.hasNext()) {
-                c++;
-                iterator.next();
+            try (CloseableIterator<Record> iterator = batch.skipKeyValueIterator(BufferSupplier.NO_CACHING)) {
+                int c = 0;
+                while (iterator.hasNext()) {
+                    c++;
+                    iterator.next();
+                }
+                count = c;
             }
-            count = c;
         }
         return count;
     }
