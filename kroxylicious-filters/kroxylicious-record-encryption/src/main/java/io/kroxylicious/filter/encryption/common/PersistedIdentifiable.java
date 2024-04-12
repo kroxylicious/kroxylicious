@@ -15,7 +15,7 @@ package io.kroxylicious.filter.encryption.common;
  * <p>Each behaviour is {@linkplain #name() named} by an element from an {@code enum}.
  * This is typically used for identifying the behaviour within configuration.</p>
  *
- * <p>Each behaviour is also identified by a {@link #serializedId()}. The mapping between behaviour and id must be unique id both directions.</p>
+ * <p>Each behaviour is also identified by a {@link #serializedId()}. The mapping between behaviour and id must be unique in both directions.</p>
  *
  * <p>A {@link Resolver} is usually responsible for finding the implementation corresponding to a given {@link #name()} or {@link #serializedId()}.</p>
  *
