@@ -55,10 +55,10 @@
         <micrometer.version>1.12.4</micrometer.version>
         <slf4j.version>2.0.12</slf4j.version>
         <sundr-builder-annotations.version>0.101.3</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.8.3</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.8.4</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
-        <jacoco-maven-plugin.version>0.8.11</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
 
         <!-- Test dependencies -->
         <strimzi.version>0.40.0</strimzi.version>
@@ -68,7 +68,7 @@
         <awaitility.version>4.2.1</awaitility.version>
         <commons.io.version>2.16.0</commons.io.version>
         <testcontainers.version>1.19.7</testcontainers.version>
-        <bouncycastle.version>1.77</bouncycastle.version>
+        <bouncycastle.version>1.78</bouncycastle.version>
     </properties>
 
     <name>Parent POM</name>
@@ -553,7 +553,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-plugin-plugin</artifactId>
-                    <version>3.11.0</version>
+                    <version>3.12.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
