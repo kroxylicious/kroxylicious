@@ -44,8 +44,8 @@ class EncryptionTest {
         var aadResolver = ((WrapperV2) Encryption.V2.wrapper()).aadResolver();
         // Encryption v1 supports AAD.NONE
         assertThat(aadResolver.fromName(AadSpec.NONE)).isExactlyInstanceOf(AadNone.class);
-        assertThat(aadResolver.fromSerializedId(new AadNone().serializedId())).isExactlyInstanceOf(AadNone.class);
-        assertThat(aadResolver.toSerializedId(new AadNone())).isEqualTo(new AadNone().serializedId());
+        assertThat(aadResolver.fromSerializedId(AadNone.INSTANCE.serializedId())).isExactlyInstanceOf(AadNone.class);
+        assertThat(aadResolver.toSerializedId(AadNone.INSTANCE)).isEqualTo(AadNone.INSTANCE.serializedId());
     }
 
 }

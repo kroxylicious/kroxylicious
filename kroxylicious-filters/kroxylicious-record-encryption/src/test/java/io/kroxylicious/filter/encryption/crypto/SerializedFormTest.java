@@ -24,8 +24,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.filter.encryption.config.AadSpec;
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
@@ -37,6 +35,8 @@ import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.test.record.RecordTestUtils;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
@@ -108,8 +108,7 @@ class SerializedFormTest {
                 Arguments.of(justValue, "cafebabe", emptyHeaders),
                 Arguments.of(valueAndHeaders, "cafebabe", emptyHeaders),
                 Arguments.of(justValue, "cafebabe", nonEmptyHeaders),
-                Arguments.of(valueAndHeaders, "cafebabe", nonEmptyHeaders)
-        );
+                Arguments.of(valueAndHeaders, "cafebabe", nonEmptyHeaders));
     }
 
     @ParameterizedTest
@@ -121,7 +120,8 @@ class SerializedFormTest {
         if (recordFields.contains(RecordField.RECORD_HEADER_VALUES)) {
             if (headers == null) {
                 expectedHeadersHex = varintAsHex(0); // TODO It seems that headers can never be null? but parcel V1 has (dead) code to use NULL_MARKER
-            } else {
+            }
+            else {
                 expectedHeadersHex = varintAsHex(headers.length);
                 for (var header : headers) {
                     expectedHeadersHex += unsignedVarintAsHex(header.key().length());
@@ -130,7 +130,8 @@ class SerializedFormTest {
                     expectedHeadersHex += HexFormat.of().formatHex(header.value());
                 }
             }
-        } else {
+        }
+        else {
             expectedHeadersHex = varintAsHex(ParcelV1.ABSENT_MARKER);
         }
         String expectedParcelHex = varintAsHex(recordValueHex.length() / 2)
@@ -245,9 +246,8 @@ class SerializedFormTest {
 
         @Override
         public void serialize(
-                byte[] object,
-                @NonNull ByteBuffer buffer
-        ) {
+                              byte[] object,
+                              @NonNull ByteBuffer buffer) {
             buffer.put(object);
         }
 
@@ -260,7 +260,7 @@ class SerializedFormTest {
     private static class MyAad implements Aad {
         private final byte aadId;
 
-        public MyAad(byte aadId) {
+        MyAad(byte aadId) {
             this.aadId = aadId;
         }
 

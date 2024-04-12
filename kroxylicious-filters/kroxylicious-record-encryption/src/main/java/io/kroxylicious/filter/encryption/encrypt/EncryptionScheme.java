@@ -35,7 +35,7 @@ public record EncryptionScheme<K>(
     public EncryptionScheme(
                             K kekId,
                             Set<RecordField> recordFields) {
-        this(kekId, recordFields, new AadNone());
+        this(kekId, recordFields, AadNone.INSTANCE);
     }
 
 }

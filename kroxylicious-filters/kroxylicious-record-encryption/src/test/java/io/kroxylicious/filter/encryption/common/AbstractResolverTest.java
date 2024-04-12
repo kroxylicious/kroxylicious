@@ -6,10 +6,10 @@
 
 package io.kroxylicious.filter.encryption.common;
 
-import org.junit.jupiter.api.Test;
-
 import java.util.Collection;
 import java.util.List;
+
+import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -17,7 +17,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AbstractResolverTest {
 
     enum MyEnum {
-        FOO, BAR,
+        FOO,
+        BAR,
         QUUX
     }
 
@@ -30,10 +31,9 @@ class AbstractResolverTest {
         private final byte id;
         private final MyEnum name;
 
-        public MyImpl(
-                int id,
-                MyEnum name
-        ) {
+        MyImpl(
+               int id,
+               MyEnum name) {
             this.id = (byte) id;
             this.name = name;
         }
@@ -141,6 +141,5 @@ class AbstractResolverTest {
                 .isExactlyInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Duplicate key FOO");
     }
-
 
 }
