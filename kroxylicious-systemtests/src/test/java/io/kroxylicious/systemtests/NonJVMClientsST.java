@@ -19,10 +19,10 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 
+import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
-import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
@@ -30,14 +30,14 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * The Kroxylicious system tests.
+ * The non-JVM clients system tests.
  */
 @ExtendWith(KroxyliciousExtension.class)
 class NonJVMClientsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(NonJVMClientsST.class);
     private final String clusterName = "my-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
-    private static final String MESSAGE = "Message";
+    private static final String MESSAGE = "Hello-world";
     private String bootstrap;
 
     /**
@@ -47,14 +47,16 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceAndConsumeWithKcatClients(String namespace) {
+        int numOfMessages = 2;
+        String expectedMessage = MESSAGE + " - " + (numOfMessages - 1);
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceSingleMessageWithKcat(namespace, topicName, bootstrap, MESSAGE);
+        KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessagesWithKcat(namespace, topicName, bootstrap, MESSAGE, Duration.ofMinutes(2));
+        String result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
     /**
@@ -64,14 +66,16 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceAndConsumeWithKafkaGoClients(String namespace) {
+        int numOfMessages = 2;
+        String expectedMessage = MESSAGE;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessagesWithKafkaGo(namespace, topicName, bootstrap, MESSAGE);
+        KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessagesWithKafkaGo(namespace, topicName, bootstrap, MESSAGE, Duration.ofMinutes(2));
+        String result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
     /**
@@ -81,14 +85,16 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithKcatAndConsumeWithTestClients(String namespace) {
+        int numOfMessages = 2;
+        String expectedMessage = MESSAGE + " - " + (numOfMessages - 1);
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceSingleMessageWithKcat(namespace, topicName, bootstrap, MESSAGE);
+        KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, 1, Duration.ofMinutes(2));
+        String result = KafkaClients.testClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
     /**
@@ -98,14 +104,16 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithTestClientsAndConsumeWithKcat(String namespace) {
+        int numOfMessages = 2;
+        String expectedMessage = MESSAGE + " - " + (numOfMessages - 1);
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, 1);
+        KafkaClients.testClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessagesWithKcat(namespace, topicName, bootstrap, MESSAGE, Duration.ofMinutes(2));
+        String result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
     /**
@@ -115,14 +123,16 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithKafkaGoAndConsumeWithTestClients(String namespace) {
+        int numOfMessages = 2;
+        String expectedMessage = MESSAGE;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessagesWithKafkaGo(namespace, topicName, bootstrap, MESSAGE);
+        KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, 1, Duration.ofMinutes(2));
+        String result = KafkaClients.testClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
     /**
@@ -132,14 +142,16 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithTestClientsAndConsumeWithKafkaGo(String namespace) {
+        int numOfMessages = 2;
+        String expectedMessage = MESSAGE + " - " + (numOfMessages - 1);
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, 1);
+        KafkaClients.testClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessagesWithKafkaGo(namespace, topicName, bootstrap, MESSAGE, Duration.ofMinutes(2));
+        String result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(MESSAGE);
+        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
     }
 
     @BeforeEach

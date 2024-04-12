@@ -32,29 +32,6 @@ public class KroxyliciousSteps {
     }
 
     /**
-     * Produce single message with kcat.
-     *
-     * @param namespace the namespace
-     * @param topicName the topic name
-     * @param bootstrap the bootstrap
-     * @param message the message
-     */
-    public static void produceSingleMessageWithKcat(String namespace, String topicName, String bootstrap, String message) {
-        KafkaUtils.produceSingleMessageWithKcat(namespace, topicName, bootstrap, message);
-    }
-
-    /**
-     * Produce messages with kafka go.
-     *
-     * @param namespace the namespace
-     * @param topicName the topic name
-     * @param bootstrap the bootstrap
-     */
-    public static void produceMessagesWithKafkaGo(String namespace, String topicName, String bootstrap, String message) {
-        KafkaUtils.produceSingleMessageWithKafkaGo(namespace, topicName, bootstrap, message);
-    }
-
-    /**
      * Consume messages.
      *
      * @param namespace the namespace
@@ -67,34 +44,6 @@ public class KroxyliciousSteps {
      */
     public static String consumeMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages, Duration timeout) {
         return KafkaUtils.consumeMessageWithTestClients(namespace, topicName, bootstrap, message, numberOfMessages, timeout);
-    }
-
-    /**
-     * Consume messages with kcat
-     *
-     * @param namespace the namespace
-     * @param topicName the topic name
-     * @param bootstrap the bootstrap
-     * @param message the message
-     * @param timeout the timeout
-     * @return the string
-     */
-    public static String consumeMessagesWithKcat(String namespace, String topicName, String bootstrap, String message, Duration timeout) {
-        return KafkaUtils.consumeMessagesWithKcat(namespace, topicName, bootstrap, message, timeout);
-    }
-
-    /**
-     * Consume messages with kafka go
-     *
-     * @param namespace the namespace
-     * @param topicName the topic name
-     * @param bootstrap the bootstrap
-     * @param message the message
-     * @param timeout the timeout
-     * @return the string
-     */
-    public static String consumeMessagesWithKafkaGo(String namespace, String topicName, String bootstrap, String message, Duration timeout) {
-        return KafkaUtils.consumeMessagesWithKafkaGo(namespace, topicName, bootstrap, message, timeout);
     }
 
     /**

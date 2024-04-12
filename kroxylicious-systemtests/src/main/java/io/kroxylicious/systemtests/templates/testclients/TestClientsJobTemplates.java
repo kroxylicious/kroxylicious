@@ -195,7 +195,7 @@ public class TestClientsJobTemplates {
     private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message) {
         return List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
-                envVar(DELAY_MS_VAR, "1000"),
+                envVar(DELAY_MS_VAR, "500"),
                 envVar(TOPIC_VAR, topicName),
                 envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
                 envVar(MESSAGE_VAR, message),
