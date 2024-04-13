@@ -34,6 +34,9 @@ public class ParcelV1 implements Parcel {
     private static final Header[] ABSENT_HEADERS = new Header[0];
     private static final ByteBuffer ABSENT_VALUE = ByteBuffer.allocate(0);
 
+    private ParcelV1() {
+    }
+
     @Override
     public byte serializedId() {
         return 0;
@@ -50,13 +53,13 @@ public class ParcelV1 implements Parcel {
         return size;
     }
 
-    public void writeParcel(@NonNull Set<RecordField> recordFields, Record kafkaRecord, @NonNull ByteBuffer parcel) {
+    public void writeParcel(@NonNull Set<RecordField> recordFields, @NonNull Record kafkaRecord, @NonNull ByteBuffer parcel) {
         writeRecordValue(recordFields, kafkaRecord, parcel);
         writeHeaders(recordFields, kafkaRecord, parcel);
     }
 
     public void readParcel(@NonNull ByteBuffer parcel,
-                           Record encryptedRecord,
+                           @NonNull Record encryptedRecord,
                            @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {
         var parcelledValue = readRecordValue(parcel);
         Header[] parcelledHeaders = readHeaders(parcel);

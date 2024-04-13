@@ -15,6 +15,9 @@ import javax.crypto.Cipher;
 import io.kroxylicious.filter.encryption.common.PersistedIdentifiable;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 
+/**
+ * Abstraction for creating cipher instances and managing their parameters.
+ */
 public interface CipherManager extends PersistedIdentifiable<CipherSpec> {
 
     int VARIABLE_SIZE_PARAMETERS = -1;

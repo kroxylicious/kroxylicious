@@ -13,6 +13,9 @@ import org.apache.kafka.common.record.RecordBatch;
 import io.kroxylicious.filter.encryption.common.PersistedIdentifiable;
 import io.kroxylicious.filter.encryption.config.AadSpec;
 
+/**
+ * Abstraction for constructing the AAD passed to an AEAD cipher.
+ */
 public interface Aad extends PersistedIdentifiable<AadSpec> {
     ByteBuffer computeAad(String topicName, int partitionId, RecordBatch batch);
 }

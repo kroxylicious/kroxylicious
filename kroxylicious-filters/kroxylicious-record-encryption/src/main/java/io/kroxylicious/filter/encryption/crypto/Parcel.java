@@ -19,16 +19,20 @@ import io.kroxylicious.filter.encryption.config.RecordField;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Abstraction for constructing the parcel of data which is the plaintext passed to a cipher.
+ * What gets included depends on the {@link RecordField}s.
+ */
 public interface Parcel extends PersistedIdentifiable<ParcelVersion> {
     int sizeOfParcel(@NonNull Set<RecordField> recordFields,
                      @NonNull Record kafkaRecord);
 
     void writeParcel(@NonNull Set<RecordField> recordFields,
-                     Record kafkaRecord,
+                     @NonNull Record kafkaRecord,
                      @NonNull ByteBuffer parcel);
 
     void readParcel(@NonNull ByteBuffer parcel,
-                    Record encryptedRecord,
+                    @NonNull Record encryptedRecord,
                     @NonNull BiConsumer<ByteBuffer, Header[]> consumer);
 
 }

@@ -16,7 +16,7 @@ public class ParcelVersionResolver extends AbstractResolver<ParcelVersion, Parce
 
     public static final ParcelVersionResolver ALL = new ParcelVersionResolver(List.of(ParcelV1.INSTANCE));
 
-    ParcelVersionResolver(Collection<Parcel> impls) {
+    private ParcelVersionResolver(Collection<Parcel> impls) {
         super(impls);
     }
 

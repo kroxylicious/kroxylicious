@@ -24,6 +24,10 @@ import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Abstraction for the constructing the encrypted wrapper which includes the serialized id of the cipher and its parameters,
+ *  any {@link Aad} and the ciphertext of the {@link Parcel}.
+ */
 public interface Wrapper extends PersistedIdentifiable<WrapperVersion> {
     static <E> ByteBuffer decryptParcel(
                                         ByteBuffer ciphertextParcel,
