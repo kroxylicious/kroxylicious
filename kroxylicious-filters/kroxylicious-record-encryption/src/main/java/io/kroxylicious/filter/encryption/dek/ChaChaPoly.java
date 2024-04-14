@@ -21,7 +21,7 @@ import io.kroxylicious.filter.encryption.config.CipherSpec;
 public class ChaChaPoly implements CipherManager {
     private static final int NONCE_SIZE_BYTES = 12;
 
-    public static ChaChaPoly INSTANCE = new ChaChaPoly();
+    public static final ChaChaPoly INSTANCE = new ChaChaPoly();
 
     private ChaChaPoly() {
     }

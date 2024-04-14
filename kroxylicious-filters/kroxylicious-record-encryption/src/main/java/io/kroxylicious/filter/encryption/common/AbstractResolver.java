@@ -71,28 +71,25 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
     @Override
     public @NonNull T fromName(@NonNull E element) {
         Objects.requireNonNull(element);
-        var impl = nameMapping.get(element);
-        if (impl == null) {
-            throw newException("Unknown " + enumName() + " name: " + element);
-        }
-        return impl;
+        return lookup(nameMapping, "name", element);
     }
 
     @Override
     public @NonNull T fromSerializedId(byte id) {
-        var impl = idMapping.get(id);
-        if (impl == null) {
-            throw newException("Unknown " + enumName() + " id: " + id);
-        }
-        return impl;
+        return lookup(idMapping, "id", id);
     }
 
     public byte toSerializedId(@NonNull T impl) {
         // Don't just call impl.serializedId because that doesn't check that this result knows about the id
         Objects.requireNonNull(impl);
-        var id = reverseIdMapping.get(impl);
+        return lookup(reverseIdMapping, "impl", impl);
+    }
+
+    @NonNull
+    private <K, V> V lookup(Map<K, V> map, String identifierDescriptor, @NonNull K impl) {
+        var id = map.get(impl);
         if (id == null) {
-            throw newException("Unknown " + enumName() + " impl: " + impl);
+            throw newException("Unknown " + enumName() + " " + identifierDescriptor + ": " + impl);
         }
         return id;
     }

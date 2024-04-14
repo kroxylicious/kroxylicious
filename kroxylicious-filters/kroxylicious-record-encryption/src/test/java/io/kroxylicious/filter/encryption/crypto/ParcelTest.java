@@ -69,14 +69,14 @@ class ParcelTest {
         int size = parcel.sizeOfParcel(fields, record);
         var buffer = ByteBuffer.allocate(size);
         parcel.writeParcel(fields, record, buffer);
-        assertThat(buffer.remaining()).isEqualTo(0);
+        assertThat(buffer.remaining()).isZero();
 
         buffer.flip();
 
         BatchAwareMemoryRecordsBuilder mockBuilder = Mockito.mock(BatchAwareMemoryRecordsBuilder.class);
         parcel.readParcel(buffer, record, (v, h) -> mockBuilder.appendWithOffset(record.offset(), record.timestamp(), record.key(), v, h));
         verify(mockBuilder).appendWithOffset(record.offset(), record.timestamp(), record.key(), expectedValue, record.headers());
-        assertThat(buffer.remaining()).isEqualTo(0);
+        assertThat(buffer.remaining()).isZero();
     }
 
     private record Header(@JsonProperty(required = true) ByteBuffer keyBase64, ByteBuffer valueBase64) {}

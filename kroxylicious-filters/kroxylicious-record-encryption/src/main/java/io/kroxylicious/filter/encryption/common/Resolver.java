@@ -28,11 +28,11 @@ public interface Resolver<E extends Enum<E>, T> {
     /**
      * Look up the implementation instance corresponding to the given serialized id,
      * or throw some exception if this id is not known to the resolver.
-     * @param id The enum element name.
+     * @param id The serialized id.
      * @return the implementation instance.
      */
     @NonNull
-    T fromSerializedId(@NonNull byte id);
+    T fromSerializedId(byte id);
 
     /**
      * Look up the serialized id corresponding to the given implementation instance,

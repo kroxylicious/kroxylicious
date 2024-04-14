@@ -28,6 +28,7 @@ public record KmsCacheConfig(
         notFoundAliasExpireAfterWriteDuration = requireNonNullElse(notFoundAliasExpireAfterWriteDuration, Duration.ofSeconds(30));
     }
 
+    @SuppressWarnings("java:S1905") // Sonar's warning about this is incorrect, the cast is required.
     KmsCacheConfig(Integer decryptedDekCacheSize,
                    Long decryptedDekExpireAfterAccessSeconds,
                    Integer resolvedAliasCacheSize,

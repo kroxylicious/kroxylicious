@@ -16,7 +16,7 @@ import io.kroxylicious.filter.encryption.config.CipherSpec;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class CipherSpecResolverTest {
+class CipherSpecResolverTest {
     @Test
     void fromPersistentIdShouldThrowIfUnknownPersistentId() {
         assertThatThrownBy(() -> CipherSpecResolver.ALL.fromSerializedId((byte) 123)).isExactlyInstanceOf(UnknownCipherSpecException.class);

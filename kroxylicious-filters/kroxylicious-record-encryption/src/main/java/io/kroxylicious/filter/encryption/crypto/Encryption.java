@@ -23,8 +23,8 @@ import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
  */
 public class Encryption implements PersistedIdentifiable<EncryptionVersion> {
 
-    public static Encryption V1 = new Encryption((byte) 1, EncryptionVersion.V1_UNSUPPORTED, WrapperV1.INSTANCE, ParcelV1.INSTANCE);
-    public static Encryption V2 = new Encryption((byte) 2, EncryptionVersion.V2,
+    public static final Encryption V1 = new Encryption((byte) 1, EncryptionVersion.V1_UNSUPPORTED, WrapperV1.INSTANCE, ParcelV1.INSTANCE);
+    public static final Encryption V2 = new Encryption((byte) 2, EncryptionVersion.V2,
             new WrapperV2(
                     CipherSpecResolver.of(CipherSpec.AES_256_GCM_128),
                     AadResolver.of(AadSpec.NONE)),

@@ -15,7 +15,7 @@ import io.kroxylicious.filter.encryption.config.AadSpec;
 
 public class AadNone implements Aad {
 
-    public static AadNone INSTANCE = new AadNone();
+    public static final AadNone INSTANCE = new AadNone();
 
     private AadNone() {
     }
