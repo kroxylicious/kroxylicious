@@ -147,9 +147,9 @@
                 <executions>
                     <execution>
                         <id>layering</id>
-                        <configuration>
-                            <skip>false</skip>
-                        </configuration>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

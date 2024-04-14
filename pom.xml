@@ -509,11 +509,7 @@
                         <execution>
                             <id>layering</id>
                             <phase>verify</phase>
-                            <goals>
-                                <goal>check</goal>
-                            </goals>
-                            <configuration combine.children="override">
-                                <skip>true</skip> <!-- disable by default, and allow submodules to opt in -->
+                            <configuration>
                                 <consoleOutput>true</consoleOutput>
                                 <failOnViolation>true</failOnViolation>
                                 <configLocation>etc/module-checkstyle.xml</configLocation>
@@ -1017,6 +1013,7 @@
             <properties>
                 <skipTests>true</skipTests>
                 <maven.javadoc.skip>true</maven.javadoc.skip>
+                <checkstyle.skip>true</checkstyle.skip>
             </properties>
         </profile>
         <profile>
