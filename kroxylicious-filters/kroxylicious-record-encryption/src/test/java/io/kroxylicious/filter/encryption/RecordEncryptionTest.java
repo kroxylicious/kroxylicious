@@ -16,7 +16,12 @@ import javax.crypto.Cipher;
 import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.filter.encryption.dek.CipherSpec;
+import io.kroxylicious.filter.encryption.config.CipherSpec;
+import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
+import io.kroxylicious.filter.encryption.config.KekSelectorService;
+import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
+import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
+import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.filter.encryption.dek.DekException;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
@@ -49,7 +54,7 @@ class RecordEncryptionTest {
 
     @Test
     void shouldInitAndCreateFilter() {
-        RecordEncryption.Config config = new RecordEncryption.Config("KMS", null, "SELECTOR", null, null);
+        RecordEncryptionConfig config = new RecordEncryptionConfig("KMS", null, "SELECTOR", null, null);
         var ee = new RecordEncryption<>();
         var fc = mock(FilterFactoryContext.class);
         var kmsService = mock(KmsService.class);
@@ -73,7 +78,7 @@ class RecordEncryptionTest {
 
     @Test
     void testKmsCacheConfigDefaults() {
-        RecordEncryption.KmsCacheConfig config = new RecordEncryption.Config("vault", 1L, "selector", 1L, null).kmsCache();
+        KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, null).kmsCache();
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
         assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
         assertThat(config.resolvedAliasCacheSize()).isEqualTo(1000);
@@ -91,7 +96,7 @@ class RecordEncryptionTest {
         experimental.put("resolvedAliasExpireAfterWriteSeconds", null);
         experimental.put("resolvedAliasRefreshAfterWriteSeconds", null);
         experimental.put("notFoundAliasExpireAfterWriteSeconds", null);
-        RecordEncryption.KmsCacheConfig config = new RecordEncryption.Config("vault", 1L, "selector", 1L,
+        KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L,
                 experimental).kmsCache();
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
         assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
@@ -103,7 +108,7 @@ class RecordEncryptionTest {
 
     @Test
     void testKmsCacheConfigOverrides() {
-        RecordEncryption.KmsCacheConfig kmsCacheConfig = new RecordEncryption.KmsCacheConfig(
+        KmsCacheConfig kmsCacheConfig = new KmsCacheConfig(
                 1,
                 Duration.ofSeconds(2L),
                 3,
@@ -118,7 +123,7 @@ class RecordEncryptionTest {
         experimental.put("resolvedAliasExpireAfterWriteSeconds", 4);
         experimental.put("resolvedAliasRefreshAfterWriteSeconds", 5);
         experimental.put("notFoundAliasExpireAfterWriteSeconds", 6);
-        RecordEncryption.KmsCacheConfig config = new RecordEncryption.Config("vault", 1L, "selector", 1L, experimental).kmsCache();
+        KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental).kmsCache();
         assertThat(config).isEqualTo(kmsCacheConfig);
     }
 

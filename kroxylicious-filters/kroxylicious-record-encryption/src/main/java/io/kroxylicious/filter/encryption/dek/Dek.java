@@ -101,7 +101,7 @@ public final class Dek<E> {
 
     private static final long START = combine(1, 1);
     private static final long END = combine(-1, -1);
-    private final CipherSpec cipherSpec;
+    private final CipherManager cipherManager;
 
     /** Combine two int reference counts into a single long */
     private static long combine(int encryptors, int decryptors) {
@@ -180,19 +180,19 @@ public final class Dek<E> {
         return update(combined, Dek::destroyCounterIfNecessary, Dek::destroyCounterIfNecessary);
     }
 
-    Dek(@NonNull E edek, @NonNull DestroyableRawSecretKey key, @NonNull CipherSpec cipherSpec, long maxEncryptions) {
+    Dek(@NonNull E edek, @NonNull DestroyableRawSecretKey key, @NonNull CipherManager cipherManager, long maxEncryptions) {
         /* protected access because instantiation only allowed via a DekManager */
         Objects.requireNonNull(edek);
         if (Objects.requireNonNull(key).isDestroyed()) {
             throw new IllegalArgumentException();
         }
-        Objects.requireNonNull(cipherSpec);
+        Objects.requireNonNull(cipherManager);
         if (maxEncryptions < 0) {
             throw new IllegalArgumentException();
         }
         this.edek = edek;
         this.atomicKey = new AtomicReference<>(key);
-        this.cipherSpec = cipherSpec;
+        this.cipherManager = cipherManager;
         this.remainingEncryptions = new AtomicLong(maxEncryptions);
         // If no encryptions then make the Dek already destroyed for encrypt.
         this.outstandingCryptors = new AtomicLong(maxEncryptions == 0 ? combine(-1, 1) : START);
@@ -216,7 +216,7 @@ public final class Dek<E> {
             if (encryptorCount(outstandingCryptors.updateAndGet(Dek::acquireEncryptor)) <= 0) {
                 throw new DestroyedDekException();
             }
-            return new Encryptor(cipherSpec, atomicKey.get(), numEncryptions);
+            return new Encryptor(cipherManager, atomicKey.get(), numEncryptions);
         }
         throw new ExhaustedDekException("This DEK does not have " + numEncryptions + " encryptions available");
     }
@@ -231,7 +231,7 @@ public final class Dek<E> {
         if (decryptorCount(outstandingCryptors.updateAndGet(Dek::acquireDecryptor)) <= 0) {
             throw new DestroyedDekException();
         }
-        return new Decryptor(cipherSpec, atomicKey.get());
+        return new Decryptor(cipherManager, atomicKey.get());
     }
 
     /**
@@ -289,19 +289,19 @@ public final class Dek<E> {
         private final Cipher cipher;
         private SecretKey key;
         private final Supplier<AlgorithmParameterSpec> paramSupplier;
-        private final CipherSpec cipherSpec;
+        private final CipherManager cipherManager;
         private int numEncryptions;
         private boolean haveParameters = false;
 
-        private Encryptor(CipherSpec cipherSpec, SecretKey key, int numEncryptions) {
+        private Encryptor(CipherManager cipherManager, SecretKey key, int numEncryptions) {
             if (numEncryptions <= 0) {
                 throw new IllegalArgumentException();
             }
-            this.cipherSpec = Objects.requireNonNull(cipherSpec);
+            this.cipherManager = Objects.requireNonNull(cipherManager);
             this.key = Objects.requireNonNull(key);
             this.numEncryptions = numEncryptions;
-            this.cipher = cipherSpec.newCipher();
-            this.paramSupplier = cipherSpec.paramSupplier();
+            this.cipher = cipherManager.newCipher();
+            this.paramSupplier = cipherManager.paramSupplier();
         }
 
         /**
@@ -332,9 +332,9 @@ public final class Dek<E> {
                     AlgorithmParameterSpec params = paramSupplier.get();
                     cipher.init(Cipher.ENCRYPT_MODE, key, params);
 
-                    int paramsSize = cipherSpec.size(params);
+                    int paramsSize = cipherManager.size(params);
                     var parametersBuffer = paramAllocator.buffer(paramsSize);
-                    cipherSpec.writeParameters(parametersBuffer, params);
+                    cipherManager.writeParameters(parametersBuffer, params);
                     parametersBuffer.flip();
                     haveParameters = true;
                     return parametersBuffer;
@@ -408,8 +408,8 @@ public final class Dek<E> {
             }
         }
 
-        public @NonNull CipherSpec cipherSpec() {
-            return cipherSpec;
+        public @NonNull CipherManager cipherManager() {
+            return cipherManager;
         }
     }
 
@@ -420,11 +420,11 @@ public final class Dek<E> {
     public final class Decryptor implements AutoCloseable {
         private final Cipher cipher;
         private SecretKey key;
-        private final CipherSpec cipherSpec;
+        private final CipherManager cipherManager;
 
-        private Decryptor(CipherSpec cipherSpec, SecretKey key) {
-            this.cipher = cipherSpec.newCipher();
-            this.cipherSpec = cipherSpec;
+        private Decryptor(CipherManager cipherManager, SecretKey key) {
+            this.cipher = cipherManager.newCipher();
+            this.cipherManager = cipherManager;
             this.key = key;
         }
 
@@ -440,7 +440,7 @@ public final class Dek<E> {
                             @NonNull ByteBuffer parameterBuffer,
                             @NonNull ByteBuffer plaintext) {
             try {
-                var parameterSpec = cipherSpec.readParameters(parameterBuffer);
+                var parameterSpec = cipherManager.readParameters(parameterBuffer);
                 cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
                 if (aad != null) {
                     cipher.updateAAD(aad);

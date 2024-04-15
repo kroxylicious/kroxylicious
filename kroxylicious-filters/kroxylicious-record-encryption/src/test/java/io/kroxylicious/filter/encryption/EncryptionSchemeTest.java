@@ -10,6 +10,9 @@ import java.util.EnumSet;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.filter.encryption.config.RecordField;
+import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 

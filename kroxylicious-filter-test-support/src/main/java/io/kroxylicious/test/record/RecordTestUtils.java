@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.HexFormat;
 import java.util.List;
 
 import org.apache.kafka.common.TopicPartition;
@@ -33,9 +34,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class RecordTestUtils {
 
-    private static final byte DEFAULT_MAGIC_VALUE = RecordBatch.CURRENT_MAGIC_VALUE;
-    private static final long DEFAULT_OFFSET = 0;
-    private static final long DEFAULT_TIMESTAMP = 0;
+    public static final byte DEFAULT_MAGIC_VALUE = RecordBatch.CURRENT_MAGIC_VALUE;
+    public static final long DEFAULT_OFFSET = 0;
+    public static final long DEFAULT_TIMESTAMP = 0;
     private static final byte[] DEFAULT_KEY_BYTES = null;
     private static final ByteBuffer DEFAULT_KEY_BUFFER = null;
     private static final String DEFAULT_KEY_STRING = null;
@@ -57,6 +58,10 @@ public class RecordTestUtils {
         var result = new byte[buffer.remaining()];
         buffer.get(buffer.position(), result);
         return result;
+    }
+
+    public static String asHex(ByteBuffer buffer) {
+        return HexFormat.of().formatHex(RecordTestUtils.bytesOf(buffer));
     }
 
     public static String asString(ByteBuffer buffer) {
@@ -347,6 +352,23 @@ public class RecordTestUtils {
     }
 
     /**
+     * Return a MemoryRecords containing a single RecordBatch containing a single Record with the given key, value and headers.
+     * The batch will use the current magic.
+     * @param key
+     * @param value
+     * @param headers
+     * @return The record
+     */
+    public static MemoryRecords singleElementMemoryRecords(byte[] key, byte[] value, Header... headers) {
+        return singleElementMemoryRecords(DEFAULT_MAGIC_VALUE,
+                DEFAULT_OFFSET,
+                DEFAULT_TIMESTAMP,
+                key,
+                value,
+                headers);
+    }
+
+    /**
      * Return a MemoryRecords containing the specified batches
      */
     public static MemoryRecords memoryRecords(MutableRecordBatch... batches) {
@@ -506,7 +528,8 @@ public class RecordTestUtils {
 
     @NonNull
     private static MemoryRecordsBuilder memoryRecordsBuilder(byte magic, long baseOffset) {
-        return memoryRecordsBuilder(magic, baseOffset, CompressionType.NONE, TimestampType.CREATE_TIME, 0L, 0L, (short) 0, 0, false, false, 0);
+        return memoryRecordsBuilder(magic, baseOffset, CompressionType.NONE, TimestampType.CREATE_TIME, 0L,
+                magic > RecordBatch.MAGIC_VALUE_V1 ? 0L : RecordBatch.NO_PRODUCER_ID, (short) 0, 0, false, false, 0);
     }
 
     @NonNull

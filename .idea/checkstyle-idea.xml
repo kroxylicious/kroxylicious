@@ -6,6 +6,7 @@
     <option name="thirdPartyClasspath" />
     <option name="activeLocationIds">
       <option value="4134d36d-9580-44e5-ac16-ba5135e0e096" />
+      <option value="f9af683e-7dc5-4488-b45c-acac2cf124a0" />
     </option>
     <option name="locations">
       <list>
@@ -16,6 +17,14 @@
           <option name="properties">
             <map>
               <entry key="checkstyle.suppressions.file" value="etc/checkstyle-suppressions.xml" />
+            </map>
+          </option>
+        </ConfigurationLocation>
+        <ConfigurationLocation id="f9af683e-7dc5-4488-b45c-acac2cf124a0" type="PROJECT_RELATIVE" scope="All" description="record encryption layering">
+          $PROJECT_DIR$/kroxylicious-filters/kroxylicious-record-encryption/etc/module-checkstyle.xml
+          <option name="properties">
+            <map>
+              <entry key="project.basedir" value="kroxylicious-filters/kroxylicious-record-encryption" />
             </map>
           </option>
         </ConfigurationLocation>
