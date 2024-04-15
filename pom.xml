@@ -66,7 +66,7 @@
         <enforcer.api.version>3.4.1</enforcer.api.version>
         <maven.core.version>3.9.6</maven.core.version>
         <awaitility.version>4.2.1</awaitility.version>
-        <commons.io.version>2.16.0</commons.io.version>
+        <commons.io.version>2.16.1</commons.io.version>
         <testcontainers.version>1.19.7</testcontainers.version>
         <bouncycastle.version>1.78</bouncycastle.version>
     </properties>
