@@ -23,174 +23,216 @@ import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidators;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testSyntacticallyIncorrectRecordInvalidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "b");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         Result result = validate(record, validator);
         assertFalse(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testSyntacticallyCorrectRecordValidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "{\"a\":\"a\"}");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testDuplicatedObjectKeyInvalidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "{\"a\":\"a\",\"a\":\"b\"}");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertFalse(result.valid());
         assertTrue(result.errorMessage().contains("value was not syntactically correct JSON: Duplicate field"));
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testDuplicatedObjectKeyInNestedObjectInvalidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "{\"inner\":{\"a\":\"a\",\"a\":\"b\"}}");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertFalse(result.valid());
         assertTrue(result.errorMessage().contains("value was not syntactically correct JSON: Duplicate field"));
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testDuplicatedObjectKeyInArrayInvalidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "[{\"a\":\"a\",\"a\":\"b\"}]");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertFalse(result.valid());
         assertTrue(result.errorMessage().contains("value was not syntactically correct JSON: Duplicate field"));
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testNonDuplicatedObjectKeyInArrayValidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "[{\"a\":\"a\",\"b\":\"b\"}]");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testArrayWithTwoObjectsWithSameKeysValidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "[{\"a\":\"a\"},{\"a\":\"a\"}]");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testNestedObjectsUsingSameKeysValidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "[{\"a\":{\"a\":\"a\"}}]");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testNestedObjectsWithDuplicateKeysInvalidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "[{\"a\":{\"a\":\"a\",\"a\":\"b\"}}]");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertFalse(result.valid());
         assertTrue(result.errorMessage().contains("value was not syntactically correct JSON: Duplicate field"));
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testDeepObjectsWithDuplicateKeysInvalidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "[[[{\"a\":{\"b\":[1,true,null,{\"duplicate\":1,\"duplicate\":1}]}}]]]]");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertFalse(result.valid());
         assertTrue(result.errorMessage().contains("value was not syntactically correct JSON: Duplicate field"));
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testArrayWithTwoObjectsWithSameKeysAndOtherDataValidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "[{\"a\":\"a\"},2,{\"a\":\"a\"},\"banana\"]");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testNonDuplicatedObjectKeysWithDuplicationValidationEnabled() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "{\"a\":\"b\",\"c\":\"d\"}");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testDuplicatedObjectKeyValidatedWithDuplicationValidationDisabled() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "{\"a\":\"a\",\"a\":\"b\"}");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testDifferentObjectsCanHaveSameKeyNames() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "{\"a\":{\"a\":1},\"b\":{\"a\":2}}");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testTrailingCharactersInvalidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "{\"a\":\"a\"}abc");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         Result result = validate(record, validator);
         assertFalse(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testLeadingCharactersInvalidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "abc{\"a\":\"a\"}abc");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         Result result = validate(record, validator);
         assertFalse(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testValueValidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "123");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testKeyValidated() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("\"abc\"", "123");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validator.validate(record.key(), record.keySize(), record, true);
         assertTrue(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testEmptyStringThrows() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "");
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         assertThrows(IllegalArgumentException.class, () -> {
             validate(record, validator);
         });
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
     void testNullValueThrows() {
+        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", null);
-        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
+        BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         assertThrows(IllegalArgumentException.class, () -> {
             validate(record, validator);
         });
+        verifyNoMoreInteractions(mockValidator);
     }
 
     private static Result validate(Record record, BytebufValidator validator) {

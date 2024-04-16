@@ -59,6 +59,7 @@
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
+        <apicurio-schema-validation.version>0.0.5</apicurio-schema-validation.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
@@ -267,6 +268,11 @@
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest</artifactId>
                 <version>${hamcrest.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-schema-validation-jsonschema</artifactId>
+                <version>${apicurio-schema-validation.version}</version>
             </dependency>
 
             <dependency>

@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 
+import java.util.Map;
+
 /**
  * Static factory methods for creating/getting {@link BytebufValidator} instances
  */
@@ -41,7 +43,15 @@ public class BytebufValidators {
      * @param validateObjectKeysUnique optionally check if JSON Objects contain unique keys
      * @return validator
      */
-    public static BytebufValidator jsonSyntaxValidator(boolean validateObjectKeysUnique) {
-        return new JsonSyntaxBytebufValidator(validateObjectKeysUnique);
+    public static BytebufValidator jsonSyntaxValidator(boolean validateObjectKeysUnique, BytebufValidator delegate) {
+        return new JsonSyntaxBytebufValidator(validateObjectKeysUnique, delegate);
+    }
+
+    /**
+     * get validator that validates if a non-null/non-empty buffer contains data that matches a JSONSchema registered in the Schema Registry
+     * @return validator
+     */
+    public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long globalId) {
+        return new JsonSchemaBytebufValidator(schemaResolverConfig, globalId);
     }
 }

@@ -17,20 +17,24 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class BytebufValidation {
     private final SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig;
+    private final SchemaValidationConfig schemaValidationConfig;
     private final boolean allowNulls;
     private final boolean allowEmpty;
 
     /**
      * Create a new BytebufValidation
      * @param syntacticallyCorrectJsonConfig optional configuration, if non-null indicates ByteBuffer should contain syntactically correct JSON
+     * @param schemaValidationConfig optional configuration, if non-null, indicates ByteBuffer to validate the data using the schema configuration
      * @param allowNulls whether a null byte-buffer should be considered valid
      * @param allowEmpty whether an empty byte-buffer should be considered valid
      */
     @JsonCreator
     public BytebufValidation(@JsonProperty("syntacticallyCorrectJson") SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig,
+                             @JsonProperty("schemaValidation") SchemaValidationConfig schemaValidationConfig,
                              @JsonProperty(value = "allowNulls", defaultValue = "true") Boolean allowNulls,
                              @JsonProperty(value = "allowEmpty", defaultValue = "false") Boolean allowEmpty) {
         this.syntacticallyCorrectJsonConfig = syntacticallyCorrectJsonConfig;
+        this.schemaValidationConfig = schemaValidationConfig;
         this.allowNulls = allowNulls == null || allowNulls;
         this.allowEmpty = allowEmpty != null && allowEmpty;
     }
@@ -41,6 +45,14 @@ public class BytebufValidation {
      */
     public Optional<SyntacticallyCorrectJsonConfig> getSyntacticallyCorrectJsonConfig() {
         return Optional.ofNullable(syntacticallyCorrectJsonConfig);
+    }
+
+    /**
+     * Get schema validation json config
+     * @return optional containing schema validation config if non-null, empty otherwise
+     */
+    public Optional<SchemaValidationConfig> getSchemaValidationConfig() {
+        return Optional.ofNullable(schemaValidationConfig);
     }
 
     /**
@@ -69,18 +81,19 @@ public class BytebufValidation {
         }
         BytebufValidation that = (BytebufValidation) o;
         return allowNulls == that.allowNulls && allowEmpty == that.allowEmpty && Objects.equals(syntacticallyCorrectJsonConfig,
-                that.syntacticallyCorrectJsonConfig);
+                that.syntacticallyCorrectJsonConfig) && Objects.equals(schemaValidationConfig, that.schemaValidationConfig);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(syntacticallyCorrectJsonConfig, allowNulls, allowEmpty);
+        return Objects.hash(syntacticallyCorrectJsonConfig, schemaValidationConfig, allowNulls, allowEmpty);
     }
 
     @Override
     public String toString() {
         return "BytebufValidation{" +
                 "syntacticallyCorrectJsonConfig=" + syntacticallyCorrectJsonConfig +
+                ", schemaValidationConfig=" + schemaValidationConfig +
                 ", allowNulls=" + allowNulls +
                 ", allowEmpty=" + allowEmpty +
                 '}';

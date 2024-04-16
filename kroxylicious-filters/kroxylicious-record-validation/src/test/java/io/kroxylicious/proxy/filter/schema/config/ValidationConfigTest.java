@@ -36,9 +36,9 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), true, false));
-        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, true, false), null);
-        ValidationConfig expected = new ValidationConfig(false, List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, true, false)));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, true, false));
+        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, true, false), null);
+        ValidationConfig expected = new ValidationConfig(false, List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, true, false)));
         assertEquals(expected, deserialised);
     }
 
@@ -67,9 +67,9 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), false, true));
-        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, false, true), null);
-        ValidationConfig expected = new ValidationConfig(true, List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, false, true)));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null, false, true));
+        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, false, true), null);
+        ValidationConfig expected = new ValidationConfig(true, List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, false, true)));
         assertEquals(expected, deserialised);
     }
 

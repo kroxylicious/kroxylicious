@@ -17,6 +17,8 @@ import io.kroxylicious.proxy.filter.schema.validation.request.RoutingProduceRequ
 import io.kroxylicious.proxy.filter.schema.validation.topic.TopicValidator;
 import io.kroxylicious.proxy.filter.schema.validation.topic.TopicValidators;
 
+import java.util.Collections;
+
 /**
  * Builds from configuration objects to a ProduceRequestValidator
  */
@@ -48,12 +50,19 @@ public class ProduceValidationFilterBuilder {
 
     private static BytebufValidator getBytebufValidator(BytebufValidation validation) {
         BytebufValidator innerValidator = toValidator(validation);
+
         return BytebufValidators.nullEmptyValidator(validation.isAllowNulls(), validation.isAllowEmpty(), innerValidator);
     }
 
     private static BytebufValidator toValidator(BytebufValidation valueRule) {
-        return valueRule.getSyntacticallyCorrectJsonConfig().map(config -> BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique()))
+        return valueRule.getSyntacticallyCorrectJsonConfig()
+                .map(config -> BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique(), toSchemaValidator(valueRule)))
                 .orElse(BytebufValidators.allValid());
     }
 
+    private static BytebufValidator toSchemaValidator(BytebufValidation valueRule) {
+        return valueRule.getSchemaValidationConfig()
+                .map(config -> BytebufValidators.jsonSchemaValidator(Collections.emptyMap(), config.useApicurioGlobalId()))
+                .orElse(BytebufValidators.allValid());
+    }
 }
