@@ -11,15 +11,19 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
         <version>0.6.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious-kms-provider-hashicorp-vault-test-support</artifactId>
-    <name>HashiCorp Vault KMS test support</name>
-    <description>Test support code for modules testing the HashiCorp Vault KMS</description>
+    <artifactId>kroxylicious-kms-provider-aws-kms-test-support</artifactId>
+    <version>0.6.0-SNAPSHOT</version>
+
+    <name>AWS KMS test support</name>
+    <description>Test support code for modules testing the AWS KMS</description>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
@@ -29,7 +33,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
+            <artifactId>kroxylicious-kms-provider-aws-kms</artifactId>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
@@ -59,7 +63,7 @@
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
-            <artifactId>vault</artifactId>
+            <artifactId>localstack</artifactId>
         </dependency>
         <!-- third party dependencies - test -->
         <dependency>

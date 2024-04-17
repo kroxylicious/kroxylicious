@@ -1,0 +1,54 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# This file defines the tests. aws_signing_v4_known_good_testdata_gen.sh accepts it as input and generates
+# known_good.yaml as output.
+
+testName: post with data
+url: http://localhost:4566
+method: POST
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+---
+testName: post with data with path
+method: POST
+url: http://localhost:4566/my/path
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+---
+testName: post with data with additional signed header
+method: POST
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+headers:
+  X-Amz-Target:
+    - TrentService.DescribeKey
+---
+testName: get
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+---
+testName: get with query args
+method: GET
+url: http://localhost:4566/get?foo=bar
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms

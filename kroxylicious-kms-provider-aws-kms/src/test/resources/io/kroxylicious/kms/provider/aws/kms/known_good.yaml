@@ -1,0 +1,93 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Known good test data for AWS v4 request signing
+
+testName: post with data
+url: http://localhost:4566
+method: POST
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+requestTime: 1715279986
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240509/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=64d64d203f1ea205926323de95a67af003ed5419722166dda026ca5e71a463ff
+  X-Amz-Date:
+    - 20240509T183946Z
+---
+testName: post with data with path
+method: POST
+url: http://localhost:4566/my/path
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+requestTime: 1715279986
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240509/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=2954243c2d3126805b992f62b3a9b15c422e122dd285bd5351bfbf95b6b8387a
+  X-Amz-Date:
+    - 20240509T183946Z
+---
+testName: post with data with additional signed header
+method: POST
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+headers:
+  X-Amz-Target:
+    - TrentService.DescribeKey
+requestTime: 1715279986
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240509/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=ece6a6fc32d9bf5a3848dd363118e97ea954ae553f6ae35a926e3e08a1ae1be8
+  X-Amz-Date:
+    - 20240509T183946Z
+---
+testName: get
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+requestTime: 1715279986
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240509/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=ad76a082758b477557a318c5dd6d0ad758c9eb73be135db2f94d262752b5220e
+  X-Amz-Date:
+    - 20240509T183946Z
+---
+testName: get with query args
+method: GET
+url: http://localhost:4566/get?foo=bar
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+requestTime: 1715279986
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240509/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=b6bf4c0fe2d588a24ba303a42c2caacdb5bfe11f3221695887c82e7d91c2ca36
+  X-Amz-Date:
+    - 20240509T183946Z
