@@ -28,7 +28,7 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
 
     @Override
     public Result validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
-        JsonValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer.array());
+        JsonValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer);
         return jsonValidationResult.success() ? Result.VALID : new Result(false, jsonValidationResult.toString());
     }
 }

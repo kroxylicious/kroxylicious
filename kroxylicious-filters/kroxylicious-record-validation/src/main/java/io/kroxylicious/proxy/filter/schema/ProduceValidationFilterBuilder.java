@@ -50,7 +50,6 @@ public class ProduceValidationFilterBuilder {
 
     private static BytebufValidator getBytebufValidator(BytebufValidation validation) {
         BytebufValidator innerValidator = toValidator(validation);
-
         return BytebufValidators.nullEmptyValidator(validation.isAllowNulls(), validation.isAllowEmpty(), innerValidator);
     }
 

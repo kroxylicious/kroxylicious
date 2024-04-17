@@ -59,7 +59,7 @@
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
-        <apicurio-schema-validation.version>0.0.5</apicurio-schema-validation.version>
+        <apicurio-schema-validation.version>0.0.6</apicurio-schema-validation.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
@@ -73,6 +73,7 @@
         <bouncycastle.version>1.78.1</bouncycastle.version>
         <apache.commons.version>3.14.0</apache.commons.version>
         <netty-leak-detector-junit-extension.version>0.0.5</netty-leak-detector-junit-extension.version>
+        <wiremock.version>3.5.2</wiremock.version>
     </properties>
 
     <name>Parent POM</name>
@@ -333,6 +334,11 @@
                 <version>${testcontainers.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.wiremock</groupId>
+                <artifactId>wiremock</artifactId>
+                <version>${wiremock.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.maven.enforcer</groupId>

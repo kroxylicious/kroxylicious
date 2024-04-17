@@ -30,7 +30,7 @@ public class BytebufValidation {
      */
     @JsonCreator
     public BytebufValidation(@JsonProperty("syntacticallyCorrectJson") SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig,
-                             @JsonProperty("schemaValidation") SchemaValidationConfig schemaValidationConfig,
+                             @JsonProperty("schemaValidationConfig") SchemaValidationConfig schemaValidationConfig,
                              @JsonProperty(value = "allowNulls", defaultValue = "true") Boolean allowNulls,
                              @JsonProperty(value = "allowEmpty", defaultValue = "false") Boolean allowEmpty) {
         this.syntacticallyCorrectJsonConfig = syntacticallyCorrectJsonConfig;
