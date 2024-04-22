@@ -140,7 +140,7 @@ public interface Constants {
      * Test clients image url
      */
     String TEST_CLIENTS_IMAGE = "quay.io/strimzi-test-clients/test-clients:latest-kafka-" + Environment.KAFKA_VERSION;
-    String KCAT_CLIENT_IMAGE = "edenhill/kcat:1.7.1";
+    String KCAT_CLIENT_IMAGE = "quay.io/kroxylicious/kcat:1.7.1";
     String KAF_CLIENT_IMAGE = "quay.io/kroxylicious/kaf";
 
     /**
