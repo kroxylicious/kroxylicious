@@ -68,7 +68,7 @@
         <awaitility.version>4.2.1</awaitility.version>
         <commons.io.version>2.16.1</commons.io.version>
         <testcontainers.version>1.19.7</testcontainers.version>
-        <bouncycastle.version>1.78</bouncycastle.version>
+        <bouncycastle.version>1.78.1</bouncycastle.version>
     </properties>
 
     <name>Parent POM</name>
