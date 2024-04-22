@@ -71,6 +71,19 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
         }
 
         @Override
+        public void deleteKek(String alias) {
+            Objects.requireNonNull(alias);
+            try {
+                var kekRef = kms.resolveAlias(alias).toCompletableFuture().join();
+                kms.deleteAlias(alias);
+                kms.deleteKey(kekRef);
+            }
+            catch (CompletionException e) {
+                throw e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
+            }
+        }
+
+        @Override
         public void rotateKek(String alias) {
             Objects.requireNonNull(alias);
 

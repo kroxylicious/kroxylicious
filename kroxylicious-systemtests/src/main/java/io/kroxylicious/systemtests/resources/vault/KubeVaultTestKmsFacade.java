@@ -183,6 +183,11 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
             create(alias);
         }
 
+        @Override
+        public void deleteKek(String alias) {
+            throw new UnsupportedOperationException();
+        }
+
         public void rotateKek(String alias) {
             Objects.requireNonNull(alias);
 

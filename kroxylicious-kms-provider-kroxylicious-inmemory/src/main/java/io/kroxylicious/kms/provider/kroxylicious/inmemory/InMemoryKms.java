@@ -120,6 +120,7 @@ public class InMemoryKms implements
     @Override
     public CompletableFuture<DekPair<InMemoryEdek>> generateDekPair(@NonNull UUID kekRef) {
         try {
+
             var dek = DestroyableRawSecretKey.toDestroyableKey(this.aes.generateKey());
             var edek = wrap(kekRef, () -> dek);
             DekPair<InMemoryEdek> dekPair = new DekPair<>(edek, dek);
@@ -150,6 +151,15 @@ public class InMemoryKms implements
             throw new UnknownKeyException();
         }
         return kek;
+    }
+
+    public void deleteKey(UUID kekRef) {
+        if (aliases.containsValue(kekRef)) {
+            throw new KmsException("key " + kekRef + " is referenced by an alias");
+        }
+        if (this.keys.remove(kekRef) == null) {
+            throw new UnknownKeyException();
+        }
     }
 
     @NonNull

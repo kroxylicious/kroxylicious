@@ -19,6 +19,14 @@ public interface TestKekManager {
     void generateKek(String alias);
 
     /**
+     * Removes a KEK from the KMS with given alias.
+     *
+     * @param alias kek alias
+     * @throws UnknownAliasException alias already exists
+     */
+    void deleteKek(String alias);
+
+    /**
      * Rotates the kek with the given alias
      *
      * @param alias kek alias
