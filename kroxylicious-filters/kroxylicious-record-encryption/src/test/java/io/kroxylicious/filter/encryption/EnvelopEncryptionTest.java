@@ -10,6 +10,9 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.filter.encryption.config.KekSelectorService;
+import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
+import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
@@ -25,7 +28,7 @@ class EnvelopEncryptionTest {
     @SuppressWarnings({ "removal", "unchecked" })
     @Test
     void shouldInitAndCreateFilter() {
-        var config = new RecordEncryption.Config("KMS", null, "SELECTOR", null, null);
+        var config = new RecordEncryptionConfig("KMS", null, "SELECTOR", null, null);
         var ee = new EnvelopeEncryption<>();
         var fc = mock(FilterFactoryContext.class);
         var kmsService = mock(KmsService.class);

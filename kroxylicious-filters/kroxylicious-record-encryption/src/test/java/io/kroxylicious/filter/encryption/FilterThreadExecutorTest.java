@@ -15,6 +15,8 @@ import java.util.concurrent.Executors;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FilterThreadExecutorTest {

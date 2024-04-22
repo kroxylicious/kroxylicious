@@ -58,28 +58,28 @@ public class DekManager<K, E> {
      * Generate a fresh DEK from the KMS, wrapping it in a {@link Dek}.
      * The returned DEK can only be used for both encryption and decryption, but only for the given cipher.
      * @param kekRef The KEK id
-     * @param cipherSpec The cipher supported by the returned DEK.
+     * @param cipherManager The cipher supported by the returned DEK.
      * @return A completion state that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
-    public CompletionStage<Dek<E>> generateDek(@NonNull K kekRef, @NonNull CipherSpec cipherSpec) {
+    public CompletionStage<Dek<E>> generateDek(@NonNull K kekRef, @NonNull CipherManager cipherManager) {
         Objects.requireNonNull(kekRef);
-        Objects.requireNonNull(cipherSpec);
+        Objects.requireNonNull(cipherManager);
         return kms.generateDekPair(kekRef)
-                .thenApply(dekPair -> new Dek<>(dekPair.edek(), DestroyableRawSecretKey.toDestroyableKey(dekPair.dek()), cipherSpec, maxEncryptionsPerDek));
+                .thenApply(dekPair -> new Dek<>(dekPair.edek(), DestroyableRawSecretKey.toDestroyableKey(dekPair.dek()), cipherManager, maxEncryptionsPerDek));
     }
 
     /**
      * Ask the KMS to decrypt an encrypted DEK, returning a {@link Dek}.
      * The returned DEK can only be used for decryption, and only for the given cipher.
      * @param edek The encrypted DEK
-     * @param cipherSpec The cipher supported by the returned DEK.
+     * @param cipherManager The cipher supported by the returned DEK.
      * @return A completion stage that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
-    public CompletionStage<Dek<E>> decryptEdek(@NonNull E edek, @NonNull CipherSpec cipherSpec) {
+    public CompletionStage<Dek<E>> decryptEdek(@NonNull E edek, @NonNull CipherManager cipherManager) {
         Objects.requireNonNull(edek);
-        Objects.requireNonNull(cipherSpec);
-        return kms.decryptEdek(edek).thenApply(key -> new Dek<>(edek, DestroyableRawSecretKey.toDestroyableKey(key), cipherSpec, 0));
+        Objects.requireNonNull(cipherManager);
+        return kms.decryptEdek(edek).thenApply(key -> new Dek<>(edek, DestroyableRawSecretKey.toDestroyableKey(key), cipherManager, 0));
     }
 }

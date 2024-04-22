@@ -52,8 +52,8 @@
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.25.3</assertj-core.version>
         <mockito.version>5.11.0</mockito.version>
-        <micrometer.version>1.12.4</micrometer.version>
-        <slf4j.version>2.0.12</slf4j.version>
+        <micrometer.version>1.12.5</micrometer.version>
+        <slf4j.version>2.0.13</slf4j.version>
         <sundr-builder-annotations.version>0.101.3</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.8.4</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
@@ -62,13 +62,13 @@
 
         <!-- Test dependencies -->
         <strimzi.version>0.40.0</strimzi.version>
-        <kubernetes-client.version>6.11.0</kubernetes-client.version>
+        <kubernetes-client.version>6.12.1</kubernetes-client.version>
         <enforcer.api.version>3.4.1</enforcer.api.version>
         <maven.core.version>3.9.6</maven.core.version>
         <awaitility.version>4.2.1</awaitility.version>
-        <commons.io.version>2.16.0</commons.io.version>
+        <commons.io.version>2.16.1</commons.io.version>
         <testcontainers.version>1.19.7</testcontainers.version>
-        <bouncycastle.version>1.78</bouncycastle.version>
+        <bouncycastle.version>1.78.1</bouncycastle.version>
     </properties>
 
     <name>Parent POM</name>
@@ -397,7 +397,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-gpg-plugin</artifactId>
-                    <version>3.2.2</version>
+                    <version>3.2.4</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -497,6 +497,28 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-checkstyle-plugin</artifactId>
                     <version>3.3.1</version>
+                    <configuration>
+                        <violationSeverity>warning</violationSeverity>
+                        <failOnViolation>true</failOnViolation>
+                        <failsOnError>true</failsOnError>
+                        <logViolationCountToConsole>true</logViolationCountToConsole>
+                        <logViolationsToConsole>true</logViolationsToConsole>
+                        <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>layering</id>
+                            <phase>verify</phase>
+                            <configuration>
+                                <consoleOutput>true</consoleOutput>
+                                <failOnViolation>true</failOnViolation>
+                                <configLocation>etc/module-checkstyle.xml</configLocation>
+                                <propertyExpansion>
+                                    project.basedir=${project.basedir}
+                                </propertyExpansion>
+                            </configuration>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -548,7 +570,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-jar-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.4.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -635,6 +657,12 @@
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco-maven-plugin.version}</version>
                 </plugin>
+                <plugin>
+                    <groupId>com.github.siom79.japicmp</groupId>
+                    <artifactId>japicmp-maven-plugin</artifactId>
+                    <version>0.20.0</version>
+                </plugin>
+
             </plugins>
         </pluginManagement>
         <plugins>
@@ -991,6 +1019,7 @@
             <properties>
                 <skipTests>true</skipTests>
                 <maven.javadoc.skip>true</maven.javadoc.skip>
+                <checkstyle.skip>true</checkstyle.skip>
             </properties>
         </profile>
         <profile>

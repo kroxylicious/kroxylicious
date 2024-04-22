@@ -3,6 +3,9 @@
 Please enumerate **all user-facing** changes using format `<github issue/pr number>: <short description>`, with changes ordered in reverse chronological order.
 
 ## SNAPSHOT
+ 
+* [#1120](https://github.com/kroxylicious/kroxylicious/pull/1120): Generate API compatability report as part of the release process.
+ 
 ## 0.5.1
 
 * [#1129](https://github.com/kroxylicious/kroxylicious/pull/1129): Ensure timeouts are cancelled when sendRequest completes normally. Thanks to @luozhenyu for spotting the issue.
