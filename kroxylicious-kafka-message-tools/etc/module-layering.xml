@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+<!DOCTYPE import-control PUBLIC
+        "-//Checkstyle//DTD ImportControl Configuration 1.4//EN"
+        "https://checkstyle.org/dtds/import_control_1_4.dtd">
+
+<import-control pkg="io.kroxylicious.kafka">
+    <!-- Allowed globally -->
+    <allow pkg="javax?\..*" regex="true"/>
+    <allow pkg="org.slf4j"/>
+    <allow pkg="edu.umd.cs.findbugs"/>
+    <allow pkg="org.apache.kafka"/>
+</import-control>
