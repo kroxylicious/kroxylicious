@@ -18,7 +18,7 @@ class NullEmptyBytebufValidator implements BytebufValidator {
     private final boolean emptyValid;
     private final BytebufValidator delegate;
 
-     NullEmptyBytebufValidator(boolean nullValid, boolean emptyValid, BytebufValidator delegate) {
+    NullEmptyBytebufValidator(boolean nullValid, boolean emptyValid, BytebufValidator delegate) {
         if (delegate == null) {
             throw new IllegalArgumentException("delegate is null");
         }
