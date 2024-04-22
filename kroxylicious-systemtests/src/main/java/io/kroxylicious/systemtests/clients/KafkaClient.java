@@ -8,6 +8,8 @@ package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
 
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+
 /**
  * The interface Kafka client.
  */
@@ -28,7 +30,7 @@ public interface KafkaClient {
      * @param message the message
      * @param numOfMessages the num of messages
      */
-    void produceMessages(String topicName, String bootstrap, String message, int numOfMessages);
+    void produceMessages(String topicName, String bootstrap, String message, int numOfMessages) throws KubeClusterException;
 
     /**
      * Consume messages.

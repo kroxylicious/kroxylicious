@@ -14,11 +14,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
-import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
@@ -68,7 +68,7 @@ public class KcatClient implements KafkaClient {
         }
         else {
             LOGGER.atError().setMessage("error producing messages with kcat: {}").addArgument(log).log();
-            throw new KubernetesClientException("error producing messages with kcat: " + log);
+            throw new KubeClusterException("error producing messages with kcat: " + log);
         }
     }
 
