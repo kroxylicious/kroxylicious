@@ -27,6 +27,7 @@ class InMemoryTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, UUID, 
             facade.start();
             assertThat(facade.getKmsServiceClass()).isEqualTo(IntegrationTestingKmsService.class);
             assertThat(facade.getKmsServiceConfig()).isInstanceOf(Config.class);
+            assertThat(facade.getKms()).isInstanceOf(InMemoryKms.class);
         }
     }
 

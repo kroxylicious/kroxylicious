@@ -120,7 +120,6 @@ public class InMemoryKms implements
     @Override
     public CompletableFuture<DekPair<InMemoryEdek>> generateDekPair(@NonNull UUID kekRef) {
         try {
-
             var dek = DestroyableRawSecretKey.toDestroyableKey(this.aes.generateKey());
             var edek = wrap(kekRef, () -> dek);
             DekPair<InMemoryEdek> dekPair = new DekPair<>(edek, dek);

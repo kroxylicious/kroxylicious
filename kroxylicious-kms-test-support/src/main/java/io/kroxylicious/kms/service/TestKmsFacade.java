@@ -65,5 +65,4 @@ public interface TestKmsFacade<C, K, E> extends AutoCloseable {
     default void close() {
         stop();
     }
-
 }
