@@ -38,6 +38,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     public static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.15");
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final TypeReference<VaultResponse<VaultResponse.ReadKeyData>> VAULT_RESPONSE_READ_KEY_DATA_TYPEREF = new TypeReference<>() {
+    };
+    private static final TypeReference<CreateTokenResponse> VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF = new TypeReference<>() {
+    };
+
     private final HttpClient vaultClient = HttpClient.newHttpClient();
 
     @SuppressWarnings("rawtypes")
@@ -93,8 +98,7 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
         var request = createVaultPost("v1/auth/token/create-orphan", BodyPublishers.ofString(body));
 
-        return sendRequest("dummy", request, new TypeReference<CreateTokenResponse>() {
-        }).auth().clientToken();
+        return sendRequest("dummy", request, VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF).auth().clientToken();
     }
 
     private static <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
@@ -131,6 +135,17 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         }
 
         @Override
+        public void deleteKek(String alias) {
+            if (exists(alias)) {
+                delete(alias);
+            }
+            else {
+                throw new UnknownAliasException(alias);
+            }
+
+        }
+
+        @Override
         public void rotateKek(String alias) {
             Objects.requireNonNull(alias);
 
@@ -157,21 +172,26 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
             var request = createVaultPost("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)), BodyPublishers.noBody());
 
-            return sendRequest(keyId, request, new TypeReference<VaultResponse<VaultResponse.ReadKeyData>>() {
-            }).data();
+            return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
+        }
+
+        private void delete(String keyId) {
+            var update = createVaultPost("v1/transit/keys/%s/config".formatted(encode(keyId, UTF_8)), BodyPublishers.ofString(getBody(new UpdateKeyConfigRequest(true))));
+            sendRequest(keyId, update, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
+
+            var delete = createVaultDelete("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)));
+            sendRequestExpectingNoContentResponse(delete);
         }
 
         private VaultResponse.ReadKeyData read(String keyId) {
             var request = createVaultGet("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)));
 
-            return sendRequest(keyId, request, new TypeReference<VaultResponse<VaultResponse.ReadKeyData>>() {
-            }).data();
+            return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
         }
 
         private VaultResponse.ReadKeyData rotate(String keyId) {
             var request = createVaultPost("v1/transit/keys/%s/rotate".formatted(encode(keyId, UTF_8)), BodyPublishers.noBody());
-            return sendRequest(keyId, request, new TypeReference<VaultResponse<VaultResponse.ReadKeyData>>() {
-            }).data();
+            return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
         }
 
     }
@@ -180,6 +200,13 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         return createVaultRequest()
                 .uri(getVaultUrl().resolve(path))
                 .GET()
+                .build();
+    }
+
+    private HttpRequest createVaultDelete(String path) {
+        return createVaultRequest()
+                .uri(getVaultUrl().resolve(path))
+                .DELETE()
                 .build();
     }
 

@@ -65,8 +65,21 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
                     kms.createAlias(kekId, alias);
                 }
                 else {
-                    throw e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
+                    throw unwrapRuntimeException(e);
                 }
+            }
+        }
+
+        @Override
+        public void deleteKek(String alias) {
+            Objects.requireNonNull(alias);
+            try {
+                var kekRef = kms.resolveAlias(alias).toCompletableFuture().join();
+                kms.deleteAlias(alias);
+                kms.deleteKey(kekRef);
+            }
+            catch (CompletionException e) {
+                throw unwrapRuntimeException(e);
             }
         }
 
@@ -80,7 +93,7 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
                 kms.createAlias(kekId, alias);
             }
             catch (CompletionException e) {
-                throw e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
+                throw unwrapRuntimeException(e);
             }
         }
 
@@ -94,8 +107,13 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
                 if (e.getCause() instanceof UnknownAliasException) {
                     return false;
                 }
-                throw e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
+                throw unwrapRuntimeException(e);
             }
         }
+
+        private RuntimeException unwrapRuntimeException(Exception e) {
+            return e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
+        }
+
     }
 }
