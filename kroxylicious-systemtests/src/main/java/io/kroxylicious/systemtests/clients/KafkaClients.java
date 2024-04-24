@@ -44,8 +44,8 @@ public class KafkaClients {
      *
      * @return the test client
      */
-    public static TestClient testClient() {
-        return new TestClient();
+    public static CliClient testClient() {
+        return new CliClient();
     }
 
     /**

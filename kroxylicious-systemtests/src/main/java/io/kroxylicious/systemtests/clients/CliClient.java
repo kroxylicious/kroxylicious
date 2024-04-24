@@ -19,13 +19,13 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 /**
  * The type Test client (java client based CLI).
  */
-public class TestClient implements KafkaClient {
+public class CliClient implements KafkaClient {
     private String deployNamespace;
 
     /**
      * Instantiates a new Test client.
      */
-    public TestClient() {
+    public CliClient() {
         this.deployNamespace = kubeClient().getNamespace();
     }
 
