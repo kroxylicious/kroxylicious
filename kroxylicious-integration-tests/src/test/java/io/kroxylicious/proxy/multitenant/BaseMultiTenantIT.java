@@ -90,6 +90,12 @@ public abstract class BaseMultiTenantIT extends BaseIT {
     }
 
     static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator) {
+        return getConfig(cluster, certificateGenerator, null);
+    }
+
+    static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator, Map<String, Object> filterConfig) {
+        var filterBuilder = new FilterDefinitionBuilder(MultiTenantTransformationFilterFactory.class.getName());
+        Optional.ofNullable(filterConfig).ifPresent(filterBuilder::withConfig);
         return new ConfigurationBuilder()
                 .addToVirtualClusters(TENANT_1_CLUSTER, new VirtualClusterBuilder()
                         .withNewTargetCluster()
@@ -121,7 +127,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .endKeyStoreKey()
                         .endTls()
                         .build())
-                .addToFilters(new FilterDefinitionBuilder(MultiTenantTransformationFilterFactory.class.getName()).build());
+                .addToFilters(filterBuilder.build());
     }
 
     Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, String virtualCluster, String groupId, Map<String, Object> baseConfig,

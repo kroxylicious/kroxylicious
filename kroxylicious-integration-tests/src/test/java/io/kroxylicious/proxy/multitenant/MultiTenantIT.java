@@ -24,6 +24,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.ConsumerGroupListing;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
@@ -46,8 +47,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.test.tester.KroxyliciousTester;
@@ -64,8 +63,6 @@ import static org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 class MultiTenantIT extends BaseMultiTenantIT {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantIT.class);
 
     private static final String TOPIC_1 = "my-test-topic";
     private static final NewTopic NEW_TOPIC_1 = new NewTopic(TOPIC_1, 1, (short) 1);
@@ -362,6 +359,24 @@ class MultiTenantIT extends BaseMultiTenantIT {
                     Optional.of(tenant2TransactionId));
             verifyTransactionsWithList(adminTenant2, Set.of(tenant2TransactionId));
         }
+    }
+
+    @Test
+    void tenantPrefixUsingCustomSeparator(KafkaCluster cluster, KafkaAdminClient directAdmin) {
+        var separator = ".";
+        var config = getConfig(cluster, this.certificateGenerator, Map.of("prefixResourceNameSeparator", separator));
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
+            createTopics(admin, NEW_TOPIC_1);
+        }
+
+        var expectedTargetClusterTopicName = "%s%s%s".formatted(TENANT_1_CLUSTER, separator, TOPIC_1);
+        await().atMost(Duration.ofSeconds(5)).ignoreExceptions().untilAsserted(() -> {
+            var listTopicsResult = directAdmin.listTopics();
+            var names = listTopicsResult.names().get();
+            assertThat(names).contains(expectedTargetClusterTopicName);
+        });
+
     }
 
     // ========================================================

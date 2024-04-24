@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.filter.multitenant;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
@@ -51,8 +52,6 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
@@ -96,6 +95,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.SyncGroupRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitResponseFilter;
+import io.kroxylicious.proxy.filter.multitenant.config.MultiTenantConfig;
 
 /**
  * Simple multi-tenant filter.
@@ -104,7 +104,6 @@ import io.kroxylicious.proxy.filter.TxnOffsetCommitResponseFilter;
  * This tenant prefix is prepended to the kafka resources name in order to present an isolated
  * environment for each tenant.
  * <br/>
- * TODO prefix other resources e.g. group names, transaction ids
  * TODO disallow the use of topic uids belonging to one tenant by another.
  */
 public class MultiTenantTransformationFilter
@@ -132,7 +131,7 @@ public class MultiTenantTransformationFilter
         AddPartitionsToTxnRequestFilter, AddPartitionsToTxnResponseFilter,
         AddOffsetsToTxnRequestFilter,
         TxnOffsetCommitRequestFilter, TxnOffsetCommitResponseFilter {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
+    private final String prefixResourceNameSeparator;
 
     @Override
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
@@ -487,16 +486,18 @@ public class MultiTenantTransformationFilter
         return brokerSideName.substring(tenantPrefix.length());
     }
 
-    private static String getTenantPrefix(FilterContext context) {
+    private String getTenantPrefix(FilterContext context) {
         // TODO naive - POC implementation uses virtual cluster name as a tenant prefix
         var virtualClusterName = context.getVirtualClusterName();
         if (virtualClusterName == null) {
             throw new IllegalStateException("This filter requires that the virtual cluster has a name");
         }
-        return virtualClusterName + "-";
+        return virtualClusterName + prefixResourceNameSeparator;
     }
 
-    public MultiTenantTransformationFilter() {
+    public MultiTenantTransformationFilter(MultiTenantConfig configuration) {
+        Objects.requireNonNull(configuration);
+        this.prefixResourceNameSeparator = configuration.prefixResourceNameSeparator();
     }
 
 }

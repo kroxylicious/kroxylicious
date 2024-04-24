@@ -39,6 +39,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.multitenant.config.MultiTenantConfig;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
 
@@ -69,7 +70,7 @@ class MultiTenantTransformationFilterFactoryFilterTest {
         return resources;
     }
 
-    private final MultiTenantTransformationFilter filter = new MultiTenantTransformationFilter();
+    private final MultiTenantTransformationFilter filter = new MultiTenantTransformationFilter(new MultiTenantConfig(null));
 
     private final FilterInvoker invoker = getOnlyElement(FilterAndInvoker.build(filter)).invoker();
 
@@ -153,6 +154,7 @@ class MultiTenantTransformationFilterFactoryFilterTest {
     @Test
     void testContributor() {
         MultiTenantTransformationFilterFactory factory = new MultiTenantTransformationFilterFactory();
-        assertThat(factory.createFilter(Mockito.mock(FilterFactoryContext.class), null)).isInstanceOf(MultiTenantTransformationFilter.class);
+        assertThat(factory.createFilter(Mockito.mock(FilterFactoryContext.class), Mockito.mock(MultiTenantConfig.class)))
+                .isInstanceOf(MultiTenantTransformationFilter.class);
     }
 }
