@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.kroxylicious.filter.encryption.EnvelopeEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
 import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.kms.service.TestKmsFacadeInvocationContextProvider;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -30,7 +31,7 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
-@ExtendWith(EnvelopeEncryptionTestInvocationContextProvider.class)
+@ExtendWith(TestKmsFacadeInvocationContextProvider.class)
 class EnvelopeEncryptionFilterIT {
 
     private static final String TEMPLATE_KEK_SELECTOR_PATTERN = "${topicName}";

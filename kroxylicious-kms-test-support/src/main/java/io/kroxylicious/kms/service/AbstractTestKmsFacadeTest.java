@@ -87,4 +87,28 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
                     .isInstanceOf(UnknownAliasException.class);
         }
     }
+
+    @Test
+    void deleteKek() {
+        try (var facade = factory.build()) {
+            facade.start();
+            var manager = facade.getTestKekManager();
+            manager.generateKek(ALIAS);
+            assertThat(manager.exists(ALIAS)).isTrue();
+
+            manager.deleteKek(ALIAS);
+            assertThat(manager.exists(ALIAS)).isFalse();
+        }
+    }
+
+    @Test
+    void deleteKekFailsIfAliasDoesNotExist() {
+        try (var facade = factory.build()) {
+            facade.start();
+            var manager = facade.getTestKekManager();
+
+            assertThatThrownBy(() -> manager.deleteKek(ALIAS))
+                    .isInstanceOf(UnknownAliasException.class);
+        }
+    }
 }

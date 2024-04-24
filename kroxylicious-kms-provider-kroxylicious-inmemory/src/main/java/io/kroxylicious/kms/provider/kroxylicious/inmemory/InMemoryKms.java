@@ -152,6 +152,15 @@ public class InMemoryKms implements
         return kek;
     }
 
+    public void deleteKey(UUID kekRef) {
+        if (aliases.containsValue(kekRef)) {
+            throw new KmsException("key " + kekRef + " is referenced by an alias");
+        }
+        if (this.keys.remove(kekRef) == null) {
+            throw new UnknownKeyException();
+        }
+    }
+
     @NonNull
     @Override
     public CompletableFuture<SecretKey> decryptEdek(@NonNull InMemoryEdek edek) {
