@@ -7,7 +7,7 @@
 package io.kroxylicious.systemtests.enums;
 
 public enum KafkaClientType {
-    JAVA,
+    CLI,
     KCAT,
     KAF
 }

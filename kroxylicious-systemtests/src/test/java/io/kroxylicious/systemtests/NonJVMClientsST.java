@@ -91,7 +91,7 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.testClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
+        String result = KafkaClients.cli().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
@@ -107,7 +107,7 @@ class NonJVMClientsST extends AbstractST {
         int numOfMessages = 2;
         String expectedMessage = MESSAGE + " - " + (numOfMessages - 1);
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.testClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
+        KafkaClients.cli().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
         String result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
@@ -129,7 +129,7 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.testClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
+        String result = KafkaClients.cli().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
@@ -145,7 +145,7 @@ class NonJVMClientsST extends AbstractST {
         int numOfMessages = 2;
         String expectedMessage = MESSAGE + " - " + (numOfMessages - 1);
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.testClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
+        KafkaClients.cli().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
         String result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
