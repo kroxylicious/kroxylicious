@@ -1,6 +1,9 @@
 # CHANGELOG
 
-Please enumerate **all user-facing** changes using format `<github issue/pr number>: <short description>`, with changes ordered in reverse chronological order.
+This changelog enumerates **all user-facing** changes made to Kroxylicious, in reverse chronological order.
+For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#deprecation-policy) is followed.
+
+Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
  

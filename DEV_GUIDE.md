@@ -442,3 +442,18 @@ and one repository [secret](https://docs.github.com/en/actions/security-guides/u
 * `REGISTRY_TOKEN` secret - the access token that corresponds to `REGISTRY_USERNAME` 
 
 The workflow will push the container image to `${REGISTRY_DESTINATION}` so ensure that the `${REGISTRY_USERNAME}` user has sufficient write privileges. 
+
+# Deprecation Policy
+
+We want to let users know about upcoming changes to APIs and give them sufficient time to adapt.
+
+When there is an API deprecation, it must be announced in the [CHANGELOG](./CHANGELOG.md) of the coming release under
+a section title "Changes, deprecations and removals".
+
+Deprecated features become eligible for removal in the third minor release made following the release with the 
+deprecation announcement.  There is an additional condition that at least three months must have elapsed too.  When
+a deprecated feature is removed in a release, the removal should be documented under "Changes, deprecations and removals"
+in the changelog.
+
+Where technically possible, the production code should emit a warning if it detects the use of deprecated feature.  This
+will serve to prompt the user to migrate to the new API.
