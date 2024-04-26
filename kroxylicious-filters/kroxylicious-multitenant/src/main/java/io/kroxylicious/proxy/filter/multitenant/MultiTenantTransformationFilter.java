@@ -5,11 +5,13 @@
  */
 package io.kroxylicious.proxy.filter.multitenant;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import org.apache.kafka.common.internals.Topic;
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
@@ -51,8 +53,6 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
@@ -96,6 +96,9 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.SyncGroupRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitResponseFilter;
+import io.kroxylicious.proxy.filter.multitenant.config.MultiTenantConfig;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Simple multi-tenant filter.
@@ -104,7 +107,6 @@ import io.kroxylicious.proxy.filter.TxnOffsetCommitResponseFilter;
  * This tenant prefix is prepended to the kafka resources name in order to present an isolated
  * environment for each tenant.
  * <br/>
- * TODO prefix other resources e.g. group names, transaction ids
  * TODO disallow the use of topic uids belonging to one tenant by another.
  */
 public class MultiTenantTransformationFilter
@@ -132,7 +134,8 @@ public class MultiTenantTransformationFilter
         AddPartitionsToTxnRequestFilter, AddPartitionsToTxnResponseFilter,
         AddOffsetsToTxnRequestFilter,
         TxnOffsetCommitRequestFilter, TxnOffsetCommitResponseFilter {
-    private static final Logger LOGGER = LoggerFactory.getLogger(MultiTenantTransformationFilter.class);
+    private final String prefixResourceNameSeparator;
+    private String kafkaResourcePrefix;
 
     @Override
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
@@ -176,7 +179,7 @@ public class MultiTenantTransformationFilter
     @Override
     public CompletionStage<ResponseFilterResult> onMetadataResponse(short apiVersion, ResponseHeaderData header, MetadataResponseData response,
                                                                     FilterContext context) {
-        String tenantPrefix = getTenantPrefix(context);
+        String tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         response.topics().removeIf(topic -> !topic.name().startsWith(tenantPrefix)); // TODO: allow kafka internal topics to be returned?
         response.topics().forEach(topic -> removeTenantPrefix(context, topic::name, topic::setName, false));
         return context.forwardResponse(header, response);
@@ -311,7 +314,7 @@ public class MultiTenantTransformationFilter
     @Override
     public CompletionStage<ResponseFilterResult> onListGroupsResponse(short apiVersion, ResponseHeaderData header, ListGroupsResponseData response,
                                                                       FilterContext context) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         var filteredGroups = response.groups().stream().filter(listedGroup -> listedGroup.groupId().startsWith(tenantPrefix)).toList();
         filteredGroups.forEach(listedGroup -> removeTenantPrefix(context, listedGroup::groupId, listedGroup::setGroupId, false));
         response.setGroups(filteredGroups);
@@ -321,7 +324,7 @@ public class MultiTenantTransformationFilter
     @Override
     public CompletionStage<RequestFilterResult> onJoinGroupRequest(short apiVersion, RequestHeaderData header, JoinGroupRequestData request,
                                                                    FilterContext context) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         request.setGroupId(tenantPrefix + request.groupId());
         return context.forwardRequest(header, request);
     }
@@ -329,7 +332,7 @@ public class MultiTenantTransformationFilter
     @Override
     public CompletionStage<RequestFilterResult> onSyncGroupRequest(short apiVersion, RequestHeaderData header, SyncGroupRequestData request,
                                                                    FilterContext context) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         request.setGroupId(tenantPrefix + request.groupId());
         return context.forwardRequest(header, request);
     }
@@ -337,7 +340,7 @@ public class MultiTenantTransformationFilter
     @Override
     public CompletionStage<RequestFilterResult> onLeaveGroupRequest(short apiVersion, RequestHeaderData header, LeaveGroupRequestData request,
                                                                     FilterContext context) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         request.setGroupId(tenantPrefix + request.groupId());
         return context.forwardRequest(header, request);
     }
@@ -345,7 +348,7 @@ public class MultiTenantTransformationFilter
     @Override
     public CompletionStage<RequestFilterResult> onHeartbeatRequest(short apiVersion, RequestHeaderData header, HeartbeatRequestData request,
                                                                    FilterContext context) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         request.setGroupId(tenantPrefix + request.groupId());
         return context.forwardRequest(header, request);
     }
@@ -403,7 +406,7 @@ public class MultiTenantTransformationFilter
     @Override
     public CompletionStage<RequestFilterResult> onAddOffsetsToTxnRequest(short apiVersion, RequestHeaderData header, AddOffsetsToTxnRequestData request,
                                                                          FilterContext context) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         request.setTransactionalId(tenantPrefix + request.transactionalId());
         request.setGroupId(tenantPrefix + request.groupId());
         return context.forwardRequest(header, request);
@@ -412,7 +415,7 @@ public class MultiTenantTransformationFilter
     @Override
     public CompletionStage<RequestFilterResult> onTxnOffsetCommitRequest(short apiVersion, RequestHeaderData header, TxnOffsetCommitRequestData request,
                                                                          FilterContext context) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         request.setTransactionalId(tenantPrefix + request.transactionalId());
         request.setGroupId(tenantPrefix + request.groupId());
         request.topics().forEach(topic -> applyTenantPrefix(context, topic::name, topic::setName, false));
@@ -429,7 +432,7 @@ public class MultiTenantTransformationFilter
     @Override
     public CompletionStage<ResponseFilterResult> onListTransactionsResponse(short apiVersion, ResponseHeaderData header, ListTransactionsResponseData response,
                                                                             FilterContext context) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         var filteredTransactions = response.transactionStates().stream().filter(listedTxn -> listedTxn.transactionalId().startsWith(tenantPrefix)).toList();
         filteredTransactions.forEach(listedTxn -> removeTenantPrefix(context, listedTxn::transactionalId, listedTxn::setTransactionalId, false));
         response.setTransactionStates(filteredTransactions);
@@ -455,7 +458,7 @@ public class MultiTenantTransformationFilter
 
     @Override
     public CompletionStage<RequestFilterResult> onEndTxnRequest(short apiVersion, RequestHeaderData header, EndTxnRequestData request, FilterContext context) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         request.setTransactionalId(tenantPrefix + request.transactionalId());
         return context.forwardRequest(header, request);
     }
@@ -469,7 +472,7 @@ public class MultiTenantTransformationFilter
     }
 
     private String applyTenantPrefix(FilterContext context, String clientSideName) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         return tenantPrefix + clientSideName;
     }
 
@@ -483,20 +486,32 @@ public class MultiTenantTransformationFilter
     }
 
     private String removeTenantPrefix(FilterContext context, String brokerSideName) {
-        var tenantPrefix = getTenantPrefix(context);
+        var tenantPrefix = createKafkaResourcePrefixIfNecessary(context);
         return brokerSideName.substring(tenantPrefix.length());
     }
 
-    private static String getTenantPrefix(FilterContext context) {
-        // TODO naive - POC implementation uses virtual cluster name as a tenant prefix
-        var virtualClusterName = context.getVirtualClusterName();
-        if (virtualClusterName == null) {
-            throw new IllegalStateException("This filter requires that the virtual cluster has a name");
+    private String createKafkaResourcePrefixIfNecessary(FilterContext context) {
+        if (kafkaResourcePrefix == null) {
+            // TODO naive - POC implementation uses virtual cluster name as a tenant prefix
+            var virtualClusterName = context.getVirtualClusterName();
+            if (virtualClusterName == null) {
+                throw new IllegalStateException("This filter requires that the virtual cluster has a name");
+            }
+            kafkaResourcePrefix = virtualClusterName + prefixResourceNameSeparator;
+
+            // note: Kafka validates consumer group names using this method too
+            Topic.validate(kafkaResourcePrefix,
+                    "Kafka resource prefix for virtual cluster '%s'".formatted(virtualClusterName),
+                    message -> {
+                        throw new IllegalStateException(message);
+                    });
         }
-        return virtualClusterName + "-";
+        return kafkaResourcePrefix;
     }
 
-    public MultiTenantTransformationFilter() {
+    public MultiTenantTransformationFilter(@NonNull MultiTenantConfig configuration) {
+        Objects.requireNonNull(configuration);
+        this.prefixResourceNameSeparator = configuration.prefixResourceNameSeparator();
     }
 
 }

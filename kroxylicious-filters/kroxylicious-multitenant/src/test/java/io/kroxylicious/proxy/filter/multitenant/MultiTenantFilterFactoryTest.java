@@ -11,6 +11,7 @@ import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.filter.multitenant.config.MultiTenantConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -19,7 +20,7 @@ class MultiTenantFilterFactoryTest {
     @Test
     void testGetInstance() {
         MultiTenantTransformationFilterFactory factory = new MultiTenantTransformationFilterFactory();
-        Filter filter = factory.createFilter(Mockito.mock(FilterFactoryContext.class), null);
+        Filter filter = factory.createFilter(Mockito.mock(FilterFactoryContext.class), Mockito.mock(MultiTenantConfig.class));
         assertThat(filter).isNotNull().isInstanceOf(MultiTenantTransformationFilter.class);
     }
 
