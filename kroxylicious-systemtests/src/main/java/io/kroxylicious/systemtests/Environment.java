@@ -32,6 +32,7 @@ public class Environment {
     private static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
     private static final String VAULT_CHART_VERSION_ENV = "VAULT_CHART_VERSION";
     private static final String SKIP_STRIMZI_INSTALL_ENV = "SKIP_STRIMZI_INSTALL";
+    private static final String KAFKA_CLIENT_ENV = "KAFKA_CLIENT";
 
     /**
      * The kafka version default value
@@ -68,6 +69,7 @@ public class Environment {
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
     private static final String VAULT_CHART_VERSION_DEFAULT = "0.27.0";
     private static final String SKIP_STRIMZI_INSTALL_DEFAULT = "false";
+    private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -98,6 +100,8 @@ public class Environment {
     public static final boolean SKIP_STRIMZI_INSTALL = Boolean.parseBoolean(getOrDefault(SKIP_STRIMZI_INSTALL_ENV, SKIP_STRIMZI_INSTALL_DEFAULT));
 
     public static final String VAULT_CHART_VERSION = getOrDefault(VAULT_CHART_VERSION_ENV, VAULT_CHART_VERSION_DEFAULT);
+
+    public static final String KAFKA_CLIENT = getOrDefault(KAFKA_CLIENT_ENV, KAFKA_CLIENT_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);

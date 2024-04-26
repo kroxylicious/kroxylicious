@@ -7,7 +7,6 @@
 package io.kroxylicious.systemtests.steps;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -46,7 +45,7 @@ public class KafkaSteps {
     public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas) {
         LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
-        List<String> args = Arrays.asList(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
+        List<String> args = List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
                 "--topic-rep-factor=" + replicas);
 
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
@@ -70,7 +69,7 @@ public class KafkaSteps {
         }
         LOGGER.atDebug().setMessage("Deleting '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-delete";
-        List<String> args = Arrays.asList(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName);
+        List<String> args = List.of(TOPIC_COMMAND, "delete", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName);
 
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
@@ -83,7 +82,7 @@ public class KafkaSteps {
     private static boolean topicExists(String deployNamespace, String topicName, String bootstrap) {
         LOGGER.debug("List '{}' topic", topicName);
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-list";
-        List<String> args = Arrays.asList(TOPIC_COMMAND, "list", BOOTSTRAP_ARG + bootstrap);
+        List<String> args = List.of(TOPIC_COMMAND, "list", BOOTSTRAP_ARG + bootstrap);
 
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
