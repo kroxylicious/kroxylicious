@@ -4,6 +4,7 @@ Please enumerate **all user-facing** changes using format `<github issue/pr numb
 
 ## SNAPSHOT
  
+* [#1162](https://github.com/kroxylicious/kroxylicious/issues/1162): Fix #1162: allow tenant / resource name prefix separator to be controlled from configuration
 * [#1120](https://github.com/kroxylicious/kroxylicious/pull/1120): Generate API compatability report as part of the release process.
  
 ## 0.5.1
