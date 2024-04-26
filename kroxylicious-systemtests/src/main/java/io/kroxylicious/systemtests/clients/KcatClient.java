@@ -7,7 +7,6 @@
 package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -54,7 +53,7 @@ public class KcatClient implements KafkaClient {
 
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kcat").addArgument(topicName).log();
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kcat";
-        List<String> executableCommand = Arrays.asList(cmdKubeClient(deployNamespace).toString(), "run", "-i",
+        List<String> executableCommand = List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
                 "--image=" + Constants.KCAT_CLIENT_IMAGE,
                 "--", "-b", bootstrap, "-l", "-t", topicName, "-P");
@@ -75,7 +74,7 @@ public class KcatClient implements KafkaClient {
     @Override
     public String consumeMessages(String topicName, String bootstrap, String messageToCheck, int numOfMessages, Duration timeout) {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat";
-        List<String> args = Arrays.asList("-b", bootstrap, "-t", topicName, "-C", "-c" + numOfMessages);
+        List<String> args = List.of("-b", bootstrap, "-t", topicName, "-C", "-c" + numOfMessages);
         Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
         return KafkaUtils.consumeMessages(topicName, name, deployNamespace, kCatClientJob, messageToCheck, timeout);
     }

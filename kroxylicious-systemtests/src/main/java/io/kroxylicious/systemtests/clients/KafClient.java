@@ -7,7 +7,6 @@
 package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -49,7 +48,7 @@ public class KafClient implements KafkaClient {
     public void produceMessages(String topicName, String bootstrap, String message, int numOfMessages) {
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf";
-        List<String> executableCommand = Arrays.asList(cmdKubeClient(deployNamespace).toString(), "run", "-i",
+        List<String> executableCommand = List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
                 "--image=" + Constants.KAF_CLIENT_IMAGE,
                 "--", "kaf", "-n", String.valueOf(numOfMessages), "-b", bootstrap, "produce", topicName);
@@ -70,7 +69,7 @@ public class KafClient implements KafkaClient {
     @Override
     public String consumeMessages(String topicName, String bootstrap, String messageToCheck, int numOfMessages, Duration timeout) {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kafka-go";
-        List<String> args = Arrays.asList("kaf", "-b", bootstrap, "consume", topicName);
+        List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName);
         Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
         return KafkaUtils.consumeMessages(topicName, name, deployNamespace, goClientJob, messageToCheck, timeout);
     }
