@@ -341,7 +341,7 @@ has been applied ineffectively.
 the container engine. Default value: `$HOME/.docker/config.json`
 * `VAULT_CHART_VERSION`: version of Vault Helm Chart to be used by the System Tests for Envelope Encryption. Default value: `0.27.0`
 * `SKIP_STRIMZI_INSTALL`: skip strimzi installation. Default value: `false`
-* `KAFKA_CLIENT`: client used to produce/consume messages. Default value: `Java`. Currently supported values: `Java`, `kaf`, `kcat`
+* `KAFKA_CLIENT`: client used to produce/consume messages. Default value: `strimzi_test_client`. Currently supported values: `strimzi_test_client`, `kaf`, `kcat`
 
 
 ### Launch system tests

@@ -26,7 +26,7 @@ public class KafkaClients {
         return switch (Enum.valueOf(KafkaClientType.class, Environment.KAFKA_CLIENT.toUpperCase())) {
             case KAF -> kaf();
             case KCAT -> kcat();
-            default -> cli();
+            default -> strimziTestClient();
         };
     }
 
@@ -40,12 +40,12 @@ public class KafkaClients {
     }
 
     /**
-     * Java cli client.
+     * Strimzi test client.
      *
-     * @return the cli client
+     * @return the Strimzi test client
      */
-    public static CliClient cli() {
-        return new CliClient();
+    public static StrimziTestClient strimziTestClient() {
+        return new StrimziTestClient();
     }
 
     /**

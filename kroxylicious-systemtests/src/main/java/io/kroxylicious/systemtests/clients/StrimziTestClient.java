@@ -17,15 +17,15 @@ import io.kroxylicious.systemtests.utils.KafkaUtils;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
- * The type Test client (java client based CLI).
+ * The type Strimzi Test client (java client based CLI).
  */
-public class CliClient implements KafkaClient {
+public class StrimziTestClient implements KafkaClient {
     private String deployNamespace;
 
     /**
-     * Instantiates a new Test client.
+     * Instantiates a new Strimzi Test client.
      */
-    public CliClient() {
+    public StrimziTestClient() {
         this.deployNamespace = kubeClient().getNamespace();
     }
 
