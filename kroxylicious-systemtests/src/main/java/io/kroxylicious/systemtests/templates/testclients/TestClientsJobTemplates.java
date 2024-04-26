@@ -9,13 +9,9 @@ package io.kroxylicious.systemtests.templates.testclients;
 import java.util.List;
 import java.util.Map;
 
-import io.fabric8.kubernetes.api.model.CapabilitiesBuilder;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
-import io.fabric8.kubernetes.api.model.SeccompProfileBuilder;
-import io.fabric8.kubernetes.api.model.SecurityContext;
-import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 
 import io.kroxylicious.systemtests.Constants;
@@ -80,7 +76,6 @@ public class TestClientsJobTemplates {
                         .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withCommand("admin-client")
                         .withArgs(args)
-                        .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
                 .endTemplate()
@@ -114,7 +109,6 @@ public class TestClientsJobTemplates {
                         .withImage(image)
                         .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withEnv(envVars)
-                        .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
                 .endTemplate()
@@ -154,7 +148,6 @@ public class TestClientsJobTemplates {
                         .withImage(Constants.KCAT_CLIENT_IMAGE)
                         .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withArgs(args)
-                        .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
                 .endTemplate()
@@ -178,7 +171,6 @@ public class TestClientsJobTemplates {
                         .withImage(Constants.KAF_CLIENT_IMAGE)
                         .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                         .withArgs(args)
-                        .withSecurityContext(jobsSecurityContext())
                         .build())
                 .endSpec()
                 .endTemplate()
@@ -212,17 +204,5 @@ public class TestClientsJobTemplates {
                 envVar(GROUP_ID_VAR, "my-group"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
                 envVar(CLIENT_TYPE_VAR, "KafkaConsumer"));
-    }
-
-    private static SecurityContext jobsSecurityContext() {
-        return new SecurityContextBuilder()
-                .withAllowPrivilegeEscalation(false)
-                .withSeccompProfile(new SeccompProfileBuilder()
-                        .withType("RuntimeDefault")
-                        .build())
-                .withCapabilities(new CapabilitiesBuilder()
-                        .withDrop("ALL")
-                        .build())
-                .build();
     }
 }
