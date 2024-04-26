@@ -9,10 +9,9 @@ package io.kroxylicious.systemtests.templates.testclients;
 import java.util.List;
 import java.util.Map;
 
-import io.fabric8.kubernetes.api.model.CapabilitiesBuilder;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
-import io.fabric8.kubernetes.api.model.SeccompProfileBuilder;
-import io.fabric8.kubernetes.api.model.SecurityContextBuilder;
+import io.fabric8.kubernetes.api.model.EnvVar;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 
 import io.kroxylicious.systemtests.Constants;
@@ -21,18 +20,20 @@ import io.kroxylicious.systemtests.Constants;
  * The type Test Clients job templates.
  */
 public class TestClientsJobTemplates {
+    private static final String BOOTSTRAP_VAR = "BOOTSTRAP_SERVERS";
+    private static final String TOPIC_VAR = "TOPIC";
+    private static final String MESSAGE_VAR = "MESSAGE";
+    private static final String MESSAGE_COUNT_VAR = "MESSAGE_COUNT";
+    private static final String GROUP_ID_VAR = "GROUP_ID";
+    private static final String LOG_LEVEL_VAR = "LOG_LEVEL";
+    private static final String CLIENT_TYPE_VAR = "CLIENT_TYPE";
+    private static final String PRODUCER_ACKS_VAR = "PRODUCER_ACKS";
+    private static final String DELAY_MS_VAR = "DELAY_MS";
 
     private TestClientsJobTemplates() {
     }
 
-    /**
-     * Default admin client job builder.
-     *
-     * @param jobName the job name
-     * @param args the args
-     * @return the deployment builder
-     */
-    public static JobBuilder defaultAdminClientJob(String jobName, List<String> args) {
+    private static JobBuilder baseClientJob(String jobName) {
         Map<String, String> labelSelector = Map.of("app", jobName);
         return new JobBuilder()
                 .withApiVersion("batch/v1")
@@ -51,25 +52,157 @@ public class TestClientsJobTemplates {
                 .withName(jobName)
                 .endMetadata()
                 .withNewSpec()
-                .withContainers(new ContainerBuilder()
-                        .withName("admin")
-                        .withImage(Constants.TEST_CLIENTS_IMAGE)
-                        .withImagePullPolicy("IfNotPresent")
-                        .withCommand("admin-client")
-                        .withArgs(args)
-                        .withSecurityContext(new SecurityContextBuilder()
-                                .withAllowPrivilegeEscalation(false)
-                                .withSeccompProfile(new SeccompProfileBuilder()
-                                        .withType("RuntimeDefault")
-                                        .build())
-                                .withCapabilities(new CapabilitiesBuilder()
-                                        .withDrop("ALL")
-                                        .build())
-                                .build())
-                        .build())
                 .withRestartPolicy("Never")
                 .endSpec()
                 .endTemplate()
                 .endSpec();
+    }
+
+    /**
+     * Default admin client job builder.
+     *
+     * @param jobName the job name
+     * @param args the args
+     * @return the deployment builder
+     */
+    public static JobBuilder defaultAdminClientJob(String jobName, List<String> args) {
+        return baseClientJob(jobName)
+                .editSpec()
+                .editTemplate()
+                .editSpec()
+                .withContainers(new ContainerBuilder()
+                        .withName("admin")
+                        .withImage(Constants.TEST_CLIENTS_IMAGE)
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                        .withCommand("admin-client")
+                        .withArgs(args)
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    /**
+     * Default test client producer job builder.
+     *
+     * @param jobName the job name
+     * @param bootstrap the bootstrap
+     * @param topicName the topic name
+     * @param numOfMessages the num of messages
+     * @param message the message
+     * @return the job builder
+     */
+    public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message) {
+        return newJobForContainer(jobName,
+                "test-client-producer",
+                Constants.TEST_CLIENTS_IMAGE,
+                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message));
+    }
+
+    private static JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
+        return baseClientJob(jobName)
+                .editSpec()
+                .editTemplate()
+                .editSpec()
+                .withContainers(new ContainerBuilder()
+                        .withName(containerName)
+                        .withImage(image)
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                        .withEnv(envVars)
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    /**
+     * Default test client consumer job builder.
+     *
+     * @param jobName the job name
+     * @param bootstrap the bootstrap
+     * @param topicName the topic name
+     * @param numOfMessages the num of messages
+     * @return the job builder
+     */
+    public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages) {
+        return newJobForContainer(jobName,
+                "test-client-consumer",
+                Constants.TEST_CLIENTS_IMAGE,
+                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages));
+    }
+
+    /**
+     * Default kcat job builder.
+     *
+     * @param jobName the job name
+     * @param args the args
+     * @return the job builder
+     */
+    public static JobBuilder defaultKcatJob(String jobName, List<String> args) {
+        return baseClientJob(jobName)
+                .editSpec()
+                .editTemplate()
+                .editSpec()
+                .withContainers(new ContainerBuilder()
+                        .withName("kcat")
+                        .withImage(Constants.KCAT_CLIENT_IMAGE)
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                        .withArgs(args)
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    /**
+     * Default kafka go consumer job builder.
+     *
+     * @param jobName the job name
+     * @param args the args
+     * @return the job builder
+     */
+    public static JobBuilder defaultKafkaGoConsumerJob(String jobName, List<String> args) {
+        return baseClientJob(jobName)
+                .editSpec()
+                .editTemplate()
+                .editSpec()
+                .withContainers(new ContainerBuilder()
+                        .withName("kafka-go-consumer")
+                        .withImage(Constants.KAF_CLIENT_IMAGE)
+                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                        .withArgs(args)
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    private static EnvVar envVar(String name, String value) {
+        return new EnvVarBuilder()
+                .withName(name)
+                .withValue(value)
+                .build();
+    }
+
+    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message) {
+        return List.of(
+                envVar(BOOTSTRAP_VAR, bootstrap),
+                envVar(DELAY_MS_VAR, "500"),
+                envVar(TOPIC_VAR, topicName),
+                envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
+                envVar(MESSAGE_VAR, message),
+                envVar(PRODUCER_ACKS_VAR, "all"),
+                envVar(LOG_LEVEL_VAR, "INFO"),
+                envVar(CLIENT_TYPE_VAR, "KafkaProducer"));
+    }
+
+    private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages) {
+        return List.of(
+                envVar(BOOTSTRAP_VAR, bootstrap),
+                envVar(TOPIC_VAR, topicName),
+                envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
+                envVar(GROUP_ID_VAR, "my-group"),
+                envVar(LOG_LEVEL_VAR, "INFO"),
+                envVar(CLIENT_TYPE_VAR, "KafkaConsumer"));
     }
 }

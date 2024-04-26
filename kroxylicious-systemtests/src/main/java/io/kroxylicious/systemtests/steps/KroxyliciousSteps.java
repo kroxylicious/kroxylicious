@@ -37,12 +37,13 @@ public class KroxyliciousSteps {
      * @param namespace the namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
+     * @param message the message
      * @param numberOfMessages the number of messages
      * @param timeout the timeout
      * @return the string
      */
-    public static String consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
-        return KafkaUtils.consumeMessageWithTestClients(namespace, topicName, bootstrap, numberOfMessages, timeout);
+    public static String consumeMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages, Duration timeout) {
+        return KafkaUtils.consumeMessageWithTestClients(namespace, topicName, bootstrap, message, numberOfMessages, timeout);
     }
 
     /**

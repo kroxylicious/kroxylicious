@@ -140,6 +140,8 @@ public interface Constants {
      * Test clients image url
      */
     String TEST_CLIENTS_IMAGE = "quay.io/strimzi-test-clients/test-clients:latest-kafka-" + Environment.KAFKA_VERSION;
+    String KCAT_CLIENT_IMAGE = "quay.io/kroxylicious/kcat:1.7.1";
+    String KAF_CLIENT_IMAGE = "quay.io/kroxylicious/kaf:v0.2.7";
 
     /**
      * The cert manager url to install it on kubernetes
@@ -157,6 +159,10 @@ public interface Constants {
      * kafka admin client label to identify the admin test client
      */
     String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
+    /**
+     * Image pull if not present.
+     */
+    String PULL_IMAGE_IF_NOT_PRESENT = "IfNotPresent";
 
     /**
      * Feature gate related constants

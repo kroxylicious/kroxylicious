@@ -9,12 +9,12 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.kafka.Kafka;
@@ -40,16 +40,17 @@ import static org.junit.jupiter.api.Assertions.assertAll;
  */
 @ExtendWith(KroxyliciousExtension.class)
 class MetricsST extends AbstractST {
-    private static final Logger LOGGER = LogManager.getLogger(MetricsST.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MetricsST.class);
     private final String clusterName = "my-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
     private static Kroxylicious kroxylicious;
     private MetricsCollector kroxyliciousCollector;
+    private String bootstrap;
 
     @Test
     void kroxyliciousMetricsBeforeSendingMessages() {
-        LOGGER.info("Metrics: " + kroxyliciousCollector.getCollectedData().values());
+        LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
         assertAll("Checking the presence of the metrics",
                 () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 1),
                 () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_decoded_messages_total", 1));
@@ -61,18 +62,18 @@ class MetricsST extends AbstractST {
     @Test
     void kroxyliciousDownstreamMessages(String namespace) {
         int numberOfMessages = 1;
+        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
-        String bootstrap = kroxylicious.getBootstrap();
-        LOGGER.info("And a kafka Topic named {}", topicName);
+        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
-        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
-        LOGGER.info("Then the {} messages are consumed", numberOfMessages);
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.info("Received: " + result);
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, expectedMessage, numberOfMessages, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
         kroxyliciousCollector.collectMetricsFromPods();
-        LOGGER.info("Metrics: " + kroxyliciousCollector.getCollectedData().values());
+        LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
         assertAll(
                 () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 1),
                 () -> assertMetricValueHigherThan(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 0),
@@ -82,18 +83,18 @@ class MetricsST extends AbstractST {
     @Test
     void kroxyliciousPayloadSize(String namespace) {
         int numberOfMessages = 1;
+        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
-        String bootstrap = kroxylicious.getBootstrap();
-        LOGGER.info("And a kafka Topic named {}", topicName);
+        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
-        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
-        LOGGER.info("Then the {} messages are consumed", numberOfMessages);
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.info("Received: " + result);
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, expectedMessage, numberOfMessages, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
         kroxyliciousCollector.collectMetricsFromPods();
-        LOGGER.info("Metrics: " + kroxyliciousCollector.getCollectedData().values());
+        LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
         assertAll(
                 () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_payload_size_bytes_count", 1),
                 () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_payload_size_bytes_sum", 1),
@@ -105,10 +106,10 @@ class MetricsST extends AbstractST {
     void setupEnvironment() {
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
-            LOGGER.warn("Skipping kafka deployment. It is already deployed!");
+            LOGGER.atInfo().setMessage("Skipping kafka deployment. It is already deployed!").log();
             return;
         }
-        LOGGER.info("Deploying Kafka in {} namespace", Constants.KAFKA_DEFAULT_NAMESPACE);
+        LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
         Kafka kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3).build();
 
@@ -124,13 +125,15 @@ class MetricsST extends AbstractST {
         resourceManager.createResourceWithWait(ScraperTemplates.scraperPod(namespace, scraperName).build());
         cluster.setNamespace(namespace);
 
-        LOGGER.info("Sleeping for {} seconds to give operators and operands some time to stable the metrics values before collecting",
-                Constants.RECONCILIATION_INTERVAL.toSeconds());
+        LOGGER.atInfo().setMessage("Sleeping for {} seconds to give operators and operands some time to stable the metrics values before collecting")
+                .addArgument(Constants.RECONCILIATION_INTERVAL.toSeconds()).log();
         Thread.sleep(Constants.RECONCILIATION_INTERVAL.toMillis());
 
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
+        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
+        bootstrap = kroxylicious.getBootstrap();
         kroxyliciousCollector = new MetricsCollector.Builder()
                 .withScraperPodName(scraperPodName)
                 .withNamespaceName(namespace)
