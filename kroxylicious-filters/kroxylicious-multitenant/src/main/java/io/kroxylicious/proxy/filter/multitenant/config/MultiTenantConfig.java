@@ -16,7 +16,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * a default is used.
  */
 public record MultiTenantConfig(String prefixResourceNameSeparator) {
+
+    public static final String DEFAULT_SEPARATOR = "-";
+
     public MultiTenantConfig(@JsonProperty(required = false) String prefixResourceNameSeparator) {
-        this.prefixResourceNameSeparator = Objects.requireNonNullElse(prefixResourceNameSeparator, "-");
+        this.prefixResourceNameSeparator = Objects.requireNonNullElse(prefixResourceNameSeparator, DEFAULT_SEPARATOR);
     }
 }

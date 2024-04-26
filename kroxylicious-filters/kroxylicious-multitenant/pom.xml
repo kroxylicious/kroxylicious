@@ -22,14 +22,17 @@
     <packaging>jar</packaging>
 
     <name>Multitenancy filter</name>
-    <description>A filter to implement transparent multitenancy for Apache Kafka
-    </description>
+    <description>A filter to implement transparent multitenancy for Apache Kafka</description>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
         </dependency>
 
         <!-- project dependencies - test -->
