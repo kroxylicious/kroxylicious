@@ -14,12 +14,15 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.net.ssl.SSLException;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -48,6 +51,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
@@ -169,6 +173,24 @@ class KafkaProxyFrontendHandlerTest {
 
         // Then
         assertEquals(State.FAILED, handler.state());
+    }
+
+    @Test
+    void testInvalidClientSoftwareNameReceivedBeforeConnected() {
+        // Given
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), Mockito.mock(VirtualCluster.class));
+        initialiseInboundChannel(handler);
+
+        // When
+        writeInboundApiVersionsRequest("$initial$");
+
+        // Then
+        assertEquals(State.API_VERSIONS, handler.state());
+        DecodedResponseFrame<?> responseFrame = inboundChannel.readOutbound();
+        assertThat(responseFrame.body())
+                .asInstanceOf(InstanceOfAssertFactories.type(ApiVersionsResponseData.class))
+                .extracting(ApiVersionsResponseData::errorCode)
+                .isEqualTo(Errors.INVALID_REQUEST.code());
     }
 
     @Test

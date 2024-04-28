@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.test.Request;
@@ -35,7 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * a new ApiKey that this version of Kroxylicious is unaware of)
  * TODO check if this is still sensible behaviour, potentially a RequestFilter would attempt to decode these and fail.
  */
-public class ApiVersionsIT {
+class ApiVersionsIT {
 
     @Test
     void shouldOfferTheMinimumHighestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
@@ -133,7 +134,9 @@ public class ApiVersionsIT {
     }
 
     private static Response whenGetApiVersionsFromKroxylicious(KafkaClient client) {
-        return client.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
+        return client.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()
+                .setClientSoftwareName("my-test-client")
+                .setClientSoftwareVersion("1.0.0")));
     }
 
     private static void assertKroxyliciousResponseOffersApiVersionsForApiKey(Response response, ApiKeys apiKeys, short minVersion, short maxVersion) {
@@ -141,6 +144,7 @@ public class ApiVersionsIT {
         assertEquals(ApiKeys.API_VERSIONS, payload.apiKeys());
         assertEquals((short) 3, payload.apiVersion());
         ApiVersionsResponseData message = (ApiVersionsResponseData) payload.message();
+        assertEquals(Errors.NONE, Errors.forCode(message.errorCode()));
         assertEquals(1, message.apiKeys().size());
         ApiVersionsResponseData.ApiVersion singletonVersion = message.apiKeys().iterator().next();
         assertEquals(apiKeys.id, singletonVersion.apiKey());
