@@ -22,9 +22,9 @@ NOCOLOR='\033[0m'
 
 KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
 
-KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout -pl kroxylicious-systemtests)}
-STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
-KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn -f ${KROXYLICIOUS_CHECKOUT}/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
+KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout -pl kroxylicious-systemtests)}
+STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
+KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
 KAFKA_TOOL_IMAGE=${KAFKA_TOOL_IMAGE:-quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}}
 KAFKA_IMAGE=${KAFKA_IMAGE:-"quay.io/ogunalp/kafka-native:latest-kafka-${KAFKA_VERSION}"}
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-"quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}"}
@@ -32,15 +32,15 @@ PERF_NETWORK=performance-tests_perf_network
 export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE
 
 runDockerCompose () {
-  docker-compose -f ${PERF_TESTS_DIR}/docker-compose.yaml "${@}"
+  docker-compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
 }
 
 doCreateTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
-  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
-      bin/kafka-topics.sh --create --topic ${TOPIC} --bootstrap-server ${ENDPOINT} 1>/dev/null
+  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
+      bin/kafka-topics.sh --create --topic "${TOPIC}" --bootstrap-server "${ENDPOINT}" 1>/dev/null
 }
 
 doDeleteTopic () {
@@ -49,14 +49,14 @@ doDeleteTopic () {
   ENDPOINT=$1
   TOPIC=$2
 
-  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
-      bin/kafka-topics.sh --delete --topic ${TOPIC} --bootstrap-server ${ENDPOINT}
+  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
+      bin/kafka-topics.sh --delete --topic "${TOPIC}" --bootstrap-server "${ENDPOINT}"
 }
 
 warmUp() {
   echo -e "${YELLOW}Running warm up${NOCOLOR}"
-  producerPerf $1 $2 ${WARM_UP_NUM_RECORDS_PRE_TEST} /dev/null > /dev/null
-  consumerPerf $1 $2 ${WARM_UP_NUM_RECORDS_PRE_TEST} /dev/null > /dev/null
+  producerPerf $1 $2 "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
+  consumerPerf $1 $2 "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -82,9 +82,9 @@ producerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
-      bin/kafka-producer-perf-test.sh --topic ${TOPIC} --throughput -1 --num-records ${NUM_RECORDS} --record-size ${RECORD_SIZE} \
-      --producer-props ${PRODUCER_PROPERTIES} bootstrap.servers=${ENDPOINT} | \
+  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
+      bin/kafka-producer-perf-test.sh --topic "${TOPIC}" --throughput -1 --num-records "${NUM_RECORDS}" --record-size "${RECORD_SIZE}" \
+      --producer-props "${PRODUCER_PROPERTIES}" bootstrap.servers="${ENDPOINT}" | \
       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
                                     ", *(?<rate_rps>\\d+[.]?\\d*) records/sec [(](?<rate_mips>\\d+[.]?\\d*) MB/sec[)]" +
                                     ", *(?<avg_lat_ms>\\d+[.]?\\d*) ms avg latency" +
@@ -122,9 +122,9 @@ consumerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  docker run --rm --network ${PERF_NETWORK} ${KAFKA_TOOL_IMAGE}  \
-      bin/kafka-consumer-perf-test.sh --topic ${TOPIC} --messages ${NUM_RECORDS} --hide-header \
-      --bootstrap-server ${ENDPOINT} |
+  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
+      bin/kafka-consumer-perf-test.sh --topic "${TOPIC}" --messages "${NUM_RECORDS}" --hide-header \
+      --bootstrap-server "${ENDPOINT}" |
        jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<start.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
                                         "(?<end.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
                                         "(?<data.consumed.in.MB>\\d+[.]?\\d*), " +
@@ -140,19 +140,19 @@ consumerPerf() {
 
 # expects TEST_NAME, TOPIC, ENDPOINT, PRODUCER_RESULT and CONSUMER_RESULT to be set
 doPerfTest () {
-  doCreateTopic ${ENDPOINT} ${TOPIC}
-  warmUp ${ENDPOINT} ${TOPIC}
+  doCreateTopic "${ENDPOINT}" "${TOPIC}"
+  warmUp "${ENDPOINT}" "${TOPIC}"
 
-  producerPerf ${ENDPOINT} ${TOPIC} ${NUM_RECORDS} ${PRODUCER_RESULT}
-  consumerPerf ${ENDPOINT} ${TOPIC} ${NUM_RECORDS} ${CONSUMER_RESULT}
+  producerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${PRODUCER_RESULT}"
+  consumerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${CONSUMER_RESULT}"
 
-  doDeleteTopic ${ENDPOINT} ${TOPIC}
+  doDeleteTopic "${ENDPOINT}" "${TOPIC}"
 }
 
 onExit() {
   for cmd in "${ON_SHUTDOWN[@]}"
   do
-    eval ${cmd}
+    eval "${cmd}"
   done
 }
 
@@ -168,28 +168,28 @@ runDockerCompose up --detach --wait kafka
 
 # Warm up the broker - we do this separately as we might want a longer warm-up period
 doCreateTopic broker1:9092 warmup-topic
-warmUp broker1:9092 warmup-topic ${WARM_UP_NUM_RECORDS_POST_BROKER_START}
+warmUp broker1:9092 warmup-topic "${WARM_UP_NUM_RECORDS_POST_BROKER_START}"
 doDeleteTopic broker1:9092 warmup-topic
 
 echo -e "${GREEN}Running test cases, number of records = ${NUM_RECORDS}, record size ${RECORD_SIZE}${NOCOLOR}"
 
 PRODUCER_RESULTS=()
 CONSUMER_RESULTS=()
-for t in $(find ${PERF_TESTS_DIR} -type d -regex '.*/'${TEST} | sort)
+for t in $(find "${PERF_TESTS_DIR}" -type d -regex '.*/'"${TEST}" | sort)
 do
-  TESTNAME=$(basename $t)
+  TESTNAME=$(basename "$t")
   TEST_TMP=${TMP}/${TESTNAME}
-  mkdir -p ${TEST_TMP}
+  mkdir -p "${TEST_TMP}"
   PRODUCER_RESULT=${TEST_TMP}/producer.json
   CONSUMER_RESULT=${TEST_TMP}/consumer.json
   TOPIC=perf-test-${RANDOM}
 
   echo -e "${GREEN}Running ${TESTNAME} ${NOCOLOR}"
 
-  TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . ${t}/run.sh
+  TESTNAME=${TESTNAME} TOPIC=${TOPIC} PRODUCER_RESULT=${PRODUCER_RESULT} CONSUMER_RESULT=${CONSUMER_RESULT} . "${t}"/run.sh
 
-  PRODUCER_RESULTS+=(${PRODUCER_RESULT})
-  CONSUMER_RESULTS+=(${CONSUMER_RESULT})
+  PRODUCER_RESULTS+=("${PRODUCER_RESULT}")
+  CONSUMER_RESULTS+=("${CONSUMER_RESULT}")
 done
 
 # Summarise results
@@ -210,18 +210,18 @@ jq -r -s '(["Name","Consumed Mi","Consumed Mi/s", "Consumed recs", "Consumed rec
 if [[ -n "${KIBANA_OUTPUT_DIR}" && -d "${KIBANA_OUTPUT_DIR}" ]]; then
   for PRODUCER_RESULT in "${PRODUCER_RESULTS[@]}"
   do
-    DIR=${KIBANA_OUTPUT_DIR}/$(jq -r '.name' ${PRODUCER_RESULT})
-    mkdir -p ${DIR}
+    DIR=${KIBANA_OUTPUT_DIR}/$(jq -r '.name' "${PRODUCER_RESULT}")
+    mkdir -p "${DIR}"
     jq '.values | last | [{name: "Rate rps", unit: "rec/s", value: .rate_rps},
                           {name: "Rate mips", unit: "Mi/s", value: .rate_mips},
                           {name: "AVG Latency", unit: "ms", value: .avg_lat_ms},
                           {name: "95th Latency", unit: "ms", value: .percentile95},
-                          {name: "99th Latency", unit: "ms", value: .percentile99}]' ${PRODUCER_RESULT} > ${DIR}/producer.json
+                          {name: "99th Latency", unit: "ms", value: .percentile99}]' "${PRODUCER_RESULT}" > "${DIR}"/producer.json
   done
 
   for CONSUMER_RESULT in "${CONSUMER_RESULTS[@]}"
   do
-    DIR=${KIBANA_OUTPUT_DIR}/$(jq -r '.name' ${CONSUMER_RESULT})
-    jq '[.values | last | to_entries[] | { name: .key, value} ]' ${CONSUMER_RESULT} > ${DIR}/consumer.json
+    DIR=${KIBANA_OUTPUT_DIR}/$(jq -r '.name' "${CONSUMER_RESULT}")
+    jq '[.values | last | to_entries[] | { name: .key, value} ]' "${CONSUMER_RESULT}" > "${DIR}"/consumer.json
   done
 fi
