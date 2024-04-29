@@ -212,7 +212,9 @@ if [[ -n "${KIBANA_OUTPUT_DIR}" && -d "${KIBANA_OUTPUT_DIR}" ]]; then
   do
     DIR=${KIBANA_OUTPUT_DIR}/$(jq -r '.name' ${PRODUCER_RESULT})
     mkdir -p ${DIR}
-    jq '.values | last | [{name: "AVG Latency", unit: "ms", value: .avg_lat_ms},
+    jq '.values | last | [{name: "Rate rps", unit: "rec/s", value: .rate_rps},
+                          {name: "Rate mips", unit: "Mi/s", value: .rate_mips},
+                          {name: "AVG Latency", unit: "ms", value: .avg_lat_ms},
                           {name: "95th Latency", unit: "ms", value: .percentile95},
                           {name: "99th Latency", unit: "ms", value: .percentile99}]' ${PRODUCER_RESULT} > ${DIR}/producer.json
   done
