@@ -55,8 +55,8 @@ doDeleteTopic () {
 
 warmUp() {
   echo -e "${YELLOW}Running warm up${NOCOLOR}"
-  producerPerf $1 $2 "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
-  consumerPerf $1 $2 "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
+  producerPerf "$1" "$2" "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
+  consumerPerf "$1" "$2" "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -96,7 +96,7 @@ producerPerf() {
                                     ", *(?<percentile999>\\d+[.]?\\d*) ms 99.9th" +
                                     ")?" +
                                     "[.]"; "g")]  |
-                                 {name: $name, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > ${OUTPUT}
+                                 {name: $name, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > "${OUTPUT}"
 }
 
 consumerPerf() {
@@ -135,7 +135,7 @@ consumerPerf() {
                                         "(?<fetch.time.ms>\\d+[.]?\\d*), " +
                                         "(?<fetch.MB.sec>\\d+[.]?\\d*), " +
                                         "(?<fetch.nMsg.sec>\\d+[.]?\\d*)"; "g")] |
-                                 { name: $name, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > ${OUTPUT}
+                                 { name: $name, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > "${OUTPUT}"
 }
 
 # expects TEST_NAME, TOPIC, ENDPOINT, PRODUCER_RESULT and CONSUMER_RESULT to be set
