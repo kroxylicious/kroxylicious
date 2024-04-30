@@ -94,22 +94,6 @@ public class KafkaUtils {
     }
 
     /**
-     * Consume encrypted message with test clients.
-     *
-     * @param deployNamespace the deploy namespace
-     * @param topicName the topic name
-     * @param bootstrap the bootstrap
-     * @param numOfMessages the num of messages
-     * @param timeout the timeout
-     * @return the string
-     */
-    public static String consumeEncryptedMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, int numOfMessages, Duration timeout) {
-        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL;
-        Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
-        return consumeMessages(topicName, name, deployNamespace, testClientJob, "key: kroxylicious.io/encryption", timeout);
-    }
-
-    /**
      * Gets pod name by label.
      *
      * @param deployNamespace the deploy namespace
