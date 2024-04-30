@@ -47,16 +47,19 @@ public class KroxyliciousSteps {
     }
 
     /**
-     * Consume encrypted messages.
+     * Kroxylicious will decrypt the message so to consume an encrypted message we need to read from the underlying Kafka cluster.
      *
-     * @param namespace the namespace
+     * @param clientNamespace where to run the client job
      * @param topicName the topic name
-     * @param bootstrap the bootstrap
+     * @param kafkaClusterName the name of the kafka cluster to read from
+     * @param kafkaNamespace the namespace in which the broker is operating
      * @param numberOfMessages the number of messages
      * @param timeout the timeout
      * @return the string
      */
-    public static String consumeEncryptedMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
-        return KafkaUtils.consumeEncryptedMessageWithTestClients(namespace, topicName, bootstrap, numberOfMessages, timeout);
+    public static String consumeEncryptedMessages(String clientNamespace, String topicName, String kafkaClusterName, String kafkaNamespace, int numberOfMessages,
+                                                  Duration timeout) {
+        String kafkaBootstrap = kafkaClusterName + "-kafka-bootstrap." + kafkaNamespace + ".svc.cluster.local:9092";
+        return KafkaUtils.consumeEncryptedMessageWithTestClients(clientNamespace, topicName, kafkaBootstrap, numberOfMessages, timeout);
     }
 }

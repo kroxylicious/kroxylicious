@@ -105,8 +105,7 @@ class RecordEncryptionST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String kafkaBootstrap = clusterName + "-kafka-bootstrap." + Constants.KAFKA_DEFAULT_NAMESPACE + ".svc.cluster.local:9092";
-        String resultEncrypted = KroxyliciousSteps.consumeEncryptedMessages(namespace, topicName, kafkaBootstrap, numberOfMessages, Duration.ofMinutes(2));
+        String resultEncrypted = KroxyliciousSteps.consumeEncryptedMessages(namespace, topicName, clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
         assertThat(resultEncrypted)
                 .withFailMessage("expected message have not been received!")
