@@ -54,12 +54,13 @@ public class KroxyliciousSteps {
      * @param kafkaClusterName the name of the kafka cluster to read from
      * @param kafkaNamespace the namespace in which the broker is operating
      * @param numberOfMessages the number of messages
-     * @param timeout the timeout
+     * @param timeout maximum time to wait for the expectedMessage to appear
+     * @param expectedMessage the message to check for.
      * @return the string
      */
-    public static String consumeEncryptedMessages(String clientNamespace, String topicName, String kafkaClusterName, String kafkaNamespace, int numberOfMessages,
-                                                  Duration timeout) {
+    public static String consumeMessageFromKafkaCluster(String clientNamespace, String topicName, String kafkaClusterName, String kafkaNamespace, int numberOfMessages,
+                                                        Duration timeout, String expectedMessage) {
         String kafkaBootstrap = kafkaClusterName + "-kafka-bootstrap." + kafkaNamespace + ".svc.cluster.local:9092";
-        return KafkaUtils.consumeEncryptedMessageWithTestClients(clientNamespace, topicName, kafkaBootstrap, numberOfMessages, timeout);
+        return KafkaUtils.consumeMessageWithTestClients(clientNamespace, topicName, kafkaBootstrap, expectedMessage, numberOfMessages, timeout);
     }
 }
