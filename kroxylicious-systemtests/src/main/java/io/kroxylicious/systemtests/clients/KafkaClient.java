@@ -10,6 +10,8 @@ import java.time.Duration;
 
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * The interface Kafka client.
  */
@@ -30,7 +32,20 @@ public interface KafkaClient {
      * @param message the message
      * @param numOfMessages the num of messages
      */
-    void produceMessages(String topicName, String bootstrap, String message, int numOfMessages) throws KubeClusterException;
+    default void produceMessages(String topicName, String bootstrap, String message, int numOfMessages) throws KubeClusterException {
+        produceMessages(topicName, bootstrap, message, null, numOfMessages);
+    }
+
+    /**
+     * Produce messages.
+     *
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param messageKey optional record key for the message. <code>null</code> means don't specify a key
+     * @param numOfMessages the num of messages
+     */
+    void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) throws KubeClusterException;
 
     /**
      * Consume messages.
