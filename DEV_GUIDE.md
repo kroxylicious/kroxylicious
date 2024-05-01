@@ -18,7 +18,7 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Installing WSL](#installing-wsl)
     * [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
   * [Running Integration Tests on Podman](#running-integration-tests-on-podman)
-    * [DOCKER_HOST environment variable](#docker_host-environment-variable)
+    * [DOCKER_HOST environment variable](#dockerhost-environment-variable)
     * [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
     * [macOS](#macos)
     * [Linux](#linux)
@@ -32,6 +32,7 @@ This document gives a detailed breakdown of the various build processes and opti
   * [Producing an Asciinema Cast](#producing-an-asciinema-cast)
   * [Continuous Integration](#continuous-integration)
     * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
+* [Deprecation Policy](#deprecation-policy)
 <!-- TOC -->
 
 ## Build status
