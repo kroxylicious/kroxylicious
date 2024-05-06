@@ -72,19 +72,45 @@ warmUp() {
   consumerPerf "$1" "$2" "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
 }
 
+setupAsyncProfilerKroxy() {
+  sudo sysctl kernel.perf_event_paranoid=1
+  sudo sysctl kernel.kptr_restrict=0
+
+  curl --create-dirs --output-dir /tmp/asprof -O "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
+
+  mkdir -p /tmp/asprof-extracted
+
+  unzip /tmp/asprof/ap-loader-all-3.0-9.jar -d /tmp/asprof-extracted
+}
+
+deleteAsyncProfilerKroxy() {
+  rm -rf /tmp/asprof
+  rm -rf /tmp/asprof-extracted
+}
+
 startAsyncProfilerKroxy() {
 
   echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
-  /usr/local/async-profiler/bin/asprof start ${KROXY_PID}
+
+  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
+
+  docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-linux-arm64.so ${KROXYLICIOUS_CONTAINER_ID}:/root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
+
+  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} ls /root/.local/share/me.bechberger.ap-loader/3.0/lib/
+
+  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} realpath /root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
+
+  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler start ${KROXY_PID}
+
 }
 
 stopAsyncProfilerKroxy() {
-  /usr/local/async-profiler/bin/asprof status ${KROXY_PID}
+  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler status ${KROXY_PID}
 
   echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
 
   docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /tmp/asprof-results
-  /usr/local/async-profiler/bin/asprof stop ${KROXY_PID} -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
+  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler stop ${KROXY_PID} -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
 
   mkdir -p ${PROFILING_OUTPUT_DIRECTORY}
   docker cp ${KROXYLICIOUS_CONTAINER_ID}:/tmp/asprof-results/. ${PROFILING_OUTPUT_DIRECTORY}
@@ -174,6 +200,7 @@ consumerPerf() {
 
 # expects TEST_NAME, TOPIC, ENDPOINT, PRODUCER_RESULT and CONSUMER_RESULT to be set
 doPerfTest () {
+
   doCreateTopic "${ENDPOINT}" "${TOPIC}"
   warmUp "${ENDPOINT}" "${TOPIC}"
 
@@ -210,6 +237,9 @@ ON_SHUTDOWN+=("rm -rf ${TMP}")
 
 # Bring up Kafka
 ON_SHUTDOWN+=("runDockerCompose down")
+
+setupAsyncProfilerKroxy
+ON_SHUTDOWN+=("deleteAsyncProfilerKroxy")
 
 # This doesn't work with podman if I want to push to the local repository
 #runDockerCompose pull
