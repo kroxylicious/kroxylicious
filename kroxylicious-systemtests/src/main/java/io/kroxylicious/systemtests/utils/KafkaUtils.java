@@ -69,7 +69,7 @@ public class KafkaUtils {
         kubeClient().getClient().batch().v1().jobs().inNamespace(namespace).resource(clientJob).create();
         String podName = KafkaUtils.getPodNameByLabel(namespace, "app", name, Duration.ofSeconds(30));
         String log;
-        try{
+        try {
             log = await().alias("Consumer waiting to receive messages")
                     .ignoreException(KubernetesClientException.class)
                     .atMost(timeout)
