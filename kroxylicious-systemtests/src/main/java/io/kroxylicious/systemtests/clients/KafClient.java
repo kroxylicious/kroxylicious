@@ -71,6 +71,6 @@ public class KafClient implements KafkaClient {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kafka-go";
         List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName);
         Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
-        return KafkaUtils.consumeMessages(topicName, name, deployNamespace, goClientJob, messageToCheck, timeout);
+        return KafkaUtils.consumeMessages(topicName, name, deployNamespace, goClientJob, messageToCheck, numOfMessages, timeout);
     }
 }

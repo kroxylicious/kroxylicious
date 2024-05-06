@@ -227,7 +227,7 @@ public class DeploymentUtils {
     private record TimeoutLoggingEvaluationListener(Supplier<String> messageSupplier) implements ConditionEvaluationListener<PodStatus> {
         @Override
         public void onTimeout(TimeoutEvent timeoutEvent) {
-            LOGGER.atError().setMessage("Run failed! Error: {}").addArgument(messageSupplier).log();
+            LOGGER.atError().setMessage("Timeout! Error: {}").addArgument(messageSupplier).log();
         }
 
         @Override

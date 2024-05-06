@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
+import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,25 +57,34 @@ public class KafkaUtils {
      *
      * @param topicName the topic name
      * @param name the name
-     * @param deployNamespace the deploy namespace
+     * @param namespace the deploy namespace
      * @param clientJob the client job
-     * @param messageToCheck the message to check
+     * @param message the message
+     * @param numOfMessages the num of messages
      * @param timeout the timeout
      * @return the string
      */
-    public static String consumeMessages(String topicName, String name, String deployNamespace, Job clientJob, String messageToCheck, Duration timeout) {
+    public static String consumeMessages(String topicName, String name, String namespace, Job clientJob, String message, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().setMessage("Consuming messages from '{}' topic").addArgument(topicName).log();
-        kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(clientJob).create();
-        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
-        return await().alias("Consumer waiting to receive messages")
-                .ignoreException(KubernetesClientException.class)
-                .atMost(timeout)
-                .until(() -> {
-                    if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
-                        return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-                    }
-                    return null;
-                }, m -> m != null && m.contains(messageToCheck));
+        kubeClient().getClient().batch().v1().jobs().inNamespace(namespace).resource(clientJob).create();
+        String podName = KafkaUtils.getPodNameByLabel(namespace, "app", name, Duration.ofSeconds(30));
+        String log;
+        try{
+            log = await().alias("Consumer waiting to receive messages")
+                    .ignoreException(KubernetesClientException.class)
+                    .atMost(timeout)
+                    .until(() -> {
+                        if (kubeClient().getClient().pods().inNamespace(namespace).withName(podName).get() != null) {
+                            return kubeClient().logsInSpecificNamespace(namespace, podName);
+                        }
+                        return null;
+                    }, m -> StringUtils.countMatches(m, message) == (numOfMessages));
+        }
+        catch (ConditionTimeoutException e) {
+            log = kubeClient().logsInSpecificNamespace(namespace, podName);
+            LOGGER.atInfo().setMessage("Timeout! Received: {}").addArgument(log).log();
+        }
+        return log;
     }
 
     /**
@@ -90,7 +101,7 @@ public class KafkaUtils {
     public static String consumeMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages, Duration timeout) {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL;
         Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
-        return consumeMessages(topicName, name, deployNamespace, testClientJob, message, timeout);
+        return consumeMessages(topicName, name, deployNamespace, testClientJob, message, numOfMessages, timeout);
     }
 
     /**

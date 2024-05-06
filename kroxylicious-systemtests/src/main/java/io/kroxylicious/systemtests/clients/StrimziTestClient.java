@@ -46,6 +46,6 @@ public class StrimziTestClient implements KafkaClient {
     public String consumeMessages(String topicName, String bootstrap, String messageToCheck, int numOfMessages, Duration timeout) {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL;
         Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
-        return KafkaUtils.consumeMessages(topicName, name, deployNamespace, testClientJob, messageToCheck, timeout);
+        return KafkaUtils.consumeMessages(topicName, name, deployNamespace, testClientJob, messageToCheck, numOfMessages, timeout);
     }
 }
