@@ -72,9 +72,22 @@ warmUp() {
   consumerPerf "$1" "$2" "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
 }
 
+
+ensureSysCtlValue() {
+  local keyName=$1
+  local desiredValue=$2
+
+  if [ "$(sysctl -n ${keyName})" != ${desiredValue} ] ;
+  then
+    echo -e "${YELLOW}setting ${keyName} to ${desiredValue}${NOCOLOR}"
+    sudo sysctl ${keyName}=${desiredValue}
+  fi
+}
+
 setupAsyncProfilerKroxy() {
-  sudo sysctl kernel.perf_event_paranoid=1
-  sudo sysctl kernel.kptr_restrict=0
+  ensureSysCtlValue kernel.perf_event_paranoid 1
+  ensureSysCtlValue kernel.kptr_restrict 0
+
 
   curl --create-dirs --output-dir /tmp/asprof -O "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
 
