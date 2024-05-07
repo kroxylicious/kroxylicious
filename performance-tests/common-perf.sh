@@ -9,5 +9,5 @@ set -Eu
 
 setKroxyContainerIdPID () {
     KROXYLICIOUS_CONTAINER_ID=$(docker container list | grep kroxylicious | awk '{print $1}')
-    KROXY_PID=$(docker top ${KROXYLICIOUS_CONTAINER_ID} | grep io.kroxylicious.app.Kroxylicious | awk '{print $2}')
+    KROXYLICIOUS_PID=$(docker top ${KROXYLICIOUS_CONTAINER_ID} | grep io.kroxylicious.app.Kroxylicious | awk '{print $2}')
 }

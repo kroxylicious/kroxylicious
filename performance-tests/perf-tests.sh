@@ -113,23 +113,23 @@ startAsyncProfilerKroxy() {
 
   docker exec -it ${KROXYLICIOUS_CONTAINER_ID} realpath /root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
 
-  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler start ${KROXY_PID}
+  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler start ${KROXYLICIOUS_PID}
 
 }
 
 stopAsyncProfilerKroxy() {
-  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler status ${KROXY_PID}
+  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler status ${KROXYLICIOUS_PID}
 
   echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
 
   docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /tmp/asprof-results
-  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler stop ${KROXY_PID} -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
+  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler stop ${KROXYLICIOUS_PID} -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
 
   mkdir -p ${PROFILING_OUTPUT_DIRECTORY}
   docker cp ${KROXYLICIOUS_CONTAINER_ID}:/tmp/asprof-results/. ${PROFILING_OUTPUT_DIRECTORY}
 
   unset KROXYLICIOUS_CONTAINER_ID
-  unset KROXY_PID
+  unset KROXYLICIOUS_PID
 }
 
 startAsyncProfilerKroxy() {
