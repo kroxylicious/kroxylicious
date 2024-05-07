@@ -1,0 +1,60 @@
+= OAUTHBEARER validation
+
+== What is it?
+
+OauthBearerValidation filter enables a validation on the JWT token received from client before forwarding it to cluster.
+
+If the token is not validated, then the request is short-circuited.
+It reduces resource consumption on the cluster when a client sends too many invalid SASL requests.
+
+[mermaid]
+....
+sequenceDiagram
+    Client->>Kroxylicious: Handshake request
+    Kroxylicious->>Cluster: Forward Handshake request
+    Cluster-->>Kroxylicious: Handshake response
+    Kroxylicious-->>Client: Handshake response
+    Client->>Kroxylicious: Authenticate request
+    Kroxylicious->>Kroxylicious: Validate token
+    break Token validation fails
+        Kroxylicious->>Client: Invalid token
+    end
+    Kroxylicious->>Cluster: Authenticate request
+    Cluster-->>Kroxylicious: Authenticate response
+    Kroxylicious-->>Client: Authenticate response
+....
+
+== How to use the filter
+
+There are two steps to using the filter.
+
+1. <<Configuring virtual clusters>>
+2. Configuring the filter within Kroxylicious.
+
+=== Configuring the filter within Kroxylicious.
+
+[source, yaml]
+----
+filters:
+  - type: OauthBearerValidation
+    config:
+      jwksEndpointUrl: https://oauth/JWKS   #<1>
+      jwksEndpointRefreshMs: 3600000        #<2>
+      jwksEndpointRetryBackoffMs: 100       #<3>
+      jwksEndpointRetryBackoffMaxMs: 10000  #<4>
+      scopeClaimName: scope                 #<5>
+      subClaimName: sub                     #<6>
+      authenticateBackOffMaxMs: 60000       #<7>
+      authenticateCacheMaxSize: 1000        #<8>
+----
+
+<1> The OAuth/OIDC provider URL from which the provider's JWKS (JSON Web Key Set) can be retrieved.
+<2> The (optional) value in milliseconds for the broker to wait between refreshing its JWKS (JSON Web Key Set) cache that contains the keys to verify the signature of the JWT.
+<3> The (optional) value in milliseconds for the initial wait between JWKS (JSON Web Key Set) retrieval attempts from the external authentication provider.
+<4> The (optional) value in milliseconds for the maximum wait between attempts to retrieve the JWKS (JSON Web Key Set) from the external authentication provider.
+<5> This (optional) setting can provide a different name to use for the scope included in the JWT payload's claims.
+<6> This (optional) setting can provide a different name to use for the subject included in the JWT payload's claims.
+<7> The (optional) maximum value in milliseconds to limit the client sending authenticate request. Setting 0 will never limit the client. Otherwise, an exponential delay is added to each authenticate request until the authenticateBackOffMaxMs has been reached.
+<8> The (optional) maximum number of failed tokens kept in cache.
+
+Note: OauthBearer config follows https://kafka.apache.org/documentation/#security_ssl[kafka's properties]
