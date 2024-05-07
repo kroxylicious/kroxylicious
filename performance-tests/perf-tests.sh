@@ -88,12 +88,11 @@ setupAsyncProfilerKroxy() {
   ensureSysCtlValue kernel.perf_event_paranoid 1
   ensureSysCtlValue kernel.kptr_restrict 0
 
-
-  curl --create-dirs --output-dir /tmp/asprof -O "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
+  curl -s --create-dirs --output-dir /tmp/asprof -O "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
 
   mkdir -p /tmp/asprof-extracted
 
-  unzip /tmp/asprof/ap-loader-all-3.0-9.jar -d /tmp/asprof-extracted
+  unzip -q /tmp/asprof/ap-loader-all-3.0-9.jar -d /tmp/asprof-extracted
 }
 
 deleteAsyncProfilerKroxy() {
@@ -127,27 +126,6 @@ stopAsyncProfilerKroxy() {
 
   mkdir -p ${PROFILING_OUTPUT_DIRECTORY}
   docker cp ${KROXYLICIOUS_CONTAINER_ID}:/tmp/asprof-results/. ${PROFILING_OUTPUT_DIRECTORY}
-}
-
-startAsyncProfilerKroxy() {
-
-  echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
-  /usr/local/async-profiler/bin/asprof start ${KROXY_PID}
-}
-
-stopAsyncProfilerKroxy() {
-  /usr/local/async-profiler/bin/asprof status ${KROXY_PID}
-
-  echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
-
-  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /tmp/asprof-results
-  /usr/local/async-profiler/bin/asprof stop ${KROXY_PID} -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
-
-  mkdir -p ${PROFILING_OUTPUT_DIRECTORY}
-  docker cp ${KROXYLICIOUS_CONTAINER_ID}:/tmp/asprof-results/. ${PROFILING_OUTPUT_DIRECTORY}
-
-  unset KROXYLICIOUS_CONTAINER_ID
-  unset KROXY_PID
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
