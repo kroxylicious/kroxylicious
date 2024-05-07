@@ -106,7 +106,19 @@ startAsyncProfilerKroxy() {
 
   docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
 
-  docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-linux-arm64.so ${KROXYLICIOUS_CONTAINER_ID}:/root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
+  local TARGETARCH=""
+  case $(uname -m) in
+      aarch64)  TARGETARCH="linux-arm64" ;;
+      x86_64 | i686 | i386)   TARGETARCH="linux-x64" ;;
+      *)        echo -n "Unsupported arch"
+  esac
+
+  printf "Uname:"
+  uname -m
+
+  echo "TARGETARCH: ${TARGETARCH}"
+
+  docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-${TARGETARCH}.so ${KROXYLICIOUS_CONTAINER_ID}:/root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
 
   docker exec -it ${KROXYLICIOUS_CONTAINER_ID} ls /root/.local/share/me.bechberger.ap-loader/3.0/lib/
 
