@@ -22,9 +22,11 @@ KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious vaul
 docker exec vault vault secrets enable transit 1>/dev/null
 docker exec vault vault write -f transit/keys/KEK_${TOPIC} 1>/dev/null
 
-setKroxyContainerIdPID
+setKroxyliciousContainerIdPID
 
 ENDPOINT=${ENDPOINT} doPerfTest
+
+unsetKroxyliciousContainerIdPID
 
 runDockerCompose rm -s -f kroxylicious vault
 

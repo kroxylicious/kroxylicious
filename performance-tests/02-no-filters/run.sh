@@ -15,9 +15,11 @@ ENDPOINT=kroxylicious:9092
 
 KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
 
-setKroxyContainerIdPID
+setKroxyliciousContainerIdPID
 
 ENDPOINT=${ENDPOINT} doPerfTest
+
+unsetKroxyliciousContainerIdPID
 
 runDockerCompose rm -s -f kroxylicious
 

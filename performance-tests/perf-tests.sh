@@ -127,9 +127,6 @@ stopAsyncProfilerKroxy() {
 
   mkdir -p ${PROFILING_OUTPUT_DIRECTORY}
   docker cp ${KROXYLICIOUS_CONTAINER_ID}:/tmp/asprof-results/. ${PROFILING_OUTPUT_DIRECTORY}
-
-  unset KROXYLICIOUS_CONTAINER_ID
-  unset KROXYLICIOUS_PID
 }
 
 startAsyncProfilerKroxy() {

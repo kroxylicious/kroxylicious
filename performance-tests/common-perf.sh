@@ -7,7 +7,12 @@
 
 set -Eu
 
-setKroxyContainerIdPID () {
+setKroxyliciousContainerIdPID () {
     KROXYLICIOUS_CONTAINER_ID=$(docker container list | grep kroxylicious | awk '{print $1}')
     KROXYLICIOUS_PID=$(docker top ${KROXYLICIOUS_CONTAINER_ID} | grep io.kroxylicious.app.Kroxylicious | awk '{print $2}')
+}
+
+unsetKroxyliciousContainerIdPID () {
+  unset KROXYLICIOUS_CONTAINER_ID
+  unset KROXYLICIOUS_PID
 }
