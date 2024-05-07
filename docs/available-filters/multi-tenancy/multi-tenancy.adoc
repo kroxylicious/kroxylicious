@@ -1,1 +1,63 @@
+:github: https://github.com/kroxylicious/kroxylicious
 = Multi-tenancy
+
+== What is it?
+
+Multi-tenancy filter enables isolation prefixing each metadata transiting through virtual cluster to target cluster.
+See https://kafka.apache.org/documentation/#multitenancy[Apache Kafka multi-tenancy documentation] for more information.
+
+== How to use the filter
+
+There are two steps to using the filter.
+
+1. <<Configuring virtual clusters>>
+2. Configuring the filter within Kroxylicious.
+
+=== Configuring the filter within Kroxylicious.
+
+[source, yaml]
+----
+filters:
+  - type: MultiTenantTransformationFilterFactory
+    config:
+      prefixResourceNameSeparator: "." #<1>
+----
+<1> `-` is the default separator if no config is provided
+
+If the virtual cluster name is `demo`, the created prefix will be `demo.`
+
+NOTE: Currently, only the prefix with separator is validated.
+
+=== Verifying that multi-tenancy is occurring
+
+Set up two virtual clusters `devenv1` & `devenv2`. See this {github}/blob/main/kubernetes-examples/multi-tenant/base/kroxylicious/kroxylicious-config.yaml[example].
+
+Create a topic on `devenv1`
+
+[source]
+----
+kafka-topics.sh --bootstrap-server devenv1:9392 --create --if-not-exists --topic first-topic
+----
+
+Create a topic on `devenv2`
+
+[source]
+----
+kafka-topics.sh --bootstrap-server devenv2:9392 --create --if-not-exists --topic second-topic
+----
+
+List topics from `devenv1`
+
+[source]
+----
+kafka-topics.sh --bootstrap-server devenv1:9392 --list
+----
+
+List topics from `devenv2`
+
+[source]
+----
+kafka-topics.sh --bootstrap-server devenv2:9392 --list
+----
+
+A full example with kubernetes is available {github}/blob/main/kubernetes-examples/multi-tenant/script.txt[here]
