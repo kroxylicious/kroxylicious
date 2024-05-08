@@ -36,7 +36,7 @@
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
         <freemarker.version>2.3.32</freemarker.version>
-        <guava.version>33.1.0-jre</guava.version>
+        <guava.version>33.2.0-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
         <jackson.version>2.17.0</jackson.version>
         <junit.version>5.10.2</junit.version>
@@ -54,8 +54,8 @@
         <mockito.version>5.11.0</mockito.version>
         <micrometer.version>1.12.5</micrometer.version>
         <slf4j.version>2.0.13</slf4j.version>
-        <sundr-builder-annotations.version>0.101.3</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.8.4</spotbugs-annotations.version>
+        <sundr-builder-annotations.version>0.200.0</sundr-builder-annotations.version>
+        <spotbugs-annotations.version>4.8.5</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
@@ -582,7 +582,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-plugin-plugin</artifactId>
-                    <version>3.12.0</version>
+                    <version>3.13.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

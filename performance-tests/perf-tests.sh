@@ -32,7 +32,7 @@ PERF_NETWORK=performance-tests_perf_network
 export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE
 
 runDockerCompose () {
-  docker-compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
+  docker compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
 }
 
 doCreateTopic () {

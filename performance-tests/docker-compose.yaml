@@ -4,7 +4,6 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-version: '3'
 networks:
   perf_network:
     driver: bridge
@@ -33,7 +32,8 @@ services:
       VAULT_DEV_ROOT_TOKEN_ID: token
       VAULT_TOKEN:  token
       VAULT_FORMAT: json
-      VAULT_ADDR: http://0.0.0.0:8200 # TODO - shouldn't need this
+      VAULT_DEV_LISTEN_ADDRESS: "[::]:8200"
+      VAULT_ADDR: http://localhost:8200 # TODO - shouldn't need this
     networks:
       - perf_network
     healthcheck:
@@ -49,7 +49,7 @@ services:
       - "--config"
       - "/opt/kroxylicious/config/config.yaml"
     healthcheck:
-      test: grep 2384 /proc/1/net/tcp  # 0x2384 = 9092
+      test: grep 2384 /proc/1/net/tcp /proc/1/net/tcp6  # 0x2384 = 9092
       interval: 5s
       retries: 5
       timeout: 10s
