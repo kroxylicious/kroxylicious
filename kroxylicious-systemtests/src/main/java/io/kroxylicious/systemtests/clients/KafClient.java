@@ -68,6 +68,7 @@ public class KafClient implements KafkaClient {
 
     @Override
     public String consumeMessages(String topicName, String bootstrap, String messageToCheck, int numOfMessages, Duration timeout) {
+        LOGGER.atInfo().log("Consuming messages using kaf");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kafka-go";
         List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName);
         Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();

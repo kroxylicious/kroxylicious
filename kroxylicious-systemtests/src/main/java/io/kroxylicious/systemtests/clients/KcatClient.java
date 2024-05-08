@@ -73,6 +73,7 @@ public class KcatClient implements KafkaClient {
 
     @Override
     public String consumeMessages(String topicName, String bootstrap, String messageToCheck, int numOfMessages, Duration timeout) {
+        LOGGER.atInfo().log("Consuming messages using kcat");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat";
         List<String> args = List.of("-b", bootstrap, "-t", topicName, "-C", "-c" + numOfMessages);
         Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
