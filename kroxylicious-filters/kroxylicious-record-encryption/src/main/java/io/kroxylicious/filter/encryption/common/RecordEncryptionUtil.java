@@ -31,7 +31,7 @@ public class RecordEncryptionUtil {
                 .thenApply(ignored -> Stream.of(futures).map(CompletableFuture::join).toList());
     }
 
-    public static int totalRecordsAcrossAllBatches(@NonNull MemoryRecords records) {
+    public static int totalRecordsInBatches(@NonNull MemoryRecords records) {
         int totalRecords = 0;
         for (MutableRecordBatch batch : records.batches()) {
             totalRecords += recordCount(batch);

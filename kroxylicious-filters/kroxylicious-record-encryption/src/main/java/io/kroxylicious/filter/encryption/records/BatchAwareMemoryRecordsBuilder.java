@@ -42,7 +42,7 @@ public class BatchAwareMemoryRecordsBuilder {
      * Initialize a new instance, which will append into the given buffer.
      * @param buffer The buffer to use.
      */
-    BatchAwareMemoryRecordsBuilder(@NonNull ByteBufferOutputStream buffer) {
+    public BatchAwareMemoryRecordsBuilder(@NonNull ByteBufferOutputStream buffer) {
         this.buffer = Objects.requireNonNull(buffer);
     }
 

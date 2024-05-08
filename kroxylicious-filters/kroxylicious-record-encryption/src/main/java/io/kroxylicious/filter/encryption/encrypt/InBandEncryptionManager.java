@@ -85,13 +85,13 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
             return CompletableFuture.completedFuture(records);
         }
 
-        int batchRecordCounts = RecordEncryptionUtil.totalRecordsAcrossAllBatches(records);
+        int totalRecords = RecordEncryptionUtil.totalRecordsInBatches(records);
         // it is possible to encounter MemoryRecords that have had all their records compacted away, but
         // the recordbatch metadata still exists. https://kafka.apache.org/documentation/#recordbatch
-        if (batchRecordCounts == 0) {
+        if (totalRecords == 0) {
             return CompletableFuture.completedFuture(records);
         }
-        return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, bufferAllocator, batchRecordCounts);
+        return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, bufferAllocator, totalRecords);
     }
 
     private ByteBufferOutputStream allocateBufferForEncrypt(@NonNull MemoryRecords records,
@@ -106,7 +106,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                                           @NonNull EncryptionScheme<K> encryptionScheme,
                                                           @NonNull MemoryRecords records,
                                                           int attempt,
-                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator, int allRecordsCount) {
+                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator,
+                                                          int allRecordsCount) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
                     new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + allRecordsCount + " records for topic " + topicName + " partition "
