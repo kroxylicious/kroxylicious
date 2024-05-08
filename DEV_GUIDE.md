@@ -18,7 +18,7 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Installing WSL](#installing-wsl)
     * [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
   * [Running Integration Tests on Podman](#running-integration-tests-on-podman)
-    * [DOCKER_HOST environment variable](#docker_host-environment-variable)
+    * [DOCKER_HOST environment variable](#dockerhost-environment-variable)
     * [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
     * [macOS](#macos)
     * [Linux](#linux)
@@ -32,6 +32,7 @@ This document gives a detailed breakdown of the various build processes and opti
   * [Producing an Asciinema Cast](#producing-an-asciinema-cast)
   * [Continuous Integration](#continuous-integration)
     * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
+* [Deprecation Policy](#deprecation-policy)
 <!-- TOC -->
 
 ## Build status
@@ -443,3 +444,19 @@ and one repository [secret](https://docs.github.com/en/actions/security-guides/u
 * `REGISTRY_TOKEN` secret - the access token that corresponds to `REGISTRY_USERNAME` 
 
 The workflow will push the container image to `${REGISTRY_DESTINATION}` so ensure that the `${REGISTRY_USERNAME}` user has sufficient write privileges. 
+
+# Deprecation Policy
+
+We want to let users know about upcoming changes to APIs and give them sufficient time to adapt. The following policy
+describes how we'll do that.  It will apply until the project reaches its 1.0 release.
+
+When there is an API deprecation, it must be announced in the [CHANGELOG](./CHANGELOG.md) of the coming release under
+a section title "Changes, deprecations and removals".
+
+Deprecated features become eligible for removal in the third minor release made following the release with the 
+deprecation announcement.  There is an additional condition that at least three months must have elapsed too.  When
+a deprecated feature is removed in a release, the removal should be documented under "Changes, deprecations and removals"
+in the changelog.
+
+Where technically possible, the production code should emit a warning if it detects the use of deprecated feature.  This
+will serve to prompt the user to migrate to the new API.
