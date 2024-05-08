@@ -223,9 +223,7 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
 
     @Override
     public void writeByteBuffer(ByteBuffer byteBuffer) {
-        while (byteBuffer.hasRemaining()) {
-            buf.writeByte(byteBuffer.get());
-        }
+        buf.writeBytes(byteBuffer);
     }
 
     @Override
