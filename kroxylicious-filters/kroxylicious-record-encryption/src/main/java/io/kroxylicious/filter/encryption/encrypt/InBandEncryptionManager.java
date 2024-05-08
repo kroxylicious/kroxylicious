@@ -92,7 +92,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         if (batchRecordCounts.stream().allMatch(size -> size == 0)) {
             return CompletableFuture.completedFuture(records);
         }
-        return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, batchRecordCounts, bufferAllocator);
+        return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, bufferAllocator,
+                batchRecordCounts.stream().mapToInt(value -> value).sum());
     }
 
     private ByteBufferOutputStream allocateBufferForEncrypt(@NonNull MemoryRecords records,
@@ -107,9 +108,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                                           @NonNull EncryptionScheme<K> encryptionScheme,
                                                           @NonNull MemoryRecords records,
                                                           int attempt,
-                                                          @NonNull List<Integer> batchRecordCounts,
-                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
-        int allRecordsCount = batchRecordCounts.stream().mapToInt(value -> value).sum();
+                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator, int allRecordsCount) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
                     new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + allRecordsCount + " records for topic " + topicName + " partition "
@@ -142,8 +141,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                     encryptionScheme,
                     records,
                     attempt + 1,
-                    batchRecordCounts,
-                    bufferAllocator);
+                    bufferAllocator,
+                    allRecordsCount);
         });
     }
 
