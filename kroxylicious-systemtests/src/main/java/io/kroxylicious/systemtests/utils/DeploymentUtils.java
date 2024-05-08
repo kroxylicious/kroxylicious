@@ -157,7 +157,7 @@ public class DeploymentUtils {
      */
     public static void waitForDeploymentRunning(String namespaceName, String podName, Duration timeout) {
         LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, podName);
-        await().atMost(timeout).pollInterval(Duration.ofMillis(200))
+        await().atMost(timeout).pollInterval(Duration.ofMillis(500))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
                         && kubeClient().isDeploymentRunning(namespaceName, podName));
     }
