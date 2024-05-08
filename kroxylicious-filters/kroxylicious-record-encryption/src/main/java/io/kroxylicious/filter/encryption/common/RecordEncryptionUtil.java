@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption.common;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -30,14 +29,6 @@ public class RecordEncryptionUtil {
         CompletableFuture<T>[] futures = stages.stream().map(CompletionStage::toCompletableFuture).toArray(CompletableFuture[]::new);
         return CompletableFuture.allOf(futures)
                 .thenApply(ignored -> Stream.of(futures).map(CompletableFuture::join).toList());
-    }
-
-    public static @NonNull List<Integer> batchRecordCounts(@NonNull MemoryRecords records) {
-        List<Integer> sizes = new ArrayList<>();
-        for (MutableRecordBatch batch : records.batches()) {
-            sizes.add(recordCount(batch));
-        }
-        return sizes;
     }
 
     public static int totalRecordsAcrossAllBatches(@NonNull MemoryRecords records) {
