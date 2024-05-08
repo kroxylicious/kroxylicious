@@ -40,6 +40,14 @@ public class RecordEncryptionUtil {
         return sizes;
     }
 
+    public static int totalRecordsAcrossAllBatches(@NonNull MemoryRecords records) {
+        int totalRecords = 0;
+        for (MutableRecordBatch batch : records.batches()) {
+            totalRecords += recordCount(batch);
+        }
+        return totalRecords;
+    }
+
     private static int recordCount(@NonNull MutableRecordBatch batch) {
         Integer count = batch.countOrNull();
         if (count == null) {
