@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.encryption.encrypt;
 
 import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -86,13 +85,13 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
             return CompletableFuture.completedFuture(records);
         }
 
-        List<Integer> batchRecordCounts = RecordEncryptionUtil.batchRecordCounts(records);
+        int totalRecords = RecordEncryptionUtil.totalRecordsInBatches(records);
         // it is possible to encounter MemoryRecords that have had all their records compacted away, but
         // the recordbatch metadata still exists. https://kafka.apache.org/documentation/#recordbatch
-        if (batchRecordCounts.stream().allMatch(size -> size == 0)) {
+        if (totalRecords == 0) {
             return CompletableFuture.completedFuture(records);
         }
-        return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, batchRecordCounts, bufferAllocator);
+        return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, bufferAllocator, totalRecords);
     }
 
     private ByteBufferOutputStream allocateBufferForEncrypt(@NonNull MemoryRecords records,
@@ -107,9 +106,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                                           @NonNull EncryptionScheme<K> encryptionScheme,
                                                           @NonNull MemoryRecords records,
                                                           int attempt,
-                                                          @NonNull List<Integer> batchRecordCounts,
-                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
-        int allRecordsCount = batchRecordCounts.stream().mapToInt(value -> value).sum();
+                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator,
+                                                          int allRecordsCount) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
                     new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + allRecordsCount + " records for topic " + topicName + " partition "
@@ -142,8 +140,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                     encryptionScheme,
                     records,
                     attempt + 1,
-                    batchRecordCounts,
-                    bufferAllocator);
+                    bufferAllocator,
+                    allRecordsCount);
         });
     }
 
