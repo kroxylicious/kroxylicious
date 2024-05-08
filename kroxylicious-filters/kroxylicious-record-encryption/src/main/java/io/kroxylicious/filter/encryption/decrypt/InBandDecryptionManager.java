@@ -95,10 +95,10 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
             // no records to transform, return input without modification
             return CompletableFuture.completedFuture(records);
         }
-        List<Integer> batchRecordCounts = RecordEncryptionUtil.batchRecordCounts(records);
+        int totalRecords = RecordEncryptionUtil.totalRecordsInBatches(records);
         // it is possible to encounter MemoryRecords that have had all their records compacted away, but
         // the recordbatch metadata still exists. https://kafka.apache.org/documentation/#recordbatch
-        if (batchRecordCounts.stream().allMatch(recordCount -> recordCount == 0)) {
+        if (totalRecords == 0) {
             return CompletableFuture.completedFuture(records);
         }
 
