@@ -17,6 +17,8 @@ ARG JAVA_VERSION=17
 ARG TARGETOS
 ARG TARGETARCH
 ARG KROXYLICIOUS_VERSION
+ARG CURRENT_USER
+ARG CURRENT_USER_UID
 
 RUN microdnf -y update \
     && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y java-${JAVA_VERSION}-openjdk-headless openssl shadow-utils \
@@ -51,4 +53,9 @@ RUN set -ex; \
         chmod +x /usr/bin/tini; \
     fi
 COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious/
+
+RUN groupadd -r -g ${CURRENT_USER_UID} ${CURRENT_USER} && useradd -m -r -u ${CURRENT_USER_UID} -g ${CURRENT_USER} ${CURRENT_USER}
+
+USER ${CURRENT_USER}
+
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]
