@@ -125,8 +125,8 @@ public class ByteBufAccessorTest {
 
         var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
         var kp = new ByteBufAccessorImpl(bbuf);
-        assertThatThrownBy(() -> kp.readArray(2)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Error reading byte array of 2 byte(s): only 1 byte(s) available");
+        assertThatThrownBy(() -> kp.readArray(2)).isInstanceOf(IndexOutOfBoundsException.class)
+                .hasMessageContaining("expected: 0 <= start(0) <= start + length(2) <= buf.capacity(1)");
     }
 
     @Test

@@ -16,6 +16,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
 import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
@@ -77,6 +78,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             else {
                 frame = new InternalResponseFrame<>(recipient, apiVersion, correlationId, header, body, correlation.promise());
             }
+            ((DecodedFrame<?, ?>) frame).add(in.retain());
         }
         else {
             frame = opaqueFrame(in, correlationId, length);

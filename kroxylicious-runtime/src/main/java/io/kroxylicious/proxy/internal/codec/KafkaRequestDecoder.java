@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
+import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -91,6 +92,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             }
 
             frame = new DecodedRequestFrame<>(apiVersion, correlationId, decodeResponse, header, body);
+            ((DecodedFrame<?, ?>) frame).add(in.retain());
             if (log().isTraceEnabled()) {
                 log().trace("{}: frame {}", ctx, frame);
             }

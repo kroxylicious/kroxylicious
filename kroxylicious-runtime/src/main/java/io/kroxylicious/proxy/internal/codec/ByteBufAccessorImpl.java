@@ -39,11 +39,6 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
                 "converted value: " + Long.toHexString(value));
     }
 
-    private static IllegalArgumentException illegalReadException(int size, int remaining) {
-        throw new IllegalArgumentException("Error reading byte array of " + size + " byte(s): only " + remaining +
-                " byte(s) available");
-    }
-
     /**
      * Read a long stored in variable-length format using zig-zag decoding from
      * <a href="http://code.google.com/apis/protocolbuffers/docs/encoding.html"> Google Protocol Buffers</a>.
@@ -138,13 +133,9 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
 
     @Override
     public byte[] readArray(int size) {
-        int remaining = buf.readableBytes();
-        if (size > remaining) {
-            throw illegalReadException(size, remaining);
-        }
-        byte[] dst = new byte[size];
-        buf.readBytes(dst, 0, size);
-        return dst;
+        byte[] array = ByteBufUtil.getBytes(buf, buf.readerIndex(), size, false);
+        buf.readerIndex(buf.readerIndex() + size);
+        return array;
     }
 
     @Override
@@ -154,11 +145,9 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
 
     @Override
     public ByteBuffer readByteBuffer(int length) {
-        // TODO use buf.nioBufferCount() and buf.nioBuffers() to avoid the copy if possible
-        ByteBuffer wrap = ByteBuffer.wrap(ByteBufUtil.getBytes(buf, buf.readerIndex(), length, false));
+        ByteBuffer byteBuffer = buf.nioBuffer(buf.readerIndex(), length);
         buf.readerIndex(buf.readerIndex() + length);
-        return wrap;
-
+        return byteBuffer;
     }
 
     @Override
