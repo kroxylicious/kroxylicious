@@ -8,4 +8,4 @@
  * <p>Utilities for dealing with {@link org.apache.kafka.common.record.Record}s, {@link org.apache.kafka.common.record.RecordBatch}es
  * and {@link org.apache.kafka.common.record.MemoryRecords}.</p>
  */
-package io.kroxylicious.filter.encryption.records;
+package io.kroxylicious.kafka.transform;

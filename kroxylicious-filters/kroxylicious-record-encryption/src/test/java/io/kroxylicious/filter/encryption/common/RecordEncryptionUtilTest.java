@@ -18,7 +18,7 @@ import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
+import io.kroxylicious.kafka.transform.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;

@@ -30,7 +30,7 @@ import io.kroxylicious.filter.encryption.dek.Aes;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekException;
 import io.kroxylicious.filter.encryption.dek.DekManager;
-import io.kroxylicious.filter.encryption.records.RecordTransform;
+import io.kroxylicious.kafka.transform.RecordTransform;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.test.record.RecordTestUtils;

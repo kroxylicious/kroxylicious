@@ -32,7 +32,7 @@ import com.google.common.reflect.ClassPath;
 
 import io.kroxylicious.filter.encryption.config.ParcelVersion;
 import io.kroxylicious.filter.encryption.config.RecordField;
-import io.kroxylicious.filter.encryption.records.BatchAwareMemoryRecordsBuilder;
+import io.kroxylicious.kafka.transform.BatchAwareMemoryRecordsBuilder;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;

@@ -23,7 +23,7 @@ import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
-import io.kroxylicious.filter.encryption.records.RecordStream;
+import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 

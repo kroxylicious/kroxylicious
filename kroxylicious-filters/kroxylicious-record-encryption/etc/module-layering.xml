@@ -50,6 +50,7 @@
         <allow pkg="org.apache.kafka.common.utils"/>
         <allow pkg="org.apache.kafka.common.record"/>
         <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="io.kroxylicious.kafka.transform"/>
         <allow pkg="io.kroxylicious.kms.service"/> <!-- serde -->
         <!-- allowed deps in this module: -->
         <allow pkg="io.kroxylicious.filter.encryption.config"/>
@@ -63,12 +64,13 @@
         <allow pkg="org.apache.kafka.common.record"/>
         <allow pkg="org.apache.kafka.common.utils"/>
         <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="io.kroxylicious.kafka.transform"/>
         <allow pkg="com.github.benmanes.caffeine.cache"/>
         <allow pkg="io.kroxylicious.kms.service"/> <!-- serde -->
         <!-- allowed deps in this module: -->
         <allow pkg="io.kroxylicious.filter.encryption.common"/>
         <allow pkg="io.kroxylicious.filter.encryption.config"/>
-        <allow pkg="io.kroxylicious.filter.encryption.records"/>
+        <allow pkg="io.kroxylicious.kafka.transform"/>
         <allow pkg="io.kroxylicious.filter.encryption.dek"/>
         <allow pkg="io.kroxylicious.filter.encryption.crypto"/>
     </subpackage>
@@ -76,12 +78,13 @@
         <allow pkg="org.apache.kafka.common.record"/>
         <allow pkg="org.apache.kafka.common.utils"/>
         <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="io.kroxylicious.kafka.transform"/>
         <allow pkg="com.github.benmanes.caffeine.cache"/>
         <allow pkg="io.kroxylicious.kms.service"/> <!-- serde -->
         <!-- allowed deps in this module: -->
         <allow pkg="io.kroxylicious.filter.encryption.common"/>
         <allow pkg="io.kroxylicious.filter.encryption.config"/>
-        <allow pkg="io.kroxylicious.filter.encryption.records"/>
+        <allow pkg="io.kroxylicious.kafka.transform"/>
         <allow pkg="io.kroxylicious.filter.encryption.dek"/>
         <allow pkg="io.kroxylicious.filter.encryption.crypto"/>
     </subpackage>

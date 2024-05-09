@@ -369,6 +369,7 @@
 
     <modules>
         <module>kroxylicious-annotations</module>
+        <module>kroxylicious-kafka-message-tools</module>
         <module>kroxylicious-kms</module>
         <module>kroxylicious-kms-test-support</module>
         <module>kroxylicious-kms-provider-kroxylicious-inmemory</module>
