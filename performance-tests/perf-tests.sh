@@ -104,7 +104,7 @@ startAsyncProfilerKroxy() {
 
   echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
 
-  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
+  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /home/$USER/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
 
   local TARGETARCH=""
   case $(uname -m) in
@@ -113,16 +113,9 @@ startAsyncProfilerKroxy() {
       *)        echo -n "Unsupported arch"
   esac
 
-  printf "Uname:"
-  uname -m
-
   echo "TARGETARCH: ${TARGETARCH}"
 
-  docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-${TARGETARCH}.so ${KROXYLICIOUS_CONTAINER_ID}:/root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
-
-  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} ls /root/.local/share/me.bechberger.ap-loader/3.0/lib/
-
-  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} realpath /root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
+  docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-${TARGETARCH}.so ${KROXYLICIOUS_CONTAINER_ID}:/home/$USER/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
 
   java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler start ${KROXYLICIOUS_PID}
 
