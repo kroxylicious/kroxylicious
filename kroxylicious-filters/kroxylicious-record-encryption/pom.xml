@@ -35,6 +35,10 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-annotations</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kafka-message-tools</artifactId>
+        </dependency>
         
 	    <dependency>
             <groupId>io.kroxylicious</groupId>

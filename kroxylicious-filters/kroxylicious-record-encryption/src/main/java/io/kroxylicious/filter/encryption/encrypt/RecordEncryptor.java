@@ -19,7 +19,7 @@ import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.Dek;
-import io.kroxylicious.filter.encryption.records.RecordTransform;
+import io.kroxylicious.kafka.transform.RecordTransform;
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
