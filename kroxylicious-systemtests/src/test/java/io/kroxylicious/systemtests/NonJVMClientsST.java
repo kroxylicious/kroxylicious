@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,16 +48,15 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceAndConsumeWithKcatClients(String namespace) {
-        int numOfMessages = 2;
-        String expectedMessage = MESSAGE + " - " + (numOfMessages - 1);
+        int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
+        KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
+        String result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -66,16 +66,15 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceAndConsumeWithKafkaGoClients(String namespace) {
-        int numOfMessages = 2;
-        String expectedMessage = MESSAGE;
+        int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
+        KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
+        String result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -85,17 +84,16 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithKcatAndConsumeWithTestClients(String namespace) {
-        int numOfMessages = 2;
-        String expectedMessage = MESSAGE + " - " + (numOfMessages - 1);
+        int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
+        KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages,
+        String result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages,
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -105,16 +103,15 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithTestClientsAndConsumeWithKcat(String namespace) {
-        int numOfMessages = 2;
-        String expectedMessage = MESSAGE + " - " + (numOfMessages - 1);
+        int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
+        KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
+        String result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -124,17 +121,16 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithKafkaGoAndConsumeWithTestClients(String namespace) {
-        int numOfMessages = 2;
-        String expectedMessage = MESSAGE;
+        int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
+        KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages,
+        String result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages,
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -144,16 +140,15 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithTestClientsAndConsumeWithKafkaGo(String namespace) {
-        int numOfMessages = 2;
-        String expectedMessage = MESSAGE + " - " + (numOfMessages - 1);
+        int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
-        KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numOfMessages);
+        KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, expectedMessage, numOfMessages, Duration.ofMinutes(2));
+        String result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     @BeforeEach

@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -48,7 +49,6 @@ class KroxyliciousST extends AbstractST {
     @Test
     void produceAndConsumeMessage(String namespace) {
         int numberOfMessages = 1;
-        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
@@ -63,10 +63,10 @@ class KroxyliciousST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, expectedMessage, numberOfMessages, Duration.ofMinutes(2));
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -77,7 +77,6 @@ class KroxyliciousST extends AbstractST {
     @Test
     void restartKafkaBrokers(String namespace) {
         int numberOfMessages = 25;
-        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
@@ -94,9 +93,9 @@ class KroxyliciousST extends AbstractST {
         KafkaSteps.restartKafkaBroker(clusterName);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, expectedMessage, numberOfMessages, Duration.ofMinutes(10));
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(10));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -108,7 +107,6 @@ class KroxyliciousST extends AbstractST {
     void kroxyWithReplicas(String namespace) {
         int numberOfMessages = 3;
         int replicas = 3;
-        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(replicas).log();
@@ -125,9 +123,9 @@ class KroxyliciousST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, expectedMessage, numberOfMessages, Duration.ofMinutes(2));
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     @Test
@@ -144,7 +142,6 @@ class KroxyliciousST extends AbstractST {
 
     private void scaleKroxylicious(String namespace, int replicas, int scaleTo) {
         int numberOfMessages = 10;
-        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(replicas).log();
@@ -166,9 +163,9 @@ class KroxyliciousST extends AbstractST {
         assertThat(currentReplicas).withFailMessage("unexpected current scaled replicas").isEqualTo(scaleTo);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, expectedMessage, numberOfMessages, Duration.ofMinutes(2));
+        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        assertThat(result).withFailMessage("expected message have not been received!").contains(expectedMessage);
+        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**

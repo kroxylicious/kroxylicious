@@ -15,9 +15,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.executor.Exec;
-import io.kroxylicious.systemtests.executor.ExecResult;
-import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
@@ -58,24 +56,15 @@ public class KcatClient implements KafkaClient {
                 "--image=" + Constants.KCAT_CLIENT_IMAGE,
                 "--", "-b", bootstrap, "-l", "-t", topicName, "-P");
 
-        LOGGER.atInfo().setMessage("Executing command: {} for running kcat producer").addArgument(executableCommand).log();
-        ExecResult result = Exec.exec(String.valueOf(msg), executableCommand, Duration.ofSeconds(30), true, false, null);
-
-        String log = kubeClient().logsInSpecificNamespace(deployNamespace, name);
-        if (result.isSuccess()) {
-            LOGGER.atInfo().setMessage("kcat client produce log: {}").addArgument(log).log();
-        }
-        else {
-            LOGGER.atError().setMessage("error producing messages with kcat: {}").addArgument(log).log();
-            throw new KubeClusterException("error producing messages with kcat: " + log);
-        }
+        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.KCAT.name().toLowerCase());
     }
 
     @Override
     public String consumeMessages(String topicName, String bootstrap, String messageToCheck, int numOfMessages, Duration timeout) {
+        LOGGER.atInfo().log("Consuming messages using kcat");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat";
         List<String> args = List.of("-b", bootstrap, "-t", topicName, "-C", "-c" + numOfMessages);
         Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
-        return KafkaUtils.consumeMessages(topicName, name, deployNamespace, kCatClientJob, messageToCheck, timeout);
+        return KafkaUtils.consumeMessages(topicName, name, deployNamespace, kCatClientJob, messageToCheck, numOfMessages, timeout);
     }
 }
