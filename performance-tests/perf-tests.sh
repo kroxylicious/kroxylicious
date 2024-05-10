@@ -77,10 +77,10 @@ ensureSysCtlValue() {
   local keyName=$1
   local desiredValue=$2
 
-  if [ "$(sysctl -n ${keyName})" != ${desiredValue} ] ;
+  if [ "$(sysctl -n "${keyName}")" != "${desiredValue}" ] ;
   then
     echo -e "${YELLOW}setting ${keyName} to ${desiredValue}${NOCOLOR}"
-    sudo sysctl ${keyName}=${desiredValue}
+    sudo sysctl "${keyName}"="${desiredValue}"
   fi
 }
 
@@ -104,7 +104,7 @@ startAsyncProfilerKroxy() {
 
   echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
 
-  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /home/$USER/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
+  docker exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
 
   local TARGETARCH=""
   case $(uname -m) in
@@ -115,22 +115,22 @@ startAsyncProfilerKroxy() {
 
   echo "TARGETARCH: ${TARGETARCH}"
 
-  docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-${TARGETARCH}.so ${KROXYLICIOUS_CONTAINER_ID}:/home/$USER/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
+  docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
 
-  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler start ${KROXYLICIOUS_PID}
+  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler start "${KROXYLICIOUS_PID}"
 
 }
 
 stopAsyncProfilerKroxy() {
-  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler status ${KROXYLICIOUS_PID}
+  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler status "${KROXYLICIOUS_PID}"
 
   echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
 
-  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /tmp/asprof-results
-  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler stop ${KROXYLICIOUS_PID} -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
+  docker exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
+  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
 
-  mkdir -p ${PROFILING_OUTPUT_DIRECTORY}
-  docker cp ${KROXYLICIOUS_CONTAINER_ID}:/tmp/asprof-results/. ${PROFILING_OUTPUT_DIRECTORY}
+  mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
+  docker cp "${KROXYLICIOUS_CONTAINER_ID}":/tmp/asprof-results/. "${PROFILING_OUTPUT_DIRECTORY}"
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
