@@ -48,6 +48,8 @@ services:
     # this is to enable async_profiler
     security_opt:
       - seccomp:unconfined
+    # Set in perf_test.sh
+    user: "${D_UID}:${D_GID}"
     command:
       - "--config"
       - "/opt/kroxylicious/config/config.yaml"

@@ -45,7 +45,8 @@ printf "KROXYLICIOUS_IMAGE: ${KROXYLICIOUS_IMAGE}\n"
 
 
 runDockerCompose () {
-  docker compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
+  #  Docker compose can't see $UID so need to set here before calling it
+  D_UID="$(id -u)" D_GID="$(id -g)" docker compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
 }
 
 doCreateTopic () {
@@ -92,7 +93,7 @@ setupAsyncProfilerKroxy() {
 
   mkdir -p /tmp/asprof-extracted
 
-  unzip -q /tmp/asprof/ap-loader-all-3.0-9.jar -d /tmp/asprof-extracted
+  unzip -o -q /tmp/asprof/ap-loader-all-3.0-9.jar -d /tmp/asprof-extracted
 }
 
 deleteAsyncProfilerKroxy() {
@@ -104,8 +105,6 @@ startAsyncProfilerKroxy() {
 
   echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
 
-  docker exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
-
   local TARGETARCH=""
   case $(uname -m) in
       aarch64)  TARGETARCH="linux-arm64" ;;
@@ -115,7 +114,17 @@ startAsyncProfilerKroxy() {
 
   echo "TARGETARCH: ${TARGETARCH}"
 
-  docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
+  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} cat /etc/passwd
+  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} whoami
+  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} echo "$USER"
+
+  if [ "$USER" = "root" ]; then
+    docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
+    docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
+  else
+    docker exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
+    docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
+  fi
 
   java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler start "${KROXYLICIOUS_PID}"
 
