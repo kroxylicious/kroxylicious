@@ -252,8 +252,7 @@ ON_SHUTDOWN+=("rm -rf ${TMP}")
 # Bring up Kafka
 ON_SHUTDOWN+=("runDockerCompose down")
 
-# This doesn't work with podman if I want to push to the local repository
-#runDockerCompose pull
+[[ -n ${PULL_CONTAINERS} ]] && runDockerCompose pull
 
 setupAsyncProfilerKroxy
 ON_SHUTDOWN+=("deleteAsyncProfilerKroxy")
