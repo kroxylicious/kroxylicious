@@ -293,12 +293,12 @@ done
 
 # Summarise results
 
-echo -e "${GREEN}Producer Results ${NOCOLOR}"
+echo -e "${GREEN}Producer Results for ${COMMIT_ID}${NOCOLOR}"
 
 jq -r -s '(["Name","Sent","Rate rec/s", "Rate Mi/s", "Avg Lat ms", "Max Lat ms", "Percentile50", "Percentile95", "Percentile99", "Percentile999"] | (., map(length*"-"))),
            (.[] | [ .name, (.values | last | .[]) ]) | @tsv' "${PRODUCER_RESULTS[@]}" | column -t -s $'\t'
 
-echo -e "${GREEN}Consumer Results ${NOCOLOR}"
+echo -e "${GREEN}Consumer Results for ${COMMIT_ID}${NOCOLOR}"
 
 jq -r -s '(["Name","Consumed Mi","Consumed Mi/s", "Consumed recs", "Consumed rec/s", "Rebalance Time ms", "Fetch Time ms", "Fetch Mi/s", "Fetch rec/s"] | (., map(length*"-"))),
            (.[] | [ .name, (.values  | last | .[]) ]) | @tsv' "${CONSUMER_RESULTS[@]}" | column -t -s $'\t'
