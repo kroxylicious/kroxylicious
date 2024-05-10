@@ -27,11 +27,13 @@ public class Aes implements CipherManager {
     private final String transformation;
     private final byte serializedId;
     private final CipherSpec spec;
+    private final SecureRandom rng;
 
     private Aes(String transformation, byte serializedId, CipherSpec spec) {
         this.transformation = transformation;
         this.serializedId = serializedId;
         this.spec = spec;
+        rng = new SecureRandom();
     }
 
     @Override
@@ -61,7 +63,7 @@ public class Aes implements CipherManager {
 
     @Override
     public Supplier<AlgorithmParameterSpec> paramSupplier() {
-        var generator = new Wrapping96BitCounter(new SecureRandom());
+        var generator = new Wrapping96BitCounter(rng);
         var iv = new byte[IV_SIZE_BYTES];
         return () -> {
             generator.generateIv(iv);
