@@ -14,6 +14,7 @@ NUM_RECORDS=${NUM_RECORDS:-10000000}
 PRODUCER_PROPERTIES=${PRODUCER_PROPERTIES:-"acks=all"}
 WARM_UP_NUM_RECORDS_POST_BROKER_START=${WARM_UP_NUM_RECORDS_POST_BROKER_START:-1000}
 WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
+COMMIT_ID=${COMMIT_ID:=$(git rev-parse --short HEAD)}
 
 
 PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/results"}
@@ -161,7 +162,7 @@ producerPerf() {
   ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
       bin/kafka-producer-perf-test.sh --topic "${TOPIC}" --throughput -1 --num-records "${NUM_RECORDS}" --record-size "${RECORD_SIZE}" \
       --producer-props ${PRODUCER_PROPERTIES} bootstrap.servers="${ENDPOINT}" | \
-      jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
+      jq --raw-input --arg name "${TESTNAME}" --arg commit_id "${COMMIT_ID}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
                                     ", *(?<rate_rps>\\d+[.]?\\d*) records/sec [(](?<rate_mips>\\d+[.]?\\d*) MB/sec[)]" +
                                     ", *(?<avg_lat_ms>\\d+[.]?\\d*) ms avg latency" +
                                     ", *(?<max_lat_ms>\\d+[.]?\\d*) ms max latency" +
@@ -172,7 +173,7 @@ producerPerf() {
                                     ", *(?<percentile999>\\d+[.]?\\d*) ms 99.9th" +
                                     ")?" +
                                     "[.]"; "g")]  |
-                                 {name: $name, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > "${OUTPUT}"
+                                 {name: $name, commit_id: $commit_id, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > "${OUTPUT}"
 }
 
 consumerPerf() {
@@ -201,7 +202,7 @@ consumerPerf() {
   ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
       bin/kafka-consumer-perf-test.sh --topic "${TOPIC}" --messages "${NUM_RECORDS}" --hide-header \
       --bootstrap-server "${ENDPOINT}" |
-       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<start.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
+       jq --raw-input --arg name "${TESTNAME}" --arg commit_id "${COMMIT_ID}"  '[.,inputs] | [.[] | match("^(?<start.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
                                         "(?<end.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
                                         "(?<data.consumed.in.MB>\\d+[.]?\\d*), " +
                                         "(?<MB.sec>\\d+[.]?\\d*), " +
@@ -211,7 +212,7 @@ consumerPerf() {
                                         "(?<fetch.time.ms>\\d+[.]?\\d*), " +
                                         "(?<fetch.MB.sec>\\d+[.]?\\d*), " +
                                         "(?<fetch.nMsg.sec>\\d+[.]?\\d*)"; "g")] |
-                                 { name: $name, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > "${OUTPUT}"
+                                 { name: $name, commit_id: $commit_id, values: [.[] | .captures | map( { (.name|tostring): ( .string | tonumber? ) } ) | add | del(..|nulls)]}' > "${OUTPUT}"
 }
 
 # expects TEST_NAME, TOPIC, ENDPOINT, PRODUCER_RESULT and CONSUMER_RESULT to be set
