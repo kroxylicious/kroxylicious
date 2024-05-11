@@ -6,11 +6,18 @@
 package io.kroxylicious.proxy.internal.codec;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+
+import org.apache.kafka.common.record.BaseRecords;
+import org.apache.kafka.common.record.MemoryRecords;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.CompositeByteBuf;
+import io.netty.buffer.Unpooled;
 
 import io.kroxylicious.proxy.frame.ByteBufAccessor;
+import io.kroxylicious.proxy.internal.util.ByteBufRecords;
 
 /**
  * An implementation of Kafka's Readable and Writable abstraction in terms of
@@ -166,6 +173,24 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
     }
 
     @Override
+    public String readString(int length) {
+        String string = buf.toString(buf.readerIndex(), length, StandardCharsets.UTF_8);
+        buf.readerIndex(buf.readerIndex() + length);
+        return string;
+    }
+
+    @Override
+    public BaseRecords readRecords(int length) {
+        if (length < 0) {
+            // no records
+            return null;
+        } else {
+            ByteBuf recordsBuf = buf.readSlice(length);
+            return ByteBufRecords.readableRecords(recordsBuf);
+        }
+    }
+
+    @Override
     public int readerIndex() {
         return buf.readerIndex();
     }
@@ -212,7 +237,14 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
 
     @Override
     public void writeByteBuffer(ByteBuffer byteBuffer) {
-        buf.writeBytes(byteBuffer);
+        if (buf instanceof CompositeByteBuf composite) {
+            if (composite.writerIndex() != composite.capacity()) {
+                composite.capacity(composite.writerIndex());
+            }
+            composite.addComponent(true, Unpooled.wrappedBuffer(byteBuffer));
+        } else {
+            buf.writeBytes(byteBuffer);
+        }
     }
 
     @Override
@@ -223,6 +255,24 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
     @Override
     public void writeVarlong(long i) {
         writeVarlong(i, buf);
+    }
+
+    @Override
+    public void writeRecords(BaseRecords records) {
+        if (records instanceof ByteBufRecords byteBufRecords) {
+            if (buf instanceof CompositeByteBuf composite) {
+                if (composite.writerIndex() != composite.capacity()) {
+                    composite.capacity(composite.writerIndex());
+                }
+                composite.addFlattenedComponents(true, byteBufRecords.buf().retain());
+            } else {
+                buf.writeBytes(byteBufRecords.buf());
+            }
+        } else if (records instanceof MemoryRecords memoryRecords) {
+            writeByteBuffer(memoryRecords.buffer());
+        } else {
+            throw new UnsupportedOperationException("Unsupported record type " + records.getClass());
+        }
     }
 
     @Override
@@ -237,6 +287,13 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
 
     @Override
     public void writeBytes(ByteBuf buf, int length) {
-        this.buf.writeBytes(buf, length);
+        if (buf instanceof CompositeByteBuf composite) {
+            if (composite.writerIndex() != composite.capacity()) {
+                composite.capacity(composite.writerIndex());
+            }
+            composite.addFlattenedComponents(true, buf.readRetainedSlice(length));
+        } else {
+            this.buf.writeBytes(buf, length);
+        }
     }
 }

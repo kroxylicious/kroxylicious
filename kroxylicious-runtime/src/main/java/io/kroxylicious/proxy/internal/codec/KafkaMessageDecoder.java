@@ -26,6 +26,7 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
     protected KafkaMessageDecoder(int socketFrameMaxSize) {
         this.socketFrameMaxSize = socketFrameMaxSize;
+        this.setCumulator(COMPOSITE_CUMULATOR);
     }
 
     @Override
