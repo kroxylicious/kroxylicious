@@ -34,6 +34,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -221,7 +222,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
         var allHeaders = new HashMap<String, String>();
         unsignedRequest.headers().map().keySet().forEach(k -> unsignedRequest.headers().firstValue(k).ifPresent(value -> allHeaders.put(k, value)));
-        allHeaders.put(HOST_HEADER, computeHostHeader(unsignedRequest.uri()));
+        allHeaders.put(HOST_HEADER, getHostHeaderForSigning(unsignedRequest.uri()));
         allHeaders.put(X_AMZ_DATE_HEADER, isoDateTime);
 
         try {
@@ -291,12 +292,33 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
                 + ", Signature=" + signature;
     }
 
-    private String computeHostHeader(URI uri) {
-        if ((uri.getScheme().equals("http") && uri.getPort() == 80) || (uri.getScheme().equals("https") && uri.getPort() == 443)) {
-            return uri.getHost();
+    /**
+     * This implementation must match the HTTP client's computation of the contents of the Host header.
+     *
+     * @param uri uri
+     * @return host string
+     */
+    @VisibleForTesting
+    String getHostHeaderForSigning(URI uri) {
+        int port = uri.getPort();
+        String host = uri.getHost();
+
+        boolean defaultPort;
+        if (port == -1) {
+            defaultPort = true;
+        }
+        else if (uri.getScheme().toLowerCase(Locale.ROOT).equals("https")) {
+            defaultPort = port == 443;
         }
         else {
-            return uri.getHost() + ":" + uri.getPort();
+            defaultPort = port == 80;
+        }
+
+        if (defaultPort) {
+            return host;
+        }
+        else {
+            return host + ":" + port;
         }
     }
 

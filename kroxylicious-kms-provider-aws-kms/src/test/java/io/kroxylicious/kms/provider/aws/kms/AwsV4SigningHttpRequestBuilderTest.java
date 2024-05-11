@@ -169,6 +169,23 @@ class AwsV4SigningHttpRequestBuilderTest {
         assertThat(builder.build().method()).isEqualTo(method);
     }
 
+    static Stream<Arguments> hostHeader() {
+        return Stream.of(
+                Arguments.of("http implicit port", URI.create("http://localhost/foo"), "localhost"),
+                Arguments.of("http explicit default port", URI.create("http://localhost/foo:80"), "localhost"),
+                Arguments.of("https implicit port", URI.create("https://localhost/foo"), "localhost"),
+                Arguments.of("https explicit default port", URI.create("https://localhost:443/foo"), "localhost"),
+                Arguments.of("http non standard port", URI.create("http://localhost:8080/foo"), "localhost:8080"),
+                Arguments.of("https non standard port", URI.create("http://localhost:8443/foo"), "localhost:8443"));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    void hostHeader(String name, URI uri, String expected) {
+        var builder = ((AwsV4SigningHttpRequestBuilder) createBuilder(TEST_URI));
+        assertThat(builder.getHostHeaderForSigning(uri)).isEqualTo(expected);
+    }
+
     @NonNull
     private HttpRequest.Builder createBuilder(URI uri) {
         var builder = AwsV4SigningHttpRequestBuilder.newBuilder(ACCESS_KEY, SECRET_KEY, REGION, SERVICE, Instant.ofEpochMilli(0));
