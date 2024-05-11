@@ -43,15 +43,15 @@ import org.apache.kafka.common.serialization.Serdes;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory;
@@ -97,28 +97,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
+@ExtendWith(NettyLeakDetectorExtension.class)
 class FilterIT {
 
     private static final String PLAINTEXT = "Hello, world!";
     private static final FilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new FilterDefinitionBuilder(RejectingCreateTopicFilterFactory.class.getName());
-    private static NettyLeakLogAppender appender;
 
     @BeforeAll
     public static void beforeAll() {
 
         final LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
         final Configuration config = ctx.getConfiguration();
-        appender = (NettyLeakLogAppender) config.getAppenders().get("NettyLeakLogAppender");
-    }
-
-    @BeforeEach
-    public void clearLeaks() {
-        appender.clear();
-    }
-
-    @AfterEach
-    public void checkNoNettyLeaks() {
-        appender.verifyNoLeaks();
     }
 
     @Test
