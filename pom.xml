@@ -70,6 +70,7 @@
         <testcontainers.version>1.19.7</testcontainers.version>
         <bouncycastle.version>1.78.1</bouncycastle.version>
         <apache.commons.version>3.14.0</apache.commons.version>
+        <netty-leak-detector-junit-extension.version>0.0.5</netty-leak-detector-junit-extension.version>
     </properties>
 
     <name>Parent POM</name>
@@ -367,7 +368,7 @@
             <dependency>
                 <groupId>io.github.nettyplus</groupId>
                 <artifactId>netty-leak-detector-junit-extension</artifactId>
-                <version>0.0.5</version>
+                <version>${netty-leak-detector-junit-extension.version}</version>
             </dependency>
 
         </dependencies>
