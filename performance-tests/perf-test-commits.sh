@@ -18,20 +18,23 @@ NOCOLOR='\033[0m'
 export PUSH_IMAGE=y #remove this once pulling is optional to save some time.
 
 checkoutCommit() {
-  local COMMIT=$1
-  echo -e "Checkout ${GREEN}${COMMIT}${NOCOLOR}"
-  git checkout --quiet "${COMMIT}"
+  local COMMIT_ID=$1
+  echo -e "Checkout ${GREEN}${COMMIT_ID}${NOCOLOR}"
+  git checkout --quiet "${COMMIT_ID}"
 }
 
 buildImage() {
-  echo "Building image"
+  local COMMIT_ID=$1
+  export KROXYLICIOUS_VERSION="${COMMIT_ID}"
+  echo "Building image with version ${KROXYLICIOUS_VERSION}"
   "${PERF_TESTS_DIR}/../scripts/build-image.sh" > /dev/null
 }
 
 runPerfTest() {
-  local COMMIT=$1
-  export KIBANA_OUTPUT_DIR=${RESULTS_DIR}/${COMMIT}
+  local COMMIT_ID=$1
+  export KIBANA_OUTPUT_DIR=${RESULTS_DIR}/${COMMIT_ID}
   mkdir -p "${KIBANA_OUTPUT_DIR}"
+  echo -e "Running tests ${GREEN}${COMMIT_ID}${NOCOLOR}"
   "${PERF_TESTS_DIR}/perf-tests.sh"
 }
 
@@ -39,9 +42,11 @@ runPerfTest() {
 for COMMIT in "${COMMITS[@]}"; do
     checkoutCommit "${COMMIT}"
 
-    buildImage
+    SHORT_COMMIT=$(git rev-parse --short HEAD)
 
-    runPerfTest "${COMMIT}"
+    buildImage "${SHORT_COMMIT}"
+
+    runPerfTest "${SHORT_COMMIT}"
 done
 
 echo -e "Merging results"
