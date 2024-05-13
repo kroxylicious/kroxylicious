@@ -27,7 +27,7 @@ checkoutCommit() {
 buildImage() {
   local COMMIT_ID=$1
   export KROXYLICIOUS_VERSION="${COMMIT_ID}"
-  echo "Building image with version ${GREEN}${KROXYLICIOUS_VERSION}${NOCOLOR}"
+  echo -e "Building image with version ${GREEN}${KROXYLICIOUS_VERSION}${NOCOLOR}"
   "${PERF_TESTS_DIR}/../scripts/build-image.sh" > /dev/null
 }
 
