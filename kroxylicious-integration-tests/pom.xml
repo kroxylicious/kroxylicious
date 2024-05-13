@@ -133,11 +133,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.netty</groupId>
-            <artifactId>netty-common</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
             <scope>test</scope>
@@ -193,7 +188,12 @@
             <artifactId>slf4j-api</artifactId>
             <scope>test</scope>
         </dependency>
-
+        <dependency>
+            <groupId>io.github.nettyplus</groupId>
+            <artifactId>netty-leak-detector-junit-extension</artifactId>
+            <version>0.0.5</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
