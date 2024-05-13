@@ -227,7 +227,7 @@ doPerfTest () {
   doCreateTopic "${ENDPOINT}" "${TOPIC}"
   warmUp "${ENDPOINT}" "${TOPIC}"
 
-  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ]
+  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ] && [ "$(uname)" != 'Darwin' ]
   then
     echo -e "${PURPLE}KROXYLICIOUS_CONTAINER_ID set to $KROXYLICIOUS_CONTAINER_ID${NOCOLOR}"
     startAsyncProfilerKroxy
@@ -236,7 +236,7 @@ doPerfTest () {
 
   producerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${PRODUCER_RESULT}"
 
-  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ]
+  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ] && [ "$(uname)" != 'Darwin' ]
   then
     stopAsyncProfilerKroxy
   fi
@@ -263,7 +263,10 @@ ON_SHUTDOWN+=("runDockerCompose down")
 
 [[ -n ${PULL_CONTAINERS} ]] && runDockerCompose pull
 
-setupAsyncProfilerKroxy
+if [ "$(uname)" != 'Darwin' ]; then
+  # Async profiler not supported on macOS
+  setupAsyncProfilerKroxy
+fi
 ON_SHUTDOWN+=("deleteAsyncProfilerKroxy")
 
 runDockerCompose up --detach --wait kafka
