@@ -16,6 +16,7 @@ GREEN='\033[0;32m'
 NOCOLOR='\033[0m'
 
 export PUSH_IMAGE=y #remove this once pulling is optional to save some time.
+export TEMP_BUILD=y
 
 checkoutCommit() {
   local COMMIT_ID=$1
