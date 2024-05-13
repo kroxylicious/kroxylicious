@@ -51,7 +51,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
     private static final HexFormat HEX_FORMATTER = HexFormat.of();
 
-    private static final String NO_PAYLOAD_HEXED_SHA256 = HEX_FORMATTER.formatHex(getSha256Digester().digest(new byte[]{}));
+    private static final String NO_PAYLOAD_HEXED_SHA256 = HEX_FORMATTER.formatHex(newSha256Digester().digest(new byte[]{}));
 
     private static final String X_AMZ_DATE_HEADER = "X-Amz-Date";
     public static final String AUTHORIZATION_HEADER = "Authorization";
@@ -184,7 +184,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         var items = new ArrayList<BodyPublisher>();
 
         bodyPublisher.subscribe(new Flow.Subscriber<>() {
-            final MessageDigest digest = getSha256Digester();
+            final MessageDigest digest = newSha256Digester();
 
             @Override
             public void onSubscribe(Flow.Subscription subscription) {
@@ -322,14 +322,14 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
     }
 
     private static byte[] sha256(byte[] bytes) {
-        var digest = getSha256Digester();
+        var digest = newSha256Digester();
         digest.update(bytes);
         return digest.digest();
     }
 
     private static byte[] hmac(byte[] key, String msg) {
         try {
-            var mac = getHmacSHA256();
+            var mac = newHmacSha256();
             mac.init(new SecretKeySpec(key, "HmacSHA256"));
             return mac.doFinal(msg.getBytes(StandardCharsets.UTF_8));
         }
@@ -339,7 +339,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
     }
 
     @NonNull
-    private static Mac getHmacSHA256() {
+    private static Mac newHmacSha256() {
         try {
             return Mac.getInstance("HmacSHA256");
         }
@@ -348,7 +348,8 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         }
     }
 
-    private static MessageDigest getSha256Digester() {
+    @NonNull
+    private static MessageDigest newSha256Digester() {
         try {
             return MessageDigest.getInstance("SHA-256");
         }

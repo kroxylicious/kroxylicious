@@ -24,9 +24,9 @@ public class AwsKmsKmsService implements KmsService<Config, String, AwsKmsEdek> 
     @Override
     public AwsKmsKms buildKms(Config options) {
         return new AwsKmsKms(options.endpointUrl(),
-                             options.accessKey().getProvidedPassword(),
-                             options.secretKey().getProvidedPassword(),
-                             options.region(),
+                options.accessKey().getProvidedPassword(),
+                options.secretKey().getProvidedPassword(),
+                options.region(),
                 Duration.ofSeconds(20), options.sslContext());
     }
 
