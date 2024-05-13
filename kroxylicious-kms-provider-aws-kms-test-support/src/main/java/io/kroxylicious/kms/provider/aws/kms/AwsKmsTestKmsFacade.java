@@ -24,6 +24,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kms.provider.aws.kms.model.CreateAliasRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.CreateKeyRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.CreateKeyResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.DeleteAliasRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.ErrorResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.UpdateAliasRequest;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.UnknownAliasException;

@@ -26,6 +26,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kms.provider.aws.kms.model.DecryptRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.DecryptResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.ErrorResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.GenerateDataKeyRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.GenerateDataKeyResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.KeyMetadata;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
