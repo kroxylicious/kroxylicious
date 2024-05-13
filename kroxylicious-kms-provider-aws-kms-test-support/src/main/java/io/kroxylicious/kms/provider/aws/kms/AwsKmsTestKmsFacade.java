@@ -186,7 +186,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
             // https://github.com/localstack/localstack/issues/10723
 
-            // mimic a rotate by creating a new key and report the alias at it, leaving the original
+            // mimic a rotate by creating a new key and repoint the alias at it, leaving the original
             // key in place.
             final CreateKeyRequest request = new CreateKeyRequest("[rotated] key for alias : " + alias);
             var keyRequest = createRequest(request, TRENT_SERVICE_CREATE_KEY);
