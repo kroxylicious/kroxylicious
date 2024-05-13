@@ -170,14 +170,23 @@ public class AwsKmsKms implements Kms<String, AwsKmsEdek> {
 
     @NonNull
     private static HttpResponse<byte[]> checkResponseStatus(@NonNull String key,
-                                                            HttpResponse<byte[]> response,
-                                                            Function<String, KmsException> notFound) {
-        if (response.statusCode() == 404 || response.statusCode() == 400) {
-            throw notFound.apply("key '%s' is not found.".formatted(key));
-        }
-        else if (response.statusCode() != 200) {
-            var error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
-            throw new KmsException("fail to retrieve key '%s', HTTP status code %d, AWS error: %s".formatted(key, response.statusCode(), error));
+                                                            @NonNull HttpResponse<byte[]> response,
+                                                            @NonNull Function<String, KmsException> notFound) {
+        var statusCode = response.statusCode();
+        if (statusCode != 200) {
+            ErrorResponse error;
+            try {
+                error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
+            }
+            catch (UncheckedIOException e) {
+                error = null;
+            }
+
+            if (error != null && error.isNotFound()) {
+                throw notFound.apply("key '%s' is not found (AWS error: %s).".formatted(key, error));
+            }
+
+            throw new KmsException("Operation failed, key %s, HTTP status code %d, AWS error: %s".formatted(key, statusCode, error));
         }
         return response;
     }

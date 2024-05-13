@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kms.provider.aws.kms.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -14,4 +16,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record DecryptResponse(@JsonProperty(value = "KeyId") String keyId,
                               @JsonProperty(value = "Plaintext") byte[] plaintext) {
 
+    public DecryptResponse {
+        Objects.requireNonNull(keyId);
+        Objects.requireNonNull(plaintext);
+    }
 }

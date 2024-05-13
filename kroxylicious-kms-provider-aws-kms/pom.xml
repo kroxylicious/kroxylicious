@@ -92,5 +92,10 @@
             <artifactId>jackson-datatype-jsr310</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

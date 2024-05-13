@@ -230,16 +230,21 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             sendRequestExpectingNoResponse(deleteAliasRequest);
         }
 
+        private HttpRequest createRequest(Object request, String target) {
+            var body = getBody(request).getBytes(UTF_8);
+
+            return AwsV4SigningHttpRequestBuilder.newBuilder(getAccessKey(), getSecretKey(), getRegion(), "kms", Instant.now())
+                    .uri(getAwsUrl())
+                    .header(AwsKmsKms.CONTENT_TYPE_HEADER, AwsKmsKms.APPLICATION_X_AMZ_JSON_1_1)
+                    .header(AwsKmsKms.X_AMZ_TARGET_HEADER, target)
+                    .POST(BodyPublishers.ofByteArray(body))
+                    .build();
+        }
+
         private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
             try {
                 HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-                if (response.statusCode() != 200) {
-                    var er = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
-                    if (er.type().equalsIgnoreCase("NotFoundException")) {
-                        throw new UnknownAliasException(key);
-                    }
-                    throw new IllegalStateException("unexpected response %s (%s) for request: %s".formatted(response.statusCode(), er, request.uri()));
-                }
+                checkForError(key, request.uri(), response.statusCode(), response);
                 return decodeJson(valueTypeRef, response.body());
             }
             catch (IOException e) {
@@ -254,15 +259,20 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             }
         }
 
-        private HttpRequest createRequest(Object request, String target) {
-            var body = getBody(request).getBytes(UTF_8);
-
-            return AwsV4SigningHttpRequestBuilder.newBuilder(getAccessKey(), getSecretKey(), getRegion(), "kms", Instant.now())
-                    .uri(getAwsUrl())
-                    .header(AwsKmsKms.CONTENT_TYPE_HEADER, AwsKmsKms.APPLICATION_X_AMZ_JSON_1_1)
-                    .header(AwsKmsKms.X_AMZ_TARGET_HEADER, target)
-                    .POST(BodyPublishers.ofByteArray(body))
-                    .build();
+        private void checkForError(String key, URI uri, int statusCode, HttpResponse<byte[]> response) {
+            ErrorResponse error;
+            if (statusCode != 200) {
+                try {
+                    error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
+                }
+                catch (UncheckedIOException e) {
+                    error = null;
+                }
+                if (error != null && error.isNotFound()) {
+                    throw new UnknownAliasException(key);
+                }
+                throw new IllegalStateException("unexpected response %s (AWS error: %s) for request: %s".formatted(response.statusCode(), error, uri));
+            }
         }
 
         private void sendRequestExpectingNoResponse(HttpRequest request) {

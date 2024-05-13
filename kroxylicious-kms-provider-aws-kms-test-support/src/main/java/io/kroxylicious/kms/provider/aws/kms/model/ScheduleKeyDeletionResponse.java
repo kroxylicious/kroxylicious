@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kms.provider.aws.kms.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -13,4 +15,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record ScheduleKeyDeletionResponse(@JsonProperty(value = "KeyState") String keyState,
                                           @JsonProperty(value = "PendingWindowInDays") int pendingWindowInDays) {
 
+    public ScheduleKeyDeletionResponse {
+        Objects.requireNonNull(keyState);
+    }
 }

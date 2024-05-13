@@ -6,13 +6,20 @@
 
 package io.kroxylicious.kms.provider.aws.kms.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-@SuppressWarnings("java:S6218")
+@SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
 public record GenerateDataKeyResponse(@JsonProperty(value = "CiphertextBlob") byte[] ciphertextBlob,
                                       @JsonProperty(value = "KeyId") String keyId,
                                       @JsonProperty(value = "Plaintext") byte[] plaintext) {
 
+    public GenerateDataKeyResponse {
+        Objects.requireNonNull(ciphertextBlob);
+        Objects.requireNonNull(keyId);
+        Objects.requireNonNull(plaintext);
+    }
 }
