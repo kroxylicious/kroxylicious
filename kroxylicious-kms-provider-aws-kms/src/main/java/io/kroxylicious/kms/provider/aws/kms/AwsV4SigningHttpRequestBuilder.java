@@ -225,17 +225,12 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         allHeaders.put(HOST_HEADER, getHostHeaderForSigning(unsignedRequest.uri()));
         allHeaders.put(X_AMZ_DATE_HEADER, isoDateTime);
 
-        try {
-            var canonicalRequest = computeCanonicalRequest(allHeaders, unsignedRequest);
-            var stringToSign = computeStringToSign(canonicalRequest, isoDateTime, isoDate);
-            var authorization = computeAuthorization(canonicalRequest, stringToSign, isoDate);
+        var canonicalRequest = computeCanonicalRequest(allHeaders, unsignedRequest);
+        var stringToSign = computeStringToSign(canonicalRequest, isoDateTime, isoDate);
+        var authorization = computeAuthorization(canonicalRequest, stringToSign, isoDate);
 
-            builder.header(AUTHORIZATION_HEADER, authorization);
-            builder.header(X_AMZ_DATE_HEADER, isoDateTime);
-        }
-        catch (Exception e) {
-            throw new IllegalStateException("Failed to sign the request", e);
-        }
+        builder.header(AUTHORIZATION_HEADER, authorization);
+        builder.header(X_AMZ_DATE_HEADER, isoDateTime);
     }
 
     @NonNull
