@@ -108,6 +108,21 @@ public final class KafkaProxy implements AutoCloseable {
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
         final FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, config.filters());
+        // TODO: get the oauth config by virtual cluster and init a sasl server by vc
+        /*
+         * var oauthHandler = new OAuthBearerValidatorCallbackHandler();
+         * oauthHandler.configure(
+         * Map.of(
+         * SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_URL, "https://jwks",
+         * SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS, SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS,
+         * SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS, SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS,
+         * SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS, SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS,
+         * SaslConfigs.SASL_OAUTHBEARER_SCOPE_CLAIM_NAME, SaslConfigs.DEFAULT_SASL_OAUTHBEARER_SCOPE_CLAIM_NAME,
+         * SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME, SaslConfigs.DEFAULT_SASL_OAUTHBEARER_SUB_CLAIM_NAME),
+         * KafkaAuthnHandler.SaslMechanism.OAUTHBEARER.mechanismName(),
+         * List.of(new AppConfigurationEntry("OAuthBearerLoginModule", AppConfigurationEntry.LoginModuleControlFlag.REQUIRED, Map.of())));
+         */
+        // Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authMap = Map.of(KafkaAuthnHandler.SaslMechanism.OAUTHBEARER, oauthHandler);
         var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
                 new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of()));
         var plainServerBootstrap = buildServerBootstrap(serverEventGroup,

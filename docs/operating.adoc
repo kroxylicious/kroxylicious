@@ -27,7 +27,72 @@ KROXYLICIOUS_ROOT_LOG_LEVEL="DEBUG"
 
 to configure the root log level (note this will be very verbose at DEBUG/TRACE)
 
-== Configuring TLS
+== Authentication
+
+There are two authentications to consider :
+
+* Downstream: Client to Kroxy
+* Upstream: Kroxy to Kafka
+
+=== Downstream authentication
+
+==== PLAIN
+
+#### Kafka client configuration
+
+[source]
+----
+# Configure SASL_SSL if TLS/SSL encryption is enabled, otherwise configure SASL_PLAINTEXT
+security.protocol=SASL_SSL
+sasl.mechanism=PLAIN
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="USERNAME" \
+    password="PASSWORD";
+----
+
+#### Virtual cluster configuration
+
+WARNING: At this time PLAIN is only supported as delegated authentication (managed by upstream)
+
+==== OAUTHBEARER
+
+#### Kafka client configuration
+
+[source]
+----
+# Configure SASL_SSL if TLS/SSL encryption is enabled, otherwise configure SASL_PLAINTEXT
+security.protocol=SASL_SSL
+sasl.mechanism=OAUTHBEARER
+sasl.login.callback.handler.class=org.apache.kafka.common.security.oauthbearer.secured.OAuthBearerLoginCallbackHandler
+sasl.oauthbearer.token.endpoint.url=JWKS_ENDPOINT
+sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required \
+  clientId="CLIENT_ID" \
+  clientSecret="CLIENT_SECRET"
+  scope="<scope>"; #<1>
+----
+<1> optional scope
+
+#### Virtual cluster configuration
+
+Setting OAuth on virtual cluster is optional and will indicate to Kroxy to handle the SASL connection.
+The SASL connection is fully managed by Kroxy, upstream must not require a SASL connection because handshake
+and authenticate requests are not forwarded to upstream.
+Currently, Kroxylicious doesn't manage RBAC, so there is no role validation.
+
+[source, yaml]
+----
+virtualClusters:
+  demo:
+    oauth:                          #<1>
+      jwksEndpointUrl: <url>        #<2>
+----
+
+<1> Optional: Setting OAuth configuration indicates to Kroxy to validate the token.
+<2> The OAuth/OIDC provider URL from which the provider's JWKS (JSON Web Key Set) can be retrieved
+
+NOTE: Delegating authentication to kafka is only possible with SASL, otherwise, proxy can't act on any request or response.
+
+=== Upstream authentication
 
 == Reconfiguration
 
@@ -65,7 +130,7 @@ adminHttp:
 ----
 
 <1> Bind address for the server specified using either a hostname or interface address. If omitted, it will bind to all interfaces
-    (i.e. `0.0.0.0`).
+(i.e. `0.0.0.0`).
 <2> Port number to be bound. If omitted port `9190` will be bound.
 <3> Enables the prometheus endpoint.
 
