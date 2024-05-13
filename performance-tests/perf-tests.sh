@@ -46,14 +46,14 @@ printf "KROXYLICIOUS_IMAGE: ${KROXYLICIOUS_IMAGE}\n"
 
 runDockerCompose () {
   #  Docker compose can't see $UID so need to set here before calling it
-  D_UID="$(id -u)" D_GID="$(id -g)" docker compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
+  D_UID="$(id -u)" D_GID="$(id -g)" ${CONTAINER_ENGINE} compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
 }
 
 doCreateTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
-  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
+  ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
       bin/kafka-topics.sh --create --topic "${TOPIC}" --bootstrap-server "${ENDPOINT}" 1>/dev/null
 }
 
@@ -63,7 +63,7 @@ doDeleteTopic () {
   ENDPOINT=$1
   TOPIC=$2
 
-  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
+  ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
       bin/kafka-topics.sh --delete --topic "${TOPIC}" --bootstrap-server "${ENDPOINT}"
 }
 
@@ -114,16 +114,16 @@ startAsyncProfilerKroxy() {
 
   echo "TARGETARCH: ${TARGETARCH}"
 
-  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} cat /etc/passwd
-  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} whoami
-  docker exec -it ${KROXYLICIOUS_CONTAINER_ID} echo "$USER"
+  ${CONTAINER_ENGINE} exec -it ${KROXYLICIOUS_CONTAINER_ID} cat /etc/passwd
+  ${CONTAINER_ENGINE} exec -it ${KROXYLICIOUS_CONTAINER_ID} whoami
+  ${CONTAINER_ENGINE} exec -it ${KROXYLICIOUS_CONTAINER_ID} echo "$USER"
 
   if [ "$USER" = "root" ]; then
-    docker exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
-    docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
+    ${CONTAINER_ENGINE} exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
+    ${CONTAINER_ENGINE} cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
   else
-    docker exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
-    docker cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
+    ${CONTAINER_ENGINE} exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
+    ${CONTAINER_ENGINE} cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
   fi
 
   java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler start "${KROXYLICIOUS_PID}"
@@ -135,11 +135,11 @@ stopAsyncProfilerKroxy() {
 
   echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
 
-  docker exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
+  ${CONTAINER_ENGINE} exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
   java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
 
   mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
-  docker cp "${KROXYLICIOUS_CONTAINER_ID}":/tmp/asprof-results/. "${PROFILING_OUTPUT_DIRECTORY}"
+  ${CONTAINER_ENGINE} cp "${KROXYLICIOUS_CONTAINER_ID}":/tmp/asprof-results/. "${PROFILING_OUTPUT_DIRECTORY}"
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -165,7 +165,7 @@ producerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
+  ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
       bin/kafka-producer-perf-test.sh --topic "${TOPIC}" --throughput -1 --num-records "${NUM_RECORDS}" --record-size "${RECORD_SIZE}" \
       --producer-props "${PRODUCER_PROPERTIES}" bootstrap.servers="${ENDPOINT}" | \
       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
@@ -205,7 +205,7 @@ consumerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
+  ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
       bin/kafka-consumer-perf-test.sh --topic "${TOPIC}" --messages "${NUM_RECORDS}" --hide-header \
       --bootstrap-server "${ENDPOINT}" |
        jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<start.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
