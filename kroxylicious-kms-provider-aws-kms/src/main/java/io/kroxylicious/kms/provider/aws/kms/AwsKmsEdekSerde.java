@@ -26,20 +26,25 @@ import static org.apache.kafka.common.utils.Utils.utf8Length;
  * <br/>
  * The serialization structure is as follows:
  * <ol>
+ *     <li>version byte (currently always zero)</li>
  *     <li>Protobuf Unsigned varint to hold the number of bytes required to hold the UTF-8 representation of the kekRef.</li>
  *     <li>UTF-8 representation of the kefRef.</li>
  *     <li>Bytes of the edek.</li>
  * </ol>
- * <br/>
- * TODO: consider adding a version byte.
  * @see <a href="https://protobuf.dev/programming-guides/encoding/">Protobuf Encodings</a>
  */
 class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
+
+    public static final byte VERSION_0 = (byte) 0;
 
     @Override
     public AwsKmsEdek deserialize(@NonNull ByteBuffer buffer) {
         Objects.requireNonNull(buffer);
 
+        var version = buffer.get();
+        if (version != VERSION_0) {
+            throw new IllegalArgumentException("Unexpected version byte, got: %d expecting: %d".formatted(version, VERSION_0));
+        }
         var kekRefLength = toIntExact(readUnsignedVarint(buffer));
         var kekRef = utf8(buffer, kekRefLength);
         buffer.position(buffer.position() + kekRefLength);
@@ -55,7 +60,8 @@ class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
     public int sizeOf(AwsKmsEdek edek) {
         Objects.requireNonNull(edek);
         int kekRefLen = utf8Length(edek.kekRef());
-        return sizeOfUnsignedVarint(kekRefLen) // varint to store length of kek
+        return 1 // version byte
+                + sizeOfUnsignedVarint(kekRefLen) // varint to store length of kek
                 + kekRefLen // n bytes for the utf-8 encoded kek
                 + edek.edek().length; // n for the bytes of the edek
     }
@@ -65,6 +71,7 @@ class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(buffer);
         var keyRefBuf = edek.kekRef().getBytes(StandardCharsets.UTF_8);
+        buffer.put(VERSION_0);
         writeUnsignedVarint(keyRefBuf.length, buffer);
         buffer.put(keyRefBuf);
         buffer.put(edek.edek());

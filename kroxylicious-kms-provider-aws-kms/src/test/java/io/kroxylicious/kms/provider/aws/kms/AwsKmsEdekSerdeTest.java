@@ -22,11 +22,7 @@ class AwsKmsEdekSerdeTest {
 
     static Stream<Arguments> keyRefs() {
         return Stream.of(
-                Arguments.of("ordinary looking keyref", "mykey"),
-                Arguments.of("short keyref", "k"),
-                Arguments.of("outwith ascii", "k€yr€f"),
-                Arguments.of("longer keyref, len just fits in single byte", "x".repeat(127)),
-                Arguments.of("longer keyref, len requires multiple bytes", "x".repeat(128)));
+                Arguments.of("keyref", "1234abcd-12ab-34cd-56ef-1234567890ab"));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -43,24 +39,12 @@ class AwsKmsEdekSerdeTest {
     static Stream<Arguments> sizeOf() {
         return Stream.of(
                 Arguments.of(
-                        "ordinary",
-                        new AwsKmsEdek("a", new byte[]{ 1 }),
-                        1 + 1 + 1),
-                Arguments.of(
-                        "longer keyref, len just fits in single byte",
-                        new AwsKmsEdek("a".repeat(127), new byte[]{ 1 }),
-                        1 + 127 + 1),
-                Arguments.of(
-                        "longer keyref, len requires multiple bytes",
-                        new AwsKmsEdek("a".repeat(128), new byte[]{ 1 }),
-                        2 + 128 + 1),
-                Arguments.of(
-                        "longer edek",
-                        new AwsKmsEdek("abc", new byte[]{ 1, 2, 3, 4 }),
-                        1 + 3 + 4));
+                        "key id",
+                        new AwsKmsEdek("1234abcd-12ab-34cd-56ef-1234567890ab", new byte[]{ 1 }),
+                        1 + 1 + 36 + 1));
     }
 
-    @ParameterizedTest
+    @ParameterizedTest(name = "{0}")
     @MethodSource
     void sizeOf(String name, AwsKmsEdek edek, int expectedSize) {
         var size = serde.sizeOf(edek);
@@ -69,8 +53,9 @@ class AwsKmsEdekSerdeTest {
 
     static Stream<Arguments> deserializeErrors() {
         return Stream.of(
-                Arguments.of("emptykek", new byte[]{ 0 }),
-                Arguments.of("noekekbytes", new byte[]{ 3, 'A', 'B', 'C' }));
+                Arguments.of("wrong version", new byte[]{ 1 }),
+                Arguments.of("nokek", new byte[]{ 0, 0 }),
+                Arguments.of("noekekbytes", new byte[]{ 0, 3, 'A', 'B', 'C' }));
     }
 
     @ParameterizedTest(name = "{0}")
