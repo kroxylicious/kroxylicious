@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-@SuppressWarnings("java:S6218")  // we don't need DecryptResponse equality
+@SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
 record DecryptResponse(@JsonProperty(value = "KeyId") String keyId,
                        @JsonProperty(value = "Plaintext") byte[] plaintext) {
 

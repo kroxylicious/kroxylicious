@@ -37,11 +37,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Builds a JDK SSLContext used for vault communicateion.
+ * Encapsulates parameters for an TLS connection with AWS.
  *
  * @param tls tls configuration
  *
- * TODO ability to restrict by TLS protocol and cipher suite.
+ * TODO ability to restrict by TLS protocol and cipher suite (<a href="https://github.com/kroxylicious/kroxylicious/issues/1006">#1006</a>)
  */
 public record JdkTls(Tls tls) {
 
