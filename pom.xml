@@ -364,6 +364,12 @@
                 <version>${apache.commons.version}</version>
                 <scope>compile</scope>
             </dependency>
+            <dependency>
+                <groupId>io.github.nettyplus</groupId>
+                <artifactId>netty-leak-detector-junit-extension</artifactId>
+                <version>0.0.5</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
