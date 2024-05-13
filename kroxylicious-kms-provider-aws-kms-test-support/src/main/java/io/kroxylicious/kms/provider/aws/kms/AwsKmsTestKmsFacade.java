@@ -16,6 +16,8 @@ import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -43,6 +45,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
+    private static final Logger LOG = LoggerFactory.getLogger(AwsKmsTestKmsFacade.class);
     private static final DockerImageName LOCALSTACK_IMAGE = DockerImageName.parse("localstack/localstack:3.4");
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<CreateKeyResponse> CREATE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
@@ -74,13 +77,20 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             @Override
             @SuppressWarnings("java:S1874")
             public LocalStackContainer withFileSystemBind(String hostPath, String containerPath) {
-                // Workaround problem with LocalStackContainer on the Mac that manifests
-                // under both Docker and Podman when the Container mounts the
-                // docker.sock. It turns out that the mount is required by the Lambda Provider
-                // so skipping it has no consequence for our use-case.
-                // https://docs.localstack.cloud/getting-started/installation/#docker
-                // TODO raise testcontainer issue
-                return this;
+                if (containerPath.endsWith("docker.sock")) {
+                    LOG.debug("Skipped filesystem bind for {} => {}", hostPath, containerPath);
+                    // Testcontainers mounts the docker.sock into the Localstack container by default.
+                    // This is relied upon by only the Lambda Provider. By default, Podman prevents
+                    // containers accessing the docker.sock (unless run in rootful mode). Since the
+                    // Lambda Provider is not required by our use-case, skipping the filesystem bind is
+                    // the simplest option.
+                    // https://docs.localstack.cloud/getting-started/installation/#docker
+                    // https://github.com/containers/podman/issues/6015
+                    return this;
+                }
+                else {
+                    return super.withFileSystemBind(hostPath, containerPath);
+                }
             }
         }.withServices(LocalStackContainer.Service.KMS);
 
