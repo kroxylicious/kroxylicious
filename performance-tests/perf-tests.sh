@@ -266,8 +266,6 @@ ON_SHUTDOWN+=("runDockerCompose down")
 setupAsyncProfilerKroxy
 ON_SHUTDOWN+=("deleteAsyncProfilerKroxy")
 
-# This doesn't work with podman if I want to push to the local repository
-#runDockerCompose pull
 runDockerCompose up --detach --wait kafka
 
 # Warm up the broker - we do this separately as we might want a longer warm-up period
