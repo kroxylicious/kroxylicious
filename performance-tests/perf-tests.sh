@@ -90,11 +90,11 @@ setupAsyncProfilerKroxy() {
   ensureSysCtlValue kernel.perf_event_paranoid 1
   ensureSysCtlValue kernel.kptr_restrict 0
 
-  curl -s --create-dirs --output-dir /tmp/asprof -O "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
+  mkdir -p /tmp/asprof
+  curl -s -o /tmp/asprof/ap-loader-all.jar "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
 
   mkdir -p /tmp/asprof-extracted
-
-  unzip -o -q /tmp/asprof/ap-loader-all-3.0-9.jar -d /tmp/asprof-extracted
+  unzip -o -q /tmp/asprof/ap-loader-all.jar -d /tmp/asprof-extracted
 }
 
 deleteAsyncProfilerKroxy() {
@@ -127,17 +127,17 @@ startAsyncProfilerKroxy() {
     ${CONTAINER_ENGINE} cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
   fi
 
-  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler start "${KROXYLICIOUS_PID}"
+  java -jar /tmp/asprof/ap-loader-all.jar profiler start "${KROXYLICIOUS_PID}"
 
 }
 
 stopAsyncProfilerKroxy() {
-  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler status "${KROXYLICIOUS_PID}"
+  java -jar /tmp/asprof/ap-loader-all.jar profiler status "${KROXYLICIOUS_PID}"
 
   echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
 
   ${CONTAINER_ENGINE} exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
-  java -jar /tmp/asprof/ap-loader-all-3.0-9.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
+  java -jar /tmp/asprof/ap-loader-all.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
 
   mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
   ${CONTAINER_ENGINE} cp "${KROXYLICIOUS_CONTAINER_ID}":/tmp/asprof-results/. "${PROFILING_OUTPUT_DIRECTORY}"
