@@ -26,16 +26,16 @@ checkoutCommit() {
 
 buildImage() {
   local COMMIT_ID=$1
-  export KROXYLICIOUS_VERSION="${COMMIT_ID}"
-  echo -e "Building image with version ${GREEN}${KROXYLICIOUS_VERSION}${NOCOLOR}"
-  "${PERF_TESTS_DIR}/../scripts/build-image.sh" > /dev/null
+  echo -e "Building image with tag ${GREEN}${COMMIT_ID}${NOCOLOR}"
+  "${PERF_TESTS_DIR}/../scripts/build-image.sh" -t "${COMMIT_ID}" -s > /dev/null
 }
 
 runPerfTest() {
   local COMMIT_ID=$1
   export KIBANA_OUTPUT_DIR=${RESULTS_DIR}/${COMMIT_ID}
   mkdir -p "${KIBANA_OUTPUT_DIR}"
-  echo -e "Running tests ${GREEN}${COMMIT_ID}${NOCOLOR}"
+  export KROXYLICIOUS_IMAGE="${REGISTRY_DESTINATION}:${COMMIT_ID}"
+  echo -e "Running tests using ${GREEN}${KROXYLICIOUS_IMAGE}${NOCOLOR}"
   "${PERF_TESTS_DIR}/perf-tests.sh"
 }
 
