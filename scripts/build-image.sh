@@ -14,9 +14,6 @@ LABELS=()
 IMAGE_TAGS=()
 IMAGE_EXPIRY=${IMAGE_EXPIRY:-'8h'}
 
-YELLOW='\033[1;33m'
-NOCOLOR='\033[0m'
-
 function array_to_arg_line() {
   local ARG_NAME=$1
   shift
@@ -82,9 +79,9 @@ if [[ -n ${PUSH_IMAGE:-} ]]; then
   echo "Pushing image to ${REGISTRY_SERVER}"
   ${CONTAINER_ENGINE} login ${REGISTRY_SERVER}""
   ${CONTAINER_ENGINE} push "${IMAGE}"
-  if [ ${#TAGS[@]} -gt 0 ]; then
-      for tag in "${TAGS[@]}"; do
-        ${CONTAINER_ENGINE} push "${REGISTRY_DESTINATION}:${tag}"
+  if [ ${#IMAGE_TAGS[@]} -gt 0 ]; then
+      for tag in "${IMAGE_TAGS[@]}"; do
+        ${CONTAINER_ENGINE} push "${IMAGE}" "${REGISTRY_DESTINATION}:${tag}"
       done
   fi
 else
