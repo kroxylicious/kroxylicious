@@ -8,8 +8,8 @@
 PERF_TESTS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 COMMITS=( "$@" )
 
-#Cross platform temp directory creation from https://unix.stackexchange.com/a/84980
-RESULTS_DIR=${RESULTS_DIR:=$(mktemp -d kroxyliciousPerfTestResults.XXXXXX 2>/dev/null || mktemp -d -t 'kroxyliciousPerfTestResults')}
+#Cross platform temp directory creation based on https://unix.stackexchange.com/a/84980
+RESULTS_DIR=${RESULTS_DIR:=$(mktemp -d -t kroxyliciousPerfTestResults.XXXXXX 2>/dev/null || mktemp -d -t 'kroxyliciousPerfTestResults')}
 echo -e "Writing results to: ${GREEN}${RESULTS_DIR}${NOCOLOR}"
 
 GREEN='\033[0;32m'
@@ -39,7 +39,6 @@ runPerfTest() {
   "${PERF_TESTS_DIR}/perf-tests.sh"
 }
 
-
 for COMMIT in "${COMMITS[@]}"; do
     checkoutCommit "${COMMIT}"
 
@@ -49,5 +48,3 @@ for COMMIT in "${COMMITS[@]}"; do
 
     runPerfTest "${SHORT_COMMIT}"
 done
-
-echo -e "Merging results"
