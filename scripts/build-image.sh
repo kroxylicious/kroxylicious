@@ -32,19 +32,20 @@ function array_to_arg_line() {
   echo "${arg_line}"
 }
 
-while getopts ":l:t:bh" opt; do
+while getopts ":l:t:sh" opt; do
   case $opt in
     l) LABELS+=("${OPTARG}")
     ;;
     t) IMAGE_TAGS+=("${OPTARG}")
     ;;
-    b) TEMP_BUILD=true
+    s) TEMP_BUILD=true
     ;;
     h)
       1>&2 cat << EOF
-usage: $0 [-l <label>] [-t tag>] [-h]
+usage: $0 [-l <label>] [-t tag>] [-h] [-s]
  -l a label to add to the image
  -t a tag to add to the image
+ -s short term image aka a temporary image. By default they expire after 8h
  -h this help message
 EOF
       exit 1
