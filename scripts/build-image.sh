@@ -26,8 +26,6 @@ function array_to_arg_line() {
     for value in "${ARR[@]}"; do
       arg_line+="--${ARG_NAME} ${value}"
     done
-  else
-    echo -e >&2 "${YELLOW}No ${ARG_NAME} to add${NOCOLOR}"
   fi
   echo "${arg_line}"
 }
@@ -84,6 +82,11 @@ if [[ -n ${PUSH_IMAGE:-} ]]; then
   echo "Pushing image to ${REGISTRY_SERVER}"
   ${CONTAINER_ENGINE} login ${REGISTRY_SERVER}""
   ${CONTAINER_ENGINE} push "${IMAGE}"
+  if [ ${#TAGS[@]} -gt 0 ]; then
+      for tag in "${TAGS[@]}"; do
+        ${CONTAINER_ENGINE} push "${REGISTRY_DESTINATION}:${tag}"
+      done
+  fi
 else
   echo "PUSH_IMAGE not set, not pushing to container registry"
 fi
