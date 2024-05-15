@@ -27,12 +27,19 @@ fi
 COMMITS=( "$@" )
 
 #Cross platform temp directory creation based on https://unix.stackexchange.com/a/84980
+CHECKOUT_DIR=${CHECKOUT_DIR:=$(mktemp -d -t kroxyliciousPerfTestCheckout.XXXXXX 2>/dev/null || mktemp -d -t 'kroxyliciousPerfTestCheckout')}
 RESULTS_DIR=${RESULTS_DIR:=$(mktemp -d -t kroxyliciousPerfTestResults.XXXXXX 2>/dev/null || mktemp -d -t 'kroxyliciousPerfTestResults')}
 JSON_TEMP_DIR=${JSON_TEMP_DIR:=$(mktemp -d -t kroxyliciousPerfTestJson.XXXXXX 2>/dev/null || mktemp -d -t 'kroxyliciousPerfTestJson')}
-echo -e "Writing results to: ${GREEN}${RESULTS_DIR}${NOCOLOR}"
+CLONE_URL=${CLONE_URL:-"$(git config --get remote.origin.url)"}
 
 export PUSH_IMAGE=y #remove this once pulling is optional to save some time.
 export TEMP_BUILD=y
+
+cloneRepo() {
+  cd "${CHECKOUT_DIR}" || exit 127
+  git clone -q "${CLONE_URL}" || exit 128
+  cd "kroxylicious" || exit 129
+}
 
 checkoutCommit() {
   local COMMIT_ID=$1
@@ -81,6 +88,8 @@ mergeResults() {
    jq  -c -s "${JQ_COMMAND}" "${JSON_TEMP_DIR}/${TEST_NAME}"-*.json > "${RESULTS_DIR}/${TEST_NAME}-all.json"
   done
 }
+
+cloneRepo
 
 for COMMIT in "${COMMITS[@]}"; do
     checkoutCommit "${COMMIT}"
