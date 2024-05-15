@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1201](https://github.com/kroxylicious/kroxylicious/pull/1201): Bump com.fasterxml.jackson:jackson-bom from 2.17.0 to 2.17.1
 * [#1158](https://github.com/kroxylicious/kroxylicious/pull/1158): Bump io.netty:netty-bom from 4.1.108.Final to 4.1.109.Final
 * [#1162](https://github.com/kroxylicious/kroxylicious/issues/1162): Fix #1162: allow tenant / resource name prefix separator to be controlled from configuration
 * [#1120](https://github.com/kroxylicious/kroxylicious/pull/1120): Generate API compatability report as part of the release process.
