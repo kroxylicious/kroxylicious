@@ -116,7 +116,7 @@ startAsyncProfilerKroxy() {
 
   echo "TARGETARCH: ${TARGETARCH}"
 
-  ${CONTAINER_ENGINE} exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p "${LOADER_DIR}/"""{bin,lib} && chmod +r -R "${LOADER_DIR}"
+  ${CONTAINER_ENGINE} exec ${KROXYLICIOUS_CONTAINER_ID} mkdir -p "${LOADER_DIR}/"""{bin,lib} && chmod +r -R "${LOADER_DIR}"
   ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs/libasyncProfiler-3.0-${TARGETARCH}.so" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/lib/libasyncProfiler.so"
 
   java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler start "${KROXYLICIOUS_PID}"
@@ -127,7 +127,7 @@ stopAsyncProfilerKroxy() {
 
   echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
 
-  ${CONTAINER_ENGINE} exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
+  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
   java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
 
   mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
