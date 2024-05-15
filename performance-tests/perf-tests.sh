@@ -34,6 +34,7 @@ KAFKA_IMAGE=${KAFKA_IMAGE:-"quay.io/ogunalp/kafka-native:latest-kafka-${KAFKA_VE
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-"quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}"}
 PERF_NETWORK=performance-tests_perf_network
 CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
+LOADER_DIR=${LOADER_DIR:-"/tmp/asprof-extracted"}
 export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE CONTAINER_ENGINE
 
 
@@ -93,13 +94,14 @@ setupAsyncProfilerKroxy() {
   mkdir -p /tmp/asprof
   curl -s -o /tmp/asprof/ap-loader-all.jar "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
 
-  mkdir -p /tmp/asprof-extracted
-  unzip -o -q /tmp/asprof/ap-loader-all.jar -d /tmp/asprof-extracted
+  mkdir -p "${LOADER_DIR}"
+  unzip -o -q /tmp/asprof/ap-loader-all.jar -d "${LOADER_DIR}"
+  chmod -R +rw "${LOADER_DIR}"
 }
 
 deleteAsyncProfilerKroxy() {
   rm -rf /tmp/asprof
-  rm -rf /tmp/asprof-extracted
+  rm -rf "${LOADER_DIR}"
 }
 
 startAsyncProfilerKroxy() {
@@ -115,29 +117,19 @@ startAsyncProfilerKroxy() {
 
   echo "TARGETARCH: ${TARGETARCH}"
 
-  ${CONTAINER_ENGINE} exec -it ${KROXYLICIOUS_CONTAINER_ID} cat /etc/passwd
-  ${CONTAINER_ENGINE} exec -it ${KROXYLICIOUS_CONTAINER_ID} whoami
-  ${CONTAINER_ENGINE} exec -it ${KROXYLICIOUS_CONTAINER_ID} echo "$USER"
+  ${CONTAINER_ENGINE} exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p "${LOADER_DIR}/"{bin,libs,lib} && chmod +r -R "${LOADER_DIR}"
+  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs/libasyncProfiler-3.0-${TARGETARCH}.so" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/lib/libasyncProfiler.so"
 
-  if [ "$USER" = "root" ]; then
-    ${CONTAINER_ENGINE} exec -it ${KROXYLICIOUS_CONTAINER_ID} mkdir -p /root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
-    ${CONTAINER_ENGINE} cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/root/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
-  else
-    ${CONTAINER_ENGINE} exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/
-    ${CONTAINER_ENGINE} cp /tmp/asprof-extracted/libs/libasyncProfiler-3.0-"${TARGETARCH}".so "${KROXYLICIOUS_CONTAINER_ID}":/home/"${USER}"/.local/share/me.bechberger.ap-loader/3.0/bin/../lib/libasyncProfiler.so
-  fi
-
-  java -jar /tmp/asprof/ap-loader-all.jar profiler start "${KROXYLICIOUS_PID}"
-
+  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler start "${KROXYLICIOUS_PID}"
 }
 
 stopAsyncProfilerKroxy() {
-  java -jar /tmp/asprof/ap-loader-all.jar profiler status "${KROXYLICIOUS_PID}"
+  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler status "${KROXYLICIOUS_PID}"
 
   echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
 
   ${CONTAINER_ENGINE} exec -it "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
-  java -jar /tmp/asprof/ap-loader-all.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
+  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
 
   mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
   ${CONTAINER_ENGINE} cp "${KROXYLICIOUS_CONTAINER_ID}":/tmp/asprof-results/. "${PROFILING_OUTPUT_DIRECTORY}"
