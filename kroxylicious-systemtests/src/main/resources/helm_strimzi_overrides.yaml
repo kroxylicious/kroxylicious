@@ -6,5 +6,5 @@
 
 # Helm Overrides File for Strimzi used by the system tests.
 replicas: 1
-featureGates: "+UseKRaft"
+#featureGates: ""
 
