@@ -49,7 +49,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 /**
  * An implementation of the KMS interface backed by a remote instance of AWS KMS.
  */
-public class AwsKmsKms implements Kms<String, AwsKmsEdek> {
+public class AwsKms implements Kms<String, AwsKmsEdek> {
 
     static final String APPLICATION_X_AMZ_JSON_1_1 = "application/x-amz-json-1.1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -80,7 +80,7 @@ public class AwsKmsKms implements Kms<String, AwsKmsEdek> {
      */
     private final URI awsUrl;
 
-    AwsKmsKms(URI awsUrl, String accessKey, String secretKey, String region, Duration timeout, SSLContext sslContext) {
+    AwsKms(URI awsUrl, String accessKey, String secretKey, String region, Duration timeout, SSLContext sslContext) {
         Objects.requireNonNull(awsUrl);
         Objects.requireNonNull(accessKey);
         Objects.requireNonNull(secretKey);

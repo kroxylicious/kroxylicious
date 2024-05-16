@@ -43,8 +43,8 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
     protected abstract String getAccessKey();
 
     @Override
-    public final Class<AwsKmsKmsService> getKmsServiceClass() {
-        return AwsKmsKmsService.class;
+    public final Class<AwsKmsService> getKmsServiceClass() {
+        return AwsKmsService.class;
     }
 
     @Override

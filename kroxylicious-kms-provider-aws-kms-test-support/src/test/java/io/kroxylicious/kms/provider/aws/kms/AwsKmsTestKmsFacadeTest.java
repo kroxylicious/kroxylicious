@@ -31,7 +31,7 @@ class AwsKmsTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, String, 
     void classAndConfig() {
         try (var facade = factory.build()) {
             facade.start();
-            assertThat(facade.getKmsServiceClass()).isEqualTo(AwsKmsKmsService.class);
+            assertThat(facade.getKmsServiceClass()).isEqualTo(AwsKmsService.class);
             assertThat(facade.getKmsServiceConfig()).isInstanceOf(Config.class);
         }
     }

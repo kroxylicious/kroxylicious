@@ -33,9 +33,9 @@ import io.kroxylicious.proxy.config.secret.InlinePassword;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit test for {@link AwsKmsKms}.  See also io.kroxylicious.kms.service.KmsIT.
+ * Unit test for {@link AwsKms}.  See also io.kroxylicious.kms.service.KmsIT.
  */
-class AwsKmsKmsTest {
+class AwsKmsTest {
 
     private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
 
@@ -135,119 +135,18 @@ class AwsKmsKmsTest {
         });
     }
 
-    //
-    // @Test
-    // void resolveWithUnknownKeyReusesConnection() {
-    // assertReusesConnectionsOn404(vaultKms -> {
-    // assertThat(vaultKms.resolveAlias("alias")).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-    // .withCauseInstanceOf(UnknownAliasException.class);
-    // });
-    // }
-    //
-    // @Test
-    // void generatedDekPairWithUnknownKeyReusesConnection() {
-    // assertReusesConnectionsOn404(vaultKms -> {
-    // assertThat(vaultKms.generateDekPair("alias")).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-    // .withCauseInstanceOf(UnknownKeyException.class);
-    // });
-    // }
-    //
-    //
-    // @Test
-    // void decryptEdekWithUnknownKeyReusesConnection() {
-    // assertReusesConnectionsOn404(vaultKms -> {
-    // assertThat(vaultKms.decryptEdek(new VaultEdek("unknown", new byte[]{ 1 }))).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-    // .withCauseInstanceOf(UnknownKeyException.class);
-    // });
-    // }
-    //
-    // @Test
-    // void decryptEdek() {
-    // String edek = "dGhlIHF1aWNrIGJyb3duIGZveAo=";
-    // byte[] edekBytes = Base64.getDecoder().decode(edek);
-    // String plaintext = "qWruWwlmc7USk6uP41LZBs+gLVfkFWChb+jKivcWK0c=";
-    // byte[] plaintextBytes = Base64.getDecoder().decode(plaintext);
-    // String response = "{\n" +
-    // " \"data\": {\n" +
-    // " \"plaintext\": \"" + plaintext + "\"\n" +
-    // " }\n" +
-    // "}\n";
-    // withMockVaultWithSingleResponse(response, vaultKms -> {
-    // Assertions.assertThat(vaultKms.decryptEdek(new VaultEdek("kek", edekBytes))).succeedsWithin(Duration.ofSeconds(5))
-    // .isInstanceOf(DestroyableRawSecretKey.class)
-    // .matches(key -> SecretKeyUtils.same((DestroyableRawSecretKey) key, DestroyableRawSecretKey.takeCopyOf(plaintextBytes, "AES")));
-    // });
-    // }
-    //
-    // @Test
-    // void testConnectionTimeout() throws NoSuchAlgorithmException {
-    // var uri = URI.create("http://test:8080/v1/transit");
-    // Duration timeout = Duration.ofMillis(500);
-    // VaultKms kms = new VaultKms(uri, "token", timeout, null);
-    // SSLContext sslContext = SSLContext.getDefault();
-    // HttpClient client = kms.createClient(sslContext);
-    // assertThat(client.connectTimeout()).hasValue(timeout);
-    // }
-    //
-    // @Test
-    // void testRequestTimeoutConfiguredOnRequests() {
-    // var uri = URI.create("http://test:8080/v1/transit");
-    // Duration timeout = Duration.ofMillis(500);
-    // VaultKms kms = new VaultKms(uri, "token", timeout, null);
-    // HttpRequest build = kms.createVaultRequest().uri(uri).build();
-    // assertThat(build.timeout()).hasValue(timeout);
-    // }
-    //
-    // static Stream<Arguments> acceptableVaultTransitEnginePaths() {
-    // var uri = URI.create("https://localhost:1234");
-    // return Stream.of(
-    // Arguments.of("basic", uri.resolve("v1/transit"), "/v1/transit/"),
-    // Arguments.of("trailing slash", uri.resolve("v1/transit/"), "/v1/transit/"),
-    // Arguments.of("single namespace", uri.resolve("v1/ns1/transit"), "/v1/ns1/transit/"),
-    // Arguments.of("many namespaces", uri.resolve("v1/ns1/ns2/transit"), "/v1/ns1/ns2/transit/"),
-    // Arguments.of("non standard engine name", uri.resolve("v1/mytransit"), "/v1/mytransit/"));
-    // }
-    //
-    // @ParameterizedTest(name = "{0}")
-    // @MethodSource("acceptableVaultTransitEnginePaths")
-    // void acceptsVaultTransitEnginePaths(String name, URI uri, String expected) {
-    // var kms = new VaultKms(uri, "token", Duration.ofMillis(500), null);
-    // assertThat(kms.getVaultTransitEngineUri())
-    // .extracting(URI::getPath)
-    // .isEqualTo(expected);
-    //
-    // }
-    //
-    // static Stream<Arguments> unacceptableVaultTransitEnginePaths() {
-    // var uri = URI.create("https://localhost:1234");
-    // return Stream.of(
-    // Arguments.of("no path", uri),
-    // Arguments.of("missing path", uri.resolve("/")),
-    // Arguments.of("unrecognized API version", uri.resolve("v999/transit")),
-    // Arguments.of("missing engine", uri.resolve("v1")),
-    // Arguments.of("empty engine", uri.resolve("v1/")));
-    // }
-    //
-    // @ParameterizedTest(name = "{0}")
-    // @MethodSource("unacceptableVaultTransitEnginePaths")
-    // void detectsUnacceptableVaultTransitEnginePaths(String name, URI uri) {
-    // assertThatThrownBy(() -> new VaultKms(uri, "token", Duration.ZERO, null))
-    // .isInstanceOf(IllegalArgumentException.class);
-    //
-    // }
-
-    void withMockAwsWithSingleResponse(String response, Consumer<AwsKmsKms> consumer) {
+    void withMockAwsWithSingleResponse(String response, Consumer<AwsKms> consumer) {
         withMockAwsWithSingleResponse(response, 200, consumer);
     }
 
-    void withMockAwsWithSingleResponse(String response, int statusCode, Consumer<AwsKmsKms> consumer) {
+    void withMockAwsWithSingleResponse(String response, int statusCode, Consumer<AwsKms> consumer) {
         HttpHandler handler = statusCode >= 500 ? new ErrorResponse(statusCode) : new StaticResponse(statusCode, response);
         HttpServer httpServer = httpServer(handler);
         try {
             var address = httpServer.getAddress();
             var awsAddress = "http://127.0.0.1:" + address.getPort();
             var config = new Config(URI.create(awsAddress), new InlinePassword("access"), new InlinePassword("secret"), "us-west-2", null);
-            var service = new AwsKmsKmsService().buildKms(config);
+            var service = new AwsKmsService().buildKms(config);
             consumer.accept(service);
         }
         finally {
@@ -266,24 +165,6 @@ class AwsKmsKmsTest {
             throw new RuntimeException(e);
         }
     }
-
-    // private void assertReusesConnectionsOn404(Consumer<AwsKmsKms> consumer) {
-    // RemotePortTrackingHandler handler = new RemotePortTrackingHandler();
-    // HttpServer httpServer = httpServer(handler);
-    // try {
-    // InetSocketAddress address = httpServer.getAddress();
-    // String vaultAddress = "http://127.0.0.1:" + address.getPort() + "/v1/transit";
-    // var config = new Config(URI.create(vaultAddress), new InlinePassword("token"), null);
-    // VaultKms service = new VaultKmsService().buildKms(config);
-    // for (int i = 0; i < 5; i++) {
-    // consumer.accept(service);
-    // }
-    // assertThat(handler.remotePorts).hasSize(1);
-    // }
-    // finally {
-    // httpServer.stop(0);
-    // }
-    // }
 
     private record StaticResponse(int statusCode, String response) implements HttpHandler {
         @Override

@@ -190,13 +190,13 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             var createRequest = createRequest(createKey, TRENT_SERVICE_CREATE_KEY);
             var createKeyResponse = sendRequest(alias, createRequest, CREATE_KEY_RESPONSE_TYPE_REF);
 
-            final CreateAliasRequest createAlias = new CreateAliasRequest(createKeyResponse.keyMetadata().keyId(), AwsKmsKms.ALIAS_PREFIX + alias);
+            final CreateAliasRequest createAlias = new CreateAliasRequest(createKeyResponse.keyMetadata().keyId(), AwsKms.ALIAS_PREFIX + alias);
             var aliasRequest = createRequest(createAlias, TRENT_SERVICE_CREATE_ALIAS);
             sendRequestExpectingNoResponse(aliasRequest);
         }
 
         private DescribeKeyResponse read(String alias) {
-            final DescribeKeyRequest describeKey = new DescribeKeyRequest(AwsKmsKms.ALIAS_PREFIX + alias);
+            final DescribeKeyRequest describeKey = new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + alias);
             var request = createRequest(describeKey, TRENT_SERVICE_DESCRIBE_KEY);
             return sendRequest(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF);
         }
@@ -212,7 +212,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             var keyRequest = createRequest(request, TRENT_SERVICE_CREATE_KEY);
             var createKeyResponse = sendRequest(alias, keyRequest, CREATE_KEY_RESPONSE_TYPE_REF);
 
-            final UpdateAliasRequest update = new UpdateAliasRequest(createKeyResponse.keyMetadata().keyId(), AwsKmsKms.ALIAS_PREFIX + alias);
+            final UpdateAliasRequest update = new UpdateAliasRequest(createKeyResponse.keyMetadata().keyId(), AwsKms.ALIAS_PREFIX + alias);
             var aliasRequest = createRequest(update, TRENT_SERVICE_UPDATE_ALIAS);
             sendRequestExpectingNoResponse(aliasRequest);
         }
@@ -225,7 +225,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
 
             sendRequest(keyId, scheduleDeleteRequest, SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF);
 
-            final DeleteAliasRequest deleteAlias = new DeleteAliasRequest(AwsKmsKms.ALIAS_PREFIX + alias);
+            final DeleteAliasRequest deleteAlias = new DeleteAliasRequest(AwsKms.ALIAS_PREFIX + alias);
             var deleteAliasRequest = createRequest(deleteAlias, TRENT_SERVICE_DELETE_ALIAS);
             sendRequestExpectingNoResponse(deleteAliasRequest);
         }
@@ -235,8 +235,8 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
 
             return AwsV4SigningHttpRequestBuilder.newBuilder(getAccessKey(), getSecretKey(), getRegion(), "kms", Instant.now())
                     .uri(getAwsUrl())
-                    .header(AwsKmsKms.CONTENT_TYPE_HEADER, AwsKmsKms.APPLICATION_X_AMZ_JSON_1_1)
-                    .header(AwsKmsKms.X_AMZ_TARGET_HEADER, target)
+                    .header(AwsKms.CONTENT_TYPE_HEADER, AwsKms.APPLICATION_X_AMZ_JSON_1_1)
+                    .header(AwsKms.X_AMZ_TARGET_HEADER, target)
                     .POST(BodyPublishers.ofByteArray(body))
                     .build();
         }
