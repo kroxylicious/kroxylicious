@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.installation.strimzi;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -51,7 +52,7 @@ public class Strimzi {
 
         ResourceManager.helmClient().namespace(deploymentNamespace).installByContainerImage(STRIMZI_HELM_REPOSITORY, STRIMZI_SERVICE_NAME,
                 Optional.of(Environment.STRIMZI_VERSION),
-                Optional.of(TestUtils.getResourcesPath("helm_strimzi_overrides.yaml")),
+                Optional.of(Path.of(TestUtils.getResourcesURI("helm_strimzi_overrides.yaml"))),
                 Optional.empty());
     }
 

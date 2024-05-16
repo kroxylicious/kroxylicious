@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.installation.vault;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -133,7 +134,7 @@ public class Vault {
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
                 Optional.of(Environment.VAULT_CHART_VERSION),
-                Optional.of(TestUtils.getResourcesPath("helm_vault_overrides.yaml")),
+                Optional.of(Path.of(TestUtils.getResourcesURI("helm_vault_overrides.yaml"))),
                 Optional.of(Map.of("server.dev.devRootToken", vaultRootToken,
                         "global.openshift", String.valueOf(openshiftCluster))));
 

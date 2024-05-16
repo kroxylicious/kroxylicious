@@ -6,8 +6,8 @@
 
 package io.kroxylicious.systemtests.utils;
 
+import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -33,20 +33,20 @@ public class TestUtils {
     }
 
     /**
-     * Gets resources path.
+     * Gets resources URI.
      *
      * @param fileName the file name
-     * @return the resources path
+     * @return the resources URI
      */
     @NonNull
-    public static Path getResourcesPath(String fileName) {
-        Path overrideFile;
+    public static URI getResourcesURI(String fileName) {
+        URI overrideFile;
         var resource = TestUtils.class.getClassLoader().getResource(fileName);
         try {
             if (resource == null) {
                 throw new IllegalArgumentException("Cannot find resource " + fileName + " on classpath");
             }
-            overrideFile = Path.of(resource.toURI());
+            overrideFile = resource.toURI();
         }
         catch (URISyntaxException e) {
             throw new IllegalStateException("Cannot determine file system path for " + resource);
