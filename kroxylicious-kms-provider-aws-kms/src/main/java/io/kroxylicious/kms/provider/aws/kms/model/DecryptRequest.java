@@ -8,6 +8,6 @@ package io.kroxylicious.kms.provider.aws.kms.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-@SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
+@SuppressWarnings("java:S6218") // we don't need DecryptRequest equality
 public record DecryptRequest(@JsonProperty(value = "KeyId") String keyId,
                              @JsonProperty(value = "CiphertextBlob") byte[] ciphertextBlob) {}
