@@ -5,6 +5,10 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+# perf-test-commits is intended to generate a comparable performance tests results across a series of commits.
+# It will checkout each commit in turn and build an image for each commit before running `pref-test.sh` with each generated image.
+# By building multiple images and running them in a single session we ensure identical hardware (and thus performance characteristics)
+# to hopefully allow us to isolate the performance impact of each commit.
 PERF_TESTS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 source "${PERF_TESTS_DIR}"/../scripts/common.sh
