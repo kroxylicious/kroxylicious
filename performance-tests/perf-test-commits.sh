@@ -25,6 +25,7 @@ else
 fi
 
 COMMITS=( "$@" )
+SHORT_COMMITS=( )
 
 #Cross platform temp directory creation based on https://unix.stackexchange.com/a/84980
 CHECKOUT_DIR=${CHECKOUT_DIR:=$(mktemp -d -t kroxyliciousPerfTestCheckout.XXXXXX 2>/dev/null || mktemp -d -t 'kroxyliciousPerfTestCheckout')}
@@ -70,7 +71,7 @@ mergeResults() {
    echo "generating ${TEST_NAME}"
    JQ_COMMAND=".[0]"
    idx=0
-   for COMMIT in "${COMMITS[@]}"; do
+   for COMMIT in "${SHORT_COMMITS[@]}"; do
      if [ ${idx} -ne 0 ]; then
        JQ_COMMAND+=" * .[$((idx++))]"
      else
@@ -95,7 +96,7 @@ for COMMIT in "${COMMITS[@]}"; do
     checkoutCommit "${COMMIT}"
 
     SHORT_COMMIT=$(git rev-parse --short HEAD)
-
+    SHORT_COMMITS+=("${SHORT_COMMIT}")
     buildImage "${SHORT_COMMIT}"
 
     runPerfTest "${SHORT_COMMIT}"
