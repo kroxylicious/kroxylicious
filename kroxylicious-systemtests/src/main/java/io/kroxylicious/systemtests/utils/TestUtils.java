@@ -44,7 +44,7 @@ public class TestUtils {
         var resource = TestUtils.class.getClassLoader().getResource(fileName);
         try {
             if (resource == null) {
-                throw new IllegalStateException("Cannot find resource " + fileName + " on classpath");
+                throw new IllegalArgumentException("Cannot find resource " + fileName + " on classpath");
             }
             overrideFile = Path.of(resource.toURI());
         }
