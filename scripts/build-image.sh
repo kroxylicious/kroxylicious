@@ -54,7 +54,7 @@ done
 
 
 if [[ -z ${REGISTRY_DESTINATION:-} ]]; then
-  echo "Please set REGISTRY_DESTINATION to a value like 'quay.io/<myorg>/kroxylicious', exiting"
+  echo "Please set REGISTRY_DESTINATION to a value like 'quay.io/<myorg>/kroxylicious', exiting" 1>&2
   exit 1
 fi
 
