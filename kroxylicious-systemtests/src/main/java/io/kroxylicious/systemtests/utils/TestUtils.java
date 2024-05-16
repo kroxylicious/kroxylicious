@@ -49,7 +49,7 @@ public class TestUtils {
             overrideFile = resource.toURI();
         }
         catch (URISyntaxException e) {
-            throw new IllegalStateException("Cannot determine file system path for " + resource);
+            throw new IllegalStateException("Cannot determine file system path for " + resource, e);
         }
         return overrideFile;
     }
