@@ -11,6 +11,7 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
@@ -92,6 +93,9 @@ public class KroxyliciousConfigUtils {
         // actual bootstrap after the proxy is started. The provider might support dynamic ports (port 0), so querying the
         // config might not work.
         if (provider.config() instanceof PortPerBrokerClusterNetworkAddressConfigProviderConfig c) {
+            return c.getBootstrapAddress().toString();
+        }
+        if (provider.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig c) {
             return c.getBootstrapAddress().toString();
         }
         else if (provider.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig c) {
