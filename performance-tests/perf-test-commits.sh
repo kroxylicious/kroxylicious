@@ -17,10 +17,10 @@ if [ "$OS" = 'Darwin' ] && resolveCommand gfind ; then
   FIND_COMMAND=gfind
   ENABLE_REGEX="-regextype posix-extended"
 elif [ "$OS" = 'Darwin' ] ; then
-  # for MacOS
+  # for BSD find
   ENABLE_REGEX="-E"
 else
-  # for Linux and Windows
+  # for gnu find
   ENABLE_REGEX="-regextype posix-extended"
 fi
 
