@@ -4,6 +4,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-kroxylicious.version=${project.version}
-kafka.version=${kafka.version}
-strimzi.version=${strimzi.version}
+# Helm Overrides File for Strimzi used by the system tests.
+replicas: 1
+featureGates: "+UseKRaft"
+

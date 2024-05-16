@@ -98,6 +98,11 @@ public class HelmClient {
         return this;
     }
 
+    public HelmClient installByContainerImage(String helmRepositoryOci, String releaseName, Optional<String> version, Optional<Path> overrideFile,
+                                              Optional<Map<String, String>> overrideMap) {
+        return install("oci://" + helmRepositoryOci, releaseName, version, overrideFile, overrideMap);
+    }
+
     /**
      * Add repository to the helm client.
      *
@@ -119,7 +124,7 @@ public class HelmClient {
      */
     public HelmClient delete(String releaseName) {
         LOGGER.info("Deleting helm-chart {}", releaseName);
-        delete(String.valueOf(namespace), releaseName);
+        delete(namespace.orElse("default"), releaseName);
         return this;
     }
 
