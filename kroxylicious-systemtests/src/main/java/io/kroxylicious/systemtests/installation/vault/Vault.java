@@ -9,7 +9,6 @@ package io.kroxylicious.systemtests.installation.vault;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
@@ -25,8 +24,7 @@ import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -136,28 +134,11 @@ public class Vault {
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
                 Optional.of(Environment.VAULT_CHART_VERSION),
-                Optional.of(getHelmOverridePath()),
+                Optional.of(Path.of(TestUtils.getResourcesURI("helm_vault_overrides.yaml"))),
                 Optional.of(Map.of("server.dev.devRootToken", vaultRootToken,
                         "global.openshift", String.valueOf(openshiftCluster))));
 
         DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, VAULT_POD_NAME, Duration.ofMinutes(1));
-    }
-
-    @NonNull
-    private Path getHelmOverridePath() {
-        var name = "helm_vault_overrides.yaml";
-        Path overrideFile;
-        var resource = getClass().getResource(name);
-        try {
-            if (resource == null) {
-                throw new IllegalStateException("Cannot find override resource " + name + " on classpath");
-            }
-            overrideFile = Path.of(resource.toURI());
-        }
-        catch (URISyntaxException e) {
-            throw new IllegalStateException("Cannot determine file system path for " + resource);
-        }
-        return overrideFile;
     }
 
     /**

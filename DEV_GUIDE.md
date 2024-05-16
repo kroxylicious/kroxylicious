@@ -336,7 +336,7 @@ has been applied ineffectively.
 * `KROXYLICIOUS_IMAGE_REPO`: url to the image of kroxylicious to be used. Default value: `quay.io/kroxylicious/kroxylicious`
 * `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `${project.version}` in pom file
 * `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
-* `STRIMZI_URL`: url where to download strimzi. Default value: `https://strimzi.io/install/latest?namespace=kafka`
+* `STRIMZI_VERSION`: strimzi version to be used. Default value: `${strimzi.version}` in pom file
 * `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. Default value: `false`
 * `CONTAINER_CONFIG_PATH`: directory where `config.json` file is located. This file contains the pull secrets to be used by
 the container engine. Default value: `$HOME/.docker/config.json`

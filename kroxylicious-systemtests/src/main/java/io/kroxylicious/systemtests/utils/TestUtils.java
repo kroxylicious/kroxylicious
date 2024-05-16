@@ -6,15 +6,22 @@
 
 package io.kroxylicious.systemtests.utils;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * The type Test utils.
  */
 public class TestUtils {
+
+    private TestUtils() {
+    }
 
     /**
      * Gets default posix file permissions.
@@ -26,21 +33,24 @@ public class TestUtils {
     }
 
     /**
-     * Concat string if value don't exist.
+     * Gets resources URI.
      *
-     * @param originalString the original String
-     * @param stringToConcat the string to concat
-     * @param stringSeparator the string separator
-     * @return the string
+     * @param fileName the file name
+     * @return the resources URI
      */
-    public static String concatStringIfValueDontExist(String originalString, String stringToConcat, String stringSeparator) {
-        if (originalString.isEmpty() || originalString.isBlank()) {
-            stringSeparator = "";
+    @NonNull
+    public static URI getResourcesURI(String fileName) {
+        URI overrideFile;
+        var resource = TestUtils.class.getClassLoader().getResource(fileName);
+        try {
+            if (resource == null) {
+                throw new IllegalArgumentException("Cannot find resource " + fileName + " on classpath");
+            }
+            overrideFile = resource.toURI();
         }
-
-        if (!originalString.contains(stringToConcat)) {
-            originalString = originalString.concat(stringSeparator + stringToConcat);
+        catch (URISyntaxException e) {
+            throw new IllegalStateException("Cannot determine file system path for " + resource, e);
         }
-        return originalString;
+        return overrideFile;
     }
 }
