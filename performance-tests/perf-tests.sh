@@ -157,9 +157,10 @@ producerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
+  # shellcheck disable=SC2086
   ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
       bin/kafka-producer-perf-test.sh --topic "${TOPIC}" --throughput -1 --num-records "${NUM_RECORDS}" --record-size "${RECORD_SIZE}" \
-      --producer-props "${PRODUCER_PROPERTIES}" bootstrap.servers="${ENDPOINT}" | \
+      --producer-props ${PRODUCER_PROPERTIES} bootstrap.servers="${ENDPOINT}" | \
       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
                                     ", *(?<rate_rps>\\d+[.]?\\d*) records/sec [(](?<rate_mips>\\d+[.]?\\d*) MB/sec[)]" +
                                     ", *(?<avg_lat_ms>\\d+[.]?\\d*) ms avg latency" +
