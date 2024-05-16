@@ -93,7 +93,7 @@ public class AwsKmsKms implements Kms<String, AwsKmsEdek> {
         client = createClient(sslContext);
     }
 
-    HttpClient createClient(SSLContext sslContext) {
+    private HttpClient createClient(SSLContext sslContext) {
         HttpClient.Builder builder = HttpClient.newBuilder();
         if (sslContext != null) {
             builder.sslContext(sslContext);
