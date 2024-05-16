@@ -33,6 +33,9 @@ RESULTS_DIR=${RESULTS_DIR:=$(mktemp -d -t kroxyliciousPerfTestResults.XXXXXX 2>/
 JSON_TEMP_DIR=${JSON_TEMP_DIR:=$(mktemp -d -t kroxyliciousPerfTestJson.XXXXXX 2>/dev/null || mktemp -d -t 'kroxyliciousPerfTestJson')}
 CLONE_URL=${CLONE_URL:-"$(git config --get remote.origin.url)"}
 
+PRODUCER_PROPERTIES=${PRODUCER_PROPERTIES:-"acks=all"}
+export PRODUCER_PROPERTIES
+
 export PUSH_IMAGE=y #remove this once pulling is optional to save some time.
 export TEMP_BUILD=y
 
@@ -64,11 +67,12 @@ runPerfTest() {
 }
 
 mergeResults() {
-  echo -e "Merging results in:  ${GREEN}${RESULTS_DIR}${NOCOLOR}"
+  echo -e "Merging results in: ${GREEN}${RESULTS_DIR}${NOCOLOR}"
+  # shellcheck disable=SC2086 #because ENABLE_REGEX is a flag plus arg we need word splitting here.
   mapfile -t TEST_NAMES < <(${FIND_COMMAND} "${RESULTS_DIR}" -type d ${ENABLE_REGEX} -regex  ".*\/[0-9]{2}-.*" -exec basename {} \; | sort | uniq)
 
   for TEST_NAME in "${TEST_NAMES[@]}"; do
-   echo "generating ${TEST_NAME}"
+   echo -e "generating ${GREEN}${TEST_NAME}${NOCOLOR}"
    JQ_COMMAND=".[0]"
    idx=0
    for COMMIT in "${SHORT_COMMITS[@]}"; do
