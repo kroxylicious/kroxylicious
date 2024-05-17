@@ -74,7 +74,7 @@
     </properties>
 
     <name>Parent POM</name>
-    <description>A Kafka wire protocol proxy</description>
+    <description>Kroxylicious, the snappy open source proxy for Apache Kafka</description>
     <inceptionYear>2021</inceptionYear>
     <url>https://kroxylicious.io</url>
 
