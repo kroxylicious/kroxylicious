@@ -17,7 +17,10 @@ if [[ -z ${REGISTRY_DESTINATION:-} ]]; then
 fi
 
 IMAGE="${REGISTRY_DESTINATION}:${KROXYLICIOUS_VERSION}"
-${CONTAINER_ENGINE} build -t "${IMAGE}" --build-arg "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" .
+${CONTAINER_ENGINE} build -t "${IMAGE}" --build-arg "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" \
+                                        --build-arg "CURRENT_USER=${USER}" \
+                                        --build-arg "CURRENT_USER_UID=$(id -u)" \
+                                        .
 if [[ -n ${PUSH_IMAGE:-} ]]; then
   REGISTRY_SERVER=${REGISTRY_SERVER:-$(extractRegistryServer "${REGISTRY_DESTINATION}")}
   echo "Pushing image to ${REGISTRY_SERVER}"
