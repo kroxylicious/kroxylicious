@@ -29,6 +29,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Flow;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import javax.crypto.Mac;
@@ -48,6 +49,7 @@ import static java.net.http.HttpRequest.Builder;
  */
 class AwsV4SigningHttpRequestBuilder implements Builder {
 
+    private static final Pattern CONSECUTIVE_WHITESPACE = Pattern.compile("\\s+");
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'").withZone(ZoneOffset.UTC);
 
     private static final HexFormat HEX_FORMATTER = HexFormat.of();
@@ -326,7 +328,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
      * @return normalised header value
      */
     private static String normalizeHeaderValue(String value) {
-        return value.replaceAll("\\s+", " ").trim();
+        return CONSECUTIVE_WHITESPACE.matcher(value).replaceAll(" ").trim();
     }
 
     private static byte[] sha256(byte[] bytes) {
