@@ -8,6 +8,7 @@
 set -euo pipefail
 DEFAULT_KROXYLICIOUS_IMAGE='quay.io/kroxylicious/kroxylicious'
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-${DEFAULT_KROXYLICIOUS_IMAGE}}
+STRIMZI_VERSION=$(./mvnw org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
@@ -93,8 +94,7 @@ fi
 
 # Install strimzi
 ${KUBECTL} create namespace kafka 2>/dev/null || true
-${KUBECTL} apply -f 'https://strimzi.io/install/latest?namespace=kafka' -n kafka
-${KUBECTL} wait deployment strimzi-cluster-operator --for=condition=Available=True --timeout=300s -n kafka
+${HELM} install strimzi-cluster-operator --namespace kafka --timeout 120s --version "${STRIMZI_VERSION}" oci://quay.io/strimzi-helm/strimzi-kafka-operator --set replicas=1 --wait
 echo -e "${GREEN}Strimzi installed.${NOCOLOR}"
 
 
