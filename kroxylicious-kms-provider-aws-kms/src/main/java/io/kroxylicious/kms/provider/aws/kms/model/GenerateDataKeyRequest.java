@@ -6,9 +6,17 @@
 
 package io.kroxylicious.kms.provider.aws.kms.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record GenerateDataKeyRequest(@JsonProperty(value = "KeyId") String keyId,
-                                     @JsonProperty(value = "KeySpec") String keySpec) {
+import edu.umd.cs.findbugs.annotations.NonNull;
 
+public record GenerateDataKeyRequest(@JsonProperty(value = "KeyId") @NonNull String keyId,
+                                     @JsonProperty(value = "KeySpec") @NonNull String keySpec) {
+
+    public GenerateDataKeyRequest {
+        Objects.requireNonNull(keyId);
+        Objects.requireNonNull(keySpec);
+    }
 }

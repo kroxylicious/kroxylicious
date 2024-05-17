@@ -6,6 +6,14 @@
 
 package io.kroxylicious.kms.provider.aws.kms.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record DeleteAliasRequest(@JsonProperty("AliasName") String aliasName) {}
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+public record DeleteAliasRequest(@JsonProperty("AliasName") @NonNull String aliasName) {
+    public DeleteAliasRequest {
+        Objects.requireNonNull(aliasName);
+    }
+}

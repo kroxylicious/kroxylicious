@@ -12,6 +12,8 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * Encapsulates an AWS error response.
  *
@@ -21,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param message associated error message
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record ErrorResponse(@JsonProperty(value = "__type") String type,
+public record ErrorResponse(@JsonProperty(value = "__type") @NonNull String type,
                             @JsonProperty(value = "message") String message) {
     public ErrorResponse {
         Objects.requireNonNull(type);
