@@ -18,7 +18,7 @@ This document gives a detailed breakdown of the various build processes and opti
     * [Installing WSL](#installing-wsl)
     * [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
   * [Running Integration Tests on Podman](#running-integration-tests-on-podman)
-    * [DOCKER_HOST environment variable](#dockerhost-environment-variable)
+    * [DOCKER_HOST environment variable](#docker_host-environment-variable)
     * [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
     * [macOS](#macos)
     * [Linux](#linux)
