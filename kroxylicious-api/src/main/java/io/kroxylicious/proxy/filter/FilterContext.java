@@ -15,6 +15,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import io.kroxylicious.proxy.ApiVersionsService;
+import io.kroxylicious.proxy.metadata.ResourceMetadataRequest;
+import io.kroxylicious.proxy.metadata.ResourceMetadataResponse;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -106,6 +108,8 @@ public interface FilterContext {
     @NonNull
     <M extends ApiMessage> CompletionStage<M> sendRequest(@NonNull RequestHeaderData header,
                                                           @NonNull ApiMessage request);
+
+    <Q extends ResourceMetadataRequest<R>, R extends ResourceMetadataResponse<Q>> CompletionStage<R> sendMetadataRequest(Q request);
 
     /**
      * Generates a completed filter results containing the given header and response.  When

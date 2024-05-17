@@ -44,6 +44,8 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
+import io.kroxylicious.proxy.metadata.ResourceMetadataRequest;
+import io.kroxylicious.proxy.metadata.ResourceMetadataResponse;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
 @Fork(value = 2, jvmArgsAppend = "-XX:LoopUnrollLimit=1")
@@ -186,6 +188,11 @@ public class InvokerDispatchBenchmark {
 
         @Override
         public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header, ApiMessage request) {
+            return null;
+        }
+
+        @Override
+        public <Q extends ResourceMetadataRequest<R>, R extends ResourceMetadataResponse<Q>> CompletionStage<R> sendMetadataRequest(Q request) {
             return null;
         }
 

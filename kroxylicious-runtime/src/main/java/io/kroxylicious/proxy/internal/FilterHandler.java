@@ -47,8 +47,11 @@ import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
+import io.kroxylicious.proxy.internal.metadata.ResourceMetadataFrame;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
+import io.kroxylicious.proxy.metadata.ResourceMetadataRequest;
+import io.kroxylicious.proxy.metadata.ResourceMetadataResponse;
 import io.kroxylicious.proxy.model.VirtualCluster;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -522,6 +525,15 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
 
             return filterPromise.minimalCompletionStage();
+        }
+
+        @Override
+        public <Q extends ResourceMetadataRequest<R>, R extends ResourceMetadataResponse<Q>> CompletionStage<R> sendMetadataRequest(Q request) {
+
+            var result = promiseFactory.<R> newPromise();
+            var frame = new ResourceMetadataFrame<>(request, result);
+            ctx.writeAndFlush(frame);
+            return result.minimalCompletionStage();
         }
 
         @Override
