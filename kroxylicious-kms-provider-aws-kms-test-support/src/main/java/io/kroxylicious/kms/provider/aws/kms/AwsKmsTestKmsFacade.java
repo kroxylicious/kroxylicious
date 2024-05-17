@@ -62,7 +62,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private static final String TRENT_SERVICE_UPDATE_ALIAS = "TrentService.UpdateAlias";
     private static final String TRENT_SERVICE_DELETE_ALIAS = "TrentService.DeleteAlias";
     private static final String TRENT_SERVICE_SCHEDULE_KEY_DELETION = "TrentService.ScheduleKeyDeletion";
-    private final HttpClient client = HttpClient.newHttpClient();
+    private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
     private LocalStackContainer localStackContainer;
 
     @Override
@@ -261,7 +261,10 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
 
         private void checkForError(String key, URI uri, int statusCode, HttpResponse<byte[]> response) {
             ErrorResponse error;
-            if (statusCode != 200) {
+            // AWS API states that only the 200 response is currently used.
+            // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
+            var httpSuccess = isHttpSuccess(statusCode);
+            if (!httpSuccess) {
                 try {
                     error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
                 }
@@ -278,7 +281,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
         private void sendRequestExpectingNoResponse(HttpRequest request) {
             try {
                 var response = client.send(request, HttpResponse.BodyHandlers.discarding());
-                if (response.statusCode() != 200) {
+                if (!isHttpSuccess(response.statusCode())) {
                     throw new IllegalStateException("Unexpected response : %d to request %s".formatted(response.statusCode(), request.uri()));
                 }
             }
@@ -289,6 +292,10 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException(e);
             }
+        }
+
+        private boolean isHttpSuccess(int statusCode) {
+            return statusCode >= 200 && statusCode < 300;
         }
 
         private String getBody(Object obj) {

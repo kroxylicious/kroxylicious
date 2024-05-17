@@ -173,7 +173,10 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
                                                             @NonNull HttpResponse<byte[]> response,
                                                             @NonNull Function<String, KmsException> notFound) {
         var statusCode = response.statusCode();
-        if (statusCode != 200) {
+        // AWS API states that only the 200 response is currently used.
+        // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
+        var httpSuccess = statusCode >= 200 && statusCode < 300;
+        if (!httpSuccess) {
             ErrorResponse error;
             try {
                 error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
