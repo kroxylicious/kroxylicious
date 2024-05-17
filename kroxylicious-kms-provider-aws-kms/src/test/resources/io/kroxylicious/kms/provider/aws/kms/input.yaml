@@ -52,3 +52,40 @@ accessKeyId: access
 secretAccessKey: secret
 region: us-east-1
 service: kms
+---
+testName: signature contains space normalized header value
+# see https://github.com/aws/aws-sdk-java-v2/blob/26bb6dcf058b08f55665f931d02937238b00e576/core/auth/src/test/java/software/amazon/awssdk/auth/signer/Aws4SignerTest.java#L203
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+headers:
+  MyHeader:
+  - "  leading  and  trailing white space stripped "
+---
+testName: signature omits header with no value
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+headers:
+  MyHeader: []
+#---
+#testName: signature handles header with more than one value
+# AWS specification https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html does not define
+# the reqyired behaviour.  curl's implementation differs from the AWS test case. https://github.com/aws/aws-sdk-java-v2/blob/26bb6dcf058b08f55665f931d02937238b00e576/core/auth/src/test/java/software/amazon/awssdk/auth/signer/Aws4SignerTest.java#L203
+# Kroxylicious doesn't require headers with > 1 value, so let's ignore it.
+#method: GET
+#url: http://localhost:4566
+#accessKeyId: access
+#secretAccessKey: secret
+#region: us-east-1
+#service: kms
+#headers:
+#  MyHeader:
+#  - first
+#  - second

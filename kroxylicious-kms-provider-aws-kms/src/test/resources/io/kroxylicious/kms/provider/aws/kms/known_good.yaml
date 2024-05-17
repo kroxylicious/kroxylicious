@@ -14,14 +14,14 @@ secretAccessKey: secret
 region: us-east-1
 service: kms
 data: somedata
-requestTime: 1715279986
+requestTime: 1715950890
 expectedHeaders:
   Host:
     - localhost:4566
   Authorization:
-    - AWS4-HMAC-SHA256 Credential=access/20240509/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=64d64d203f1ea205926323de95a67af003ed5419722166dda026ca5e71a463ff
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=d01abf110351d12d715fa037454491f580f6b92e70345f7c4d3af583bc6637e5
   X-Amz-Date:
-    - 20240509T183946Z
+    - 20240517T130130Z
 ---
 testName: post with data with path
 method: POST
@@ -31,14 +31,14 @@ secretAccessKey: secret
 region: us-east-1
 service: kms
 data: somedata
-requestTime: 1715279986
+requestTime: 1715950890
 expectedHeaders:
   Host:
     - localhost:4566
   Authorization:
-    - AWS4-HMAC-SHA256 Credential=access/20240509/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=2954243c2d3126805b992f62b3a9b15c422e122dd285bd5351bfbf95b6b8387a
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=f682826f50818283d003f4ae917eb91579aa4bbfb318c8d449e503b0c71fad90
   X-Amz-Date:
-    - 20240509T183946Z
+    - 20240517T130130Z
 ---
 testName: post with data with additional signed header
 method: POST
@@ -51,14 +51,14 @@ data: somedata
 headers:
   X-Amz-Target:
     - TrentService.DescribeKey
-requestTime: 1715279986
+requestTime: 1715950890
 expectedHeaders:
   Host:
     - localhost:4566
   Authorization:
-    - AWS4-HMAC-SHA256 Credential=access/20240509/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=ece6a6fc32d9bf5a3848dd363118e97ea954ae553f6ae35a926e3e08a1ae1be8
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date;x-amz-target, Signature=eeeb906dbb1f67993eaf41af80cf180676ab90cdc6b298cfe00cdb04bce93007
   X-Amz-Date:
-    - 20240509T183946Z
+    - 20240517T130130Z
 ---
 testName: get
 method: GET
@@ -67,14 +67,14 @@ accessKeyId: access
 secretAccessKey: secret
 region: us-east-1
 service: kms
-requestTime: 1715279986
+requestTime: 1715950890
 expectedHeaders:
   Host:
     - localhost:4566
   Authorization:
-    - AWS4-HMAC-SHA256 Credential=access/20240509/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=ad76a082758b477557a318c5dd6d0ad758c9eb73be135db2f94d262752b5220e
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=2c48184e1714b5e6798cbd15548eb75d16e373b25c337570c24dd6275d2db27b
   X-Amz-Date:
-    - 20240509T183946Z
+    - 20240517T130130Z
 ---
 testName: get with query args
 method: GET
@@ -83,11 +83,48 @@ accessKeyId: access
 secretAccessKey: secret
 region: us-east-1
 service: kms
-requestTime: 1715279986
+requestTime: 1715950890
 expectedHeaders:
   Host:
     - localhost:4566
   Authorization:
-    - AWS4-HMAC-SHA256 Credential=access/20240509/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=b6bf4c0fe2d588a24ba303a42c2caacdb5bfe11f3221695887c82e7d91c2ca36
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=4a52818fc91db8e5a0de0c4a0d02d327f406c75bb9725dbc84557d54c53e4925
   X-Amz-Date:
-    - 20240509T183946Z
+    - 20240517T130130Z
+---
+testName: signature contains space normalized header value
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+headers:
+  MyHeader:
+    - '  leading  and  trailing white space stripped '
+requestTime: 1715950890
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;myheader;x-amz-date, Signature=c29127a534c9f583e9adbe23a52a8e081465dd0b893160810ca3ea6a55a628c9
+  X-Amz-Date:
+    - 20240517T130130Z
+---
+testName: signature omits header with no value
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+headers:
+  MyHeader: []
+requestTime: 1715950890
+expectedHeaders:
+  Host:
+    - localhost:4566
+  Authorization:
+    - AWS4-HMAC-SHA256 Credential=access/20240517/us-east-1/kms/aws4_request, SignedHeaders=host;x-amz-date, Signature=2c48184e1714b5e6798cbd15548eb75d16e373b25c337570c24dd6275d2db27b
+  X-Amz-Date:
+    - 20240517T130130Z

@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -54,7 +55,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
     private static final String NO_PAYLOAD_HEXED_SHA256 = HEX_FORMATTER.formatHex(newSha256Digester().digest(new byte[]{}));
 
     private static final String X_AMZ_DATE_HEADER = "X-Amz-Date";
-    public static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String HOST_HEADER = "Host";
     private static final String AWS_4_REQUEST = "aws4_request";
 
@@ -220,8 +221,8 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         var isoDate = isoDateTime.substring(0, 8);
         var unsignedRequest = builder.build();
 
-        var allHeaders = new HashMap<String, String>();
-        unsignedRequest.headers().map().keySet().forEach(k -> unsignedRequest.headers().firstValue(k).ifPresent(value -> allHeaders.put(k, value)));
+        // Note: AWS only specify signing behaviour for headers with a single value.
+        var allHeaders = new HashMap<>(getSingleValuedHeaders(unsignedRequest));
         allHeaders.put(HOST_HEADER, getHostHeaderForSigning(unsignedRequest.uri()));
         allHeaders.put(X_AMZ_DATE_HEADER, isoDateTime);
 
@@ -248,7 +249,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         var headerKeysSorted = allHeaders.keySet().stream().sorted(Comparator.comparing(n -> n.toLowerCase(Locale.ROOT))).toList();
         for (String key : headerKeysSorted) {
             hashedHeaders.add(key.toLowerCase(Locale.ROOT));
-            canonicalRequestLines.add(key.toLowerCase(Locale.ROOT) + ":" + normalizeSpaces((allHeaders).get(key)));
+            canonicalRequestLines.add(key.toLowerCase(Locale.ROOT) + ":" + normalizeHeaderValue((allHeaders).get(key)));
         }
         canonicalRequestLines.add(null);
         var signedHeaders = String.join(";", hashedHeaders);
@@ -317,7 +318,14 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         }
     }
 
-    private static String normalizeSpaces(String value) {
+    /**
+     * Canonical header values must remove excess white space before and after values, and convert sequential spaces to a single
+     * space. See <a href="https://github.com/aws/aws-sdk-java-v2/blob/26bb6dcf058b08f55665f931d02937238b00e576/core/auth/src/test/java/software/amazon/awssdk/auth/signer/Aws4SignerTest.java#L182">canonicalizedHeaderString_valuesWithExtraWhitespace_areTrimmed</a>
+     *
+     * @param value header value
+     * @return normalised header value
+     */
+    private static String normalizeHeaderValue(String value) {
         return value.replaceAll("\\s+", " ").trim();
     }
 
@@ -356,5 +364,16 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         catch (NoSuchAlgorithmException e) {
             throw new KmsException("Failed to create SHA-256 digester", e);
         }
+    }
+
+    @NonNull
+    private static Map<String, String> getSingleValuedHeaders(HttpRequest request) {
+        return request.headers().map().entrySet().stream()
+                .filter(AwsV4SigningHttpRequestBuilder::hasSingleValue)
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0)));
+    }
+
+    private static boolean hasSingleValue(Map.Entry<String, List<String>> e) {
+        return e.getValue() != null && e.getValue().size() == 1;
     }
 }

@@ -33,7 +33,7 @@ class GetHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
         headers = {i[0]: [i[1]] for i in self.headers.items() if i[0] in self.interest}
         request_time = int(dateutil.parser.isoparse(headers["X-Amz-Date"][0]).timestamp())
         resp = {"requestTime": request_time,
-                "expectedHeaders": headers,}
+                "expectedHeaders": headers}
         self.send_response(200)
         self.end_headers()
         self.wfile.write(json.dumps(resp).encode('utf-8'))

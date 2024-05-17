@@ -64,8 +64,12 @@ yq eval-all '. | [[
 "--request",
 .method,
 ((.data | "--data-raw" + "|" + .) // null),
-((.headers[] | "--header" + "|" + (key + ": " + .[0])) // null)
-] | join("|") ] | join("\n")
+((.headers[] | ((.[] | "--header" + "|" + ((parent | key) + ": " + .)))
+               // ("--header" + "|" + key + ":")) // null)
+]
+| del( .[] | select(. == null))
+| join("|") ]
+| join("\n")
 ' ${INPUT_YAML} | while  read -ra ALL; do
   TEST_DEF_JSON=${ALL[0]}
   CURL_ARGS=(${ALL[@]:1})
