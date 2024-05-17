@@ -394,7 +394,7 @@ c2_disabled() {
 # Switch on diagnostics except when switched off
 diagnostics_options() {
   if [ -n "${JAVA_DIAGNOSTICS:-}" ]; then
-    echo "-XX:NativeMemoryTracking=summary -Xlog:gc*:stdout:time -XX:+UnlockDiagnosticVMOptions"
+    echo "-XX:NativeMemoryTracking=summary -Xlog:gc*:stdout:time -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"
   fi
 }
 

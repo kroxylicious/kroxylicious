@@ -15,9 +15,13 @@ PRODUCER_PROPERTIES=${PRODUCER_PROPERTIES:-"acks=all"}
 WARM_UP_NUM_RECORDS_POST_BROKER_START=${WARM_UP_NUM_RECORDS_POST_BROKER_START:-1000}
 WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 
+
+PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/results"}
+
 ON_SHUTDOWN=()
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+PURPLE='\033[1;35m'
 NOCOLOR='\033[0m'
 
 KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
@@ -29,17 +33,29 @@ KAFKA_TOOL_IMAGE=${KAFKA_TOOL_IMAGE:-quay.io/strimzi/kafka:${STRIMZI_VERSION}-ka
 KAFKA_IMAGE=${KAFKA_IMAGE:-"quay.io/ogunalp/kafka-native:latest-kafka-${KAFKA_VERSION}"}
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-"quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}"}
 PERF_NETWORK=performance-tests_perf_network
-export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE
+CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
+LOADER_DIR=${LOADER_DIR:-"/tmp/asprof-extracted"}
+export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE CONTAINER_ENGINE
+
+
+
+printf "KAFKA_VERSION: ${KAFKA_VERSION}\n"
+printf "STRIMZI_VERSION: ${STRIMZI_VERSION}\n"
+printf "KROXYLICIOUS_VERSION: ${KROXYLICIOUS_VERSION}\n"
+printf "KAFKA_IMAGE: ${KAFKA_IMAGE}\n"
+printf "KROXYLICIOUS_IMAGE: ${KROXYLICIOUS_IMAGE}\n"
+
 
 runDockerCompose () {
-  docker compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
+  #  Docker compose can't see $UID so need to set here before calling it
+  D_UID="$(id -u)" D_GID="$(id -g)" ${CONTAINER_ENGINE} compose -f "${PERF_TESTS_DIR}"/docker-compose.yaml "${@}"
 }
 
 doCreateTopic () {
   local TOPIC
   ENDPOINT=$1
   TOPIC=$2
-  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
+  ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
       bin/kafka-topics.sh --create --topic "${TOPIC}" --bootstrap-server "${ENDPOINT}" 1>/dev/null
 }
 
@@ -49,7 +65,7 @@ doDeleteTopic () {
   ENDPOINT=$1
   TOPIC=$2
 
-  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
+  ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
       bin/kafka-topics.sh --delete --topic "${TOPIC}" --bootstrap-server "${ENDPOINT}"
 }
 
@@ -57,6 +73,65 @@ warmUp() {
   echo -e "${YELLOW}Running warm up${NOCOLOR}"
   producerPerf "$1" "$2" "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
   consumerPerf "$1" "$2" "${WARM_UP_NUM_RECORDS_PRE_TEST}" /dev/null > /dev/null
+}
+
+
+ensureSysCtlValue() {
+  local keyName=$1
+  local desiredValue=$2
+
+  if [ "$(sysctl -n "${keyName}")" != "${desiredValue}" ] ;
+  then
+    echo -e "${YELLOW}setting ${keyName} to ${desiredValue}${NOCOLOR}"
+    sudo sysctl "${keyName}"="${desiredValue}"
+  fi
+}
+
+setupAsyncProfilerKroxy() {
+  ensureSysCtlValue kernel.perf_event_paranoid 1
+  ensureSysCtlValue kernel.kptr_restrict 0
+
+  mkdir -p /tmp/asprof
+  curl -s -o /tmp/asprof/ap-loader-all.jar "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
+
+  mkdir -p "${LOADER_DIR}"
+  unzip -o -q /tmp/asprof/ap-loader-all.jar -d "${LOADER_DIR}"
+}
+
+deleteAsyncProfilerKroxy() {
+  rm -rf /tmp/asprof
+  rm -rf "${LOADER_DIR}"
+}
+
+startAsyncProfilerKroxy() {
+
+  echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
+
+  local TARGETARCH=""
+  case $(uname -m) in
+      aarch64)  TARGETARCH="linux-arm64" ;;
+      x86_64 | i686 | i386)   TARGETARCH="linux-x64" ;;
+      *)        echo -n "Unsupported arch"
+  esac
+
+  echo "TARGETARCH: ${TARGETARCH}"
+
+  ${CONTAINER_ENGINE} exec ${KROXYLICIOUS_CONTAINER_ID} mkdir -p "${LOADER_DIR}/"""{bin,lib} && chmod +r -R "${LOADER_DIR}"
+  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs/libasyncProfiler-3.0-${TARGETARCH}.so" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/lib/libasyncProfiler.so"
+
+  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler start "${KROXYLICIOUS_PID}"
+}
+
+stopAsyncProfilerKroxy() {
+  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler status "${KROXYLICIOUS_PID}"
+
+  echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
+
+  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
+  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
+
+  mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
+  ${CONTAINER_ENGINE} cp "${KROXYLICIOUS_CONTAINER_ID}":/tmp/asprof-results/. "${PROFILING_OUTPUT_DIRECTORY}"
 }
 
 # runs kafka-producer-perf-test.sh transforming the output to an array of objects
@@ -82,7 +157,7 @@ producerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
+  ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}" \
       bin/kafka-producer-perf-test.sh --topic "${TOPIC}" --throughput -1 --num-records "${NUM_RECORDS}" --record-size "${RECORD_SIZE}" \
       --producer-props "${PRODUCER_PROPERTIES}" bootstrap.servers="${ENDPOINT}" | \
       jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<sent>\\d+) *records sent" +
@@ -122,7 +197,7 @@ consumerPerf() {
   #    "percentile50": 644, "percentile95": 744, "percentile99": 753, "percentile999": 758 }
   # ]
 
-  docker run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
+  ${CONTAINER_ENGINE} run --rm --network ${PERF_NETWORK} "${KAFKA_TOOL_IMAGE}"  \
       bin/kafka-consumer-perf-test.sh --topic "${TOPIC}" --messages "${NUM_RECORDS}" --hide-header \
       --bootstrap-server "${ENDPOINT}" |
        jq --raw-input --arg name "${TESTNAME}" '[.,inputs] | [.[] | match("^(?<start.time>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}:\\d{3}), " +
@@ -140,10 +215,24 @@ consumerPerf() {
 
 # expects TEST_NAME, TOPIC, ENDPOINT, PRODUCER_RESULT and CONSUMER_RESULT to be set
 doPerfTest () {
+
   doCreateTopic "${ENDPOINT}" "${TOPIC}"
   warmUp "${ENDPOINT}" "${TOPIC}"
 
+  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ] && [ "$(uname)" != 'Darwin' ]
+  then
+    echo -e "${PURPLE}KROXYLICIOUS_CONTAINER_ID set to $KROXYLICIOUS_CONTAINER_ID${NOCOLOR}"
+    startAsyncProfilerKroxy
+  fi
+
+
   producerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${PRODUCER_RESULT}"
+
+  if [ ! -z "$KROXYLICIOUS_CONTAINER_ID" ] && [ "$(uname)" != 'Darwin' ]
+  then
+    stopAsyncProfilerKroxy
+  fi
+
   consumerPerf "${ENDPOINT}" "${TOPIC}" "${NUM_RECORDS}" "${CONSUMER_RESULT}"
 
   doDeleteTopic "${ENDPOINT}" "${TOPIC}"
@@ -163,7 +252,15 @@ ON_SHUTDOWN+=("rm -rf ${TMP}")
 
 # Bring up Kafka
 ON_SHUTDOWN+=("runDockerCompose down")
-runDockerCompose pull
+
+[[ -n ${PULL_CONTAINERS} ]] && runDockerCompose pull
+
+if [ "$(uname)" != 'Darwin' ]; then
+  # Async profiler not supported on macOS
+  setupAsyncProfilerKroxy
+fi
+ON_SHUTDOWN+=("deleteAsyncProfilerKroxy")
+
 runDockerCompose up --detach --wait kafka
 
 # Warm up the broker - we do this separately as we might want a longer warm-up period
