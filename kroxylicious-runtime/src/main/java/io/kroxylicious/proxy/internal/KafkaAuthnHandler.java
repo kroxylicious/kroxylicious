@@ -167,6 +167,7 @@ import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.security.authenticator.SaslInternalConfigs;
+import org.apache.kafka.common.security.oauthbearer.internals.OAuthBearerSaslServerProvider;
 import org.apache.kafka.common.security.plain.internals.PlainSaslServerProvider;
 import org.apache.kafka.common.security.scram.internals.ScramMechanism;
 import org.apache.kafka.common.security.scram.internals.ScramSaslServerProvider;
@@ -215,6 +216,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     static {
         PlainSaslServerProvider.initialize();
         ScramSaslServerProvider.initialize();
+        OAuthBearerSaslServerProvider.initialize();
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaAuthnHandler.class);
@@ -276,9 +278,15 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                         ? Map.of()
                         : Map.of(SaslInternalConfigs.CREDENTIAL_LIFETIME_MS_SASL_NEGOTIATED_PROPERTY_KEY, lifetime);
             }
+        },
+        OAUTHBEARER("OAUTHBEARER", null) {
+            @Override
+            public Map<String, Object> negotiatedProperties(SaslServer saslServer) {
+                return Map.of();
+            }
         };
 
-        // TODO support OAUTHBEARER, GSSAPI
+        // TODO support GSSAPI
         private final String name;
         private final ScramMechanism scramMechanism;
 
@@ -292,15 +300,13 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         }
 
         static SaslMechanism fromMechanismName(String mechanismName) {
-            switch (mechanismName) {
-                case "PLAIN":
-                    return PLAIN;
-                case "SCRAM-SHA-256":
-                    return SCRAM_SHA_256;
-                case "SCRAM-SHA-512":
-                    return SCRAM_SHA_512;
-            }
-            throw new UnsupportedSaslMechanismException(mechanismName);
+            return switch (mechanismName) {
+                case "PLAIN" -> PLAIN;
+                case "SCRAM-SHA-256" -> SCRAM_SHA_256;
+                case "SCRAM-SHA-512" -> SCRAM_SHA_512;
+                case "OAUTHBEARER" -> OAUTHBEARER;
+                default -> throw new UnsupportedSaslMechanismException(mechanismName);
+            };
         }
 
         public ScramMechanism scramMechanism() {
@@ -454,8 +460,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         ApiMessage reqBody = frame.body();
         short apiVersion = frame.apiVersion();
         switch (frame.apiKey()) {
-            case SASL_HANDSHAKE:
-            case SASL_AUTHENTICATE:
+            case SASL_HANDSHAKE, SASL_AUTHENTICATE:
                 // These should have been handled by our caller
                 throw new IllegalStateException();
             case PRODUCE:
@@ -488,9 +493,9 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                             offsetFetchRequestData.groups().stream().collect(Collectors.toMap(
                                     OffsetFetchRequestData.OffsetFetchRequestGroup::groupId,
                                     x -> x.topics().stream().flatMap(
-                                            t -> t.partitionIndexes().stream().map(
-                                                    p -> new TopicPartition(t.name(), p)))
-                                            .collect(Collectors.toList()))),
+                                                    t -> t.partitionIndexes().stream().map(
+                                                            p -> new TopicPartition(t.name(), p)))
+                                            .toList())),
                             true, false)
                             .build(apiVersion);
                 }
@@ -499,9 +504,9 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                             offsetFetchRequestData.groupId(),
                             offsetFetchRequestData.requireStable(),
                             offsetFetchRequestData.topics().stream().flatMap(
-                                    x -> x.partitionIndexes().stream().map(
-                                            p -> new TopicPartition(x.name(), p)))
-                                    .collect(Collectors.toList()),
+                                            x -> x.partitionIndexes().stream().map(
+                                                    p -> new TopicPartition(x.name(), p)))
+                                    .toList(),
                             false)
                             .build(apiVersion);
                 }
@@ -625,7 +630,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
             case DESCRIBE_DELEGATION_TOKEN:
                 DescribeDelegationTokenRequestData tokenRequestData = (DescribeDelegationTokenRequestData) reqBody;
                 req = new DescribeDelegationTokenRequest.Builder(
-                        tokenRequestData.owners().stream().map(o -> new KafkaPrincipal(o.principalType(), o.principalName())).collect(Collectors.toList()))
+                        tokenRequestData.owners().stream().map(o -> new KafkaPrincipal(o.principalType(), o.principalName())).toList())
                         .build(apiVersion);
                 break;
             case DELETE_GROUPS:
@@ -636,9 +641,9 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                 req = new ElectLeadersRequest.Builder(
                         ElectionType.valueOf(electLeaders.electionType()),
                         electLeaders.topicPartitions().stream().flatMap(
-                                t -> t.partitions().stream().map(
-                                        p -> new TopicPartition(t.topic(), p)))
-                                .collect(Collectors.toList()),
+                                        t -> t.partitions().stream().map(
+                                                p -> new TopicPartition(t.topic(), p)))
+                                .toList(),
                         electLeaders.timeoutMs())
                         .build(apiVersion);
                 break;
@@ -724,11 +729,11 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                                 LeaderAndIsrRequestData.LeaderAndIsrTopicState::topicName,
                                 LeaderAndIsrRequestData.LeaderAndIsrTopicState::topicId)),
                         lisr.liveLeaders().stream().map(
-                                x -> new Node(
-                                        x.brokerId(),
-                                        x.hostName(),
-                                        x.port()))
-                                .collect(Collectors.toList()))
+                                        x -> new Node(
+                                                x.brokerId(),
+                                                x.hostName(),
+                                                x.port()))
+                                .toList())
                         .build(apiVersion);
                 break;
             case STOP_REPLICA:
@@ -742,7 +747,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                         .build(apiVersion);
                 break;
             case UPDATE_METADATA:
-                req = new UpdateFeaturesRequest((UpdateFeaturesRequestData) reqBody, apiVersion);
+                req = new UpdateFeaturesRequest((UpdateFeaturesRequestData) reqBody, apiVersion); // TODO: check why
                 break;
             case CONTROLLED_SHUTDOWN:
                 req = new ControlledShutdownRequest.Builder((ControlledShutdownRequestData) reqBody, apiVersion)
