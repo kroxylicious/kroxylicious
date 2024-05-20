@@ -9,12 +9,20 @@ set -Eu
 
 OS=$(uname)
 
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NO_COLOUR='\033[0m' # No Color
+
+export GREEN YELLOW RED BLUE NO_COLOUR
+
 resolveCommand () {
   local targetCommand=${1}
   local resolvedCommand
   resolvedCommand=$(command -v "${targetCommand}")
   if [[ -z ${resolvedCommand} ]]; then
-    >&2 echo -e "\033[0;31m Unable to resolve path to ${targetCommand}\033[0m"
+    echo -e "${RED}Unable to resolve path to ${targetCommand}${NO_COLOUR}" >&2
     exit 127
   else
     echo "${resolvedCommand}"

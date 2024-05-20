@@ -18,8 +18,12 @@ GREEN='\033[0;32m'
 NOCOLOR='\033[0m'
 
 FIND_COMMAND="find"
-if [ "$OS" = 'Darwin' ] && resolveCommand gfind ; then
-  FIND_COMMAND=gfind
+GFIND_COMMAND=
+set +e
+GFIND_COMMAND=$(resolveCommand gfind)
+set -e
+if [ "$OS" = 'Darwin' ] && [ -n "${GFIND_COMMAND:-}" ] ; then
+  FIND_COMMAND=${GFIND_COMMAND}
   ENABLE_REGEX="-regextype posix-extended"
 elif [ "$OS" = 'Darwin' ] ; then
   # for BSD find
