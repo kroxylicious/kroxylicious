@@ -59,7 +59,7 @@ checkoutCommit() {
 buildImage() {
   local COMMIT_ID=$1
   echo -e "Building image with tag ${GREEN}g_${COMMIT_ID}${NOCOLOR}"
-  "${PERF_TESTS_DIR}/../scripts/build-image.sh" -t "g_${COMMIT_ID}" -s > /dev/null
+  "${PERF_TESTS_DIR}/../scripts/build-image.sh" -t "g_${COMMIT_ID}" -s '4h' > /dev/null
 }
 
 runPerfTest() {
