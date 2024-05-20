@@ -81,7 +81,8 @@ if [[ -n ${PUSH_IMAGE:-} ]]; then
   ${CONTAINER_ENGINE} push "${IMAGE}"
   if [ ${#IMAGE_TAGS[@]} -gt 0 ]; then
       for tag in "${IMAGE_TAGS[@]}"; do
-        ${CONTAINER_ENGINE} push "${IMAGE}" "${REGISTRY_DESTINATION}:${tag}"
+        ${CONTAINER_ENGINE} tag "${IMAGE}" "${REGISTRY_DESTINATION}:${tag}"
+        ${CONTAINER_ENGINE} push "${REGISTRY_DESTINATION}:${tag}"
       done
   fi
 else
