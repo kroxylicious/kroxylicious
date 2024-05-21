@@ -36,6 +36,15 @@ import static org.apache.kafka.common.utils.Utils.utf8Length;
  */
 class VaultEdekSerde implements Serde<VaultEdek> {
 
+    private static final Serde<VaultEdek> INSTANCE = new VaultEdekSerde();
+
+    static Serde<VaultEdek> instance() {
+        return INSTANCE;
+    }
+
+    private VaultEdekSerde() {
+    }
+
     @Override
     public VaultEdek deserialize(@NonNull ByteBuffer buffer) {
         Objects.requireNonNull(buffer);
