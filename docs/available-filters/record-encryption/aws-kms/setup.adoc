@@ -48,7 +48,7 @@ aws iam create-access-key --user-name kroxylicious
 
 == Create Alias Based Policy
 
-Create an alias based policy granting the Filter Actor permission to use keys aliased by the established naming convention.
+Create an alias based policy granting permissions to use keys aliased by the established naming convention.
 
 [source,shell]
 ----
@@ -82,6 +82,8 @@ aws iam create-policy --policy-name KroxyliciousRecordEncryption --policy-docume
 ----
 
 == Apply Alias Based Policy to Filter Actor
+
+Attach the alias policy to the Filter Actor user.
 
 [source,shell]
 ----
