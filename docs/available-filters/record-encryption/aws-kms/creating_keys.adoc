@@ -2,13 +2,20 @@
 
 = AWS Key Management Service
 
-Using the Administrator actor, use the AWS Console to
+Using the Administrator actor, use the AWS Console or CLI to
 {aws}/kms/latest/developerguide/create-keys.html#create-symmetric-cmk[create] a "Symmetric key" with "Encrypt and decrypt"
 usage.
 
-Give the key an alias following the alias naming convention established above.  Grant the Filter Actor
-{aws}/kms/latest/developerguide/key-policy-default.html#key-policy-default-allow-users[usage permission] on the new key.
-This is step 4 of the key creation workflow if using the AWS Console.
+Give the key an alias following the alias naming convention established above.
+
+If using the CLI, this can be done with commands like this:
+
+[source,shell]
+----
+aws kms create-key
+# the create key command will produce JSON output including the KeyId
+aws kms create-alias --alias-name alias/KEK_<name> --target-key-id <KeyId>
+----
 
 TIP: Once the key is created, it is recommended to use a key rotation policy.
 
