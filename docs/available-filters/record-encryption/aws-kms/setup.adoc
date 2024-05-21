@@ -52,8 +52,7 @@ Create an alias based policy granting the Filter Actor permission to use keys al
 
 [source,shell]
 ----
-KROXYLICIOUS_ARN=$(aws iam get-user --user-name kroxylicious --output json | jq -r .User.Arn)
-
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 cat > /tmp/policy << EOF
 {
 	"Version": "2012-10-17",
@@ -68,7 +67,7 @@ cat > /tmp/policy << EOF
 				"kms:DescribeKey"
 			],
 			"Resource": [
-				"${KROXYLICIOUS_ARN}"
+                "arn:aws:kms:*:${AWS_ACCOUNT_ID}:key/*"
 			],
 			"Condition": {
 				"ForAnyValue:StringLike": {
@@ -79,7 +78,15 @@ cat > /tmp/policy << EOF
 	]
 }
 EOF
-
-aws iam create-policy --policy-name kroxylicious  --policy-document file:/tmp/policy
+aws iam create-policy --policy-name KroxyliciousRecordEncryption --policy-document file:///tmp/policy
 ----
+
+== Apply Alias Based Policy to Filter Actor
+
+[source,shell]
+----
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+aws iam attach-user-policy --user-name kroxylicious --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KroxyliciousRecordEncryption"
+----
+
 
