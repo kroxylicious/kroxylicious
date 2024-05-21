@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactory;
@@ -33,7 +34,7 @@ public class FilterChainFactory implements AutoCloseable {
         private final FilterFactory<? super Object, ? super Object> filterFactory;
         private final Object config;
         private final Object initResult;
-        private boolean closed;
+        private final AtomicBoolean closed = new AtomicBoolean(false);
 
         private Wrapper(FilterFactoryContext context,
                         String instanceName,
@@ -43,7 +44,6 @@ public class FilterChainFactory implements AutoCloseable {
             this.config = config;
             try {
                 initResult = filterFactory.initialize(context, config);
-                closed = false;
             }
             catch (Exception e) {
                 throw new PluginConfigurationException("Exception initializing filter factory " + instanceName + " with config " + config + ": " + e.getMessage(), e);
@@ -51,7 +51,7 @@ public class FilterChainFactory implements AutoCloseable {
         }
 
         public Filter create(FilterFactoryContext context) {
-            if (closed) {
+            if (closed.get()) {
                 throw new IllegalStateException("Filter factory is closed");
             }
             try {
@@ -64,8 +64,7 @@ public class FilterChainFactory implements AutoCloseable {
 
         @Override
         public void close() {
-            if (!closed) {
-                closed = true;
+            if (!this.closed.getAndSet(true)) {
                 filterFactory.close();
             }
         }
@@ -105,7 +104,7 @@ public class FilterChainFactory implements AutoCloseable {
                     return pfr.pluginFactory(pluginClass).pluginInstance(instanceName);
                 }
             };
-            this.initialized = new ArrayList<Wrapper>(filterDefinitions.size());
+            this.initialized = new ArrayList<>(filterDefinitions.size());
             try {
                 for (var fd : filterDefinitions) {
                     FilterFactory<? super Object, ? super Object> filterFactory = pluginFactory.pluginInstance(fd.type());
