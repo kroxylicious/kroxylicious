@@ -50,11 +50,12 @@ class AwsKmsTest {
                     }
                 }
                 """;
+        var expectedKeyId = "1234abcd-12ab-34cd-56ef-1234567890ab";
         withMockAwsWithSingleResponse(response, kms -> {
             var aliasStage = kms.resolveAlias("alias");
             assertThat(aliasStage)
                     .succeedsWithin(Duration.ofSeconds(5))
-                    .isEqualTo("1234abcd-12ab-34cd-56ef-1234567890ab");
+                    .isEqualTo(expectedKeyId);
         });
     }
 
@@ -101,6 +102,7 @@ class AwsKmsTest {
         var ciphertextBlobBytes = BASE64_DECODER.decode(
                 "AQEDAHjRYf5WytIc0C857tFSnBaPn2F8DgfmThbJlGfR8P3WlwAAAH4wfAYJKoZIhvcNAQcGoG8wbQIBADBoBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDEFogLqPWZconQhwHAIBEIA7d9AC7GeJJM34njQvg4Wf1d5sw0NIo1MrBqZa+YdhV8MrkBQPeac0ReRVNDt9qleAt+SHgIRF8P0H+7U=");
         var plainTextBytes = BASE64_DECODER.decode("VdzKNHGzUAzJeRBVY+uUmofUGGiDzyB3+i9fVkh3piw=");
+        var expectedKey = DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES");
 
         withMockAwsWithSingleResponse(response, vaultKms -> {
             var aliasStage = vaultKms.generateDekPair("alias");
@@ -113,7 +115,7 @@ class AwsKmsTest {
                     .succeedsWithin(Duration.ofSeconds(5))
                     .extracting(DekPair::dek)
                     .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
-                    .matches(key -> SecretKeyUtils.same(key, DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES")));
+                    .matches(key -> SecretKeyUtils.same(key, expectedKey));
         });
     }
 
@@ -127,11 +129,13 @@ class AwsKmsTest {
                   "Plaintext": "VGhpcyBpcyBEYXkgMSBmb3IgdGhlIEludGVybmV0Cg==",
                   "EncryptionAlgorithm": "SYMMETRIC_DEFAULT"
                 }""";
+        var expectedKey = DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES");
+
         withMockAwsWithSingleResponse(response, kms -> {
             Assertions.assertThat(kms.decryptEdek(new AwsKmsEdek("kek", "unused".getBytes(StandardCharsets.UTF_8))))
                     .succeedsWithin(Duration.ofSeconds(5))
                     .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
-                    .matches(key -> SecretKeyUtils.same(key, DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES")));
+                    .matches(key -> SecretKeyUtils.same(key, expectedKey));
         });
     }
 
