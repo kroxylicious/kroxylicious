@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.hashicorp.vault.config;
+package io.kroxylicious.kms.provider.aws.kms.config;
 
 import java.io.FileInputStream;
 import java.security.KeyStore;
@@ -37,7 +37,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Encapsulates parameters for an TLS connection with Vault.
+ * Encapsulates parameters for an TLS connection with AWS.
  *
  * @param tls tls configuration
  *

@@ -1,0 +1,91 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# This file defines the tests. aws_signing_v4_known_good_testdata_gen.sh accepts it as input and generates
+# known_good.yaml as output.
+
+testName: post with data
+url: http://localhost:4566
+method: POST
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+---
+testName: post with data with path
+method: POST
+url: http://localhost:4566/my/path
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+---
+testName: post with data with additional signed header
+method: POST
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+data: somedata
+headers:
+  X-Amz-Target:
+    - TrentService.DescribeKey
+---
+testName: get
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+---
+testName: get with query args
+method: GET
+url: http://localhost:4566/get?foo=bar
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+---
+testName: signature contains space normalized header value
+# see https://github.com/aws/aws-sdk-java-v2/blob/26bb6dcf058b08f55665f931d02937238b00e576/core/auth/src/test/java/software/amazon/awssdk/auth/signer/Aws4SignerTest.java#L203
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+headers:
+  MyHeader:
+  - "  leading  and  trailing white space stripped "
+---
+testName: signature omits header with no value
+method: GET
+url: http://localhost:4566
+accessKeyId: access
+secretAccessKey: secret
+region: us-east-1
+service: kms
+headers:
+  MyHeader: []
+#---
+#testName: signature handles header with more than one value
+# AWS specification https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html does not define
+# the reqyired behaviour.  curl's implementation differs from the AWS test case. https://github.com/aws/aws-sdk-java-v2/blob/26bb6dcf058b08f55665f931d02937238b00e576/core/auth/src/test/java/software/amazon/awssdk/auth/signer/Aws4SignerTest.java#L203
+# Kroxylicious doesn't require headers with > 1 value, so let's ignore it.
+#method: GET
+#url: http://localhost:4566
+#accessKeyId: access
+#secretAccessKey: secret
+#region: us-east-1
+#service: kms
+#headers:
+#  MyHeader:
+#  - first
+#  - second

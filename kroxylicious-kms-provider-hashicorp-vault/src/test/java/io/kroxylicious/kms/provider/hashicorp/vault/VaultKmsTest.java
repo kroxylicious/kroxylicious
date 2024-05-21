@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
@@ -24,7 +23,6 @@ import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -79,7 +77,8 @@ class VaultKmsTest {
                 }
                 """;
         withMockVaultWithSingleResponse(response, vaultKms -> {
-            Assertions.assertThat(vaultKms.resolveAlias("alias")).succeedsWithin(Duration.ofSeconds(5))
+            assertThat(vaultKms.resolveAlias("alias"))
+                    .succeedsWithin(Duration.ofSeconds(5))
                     .isEqualTo("resolved");
         });
     }
@@ -97,14 +96,16 @@ class VaultKmsTest {
         String plaintext = "dGhlIHF1aWNrIGJyb3duIGZveAo=";
         String ciphertext = "vault:v1:abcdefgh";
         byte[] decoded = Base64.getDecoder().decode(plaintext);
-        String response = "{\n" +
-                "  \"data\": {\n" +
-                "    \"plaintext\": \"" + plaintext + "\",\n" +
-                "    \"ciphertext\": \"" + ciphertext + "\"\n" +
-                "  }\n" +
-                "}\n";
+        var response = """
+                {
+                  "data": {
+                    "plaintext": "%s",
+                    "ciphertext": "%s"
+                  }
+                }
+                """.formatted(plaintext, ciphertext);
         withMockVaultWithSingleResponse(response, vaultKms -> {
-            Assertions.assertThat(vaultKms.generateDekPair("alias")).succeedsWithin(Duration.ofSeconds(5))
+            assertThat(vaultKms.generateDekPair("alias")).succeedsWithin(Duration.ofSeconds(5))
                     .matches(dekPair -> Objects.equals(dekPair.edek(), new VaultEdek("alias", ciphertext.getBytes(StandardCharsets.UTF_8))))
                     .matches(dekPair -> SecretKeyUtils.same((DestroyableRawSecretKey) dekPair.dek(), DestroyableRawSecretKey.takeCopyOf(decoded, "AES")));
         });
@@ -124,13 +125,15 @@ class VaultKmsTest {
         byte[] edekBytes = Base64.getDecoder().decode(edek);
         String plaintext = "qWruWwlmc7USk6uP41LZBs+gLVfkFWChb+jKivcWK0c=";
         byte[] plaintextBytes = Base64.getDecoder().decode(plaintext);
-        String response = "{\n" +
-                "  \"data\": {\n" +
-                "    \"plaintext\": \"" + plaintext + "\"\n" +
-                "  }\n" +
-                "}\n";
+        var response = """
+                {
+                  "data": {
+                    "plaintext": "%s"
+                  }
+                }
+                """.formatted(plaintext);
         withMockVaultWithSingleResponse(response, vaultKms -> {
-            Assertions.assertThat(vaultKms.decryptEdek(new VaultEdek("kek", edekBytes))).succeedsWithin(Duration.ofSeconds(5))
+            assertThat(vaultKms.decryptEdek(new VaultEdek("kek", edekBytes))).succeedsWithin(Duration.ofSeconds(5))
                     .isInstanceOf(DestroyableRawSecretKey.class)
                     .matches(key -> SecretKeyUtils.same((DestroyableRawSecretKey) key, DestroyableRawSecretKey.takeCopyOf(plaintextBytes, "AES")));
         });
@@ -142,7 +145,7 @@ class VaultKmsTest {
         Duration timeout = Duration.ofMillis(500);
         VaultKms kms = new VaultKms(uri, "token", timeout, null);
         SSLContext sslContext = SSLContext.getDefault();
-        HttpClient client = kms.createClient(sslContext);
+        var client = kms.createClient(sslContext);
         assertThat(client.connectTimeout()).hasValue(timeout);
     }
 
@@ -231,7 +234,7 @@ class VaultKmsTest {
             for (int i = 0; i < 5; i++) {
                 consumer.accept(service);
             }
-            assertThat(handler.remotePorts.size()).isEqualTo(1);
+            assertThat(handler.remotePorts).hasSize(1);
         }
         finally {
             httpServer.stop(0);
