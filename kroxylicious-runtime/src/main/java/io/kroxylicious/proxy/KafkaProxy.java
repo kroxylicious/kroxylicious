@@ -59,6 +59,7 @@ public final class KafkaProxy implements AutoCloseable {
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
     private MeterRegistries meterRegistries;
+    private FilterChainFactory filterChainFactory;
 
     private record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
 
@@ -107,7 +108,7 @@ public final class KafkaProxy implements AutoCloseable {
 
         maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
-        final FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, config.filters());
+        this.filterChainFactory = new FilterChainFactory(pfr, config.filters());
         var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
                 new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of()));
         var plainServerBootstrap = buildServerBootstrap(serverEventGroup,
@@ -207,6 +208,9 @@ public final class KafkaProxy implements AutoCloseable {
             STARTUP_SHUTDOWN_LOGGER.info("Shutting down");
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
+                if (filterChainFactory != null) {
+                    filterChainFactory.close();
+                }
                 var closeFutures = new ArrayList<Future<?>>();
                 if (serverEventGroup != null) {
                     closeFutures.addAll(serverEventGroup.shutdownGracefully());

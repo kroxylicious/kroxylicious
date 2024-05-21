@@ -24,6 +24,8 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
+import io.kroxylicious.proxy.internal.filter.FlakyConfig;
+import io.kroxylicious.proxy.internal.filter.FlakyFactory;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.OptionalConfigFactory;
 import io.kroxylicious.proxy.internal.filter.RequiresConfigFactory;
@@ -34,6 +36,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -67,12 +70,18 @@ class FilterChainFactoryTest {
                             else if (instanceName.endsWith(OptionalConfigFactory.class.getSimpleName())) {
                                 return new OptionalConfigFactory();
                             }
+                            else if (instanceName.endsWith(FlakyFactory.class.getSimpleName())) {
+                                return new FlakyFactory();
+                            }
                             throw new RuntimeException("Unknown FilterFactory: " + instanceName);
                         }
 
                         @NonNull
                         @Override
                         public Class<?> configType(@NonNull String instanceName) {
+                            if (instanceName.endsWith(FlakyFactory.class.getSimpleName())) {
+                                return FlakyConfig.class;
+                            }
                             return ExampleConfig.class;
                         }
                     };
@@ -237,5 +246,58 @@ class FilterChainFactoryTest {
         NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
         return assertThat(filters).hasSameSizeAs(filterDefinitions);
+    }
+
+    @Test
+    void shouldPropagateFilterInitializeException() {
+        // Given
+        final FilterDefinition requiredConfig = new FilterDefinition(FlakyFactory.class.getName(),
+                new FlakyConfig("foo", null, null));
+        List<FilterDefinition> list = List.of(requiredConfig);
+
+        // When
+
+        // Then
+        assertThatThrownBy(() -> new FilterChainFactory(pfr, list))
+                .isExactlyInstanceOf(PluginConfigurationException.class)
+                .cause()
+                .isExactlyInstanceOf(RuntimeException.class)
+                .hasMessage("foo");
+    }
+
+    @Test
+    void shouldPropagateFilterCreateException() {
+        // Given
+        final FilterDefinition requiredConfig = new FilterDefinition(FlakyFactory.class.getName(),
+                new FlakyConfig(null, "foo", null));
+        List<FilterDefinition> list = List.of(requiredConfig);
+        NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
+
+        try (var fcf = new FilterChainFactory(pfr, list)) {
+            // When
+
+            // Then
+            assertThatThrownBy(() -> fcf.createFilters(context))
+                    .isExactlyInstanceOf(PluginConfigurationException.class)
+                    .cause()
+                    .isExactlyInstanceOf(RuntimeException.class)
+                    .hasMessage("foo");
+        }
+    }
+
+    @Test
+    void shouldPropagateFilterCloseException() {
+        // Given
+        final FilterDefinition requiredConfig = new FilterDefinition(FlakyFactory.class.getName(),
+                new FlakyConfig(null, null, "foo"));
+        List<FilterDefinition> list = List.of(requiredConfig);
+        try (var fcf = new FilterChainFactory(pfr, list)) {
+            // When
+
+            // Then
+            assertThatThrownBy(fcf::close)
+                    .isExactlyInstanceOf(RuntimeException.class)
+                    .hasMessage("foo");
+        }
     }
 }

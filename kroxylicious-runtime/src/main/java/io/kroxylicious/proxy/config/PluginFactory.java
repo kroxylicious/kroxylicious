@@ -11,7 +11,7 @@ import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * A PluginFactory is able to resolve reference to a plugin implementation (ie. a name) to that implementation.
+ * A PluginFactory is able to resolve references to a plugin implementation (i.e. a name) to that implementation.
  * @param <P> The plugin type
  */
 public interface PluginFactory<P> {
