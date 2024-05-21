@@ -65,7 +65,7 @@ public class FilterChainFactory implements AutoCloseable {
         @Override
         public void close() {
             if (!this.closed.getAndSet(true)) {
-                filterFactory.close();
+                filterFactory.close(initResult);
             }
         }
 
@@ -77,11 +77,6 @@ public class FilterChainFactory implements AutoCloseable {
         }
 
     }
-
-    /**
-     * A constant Class type with non-raw {@code FilterFactory} type parameter,
-     * for the avoidance of raw type warnings.
-     */
 
     private final List<Wrapper> initialized;
 
@@ -129,7 +124,23 @@ public class FilterChainFactory implements AutoCloseable {
 
     @Override
     public void close() {
-        initialized.forEach(Wrapper::close);
+        RuntimeException firstThrown = null;
+        for (Wrapper wrapper : initialized) {
+            try {
+                wrapper.close();
+            }
+            catch (RuntimeException e) {
+                if (firstThrown == null) {
+                    firstThrown = e;
+                }
+                else {
+                    firstThrown.addSuppressed(e);
+                }
+            }
+        }
+        if (firstThrown != null) {
+            throw firstThrown;
+        }
     }
 
     /**

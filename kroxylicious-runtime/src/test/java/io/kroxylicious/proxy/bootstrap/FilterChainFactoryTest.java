@@ -251,9 +251,10 @@ class FilterChainFactoryTest {
     @Test
     void shouldPropagateFilterInitializeException() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(FlakyFactory.class.getName(),
+        FlakyFactory.INITIALIZED_AND_UNCLOSED = 0;
+        final FilterDefinition flakyDefinition = new FilterDefinition(FlakyFactory.class.getName(),
                 new FlakyConfig("foo", null, null));
-        List<FilterDefinition> list = List.of(requiredConfig);
+        List<FilterDefinition> list = List.of(flakyDefinition, flakyDefinition);
 
         // When
 
@@ -263,18 +264,21 @@ class FilterChainFactoryTest {
                 .cause()
                 .isExactlyInstanceOf(RuntimeException.class)
                 .hasMessage("foo");
+        assertThat(FlakyFactory.INITIALIZED_AND_UNCLOSED).isZero();
     }
 
     @Test
     void shouldPropagateFilterCreateException() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(FlakyFactory.class.getName(),
+        FlakyFactory.INITIALIZED_AND_UNCLOSED = 0;
+        final FilterDefinition flakyDefinition = new FilterDefinition(FlakyFactory.class.getName(),
                 new FlakyConfig(null, "foo", null));
-        List<FilterDefinition> list = List.of(requiredConfig);
+        List<FilterDefinition> list = List.of(flakyDefinition, flakyDefinition);
         NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
 
         try (var fcf = new FilterChainFactory(pfr, list)) {
             // When
+            assertThat(FlakyFactory.INITIALIZED_AND_UNCLOSED).isEqualTo(2);
 
             // Then
             assertThatThrownBy(() -> fcf.createFilters(context))
@@ -282,22 +286,28 @@ class FilterChainFactoryTest {
                     .cause()
                     .isExactlyInstanceOf(RuntimeException.class)
                     .hasMessage("foo");
+            assertThat(FlakyFactory.INITIALIZED_AND_UNCLOSED).isEqualTo(2);
         }
+        assertThat(FlakyFactory.INITIALIZED_AND_UNCLOSED).isZero();
     }
 
     @Test
     void shouldPropagateFilterCloseException() {
         // Given
-        final FilterDefinition requiredConfig = new FilterDefinition(FlakyFactory.class.getName(),
+        FlakyFactory.INITIALIZED_AND_UNCLOSED = 0;
+        final FilterDefinition flakyDefinition = new FilterDefinition(FlakyFactory.class.getName(),
                 new FlakyConfig(null, null, "foo"));
-        List<FilterDefinition> list = List.of(requiredConfig);
+        List<FilterDefinition> list = List.of(flakyDefinition, flakyDefinition);
         try (var fcf = new FilterChainFactory(pfr, list)) {
             // When
+            assertThat(FlakyFactory.INITIALIZED_AND_UNCLOSED).isEqualTo(2);
 
             // Then
             assertThatThrownBy(fcf::close)
                     .isExactlyInstanceOf(RuntimeException.class)
                     .hasMessage("foo");
+            assertThat(FlakyFactory.INITIALIZED_AND_UNCLOSED).isZero();
         }
+        assertThat(FlakyFactory.INITIALIZED_AND_UNCLOSED).isZero();
     }
 }

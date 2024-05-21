@@ -8,6 +8,4 @@ package io.kroxylicious.proxy.internal.filter;
 
 public record FlakyConfig(String initializeExceptionMsg,
                           String createExceptionMsg,
-                          String closeExceptionMsg) {
-
-}
+                          String closeExceptionMsg) {}
