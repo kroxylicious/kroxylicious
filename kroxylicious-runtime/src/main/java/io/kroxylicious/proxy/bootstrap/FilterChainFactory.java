@@ -32,7 +32,7 @@ public class FilterChainFactory implements AutoCloseable {
 
         private final FilterFactory<? super Object, ? super Object> filterFactory;
         private final Object config;
-        private static Object initResult;
+        private final Object initResult;
         private boolean closed;
 
         private Wrapper(FilterFactoryContext context,
