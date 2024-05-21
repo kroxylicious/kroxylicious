@@ -125,7 +125,7 @@ public class FilterChainFactory implements AutoCloseable {
     @Override
     public void close() {
         RuntimeException firstThrown = null;
-        for (Wrapper wrapper : initialized) {
+        for (Wrapper wrapper : initialized.reversed()) {
             try {
                 wrapper.close();
             }

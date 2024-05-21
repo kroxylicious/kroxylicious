@@ -207,8 +207,9 @@ public final class KafkaProxy implements AutoCloseable {
 
     /**
      * Shuts down a running proxy.
+     * @throws InterruptedException
      */
-    private void shutdown() {
+    public void shutdown() throws InterruptedException {
         if (!running.getAndSet(false)) {
             throw new IllegalStateException("This proxy is not running");
         }
