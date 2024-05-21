@@ -22,12 +22,64 @@ by the Filter Actor.
 The AWS permission policy {aws}/aws-managed-policy/latest/reference/AWSKeyManagementServicePowerUser.html[`AWSKeyManagementServicePowerUser`]
 is a suitable model for permissions required by the Administrator Actor.
 
+If using the CLI, these commands can be used to establish the Administrator.  This example illustrates using the user-name is `kroxylicious-admin`.
+Use an alternative user-name if desired.
+
+[source,shell]
+----
+aws iam create-user --user-name kroxylicious-admin
+aws iam attach-user-policy --user-name kroxylicious-admin --policy-arn arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser
+----
+
 == Filter Actor
 
-To use the filter, there must be AWS identity established for the filter itself.   Establish this user by creating an identity
-within AWS IAM.   As this account is for exclusive use by the system, AWS Console access is inappropriate.
+To use the filter, there must be AWS identity established for the filter itself.  This actor is used exclusively by the system.  Console
+access should not be given to this user.  Create an access key for the user.  The access key and secret key pair will be used by the Filter
+to authenticate to AWS.
 
-Follow the workflow to create an `access key` for the user.  This will result in an access key/secret key pair. This pair
-will be required later on.
+If using the CLI, these commands can be used to establish the Filter Actor.  This example illustrates using the user-name is `kroxylicious`.
+Use an alternative user-name if desired.
 
-The user created for the Filter Actor does not require a permission policy.
+[source,shell]
+----
+aws iam create-user --user-name kroxylicious
+aws iam create-access-key --user-name kroxylicious
+----
+
+== Create Alias Based Policy
+
+Create an alias based policy granting the Filter Actor permission to use keys aliased by the established naming convention.
+
+[source,shell]
+----
+KROXYLICIOUS_ARN=$(aws iam get-user --user-name kroxylicious --output json | jq -r .User.Arn)
+
+cat > /tmp/policy << EOF
+{
+	"Version": "2012-10-17",
+	"Statement": [
+		{
+			"Sid": "AliasBasedIAMPolicy",
+			"Effect": "Allow",
+			"Action": [
+				"kms:Encrypt",
+				"kms:Decrypt",
+				"kms:GenerateDataKey*",
+				"kms:DescribeKey"
+			],
+			"Resource": [
+				"${KROXYLICIOUS_ARN}"
+			],
+			"Condition": {
+				"ForAnyValue:StringLike": {
+					"kms:ResourceAliases": "alias/KEK_*"
+				}
+			}
+		}
+	]
+}
+EOF
+
+aws iam create-policy --policy-name kroxylicious  --policy-document file:/tmp/policy
+----
+
