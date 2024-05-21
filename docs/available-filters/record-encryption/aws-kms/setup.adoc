@@ -1,0 +1,33 @@
+:aws:  https://docs.aws.amazon.com/
+
+= AWS Key Management Service
+
+The filter integrates with {aws}/kms/latest/developerguide/overview.html[AWS Key Management Service].
+
+== Establish an aliasing convention for keys within AWS KMS
+
+The filter references KEKs within AWS via an {aws}/kms/latest/developerguide/alias-about.html[AWS key alias].
+
+It is necessary to establish a naming convention for the alias names.  This will allow the keys used by the
+filter to be kept separate from any keys used by other systems.  This document assumes that the naming convention
+will be to prefix the alias used by the filter with the word `KEK_`.  If a different naming convention is used, adapt
+the instructions accordingly.
+
+== Administrator Actor
+
+To use the filter, there must be an administrative actor established within AWS IAM.  This actor, which is likely to be a human,
+has the responsibility to create keys and aliases within AWS KMS for use by the filter and permission access to them
+by the Filter Actor.
+
+The AWS permission policy {aws}/aws-managed-policy/latest/reference/AWSKeyManagementServicePowerUser.html[`AWSKeyManagementServicePowerUser`]
+is a suitable model for permissions required by the Administrator Actor.
+
+== Filter Actor
+
+To use the filter, there must be AWS identity established for the filter itself.   Establish this user by creating an identity
+within AWS IAM.   As this account is for exclusive use by the system, AWS Console access is inappropriate.
+
+Follow the workflow to create an `access key` for the user.  This will result in an access key/secret key pair. This pair
+will be required later on.
+
+The user created for the Filter Actor does not require a permission policy.
