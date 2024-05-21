@@ -6,12 +6,12 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.junit.jupiter.api.Assertions;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -31,6 +31,8 @@ public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
 
     @Override
     public FlakyConfig initialize(FilterFactoryContext context, FlakyConfig config) {
+        Objects.requireNonNull(context);
+        Objects.requireNonNull(config);
         this.config = config;
         if (config.initializeExceptionMsg() != null) {
             throw new RuntimeException(config.initializeExceptionMsg());
@@ -42,7 +44,7 @@ public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
     @NonNull
     @Override
     public Filter createFilter(FilterFactoryContext context, FlakyConfig configuration) {
-        Assertions.assertNotNull(configuration);
+        Objects.requireNonNull(configuration);
         if (config.createExceptionMsg() != null) {
             throw new RuntimeException(config.createExceptionMsg());
         }
@@ -51,7 +53,7 @@ public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
 
     @Override
     public void close(FlakyConfig configuration) {
-        Assertions.assertNotNull(configuration);
+        Objects.requireNonNull(configuration);
         INITIALIZED_AND_UNCLOSED -= 1;
         if (config.closeExceptionMsg() != null) {
             throw new RuntimeException(config.closeExceptionMsg());
