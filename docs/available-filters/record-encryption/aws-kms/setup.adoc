@@ -23,7 +23,7 @@ The AWS permission policy {aws}/aws-managed-policy/latest/reference/AWSKeyManage
 is a suitable model for permissions required by the Administrator Actor.
 
 If using the CLI, these commands can be used to establish the Administrator.  This example illustrates using the user-name is `kroxylicious-admin`.
-Use an alternative user-name if desired.
+If a different user-name is used, adapt the instructions accordingly.
 
 [source,shell]
 ----
@@ -38,7 +38,7 @@ access should not be given to this user.  Create an access key for the user.  Th
 to authenticate to AWS.
 
 If using the CLI, these commands can be used to establish the Filter Actor.  This example illustrates using the user-name is `kroxylicious`.
-Use an alternative user-name if desired.
+If a different user-name is used, adapt the instructions accordingly.
 
 [source,shell]
 ----
