@@ -47,7 +47,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
- * An implementation of the KMS interface backed by a remote instance of AWS KMS.
+ * An implementation of the KMS interface backed by a remote instance of <a href="https://docs.aws.amazon.com/kms/latest/developerguide/overview.html">AWS Key Management Service</a>.
+ * <br/>
+ * The approach taken by this implementation is to make direct calls to the AWS KMS API over REST (rather than relying upon the AWS KMS SDK).  This
+ * is done in order to avoid the (significant) dependencies of the AWS SDK to the class-path.
  */
 public class AwsKms implements Kms<String, AwsKmsEdek> {
 
