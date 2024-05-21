@@ -35,7 +35,16 @@ import static org.apache.kafka.common.utils.Utils.utf8Length;
  */
 class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
 
+    private static final AwsKmsEdekSerde INSTANCE = new AwsKmsEdekSerde();
+
     public static final byte VERSION_0 = (byte) 0;
+
+    public static Serde<AwsKmsEdek> instance() {
+        return INSTANCE;
+    }
+
+    private AwsKmsEdekSerde() {
+    }
 
     @Override
     public AwsKmsEdek deserialize(@NonNull ByteBuffer buffer) {

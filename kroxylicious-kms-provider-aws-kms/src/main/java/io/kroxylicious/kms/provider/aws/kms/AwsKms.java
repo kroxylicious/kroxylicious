@@ -197,7 +197,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
     @NonNull
     @Override
     public Serde<AwsKmsEdek> edekSerde() {
-        return new AwsKmsEdekSerde();
+        return AwsKmsEdekSerde.instance();
     }
 
     @NonNull

@@ -14,13 +14,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.kms.service.Serde;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AwsKmsEdekSerdeTest {
 
     private static final String KEY_REF = "1234abcd-12ab-34cd-56ef-1234567890ab";
-    private final AwsKmsEdekSerde serde = new AwsKmsEdekSerde();
+    private final Serde<AwsKmsEdek> serde = AwsKmsEdekSerde.instance();
 
     @Test
     void shouldRoundTrip() {
