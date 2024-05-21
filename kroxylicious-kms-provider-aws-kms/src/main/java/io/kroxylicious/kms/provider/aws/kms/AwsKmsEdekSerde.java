@@ -39,7 +39,7 @@ class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
 
     public static final byte VERSION_0 = (byte) 0;
 
-    public static Serde<AwsKmsEdek> instance() {
+    static Serde<AwsKmsEdek> instance() {
         return INSTANCE;
     }
 
