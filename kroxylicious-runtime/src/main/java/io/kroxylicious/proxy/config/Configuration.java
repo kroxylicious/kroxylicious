@@ -10,12 +10,15 @@ import java.util.Map;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 
-public record Configuration(AdminHttpConfiguration adminHttp,
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+public record Configuration(@Nullable AdminHttpConfiguration adminHttp,
                             Map<String, VirtualCluster> virtualClusters,
                             List<FilterDefinition> filters,
                             List<MicrometerDefinition> micrometer,
                             boolean useIoUring) {
-    public AdminHttpConfiguration adminHttpConfig() {
+    public @Nullable AdminHttpConfiguration adminHttpConfig() {
         return adminHttp();
     }
 
@@ -27,7 +30,7 @@ public record Configuration(AdminHttpConfiguration adminHttp,
         return useIoUring();
     }
 
-    public List<io.kroxylicious.proxy.model.VirtualCluster> virtualClusterModel() {
+    public @NonNull List<io.kroxylicious.proxy.model.VirtualCluster> virtualClusterModel() {
         return virtualClusters.entrySet().stream()
                 .map(entry -> entry.getValue().toVirtualClusterModel(entry.getKey()))
                 .toList();

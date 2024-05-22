@@ -6,9 +6,11 @@
 
 package io.kroxylicious.proxy.bootstrap;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.ListAssert;
@@ -24,6 +26,8 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.ExampleConfig;
+import io.kroxylicious.proxy.internal.filter.FlakyConfig;
+import io.kroxylicious.proxy.internal.filter.FlakyFactory;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.filter.OptionalConfigFactory;
 import io.kroxylicious.proxy.internal.filter.RequiresConfigFactory;
@@ -34,6 +38,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -67,12 +72,18 @@ class FilterChainFactoryTest {
                             else if (instanceName.endsWith(OptionalConfigFactory.class.getSimpleName())) {
                                 return new OptionalConfigFactory();
                             }
+                            else if (instanceName.endsWith(FlakyFactory.class.getSimpleName())) {
+                                return new FlakyFactory();
+                            }
                             throw new RuntimeException("Unknown FilterFactory: " + instanceName);
                         }
 
                         @NonNull
                         @Override
                         public Class<?> configType(@NonNull String instanceName) {
+                            if (instanceName.endsWith(FlakyFactory.class.getSimpleName())) {
+                                return FlakyConfig.class;
+                            }
                             return ExampleConfig.class;
                         }
                     };
@@ -237,5 +248,123 @@ class FilterChainFactoryTest {
         NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
         return assertThat(filters).hasSameSizeAs(filterDefinitions);
+    }
+
+    static class Counter {
+        int count = 0;
+
+        public void increment(FlakyConfig ignored) {
+            count++;
+        }
+    }
+
+    @Test
+    void shouldPropagateFilterInitializeException() {
+        // Given
+        var onInitialize1 = new Counter();
+        var onClose1 = new Counter();
+        var onInitialize2 = new Counter();
+        var onClose2 = new Counter();
+        List<FilterDefinition> list = List.of(
+                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, null, null,
+                        onInitialize1::increment, onClose1::increment)),
+                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig("foo", null, null,
+                        onInitialize2::increment, onClose2::increment)));
+
+        // When
+
+        // Then
+        assertThatThrownBy(() -> new FilterChainFactory(pfr, list))
+                .isExactlyInstanceOf(PluginConfigurationException.class)
+                .cause()
+                .isExactlyInstanceOf(RuntimeException.class)
+                .hasMessage("foo");
+        assertThat(onInitialize1.count).isEqualTo(1);
+        assertThat(onClose1.count).isEqualTo(1);
+        assertThat(onInitialize2.count).isZero();
+        assertThat(onClose2.count).isZero();
+    }
+
+    @Test
+    void shouldPropagateFilterCreateException() {
+        // Given
+        var onInitialize1 = new Counter();
+        var onClose1 = new Counter();
+        var onInitialize2 = new Counter();
+        var onClose2 = new Counter();
+        List<FilterDefinition> list = List.of(
+                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, null, null,
+                        onInitialize1::increment, onClose1::increment)),
+                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, "foo", null,
+                        onInitialize2::increment, onClose2::increment)));
+        NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
+
+        try (var fcf = new FilterChainFactory(pfr, list)) {
+            assertThat(onInitialize1.count).isEqualTo(1);
+            assertThat(onClose1.count).isZero();
+            assertThat(onInitialize2.count).isEqualTo(1);
+            assertThat(onClose2.count).isZero();
+            // When
+
+            // Then
+            assertThatThrownBy(() -> fcf.createFilters(context))
+                    .isExactlyInstanceOf(PluginConfigurationException.class)
+                    .cause()
+                    .isExactlyInstanceOf(RuntimeException.class)
+                    .hasMessage("foo");
+
+            assertThat(onInitialize1.count).isEqualTo(1);
+            assertThat(onClose1.count).isZero();
+            assertThat(onInitialize2.count).isEqualTo(1);
+            assertThat(onClose2.count).isZero();
+        }
+        assertThat(onInitialize1.count).isEqualTo(1);
+        assertThat(onClose1.count).isEqualTo(1);
+        assertThat(onInitialize2.count).isEqualTo(1);
+        assertThat(onClose2.count).isEqualTo(1);
+
+    }
+
+    @Test
+    void shouldPropagateFilterCloseException() {
+        // Given
+        var onInitialize1 = new Counter();
+        var onClose1 = new Counter();
+        var onInitialize2 = new Counter();
+        var onClose2 = new Counter();
+        List<FlakyConfig> initializeOrder = new ArrayList<>();
+        List<FlakyConfig> closeOrder = new ArrayList<>();
+        FlakyConfig flakyConfig1 = new FlakyConfig(null, null, null,
+                ((Consumer<FlakyConfig>) onInitialize1::increment).andThen(initializeOrder::add),
+                ((Consumer<FlakyConfig>) onClose1::increment).andThen(closeOrder::add));
+        FlakyConfig flakyConfig2 = new FlakyConfig(null, null, "foo",
+                ((Consumer<FlakyConfig>) onInitialize2::increment).andThen(initializeOrder::add),
+                ((Consumer<FlakyConfig>) onClose2::increment).andThen(closeOrder::add));
+        List<FilterDefinition> list = List.of(
+                new FilterDefinition(FlakyFactory.class.getName(), flakyConfig1),
+                new FilterDefinition(FlakyFactory.class.getName(), flakyConfig2));
+        try (var fcf = new FilterChainFactory(pfr, list)) {
+            // When
+            assertThat(onInitialize1.count).isEqualTo(1);
+            assertThat(onClose1.count).isZero();
+            assertThat(onInitialize2.count).isEqualTo(1);
+            assertThat(onClose2.count).isZero();
+            assertThat(initializeOrder).isEqualTo(List.of(flakyConfig1, flakyConfig2));
+
+            // Then
+            assertThatThrownBy(fcf::close)
+                    .isExactlyInstanceOf(RuntimeException.class)
+                    .hasMessage("foo");
+            assertThat(onInitialize1.count).isEqualTo(1);
+            assertThat(onClose1.count).isEqualTo(1);
+            assertThat(onInitialize2.count).isEqualTo(1);
+            assertThat(onClose2.count).isEqualTo(1);
+        }
+        assertThat(onInitialize1.count).isEqualTo(1);
+        assertThat(onClose1.count).isEqualTo(1);
+        assertThat(onInitialize2.count).isEqualTo(1);
+        assertThat(onClose2.count).isEqualTo(1);
+
+        assertThat(closeOrder).isEqualTo(List.of(flakyConfig2, flakyConfig1));
     }
 }
