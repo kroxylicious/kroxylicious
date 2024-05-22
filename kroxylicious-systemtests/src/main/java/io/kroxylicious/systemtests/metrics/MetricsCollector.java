@@ -291,7 +291,7 @@ public class MetricsCollector {
             await().atMost(Constants.GLOBAL_STATUS_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL_MEDIUM)
                     .until(() -> {
                         this.collectMetricsFromPods();
-                        LOGGER.debug("Collected data: {}", collectedData);
+                        LOGGER.debug("matching {} against Collected data: \n{}", pattern, collectedData);
                         List<Double> vals = this.collectSpecificMetric(pattern);
 
                         if (!vals.isEmpty()) {
