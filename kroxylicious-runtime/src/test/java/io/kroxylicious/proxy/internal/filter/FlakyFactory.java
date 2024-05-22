@@ -25,8 +25,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 @Plugin(configType = FlakyConfig.class)
 public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
 
-    public static int INITIALIZED_AND_UNCLOSED = 0;
-
     private FlakyConfig config;
 
     @Override
@@ -37,7 +35,7 @@ public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
         if (config.initializeExceptionMsg() != null) {
             throw new RuntimeException(config.initializeExceptionMsg());
         }
-        INITIALIZED_AND_UNCLOSED += 1;
+        config.onInitialize();
         return config;
     }
 
@@ -54,7 +52,7 @@ public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
     @Override
     public void close(FlakyConfig configuration) {
         Objects.requireNonNull(configuration);
-        INITIALIZED_AND_UNCLOSED -= 1;
+        config.onClose();
         if (config.closeExceptionMsg() != null) {
             throw new RuntimeException(config.closeExceptionMsg());
         }
