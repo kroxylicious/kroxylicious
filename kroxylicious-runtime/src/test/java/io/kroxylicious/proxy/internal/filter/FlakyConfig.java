@@ -12,20 +12,19 @@ public final class FlakyConfig {
     private final String initializeExceptionMsg;
     private final String createExceptionMsg;
     private final String closeExceptionMsg;
-
-    private final Consumer<FlakyConfig> closeOrder;
-    private final Consumer<FlakyConfig> initializeOrder;
+    private final Consumer<FlakyConfig> onClose;
+    private final Consumer<FlakyConfig> onInitialize;
 
     public FlakyConfig(String initializeExceptionMsg,
                        String createExceptionMsg,
                        String closeExceptionMsg,
-                       Consumer<FlakyConfig> initializeOrder,
+                       Consumer<FlakyConfig> onInitialize,
                        Consumer<FlakyConfig> closeOrder) {
         this.initializeExceptionMsg = initializeExceptionMsg;
         this.createExceptionMsg = createExceptionMsg;
         this.closeExceptionMsg = closeExceptionMsg;
-        this.initializeOrder = initializeOrder;
-        this.closeOrder = closeOrder;
+        this.onInitialize = onInitialize;
+        this.onClose = closeOrder;
     }
 
     public String initializeExceptionMsg() {
@@ -41,10 +40,10 @@ public final class FlakyConfig {
     }
 
     public void onClose() {
-        closeOrder.accept(this);
+        onClose.accept(this);
     }
 
     public void onInitialize() {
-        initializeOrder.accept(this);
+        onInitialize.accept(this);
     }
 }

@@ -261,13 +261,15 @@ class FilterChainFactoryTest {
     @Test
     void shouldPropagateFilterInitializeException() {
         // Given
-        var numInitialize1 = new Counter();
-        var numClose1 = new Counter();
-        var numInitialize2 = new Counter();
-        var numClose2 = new Counter();
+        var onInitialize1 = new Counter();
+        var onClose1 = new Counter();
+        var onInitialize2 = new Counter();
+        var onClose2 = new Counter();
         List<FilterDefinition> list = List.of(
-                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, null, null, numInitialize1::increment, numClose1::increment)),
-                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig("foo", null, null, numInitialize2::increment, numClose2::increment)));
+                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, null, null,
+                        onInitialize1::increment, onClose1::increment)),
+                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig("foo", null, null,
+                        onInitialize2::increment, onClose2::increment)));
 
         // When
 
@@ -277,29 +279,31 @@ class FilterChainFactoryTest {
                 .cause()
                 .isExactlyInstanceOf(RuntimeException.class)
                 .hasMessage("foo");
-        assertThat(numInitialize1.count).isEqualTo(1);
-        assertThat(numClose1.count).isEqualTo(1);
-        assertThat(numInitialize2.count).isZero();
-        assertThat(numClose2.count).isZero();
+        assertThat(onInitialize1.count).isEqualTo(1);
+        assertThat(onClose1.count).isEqualTo(1);
+        assertThat(onInitialize2.count).isZero();
+        assertThat(onClose2.count).isZero();
     }
 
     @Test
     void shouldPropagateFilterCreateException() {
         // Given
-        var numInitialize1 = new Counter();
-        var numClose1 = new Counter();
-        var numInitialize2 = new Counter();
-        var numClose2 = new Counter();
+        var onInitialize1 = new Counter();
+        var onClose1 = new Counter();
+        var onInitialize2 = new Counter();
+        var onClose2 = new Counter();
         List<FilterDefinition> list = List.of(
-                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, null, null, numInitialize1::increment, numClose1::increment)),
-                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, "foo", null, numInitialize2::increment, numClose2::increment)));
+                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, null, null,
+                        onInitialize1::increment, onClose1::increment)),
+                new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, "foo", null,
+                        onInitialize2::increment, onClose2::increment)));
         NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
 
         try (var fcf = new FilterChainFactory(pfr, list)) {
-            assertThat(numInitialize1.count).isEqualTo(1);
-            assertThat(numClose1.count).isZero();
-            assertThat(numInitialize2.count).isEqualTo(1);
-            assertThat(numClose2.count).isZero();
+            assertThat(onInitialize1.count).isEqualTo(1);
+            assertThat(onClose1.count).isZero();
+            assertThat(onInitialize2.count).isEqualTo(1);
+            assertThat(onClose2.count).isZero();
             // When
 
             // Then
@@ -309,57 +313,57 @@ class FilterChainFactoryTest {
                     .isExactlyInstanceOf(RuntimeException.class)
                     .hasMessage("foo");
 
-            assertThat(numInitialize1.count).isEqualTo(1);
-            assertThat(numClose1.count).isZero();
-            assertThat(numInitialize2.count).isEqualTo(1);
-            assertThat(numClose2.count).isZero();
+            assertThat(onInitialize1.count).isEqualTo(1);
+            assertThat(onClose1.count).isZero();
+            assertThat(onInitialize2.count).isEqualTo(1);
+            assertThat(onClose2.count).isZero();
         }
-        assertThat(numInitialize1.count).isEqualTo(1);
-        assertThat(numClose1.count).isEqualTo(1);
-        assertThat(numInitialize2.count).isEqualTo(1);
-        assertThat(numClose2.count).isEqualTo(1);
+        assertThat(onInitialize1.count).isEqualTo(1);
+        assertThat(onClose1.count).isEqualTo(1);
+        assertThat(onInitialize2.count).isEqualTo(1);
+        assertThat(onClose2.count).isEqualTo(1);
 
     }
 
     @Test
     void shouldPropagateFilterCloseException() {
         // Given
-        var numInitialize1 = new Counter();
-        var numClose1 = new Counter();
-        var numInitialize2 = new Counter();
-        var numClose2 = new Counter();
+        var onInitialize1 = new Counter();
+        var onClose1 = new Counter();
+        var onInitialize2 = new Counter();
+        var onClose2 = new Counter();
         List<FlakyConfig> initializeOrder = new ArrayList<>();
         List<FlakyConfig> closeOrder = new ArrayList<>();
         FlakyConfig flakyConfig1 = new FlakyConfig(null, null, null,
-                ((Consumer<FlakyConfig>) numInitialize1::increment).andThen(initializeOrder::add),
-                ((Consumer<FlakyConfig>) numClose1::increment).andThen(closeOrder::add));
+                ((Consumer<FlakyConfig>) onInitialize1::increment).andThen(initializeOrder::add),
+                ((Consumer<FlakyConfig>) onClose1::increment).andThen(closeOrder::add));
         FlakyConfig flakyConfig2 = new FlakyConfig(null, null, "foo",
-                ((Consumer<FlakyConfig>) numInitialize2::increment).andThen(initializeOrder::add),
-                ((Consumer<FlakyConfig>) numClose2::increment).andThen(closeOrder::add));
+                ((Consumer<FlakyConfig>) onInitialize2::increment).andThen(initializeOrder::add),
+                ((Consumer<FlakyConfig>) onClose2::increment).andThen(closeOrder::add));
         List<FilterDefinition> list = List.of(
                 new FilterDefinition(FlakyFactory.class.getName(), flakyConfig1),
                 new FilterDefinition(FlakyFactory.class.getName(), flakyConfig2));
         try (var fcf = new FilterChainFactory(pfr, list)) {
             // When
-            assertThat(numInitialize1.count).isEqualTo(1);
-            assertThat(numClose1.count).isZero();
-            assertThat(numInitialize2.count).isEqualTo(1);
-            assertThat(numClose2.count).isZero();
+            assertThat(onInitialize1.count).isEqualTo(1);
+            assertThat(onClose1.count).isZero();
+            assertThat(onInitialize2.count).isEqualTo(1);
+            assertThat(onClose2.count).isZero();
             assertThat(initializeOrder).isEqualTo(List.of(flakyConfig1, flakyConfig2));
 
             // Then
             assertThatThrownBy(fcf::close)
                     .isExactlyInstanceOf(RuntimeException.class)
                     .hasMessage("foo");
-            assertThat(numInitialize1.count).isEqualTo(1);
-            assertThat(numClose1.count).isEqualTo(1);
-            assertThat(numInitialize2.count).isEqualTo(1);
-            assertThat(numClose2.count).isEqualTo(1);
+            assertThat(onInitialize1.count).isEqualTo(1);
+            assertThat(onClose1.count).isEqualTo(1);
+            assertThat(onInitialize2.count).isEqualTo(1);
+            assertThat(onClose2.count).isEqualTo(1);
         }
-        assertThat(numInitialize1.count).isEqualTo(1);
-        assertThat(numClose1.count).isEqualTo(1);
-        assertThat(numInitialize2.count).isEqualTo(1);
-        assertThat(numClose2.count).isEqualTo(1);
+        assertThat(onInitialize1.count).isEqualTo(1);
+        assertThat(onClose1.count).isEqualTo(1);
+        assertThat(onInitialize2.count).isEqualTo(1);
+        assertThat(onClose2.count).isEqualTo(1);
 
         assertThat(closeOrder).isEqualTo(List.of(flakyConfig2, flakyConfig1));
     }
