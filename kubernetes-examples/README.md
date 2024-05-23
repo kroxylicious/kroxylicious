@@ -8,12 +8,13 @@ The instructions for running the examples are given below.
 
 # Example Catalogue
 
-| example                                                | showcases                                                                              |
-|--------------------------------------------------------|----------------------------------------------------------------------------------------|
-| [record-encryption](record-encryption/README.md)       | kroxylicious providing encryption-at-rest.                                             |
-| [multi-tenant](./multi-tenant/README.md)               | kroxylicious providing multi-tenancy - present one kafka cluster as if it were many.   |
-| [portperbroker_plain](./portperbroker_plain/README.md) | kroxylicious+strimzi using plain connections upstream/downstream.                      |
-| [snirouting_tls](./snirouting_tls/README.md)           | kroxylicious+strimzi using TLS upstream/downstream connections with SNI based routing. |
+| example                                                                    | showcases                                                                              |
+|----------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| [record-encryption](record-encryption/README.md)                           | kroxylicious providing encryption-at-rest.                                             |
+| [multi-tenant](./multi-tenant/README.md)                                   | kroxylicious providing multi-tenancy - present one kafka cluster as if it were many.   |
+| [portperbroker_plain](./portperbroker_plain/README.md)                     | kroxylicious+strimzi using plain connections upstream/downstream.                      |
+| [rangeawareportperbroker_plain](./rangeawareportperbroker_plain/README.md) | kroxylicious+strimzi with node pools                                                   |
+| [snirouting_tls](./snirouting_tls/README.md)                               | kroxylicious+strimzi using TLS upstream/downstream connections with SNI based routing. |
 
 ## Prerequisites to run the kubernetes-examples
 
