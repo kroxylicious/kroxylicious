@@ -13,12 +13,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.kms.service.Serde;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VaultEdekSerdeTest {
 
-    private final VaultEdekSerde serde = new VaultEdekSerde();
+    private final Serde<VaultEdek> serde = VaultEdekSerde.instance();
 
     static Stream<Arguments> keyRefs() {
         return Stream.of(

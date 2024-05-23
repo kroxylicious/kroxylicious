@@ -206,7 +206,7 @@ public class VaultKms implements Kms<String, VaultEdek> {
     @NonNull
     @Override
     public Serde<VaultEdek> edekSerde() {
-        return new VaultEdekSerde();
+        return VaultEdekSerde.instance();
     }
 
     @VisibleForTesting
