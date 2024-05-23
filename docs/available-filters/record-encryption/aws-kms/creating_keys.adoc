@@ -2,7 +2,7 @@
 
 = AWS Key Management Service
 
-As an Administrative actor, use the AWS Console or CLI to
+As the Administrator, use either the AWS Console or CLI to
 {aws}/kms/latest/developerguide/create-keys.html#create-symmetric-cmk[create] a "Symmetric key" with "Encrypt and decrypt"
 usage.
 
