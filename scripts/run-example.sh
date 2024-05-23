@@ -94,7 +94,8 @@ fi
 
 # Install strimzi
 ${KUBECTL} create namespace kafka 2>/dev/null || true
-${HELM} install strimzi-cluster-operator --namespace kafka --timeout 120s --version "${STRIMZI_VERSION}" oci://quay.io/strimzi-helm/strimzi-kafka-operator --set replicas=1 --wait
+# use helm's idempotent install technique
+${HELM} upgrade --install strimzi-cluster-operator --namespace kafka --timeout 120s --version "${STRIMZI_VERSION}" oci://quay.io/strimzi-helm/strimzi-kafka-operator --set replicas=1 --wait
 echo -e "${GREEN}Strimzi installed.${NOCOLOR}"
 
 
