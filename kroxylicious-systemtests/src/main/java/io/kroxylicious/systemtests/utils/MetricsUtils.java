@@ -20,6 +20,9 @@ import static org.hamcrest.Matchers.notNullValue;
  */
 public class MetricsUtils {
 
+    public static final String MATCH_LABELS_PATTERN = "\\{.*}";
+    public static final String MATCH_VALUE_PATTERN = "\\s*([\\d.^\\n]+)";
+
     private MetricsUtils() {
     }
 
@@ -32,14 +35,6 @@ public class MetricsUtils {
         List<Double> values = createPatternAndCollect(collector, metric);
         double actualValue = values.stream().mapToDouble(i -> i).count();
         assertThat(String.format("metric '%s' doesn't exist", metric), actualValue, notNullValue());
-    }
-
-    public static void assertMetricValueNullOrZero(MetricsCollector collector, String metric) {
-        Pattern pattern = Pattern.compile(metric + " ([\\d.][^\\n]+)", Pattern.CASE_INSENSITIVE);
-        if (!collector.collectSpecificMetric(pattern).isEmpty()) {
-            assertThat(String.format("metric %s doesn't contain 0 value!", pattern),
-                    createPatternAndCollectWithoutWait(collector, pattern.toString()).stream().mapToDouble(i -> i).sum(), is(0.0));
-        }
     }
 
     public static void assertMetricValue(MetricsCollector collector, String metric, int expectedValue) {
@@ -69,12 +64,8 @@ public class MetricsUtils {
     }
 
     private static List<Double> createPatternAndCollect(MetricsCollector collector, String metric) {
-        Pattern pattern = Pattern.compile(metric + "\\{.*\\} ([\\d.][^\\n]+)", Pattern.CASE_INSENSITIVE);
+        Pattern pattern = Pattern.compile(metric + MATCH_LABELS_PATTERN + MATCH_VALUE_PATTERN, Pattern.CASE_INSENSITIVE);
         return collector.waitForSpecificMetricAndCollect(pattern);
     }
 
-    private static List<Double> createPatternAndCollectWithoutWait(MetricsCollector collector, String metric) {
-        Pattern pattern = Pattern.compile(metric + "\\{.*\\} ([\\d.][^\\n]+)", Pattern.CASE_INSENSITIVE);
-        return collector.collectSpecificMetric(pattern);
-    }
 }

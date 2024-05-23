@@ -51,8 +51,8 @@
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.25.3</assertj-core.version>
-        <mockito.version>5.11.0</mockito.version>
-        <micrometer.version>1.12.5</micrometer.version>
+        <mockito.version>5.12.0</mockito.version>
+        <micrometer.version>1.13.0</micrometer.version>
         <slf4j.version>2.0.13</slf4j.version>
         <sundr-builder-annotations.version>0.200.0</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.8.5</spotbugs-annotations.version>
@@ -667,7 +667,7 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>build-helper-maven-plugin</artifactId>
-                    <version>3.5.0</version>
+                    <version>3.6.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.jacoco</groupId>
