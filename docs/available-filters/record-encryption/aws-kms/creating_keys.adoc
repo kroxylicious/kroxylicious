@@ -1,0 +1,28 @@
+:aws:  https://docs.aws.amazon.com/
+
+= AWS Key Management Service
+
+As the Administrator, use either the AWS Console or CLI to
+{aws}/kms/latest/developerguide/create-keys.html#create-symmetric-cmk[create] a *Symmetric key* with *Encrypt and decrypt*
+usage.  Multi-region keys are supported.  It is not possible to make use of keys from other AWS accountsfootnote:[https://github.com/kroxylicious/kroxylicious/issues/1217].
+
+Give the key an alias following the link:setup.adoc#_establish_an_aliasing_convention_for_keys_within_aws_kms[alias naming convention] established above.
+
+If using the CLI, this can be done with commands like this:
+
+[source,shell]
+----
+KEY_ALIAS="KEK_<name>"
+KEY_ID=$(aws kms create-key | jq -r '.KeyMetadata.KeyId')
+# the create key command will produce JSON output including the KeyId
+aws kms create-alias --alias-name alias/${KEY_ALIAS} --target-key-id ${KEY_ID}
+----
+
+Once the key is created, it is recommended to use a key rotation policy.
+
+[source,shell]
+----
+aws kms enable-key-rotation --key-id ${KEY_ID} --rotation-period-in-days 180
+----
+
+
