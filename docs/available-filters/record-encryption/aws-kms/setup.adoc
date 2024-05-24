@@ -22,7 +22,7 @@ the instructions accordingly.
 To use the filter, there must be an administrative identity established within AWS IAM.  This user, which is likely to be a human,
 has the responsibility to manage keys and aliases within AWS KMS for use by the filter.
 
-Use AWS IAM to create a `kroxylicious-admin` user. Attach the policies `AWSKeyManagementServicePowerUser`] and `IAMUserChangePassword`
+Use AWS IAM to create a `kroxylicious-admin` user. Attach the policies `AWSKeyManagementServicePowerUser` and `IAMUserChangePassword`
 to the user. You may wish to attach policy `AWSCloudShellFullAccess` so the Administrator can use the AWS CloudShell to
 use CLI to manage the KEKs. Grant the user access to the Console.
 
