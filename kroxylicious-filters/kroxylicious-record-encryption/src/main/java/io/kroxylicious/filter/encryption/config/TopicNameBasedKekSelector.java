@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
+import io.kroxylicious.proxy.filter.FilterContext;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -22,7 +24,8 @@ public abstract class TopicNameBasedKekSelector<K> {
      * Returns a completion stage whose value, on successful completion, is a map from each of the given topic
      * names to the KEK id to use for encrypting records in that topic.
      * @param topicNames A set of topic names
+     * @param context The filter context
      * @return A completion stage for the map form topic name to KEK id.
      */
-    public abstract @NonNull CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames);
+    public abstract @NonNull CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames, FilterContext context);
 }

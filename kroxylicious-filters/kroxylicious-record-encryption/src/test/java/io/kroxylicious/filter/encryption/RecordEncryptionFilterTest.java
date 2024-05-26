@@ -123,7 +123,7 @@ class RecordEncryptionFilterTest {
         topicNameToKekId.put(UNENCRYPTED_TOPIC, null);
         topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
 
-        when(kekSelector.selectKek(anySet())).thenAnswer(invocationOnMock -> {
+        when(kekSelector.selectKek(anySet(), any())).thenAnswer(invocationOnMock -> {
             Set<String> wanted = invocationOnMock.getArgument(0);
             var copy = new HashMap<>(topicNameToKekId);
             copy.keySet().retainAll(wanted);
@@ -209,7 +209,7 @@ class RecordEncryptionFilterTest {
                 .setName(ENCRYPTED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
         RuntimeException exception = new RuntimeException("boom");
-        when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.failedFuture(exception));
+        when(kekSelector.selectKek(anySet(), any())).thenReturn(CompletableFuture.failedFuture(exception));
 
         // When
         CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,

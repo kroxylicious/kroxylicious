@@ -47,7 +47,7 @@ class TemplateKekSelectorTest {
 
         var kek = kms.generateKey();
         kms.createAlias(kek, "topic-my-topic");
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
+        var map = selector.selectKek(Set.of("my-topic"), null).toCompletableFuture().join();
         assertThat(map)
                 .hasSize(1)
                 .containsEntry("my-topic", kek);
@@ -58,7 +58,7 @@ class TemplateKekSelectorTest {
         var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
         var selector = getSelector(kms, "topic-${topicName}");
 
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
+        var map = selector.selectKek(Set.of("my-topic"), null).toCompletableFuture().join();
         assertThat(map)
                 .hasSize(1)
                 .containsEntry("my-topic", null);
@@ -74,7 +74,7 @@ class TemplateKekSelectorTest {
                 });
         when(kms.resolveAlias(anyString())).thenReturn(result);
         var selector = getSelector(kms, "topic-${topicName}");
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().get();
+        var map = selector.selectKek(Set.of("my-topic"), null).toCompletableFuture().get();
         assertThat(map)
                 .hasSize(1)
                 .containsEntry("my-topic", null);
@@ -87,7 +87,7 @@ class TemplateKekSelectorTest {
         when(kms.resolveAlias(anyString())).thenReturn(result);
 
         var selector = getSelector(kms, "topic-${topicName}");
-        var stage = selector.selectKek(Set.of("my-topic"));
+        var stage = selector.selectKek(Set.of("my-topic"), null);
         assertThat(stage)
                 .isCompletedExceptionally()
                 .failsWithin(Duration.ZERO)

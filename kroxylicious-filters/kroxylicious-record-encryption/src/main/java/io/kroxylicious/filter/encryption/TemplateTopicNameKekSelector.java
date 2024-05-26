@@ -19,6 +19,7 @@ import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.UnknownAliasException;
+import io.kroxylicious.proxy.filter.FilterContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -44,7 +45,7 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
 
     @NonNull
     @Override
-    public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames) {
+    public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames, FilterContext context) {
         var collect = topicNames.stream()
                 .map(
                         topicName -> kms.resolveAlias(evaluateTemplate(topicName))
