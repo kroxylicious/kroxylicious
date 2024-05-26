@@ -4,15 +4,12 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.internal.metadata.model.selector;
+package io.kroxylicious.proxy.metadata.selector;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
-
-import io.kroxylicious.proxy.metadata.selector.LabelException;
-import io.kroxylicious.proxy.metadata.selector.Labels;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
