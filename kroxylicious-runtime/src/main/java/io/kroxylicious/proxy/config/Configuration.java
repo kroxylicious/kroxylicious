@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.config;
 import java.util.List;
 import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -15,9 +17,15 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 public record Configuration(@Nullable AdminHttpConfiguration adminHttp,
                             Map<String, VirtualCluster> virtualClusters,
+                            @Nullable @JsonInclude(JsonInclude.Include.NON_NULL) ResourceMetadata resourceMetadata,
                             List<FilterDefinition> filters,
                             List<MicrometerDefinition> micrometer,
                             boolean useIoUring) {
+    public Configuration(@Nullable AdminHttpConfiguration adminHttp, Map<String, VirtualCluster> virtualClusters, List<FilterDefinition> filters,
+                         List<MicrometerDefinition> micrometer, boolean useIoUring) {
+        this(adminHttp, virtualClusters, null, filters, micrometer, useIoUring);
+    }
+
     public @Nullable AdminHttpConfiguration adminHttpConfig() {
         return adminHttp();
     }

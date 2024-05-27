@@ -45,6 +45,7 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.config.ResourceMetadata;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -225,7 +226,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, VirtualCluster virtualCluster) {
-        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, new ApiVersionsServiceImpl()) {
+        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, new ResourceMetadata(null), new ApiVersionsServiceImpl()) {
             @Override
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case

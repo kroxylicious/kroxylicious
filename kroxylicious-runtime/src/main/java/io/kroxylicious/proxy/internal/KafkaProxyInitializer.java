@@ -28,6 +28,7 @@ import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.ResourceMetadata;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
@@ -54,16 +55,23 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
+    private final ResourceMetadata resourceMetadata;
 
-    public KafkaProxyInitializer(FilterChainFactory filterChainFactory, PluginFactoryRegistry pfr, boolean tls,
-                                 VirtualClusterBindingResolver virtualClusterBindingResolver, EndpointReconciler endpointReconciler,
-                                 boolean haproxyProtocol, Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
+    public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
+                                 PluginFactoryRegistry pfr,
+                                 boolean tls,
+                                 VirtualClusterBindingResolver virtualClusterBindingResolver,
+                                 EndpointReconciler endpointReconciler,
+                                 ResourceMetadata resourceMetadata,
+                                 boolean haproxyProtocol,
+                                 Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.tls = tls;
         this.virtualClusterBindingResolver = virtualClusterBindingResolver;
+        this.resourceMetadata = resourceMetadata;
         this.filterChainFactory = filterChainFactory;
     }
 
@@ -188,7 +196,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         ApiVersionsServiceImpl apiVersionService = new ApiVersionsServiceImpl();
         final NetFilter netFilter = new InitalizerNetFilter(dp, apiVersionService, ch, binding, pfr, filterChainFactory, endpointReconciler);
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster, apiVersionService);
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster, resourceMetadata, apiVersionService);
 
         pipeline.addLast("netHandler", frontendHandler);
 

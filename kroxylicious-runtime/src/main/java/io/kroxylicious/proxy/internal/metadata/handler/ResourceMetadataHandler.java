@@ -13,6 +13,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 
+import io.kroxylicious.proxy.config.ResourceMetadata;
 import io.kroxylicious.proxy.internal.metadata.ResourceMetadataFrame;
 import io.kroxylicious.proxy.metadata.DescribeTopicLabelsRequest;
 import io.kroxylicious.proxy.metadata.ListTopicsRequest;
@@ -32,7 +33,13 @@ public class ResourceMetadataHandler extends ChannelOutboundHandlerAdapter {
 
     private final TopicMetadataSource topicMetadataSource;
 
-    public ResourceMetadataHandler(TopicMetadataSource topicMetadataSource) {
+    public ResourceMetadataHandler(ResourceMetadata metadataSource) {
+        TopicMetadataSource topicMetadataSource = TopicMetadataSource.EMPTY;
+        if (metadataSource.configSource() != null) {
+            if (metadataSource.configSource().topicLabellings() != null) {
+                topicMetadataSource = new StaticTopicMetadataSource(metadataSource.configSource().topicLabellings());
+            }
+        }
         this.topicMetadataSource = topicMetadataSource;
     }
 
