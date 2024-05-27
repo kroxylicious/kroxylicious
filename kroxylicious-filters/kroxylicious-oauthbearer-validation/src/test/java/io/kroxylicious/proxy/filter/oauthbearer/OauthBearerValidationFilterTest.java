@@ -118,6 +118,7 @@ class OauthBearerValidationFilterTest {
         String digest = OauthBearerValidationFilter.digestBytes(givenBytes);
         when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
         when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
+        when(saslServer.isComplete()).thenReturn(true);
 
         // when
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
@@ -175,6 +176,34 @@ class OauthBearerValidationFilterTest {
         String digest = OauthBearerValidationFilter.digestBytes(givenBytes);
         when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
         when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
+
+        // when
+        try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
+            dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
+                    .thenReturn(saslServer);
+            filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
+        }
+        filter.onSaslAuthenticateRequest(
+                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+
+        // then
+        verify(builder).shortCircuitResponse(assertArg(actualResponse -> {
+            assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
+            assertThat(((SaslAuthenticateResponseData) actualResponse).errorCode()).isEqualTo(SASL_AUTHENTICATION_FAILED.code());
+        }));
+    }
+
+    @Test
+    void willShortCircuitResponseWhenSaslFailedWithoutException() throws Exception {
+        // given
+        byte[] givenBytes = "just_to_compare".getBytes();
+        SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
+        SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
+        mockBuilder();
+        String digest = OauthBearerValidationFilter.digestBytes(givenBytes);
+        when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
+        when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
+        when(saslServer.evaluateResponse(givenBytes)).thenReturn("invalid_token".getBytes());
 
         // when
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {

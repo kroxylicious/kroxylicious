@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.filter.oauthbearer;
 
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.kafka.common.config.SaslConfigs;
@@ -66,7 +67,9 @@ class OauthBearerValidationTest {
                 "",
                 " ",
                 -1L,
-                -1L);
+                -1L,
+                null,
+                null);
         mustInitAndCreateFilter(config);
     }
 
@@ -84,7 +87,9 @@ class OauthBearerValidationTest {
                 "otherScope",
                 "otherClaim",
                 10000L,
-                500L);
+                500L,
+                "https://first.audience, https://second.audience",
+                "https://issuer.endpoint");
 
         // when
         SharedOauthBearerValidationContext sharedContext = oauthBearerValidation.initialize(ffc, config);
@@ -99,6 +104,8 @@ class OauthBearerValidationTest {
                     assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS)).isEqualTo(30000L);
                     assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_SCOPE_CLAIM_NAME)).isEqualTo("otherScope");
                     assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME)).isEqualTo("otherClaim");
+                    assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_EXPECTED_AUDIENCE)).isEqualTo(List.of("https://first.audience", "https://second.audience"));
+                    assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_EXPECTED_ISSUER)).isEqualTo("https://issuer.endpoint");
                 }),
                 eq("OAUTHBEARER"),
                 anyList());
@@ -151,6 +158,8 @@ class OauthBearerValidationTest {
     private OauthBearerValidation.Config defaultConfig() throws Exception {
         return new OauthBearerValidation.Config(
                 new URI("https://jwks.endpoint"),
+                null,
+                null,
                 null,
                 null,
                 null,

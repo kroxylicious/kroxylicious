@@ -46,6 +46,8 @@ filters:
       subClaimName: sub                     #<6>
       authenticateBackOffMaxMs: 60000       #<7>
       authenticateCacheMaxSize: 1000        #<8>
+      expectedAudience: https://first.audience, https//second.audience #<9>
+      expectedIssuer: https://your-domain.auth/ #<10>
 ----
 
 <1> The OAuth/OIDC provider URL from which the provider's JWKS (JSON Web Key Set) can be retrieved.
@@ -56,5 +58,7 @@ filters:
 <6> This (optional) setting can provide a different name to use for the subject included in the JWT payload's claims.
 <7> The (optional) maximum value in milliseconds to limit the client sending authenticate request. Setting 0 will never limit the client. Otherwise, an exponential delay is added to each authenticate request until the authenticateBackOffMaxMs has been reached.
 <8> The (optional) maximum number of failed tokens kept in cache.
+<9> The (optional) comma-delimited setting for the broker to use to verify that the JWT was issued for one of the expected audiences.
+<10> The (optional) setting for the broker to use to verify that the JWT was created by the expected issuer.
 
 Note: OauthBearer config follows https://kafka.apache.org/documentation/#security_ssl[kafka's properties]

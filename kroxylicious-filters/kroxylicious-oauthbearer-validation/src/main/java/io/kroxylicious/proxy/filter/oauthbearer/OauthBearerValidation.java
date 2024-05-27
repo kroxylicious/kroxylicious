@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.filter.oauthbearer;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -59,20 +61,7 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
     @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
     public SharedOauthBearerValidationContext initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
         Plugins.requireConfig(this, config);
-        Config configWithDefaults = new Config(
-                config.jwksEndpointUrl,
-                config.jwksEndpointRefreshMs() != null && config.jwksEndpointRefreshMs() >= 0L ? config.jwksEndpointRefreshMs()
-                        : SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS,
-                config.jwksEndpointRetryBackoffMs() != null && config.jwksEndpointRetryBackoffMs() >= 0L ? config.jwksEndpointRetryBackoffMs()
-                        : SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS,
-                config.jwksEndpointRetryBackoffMaxMs() != null && config.jwksEndpointRetryBackoffMaxMs() > 0L ? config.jwksEndpointRetryBackoffMaxMs()
-                        : SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS,
-                config.scopeClaimName() != null && !config.scopeClaimName().trim().isEmpty() ? config.scopeClaimName()
-                        : SaslConfigs.DEFAULT_SASL_OAUTHBEARER_SCOPE_CLAIM_NAME,
-                config.subClaimName() != null && !config.subClaimName().trim().isEmpty() ? config.subClaimName() : SaslConfigs.DEFAULT_SASL_OAUTHBEARER_SUB_CLAIM_NAME,
-                config.authenticateBackOffMaxMs() != null && config.authenticateBackOffMaxMs() >= 0L ? config.authenticateBackOffMaxMs() : 60000L,
-                config.authenticateCacheMaxSize() != null && config.authenticateCacheMaxSize() > 0L ? config.authenticateCacheMaxSize() : 1000L,
-                config.expectedAudience() != null && !config.expectedAudience().isEmpty() ? config.expectedAudience() : null);
+        Config configWithDefaults = initConfigWithDefaults(config);
         oauthHandler.configure(
                 createSaslConfigMap(configWithDefaults),
                 OAUTHBEARER_MECHANISM,
@@ -106,20 +95,57 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
                          @JsonProperty String subClaimName,
                          @JsonProperty Long authenticateBackOffMaxMs,
                          @JsonProperty Long authenticateCacheMaxSize,
-                         @JsonProperty List<String> expectedAudience) {}
+                         @JsonProperty String expectedAudience,
+                         @JsonProperty String expectedIssuer) {}
 
     private Map<String, ?> createSaslConfigMap(Config config) {
-        return Map.of(
+        Map<String, Object> saslConfig = new HashMap<>(Map.of(
                 SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_URL, config.jwksEndpointUrl().toString(),
                 SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS, config.jwksEndpointRefreshMs(),
                 SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS, config.jwksEndpointRetryBackoffMs(),
                 SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS, config.jwksEndpointRetryBackoffMaxMs(),
                 SaslConfigs.SASL_OAUTHBEARER_SCOPE_CLAIM_NAME, config.scopeClaimName(),
-                SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME, config.subClaimName(),
-                SaslConfigs.SASL_OAUTHBEARER_EXPECTED_AUDIENCE, config.expectedAudience());
+                SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME, config.subClaimName()));
+        if (config.expectedAudience() != null) {
+            List<String> audience = Arrays.stream(config.expectedAudience().split(","))
+                    .map(String::trim)
+                    .filter(element -> !element.isEmpty())
+                    .toList();
+            saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_EXPECTED_AUDIENCE, audience);
+        }
+        if (config.expectedIssuer() != null) {
+            saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_EXPECTED_ISSUER, config.expectedIssuer());
+        }
+        return saslConfig;
     }
 
     private List<AppConfigurationEntry> createDefaultJaasConfig() {
         return List.of(new AppConfigurationEntry("OAuthBearerLoginModule", AppConfigurationEntry.LoginModuleControlFlag.REQUIRED, Map.of()));
+    }
+
+    private Config initConfigWithDefaults(Config config) {
+        return new Config(
+                config.jwksEndpointUrl,
+                defaultIfNullOrNegative(config.jwksEndpointRefreshMs(), SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS),
+                defaultIfNullOrNegative(config.jwksEndpointRetryBackoffMs(), SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS),
+                defaultIfNullOrNonPositive(config.jwksEndpointRetryBackoffMaxMs(), SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS),
+                defaultIfNullOrEmpty(config.scopeClaimName(), SaslConfigs.DEFAULT_SASL_OAUTHBEARER_SCOPE_CLAIM_NAME),
+                defaultIfNullOrEmpty(config.subClaimName(), SaslConfigs.DEFAULT_SASL_OAUTHBEARER_SUB_CLAIM_NAME),
+                defaultIfNullOrNegative(config.authenticateBackOffMaxMs(), 60000L),
+                defaultIfNullOrNonPositive(config.authenticateCacheMaxSize(), 1000L),
+                defaultIfNullOrEmpty(config.expectedAudience(), null),
+                defaultIfNullOrEmpty(config.expectedIssuer(), null));
+    }
+
+    private Long defaultIfNullOrNegative(Long value, Long defaultValue) {
+        return (value != null && value >= 0L) ? value : defaultValue;
+    }
+
+    private Long defaultIfNullOrNonPositive(Long value, Long defaultValue) {
+        return (value != null && value > 0L) ? value : defaultValue;
+    }
+
+    private String defaultIfNullOrEmpty(String value, String defaultValue) {
+        return (value != null && !value.trim().isEmpty()) ? value : defaultValue;
     }
 }
