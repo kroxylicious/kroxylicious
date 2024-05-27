@@ -43,6 +43,9 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.IntRangeSpec;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.NamedRangeSpec;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
@@ -190,6 +193,67 @@ class ExpositionIT extends BaseIT {
                     createTopic(admin, TOPIC + i, 1);
                 }
             }
+        }
+    }
+
+    @Test
+    void exposesClusterOfTwoBrokersWithRangeAwarePortPerNode(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .endTargetCluster()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.class.getName())
+                                        .withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                        .withConfig("nodeIdRanges", List.of(new NamedRangeSpec("nodes", new IntRangeSpec(0, 2))))
+                                        .build())
+                        .build());
+
+        var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 1, "localhost:" + (PROXY_ADDRESS.port() + 2));
+
+        try (var tester = kroxyliciousTester(builder)) {
+
+            try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS.toString()))) {
+                var nodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
+                var unique = nodes.stream().collect(Collectors.toMap(Node::id, ExpositionIT::toAddress));
+                assertThat(unique).containsExactlyInAnyOrderEntriesOf(brokerEndpoints);
+            }
+
+            verifyAllBrokersAvailableViaProxy(tester, cluster);
+        }
+    }
+
+    @Test
+    void exposesClusterOfTwoBrokersWithIdGapWithRangeAwarePortPerNode(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+        cluster.addBroker();
+        cluster.removeBroker(1);
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .endTargetCluster()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.class.getName())
+                                        .withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                        .withConfig("nodeIdRanges",
+                                                List.of(new NamedRangeSpec("node-0", new IntRangeSpec(0, 1)), new NamedRangeSpec("node-2", new IntRangeSpec(2, 3))))
+                                        .build())
+                        .build());
+
+        var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 2, "localhost:" + (PROXY_ADDRESS.port() + 2));
+
+        try (var tester = kroxyliciousTester(builder)) {
+
+            try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS.toString()))) {
+                var nodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
+                        n -> n.size() == cluster.getNumOfBrokers());
+                var unique = nodes.stream().collect(Collectors.toMap(Node::id, ExpositionIT::toAddress));
+                assertThat(unique).containsExactlyInAnyOrderEntriesOf(brokerEndpoints);
+            }
+
+            verifyAllBrokersAvailableViaProxy(tester, cluster);
         }
     }
 

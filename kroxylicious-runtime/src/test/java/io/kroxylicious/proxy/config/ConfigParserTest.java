@@ -72,6 +72,23 @@ class ConfigParserTest {
                                 brokerAddressPattern: localhost
                                 brokerStartPort: 9193
                         """),
+                Arguments.of("Virtual cluster (RangeAwarePortPerBroker)", """
+                        virtualClusters:
+                          demo1:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: RangeAwarePortPerNodeClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: cluster1:9192
+                                nodeAddressPattern: localhost
+                                nodeStartPort: 9193
+                                nodeIdRanges:
+                                  - name: brokers
+                                    range:
+                                      startInclusive: 0
+                                      endExclusive: 3
+                        """),
                 Arguments.of("Virtual cluster (SniRouting)", """
                         virtualClusters:
                           demo1:

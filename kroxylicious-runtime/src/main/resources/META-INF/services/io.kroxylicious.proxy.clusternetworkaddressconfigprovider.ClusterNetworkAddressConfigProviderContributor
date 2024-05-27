@@ -1,2 +1,3 @@
 io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerContributor
+io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeContributor
 io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingContributor
