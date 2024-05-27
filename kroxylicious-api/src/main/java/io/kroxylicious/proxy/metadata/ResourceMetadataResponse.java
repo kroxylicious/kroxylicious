@@ -6,5 +6,5 @@
 
 package io.kroxylicious.proxy.metadata;
 
-public sealed interface ResourceMetadataResponse<Req extends ResourceMetadataRequest> permits DescribeTopicLabelsResponse, ListTopicsResponse {
+public sealed interface ResourceMetadataResponse<Q extends ResourceMetadataRequest<?>> permits DescribeTopicLabelsResponse, ListTopicsResponse {
 }

@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.metadata.handler;
 
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -36,57 +35,38 @@ public class ResourceMetadataHandler extends ChannelOutboundHandlerAdapter {
     public ResourceMetadataHandler(TopicMetadataSource topicMetadataSource) {
         this.topicMetadataSource = topicMetadataSource;
     }
-    //
-    // @Override
-    // public void channelRead(ChannelHandlerContext ctx, Object msg) {
-    // if (msg instanceof InternalResponseFrame resp) {
-    // // TODO figure out if this is our request
-    // // TODO convert it to a TMR
-    // ctx.fireChannelRead(null);
-    // }
-    // }
 
     @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof ResourceMetadataFrame<?, ?> frame) {
+            CompletionStage cs;
             if (frame.request() instanceof DescribeTopicLabelsRequest req) {
-                CompletionStage<Map<String, Map<String, String>>> mapCompletionStage = topicMetadataSource.topicLabels(req.topicNames());
-                promise.setSuccess();
-                mapCompletionStage.whenComplete((result, error) -> {
-                    CompletableFuture<?> promise1 = frame.promise();
-                    if (error != null) {
-
-                        promise1.completeExceptionally(error);
-                    }
-                    else {
-                        ((CompletableFuture) promise1).complete(result);
-                        // ctx.fireChannelRead(new DescribeTopicLabelsResponse(result));
-                        // // required to flush the message back to the client
-                        // ctx.fireChannelReadComplete();
-                    }
-                });
+                cs = topicMetadataSource.topicLabels(req.topicNames());
             }
             else if (frame.request() instanceof ListTopicsRequest req) {
-                var mapCompletionStage = topicMetadataSource.topicsMatching(req.topicNames(), req.selectors());
-                promise.setSuccess();
-                mapCompletionStage.whenComplete((result, error) -> {
-                    CompletableFuture<?> promise1 = frame.promise();
-                    if (error != null) {
-
-                        promise1.completeExceptionally(error);
-                    }
-                    else {
-                        ((CompletableFuture) promise1).complete(result);
-                        // ctx.fireChannelRead(new DescribeTopicLabelsResponse(result));
-                        // // required to flush the message back to the client
-                        // ctx.fireChannelReadComplete();
-                    }
-                });
+                cs = topicMetadataSource.topicsMatching(req.topicNames(), req.selectors());
+            } else {
+                throw new IllegalStateException();
             }
+            promise.setSuccess();
+            delegateCompletion(cs, frame.promise());
         }
         else {
             ctx.writeAndFlush(msg);
         }
 
+    }
+
+    private static <T> void delegateCompletion(CompletionStage<T> mapCompletionStage,
+                                                             CompletableFuture<T> future) {
+        mapCompletionStage.whenComplete((result, error) -> {
+            if (error != null) {
+                future.completeExceptionally(error);
+            }
+            else {
+                future.complete(result);
+            }
+        });
     }
 }

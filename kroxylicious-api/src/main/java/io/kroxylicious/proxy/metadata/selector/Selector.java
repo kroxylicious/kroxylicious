@@ -63,6 +63,7 @@ public final class Selector implements Predicate<Map<String, String>> {
      * The guarantees provided by this function mean that two selectors that are {@linkplain #equals(Object) equal} will match exactly
      * the same set of labels, and that {@link #toString()} will return a canonical result.
      */
+    @SuppressWarnings("java:S125") // sonar gets confused by comments which aren't code but use { }
     private static Selector canonicalize(List<MatchExpression> matchExpressions) {
         var canonical = new ArrayList<MatchExpression>();
         // Group by same key, in key order
@@ -79,53 +80,68 @@ public final class Selector implements Predicate<Map<String, String>> {
             MatchExpression notInExpr = simplifyMultipleNotIn(exprByOperator, key);
 
             // Step 2. Simplify different operations
-            if (existsExpr != null) {
-                if (notExistsExpr != null) {
-                    // EXIST, NOTEXISTS "foo, !foo" == NONE
-                    return NONE;
-                }
-                if (inExpr != null) {
-                    // EXISTS, IN "foo, foo in X" == "foo in X', so can drop the exists
-                    existsExpr = null;
-                }
-                // if (notInExpr != null) {
-                // // EXISTS, NOTIN "foo, foo notin X" == Can't be simplified, because "foo notin X" selects things without foo
-                // }
+            var localCanonical = simplifyExprs(existsExpr, notExistsExpr, inExpr, notInExpr, key);
+            if (localCanonical == null) {
+                // NOTE "()" means the set containing the empty value, {""}, not the empty set {}
+                // foo in {} == NONE
+                // foo notin {} == ALL
+                return NONE;
             }
-            if (notExistsExpr != null) {
-                if (inExpr != null) {
-                    // NOTEXISTS, IN "!foo, foo in X" == NONE
-                    return NONE;
-                }
-                if (notInExpr != null) {
-                    // NOTEXISTS, NOTIN "!foo, foo notin X" == !foo
-                    notInExpr = null;
-                }
-            }
-            if (inExpr != null && notInExpr != null) {
-                // IN, NOTIN "foo in X, foo notin Y" == "foo in X-Y"
-                inExpr = new MatchExpression(key, MatchOperator.IN, difference(inExpr.values(), notInExpr.values()));
-                notInExpr = null;
-            }
-
-            if (existsExpr != null) {
-                canonical.add(existsExpr);
-            }
-            if (notExistsExpr != null) {
-                canonical.add(notExistsExpr);
-            }
-            if (inExpr != null) {
-                canonical.add(inExpr);
-            }
-            if (notInExpr != null) {
-                canonical.add(notInExpr);
-            }
-            // NOTE "()" means the set containing the empty value, {""}, not the empty set {}
-            // foo in {} == NONE
-            // foo notin {} == ALL
+            canonical.addAll(localCanonical);
 
         }
         return new Selector(List.copyOf(canonical));
+    }
+
+    @SuppressWarnings("java:S125") // sonar gets confused by comments which aren't code but use { }
+    private static @Nullable ArrayList<MatchExpression> simplifyExprs(MatchExpression existsExpr,
+                                                                      MatchExpression notExistsExpr,
+                                                                      MatchExpression inExpr,
+                                                                      MatchExpression notInExpr,
+                                                                      String key) {
+        if (existsExpr != null) {
+            if (notExistsExpr != null) {
+                // EXIST, NOTEXISTS "foo, !foo" == NONE
+                return null;
+            }
+            if (inExpr != null) {
+                // EXISTS, IN "foo, foo in X" == "foo in X', so can drop the exists
+                existsExpr = null;
+            }
+            // if (notInExpr != null) {
+            // // EXISTS, NOTIN "foo, foo notin X" == Can't be simplified, because "foo notin X" selects things without foo
+            // }
+        }
+        if (notExistsExpr != null) {
+            if (inExpr != null) {
+                // NOTEXISTS, IN "!foo, foo in X" == NONE
+                return null;
+            }
+            if (notInExpr != null) {
+                // NOTEXISTS, NOTIN "!foo, foo notin X" == !foo
+                notInExpr = null;
+            }
+        }
+        if (inExpr != null && notInExpr != null) {
+            // IN, NOTIN "foo in X, foo notin Y" == "foo in X-Y"
+            inExpr = new MatchExpression(key, MatchOperator.IN, difference(inExpr.nonNullValues(), notInExpr.nonNullValues()));
+            notInExpr = null;
+        }
+
+        var localCanonical = new ArrayList<MatchExpression>();
+        if (existsExpr != null) {
+            localCanonical.add(existsExpr);
+        }
+        if (notExistsExpr != null) {
+            localCanonical.add(notExistsExpr);
+        }
+        if (inExpr != null) {
+            localCanonical.add(inExpr);
+        }
+        if (notInExpr != null) {
+            localCanonical.add(notInExpr);
+        }
+        return localCanonical;
     }
 
     public boolean matchesNothing() {
@@ -144,7 +160,7 @@ public final class Selector implements Predicate<Map<String, String>> {
         MatchExpression notInExpr;
         if (!notInList.isEmpty()) {
             // "foo notin X, foo notin Y" == "foo in union(X, Y)"
-            var union = notInList.stream().map(MatchExpression::values).reduce(Selector::union).orElse(Set.of());
+            var union = notInList.stream().map(MatchExpression::nonNullValues).reduce(Selector::union).orElse(Set.of());
             notInExpr = new MatchExpression(key, MatchOperator.NOT_IN, union);
         }
         else {
@@ -161,7 +177,7 @@ public final class Selector implements Predicate<Map<String, String>> {
         MatchExpression inExpr;
         if (inList.size() > 1) {
             // "foo in X, foo in Y" == "foo in intersection(X, Y)"
-            var intersection = inList.stream().map(MatchExpression::values).reduce(Selector::intersection).orElse(Set.of());
+            var intersection = inList.stream().map(MatchExpression::nonNullValues).reduce(Selector::intersection).orElse(Set.of());
             inExpr = new MatchExpression(key, MatchOperator.IN, intersection);
         }
         else if (inList.size() == 1) {
@@ -211,9 +227,9 @@ public final class Selector implements Predicate<Map<String, String>> {
         return result;
     }
 
-    private static <T> HashSet<T> difference(
-                                             Set<T> s1,
-                                             Set<T> s2) {
+    private static <T> @NonNull Set<T> difference(
+                                                  @NonNull Set<T> s1,
+                                                  @NonNull Set<T> s2) {
         var result = new HashSet<T>((int) Math.ceil(s1.size() / 0.75));
         result.addAll(s1);
         result.removeAll(s2);
@@ -289,8 +305,6 @@ public final class Selector implements Predicate<Map<String, String>> {
         return true;
     }
 
-    // TODO also subselector(): boolean, which returns true if this selects a subset of the labels selected by the other
-
     /**
      * @param other Another selector.
      * @return Return a selector that selects the labels selected by both this selector and the given {@code other} selector.
@@ -354,7 +368,6 @@ public final class Selector implements Predicate<Map<String, String>> {
 
     @Override
     public boolean equals(Object obj) {
-        String s$ = "";
         if (obj == this) {
             return true;
         }

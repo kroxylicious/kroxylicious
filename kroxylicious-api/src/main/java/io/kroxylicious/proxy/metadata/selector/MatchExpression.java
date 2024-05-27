@@ -32,6 +32,11 @@ public record MatchExpression(
                               @JsonProperty("values") @Nullable Set<String> values)
         implements Predicate<Map<String, String>> {
 
+    @NonNull
+    Set<String> nonNullValues() {
+        return Objects.requireNonNull(values());
+    }
+
     /**
      * Factory method for Exists expressions
      * @param key The key
