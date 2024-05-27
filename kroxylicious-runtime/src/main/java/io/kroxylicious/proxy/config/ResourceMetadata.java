@@ -11,4 +11,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public record ResourceMetadata(
                                @Nullable ConfigResourceMetadataSource configSource) {
     /* eventually we'll impose a oneOf constraint on multiple different sources of metadata */
+
+    @Override
+    @Nullable
+    public ConfigResourceMetadataSource configSource() {
+        return configSource;
+    }
 }

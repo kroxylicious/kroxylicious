@@ -376,7 +376,7 @@ class ConfigParserTest {
 
     @Test
     void shouldThrowWhenSerializingUnserializableObject() {
-        var config = new Configuration(null, null, List.of(new FilterDefinition("", new Object())), null, false);
+        var config = new Configuration(null, null, null, List.of(new FilterDefinition("", new Object())), null, false);
 
         ConfigParser cp = new ConfigParser();
         assertThrows(IllegalArgumentException.class, () -> cp.toYaml(config));

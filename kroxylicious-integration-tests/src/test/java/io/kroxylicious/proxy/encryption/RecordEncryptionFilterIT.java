@@ -31,9 +31,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
+import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeInvocationContextProvider;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -65,10 +67,24 @@ class RecordEncryptionFilterIT {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
-        var builder = proxy(cluster);
+        var builder = proxy(cluster).withNewResourceMetadata().endResourceMetadata();
 
         builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        roundTripSingleRecord(topic, builder);
+    }
 
+    @TestTemplate
+    void roundTripSingleRecord2(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster).withNewResourceMetadata().withNewConfigSource().withTopicLabellings().endConfigSource().endResourceMetadata();
+
+        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        roundTripSingleRecord(topic, builder);
+    }
+
+    void roundTripSingleRecord(Topic topic, ConfigurationBuilder builder) throws Exception {
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer();
                 var consumer = tester.consumer()) {
@@ -482,11 +498,17 @@ class RecordEncryptionFilterIT {
     }
 
     private FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
+        return buildEncryptionFilterDefinition(testKmsFacade, TemplateKekSelector.class, Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN));
+    }
+
+    private FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade,
+                                                             Class<? extends KekSelectorService> kekSelector,
+                                                             Map<String, String> kekSelectorConfig) {
         return new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
                 .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
                 .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
-                .withConfig("selector", TemplateKekSelector.class.getSimpleName())
-                .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
+                .withConfig("selector", kekSelector.getSimpleName())
+                .withConfig("selectorConfig", kekSelectorConfig)
                 .build();
     }
 

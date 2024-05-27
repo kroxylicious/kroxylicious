@@ -21,13 +21,28 @@ public record Configuration(@Nullable AdminHttpConfiguration adminHttp,
                             List<FilterDefinition> filters,
                             List<MicrometerDefinition> micrometer,
                             boolean useIoUring) {
-    public Configuration(@Nullable AdminHttpConfiguration adminHttp, Map<String, VirtualCluster> virtualClusters, List<FilterDefinition> filters,
+    // public Configuration(@Nullable AdminHttpConfiguration adminHttp, Map<String, VirtualCluster> virtualClusters, List<FilterDefinition> filters,
+    // List<MicrometerDefinition> micrometer, boolean useIoUring) {
+    // this(adminHttp, virtualClusters, null, filters, micrometer, useIoUring);
+    // }
+
+    public Configuration(@Nullable AdminHttpConfiguration adminHttp, Map<String, VirtualCluster> virtualClusters,
+                         @Nullable @JsonInclude(JsonInclude.Include.NON_NULL) ResourceMetadata resourceMetadata, List<FilterDefinition> filters,
                          List<MicrometerDefinition> micrometer, boolean useIoUring) {
-        this(adminHttp, virtualClusters, null, filters, micrometer, useIoUring);
+        this.adminHttp = adminHttp;
+        this.virtualClusters = virtualClusters;
+        this.resourceMetadata = resourceMetadata;
+        this.filters = filters;
+        this.micrometer = micrometer;
+        this.useIoUring = useIoUring;
     }
 
     public @Nullable AdminHttpConfiguration adminHttpConfig() {
         return adminHttp();
+    }
+
+    public ResourceMetadata getResourceMetadata() {
+        return resourceMetadata();
     }
 
     public List<MicrometerDefinition> getMicrometer() {

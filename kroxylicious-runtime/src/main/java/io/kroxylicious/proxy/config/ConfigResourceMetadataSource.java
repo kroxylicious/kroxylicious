@@ -8,9 +8,10 @@ package io.kroxylicious.proxy.config;
 
 import java.util.List;
 
-import io.kroxylicious.proxy.internal.metadata.config.TopicLabelling;
-
 public record ConfigResourceMetadataSource(
                                            List<TopicLabelling> topicLabellings) {
-
+    @Override
+    public List<TopicLabelling> topicLabellings() {
+        return topicLabellings;
+    }
 }

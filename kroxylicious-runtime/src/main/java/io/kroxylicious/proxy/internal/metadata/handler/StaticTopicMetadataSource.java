@@ -16,7 +16,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import io.kroxylicious.proxy.internal.metadata.config.TopicLabelling;
+import io.kroxylicious.proxy.config.TopicLabelling;
 import io.kroxylicious.proxy.metadata.selector.Selector;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
