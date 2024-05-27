@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.filter.oauthbearer;
 
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -168,7 +169,11 @@ public class OauthBearerValidationFilter
 
     private byte[] doAuthenticate(byte[] authBytes) throws SaslException {
         try {
-            return this.saslServer.evaluateResponse(authBytes);
+            byte[] bytes = this.saslServer.evaluateResponse(authBytes);
+            if (!this.saslServer.isComplete()) {
+                throw new SaslAuthenticationException("SASL failed : " + new String(bytes, StandardCharsets.UTF_8));
+            }
+            return bytes;
         }
         finally {
             this.saslServer.dispose();

@@ -71,8 +71,8 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
                         : SaslConfigs.DEFAULT_SASL_OAUTHBEARER_SCOPE_CLAIM_NAME,
                 config.subClaimName() != null && !config.subClaimName().trim().isEmpty() ? config.subClaimName() : SaslConfigs.DEFAULT_SASL_OAUTHBEARER_SUB_CLAIM_NAME,
                 config.authenticateBackOffMaxMs() != null && config.authenticateBackOffMaxMs() >= 0L ? config.authenticateBackOffMaxMs() : 60000L,
-                config.authenticateCacheMaxSize() != null && config.authenticateCacheMaxSize() > 0L ? config.authenticateCacheMaxSize()
-                        : 1000L);
+                config.authenticateCacheMaxSize() != null && config.authenticateCacheMaxSize() > 0L ? config.authenticateCacheMaxSize() : 1000L,
+                config.expectedAudience() != null && !config.expectedAudience().isEmpty() ? config.expectedAudience() : null);
         oauthHandler.configure(
                 createSaslConfigMap(configWithDefaults),
                 OAUTHBEARER_MECHANISM,
@@ -105,7 +105,8 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
                          @JsonProperty String scopeClaimName,
                          @JsonProperty String subClaimName,
                          @JsonProperty Long authenticateBackOffMaxMs,
-                         @JsonProperty Long authenticateCacheMaxSize) {}
+                         @JsonProperty Long authenticateCacheMaxSize,
+                         @JsonProperty List<String> expectedAudience) {}
 
     private Map<String, ?> createSaslConfigMap(Config config) {
         return Map.of(
@@ -114,7 +115,8 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
                 SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS, config.jwksEndpointRetryBackoffMs(),
                 SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS, config.jwksEndpointRetryBackoffMaxMs(),
                 SaslConfigs.SASL_OAUTHBEARER_SCOPE_CLAIM_NAME, config.scopeClaimName(),
-                SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME, config.subClaimName());
+                SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME, config.subClaimName(),
+                SaslConfigs.SASL_OAUTHBEARER_EXPECTED_AUDIENCE, config.expectedAudience());
     }
 
     private List<AppConfigurationEntry> createDefaultJaasConfig() {
