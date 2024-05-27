@@ -12,6 +12,15 @@ Format `<github issue/pr number>: <short description>`.
 * [#1158](https://github.com/kroxylicious/kroxylicious/pull/1158): Bump io.netty:netty-bom from 4.1.108.Final to 4.1.109.Final
 * [#1162](https://github.com/kroxylicious/kroxylicious/issues/1162): Fix #1162: allow tenant / resource name prefix separator to be controlled from configuration
 * [#1120](https://github.com/kroxylicious/kroxylicious/pull/1120): Generate API compatability report as part of the release process.
+* [#1220](https://github.com/kroxylicious/kroxylicious/pull/1220): Range-aware Port Per Node with integer configuration
+
+
+### Changes, deprecations and removals
+
+* RangeAwarePortPerNodeClusterNetworkAddressConfigProvider is a new ClusterNetworkAddressConfigProvider that is capable of modelling
+more target topologies using a compact set of ports. Users can declare multiple ranges of node ids that exist in the target cluster
+and the proxy will map those ranges on to a minimal set of proxy ports. See the [Virtual Cluster configuration docs](https://kroxylicious.io/kroxylicious/#_rangeawareportpernode_scheme)
+for more information.
  
 ## 0.5.1
 
