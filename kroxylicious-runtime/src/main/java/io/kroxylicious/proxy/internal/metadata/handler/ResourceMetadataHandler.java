@@ -37,7 +37,7 @@ public class ResourceMetadataHandler extends ChannelOutboundHandlerAdapter {
     }
 
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof ResourceMetadataFrame<?, ?> frame) {
             CompletionStage cs;
@@ -46,7 +46,8 @@ public class ResourceMetadataHandler extends ChannelOutboundHandlerAdapter {
             }
             else if (frame.request() instanceof ListTopicsRequest req) {
                 cs = topicMetadataSource.topicsMatching(req.topicNames(), req.selectors());
-            } else {
+            }
+            else {
                 throw new IllegalStateException();
             }
             promise.setSuccess();
@@ -59,7 +60,7 @@ public class ResourceMetadataHandler extends ChannelOutboundHandlerAdapter {
     }
 
     private static <T> void delegateCompletion(CompletionStage<T> mapCompletionStage,
-                                                             CompletableFuture<T> future) {
+                                               CompletableFuture<T> future) {
         mapCompletionStage.whenComplete((result, error) -> {
             if (error != null) {
                 future.completeExceptionally(error);
