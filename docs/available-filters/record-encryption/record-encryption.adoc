@@ -126,6 +126,7 @@ These steps are described in the next sections.
 In order to set up the KMS provider ready to use with the filter, follow these KMS provider specific steps.
 
 include::hashicorp-vault/setup.adoc[leveloffset=3]
+include::aws-kms/setup.adoc[leveloffset=3]
 
 === Filter Configuration
 
@@ -154,6 +155,7 @@ filters:
 In order to configure the KMS Service, follow these KMS provider specific steps.
 
 include::hashicorp-vault/service.adoc[leveloffset=3]
+include::aws-kms/service.adoc[leveloffset=3]
 
 ==== KEK selector configuration
 
@@ -193,6 +195,7 @@ For example, if using the `TemplateKekSelector` with the template `KEK_$\{topicN
 is to be encrypted with the key name matching the topic name, prefixed by the string `KEK_`.
 
 include::hashicorp-vault/creating_keys.adoc[leveloffset=3]
+include::aws-kms/creating_keys.adoc[leveloffset=3]
 
 === Verifying that encryption is occurring
 
