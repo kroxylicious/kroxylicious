@@ -64,7 +64,7 @@
         <strimzi.version>0.41.0</strimzi.version>
         <kubernetes-client.version>6.12.1</kubernetes-client.version>
         <enforcer.api.version>3.4.1</enforcer.api.version>
-        <maven.core.version>3.9.6</maven.core.version>
+        <maven.core.version>3.9.7</maven.core.version>
         <awaitility.version>4.2.1</awaitility.version>
         <commons.io.version>2.16.1</commons.io.version>
         <testcontainers.version>1.19.8</testcontainers.version>
