@@ -10,6 +10,10 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.kafka.common.record.DefaultRecord;
 import org.apache.kafka.common.record.Record;
@@ -40,7 +44,7 @@ class JsonSyntaxBytebufValidatorTest {
     @BeforeEach
     public void init() {
         MockitoAnnotations.openMocks(this);
-        Mockito.when(mockValidator.validate(any(), anyInt(), any(), anyBoolean())).thenReturn(Result.VALID);
+        Mockito.when(mockValidator.validate(any(), anyInt(), any(), anyBoolean())).thenReturn(CompletableFuture.completedFuture(Result.VALID));
     }
 
     @Test
@@ -189,10 +193,10 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     @Test
-    void testKeyValidated() {
+    void testKeyValidated() throws ExecutionException, InterruptedException, TimeoutException {
         Record record = createRecord("\"abc\"", "123");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
-        Result result = validator.validate(record.key(), record.keySize(), record, true);
+        Result result = validator.validate(record.key(), record.keySize(), record, true).toCompletableFuture().get(5, TimeUnit.SECONDS);
         assertTrue(result.valid());
     }
 
@@ -217,7 +221,12 @@ class JsonSyntaxBytebufValidatorTest {
     }
 
     private static Result validate(Record record, BytebufValidator validator) {
-        return validator.validate(record.value(), record.valueSize(), record, false);
+        try {
+            return validator.validate(record.value(), record.valueSize(), record, false).toCompletableFuture().get(5, TimeUnit.SECONDS);
+        }
+        catch (ExecutionException | InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private Record createRecord(String key, String value) {

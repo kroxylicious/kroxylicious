@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteBufferInputStream;
@@ -35,7 +37,7 @@ class JsonSyntaxBytebufValidator implements BytebufValidator {
     }
 
     @Override
-    public Result validate(ByteBuffer buffer, int size, Record record, boolean isKey) {
+    public CompletionStage<Result> validate(ByteBuffer buffer, int size, Record record, boolean isKey) {
         if (buffer == null) {
             throw new IllegalArgumentException("buffer is null");
         }
@@ -54,7 +56,7 @@ class JsonSyntaxBytebufValidator implements BytebufValidator {
         }
         catch (Exception e) {
             String message = "value was not syntactically correct JSON" + (e.getMessage() != null ? ": " + e.getMessage() : "");
-            return new Result(false, message);
+            return CompletableFuture.completedFuture(new Result(false, message));
         }
     }
 }

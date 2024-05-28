@@ -9,6 +9,8 @@ package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.record.Record;
 
@@ -27,8 +29,9 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
     }
 
     @Override
-    public Result validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
+    public CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
         JsonValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer);
-        return jsonValidationResult.success() ? Result.VALID : new Result(false, jsonValidationResult.toString());
+        return jsonValidationResult.success() ? CompletableFuture.completedFuture(Result.VALID)
+                : CompletableFuture.completedFuture(new Result(false, jsonValidationResult.toString()));
     }
 }

@@ -11,6 +11,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.kafka.common.record.DefaultRecord;
 import org.apache.kafka.common.record.Record;
@@ -119,7 +122,12 @@ public class JsonSchemaBytebufValidatorTest {
     }
 
     private static Result validate(Record record, BytebufValidator validator) {
-        return validator.validate(record.value(), record.valueSize(), record, false);
+        try {
+            return validator.validate(record.value(), record.valueSize(), record, false).toCompletableFuture().get(5, TimeUnit.SECONDS);
+        }
+        catch (ExecutionException | InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private Record createRecord(String key, String value) {

@@ -7,6 +7,8 @@
 package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.record.Record;
 
@@ -28,17 +30,17 @@ class NullEmptyBytebufValidator implements BytebufValidator {
     }
 
     @Override
-    public Result validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
+    public CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
         if (buffer == null) {
-            return result(nullValid, "Null buffer invalid");
+            return (result(nullValid, "Null buffer invalid"));
         }
         else if (length == 0) {
-            return result(emptyValid, "Empty buffer invalid");
+            return (result(emptyValid, "Empty buffer invalid"));
         }
         return delegate.validate(buffer, length, record, isKey);
     }
 
-    private Result result(boolean allowed, String message) {
-        return allowed ? Result.VALID : new Result(false, message);
+    private CompletionStage<Result> result(boolean allowed, String message) {
+        return allowed ? CompletableFuture.completedFuture(Result.VALID) : CompletableFuture.completedFuture(new Result(false, message));
     }
 }
