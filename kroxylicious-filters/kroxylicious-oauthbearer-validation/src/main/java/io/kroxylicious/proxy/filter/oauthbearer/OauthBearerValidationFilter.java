@@ -22,6 +22,7 @@ import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
 
+import org.apache.kafka.common.errors.IllegalSaslStateException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -44,6 +45,7 @@ import io.kroxylicious.proxy.filter.SaslHandshakeRequestFilter;
 import io.kroxylicious.proxy.filter.oauthbearer.sasl.BackoffStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import static org.apache.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
 import static org.apache.kafka.common.protocol.Errors.NONE;
 import static org.apache.kafka.common.protocol.Errors.SASL_AUTHENTICATION_FAILED;
 import static org.apache.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR;
@@ -66,8 +68,7 @@ public class OauthBearerValidationFilter
     private final LoadingCache<String, AtomicInteger> rateLimiter;
     private final OAuthBearerValidatorCallbackHandler oauthHandler;
     private SaslServer saslServer;
-
-    private boolean validateAuthentication = false;
+    private boolean validateAuthentication = true;
 
     public OauthBearerValidationFilter(ScheduledExecutorService executorService, SharedOauthBearerValidationContext sharedContext) {
         this.executorService = executorService;
@@ -85,7 +86,9 @@ public class OauthBearerValidationFilter
         try {
             if (OAUTHBEARER_MECHANISM.equals(request.mechanism())) {
                 this.saslServer = Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, this.oauthHandler);
-                this.validateAuthentication = true;
+            }
+            else {
+                this.validateAuthentication = false;
             }
         }
         catch (SaslException e) {
@@ -117,6 +120,14 @@ public class OauthBearerValidationFilter
                             LOGGER.debug("SASL Authentication failed : {}", e.getMessage(), e);
                             return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
                         }
+                        else if (e.getCause() instanceof IllegalSaslStateException) {
+                            SaslAuthenticateResponseData failedResponse = new SaslAuthenticateResponseData()
+                                    .setErrorCode(ILLEGAL_SASL_STATE.code())
+                                    .setErrorMessage(e.getMessage())
+                                    .setAuthBytes(request.authBytes());
+                            LOGGER.debug("SASL invalid state : {}", e.getMessage(), e);
+                            return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
+                        }
                         else {
                             LOGGER.debug("SASL error : {}", e.getMessage(), e);
                             return context.requestFilterResultBuilder()
@@ -141,14 +152,14 @@ public class OauthBearerValidationFilter
     }
 
     private CompletionStage<byte[]> authenticate(byte[] authBytes) {
-        String digest;
+        String rateLimiterKey;
         try {
-            digest = digestBytes(authBytes);
+            rateLimiterKey = createCacheKey(authBytes);
         }
         catch (NoSuchAlgorithmException e) {
             return CompletableFuture.failedStage(e);
         }
-        Duration delay = strategy.getDelay(rateLimiter.get(digest).get());
+        Duration delay = strategy.getDelay(rateLimiter.get(rateLimiterKey).get());
         return schedule(() -> {
             try {
                 return CompletableFuture.completedStage(doAuthenticate(authBytes));
@@ -159,18 +170,22 @@ public class OauthBearerValidationFilter
         }, delay)
                 .whenComplete((bytes, e) -> {
                     if (e != null) {
-                        rateLimiter.get(digest).incrementAndGet();
+                        rateLimiter.get(rateLimiterKey).incrementAndGet();
                     }
                     else {
-                        rateLimiter.invalidate(digest);
+                        rateLimiter.invalidate(rateLimiterKey);
                     }
                 });
     }
 
     private byte[] doAuthenticate(byte[] authBytes) throws SaslException {
+        if (saslServer == null) {
+            throw new IllegalSaslStateException("Unexpected SASL request");
+        }
         try {
             byte[] bytes = this.saslServer.evaluateResponse(authBytes);
             if (!this.saslServer.isComplete()) {
+                // at this step bytes would be a jsonResponseError from SASL server
                 throw new SaslAuthenticationException("SASL failed : " + new String(bytes, StandardCharsets.UTF_8));
             }
             return bytes;
@@ -200,7 +215,7 @@ public class OauthBearerValidationFilter
     }
 
     @VisibleForTesting
-    public static String digestBytes(byte[] input) throws NoSuchAlgorithmException {
+    static String createCacheKey(byte[] input) throws NoSuchAlgorithmException {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
         byte[] hashBytes = digest.digest(input);

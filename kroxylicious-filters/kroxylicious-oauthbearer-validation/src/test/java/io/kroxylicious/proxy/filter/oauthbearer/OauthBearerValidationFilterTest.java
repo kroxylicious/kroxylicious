@@ -37,6 +37,7 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 import io.kroxylicious.proxy.filter.oauthbearer.sasl.BackoffStrategy;
 
+import static org.apache.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
 import static org.apache.kafka.common.protocol.Errors.SASL_AUTHENTICATION_FAILED;
 import static org.apache.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR;
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
@@ -115,7 +116,7 @@ class OauthBearerValidationFilterTest {
         byte[] givenBytes = "just_to_compare".getBytes();
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
-        String digest = OauthBearerValidationFilter.digestBytes(givenBytes);
+        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
         when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
         when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
         when(saslServer.isComplete()).thenReturn(true);
@@ -173,7 +174,7 @@ class OauthBearerValidationFilterTest {
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         when(saslServer.evaluateResponse(givenBytes)).thenThrow(new SaslAuthenticationException("Authentication failed"));
         mockBuilder();
-        String digest = OauthBearerValidationFilter.digestBytes(givenBytes);
+        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
         when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
         when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
 
@@ -200,7 +201,7 @@ class OauthBearerValidationFilterTest {
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         mockBuilder();
-        String digest = OauthBearerValidationFilter.digestBytes(givenBytes);
+        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
         when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
         when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
         when(saslServer.evaluateResponse(givenBytes)).thenReturn("invalid_token".getBytes());
@@ -222,6 +223,27 @@ class OauthBearerValidationFilterTest {
     }
 
     @Test
+    void willShortCircuitAuthenticateIfNoHandshakeBefore() throws Exception {
+        // given
+        byte[] givenBytes = "just_to_compare".getBytes();
+        SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
+        mockBuilder();
+        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
+        when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
+        when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
+
+        // when
+        filter.onSaslAuthenticateRequest(
+                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+
+        // then
+        verify(builder).shortCircuitResponse(assertArg(actualResponse -> {
+            assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
+            assertThat(((SaslAuthenticateResponseData) actualResponse).errorCode()).isEqualTo(ILLEGAL_SASL_STATE.code());
+        }));
+    }
+
+    @Test
     void mustDelayWhenSecondFailedAuthentication() throws Exception {
         // given
         byte[] givenBytes = "just_to_compare".getBytes();
@@ -230,7 +252,7 @@ class OauthBearerValidationFilterTest {
         when(saslServer.evaluateResponse(givenBytes)).thenThrow(new SaslAuthenticationException("Authentication failed"));
         mockBuilder();
         AtomicInteger attempts = new AtomicInteger(0);
-        String digest = OauthBearerValidationFilter.digestBytes(givenBytes);
+        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
         when(rateLimiter.get(digest)).thenReturn(attempts);
         when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
         when(strategy.getDelay(1)).thenReturn(Duration.ofMillis(1));
@@ -266,7 +288,7 @@ class OauthBearerValidationFilterTest {
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         mockBuilder();
-        String digest = OauthBearerValidationFilter.digestBytes(givenBytes);
+        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
         when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
         when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
 
