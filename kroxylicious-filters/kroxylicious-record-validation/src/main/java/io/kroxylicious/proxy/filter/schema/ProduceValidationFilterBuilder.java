@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter.schema;
 
+import java.util.Collections;
+
 import io.kroxylicious.proxy.filter.schema.config.BytebufValidation;
 import io.kroxylicious.proxy.filter.schema.config.RecordValidationRule;
 import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
@@ -16,8 +18,6 @@ import io.kroxylicious.proxy.filter.schema.validation.request.ProduceRequestVali
 import io.kroxylicious.proxy.filter.schema.validation.request.RoutingProduceRequestValidator;
 import io.kroxylicious.proxy.filter.schema.validation.topic.TopicValidator;
 import io.kroxylicious.proxy.filter.schema.validation.topic.TopicValidators;
-
-import java.util.Collections;
 
 /**
  * Builds from configuration objects to a ProduceRequestValidator

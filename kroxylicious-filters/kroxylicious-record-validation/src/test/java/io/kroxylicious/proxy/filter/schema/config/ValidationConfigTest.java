@@ -38,7 +38,8 @@ class ValidationConfigTest {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
                 new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, true, false));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, true, false), null);
-        ValidationConfig expected = new ValidationConfig(false, List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, true, false)));
+        ValidationConfig expected = new ValidationConfig(false, List.of(ruleOne, ruleTwo),
+                new RecordValidationRule(null, new BytebufValidation(null, null, true, false)));
         assertEquals(expected, deserialised);
     }
 
@@ -93,10 +94,10 @@ class ValidationConfigTest {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
                 new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), new SchemaValidationConfig(null), true, false));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, true, false), null);
-        ValidationConfig expected = new ValidationConfig(false, List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, true, false)));
+        ValidationConfig expected = new ValidationConfig(false, List.of(ruleOne, ruleTwo),
+                new RecordValidationRule(null, new BytebufValidation(null, null, true, false)));
         assertEquals(expected, deserialised);
     }
-
 
     @Test
     void testDecodeNonDefaultValuesSchemaValidation() throws JsonProcessingException {
