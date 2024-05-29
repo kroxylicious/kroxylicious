@@ -21,13 +21,7 @@ import io.kroxylicious.proxy.metadata.ResourceMetadataRequest;
 
 /**
  * A channel handler to implement the contract of {@link io.kroxylicious.proxy.filter.FilterContext#sendMetadataRequest(ResourceMetadataRequest)},
- * which can involve converting resource metadata requests to requests to external systems, including but not limited to the Kafka cluster.
- *
- * While a client application never makes a {@link ResourceMetadataRequest} directly,
- * if a filter's observable behaviour differed based on the existence or non-existence of a topic the user wasn't authorized to see then that could be an information disclosure.
- * For example, in order to respond to a {@link ResourceMetadataRequest} for topics we need to determine whether the authorized principal associated
- * with the channel has access to the topics they're trying to query.
- * Consequently, in order to prevent information disclosure by accessing resources that require authorization this handler cannot be shared.
+ * which can involve delegate resource metadata requests to external systems, including but not limited to the Kafka cluster.
  */
 public class ResourceMetadataHandler extends ChannelOutboundHandlerAdapter {
 

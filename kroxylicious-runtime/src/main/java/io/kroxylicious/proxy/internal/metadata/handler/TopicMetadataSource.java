@@ -35,7 +35,7 @@ public interface TopicMetadataSource {
     /**
      * Gets the labels for a topic.
      * @param topicNames The names of the topics
-     * @return an immutable from topic name to labels for that topic (which may be empty), or null if that topic is not known.
+     * @return an immutable map from topic name to labels for that topic (which may be empty).
      */
     @NonNull
     CompletionStage<Map<String, Map<String, String>>> topicLabels(Collection<String> topicNames);
@@ -44,6 +44,7 @@ public interface TopicMetadataSource {
      * Gets the names of all the topics matching the given {@code selector}.
      * @param selectors The selectors that topics need to match.
      * @return an immutable map from the selector to all the topics which match that selector.
+     * The returned map is guaranteed to have a mapping for each of the given {@code selectors}.
      */
     @NonNull
     CompletionStage<Map<Selector, Set<String>>> topicsMatching(Collection<String> topicNames, Collection<Selector> selectors);
