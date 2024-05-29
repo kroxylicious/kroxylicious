@@ -36,9 +36,7 @@ class StaticTopicMetadataSourceTest {
                                 Map.of("foo", "y"),
                                 List.of("xyz"), // xyz is a common topic
                                 List.of(),
-                                List.of()
-                        )
-                ),
+                                List.of())),
                 Arguments.of(
                         new TopicLabelling(
                                 Map.of("foo", "x"),
@@ -49,9 +47,7 @@ class StaticTopicMetadataSourceTest {
                                 Map.of("foo", "y"),
                                 List.of(),
                                 List.of("abc"), // abc is a common topic
-                                List.of()
-                        )
-                ),
+                                List.of())),
                 Arguments.of(
                         new TopicLabelling(
                                 Map.of("foo", "x"),
@@ -62,9 +58,7 @@ class StaticTopicMetadataSourceTest {
                                 Map.of("foo", "y"),
                                 List.of(),
                                 List.of("abc"),
-                                List.of()
-                        )
-                ),
+                                List.of())),
                 Arguments.of(
                         // Sadly although these are actually disjoint, our algorithm isn't able to prove it
                         new TopicLabelling(
@@ -76,10 +70,7 @@ class StaticTopicMetadataSourceTest {
                                 Map.of("foo", "y"),
                                 List.of(),
                                 List.of(),
-                                List.of("xyz")
-                        )
-                )
-        );
+                                List.of("xyz"))));
     }
 
     @ParameterizedTest
@@ -125,9 +116,7 @@ class StaticTopicMetadataSourceTest {
                                         Map.of("foo", "y"),
                                         List.of("pqr"),
                                         List.of(),
-                                        List.of()
-                                )
-                        ),
+                                        List.of())),
                         Arguments.of(
                                 new TopicLabelling(
                                         Map.of("foo", "x"),
@@ -138,9 +127,7 @@ class StaticTopicMetadataSourceTest {
                                         Map.of("foo", "y"),
                                         List.of(),
                                         List.of("abc1"),
-                                        List.of()
-                                )
-                        ),
+                                        List.of())),
                         Arguments.of(
                                 new TopicLabelling(
                                         Map.of("foo", "x"),
@@ -151,12 +138,10 @@ class StaticTopicMetadataSourceTest {
                                         Map.of("foo", "y"),
                                         List.of(),
                                         List.of("abc2"),
-                                        List.of()
-                                )
-                        )
-                ))
+                                        List.of()))))
                 .toList();
     }
+
     @ParameterizedTest
     @MethodSource
     void constructorAcceptsNonoverlappingLabellings(TopicLabelling l1, TopicLabelling l2) {
@@ -176,8 +161,7 @@ class StaticTopicMetadataSourceTest {
                         Map.of("foo", "y"),
                         List.of(),
                         List.of("pqr"),
-                        List.of()
-                )));
+                        List.of())));
         assertThat(topicLabels(stms, "abc")).isEqualTo(Map.of("foo", "x"));
         assertThat(topicLabels(stms, "xyz")).isEqualTo(Map.of("foo", "x"));
         assertThat(topicLabels(stms, "pqr")).isEqualTo(Map.of("foo", "y"));
@@ -204,8 +188,7 @@ class StaticTopicMetadataSourceTest {
                         Map.of("foo", "y"),
                         List.of(),
                         List.of("pqr"),
-                        List.of()
-                )));
+                        List.of())));
         assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo=x"))).isEqualTo(Set.of("abc", "xyz"));
         assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo=y"))).isEqualTo(Set.of("pqr", "pqr1"));
         assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo=z"))).isEqualTo(Set.of());
@@ -224,11 +207,11 @@ class StaticTopicMetadataSourceTest {
                         Map.of("foo", "y"),
                         List.of(),
                         List.of("pqr"),
-                        List.of()
-                )));
+                        List.of())));
         assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo!=x"))).isEqualTo(Set.of("pqr", "pqr1", "unknown"));
         assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo!=y"))).isEqualTo(Set.of("abc", "xyz", "unknown"));
-        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo!=z"))).isEqualTo(Set.of("abc", "xyz", "pqr", "pqr1", "unknown"));
+        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo!=z")))
+                .isEqualTo(Set.of("abc", "xyz", "pqr", "pqr1", "unknown"));
 
     }
 

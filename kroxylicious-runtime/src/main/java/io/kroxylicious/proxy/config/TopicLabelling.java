@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.config;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
@@ -29,7 +28,7 @@ import io.kroxylicious.proxy.metadata.selector.Labels;
  */
 public record TopicLabelling(Map<String, String> labels,
                              Set<String> topicsNamed,
-                             NavigableSet<String> topicsStartingWith,
+                             TreeSet<String> topicsStartingWith,
                              List<Pattern> topicsMatching) {
     public TopicLabelling {
         Objects.requireNonNull(labels);
@@ -98,8 +97,7 @@ public record TopicLabelling(Map<String, String> labels,
 
     private static boolean matchesAnyNameOrPrefix(TopicLabelling labelling1, TopicLabelling labelling2) {
         return Stream.concat(
-                        labelling2.topicsNamed().stream(),
-                        labelling2.topicsStartingWith().stream()
-                ).anyMatch(labelling1::matches);
+                labelling2.topicsNamed().stream(),
+                labelling2.topicsStartingWith().stream()).anyMatch(labelling1::matches);
     }
 }

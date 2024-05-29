@@ -30,7 +30,7 @@ public class StaticTopicMetadataSource implements TopicMetadataSource {
 
     public StaticTopicMetadataSource(@NonNull List<TopicLabelling> labellings) {
         // 1. Find labellings that intersect (e.g. foo=x and foo=y)
-        record SingleLabel(String labelKey, String labelValue, TopicLabelling labelling) { }
+        record SingleLabel(String labelKey, String labelValue, TopicLabelling labelling) {}
 
         var byLabelKey = labellings.stream()
                 .flatMap(labelling -> labelling.labels().entrySet().stream()
