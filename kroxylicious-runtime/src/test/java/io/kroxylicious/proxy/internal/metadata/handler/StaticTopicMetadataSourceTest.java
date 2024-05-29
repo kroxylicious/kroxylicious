@@ -193,7 +193,7 @@ class StaticTopicMetadataSourceTest {
     }
 
     @Test
-    void topicsMatching() {
+    void topicsMatchingEquality() {
         var stms = new StaticTopicMetadataSource(List.of(
                 new TopicLabelling(
                         Map.of("foo", "x"),
@@ -206,9 +206,29 @@ class StaticTopicMetadataSourceTest {
                         List.of("pqr"),
                         List.of()
                 )));
-        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1"), Selector.parse("foo=x"))).isEqualTo(Set.of("abc", "xyz"));
-        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1"), Selector.parse("foo=y"))).isEqualTo(Set.of("pqr", "pqr1"));
-        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1"), Selector.parse("foo=z"))).isEqualTo(Set.of());
+        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo=x"))).isEqualTo(Set.of("abc", "xyz"));
+        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo=y"))).isEqualTo(Set.of("pqr", "pqr1"));
+        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo=z"))).isEqualTo(Set.of());
+
+    }
+
+    @Test
+    void topicsMatchingInequality() {
+        var stms = new StaticTopicMetadataSource(List.of(
+                new TopicLabelling(
+                        Map.of("foo", "x"),
+                        List.of("abc", "xyz"),
+                        List.of(),
+                        List.of()),
+                new TopicLabelling(
+                        Map.of("foo", "y"),
+                        List.of(),
+                        List.of("pqr"),
+                        List.of()
+                )));
+        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo!=x"))).isEqualTo(Set.of("pqr", "pqr1", "unknown"));
+        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo!=y"))).isEqualTo(Set.of("abc", "xyz", "unknown"));
+        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1", "unknown"), Selector.parse("foo!=z"))).isEqualTo(Set.of("abc", "xyz", "pqr", "pqr1", "unknown"));
 
     }
 
