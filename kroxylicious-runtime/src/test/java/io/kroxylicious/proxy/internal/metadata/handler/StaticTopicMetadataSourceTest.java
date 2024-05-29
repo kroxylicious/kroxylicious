@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.metadata.handler;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -16,9 +17,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.TopicLabelling;
+import io.kroxylicious.proxy.metadata.selector.Selector;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.*;
 
 class StaticTopicMetadataSourceTest {
 
@@ -162,5 +164,58 @@ class StaticTopicMetadataSourceTest {
         new StaticTopicMetadataSource(labellings);
     }
 
+    @Test
+    void topicLabels() {
+        var stms = new StaticTopicMetadataSource(List.of(
+                new TopicLabelling(
+                        Map.of("foo", "x"),
+                        List.of("abc", "xyz"),
+                        List.of(),
+                        List.of()),
+                new TopicLabelling(
+                        Map.of("foo", "y"),
+                        List.of(),
+                        List.of("pqr"),
+                        List.of()
+                )));
+        assertThat(topicLabels(stms, "abc")).isEqualTo(Map.of("foo", "x"));
+        assertThat(topicLabels(stms, "xyz")).isEqualTo(Map.of("foo", "x"));
+        assertThat(topicLabels(stms, "pqr")).isEqualTo(Map.of("foo", "y"));
+        assertThat(topicLabels(stms, "pqr1")).isEqualTo(Map.of("foo", "y"));
+        assertThat(topicLabels(stms, "def")).isEqualTo(Map.of());
+    }
 
+    private static Map<String, String> topicLabels(StaticTopicMetadataSource stms, String topicName) {
+        return stms.topicLabels(Set.of(topicName))
+                .toCompletableFuture()
+                .join()
+                .get(topicName);
+    }
+
+    @Test
+    void topicsMatching() {
+        var stms = new StaticTopicMetadataSource(List.of(
+                new TopicLabelling(
+                        Map.of("foo", "x"),
+                        List.of("abc", "xyz"),
+                        List.of(),
+                        List.of()),
+                new TopicLabelling(
+                        Map.of("foo", "y"),
+                        List.of(),
+                        List.of("pqr"),
+                        List.of()
+                )));
+        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1"), Selector.parse("foo=x"))).isEqualTo(Set.of("abc", "xyz"));
+        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1"), Selector.parse("foo=y"))).isEqualTo(Set.of("pqr", "pqr1"));
+        assertThat(topicsMatching(stms, Set.of("abc", "xyz", "pqr", "pqr1"), Selector.parse("foo=z"))).isEqualTo(Set.of());
+
+    }
+
+    private static Set<String> topicsMatching(StaticTopicMetadataSource stms, Set<String> topicNames, Selector selector) {
+        return stms.topicsMatching(topicNames, Set.of(selector))
+                .toCompletableFuture()
+                .join()
+                .get(selector);
+    }
 }

@@ -97,8 +97,9 @@ public class StaticTopicMetadataSource implements TopicMetadataSource {
         for (String topicName : topicNames) {
             Map<String, String> topicLabels = maybeComputeTopicLabels(topicName);
             for (var selector : selectors) {
+                Set<String> matches = result.computeIfAbsent(selector, k -> new HashSet<>());
                 if (selector.test(topicLabels)) {
-                    result.computeIfAbsent(selector, k -> new HashSet<>()).add(topicName);
+                    matches.add(topicName);
                 }
             }
         }
