@@ -37,6 +37,7 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 import io.kroxylicious.proxy.filter.oauthbearer.sasl.BackoffStrategy;
 
+import static io.kroxylicious.test.condition.kafka.SaslAuthenticateResponseDataCondition.saslAuthenticateResponseMatching;
 import static org.apache.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
 import static org.apache.kafka.common.protocol.Errors.SASL_AUTHENTICATION_FAILED;
 import static org.apache.kafka.common.protocol.Errors.UNKNOWN_SERVER_ERROR;
@@ -44,14 +45,14 @@ import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModul
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -229,8 +230,6 @@ class OauthBearerValidationFilterTest {
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         mockBuilder();
         String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
-        when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
-        when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
 
         // when
         filter.onSaslAuthenticateRequest(
@@ -241,6 +240,8 @@ class OauthBearerValidationFilterTest {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
             assertThat(((SaslAuthenticateResponseData) actualResponse).errorCode()).isEqualTo(ILLEGAL_SASL_STATE.code());
         }));
+        verifyNoInteractions(executor, rateLimiter, strategy);
+
     }
 
     @Test
@@ -255,12 +256,6 @@ class OauthBearerValidationFilterTest {
         String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
         when(rateLimiter.get(digest)).thenReturn(attempts);
         when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
-        when(strategy.getDelay(1)).thenReturn(Duration.ofMillis(1));
-        when(executor.schedule(any(Runnable.class), anyLong(), any())).thenAnswer(invocationOnMock -> {
-            Runnable argument = invocationOnMock.getArgument(0);
-            argument.run();
-            return null;
-        });
 
         // when
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
@@ -273,11 +268,12 @@ class OauthBearerValidationFilterTest {
         filter.onSaslAuthenticateRequest(
                 SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
 
-        // then
-        verify(builder, times(2)).shortCircuitResponse(assertArg(actualResponse -> {
-            assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
-            assertThat(((SaslAuthenticateResponseData) actualResponse).errorCode()).isEqualTo(SASL_AUTHENTICATION_FAILED.code());
-        }));
+        var order = inOrder(builder);
+        order.verify(builder)
+                .shortCircuitResponse(argThat((arg) -> saslAuthenticateResponseMatching(data -> data.errorCode() == SASL_AUTHENTICATION_FAILED.code()).matches(arg)));
+        order.verify(builder)
+                .shortCircuitResponse(argThat((arg) -> saslAuthenticateResponseMatching(data -> data.errorCode() == ILLEGAL_SASL_STATE.code()).matches(arg)));
+
     }
 
     @Test
