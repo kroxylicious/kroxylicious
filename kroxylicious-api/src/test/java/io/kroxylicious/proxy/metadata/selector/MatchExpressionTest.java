@@ -170,7 +170,8 @@ class MatchExpressionTest {
         assertThat(fooInXY.disjoint(fooNotInXYZ)).isTrue();
         assertThat(fooInXY.disjoint(fooNotInYZ)).isFalse(); // because x is in both
         assertThat(fooInXY.disjoint(barNotInXY)).isFalse();
-        assertThat(barInXY.disjoint(fooNotInXY)).isFalse();}
+        assertThat(barInXY.disjoint(fooNotInXY)).isFalse();
+    }
 
     @Test
     void notInDisjointnessWithIn() {
