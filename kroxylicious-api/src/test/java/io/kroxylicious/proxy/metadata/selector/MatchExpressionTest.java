@@ -113,22 +113,22 @@ class MatchExpressionTest {
         assertThat(foo.test(Map.of())).isTrue();
     }
 
-    @Test
-    void disjoint() {
-        MatchExpression fooExists = MatchExpression.exists("foo");
-        MatchExpression barExists = MatchExpression.exists("bar");
-        MatchExpression fooNotExists = MatchExpression.notExists("foo");
-        MatchExpression barNotExists = MatchExpression.notExists("bar");
-        MatchExpression fooInXY = MatchExpression.in("foo", Set.of("x", "y"));
-        MatchExpression fooInAB = MatchExpression.in("foo", Set.of("a", "b"));
-        MatchExpression fooInAX = MatchExpression.in("foo", Set.of("a", "x"));
-        MatchExpression barInXY = MatchExpression.in("bar", Set.of("x", "y"));
-        MatchExpression fooNotInXY = MatchExpression.notIn("foo", Set.of("x", "y"));
-        MatchExpression fooNotInXYZ = MatchExpression.notIn("foo", Set.of("x", "y", "z"));
-        MatchExpression fooNotInYZ = MatchExpression.notIn("foo", Set.of("y", "z"));
-        MatchExpression barNotInXY = MatchExpression.notIn("bar", Set.of("x", "y"));
-        MatchExpression barNotInYZ = MatchExpression.notIn("bar", Set.of("y", "z"));
+    MatchExpression fooExists = MatchExpression.exists("foo");
+    MatchExpression barExists = MatchExpression.exists("bar");
+    MatchExpression fooNotExists = MatchExpression.notExists("foo");
+    MatchExpression barNotExists = MatchExpression.notExists("bar");
+    MatchExpression fooInXY = MatchExpression.in("foo", Set.of("x", "y"));
+    MatchExpression fooInAB = MatchExpression.in("foo", Set.of("a", "b"));
+    MatchExpression fooInAX = MatchExpression.in("foo", Set.of("a", "x"));
+    MatchExpression barInXY = MatchExpression.in("bar", Set.of("x", "y"));
+    MatchExpression fooNotInXY = MatchExpression.notIn("foo", Set.of("x", "y"));
+    MatchExpression fooNotInXYZ = MatchExpression.notIn("foo", Set.of("x", "y", "z"));
+    MatchExpression fooNotInYZ = MatchExpression.notIn("foo", Set.of("y", "z"));
+    MatchExpression barNotInXY = MatchExpression.notIn("bar", Set.of("x", "y"));
+    MatchExpression barNotInYZ = MatchExpression.notIn("bar", Set.of("y", "z"));
 
+    @Test
+    void existsDisjointnessWithNotExists() {
         // exists, notexists
         assertThat(fooExists.disjoint(fooNotExists)).isTrue();
         assertThat(barExists.disjoint(barNotExists)).isTrue();
@@ -137,7 +137,10 @@ class MatchExpressionTest {
         assertThat(fooNotExists.disjoint(fooExists)).isTrue();
         assertThat(barNotExists.disjoint(barExists)).isTrue();
         assertThat(barNotExists.disjoint(fooExists)).isFalse();
+    }
 
+    @Test
+    void inDisjointnessWithExists() {
         // in, notexists
         assertThat(fooInXY.disjoint(fooNotExists)).isTrue();
         assertThat(barInXY.disjoint(barNotExists)).isTrue();
@@ -146,7 +149,10 @@ class MatchExpressionTest {
         assertThat(fooNotExists.disjoint(fooInXY)).isTrue();
         assertThat(barNotExists.disjoint(barInXY)).isTrue();
         assertThat(fooNotExists.disjoint(barInXY)).isFalse();
+    }
 
+    @Test
+    void inDisjointnessWithIn() {
         // in, in
         assertThat(fooInXY.disjoint(fooInAB)).isTrue();
         assertThat(fooInXY.disjoint(fooInAX)).isFalse();
@@ -155,13 +161,19 @@ class MatchExpressionTest {
         assertThat(fooInAB.disjoint(fooInXY)).isTrue();
         assertThat(fooInAX.disjoint(fooInXY)).isFalse();
         assertThat(barInXY.disjoint(fooInXY)).isFalse();
+    }
 
+    @Test
+    void inDisjointnessWithNotIn() {
         // in, notin
         assertThat(fooInXY.disjoint(fooNotInXY)).isTrue();
         assertThat(fooInXY.disjoint(fooNotInXYZ)).isTrue();
         assertThat(fooInXY.disjoint(fooNotInYZ)).isFalse(); // because x is in both
         assertThat(fooInXY.disjoint(barNotInXY)).isFalse();
-        assertThat(barInXY.disjoint(fooNotInXY)).isFalse();
+        assertThat(barInXY.disjoint(fooNotInXY)).isFalse();}
+
+    @Test
+    void notInDisjointnessWithIn() {
         // notin, in (the above, flipped)
         assertThat(fooNotInXY.disjoint(fooInXY)).isTrue();
         assertThat(fooNotInXYZ.disjoint(fooInXY)).isTrue();
