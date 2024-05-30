@@ -22,6 +22,11 @@ public final class DescribeTopicLabelsResponse implements ResourceMetadataRespon
         this.topicLabels = topicLabels;
     }
 
+    /**
+     * Get the labels for the given topic name
+     * @param topicName The topic name
+     * @return The labels for the topic
+     */
     public Map<String, String> topicLabels(String topicName) {
         return topicLabels.get(topicName);
     }

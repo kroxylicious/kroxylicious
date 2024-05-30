@@ -27,12 +27,21 @@ public final class ListTopicsResponse implements ResourceMetadataResponse<ListTo
         this.selectedTopicNames = selectedTopicNames;
     }
 
+    /**
+     * Gets the set of topics whose labels match the given selector
+     * @param selector The selector.
+     * @return The matching topics, or null if the given selector was not included in the original query.
+     */
     public Set<String> topicsMatching(Selector selector) {
         return Collections.unmodifiableSet(selectedTopicNames.get(selector));
     }
 
-    public void forEach(BiConsumer<Selector, Set<String>> consumer) {
-        selectedTopicNames.forEach(((selector, strings) -> consumer.accept(selector, Collections.unmodifiableSet(strings))));
+    /**
+     * Iterates over each of this response's selectors and matching topics.
+     * @param action The action to be performed for each selector and its matching topics.
+     */
+    public void forEach(BiConsumer<Selector, Set<String>> action) {
+        selectedTopicNames.forEach(((selector, strings) -> action.accept(selector, Collections.unmodifiableSet(strings))));
     }
 
     @Override
