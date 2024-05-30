@@ -7,7 +7,10 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +40,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.kroxylicious.proxy.config.TopicLabelling;
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
@@ -51,6 +55,10 @@ import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
+import io.kroxylicious.proxy.internal.metadata.handler.StaticTopicMetadataSource;
+import io.kroxylicious.proxy.metadata.DescribeTopicLabelsRequest;
+import io.kroxylicious.proxy.metadata.ListTopicsRequest;
+import io.kroxylicious.proxy.metadata.selector.Selector;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1050,6 +1058,41 @@ class FilterHandlerTest extends FilterHarness {
         // Verify the filtered response arrived at inbound.
         var propagated = channel.readOutbound();
         assertThat(propagated).isEqualTo(requestFrame);
+    }
+
+    @Test
+    void testFindTopicsMatchingSelector() {
+        Selector selector = Selector.parse("foo=x");
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            var q = context.sendMetadataRequest(new ListTopicsRequest(List.of("abc"),
+                    List.of(selector)));
+            return q.thenCompose(resp -> {
+                assertThat(resp.topicsMatching(selector)).isEqualTo(Set.of("abc"));
+                return context.requestFilterResultBuilder().forward(header, request)
+                        .completed();
+            });
+        };
+        buildChannel(new StaticTopicMetadataSource(List.of(new TopicLabelling(Map.of("foo", "x"), List.of("abc"), List.of(), List.of()))), filter);
+        var frame = writeRequest(new ApiVersionsRequestData());
+        var propagated = channel.readOutbound();
+        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
+    }
+
+    @Test
+    void testGetLabelsForTopic() {
+        Selector selector = Selector.parse("foo=x");
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            var q = context.sendMetadataRequest(new DescribeTopicLabelsRequest(List.of("abc")));
+            return q.thenCompose(resp -> {
+                assertThat(resp.topicLabels("abc")).isEqualTo(Map.of("foo", "x"));
+                return context.requestFilterResultBuilder().forward(header, request)
+                        .completed();
+            });
+        };
+        buildChannel(new StaticTopicMetadataSource(List.of(new TopicLabelling(Map.of("foo", "x"), List.of("abc"), List.of(), List.of()))), filter);
+        var frame = writeRequest(new ApiVersionsRequestData());
+        var propagated = channel.readOutbound();
+        assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
     private static RawTaggedField createTag(int arbitraryTag, String data) {

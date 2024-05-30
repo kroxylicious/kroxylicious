@@ -36,6 +36,8 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.internal.metadata.handler.ResourceMetadataHandler;
+import io.kroxylicious.proxy.internal.metadata.handler.TopicMetadataSource;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -74,6 +76,11 @@ public abstract class FilterHarness {
      * @param filters - the filters to associate with the channel.
      */
     protected void buildChannel(Filter... filters) {
+        buildChannel(TopicMetadataSource.EMPTY, filters);
+    }
+
+    protected void buildChannel(TopicMetadataSource topicMetadataSource, Filter... filters) {
+
         assertNull(channel, "Channel already built");
 
         final TargetCluster targetCluster = mock(TargetCluster.class);
@@ -92,6 +99,9 @@ public abstract class FilterHarness {
                 .stream()
                 .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f)), timeoutMs, null, testVirtualCluster, inboundChannel, apiVersionService))
                 .map(ChannelHandler.class::cast);
+
+        filterHandlers = Stream.concat(Stream.of(new ResourceMetadataHandler(topicMetadataSource)), filterHandlers);
+
         var handlers = Stream.concat(channelProcessors, filterHandlers);
 
         channel = new EmbeddedChannel(handlers.toArray(ChannelHandler[]::new));

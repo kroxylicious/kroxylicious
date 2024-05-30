@@ -8,10 +8,11 @@ package io.kroxylicious.proxy.internal.metadata.handler;
 
 import java.util.Collection;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
+import io.kroxylicious.proxy.metadata.DescribeTopicLabelsResponse;
+import io.kroxylicious.proxy.metadata.ListTopicsResponse;
 import io.kroxylicious.proxy.metadata.selector.Selector;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -21,14 +22,14 @@ public interface TopicMetadataSource {
     TopicMetadataSource EMPTY = new TopicMetadataSource() {
         @NonNull
         @Override
-        public CompletionStage<Map<String, Map<String, String>>> topicLabels(Collection<String> topicNames) {
-            return CompletableFuture.completedStage(Map.of());
+        public CompletionStage<DescribeTopicLabelsResponse> topicLabels(Collection<String> topicNames) {
+            return CompletableFuture.completedStage(new DescribeTopicLabelsResponse(Map.of()));
         }
 
         @NonNull
         @Override
-        public CompletionStage<Map<Selector, Set<String>>> topicsMatching(Collection<String> topicNames, Collection<Selector> selectors) {
-            return CompletableFuture.completedStage(Map.of());
+        public CompletionStage<ListTopicsResponse> topicsMatching(Collection<String> topicNames, Collection<Selector> selectors) {
+            return CompletableFuture.completedStage(new ListTopicsResponse(Map.of()));
         }
     };
 
@@ -38,7 +39,7 @@ public interface TopicMetadataSource {
      * @return an immutable map from topic name to labels for that topic (which may be empty).
      */
     @NonNull
-    CompletionStage<Map<String, Map<String, String>>> topicLabels(Collection<String> topicNames);
+    CompletionStage<DescribeTopicLabelsResponse> topicLabels(Collection<String> topicNames);
 
     /**
      * Gets the names of all the topics matching the given {@code selector}.
@@ -47,6 +48,6 @@ public interface TopicMetadataSource {
      * The returned map is guaranteed to have a mapping for each of the given {@code selectors}.
      */
     @NonNull
-    CompletionStage<Map<Selector, Set<String>>> topicsMatching(Collection<String> topicNames, Collection<Selector> selectors);
+    CompletionStage<ListTopicsResponse> topicsMatching(Collection<String> topicNames, Collection<Selector> selectors);
 
 }

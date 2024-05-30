@@ -173,7 +173,7 @@ class StaticTopicMetadataSourceTest {
         return stms.topicLabels(Set.of(topicName))
                 .toCompletableFuture()
                 .join()
-                .get(topicName);
+                .topicLabels(topicName);
     }
 
     @Test
@@ -219,6 +219,6 @@ class StaticTopicMetadataSourceTest {
         return stms.topicsMatching(topicNames, Set.of(selector))
                 .toCompletableFuture()
                 .join()
-                .get(selector);
+                .topicsMatching(selector);
     }
 }

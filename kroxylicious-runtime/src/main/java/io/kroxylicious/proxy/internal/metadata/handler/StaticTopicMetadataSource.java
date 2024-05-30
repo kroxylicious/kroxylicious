@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal.metadata.handler;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -19,6 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.config.TopicLabelling;
+import io.kroxylicious.proxy.metadata.DescribeTopicLabelsResponse;
+import io.kroxylicious.proxy.metadata.ListTopicsResponse;
 import io.kroxylicious.proxy.metadata.selector.Selector;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -68,13 +71,13 @@ public class StaticTopicMetadataSource implements TopicMetadataSource {
 
     @NonNull
     @Override
-    public CompletionStage<Map<String, Map<String, String>>> topicLabels(Collection<String> topicNames) {
+    public CompletionStage<DescribeTopicLabelsResponse> topicLabels(Collection<String> topicNames) {
         Map<String, Map<String, String>> result = new HashMap<>();
         for (String topicName : topicNames) {
             Map<String, String> topicLabels = maybeComputeTopicLabels(topicName);
             result.put(topicName, topicLabels);
         }
-        return CompletableFuture.completedStage(result);
+        return CompletableFuture.completedStage(new DescribeTopicLabelsResponse(Collections.unmodifiableMap(result)));
     }
 
     @NonNull
@@ -92,7 +95,7 @@ public class StaticTopicMetadataSource implements TopicMetadataSource {
 
     @NonNull
     @Override
-    public CompletionStage<Map<Selector, Set<String>>> topicsMatching(Collection<String> topicNames, Collection<Selector> selectors) {
+    public CompletionStage<ListTopicsResponse> topicsMatching(Collection<String> topicNames, Collection<Selector> selectors) {
         Map<Selector, Set<String>> result = new HashMap<>();
         for (String topicName : topicNames) {
             Map<String, String> topicLabels = maybeComputeTopicLabels(topicName);
@@ -103,7 +106,7 @@ public class StaticTopicMetadataSource implements TopicMetadataSource {
                 }
             }
         }
-        return CompletableFuture.completedStage(result);
+        return CompletableFuture.completedStage(new ListTopicsResponse(result));
     }
 
 }

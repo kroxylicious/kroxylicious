@@ -43,9 +43,8 @@ public class LabelSelectionKekSelector<K> extends TopicNameBasedKekSelector<K> {
     @Override
     public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames, FilterContext context) {
         return context.sendMetadataRequest(new ListTopicsRequest(topicNames, selectorToKeyId.keySet())).thenApply(response -> {
-            var selectorToTopicsNames = response.selectedTopicNames();
             var result = new HashMap<String, K>(topicNames.size());
-            selectorToTopicsNames.forEach((selector, topicNames2) -> {
+            response.forEach((selector, topicNames2) -> {
                 K k = selectorToKeyId.get(selector);
                 for (var name : topicNames2) {
                     result.put(name, k);

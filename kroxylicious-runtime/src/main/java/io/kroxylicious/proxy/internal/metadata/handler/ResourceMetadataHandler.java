@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.metadata.handler;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -18,6 +17,9 @@ import io.kroxylicious.proxy.internal.metadata.ResourceMetadataFrame;
 import io.kroxylicious.proxy.metadata.DescribeTopicLabelsRequest;
 import io.kroxylicious.proxy.metadata.ListTopicsRequest;
 import io.kroxylicious.proxy.metadata.ResourceMetadataRequest;
+import io.kroxylicious.proxy.metadata.ResourceMetadataResponse;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A channel handler to implement the contract of {@link io.kroxylicious.proxy.filter.FilterContext#sendMetadataRequest(ResourceMetadataRequest)},
@@ -25,15 +27,24 @@ import io.kroxylicious.proxy.metadata.ResourceMetadataRequest;
  */
 public class ResourceMetadataHandler extends ChannelOutboundHandlerAdapter {
 
-    private final TopicMetadataSource topicMetadataSource;
-
-    public ResourceMetadataHandler(ResourceMetadata metadataSource) {
+    @NonNull
+    private static TopicMetadataSource fromConfig(@NonNull ResourceMetadata metadataSource) {
         TopicMetadataSource topicMetadataSource = TopicMetadataSource.EMPTY;
         if (metadataSource.configSource() != null) {
             if (metadataSource.configSource().topicLabellings() != null) {
                 topicMetadataSource = new StaticTopicMetadataSource(metadataSource.configSource().topicLabellings());
             }
         }
+        return topicMetadataSource;
+    }
+
+    private final TopicMetadataSource topicMetadataSource;
+
+    public ResourceMetadataHandler(@NonNull ResourceMetadata metadataSource) {
+        this(fromConfig(metadataSource));
+    }
+
+    public ResourceMetadataHandler(@NonNull TopicMetadataSource topicMetadataSource) {
         this.topicMetadataSource = topicMetadataSource;
     }
 
@@ -52,22 +63,22 @@ public class ResourceMetadataHandler extends ChannelOutboundHandlerAdapter {
                 throw new IllegalStateException();
             }
             promise.setSuccess();
-            delegateCompletion(cs, frame.promise());
+            delegateCompletion(cs, frame);
         }
         else {
-            ctx.writeAndFlush(msg);
+            ctx.writeAndFlush(msg, promise);
         }
 
     }
 
-    private static <T> void delegateCompletion(CompletionStage<T> mapCompletionStage,
-                                               CompletableFuture<T> future) {
+    private static <Q extends ResourceMetadataRequest<R>, R extends ResourceMetadataResponse<Q>> void delegateCompletion(CompletionStage<R> mapCompletionStage,
+                                                                                                                         ResourceMetadataFrame<Q, R> frame) {
         mapCompletionStage.whenComplete((result, error) -> {
             if (error != null) {
-                future.completeExceptionally(error);
+                frame.promise().completeExceptionally(error);
             }
             else {
-                future.complete(result);
+                frame.promise().complete(result);
             }
         });
     }
