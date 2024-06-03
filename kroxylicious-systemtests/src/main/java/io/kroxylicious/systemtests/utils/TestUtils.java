@@ -70,7 +70,8 @@ public class TestUtils {
             final ObjectMapper mapper = new ObjectMapper();
             mapper.readTree(jsonInString);
             return true;
-        } catch (IOException e) {
+        }
+        catch (IOException e) {
             return false;
         }
     }

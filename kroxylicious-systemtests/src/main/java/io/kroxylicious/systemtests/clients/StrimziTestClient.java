@@ -69,7 +69,7 @@ public class StrimziTestClient implements KafkaClient {
         String stringToSeek = "Received message:";
 
         List<String> receivedMessages = Stream.of(log.split("\n")).filter(l -> l.contains(stringToSeek)).toList();
-        for(String receivedMessage : receivedMessages) {
+        for (String receivedMessage : receivedMessages) {
             records.add(receivedMessage.split(stringToSeek)[1].trim());
         }
 

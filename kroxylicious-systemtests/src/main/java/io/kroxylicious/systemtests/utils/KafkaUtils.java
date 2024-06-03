@@ -82,10 +82,10 @@ public class KafkaUtils {
      * @param logRecords the log records
      * @return the consumer records
      */
-    public static List<ConsumerRecord<String,String>> getConsumerRecords(String topicName, List<String> logRecords) {
-        List<ConsumerRecord<String,String>> records = new ArrayList<>();
+    public static List<ConsumerRecord<String, String>> getConsumerRecords(String topicName, List<String> logRecords) {
+        List<ConsumerRecord<String, String>> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            if(!TestUtils.isJSONValid(logRecord)) {
+            if (!TestUtils.isJSONValid(logRecord)) {
                 continue;
             }
             int partition = Integer.parseInt(TestUtils.getValueFromJson(logRecord, "partition"));

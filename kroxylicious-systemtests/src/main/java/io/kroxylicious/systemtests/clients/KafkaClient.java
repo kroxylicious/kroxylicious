@@ -47,7 +47,7 @@ public interface KafkaClient {
      * @param timeout the timeout
      * @return the list of ConsumerRecords
      */
-    List<ConsumerRecord<String,String>> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout);
+    List<ConsumerRecord<String, String>> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout);
 
     /**
      * Wait for consumer and return the log of the consumer pod.

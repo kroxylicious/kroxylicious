@@ -44,7 +44,7 @@ public class KroxyliciousSteps {
      * @param timeout the timeout
      * @return the list of ConsumerRecords
      */
-    public static List<ConsumerRecord<String,String>> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
+    public static List<ConsumerRecord<String, String>> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
         return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout);
     }
 
@@ -59,8 +59,9 @@ public class KroxyliciousSteps {
      * @param timeout maximum time to wait for the expectedMessage to appear
      * @return the string
      */
-    public static List<ConsumerRecord<String,String>> consumeMessageFromKafkaCluster(String clientNamespace, String topicName, String kafkaClusterName, String kafkaNamespace, int numberOfMessages,
-                                                        Duration timeout) {
+    public static List<ConsumerRecord<String, String>> consumeMessageFromKafkaCluster(String clientNamespace, String topicName, String kafkaClusterName,
+                                                                                      String kafkaNamespace, int numberOfMessages,
+                                                                                      Duration timeout) {
         String kafkaBootstrap = kafkaClusterName + "-kafka-bootstrap." + kafkaNamespace + ".svc.cluster.local:9092";
         return consumeMessages(clientNamespace, topicName, kafkaBootstrap, numberOfMessages, timeout);
     }

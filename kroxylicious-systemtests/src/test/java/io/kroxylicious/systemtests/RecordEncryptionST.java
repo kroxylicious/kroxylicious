@@ -108,7 +108,7 @@ class RecordEncryptionST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord<String,String>> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
+        List<ConsumerRecord<String, String>> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
 
@@ -120,8 +120,7 @@ class RecordEncryptionST extends AbstractST {
                 },
                 () -> assertThat(resultEncrypted.stream())
                         .withFailMessage("expected message have not been received!")
-                        .allMatch(r -> r.value().contains(topicName + "vault"))
-        );
+                        .allMatch(r -> r.value().contains(topicName + "vault")));
     }
 
     @Test
@@ -132,7 +131,7 @@ class RecordEncryptionST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord<String,String>> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord<String, String>> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
         int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
         assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
