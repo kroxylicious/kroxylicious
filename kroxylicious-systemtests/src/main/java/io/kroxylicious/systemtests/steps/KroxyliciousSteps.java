@@ -7,9 +7,11 @@
 package io.kroxylicious.systemtests.steps;
 
 import java.time.Duration;
+import java.util.List;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import io.kroxylicious.systemtests.clients.KafkaClients;
-import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 /**
  * The type Kroxylicious steps.
@@ -38,13 +40,12 @@ public class KroxyliciousSteps {
      * @param namespace the namespace
      * @param topicName the topic name
      * @param bootstrap the bootstrap
-     * @param message the message
      * @param numberOfMessages the number of messages
      * @param timeout the timeout
-     * @return the string
+     * @return the list of ConsumerRecords
      */
-    public static String consumeMessages(String namespace, String topicName, String bootstrap, String message, int numberOfMessages, Duration timeout) {
-        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, message, numberOfMessages, timeout);
+    public static List<ConsumerRecord<String,String>> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
+        return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout);
     }
 
     /**
@@ -56,12 +57,11 @@ public class KroxyliciousSteps {
      * @param kafkaNamespace the namespace in which the broker is operating
      * @param numberOfMessages the number of messages
      * @param timeout maximum time to wait for the expectedMessage to appear
-     * @param expectedMessage the message to check for.
      * @return the string
      */
-    public static String consumeMessageFromKafkaCluster(String clientNamespace, String topicName, String kafkaClusterName, String kafkaNamespace, int numberOfMessages,
-                                                        Duration timeout, String expectedMessage) {
+    public static List<ConsumerRecord<String,String>> consumeMessageFromKafkaCluster(String clientNamespace, String topicName, String kafkaClusterName, String kafkaNamespace, int numberOfMessages,
+                                                        Duration timeout) {
         String kafkaBootstrap = kafkaClusterName + "-kafka-bootstrap." + kafkaNamespace + ".svc.cluster.local:9092";
-        return KafkaUtils.consumeMessageWithTestClients(clientNamespace, topicName, kafkaBootstrap, expectedMessage, numberOfMessages, timeout);
+        return consumeMessages(clientNamespace, topicName, kafkaBootstrap, numberOfMessages, timeout);
     }
 }

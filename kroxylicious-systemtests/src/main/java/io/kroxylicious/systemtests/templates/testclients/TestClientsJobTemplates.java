@@ -29,6 +29,7 @@ public class TestClientsJobTemplates {
     private static final String CLIENT_TYPE_VAR = "CLIENT_TYPE";
     private static final String PRODUCER_ACKS_VAR = "PRODUCER_ACKS";
     private static final String DELAY_MS_VAR = "DELAY_MS";
+    private static final String OUTPUT_FORMAT_VAR = "OUTPUT_FORMAT";
 
     private TestClientsJobTemplates() {
     }
@@ -187,7 +188,7 @@ public class TestClientsJobTemplates {
     private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message) {
         return List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
-                envVar(DELAY_MS_VAR, "500"),
+                envVar(DELAY_MS_VAR, "100"),
                 envVar(TOPIC_VAR, topicName),
                 envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
                 envVar(MESSAGE_VAR, message),
@@ -203,6 +204,7 @@ public class TestClientsJobTemplates {
                 envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
                 envVar(GROUP_ID_VAR, "my-group"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
-                envVar(CLIENT_TYPE_VAR, "KafkaConsumer"));
+                envVar(CLIENT_TYPE_VAR, "KafkaConsumer"),
+                envVar(OUTPUT_FORMAT_VAR, "json"));
     }
 }

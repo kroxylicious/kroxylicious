@@ -9,7 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -63,10 +63,11 @@ class KroxyliciousST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord<String,String>> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -93,9 +94,10 @@ class KroxyliciousST extends AbstractST {
         KafkaSteps.restartKafkaBroker(clusterName);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(10));
+        List<ConsumerRecord<String,String>> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(10));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -123,9 +125,10 @@ class KroxyliciousST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord<String,String>> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     @Test
@@ -163,9 +166,10 @@ class KroxyliciousST extends AbstractST {
         assertThat(currentReplicas).withFailMessage("unexpected current scaled replicas").isEqualTo(scaleTo);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord<String,String>> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**

@@ -9,7 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,10 +53,11 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord<String,String>> result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -71,10 +72,11 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord<String,String>> result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -89,11 +91,12 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages,
+        List<ConsumerRecord<String,String>> result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -108,10 +111,11 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord<String,String>> result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -126,11 +130,12 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages,
+        List<ConsumerRecord<String,String>> result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     /**
@@ -145,10 +150,11 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord<String,String>> result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
     @BeforeEach

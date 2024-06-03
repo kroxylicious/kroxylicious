@@ -7,7 +7,11 @@
 package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,10 +52,27 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     @Override
-    public String consumeMessages(String topicName, String bootstrap, String messageToCheck, int numOfMessages, Duration timeout) {
+    public List<ConsumerRecord<String, String>> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using Strimzi Test Client");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL;
         Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
-        return KafkaUtils.consumeMessages(topicName, name, deployNamespace, testClientJob, messageToCheck, numOfMessages, timeout);
+        String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);
+        String log = waitForConsumer(deployNamespace, podName, numOfMessages, timeout);
+        LOGGER.atInfo().log(log);
+        List<String> logRecords = getJsonRecordsFromLog(log);
+        return KafkaUtils.getConsumerRecords(topicName, logRecords);
+    }
+
+    @Override
+    public List<String> getJsonRecordsFromLog(String log) {
+        List<String> records = new ArrayList<>();
+        String stringToSeek = "Received message:";
+
+        List<String> receivedMessages = Stream.of(log.split("\n")).filter(l -> l.contains(stringToSeek)).toList();
+        for(String receivedMessage : receivedMessages) {
+            records.add(receivedMessage.split(stringToSeek)[1].trim());
+        }
+
+        return records;
     }
 }

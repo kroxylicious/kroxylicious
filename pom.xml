@@ -69,7 +69,6 @@
         <commons.io.version>2.16.1</commons.io.version>
         <testcontainers.version>1.19.8</testcontainers.version>
         <bouncycastle.version>1.78.1</bouncycastle.version>
-        <apache.commons.version>3.14.0</apache.commons.version>
         <netty-leak-detector-junit-extension.version>0.0.5</netty-leak-detector-junit-extension.version>
     </properties>
 
@@ -358,12 +357,6 @@
                 <artifactId>bcprov-jdk18on</artifactId>
                 <version>${bouncycastle.version}</version>
                 <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.commons</groupId>
-                <artifactId>commons-lang3</artifactId>
-                <version>${apache.commons.version}</version>
-                <scope>compile</scope>
             </dependency>
             <dependency>
                 <groupId>io.github.nettyplus</groupId>

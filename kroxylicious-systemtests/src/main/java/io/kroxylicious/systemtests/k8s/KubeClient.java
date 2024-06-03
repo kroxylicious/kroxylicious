@@ -127,7 +127,7 @@ public class KubeClient {
     }
 
     /**
-     * List pods list.
+     * List pods.
      *
      * @param namespaceName the namespace name
      * @return the list
@@ -136,6 +136,13 @@ public class KubeClient {
         return client.pods().inNamespace(namespaceName).list().getItems();
     }
 
+    /**
+     * List pods.
+     *
+     * @param namespaceName the namespace name
+     * @param selector the selector
+     * @return the list
+     */
     public List<Pod> listPods(String namespaceName, LabelSelector selector) {
         return client.pods().inNamespace(namespaceName).withLabelSelector(selector).list().getItems();
     }

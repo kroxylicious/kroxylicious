@@ -9,10 +9,13 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.List;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
@@ -21,6 +24,7 @@ import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.awaitility.Awaitility.await;
 
 /**
  * The type Kaf client (sarama client based CLI).
@@ -55,11 +59,36 @@ public class KafClient implements KafkaClient {
     }
 
     @Override
-    public String consumeMessages(String topicName, String bootstrap, String messageToCheck, int numOfMessages, Duration timeout) {
+    public List<ConsumerRecord<String, String>> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using kaf");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kafka-go";
-        List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName);
+        List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName, "--output", "json");
         Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
-        return KafkaUtils.consumeMessages(topicName, name, deployNamespace, goClientJob, messageToCheck, numOfMessages, timeout);
+        String podName = KafkaUtils.createJob(deployNamespace, name, goClientJob);
+        String log = waitForConsumer(deployNamespace, podName, numOfMessages, timeout);
+        LOGGER.atInfo().log(log);
+        List<String> logRecords = getJsonRecordsFromLog(log);
+        return KafkaUtils.getConsumerRecords(topicName, logRecords);
+    }
+
+    @Override
+    public String waitForConsumer(String namespace, String podName, int numOfMessages, Duration timeout) {
+        String log;
+        try {
+            log = await().alias("Consumer waiting to receive messages")
+                    .ignoreException(KubernetesClientException.class)
+                    .atMost(timeout)
+                    .until(() -> {
+                        if (kubeClient().getClient().pods().inNamespace(namespace).withName(podName).get() != null) {
+                            return kubeClient().logsInSpecificNamespace(namespace, podName);
+                        }
+                        return null;
+                    }, m -> m.split("\n").length == numOfMessages);
+        }
+        catch (ConditionTimeoutException e) {
+            log = kubeClient().logsInSpecificNamespace(namespace, podName);
+            LOGGER.atInfo().setMessage("Timeout! Received: {}").addArgument(log).log();
+        }
+        return log;
     }
 }

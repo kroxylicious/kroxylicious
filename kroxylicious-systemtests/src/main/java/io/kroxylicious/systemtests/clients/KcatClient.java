@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.List;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,11 +61,15 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
-    public String consumeMessages(String topicName, String bootstrap, String messageToCheck, int numOfMessages, Duration timeout) {
+    public List<ConsumerRecord<String, String>> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using kcat");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat";
-        List<String> args = List.of("-b", bootstrap, "-t", topicName, "-C", "-c" + numOfMessages);
+        List<String> args = List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-c", String.valueOf(numOfMessages), "-e", "-J");
         Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
-        return KafkaUtils.consumeMessages(topicName, name, deployNamespace, kCatClientJob, messageToCheck, numOfMessages, timeout);
+        String podName = KafkaUtils.createJob(deployNamespace, name, kCatClientJob);
+        String log = waitForConsumer(deployNamespace, podName, numOfMessages, timeout);
+        LOGGER.atInfo().log(log);
+        List<String> logRecords = getJsonRecordsFromLog(log);
+        return KafkaUtils.getConsumerRecords(topicName, logRecords);
     }
 }
