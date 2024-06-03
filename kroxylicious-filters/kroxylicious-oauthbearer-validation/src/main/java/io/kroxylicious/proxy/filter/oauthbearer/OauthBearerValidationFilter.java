@@ -82,6 +82,14 @@ public class OauthBearerValidationFilter
     @Override
     public CompletionStage<RequestFilterResult> onSaslHandshakeRequest(short apiVersion, RequestHeaderData header, SaslHandshakeRequestData request,
                                                                        FilterContext context) {
+        // in any case, handshake if SASL server is initiated is a protocol violation
+        if (this.saslServer != null) {
+            LOGGER.debug("SASL error : Handshake request with a not null SASL server");
+            return context.requestFilterResultBuilder()
+                    .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(ILLEGAL_SASL_STATE.code()))
+                    .withCloseConnection()
+                    .completed();
+        }
         try {
             if (OAUTHBEARER_MECHANISM.equals(request.mechanism()) && this.validateAuthentication) {
                 this.saslServer = Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, this.oauthHandler);

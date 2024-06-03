@@ -154,6 +154,28 @@ class OauthBearerValidationFilterTest {
     }
 
     @Test
+    void mustShortCircuitHandshakeIfSaslInitiated() {
+        // given
+        SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
+        mockBuilder();
+
+        // when
+        try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
+            dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
+                    .thenReturn(saslServer);
+            filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
+        }
+        filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), new SaslHandshakeRequestData(), context);
+
+        // then
+        verify(context).forwardRequest(any(RequestHeaderData.class), eq(givenHandshakeRequest));
+        verify(builder).shortCircuitResponse(assertArg(actualResponse -> {
+            assertThat(actualResponse).isInstanceOf(SaslHandshakeResponseData.class);
+            assertThat(((SaslHandshakeResponseData) actualResponse).errorCode()).isEqualTo(ILLEGAL_SASL_STATE.code());
+        }));
+    }
+
+    @Test
     void mustLetPassWhenAlreadyAuthenticated() {
         byte[] givenBytes = "just_to_compare".getBytes();
         SaslAuthenticateResponseData givenAuthenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(givenBytes);
@@ -224,12 +246,11 @@ class OauthBearerValidationFilterTest {
     }
 
     @Test
-    void willShortCircuitAuthenticateIfNoHandshakeBefore() throws Exception {
+    void willShortCircuitAuthenticateIfNoHandshakeBefore() {
         // given
         byte[] givenBytes = "just_to_compare".getBytes();
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         mockBuilder();
-        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
 
         // when
         filter.onSaslAuthenticateRequest(
@@ -270,9 +291,9 @@ class OauthBearerValidationFilterTest {
 
         var order = inOrder(builder);
         order.verify(builder)
-                .shortCircuitResponse(argThat((arg) -> saslAuthenticateResponseMatching(data -> data.errorCode() == SASL_AUTHENTICATION_FAILED.code()).matches(arg)));
+                .shortCircuitResponse(argThat(arg -> saslAuthenticateResponseMatching(data -> data.errorCode() == SASL_AUTHENTICATION_FAILED.code()).matches(arg)));
         order.verify(builder)
-                .shortCircuitResponse(argThat((arg) -> saslAuthenticateResponseMatching(data -> data.errorCode() == ILLEGAL_SASL_STATE.code()).matches(arg)));
+                .shortCircuitResponse(argThat(arg -> saslAuthenticateResponseMatching(data -> data.errorCode() == ILLEGAL_SASL_STATE.code()).matches(arg)));
 
     }
 
