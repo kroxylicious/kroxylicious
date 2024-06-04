@@ -155,7 +155,7 @@ public class KafkaUtils {
      */
     public static void produceMessageWithTestClients(String deployNamespace, String topicName, String bootstrap, String message, int numOfMessages) {
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL;
-        Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message).build();
+        Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, null).build();
         produceMessages(deployNamespace, topicName, name, testClientJob);
     }
 
