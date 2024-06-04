@@ -7,9 +7,6 @@
 package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
-import java.util.Optional;
-
-import org.slf4j.Logger;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +20,6 @@ import io.kroxylicious.systemtests.utils.KafkaUtils;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static org.slf4j.LoggerFactory.getLogger;
 
 /**
  * The type Strimzi Test client (java client based CLI).
@@ -31,7 +27,6 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class StrimziTestClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(StrimziTestClient.class);
     private String deployNamespace;
-    private final Logger log = getLogger(StrimziTestClient.class);
 
     /**
      * Instantiates a new Strimzi Test client.
@@ -49,9 +44,8 @@ public class StrimziTestClient implements KafkaClient {
     @Override
     public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
         LOGGER.atInfo().log("Producing messages using Strimzi Test Client");
-        Optional.ofNullable(messageKey).ifPresent(k -> log.warn("message key specified but its not supported by Strimzi Test Clients"));
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL;
-        Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message).build();
+        Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey).build();
         KafkaUtils.produceMessages(deployNamespace, topicName, name, testClientJob);
     }
 
