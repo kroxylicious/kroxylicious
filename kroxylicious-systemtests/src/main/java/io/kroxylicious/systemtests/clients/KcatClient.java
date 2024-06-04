@@ -18,6 +18,7 @@ import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
@@ -67,9 +68,14 @@ public class KcatClient implements KafkaClient {
         List<String> args = List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-c", String.valueOf(numOfMessages), "-e", "-J");
         Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, kCatClientJob);
-        String log = waitForConsumer(deployNamespace, podName, numOfMessages, timeout);
+        String log = waitForConsumer(deployNamespace, podName, timeout);
         LOGGER.atInfo().log(log);
-        List<String> logRecords = getJsonRecordsFromLog(log);
+        List<String> logRecords = List.of(log.split("\n"));
         return KafkaUtils.getConsumerRecords(topicName, logRecords);
+    }
+
+    private String waitForConsumer(String namespace, String podName, Duration timeout) {
+        DeploymentUtils.waitForPodRunSucceeded(namespace, podName, timeout);
+        return kubeClient().logsInSpecificNamespace(namespace, podName);
     }
 }

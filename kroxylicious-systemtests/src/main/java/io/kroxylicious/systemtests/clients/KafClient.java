@@ -67,12 +67,11 @@ public class KafClient implements KafkaClient {
         String podName = KafkaUtils.createJob(deployNamespace, name, goClientJob);
         String log = waitForConsumer(deployNamespace, podName, numOfMessages, timeout);
         LOGGER.atInfo().log(log);
-        List<String> logRecords = getJsonRecordsFromLog(log);
+        List<String> logRecords = List.of(log.split("\n"));
         return KafkaUtils.getConsumerRecords(topicName, logRecords);
     }
 
-    @Override
-    public String waitForConsumer(String namespace, String podName, int numOfMessages, Duration timeout) {
+    private String waitForConsumer(String namespace, String podName, int numOfMessages, Duration timeout) {
         String log;
         try {
             log = await().alias("Consumer waiting to receive messages")

@@ -19,6 +19,7 @@ import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -57,14 +58,18 @@ public class StrimziTestClient implements KafkaClient {
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL;
         Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);
-        String log = waitForConsumer(deployNamespace, podName, numOfMessages, timeout);
+        String log = waitForConsumer(deployNamespace, podName, timeout);
         LOGGER.atInfo().log(log);
-        List<String> logRecords = getJsonRecordsFromLog(log);
+        List<String> logRecords = extractRecordLinesFromLog(log);
         return KafkaUtils.getConsumerRecords(topicName, logRecords);
     }
 
-    @Override
-    public List<String> getJsonRecordsFromLog(String log) {
+    private String waitForConsumer(String namespace, String podName, Duration timeout) {
+        DeploymentUtils.waitForPodRunSucceeded(namespace, podName, timeout);
+        return kubeClient().logsInSpecificNamespace(namespace, podName);
+    }
+
+    public List<String> extractRecordLinesFromLog(String log) {
         List<String> records = new ArrayList<>();
         String stringToSeek = "Received message:";
 
