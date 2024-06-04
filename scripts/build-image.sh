@@ -39,7 +39,7 @@ while getopts ":l:t:s:h" opt; do
 usage: $0 [-l <label>] [-t tag>] [-h] [-s <expiry string>]
  -l a label to add to the image
  -t a tag to add to the image
- -s short term image aka a temporary image. e.g. '8h'. Use `h` for hours, `d` for days and `w` for weeks. See https://docs.projectquay.io/use_quay.html#setting-tag-from-dockerfile
+ -s short term image aka a temporary image. e.g. '8h'. Use 'h' for hours, 'd' for days and 'w' for weeks. See https://docs.projectquay.io/use_quay.html#setting-tag-from-dockerfile
  -h this help message
 EOF
       exit 1
