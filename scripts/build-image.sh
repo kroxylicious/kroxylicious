@@ -63,9 +63,10 @@ if [ -n "${IMAGE_EXPIRY:-}" ]; then
   LABELS+=("quay.expires-after=${IMAGE_EXPIRY}")
 fi
 
-LABEL_ARGS=$(array_to_arg_line "label" "${LABELS[@]}")
-TAG_ARGS=$(array_to_arg_line "tag" "${IMAGE_TAGS[@]}")
+LABEL_ARGS=$(array_to_arg_line "label" "${LABELS[@]:""}")
+TAG_ARGS=$(array_to_arg_line "tag" "${IMAGE_TAGS[@]:""}")
 
+# shellcheck disable=SC2086 #we are passing additional arguments here so word splitting is intended
 ${CONTAINER_ENGINE} build -t "${IMAGE}" ${LABEL_ARGS} ${TAG_ARGS} \
                                         --build-arg "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" \
                                         --build-arg "CURRENT_USER=${USER}" \
