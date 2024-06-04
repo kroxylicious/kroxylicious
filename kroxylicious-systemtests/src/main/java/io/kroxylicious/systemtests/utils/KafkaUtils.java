@@ -16,6 +16,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
@@ -85,13 +87,14 @@ public class KafkaUtils {
     public static List<ConsumerRecord<String, String>> getConsumerRecords(String topicName, List<String> logRecords) {
         List<ConsumerRecord<String, String>> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            if (!TestUtils.isJSONValid(logRecord)) {
+            JsonNode node = TestUtils.getJsonNode(logRecord);
+            if (node == null) {
                 continue;
             }
-            int partition = Integer.parseInt(TestUtils.getValueFromJson(logRecord, "partition"));
-            int offset = Integer.parseInt(TestUtils.getValueFromJson(logRecord, "offset"));
-            String key = TestUtils.getValueFromJson(logRecord, "key");
-            String payload = TestUtils.getValueFromJson(logRecord, "payload");
+            int partition = node.get("partition").intValue();
+            int offset = node.get("offset").intValue();
+            String key = node.get("key").toString();
+            String payload = node.get("payload").toString();
             ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>(topicName, partition, offset, key, payload);
             records.add(consumerRecord);
         }

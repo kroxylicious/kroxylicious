@@ -14,7 +14,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -60,38 +59,20 @@ public class TestUtils {
     }
 
     /**
-     * Is json valid boolean.
-     *
-     * @param jsonInString the json in string
-     * @return the boolean
-     */
-    public static boolean isJSONValid(String jsonInString) {
-        try {
-            final ObjectMapper mapper = new ObjectMapper();
-            mapper.readTree(jsonInString);
-            return true;
-        }
-        catch (IOException e) {
-            return false;
-        }
-    }
-
-    /**
-     * Gets value from json.
+     * Gets json node.
      *
      * @param json the json
-     * @param propertyName the property name
      * @return the value from json
      */
-    public static String getValueFromJson(String json, String propertyName) {
+    public static JsonNode getJsonNode(String json) {
         ObjectMapper mapper = new ObjectMapper();
         JsonNode node;
         try {
             node = mapper.readTree(json);
         }
-        catch (JsonProcessingException e) {
-            throw new IllegalArgumentException(e.getMessage());
+        catch (IOException e) {
+            node = null;
         }
-        return node.get(propertyName).toString();
+        return node;
     }
 }
