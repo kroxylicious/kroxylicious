@@ -36,7 +36,7 @@
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
         <freemarker.version>2.3.32</freemarker.version>
-        <guava.version>33.2.0-jre</guava.version>
+        <guava.version>33.2.1-jre</guava.version>
         <hamcrest.version>2.2</hamcrest.version>
         <jackson.version>2.17.1</jackson.version>
         <junit.version>5.10.2</junit.version>
@@ -63,7 +63,7 @@
         <!-- Test dependencies -->
         <strimzi.version>0.41.0</strimzi.version>
         <kubernetes-client.version>6.12.1</kubernetes-client.version>
-        <enforcer.api.version>3.4.1</enforcer.api.version>
+        <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.7</maven.core.version>
         <awaitility.version>4.2.1</awaitility.version>
         <commons.io.version>2.16.1</commons.io.version>
@@ -473,7 +473,7 @@
                 <plugin>
                     <groupId>net.revelc.code</groupId>
                     <artifactId>impsort-maven-plugin</artifactId>
-                    <version>1.9.0</version>
+                    <version>1.10.0</version>
                     <configuration>
                         <groups>java.,javax.,org.,com.,io.,io.kroxylicious</groups>
                         <removeUnused>true</removeUnused>
