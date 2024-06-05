@@ -199,8 +199,7 @@ public class TestClientsJobTemplates {
                 envVar(MESSAGE_VAR, message),
                 envVar(PRODUCER_ACKS_VAR, "all"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
-                envVar(CLIENT_TYPE_VAR, "KafkaProducer"))
-        );
+                envVar(CLIENT_TYPE_VAR, "KafkaProducer")));
         if (messageKey != null) {
             envVars.add(envVar(MESSAGE_KEY_VAR, messageKey));
         }
