@@ -171,6 +171,12 @@
                 <version>${project.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-oauthbearer-validation</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <!-- testing dependencies -->
             <!-- note scope is *not* set at this level -->
             <dependency>

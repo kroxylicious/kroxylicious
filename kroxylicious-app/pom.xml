@@ -245,6 +245,11 @@
                     <artifactId>kroxylicious-kms-provider-aws-kms</artifactId>
                     <scope>runtime</scope>
                 </dependency>
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-oauthbearer-validation</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
             </dependencies>
         </profile>
     </profiles>

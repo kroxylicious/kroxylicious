@@ -27,6 +27,7 @@
         <module>kroxylicious-multitenant</module>
         <module>kroxylicious-record-validation</module>
         <module>kroxylicious-simple-transform</module>
+        <module>kroxylicious-oauthbearer-validation</module>
     </modules>
 
     <build>

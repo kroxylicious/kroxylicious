@@ -59,6 +59,7 @@
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
+        <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
         <strimzi.version>0.41.0</strimzi.version>
@@ -266,6 +267,12 @@
                 <groupId>org.hamcrest</groupId>
                 <artifactId>hamcrest</artifactId>
                 <version>${hamcrest.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.bitbucket.b_c</groupId>
+                <artifactId>jose4j</artifactId>
+                <version>${jose4j.version}</version>
             </dependency>
 
             <!-- third party dependencies - test -->
