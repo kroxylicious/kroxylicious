@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.filter.schema.validation.topic;
 import org.apache.kafka.common.message.ProduceRequestData;
 
 /**
- * Validates ${@link org.apache.kafka.common.message.ProduceRequestData.TopicProduceData}
+ * Validates {@link org.apache.kafka.common.message.ProduceRequestData.TopicProduceData}
  */
 public interface TopicValidator {
     /**

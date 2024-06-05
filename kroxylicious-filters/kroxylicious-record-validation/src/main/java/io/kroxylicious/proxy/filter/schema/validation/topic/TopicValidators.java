@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.filter.schema.validation.topic;
 import io.kroxylicious.proxy.filter.schema.validation.record.RecordValidator;
 
 /**
- * Factory for different topic ${@link TopicValidator} implementations
+ * Factory for different topic {@link TopicValidator} implementations
  */
 public class TopicValidators {
 

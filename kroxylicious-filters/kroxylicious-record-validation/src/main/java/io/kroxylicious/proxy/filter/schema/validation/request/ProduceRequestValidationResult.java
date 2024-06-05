@@ -13,7 +13,7 @@ import io.kroxylicious.proxy.filter.schema.validation.topic.PartitionValidationR
 import io.kroxylicious.proxy.filter.schema.validation.topic.TopicValidationResult;
 
 /**
- * The result of validating an entire ${@link org.apache.kafka.common.message.ProduceRequestData}. Contains
+ * The result of validating an entire {@link org.apache.kafka.common.message.ProduceRequestData}. Contains
  * validation results for each topic in the request.
  * @param topicValidationResults results per topic, key is topicName
  */
