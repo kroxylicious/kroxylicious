@@ -359,8 +359,6 @@ public class FilterHandler extends ChannelDuplexHandler {
                 LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
             }
             ctx.fireChannelRead(responseFrame);
-            // required to flush the message back to the client
-            ctx.fireChannelReadComplete();
         }
         else {
             if (decodedFrame.body() != message) {
@@ -374,6 +372,8 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
             ctx.fireChannelRead(decodedFrame);
         }
+        // required to flush the message back to the client
+        ctx.fireChannelReadComplete();
     }
 
     private void forwardShortCircuitResponse(DecodedRequestFrame<?> decodedFrame, RequestFilterResult requestFilterResult) {
