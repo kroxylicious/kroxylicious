@@ -59,6 +59,9 @@ if [[ ${ASSERT_NO_STAGING_REPOS} == "true" ]]; then
 elif [[ ${STATE} ]]; then
   if [[ ${NUM_REPOS} -eq 0 ]]; then
       >&2 echo "No staging repository found to apply a ${STATE} state transition."
+     if [[ ${STATE} == "drop" ]]; then
+         exit 0
+     fi
      exit 1
   elif [[ ${NUM_REPOS} -gt 1 ]]; then
       >&2 echo "Too many staging repositories found (${NUM_REPOS})."
