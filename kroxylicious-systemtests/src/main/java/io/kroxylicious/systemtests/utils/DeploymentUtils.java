@@ -162,7 +162,7 @@ public class DeploymentUtils {
                 .atMost(timeout)
                 .pollInterval(Duration.ofMillis(500))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
-                        && (kubeClient().isDeploymentRunning(namespaceName, podName)));
+                        && kubeClient().isDeploymentRunning(namespaceName, podName));
     }
 
     /**
