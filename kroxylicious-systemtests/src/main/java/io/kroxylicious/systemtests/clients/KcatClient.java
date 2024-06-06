@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.records.KcatConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -71,11 +73,24 @@ public class KcatClient implements KafkaClient {
         String log = waitForConsumer(deployNamespace, podName, timeout);
         LOGGER.atInfo().log(log);
         List<String> logRecords = List.of(log.split("\n"));
-        return KafkaUtils.getConsumerRecords(topicName, logRecords);
+        return getConsumerRecords(logRecords);
     }
 
     private String waitForConsumer(String namespace, String podName, Duration timeout) {
         DeploymentUtils.waitForPodRunSucceeded(namespace, podName, timeout);
         return kubeClient().logsInSpecificNamespace(namespace, podName);
+    }
+
+    private List<ConsumerRecord<String, String>> getConsumerRecords(List<String> logRecords) {
+        List<ConsumerRecord<String, String>> records = new ArrayList<>();
+        for (String logRecord : logRecords) {
+            KcatConsumerRecord kcatConsumerRecord = KcatConsumerRecord.parseFromJsonString(logRecord);
+            if (kcatConsumerRecord != null) {
+                ConsumerRecord<String, String> consumerRecord = kcatConsumerRecord.toConsumerRecord();
+                records.add(consumerRecord);
+            }
+        }
+
+        return records;
     }
 }

@@ -7,16 +7,14 @@
 package io.kroxylicious.systemtests.utils;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.record.TimestampType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.databind.JsonNode;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
@@ -51,7 +49,6 @@ public class KafkaUtils {
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(clientJob).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofSeconds(30));
-        LOGGER.atInfo().setMessage("client producer log: {}").addArgument(kubeClient().logsInSpecificNamespace(deployNamespace, podName)).log();
     }
 
     /**
@@ -78,28 +75,29 @@ public class KafkaUtils {
     }
 
     /**
-     * Gets consumer records.
+     * Gets timestamp type.
      *
-     * @param topicName the topic name (needed because kaf does not return topic name in json message)
-     * @param logRecords the log records
-     * @return the consumer records
+     * @param timestampType the timestamp type
+     * @return the timestamp type
      */
-    public static List<ConsumerRecord<String, String>> getConsumerRecords(String topicName, List<String> logRecords) {
-        List<ConsumerRecord<String, String>> records = new ArrayList<>();
-        for (String logRecord : logRecords) {
-            JsonNode node = TestUtils.getJsonNode(logRecord);
-            if (node == null) {
-                continue;
-            }
-            int partition = node.get("partition").intValue();
-            int offset = node.get("offset").intValue();
-            String key = node.get("key").toString();
-            String payload = node.get("payload").toString();
-            ConsumerRecord<String, String> consumerRecord = new ConsumerRecord<>(topicName, partition, offset, key, payload);
-            records.add(consumerRecord);
+    public static TimestampType getTimestampType(String timestampType) {
+        if (timestampType == null) {
+            return TimestampType.NO_TIMESTAMP_TYPE;
         }
 
-        return records;
+        try {
+            return TimestampType.forName(timestampType);
+        } catch (NoSuchElementException e) {
+            if (timestampType.toLowerCase().startsWith("create")) {
+                return TimestampType.CREATE_TIME;
+            }
+            else if (timestampType.toLowerCase().startsWith("log")) {
+                return TimestampType.LOG_APPEND_TIME;
+            }
+            else {
+                return TimestampType.NO_TIMESTAMP_TYPE;
+            }
+        }
     }
 
     /**
@@ -154,8 +152,7 @@ public class KafkaUtils {
         }
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).waitUntilCondition(Objects::isNull, 60, TimeUnit.SECONDS);
-        String finalPodName = podName;
-        await().atMost(Duration.ofMinutes(1)).until(() -> kubeClient().getClient().pods().inNamespace(deployNamespace).withName(finalPodName) != null);
+        DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofMinutes(5));
         return !Objects.equals(podUid, getPodUid(deployNamespace, podName));
     }
 

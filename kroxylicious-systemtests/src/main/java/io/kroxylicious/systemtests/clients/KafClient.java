@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -18,8 +19,10 @@ import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.records.KafConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
@@ -65,29 +68,44 @@ public class KafClient implements KafkaClient {
         List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName, "--output", "json");
         Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, goClientJob);
-        String log = waitForConsumer(deployNamespace, podName, numOfMessages, timeout);
+        String log = waitForConsumer(podName, numOfMessages, timeout);
         LOGGER.atInfo().log(log);
         List<String> logRecords = List.of(log.split("\n"));
-        return KafkaUtils.getConsumerRecords(topicName, logRecords);
+        return getConsumerRecords(topicName, logRecords);
     }
 
-    private String waitForConsumer(String namespace, String podName, int numOfMessages, Duration timeout) {
+    private String waitForConsumer(String podName, int numOfMessages, Duration timeout) {
+        DeploymentUtils.waitForDeploymentRunningOrSucceeded(deployNamespace, podName, Duration.ofSeconds(60));
         String log;
         try {
             log = await().alias("Consumer waiting to receive messages")
                     .ignoreException(KubernetesClientException.class)
                     .atMost(timeout)
                     .until(() -> {
-                        if (kubeClient().getClient().pods().inNamespace(namespace).withName(podName).get() != null) {
-                            return kubeClient().logsInSpecificNamespace(namespace, podName);
+                        if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
+                            return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
                         }
                         return null;
                     }, m -> m.split("\n").length == numOfMessages);
         }
         catch (ConditionTimeoutException e) {
-            log = kubeClient().logsInSpecificNamespace(namespace, podName);
+            log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
             LOGGER.atInfo().setMessage("Timeout! Received: {}").addArgument(log).log();
         }
         return log;
+    }
+
+    private List<ConsumerRecord<String, String>> getConsumerRecords(String topicName, List<String> logRecords) {
+        List<ConsumerRecord<String, String>> records = new ArrayList<>();
+        for (String logRecord : logRecords) {
+            KafConsumerRecord kafConsumerRecord = KafConsumerRecord.parseFromJsonString(logRecord);
+            if (kafConsumerRecord != null) {
+                kafConsumerRecord.setTopic(topicName);
+                ConsumerRecord<String, String> consumerRecord = kafConsumerRecord.toConsumerRecord();
+                records.add(consumerRecord);
+            }
+        }
+
+        return records;
     }
 }

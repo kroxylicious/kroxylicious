@@ -12,17 +12,21 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.records.ClientConsumerRecord;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.awaitility.Awaitility.await;
 
 /**
  * The type Strimzi Test client (java client based CLI).
@@ -50,6 +54,29 @@ public class StrimziTestClient implements KafkaClient {
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL;
         Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message).build();
         KafkaUtils.produceMessages(deployNamespace, topicName, name, testClientJob);
+        String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
+        String log = waitForProducer(deployNamespace, podName, Duration.ofSeconds(60));
+        LOGGER.atInfo().setMessage("client producer log: {}").addArgument(log).log();
+    }
+
+    private static String waitForProducer(String namespace, String podName, Duration timeout) {
+        String log;
+        try {
+            log = await().alias("Consumer waiting to receive messages")
+                    .ignoreException(KubernetesClientException.class)
+                    .atMost(timeout)
+                    .until(() -> {
+                        if (kubeClient().getClient().pods().inNamespace(namespace).withName(podName).get() != null) {
+                            return kubeClient().logsInSpecificNamespace(namespace, podName);
+                        }
+                        return null;
+                    }, m -> m.contains("Sending message:"));
+        }
+        catch (ConditionTimeoutException e) {
+            log = kubeClient().logsInSpecificNamespace(namespace, podName);
+            LOGGER.atInfo().setMessage("Timeout! Unable to produce the messages: {}").addArgument(log).log();
+        }
+        return log;
     }
 
     @Override
@@ -61,7 +88,7 @@ public class StrimziTestClient implements KafkaClient {
         String log = waitForConsumer(deployNamespace, podName, timeout);
         LOGGER.atInfo().log(log);
         List<String> logRecords = extractRecordLinesFromLog(log);
-        return KafkaUtils.getConsumerRecords(topicName, logRecords);
+        return getConsumerRecords(logRecords);
     }
 
     private String waitForConsumer(String namespace, String podName, Duration timeout) {
@@ -69,7 +96,20 @@ public class StrimziTestClient implements KafkaClient {
         return kubeClient().logsInSpecificNamespace(namespace, podName);
     }
 
-    public List<String> extractRecordLinesFromLog(String log) {
+    private List<ConsumerRecord<String, String>> getConsumerRecords(List<String> logRecords) {
+        List<ConsumerRecord<String, String>> records = new ArrayList<>();
+        for (String logRecord : logRecords) {
+            ClientConsumerRecord clientConsumerRecord = ClientConsumerRecord.parseFromJsonString(logRecord);
+            if (clientConsumerRecord != null) {
+                ConsumerRecord<String, String> consumerRecord = clientConsumerRecord.toConsumerRecord();
+                records.add(consumerRecord);
+            }
+        }
+
+        return records;
+    }
+
+    private List<String> extractRecordLinesFromLog(String log) {
         List<String> records = new ArrayList<>();
         String stringToSeek = "Received message:";
 

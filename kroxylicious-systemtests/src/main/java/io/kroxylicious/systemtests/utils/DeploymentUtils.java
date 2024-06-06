@@ -157,9 +157,48 @@ public class DeploymentUtils {
      */
     public static void waitForDeploymentRunning(String namespaceName, String podName, Duration timeout) {
         LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, podName);
-        await().atMost(timeout).pollInterval(Duration.ofMillis(500))
+        waitForLeavingPendingPhase(namespaceName, podName);
+        await().alias("await pod to be running or succeeded")
+                .atMost(timeout)
+                .pollInterval(Duration.ofMillis(500))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
-                        && kubeClient().isDeploymentRunning(namespaceName, podName));
+                        && (kubeClient().isDeploymentRunning(namespaceName, podName)));
+    }
+
+    /**
+     * Wait for deployment running or succeeded.
+     *
+     * @param namespaceName the namespace name
+     * @param podName the pod name
+     * @param timeout the timeout
+     */
+    public static void waitForDeploymentRunningOrSucceeded(String namespaceName, String podName, Duration timeout) {
+        LOGGER.info("Waiting for pod run: {}/{} to be running or succeed", namespaceName, podName);
+
+        waitForLeavingPendingPhase(namespaceName, podName);
+
+        var pollInterval = 200;
+        var terminalPhase = await().alias("await pod to reach running or terminal phase")
+                .atMost(timeout)
+                .pollInterval(Duration.ofMillis(pollInterval))
+                .conditionEvaluationListener(new TimeoutLoggingEvaluationListener(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)))
+                .until(() -> Optional.of(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
+                        p -> p.map(DeploymentUtils::hasReachedTerminalPhase).orElse(false) ||
+                             p.map(DeploymentUtils::isRunningPhase).orElse(false));
+
+        if (!isSucceededPhase(terminalPhase.orElseThrow()) && !isRunningPhase(terminalPhase.orElseThrow())) {
+            LOGGER.atError().setMessage("Run is not running nor succeed! Error: {}")
+                    .addArgument(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)).log();
+            throw new KubeClusterException("Pod %s failed to execute".formatted(podName));
+        }
+    }
+
+    private static void waitForLeavingPendingPhase(String namespaceName, String podName) {
+        await().alias("await pod to leave pending phase")
+                .atMost(Duration.ofMinutes(1))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> Optional.of(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
+                        s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent());
     }
 
     /**
@@ -172,12 +211,8 @@ public class DeploymentUtils {
     public static void waitForPodRunSucceeded(String namespaceName, String podName, Duration timeout) {
         LOGGER.info("Waiting for pod run: {}/{} to succeed", namespaceName, podName);
 
+        waitForLeavingPendingPhase(namespaceName, podName);
         var pollInterval = 200;
-        await().alias("await pod to leave pending phase")
-                .atMost(Duration.ofMinutes(1))
-                .pollInterval(Duration.ofMillis(pollInterval))
-                .until(() -> Optional.of(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
-                        s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent());
 
         var terminalPhase = await().alias("await pod to reach terminal phase")
                 .atMost(timeout)
@@ -202,6 +237,10 @@ public class DeploymentUtils {
 
     private static boolean isPendingPhase(String p) {
         return "pending".equalsIgnoreCase(p);
+    }
+
+    private static boolean isRunningPhase(String p) {
+        return "running".equalsIgnoreCase(p);
     }
 
     /**
