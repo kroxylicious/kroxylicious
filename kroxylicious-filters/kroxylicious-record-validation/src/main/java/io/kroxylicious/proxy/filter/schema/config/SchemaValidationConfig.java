@@ -12,7 +12,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Configuration for validating a component ByteBuffer of a ${@link org.apache.kafka.common.record.Record} is valid using the schema in Apicurio Registry.
+ * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is valid using the schema in Apicurio Registry.
  */
 public class SchemaValidationConfig {
     private final Long useApicurioGlobalId;
@@ -27,7 +27,6 @@ public class SchemaValidationConfig {
     }
 
     /**
-     * Do we expect the Object keys in the JSON to be unique
      * @return the configured globalId to be used
      */
     public Long useApicurioGlobalId() {

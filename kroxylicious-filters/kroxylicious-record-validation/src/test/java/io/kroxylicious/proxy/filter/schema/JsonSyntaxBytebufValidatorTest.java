@@ -20,9 +20,11 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.filter.schema.validation.Result;
 import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidator;
@@ -34,11 +36,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+@ExtendWith(MockitoExtension.class)
 class JsonSyntaxBytebufValidatorTest {
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     BytebufValidator mockValidator;
 
     @BeforeEach
@@ -53,7 +57,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         Result result = validate(record, validator);
         assertFalse(result.valid());
-        verifyNoMoreInteractions(mockValidator);
+        verifyNoInteractions(mockValidator);
     }
 
     @Test
@@ -62,6 +66,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verify(mockValidator).validate(any(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -71,7 +76,7 @@ class JsonSyntaxBytebufValidatorTest {
         Result result = validate(record, validator);
         assertFalse(result.valid());
         assertTrue(result.errorMessage().contains("value was not syntactically correct JSON: Duplicate field"));
-        verifyNoMoreInteractions(mockValidator);
+        verifyNoInteractions(mockValidator);
     }
 
     @Test
@@ -81,7 +86,7 @@ class JsonSyntaxBytebufValidatorTest {
         Result result = validate(record, validator);
         assertFalse(result.valid());
         assertTrue(result.errorMessage().contains("value was not syntactically correct JSON: Duplicate field"));
-        verifyNoMoreInteractions(mockValidator);
+        verifyNoInteractions(mockValidator);
     }
 
     @Test
@@ -91,7 +96,7 @@ class JsonSyntaxBytebufValidatorTest {
         Result result = validate(record, validator);
         assertFalse(result.valid());
         assertTrue(result.errorMessage().contains("value was not syntactically correct JSON: Duplicate field"));
-        verifyNoMoreInteractions(mockValidator);
+        verifyNoInteractions(mockValidator);
     }
 
     @Test
@@ -100,6 +105,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verify(mockValidator).validate(any(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -108,6 +114,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verify(mockValidator).validate(any(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -116,6 +123,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verify(mockValidator).validate(any(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -142,6 +150,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verify(mockValidator).validate(any(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -150,6 +159,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verify(mockValidator).validate(any(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -158,6 +168,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verify(mockValidator).validate(any(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -166,6 +177,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verify(mockValidator).validate(any(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -190,6 +202,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validate(record, validator);
         assertTrue(result.valid());
+        verify(mockValidator).validate(any(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -198,6 +211,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true, mockValidator);
         Result result = validator.validate(record.key(), record.keySize(), record, true).toCompletableFuture().get(5, TimeUnit.SECONDS);
         assertTrue(result.valid());
+        verify(mockValidator).validate(any(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -207,7 +221,7 @@ class JsonSyntaxBytebufValidatorTest {
         assertThrows(IllegalArgumentException.class, () -> {
             validate(record, validator);
         });
-        verifyNoMoreInteractions(mockValidator);
+        verifyNoInteractions(mockValidator);
     }
 
     @Test
@@ -217,7 +231,7 @@ class JsonSyntaxBytebufValidatorTest {
         assertThrows(IllegalArgumentException.class, () -> {
             validate(record, validator);
         });
-        verifyNoMoreInteractions(mockValidator);
+        verifyNoInteractions(mockValidator);
     }
 
     private static Result validate(Record record, BytebufValidator validator) {
