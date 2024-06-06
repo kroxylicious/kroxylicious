@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Copyright Kroxylicious Authors.
 #
@@ -39,7 +39,7 @@ while getopts ":l:t:s:h" opt; do
 usage: $0 [-l <label>] [-t tag>] [-h] [-s <expiry string>]
  -l a label to add to the image
  -t a tag to add to the image
- -s short term image aka a temporary image. e.g. '8h'. Use `h` for hours, `d` for days and `w` for weeks. See https://docs.projectquay.io/use_quay.html#setting-tag-from-dockerfile
+ -s short term image aka a temporary image. e.g. '8h'. Use 'h' for hours, 'd' for days and 'w' for weeks. See https://docs.projectquay.io/use_quay.html#setting-tag-from-dockerfile
  -h this help message
 EOF
       exit 1
@@ -63,9 +63,10 @@ if [ -n "${IMAGE_EXPIRY:-}" ]; then
   LABELS+=("quay.expires-after=${IMAGE_EXPIRY}")
 fi
 
-LABEL_ARGS=$(array_to_arg_line "label" "${LABELS[@]}")
-TAG_ARGS=$(array_to_arg_line "tag" "${IMAGE_TAGS[@]}")
+LABEL_ARGS=$(array_to_arg_line "label" "${LABELS[@]:""}")
+TAG_ARGS=$(array_to_arg_line "tag" "${IMAGE_TAGS[@]:""}")
 
+# shellcheck disable=SC2086 #we are passing additional arguments here so word splitting is intended
 ${CONTAINER_ENGINE} build -t "${IMAGE}" ${LABEL_ARGS} ${TAG_ARGS} \
                                         --build-arg "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" \
                                         --build-arg "CURRENT_USER=${USER}" \

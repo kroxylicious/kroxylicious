@@ -7,7 +7,7 @@
 package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 
 /**
- * Static factory methods for creating/getting ${@link BytebufValidator} instances
+ * Static factory methods for creating/getting {@link BytebufValidator} instances
  */
 public class BytebufValidators {
 

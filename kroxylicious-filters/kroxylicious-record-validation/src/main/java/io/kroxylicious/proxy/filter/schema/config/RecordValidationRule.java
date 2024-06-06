@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Describes an optional key validation rule and an optional value validation rule which will
- * be applied to a ${@link org.apache.kafka.common.record.Record} to validate its contents.
+ * be applied to a {@link org.apache.kafka.common.record.Record} to validate its contents.
  */
 public class RecordValidationRule {
 

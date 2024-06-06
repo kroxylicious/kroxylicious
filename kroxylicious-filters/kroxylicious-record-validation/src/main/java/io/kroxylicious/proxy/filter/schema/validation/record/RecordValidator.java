@@ -11,7 +11,7 @@ import org.apache.kafka.common.record.Record;
 import io.kroxylicious.proxy.filter.schema.validation.Result;
 
 /**
- * Validator for individual ${@link Record}s
+ * Validator for individual {@link Record}s
  */
 public interface RecordValidator {
 

@@ -12,7 +12,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Configuration for validating a component ByteBuffer of a ${@link org.apache.kafka.common.record.Record} is syntactically correct JSON.
+ * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is syntactically correct JSON.
  */
 public class SyntacticallyCorrectJsonConfig {
     private final boolean validateObjectKeysUnique;
