@@ -87,7 +87,8 @@ public class KafkaUtils {
 
         try {
             return TimestampType.forName(timestampType);
-        } catch (NoSuchElementException e) {
+        }
+        catch (NoSuchElementException e) {
             if (timestampType.toLowerCase().startsWith("create")) {
                 return TimestampType.CREATE_TIME;
             }

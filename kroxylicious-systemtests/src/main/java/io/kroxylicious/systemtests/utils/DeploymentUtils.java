@@ -184,7 +184,7 @@ public class DeploymentUtils {
                 .conditionEvaluationListener(new TimeoutLoggingEvaluationListener(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)))
                 .until(() -> Optional.of(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
                         p -> p.map(DeploymentUtils::hasReachedTerminalPhase).orElse(false) ||
-                             p.map(DeploymentUtils::isRunningPhase).orElse(false));
+                                p.map(DeploymentUtils::isRunningPhase).orElse(false));
 
         if (!isSucceededPhase(terminalPhase.orElseThrow()) && !isRunningPhase(terminalPhase.orElseThrow())) {
             LOGGER.atError().setMessage("Run is not running nor succeed! Error: {}")

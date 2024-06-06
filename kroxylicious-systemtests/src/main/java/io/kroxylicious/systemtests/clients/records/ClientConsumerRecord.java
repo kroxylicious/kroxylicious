@@ -98,7 +98,6 @@ public class ClientConsumerRecord extends BaseConsumerRecord {
                 (String) this.key,
                 String.valueOf(this.payload),
                 recordHeaders,
-                Optional.ofNullable(this.leaderEpoch)
-        );
+                Optional.ofNullable(this.leaderEpoch));
     }
 }

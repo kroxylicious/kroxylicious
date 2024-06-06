@@ -95,8 +95,8 @@ public class KcatConsumerRecord extends BaseConsumerRecord {
         Headers recordHeaders = new RecordHeaders();
         if (this.headers != null) {
             assert this.headers.size() % 2 == 0;
-            for(int i = 0; i < this.headers.size(); i += 2) {
-                recordHeaders.add(this.headers.get(i), Optional.ofNullable(this.headers.get(i+1)).orElse("").getBytes(StandardCharsets.UTF_8));
+            for (int i = 0; i < this.headers.size(); i += 2) {
+                recordHeaders.add(this.headers.get(i), Optional.ofNullable(this.headers.get(i + 1)).orElse("").getBytes(StandardCharsets.UTF_8));
             }
         }
         return new ConsumerRecord<>(
@@ -110,7 +110,6 @@ public class KcatConsumerRecord extends BaseConsumerRecord {
                 (String) this.key,
                 String.valueOf(this.payload),
                 recordHeaders,
-                Optional.ofNullable(this.leaderEpoch)
-        );
+                Optional.ofNullable(this.leaderEpoch));
     }
 }
