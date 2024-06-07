@@ -73,7 +73,7 @@ public class KafConsumerRecord extends BaseConsumerRecord {
             return objectMapper.readValue(response, KafConsumerRecord.class);
         }
         catch (JsonProcessingException e) {
-            LOGGER.atError().setMessage("Error: {}").addArgument(e).log();
+            LOGGER.atError().setMessage("Something bad happened").setCause(e).log();
             return null;
         }
     }
