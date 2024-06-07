@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.templates.testclients;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -16,6 +17,8 @@ import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * The type Test Clients job templates.
  */
@@ -23,6 +26,7 @@ public class TestClientsJobTemplates {
     private static final String BOOTSTRAP_VAR = "BOOTSTRAP_SERVERS";
     private static final String TOPIC_VAR = "TOPIC";
     private static final String MESSAGE_VAR = "MESSAGE";
+    private static final String MESSAGE_KEY_VAR = "MESSAGE_KEY";
     private static final String MESSAGE_COUNT_VAR = "MESSAGE_COUNT";
     private static final String GROUP_ID_VAR = "GROUP_ID";
     private static final String LOG_LEVEL_VAR = "LOG_LEVEL";
@@ -91,13 +95,15 @@ public class TestClientsJobTemplates {
      * @param topicName the topic name
      * @param numOfMessages the num of messages
      * @param message the message
+     * @param messageKey
      * @return the job builder
      */
-    public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message) {
+    public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
+                                                          @Nullable String messageKey) {
         return newJobForContainer(jobName,
                 "test-client-producer",
                 Constants.TEST_CLIENTS_IMAGE,
-                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message));
+                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey));
     }
 
     private static JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
@@ -185,8 +191,8 @@ public class TestClientsJobTemplates {
                 .build();
     }
 
-    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message) {
-        return List.of(
+    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message, @Nullable String messageKey) {
+        List<EnvVar> envVars = new ArrayList<>(List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(DELAY_MS_VAR, "200"),
                 envVar(TOPIC_VAR, topicName),
@@ -194,7 +200,11 @@ public class TestClientsJobTemplates {
                 envVar(MESSAGE_VAR, message),
                 envVar(PRODUCER_ACKS_VAR, "all"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
-                envVar(CLIENT_TYPE_VAR, "KafkaProducer"));
+                envVar(CLIENT_TYPE_VAR, "KafkaProducer")));
+        if (messageKey != null) {
+            envVars.add(envVar(MESSAGE_KEY_VAR, messageKey));
+        }
+        return envVars;
     }
 
     private static List<EnvVar> testClientsConsumerEnvVars(String bootstrap, String topicName, int numOfMessages) {

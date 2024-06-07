@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.awaitility.core.ConditionTimeoutException;
@@ -24,6 +25,8 @@ import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -50,13 +53,20 @@ public class KafClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
+        final Optional<String> recordKey = Optional.ofNullable(messageKey);
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf";
-        List<String> executableCommand = List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
+
+        List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
                 "--image=" + Constants.KAF_CLIENT_IMAGE,
-                "--", "kaf", "-n", String.valueOf(numOfMessages), "-b", bootstrap, "produce", topicName);
+                "--", "kaf", "-n", String.valueOf(numOfMessages), "-b", bootstrap, "produce", topicName));
+        recordKey.ifPresent(key -> {
+            executableCommand.add("--key");
+            executableCommand.add(key);
+        });
+        executableCommand.addAll(List.of("produce", topicName));
 
         KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, message, name, KafkaClientType.KAF.name().toLowerCase());
     }
