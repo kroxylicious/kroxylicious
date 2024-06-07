@@ -5,7 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
-## SNAPSHOT
+## 0.6.0
 
 * [#1195](https://github.com/kroxylicious/kroxylicious/pull/1195): SASL OAUTHBEARER validation filter 
 * [#1076](https://github.com/kroxylicious/kroxylicious/issues/1076): AWS KMS implementation for Record Encryption
