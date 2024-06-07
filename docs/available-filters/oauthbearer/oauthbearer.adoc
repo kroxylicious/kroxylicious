@@ -7,21 +7,58 @@ OauthBearerValidation filter enables a validation on the JWT token received from
 If the token is not validated, then the request is short-circuited.
 It reduces resource consumption on the cluster when a client sends too many invalid SASL requests.
 
-[mermaid]
+[a2s, format="svg"]
 ....
-sequenceDiagram
-    Client->>Kroxylicious: Handshake request
-    Kroxylicious->>Cluster: Forward Handshake request
-    Cluster-->>Kroxylicious: Handshake response
-    Kroxylicious-->>Client: Handshake response
-    Client->>Kroxylicious: Authenticate request
-    Kroxylicious->>Kroxylicious: Validate token
-    break Token validation fails
-        Kroxylicious->>Client: Invalid token
-    end
-    Kroxylicious->>Cluster: Authenticate request
-    Cluster-->>Kroxylicious: Authenticate response
-    Kroxylicious-->>Client: Authenticate response
+.----------------------------------------------------------------------------------------.
+|                                                                                        |
+|    '---------'                  '---------------'                  '----------'        |
+|    |         |                  |               |                  |          |        |
+|    | Client  |                  | Kroxylicious  |                  | Cluster  |        |
+|    |         |                  |               |                  |          |        |
+|    '---------'                  '---------------'                  '----------'        |
+|         |                               |                                |             |
+|         |      Handshake request        |                                |             |
+|         |==============================>|   Forward handshake request    |             |
+|         |                               |===============================>|             |
+|         |                               |       Handshake response       |             |
+|         |      Handshake response       |<===============================|             |
+|         |<==============================|                                |             |
+|         |                               |                                |             |
+|         |                               |                                |             |
+|         |   Authenticate request        |                                |             |
+|         |==============================>|                                |             |
+|         |                               |==+                             |             |
+|         |                               |  : Validate Token              |             |
+|         |                               |<=+                             |             |
+|         |                               |                                |             |
+| '=======|===============================|=='                             |             |
+| :if     | [Validation fails]            |  :                             |             |
+| :       |                               |  :                             |             |
+| :       |       Invalid token           |  :                             |             |
+| :       |<==============================|  :                             |             |
+| :       |                               |  :                             |             |
+| '=======|===============================|=='                             |             |
+|         |                               |                                |             |
+| '=======|===============================|================================|=='          |
+| :if     | [Validation succeeds]         |                                |  :          |
+| :       |                               |  Forward authenticate request  |  :          |
+| :       |                               |===============================>|  :          |
+| :       |                               |     Authenticate response      |  :          |
+| :       |                               |<===============================|  :          |
+| :       |   Authenticate response       |                                |  :          |
+| :       |<==============================|                                |  :          |
+| :       |                               |                                |  :          |
+| '=======|===============================|================================|=='          |
+|         |                               |                                |             |
+|         |                               |                                |             |
+|    '---------'                  '---------------'                  '----------'        |
+|    |         |                  |               |                  |          |        |
+|    | Client  |                  | Kroxylicious  |                  | Cluster  |        |
+|    |         |                  |               |                  |          |        |
+|    '---------'                  '---------------'                  '----------'        |
+|                                                                                        |
+.----------------------------------------------------------------------------------------.
+[0,0]: {"fill":"#99d","a2s:delref":1}
 ....
 
 == How to use the filter
