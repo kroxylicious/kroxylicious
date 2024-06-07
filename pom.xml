@@ -59,8 +59,8 @@
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
-        <apicurio-schema-validation.version>0.0.6</apicurio-schema-validation.version>
-        <apicurio-registry.version>2.5.10.Final</apicurio-registry.version>
+        <apicurio-schema-validation.version>0.0.7</apicurio-schema-validation.version>
+        <apicurio-registry.version>2.5.11.Final</apicurio-registry.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->

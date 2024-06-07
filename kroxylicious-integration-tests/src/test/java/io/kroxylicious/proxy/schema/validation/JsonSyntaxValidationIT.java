@@ -44,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(KafkaClusterExtension.class)
-class JsonSyntaxValidationIT extends BaseIT {
+class JsonSyntaxValidationIT extends SchemaValidationBaseIT {
 
     public static final String SYNTACTICALLY_CORRECT_JSON = "{\"value\":\"json\"}";
     public static final String SYNTACTICALLY_INCORRECT_JSON = "Not Json";
@@ -236,20 +236,4 @@ class JsonSyntaxValidationIT extends BaseIT {
             producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_CORRECT_JSON)).get();
         }
     }
-
-    private Producer<String, String> getProducer(KroxyliciousTester tester, int linger, int batchSize) {
-        return getProducerWithConfig(tester, Optional.empty(), Map.of(LINGER_MS_CONFIG, linger, ProducerConfig.BATCH_SIZE_CONFIG, batchSize));
-    }
-
-    private Consumer<String, String> getConsumer(KroxyliciousTester tester) {
-        return getConsumerWithConfig(tester, Optional.empty(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"));
-    }
-
-    private static void assertInvalidRecordExceptionThrown(Future<RecordMetadata> invalid, String message) {
-        assertThatThrownBy(() -> {
-            invalid.get(10, TimeUnit.SECONDS);
-        }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(InvalidRecordException.class).cause()
-                .hasMessageContaining(message);
-    }
-
 }

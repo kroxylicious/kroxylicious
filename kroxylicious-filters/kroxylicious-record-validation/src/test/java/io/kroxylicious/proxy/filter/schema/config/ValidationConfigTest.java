@@ -92,7 +92,7 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), new SchemaValidationConfig(null), true, false));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), new SchemaValidationConfig(null, null), true, false));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, true, false), null);
         ValidationConfig expected = new ValidationConfig(false, List.of(ruleOne, ruleTwo),
                 new RecordValidationRule(null, new BytebufValidation(null, null, true, false)));
@@ -116,6 +116,7 @@ class ValidationConfigTest {
                         validateObjectKeysUnique: true
                     schemaValidationConfig:
                         useApicurioGlobalId: 1
+                        apicurioRegistryUrl: http://localhost:8080
                     allowNulls: false
                     allowEmpty: true
                 - topicNames:
@@ -126,7 +127,41 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(1L), false, true));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig("http://localhost:8080", 1L), false, true));
+        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, false, true), null);
+        ValidationConfig expected = new ValidationConfig(true, List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, false, true)));
+        assertEquals(expected, deserialised);
+    }
+
+    @Test
+    void testDecodeInvalidValuesSchemaValidation() throws JsonProcessingException {
+        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
+                forwardPartialRequests: true
+                defaultRule:
+                  valueRule:
+                    allowNulls: false
+                    allowEmpty: true
+                rules:
+                - topicNames:
+                  - one
+                  valueRule:
+                    syntacticallyCorrectJson:
+                        validateObjectKeysUnique: true
+                    schemaValidationConfig:
+                        useApicurioGlobalId:
+                        apicurioRegistryUrl:
+                    allowNulls: false
+                    allowEmpty: true
+                - topicNames:
+                  - two
+                  keyRule:
+                    allowNulls: false
+                    allowEmpty: true
+                """);
+
+        TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(null, null), false, true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, false, true), null);
         ValidationConfig expected = new ValidationConfig(true, List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, false, true)));
         assertEquals(expected, deserialised);
