@@ -8,7 +8,7 @@ package io.kroxylicious.systemtests.clients.records;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -30,7 +30,7 @@ public class ClientConsumerRecord extends BaseConsumerRecord {
 
     private long timestamp;
     private String timestampType;
-    private List<Map<String, String>> headers;
+    private List<Entry<String, String>> headers;
 
     /**
      * Sets timestamp.
@@ -55,7 +55,7 @@ public class ClientConsumerRecord extends BaseConsumerRecord {
      *
      * @param headers the headers
      */
-    public void setHeaders(List<Map<String, String>> headers) {
+    public void setHeaders(List<Entry<String, String>> headers) {
         this.headers = headers;
     }
 
@@ -85,7 +85,7 @@ public class ClientConsumerRecord extends BaseConsumerRecord {
     public ConsumerRecord<String, String> toConsumerRecord() {
         Headers recordHeaders = new RecordHeaders();
         if (this.headers != null) {
-            this.headers.forEach(h -> h.forEach((headerKey, headerValue) -> recordHeaders.add(headerKey, headerValue.getBytes(StandardCharsets.UTF_8))));
+            this.headers.forEach(h -> recordHeaders.add(h.getKey(), h.getValue().getBytes(StandardCharsets.UTF_8)));
         }
         return new ConsumerRecord<>(
                 this.topic,

@@ -61,7 +61,7 @@ public class KafClient implements KafkaClient {
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
                 "--image=" + Constants.KAF_CLIENT_IMAGE,
-                "--", "kaf", "-n", String.valueOf(numOfMessages), "-b", bootstrap, "produce", topicName));
+                "--", "kaf", "-n", String.valueOf(numOfMessages), "-b", bootstrap));
         recordKey.ifPresent(key -> {
             executableCommand.add("--key");
             executableCommand.add(key);
