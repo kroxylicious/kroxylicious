@@ -10,4 +10,9 @@ public class BufferTooSmallException extends RuntimeException {
     public BufferTooSmallException() {
         super();
     }
+
+    @Override
+    public synchronized Throwable fillInStackTrace() {
+        return null;
+    }
 }
