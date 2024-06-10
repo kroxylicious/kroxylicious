@@ -61,6 +61,7 @@
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.0.7</apicurio-schema-validation.version>
         <apicurio-registry.version>2.5.11.Final</apicurio-registry.version>
+        <apicurio-common.version>0.1.18.Final</apicurio-common.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
@@ -75,6 +76,7 @@
         <apache.commons.version>3.14.0</apache.commons.version>
         <netty-leak-detector-junit-extension.version>0.0.5</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.5.2</wiremock.version>
+        <docker-java.version>3.3.6</docker-java.version>
     </properties>
 
     <name>Parent POM</name>
@@ -272,6 +274,26 @@
                 <version>${hamcrest.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.hamcrest</groupId>
+                <artifactId>hamcrest-core</artifactId>
+                <version>${hamcrest.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-client</artifactId>
+                <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-common</artifactId>
+                <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-common-rest-client-common</artifactId>
+                <version>${apicurio-common.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>io.apicurio</groupId>
                 <artifactId>apicurio-registry-schema-resolver</artifactId>
                 <version>${apicurio-registry.version}</version>
@@ -340,6 +362,12 @@
                 <version>${testcontainers.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.github.docker-java</groupId>
+                <artifactId>docker-java-api</artifactId>
+                <version>${docker-java.version}</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.wiremock</groupId>
@@ -499,7 +527,7 @@
                     <version>2.23.0</version>
                     <configuration>
                         <!--suppress MavenModelInspection -->
-                        <configFile>${rootdir}/etc/eclipse-formatter-config.xml</configFile>
+                        <configFile>/Users/carlesarnal/IdeaProjects/kroxylicious/etc/eclipse-formatter-config.xml</configFile>
                     </configuration>
                 </plugin>
                 <plugin>

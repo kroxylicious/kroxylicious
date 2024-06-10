@@ -6,18 +6,19 @@
 
 package io.kroxylicious.proxy.schema.validation;
 
-import io.kroxylicious.proxy.BaseIT;
-import io.kroxylicious.test.tester.KroxyliciousTester;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.InvalidRecordException;
-
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.InvalidRecordException;
+
+import io.kroxylicious.proxy.BaseIT;
+import io.kroxylicious.test.tester.KroxyliciousTester;
 
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;

@@ -5,16 +5,15 @@
  */
 package io.kroxylicious.proxy.schema.validation;
 
-import com.github.dockerjava.api.command.CreateContainerCmd;
-import com.github.dockerjava.api.model.ExposedPort;
-import com.github.dockerjava.api.model.PortBinding;
-import com.github.dockerjava.api.model.Ports;
-import io.apicurio.registry.rest.client.RegistryClientFactory;
-import io.apicurio.rest.client.util.IoUtil;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
-import io.kroxylicious.proxy.filter.schema.ProduceValidationFilterFactory;
-import io.kroxylicious.testing.kafka.api.KafkaCluster;
-import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.Future;
+import java.util.function.Consumer;
+
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -27,14 +26,18 @@ import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
-import java.io.IOException;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.Future;
-import java.util.function.Consumer;
+import com.github.dockerjava.api.command.CreateContainerCmd;
+import com.github.dockerjava.api.model.ExposedPort;
+import com.github.dockerjava.api.model.PortBinding;
+import com.github.dockerjava.api.model.Ports;
+
+import io.apicurio.registry.rest.client.RegistryClientFactory;
+import io.apicurio.rest.client.util.IoUtil;
+
+import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.filter.schema.ProduceValidationFilterFactory;
+import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -80,7 +83,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
 
     @BeforeAll
     public static void init() throws IOException {
-        //An Apicurio Registry instance is required for this test to work, so we start one using a Generic Container
+        // An Apicurio Registry instance is required for this test to work, so we start one using a Generic Container
         DockerImageName dockerImageName = DockerImageName.parse("quay.io/apicurio/apicurio-registry-mem")
                 .withTag("2.5.11.Final");
 
@@ -97,7 +100,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
         registryContainer.start();
         registryContainer.waitingFor(Wait.forLogMessage(".*Installed features:*", 1));
 
-        //Preparation: In this test class, a schema already registered in Apicurio Registry with globalId one is expected, so we register it upfront.
+        // Preparation: In this test class, a schema already registered in Apicurio Registry with globalId one is expected, so we register it upfront.
         try (var client = RegistryClientFactory.create(APICURIO_REGISTRY_URL)) {
             client.createArtifact(null, UUID.randomUUID().toString(), IoUtil.toStream(JSON_SCHEMA_TOPIC_1));
         }
@@ -110,10 +113,10 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
-                                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                        Map.of("allowsNulls", true,
-                                                "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
-                                                "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "useApicurioGlobalId", 1L)))))
+                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true,
+                                        "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
+                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "useApicurioGlobalId", 1L)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
@@ -132,23 +135,23 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
         assertThat(cluster.getNumOfBrokers()).isOne();
         createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
-        //Topic 2 has schema validation, invalid data cannot be sent.
+        // Topic 2 has schema validation, invalid data cannot be sent.
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
-                                List.of(Map.of("topicNames", List.of(TOPIC_2), "valueRule",
-                                        Map.of("allowsNulls", true,
-                                                "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
-                                                "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "useApicurioGlobalId", 1L)))))
+                        List.of(Map.of("topicNames", List.of(TOPIC_2), "valueRule",
+                                Map.of("allowsNulls", true,
+                                        "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
+                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "useApicurioGlobalId", 1L)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = getProducer(tester, 0, 16384);
                 var consumer = getConsumer(tester)) {
-            //Topic 2 has schema validation defined, invalid data cannot be produced.
+            // Topic 2 has schema validation defined, invalid data cannot be produced.
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", INVALID_AGE_MESSAGE));
             assertInvalidRecordExceptionThrown(invalid, "$.age: must have a minimum value of 0");
 
-            //Topic 1 has no schema validation, invalid data is produced.
+            // Topic 1 has no schema validation, invalid data is produced.
             producer.send(new ProducerRecord<>(TOPIC_1, "my-key", INVALID_AGE_MESSAGE)).get();
             consumer.subscribe(Set.of(TOPIC_1));
             var records = consumer.poll(Duration.ofSeconds(10));
@@ -164,10 +167,10 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
-                                List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                        Map.of("allowsNulls", true,
-                                                "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
-                                                "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "useApicurioGlobalId", 3L)))))
+                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                                Map.of("allowsNulls", true,
+                                        "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
+                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "useApicurioGlobalId", 3L)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);

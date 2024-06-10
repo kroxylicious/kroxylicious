@@ -72,23 +72,11 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-aws-kms-test-support</artifactId>
             <scope>runtime</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.hamcrest</groupId>
-                    <artifactId>hamcrest-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-hashicorp-vault-test-support</artifactId>
             <scope>runtime</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.hamcrest</groupId>
-                    <artifactId>hamcrest-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
@@ -153,6 +141,11 @@
             <artifactId>log4j-slf4j2-impl</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- the next two are used by the Netty Leak Detection test -->
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
@@ -202,6 +195,26 @@
         <dependency>
             <groupId>io.github.nettyplus</groupId>
             <artifactId>netty-leak-detector-junit-extension</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId> io.apicurio</groupId>
+            <artifactId>apicurio-registry-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId> io.apicurio</groupId>
+            <artifactId>apicurio-registry-common</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId> io.apicurio</groupId>
+            <artifactId>apicurio-common-rest-client-common</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.docker-java</groupId>
+            <artifactId>docker-java-api</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
