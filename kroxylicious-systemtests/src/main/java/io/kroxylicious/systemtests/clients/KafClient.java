@@ -108,11 +108,11 @@ public class KafClient implements KafkaClient {
     }
 
     private List<String> getNumberOfJsonMessages(String log) {
-        List<String> jsonMessages = new ArrayList<>();
 
         if (log == null) {
-            return jsonMessages;
+            return List.of();
         }
+        List<String> jsonMessages = new ArrayList<>();
 
         String[] logLines = log.split("\n");
 
