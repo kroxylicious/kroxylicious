@@ -35,9 +35,9 @@ public class ClientConsumerRecord extends BaseConsumerRecord {
      */
     @JsonCreator
     public ClientConsumerRecord(@JsonProperty("headers") List<Entry<String, String>> headers, @JsonProperty("timestamp") long timestamp,
-                             @JsonProperty("timestampType") String timestampType, @JsonProperty("topic") String topic,
-                             @JsonProperty("key") String key, @JsonProperty("payload") String payload, @JsonProperty("partition") int partition,
-                             @JsonProperty("offset") long offset, @JsonProperty("leaderEpoch") int leaderEpoch) {
+                                @JsonProperty("timestampType") String timestampType, @JsonProperty("topic") String topic,
+                                @JsonProperty("key") String key, @JsonProperty("payload") String payload, @JsonProperty("partition") int partition,
+                                @JsonProperty("offset") long offset, @JsonProperty("leaderEpoch") int leaderEpoch) {
         this.recordHeaders = new RecordHeaders();
         if (headers != null) {
             headers.forEach(h -> recordHeaders.add(h.getKey(), h.getValue().getBytes(StandardCharsets.UTF_8)));
