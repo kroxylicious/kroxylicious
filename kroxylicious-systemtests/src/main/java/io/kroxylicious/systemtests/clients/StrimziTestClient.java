@@ -75,7 +75,7 @@ public class StrimziTestClient implements KafkaClient {
                             return kubeClient().logsInSpecificNamespace(namespace, podName);
                         }
                         return null;
-                    }, m -> m.contains("Sending message:"));
+                    }, m -> m != null && m.contains("Sending message:"));
         }
         catch (ConditionTimeoutException e) {
             log = kubeClient().logsInSpecificNamespace(namespace, podName);
