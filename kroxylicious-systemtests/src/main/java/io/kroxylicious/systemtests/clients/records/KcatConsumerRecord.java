@@ -13,11 +13,6 @@ import java.util.Optional;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
@@ -25,8 +20,6 @@ import io.kroxylicious.systemtests.utils.KafkaUtils;
  * The type Kcat consumer record.
  */
 public class KcatConsumerRecord extends BaseConsumerRecord {
-    private static final Logger LOGGER = LoggerFactory.getLogger(KcatConsumerRecord.class);
-
     private long ts;
     private String tstype;
     private int broker;
@@ -66,24 +59,6 @@ public class KcatConsumerRecord extends BaseConsumerRecord {
      */
     public void setHeaders(List<String> headers) {
         this.headers = headers;
-    }
-
-    /**
-     * Parse from json string.
-     *
-     * @param response the response
-     * @return the kcat consumer record
-     */
-    public static KcatConsumerRecord parseFromJsonString(String response) {
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        try {
-            return objectMapper.readValue(response, KcatConsumerRecord.class);
-        }
-        catch (JsonProcessingException e) {
-            LOGGER.atError().setMessage("Error: {}").addArgument(e.getMessage()).log();
-            return null;
-        }
     }
 
     /**

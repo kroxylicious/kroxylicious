@@ -16,10 +16,13 @@ import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.records.BaseConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.ClientConsumerRecord;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -101,7 +104,7 @@ public class StrimziTestClient implements KafkaClient {
     private List<ConsumerRecord<String, String>> getConsumerRecords(List<String> logRecords) {
         List<ConsumerRecord<String, String>> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            ClientConsumerRecord clientConsumerRecord = ClientConsumerRecord.parseFromJsonString(logRecord);
+            ClientConsumerRecord clientConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {}, logRecord);
             if (clientConsumerRecord != null) {
                 ConsumerRecord<String, String> consumerRecord = clientConsumerRecord.toConsumerRecord();
                 records.add(consumerRecord);

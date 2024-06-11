@@ -94,7 +94,7 @@ class KroxyliciousST extends AbstractST {
         KafkaSteps.restartKafkaBroker(clusterName);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord<String, String>> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(15));
+        List<ConsumerRecord<String, String>> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(5));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
         int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
         assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);

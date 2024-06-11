@@ -15,11 +15,6 @@ import java.util.Optional;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
@@ -27,8 +22,6 @@ import io.kroxylicious.systemtests.utils.KafkaUtils;
  * The type Kaf consumer record.
  */
 public class KafConsumerRecord extends BaseConsumerRecord {
-    private static final Logger LOGGER = LoggerFactory.getLogger(KafConsumerRecord.class);
-
     private String timestamp;
     private String timestampType;
     private List<Map<String, String>> headers;
@@ -58,24 +51,6 @@ public class KafConsumerRecord extends BaseConsumerRecord {
      */
     public void setHeaders(List<Map<String, String>> headers) {
         this.headers = headers;
-    }
-
-    /**
-     * Parse from json string.
-     *
-     * @param response the response
-     * @return the kaf consumer record
-     */
-    public static KafConsumerRecord parseFromJsonString(String response) {
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        try {
-            return objectMapper.readValue(response, KafConsumerRecord.class);
-        }
-        catch (JsonProcessingException e) {
-            LOGGER.atError().setMessage("Something bad happened").setCause(e).log();
-            return null;
-        }
     }
 
     /**

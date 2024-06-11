@@ -15,9 +15,12 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.records.BaseConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.KcatConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
@@ -94,7 +97,7 @@ public class KcatClient implements KafkaClient {
     private List<ConsumerRecord<String, String>> getConsumerRecords(List<String> logRecords) {
         List<ConsumerRecord<String, String>> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            KcatConsumerRecord kcatConsumerRecord = KcatConsumerRecord.parseFromJsonString(logRecord);
+            KcatConsumerRecord kcatConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {}, logRecord);
             if (kcatConsumerRecord != null) {
                 ConsumerRecord<String, String> consumerRecord = kcatConsumerRecord.toConsumerRecord();
                 records.add(consumerRecord);
