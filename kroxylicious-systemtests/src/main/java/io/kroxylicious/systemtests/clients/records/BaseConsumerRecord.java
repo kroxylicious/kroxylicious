@@ -6,6 +6,10 @@
 
 package io.kroxylicious.systemtests.clients.records;
 
+import java.util.Optional;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.header.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,69 +17,20 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.systemtests.utils.KafkaUtils;
+
 public class BaseConsumerRecord {
     private static final Logger LOGGER = LoggerFactory.getLogger(BaseConsumerRecord.class);
 
     protected String topic;
+    protected long timestamp;
+    protected String timestampType;
     protected Object key;
     protected Object payload;
     protected int partition;
     protected long offset;
     protected Integer leaderEpoch;
-
-    /**
-     * Sets topic.
-     *
-     * @param topic the topic
-     */
-    public void setTopic(String topic) {
-        this.topic = topic;
-    }
-
-    /**
-     * Sets key.
-     *
-     * @param key the key
-     */
-    public void setKey(Object key) {
-        this.key = key;
-    }
-
-    /**
-     * Sets payload.
-     *
-     * @param payload the payload
-     */
-    public void setPayload(Object payload) {
-        this.payload = payload;
-    }
-
-    /**
-     * Sets partition.
-     *
-     * @param partition the partition
-     */
-    public void setPartition(int partition) {
-        this.partition = partition;
-    }
-
-    /**
-     * Sets offset.
-     *
-     * @param offset the offset
-     */
-    public void setOffset(long offset) {
-        this.offset = offset;
-    }
-
-    /**
-     * Sets leader epoch.
-     *
-     * @param leaderEpoch the leader epoch
-     */
-    public void setLeaderEpoch(Integer leaderEpoch) {
-        this.leaderEpoch = leaderEpoch;
-    }
+    protected Headers recordHeaders;
 
     /**
      * Parse from json string t.
@@ -94,5 +49,25 @@ public class BaseConsumerRecord {
             LOGGER.atError().setMessage("Something bad happened").setCause(e).log();
             return null;
         }
+    }
+
+    /**
+     * To consumer record.
+     *
+     * @return the consumer record
+     */
+    public ConsumerRecord<String, String> toConsumerRecord() {
+        return new ConsumerRecord<>(
+                this.topic,
+                this.partition,
+                this.offset,
+                this.timestamp,
+                KafkaUtils.getTimestampType(this.timestampType),
+                -1,
+                -1,
+                (String) this.key,
+                String.valueOf(this.payload),
+                recordHeaders,
+                Optional.ofNullable(this.leaderEpoch));
     }
 }

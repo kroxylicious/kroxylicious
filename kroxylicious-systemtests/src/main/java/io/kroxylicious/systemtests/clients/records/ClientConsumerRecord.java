@@ -9,70 +9,46 @@ package io.kroxylicious.systemtests.clients.records;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Optional;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 
-import io.kroxylicious.systemtests.utils.KafkaUtils;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * The type Client consumer record.
  */
 public class ClientConsumerRecord extends BaseConsumerRecord {
-    private long timestamp;
-    private String timestampType;
-    private List<Entry<String, String>> headers;
 
     /**
-     * Sets timestamp.
-     *
-     * @param timestamp the timestamp
-     */
-    public void setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    /**
-     * Sets timestamp type.
-     *
-     * @param timestampType the timestamp type
-     */
-    public void setTimestampType(String timestampType) {
-        this.timestampType = timestampType;
-    }
-
-    /**
-     * Sets headers.
+     * Instantiates a new Client consumer record.
      *
      * @param headers the headers
+     * @param timestamp the timestamp
+     * @param timestampType the timestamp type
+     * @param topic the topic
+     * @param key the key
+     * @param payload the payload
+     * @param partition the partition
+     * @param offset the offset
+     * @param leaderEpoch the leader epoch
      */
-    public void setHeaders(List<Entry<String, String>> headers) {
-        this.headers = headers;
-    }
-
-    /**
-     * To consumer record.
-     *
-     * @return the consumer record
-     */
-    public ConsumerRecord<String, String> toConsumerRecord() {
-        Headers recordHeaders = new RecordHeaders();
-        if (this.headers != null) {
-            this.headers.forEach(h -> recordHeaders.add(h.getKey(), h.getValue().getBytes(StandardCharsets.UTF_8)));
+    @JsonCreator
+    public ClientConsumerRecord(@JsonProperty("headers") List<Entry<String, String>> headers, @JsonProperty("timestamp") long timestamp,
+                             @JsonProperty("timestampType") String timestampType, @JsonProperty("topic") String topic,
+                             @JsonProperty("key") String key, @JsonProperty("payload") String payload, @JsonProperty("partition") int partition,
+                             @JsonProperty("offset") long offset, @JsonProperty("leaderEpoch") int leaderEpoch) {
+        this.recordHeaders = new RecordHeaders();
+        if (headers != null) {
+            headers.forEach(h -> recordHeaders.add(h.getKey(), h.getValue().getBytes(StandardCharsets.UTF_8)));
         }
-        return new ConsumerRecord<>(
-                this.topic,
-                this.partition,
-                this.offset,
-                this.timestamp,
-                KafkaUtils.getTimestampType(this.timestampType),
-                -1,
-                -1,
-                (String) this.key,
-                String.valueOf(this.payload),
-                recordHeaders,
-                Optional.ofNullable(this.leaderEpoch));
+        this.timestamp = timestamp;
+        this.timestampType = timestampType;
+        this.topic = topic;
+        this.key = key;
+        this.payload = payload;
+        this.partition = partition;
+        this.offset = offset;
+        this.leaderEpoch = leaderEpoch;
     }
 }

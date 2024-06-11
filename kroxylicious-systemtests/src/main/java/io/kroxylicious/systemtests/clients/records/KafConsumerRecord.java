@@ -10,70 +10,53 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 
-import io.kroxylicious.systemtests.utils.KafkaUtils;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * The type Kaf consumer record.
  */
 public class KafConsumerRecord extends BaseConsumerRecord {
-    private String timestamp;
-    private String timestampType;
-    private List<Map<String, String>> headers;
 
     /**
-     * Sets timestamp.
-     *
-     * @param timestamp the timestamp
-     */
-    public void setTimestamp(String timestamp) {
-        this.timestamp = timestamp;
-    }
-
-    /**
-     * Sets timestamp type.
-     *
-     * @param timestampType the timestamp type
-     */
-    public void setTimestampType(String timestampType) {
-        this.timestampType = timestampType;
-    }
-
-    /**
-     * Sets headers.
+     * Instantiates a new Kaf consumer record.
      *
      * @param headers the headers
+     * @param timestamp the timestamp
+     * @param timestampType the timestamp type
+     * @param key the key
+     * @param payload the payload
+     * @param partition the partition
+     * @param offset the offset
+     * @param leaderEpoch the leader epoch
      */
-    public void setHeaders(List<Map<String, String>> headers) {
-        this.headers = headers;
+    @JsonCreator
+    public KafConsumerRecord(@JsonProperty("headers") List<Map<String, String>> headers, @JsonProperty("timestamp") String timestamp,
+                             @JsonProperty("timestampType") String timestampType,
+                             @JsonProperty("key") String key, @JsonProperty("payload") String payload, @JsonProperty("partition") int partition,
+                             @JsonProperty("offset") long offset, @JsonProperty("leaderEpoch") int leaderEpoch) {
+        this.recordHeaders = new RecordHeaders();
+        if (headers != null) {
+            headers.forEach(h -> h.forEach((headerKey, headerValue) -> recordHeaders.add(headerKey, headerValue.getBytes(StandardCharsets.UTF_8))));
+        }
+        this.timestamp = Instant.parse(timestamp).toEpochMilli();
+        this.timestampType = timestampType;
+        this.key = key;
+        this.payload = payload;
+        this.partition = partition;
+        this.offset = offset;
+        this.leaderEpoch = leaderEpoch;
     }
 
     /**
-     * To consumer record.
+     * Sets topic.
      *
-     * @return the consumer record
+     * @param topic the topic
      */
-    public ConsumerRecord<String, String> toConsumerRecord() {
-        Headers recordHeaders = new RecordHeaders();
-        if (this.headers != null) {
-            this.headers.forEach(h -> h.forEach((headerKey, headerValue) -> recordHeaders.add(headerKey, headerValue.getBytes(StandardCharsets.UTF_8))));
-        }
-        return new ConsumerRecord<>(
-                this.topic,
-                this.partition,
-                this.offset,
-                Instant.parse(this.timestamp).toEpochMilli(),
-                KafkaUtils.getTimestampType(this.timestampType),
-                -1,
-                -1,
-                (String) this.key,
-                String.valueOf(this.payload),
-                recordHeaders,
-                Optional.ofNullable(this.leaderEpoch));
+    public void setTopic(String topic) {
+        this.topic = topic;
     }
 }
