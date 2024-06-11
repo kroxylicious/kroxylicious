@@ -98,7 +98,7 @@ public class KafClient implements KafkaClient {
                             return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
                         }
                         return null;
-                    }, m -> getNumberOfJsonMessages(m).size() == numOfMessages);
+                    }, m -> getNumberOfJsonMessages(m) == numOfMessages);
         }
         catch (ConditionTimeoutException e) {
             log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
@@ -107,13 +107,12 @@ public class KafClient implements KafkaClient {
         return log;
     }
 
-    private List<String> getNumberOfJsonMessages(String log) {
-
+    private int getNumberOfJsonMessages(String log) {
         if (log == null) {
-            return List.of();
+            return 0;
         }
-        List<String> jsonMessages = new ArrayList<>();
 
+        List<String> jsonMessages = new ArrayList<>();
         String[] logLines = log.split("\n");
 
         for (String message : logLines) {
@@ -122,7 +121,7 @@ public class KafClient implements KafkaClient {
             }
         }
 
-        return jsonMessages;
+        return jsonMessages.size();
     }
 
     private List<ConsumerRecord<String, String>> getConsumerRecords(String topicName, List<String> logRecords) {
