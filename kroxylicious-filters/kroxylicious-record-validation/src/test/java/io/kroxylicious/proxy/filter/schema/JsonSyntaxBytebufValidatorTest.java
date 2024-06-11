@@ -10,7 +10,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -48,7 +47,7 @@ class JsonSyntaxBytebufValidatorTest {
     @BeforeEach
     public void init() {
         MockitoAnnotations.openMocks(this);
-        Mockito.when(mockValidator.validate(any(), anyInt(), any(), anyBoolean())).thenReturn(CompletableFuture.completedFuture(Result.VALID));
+        Mockito.when(mockValidator.validate(any(), anyInt(), any(), anyBoolean())).thenReturn(Result.VALID);
     }
 
     @Test

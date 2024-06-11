@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.record.Record;
@@ -18,6 +17,6 @@ class AllValidBytebufValidator implements BytebufValidator {
 
     @Override
     public CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
-        return CompletableFuture.completedFuture(Result.VALID);
+        return Result.VALID;
     }
 }

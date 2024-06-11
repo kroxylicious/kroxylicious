@@ -6,6 +6,9 @@
 
 package io.kroxylicious.proxy.filter.schema.validation;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+
 /**
  * Result for a validation
  * @param valid whether the input was valid
@@ -16,5 +19,5 @@ public record Result(boolean valid, String errorMessage) {
     /**
      * valid result
      */
-    public static Result VALID = new Result(true, null);
+    public static CompletionStage<Result> VALID = CompletableFuture.completedFuture(new Result(true, null));
 }

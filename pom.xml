@@ -527,7 +527,7 @@
                     <version>2.23.0</version>
                     <configuration>
                         <!--suppress MavenModelInspection -->
-                        <configFile>/Users/carlesarnal/IdeaProjects/kroxylicious/etc/eclipse-formatter-config.xml</configFile>
+                        <configFile>${rootdir}/etc/eclipse-formatter-config.xml</configFile>
                     </configuration>
                 </plugin>
                 <plugin>

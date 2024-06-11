@@ -14,8 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
-import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.junit.jupiter.api.AfterAll;
@@ -38,6 +37,7 @@ import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.schema.ProduceValidationFilterFactory;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -72,9 +72,6 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
 
     private static final String JSON_MESSAGE = "{\"firstName\":\"json1\",\"lastName\":\"json2\"}";
     private static final String INVALID_AGE_MESSAGE = "{\"firstName\":\"json1\",\"lastName\":\"json2\",\"age\":-3}";
-    private static final String TOPIC_1 = "my-test-topic";
-    private static final String TOPIC_2 = "my-test-topic-2";
-
     private static final String APICURIO_REGISTRY_HOST = "http://localhost";
     private static final Integer APICURIO_REGISTRY_PORT = 8081;
     private static final String APICURIO_REGISTRY_URL = APICURIO_REGISTRY_HOST + ":" + APICURIO_REGISTRY_PORT;
@@ -107,53 +104,49 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
     }
 
     @Test
-    void testValidJsonProduceAccepted(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopic(admin, TOPIC_1, 1);
-
+    void testValidJsonProduceAccepted(KafkaCluster cluster, Topic topic1) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                        List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
                                 Map.of("allowsNulls", true,
                                         "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
-                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "useApicurioGlobalId", 1L)))))
+                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", 1L)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = getProducer(tester, 0, 16384);
                 var consumer = getConsumer(tester)) {
-            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", JSON_MESSAGE)).get();
-            consumer.subscribe(Set.of(TOPIC_1));
+            producer.send(new ProducerRecord<>(topic1.name(), "my-key", JSON_MESSAGE)).get();
+            consumer.subscribe(Set.of(topic1.name()));
             var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records.count()).isOne();
-            assertThat(records.iterator().next().value()).isEqualTo(JSON_MESSAGE);
+            assertThat(records.records(topic1.name()))
+                    .hasSize(1)
+                    .map(ConsumerRecord::value)
+                    .containsExactly(JSON_MESSAGE);
         }
     }
 
     @Test
-    void testInvalidAgeProduceRejectedUsingTopicNames(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
-
+    void testInvalidAgeProduceRejectedUsingTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) throws Exception {
         // Topic 2 has schema validation, invalid data cannot be sent.
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_2), "valueRule",
+                        List.of(Map.of("topicNames", List.of(topic2.name()), "valueRule",
                                 Map.of("allowsNulls", true,
                                         "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
-                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "useApicurioGlobalId", 1L)))))
+                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", 1L)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = getProducer(tester, 0, 16384);
                 var consumer = getConsumer(tester)) {
             // Topic 2 has schema validation defined, invalid data cannot be produced.
-            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", INVALID_AGE_MESSAGE));
+            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(topic2.name(), "my-key", INVALID_AGE_MESSAGE));
             assertInvalidRecordExceptionThrown(invalid, "$.age: must have a minimum value of 0");
 
             // Topic 1 has no schema validation, invalid data is produced.
-            producer.send(new ProducerRecord<>(TOPIC_1, "my-key", INVALID_AGE_MESSAGE)).get();
-            consumer.subscribe(Set.of(TOPIC_1));
+            producer.send(new ProducerRecord<>(topic1.name(), "my-key", INVALID_AGE_MESSAGE)).get();
+            consumer.subscribe(Set.of(topic1.name()));
             var records = consumer.poll(Duration.ofSeconds(10));
             assertThat(records.count()).isOne();
             assertThat(records.iterator().next().value()).isEqualTo(INVALID_AGE_MESSAGE);
@@ -161,21 +154,18 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
     }
 
     @Test
-    void testNonExistentSchema(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopic(admin, TOPIC_1, 1);
-
+    void testNonExistentSchema(KafkaCluster cluster, Topic topic1) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
+                        List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
                                 Map.of("allowsNulls", true,
                                         "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
-                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "useApicurioGlobalId", 3L)))))
+                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", 3L)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = getProducer(tester, 0, 16384)) {
-            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", JSON_MESSAGE));
+            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(topic1.name(), "my-key", JSON_MESSAGE));
             assertInvalidRecordExceptionThrown(invalid, "No artifact with ID '3' in group 'null' was found");
         }
     }

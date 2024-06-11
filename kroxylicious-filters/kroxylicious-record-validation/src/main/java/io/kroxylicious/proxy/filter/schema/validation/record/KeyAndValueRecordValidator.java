@@ -54,7 +54,7 @@ public class KeyAndValueRecordValidator implements RecordValidator {
                 return CompletableFuture.completedFuture(new Result(false, "Value was invalid: " + result1.errorMessage()));
             }
             else {
-                return CompletableFuture.completedFuture(Result.VALID);
+                return Result.VALID;
             }
         });
     }

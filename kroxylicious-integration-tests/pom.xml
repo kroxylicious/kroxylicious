@@ -198,17 +198,17 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId> io.apicurio</groupId>
+            <groupId>io.apicurio</groupId>
             <artifactId>apicurio-registry-client</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId> io.apicurio</groupId>
+            <groupId>io.apicurio</groupId>
             <artifactId>apicurio-registry-common</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId> io.apicurio</groupId>
+            <groupId>io.apicurio</groupId>
             <artifactId>apicurio-common-rest-client-common</artifactId>
             <scope>test</scope>
         </dependency>

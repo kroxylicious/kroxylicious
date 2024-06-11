@@ -63,8 +63,8 @@ public class ProduceValidationFilterBuilder {
 
     private static BytebufValidator toSchemaValidator(BytebufValidation valueRule) {
         return valueRule.getSchemaValidationConfig()
-                .map(config -> BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl()),
-                        config.useApicurioGlobalId()))
+                .map(config -> BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
+                        config.apicurioGlobalId()))
                 .orElse(BytebufValidators.allValid());
     }
 }

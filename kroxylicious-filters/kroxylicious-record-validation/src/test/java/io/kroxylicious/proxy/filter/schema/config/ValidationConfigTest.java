@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter.schema.config;
 
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.util.List;
 import java.util.Set;
 
@@ -85,14 +87,13 @@ class ValidationConfigTest {
                   - one
                   valueRule:
                     syntacticallyCorrectJson: {}
-                    schemaValidationConfig: {}
                 - topicNames:
                   - two
                   keyRule: {}
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), new SchemaValidationConfig(null, null), true, false));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, true, false));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, true, false), null);
         ValidationConfig expected = new ValidationConfig(false, List.of(ruleOne, ruleTwo),
                 new RecordValidationRule(null, new BytebufValidation(null, null, true, false)));
@@ -100,7 +101,7 @@ class ValidationConfigTest {
     }
 
     @Test
-    void testDecodeNonDefaultValuesSchemaValidation() throws JsonProcessingException {
+    void testDecodeNonDefaultValuesSchemaValidation() throws JsonProcessingException, MalformedURLException {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
                 forwardPartialRequests: true
@@ -115,7 +116,7 @@ class ValidationConfigTest {
                     syntacticallyCorrectJson:
                         validateObjectKeysUnique: true
                     schemaValidationConfig:
-                        useApicurioGlobalId: 1
+                        apicurioGlobalId: 1
                         apicurioRegistryUrl: http://localhost:8080
                     allowNulls: false
                     allowEmpty: true
@@ -127,7 +128,8 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig("http://localhost:8080", 1L), false, true));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L), false,
+                        true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, false, true), null);
         ValidationConfig expected = new ValidationConfig(true, List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, false, true)));
         assertEquals(expected, deserialised);
@@ -148,9 +150,6 @@ class ValidationConfigTest {
                   valueRule:
                     syntacticallyCorrectJson:
                         validateObjectKeysUnique: true
-                    schemaValidationConfig:
-                        useApicurioGlobalId:
-                        apicurioRegistryUrl:
                     allowNulls: false
                     allowEmpty: true
                 - topicNames:
@@ -161,7 +160,7 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(null, null), false, true));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null, false, true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, false, true), null);
         ValidationConfig expected = new ValidationConfig(true, List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, false, true)));
         assertEquals(expected, deserialised);

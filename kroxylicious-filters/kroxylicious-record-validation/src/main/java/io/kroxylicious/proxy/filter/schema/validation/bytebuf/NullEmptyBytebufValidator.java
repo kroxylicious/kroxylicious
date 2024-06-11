@@ -41,6 +41,6 @@ class NullEmptyBytebufValidator implements BytebufValidator {
     }
 
     private CompletionStage<Result> result(boolean allowed, String message) {
-        return allowed ? CompletableFuture.completedFuture(Result.VALID) : CompletableFuture.completedFuture(new Result(false, message));
+        return allowed ? Result.VALID : CompletableFuture.completedFuture(new Result(false, message));
     }
 }

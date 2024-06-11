@@ -6,21 +6,24 @@
 
 package io.kroxylicious.proxy.filter.schema.config;
 
+import java.net.URL;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is valid using the schema in Apicurio Registry.
  */
-public record SchemaValidationConfig(String apicurioRegistryUrl, Long useApicurioGlobalId) {
+public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioGlobalId) {
     /**
-     * Construct SyntacticallyCorrectJsonConfig
-     * @param useApicurioGlobalId whether we expect the Object keys in the JSON to be unique
+     * Construct SchemaValidationConfig
+     * @param apicurioGlobalId apicurio registry version global identifier to be used for schema validation
+     * @param apicurioRegistryUrl Apicurio Registry instance url
      */
     @JsonCreator
-    public SchemaValidationConfig(@JsonProperty(value = "apicurioRegistryUrl") String apicurioRegistryUrl,
-                                  @JsonProperty(value = "useApicurioGlobalId") Long useApicurioGlobalId) {
-        this.useApicurioGlobalId = useApicurioGlobalId;
+    public SchemaValidationConfig(@JsonProperty(value = "apicurioRegistryUrl", required = true) URL apicurioRegistryUrl,
+                                  @JsonProperty(value = "apicurioGlobalId", required = true) long apicurioGlobalId) {
+        this.apicurioGlobalId = apicurioGlobalId;
         this.apicurioRegistryUrl = apicurioRegistryUrl;
     }
 
@@ -28,22 +31,22 @@ public record SchemaValidationConfig(String apicurioRegistryUrl, Long useApicuri
      * @return the configured globalId to be used
      */
     @Override
-    public Long useApicurioGlobalId() {
-        return useApicurioGlobalId;
+    public long apicurioGlobalId() {
+        return apicurioGlobalId;
     }
 
     /**
      * @return the apicurio registry url to be used for this validation
      */
     @Override
-    public String apicurioRegistryUrl() {
+    public URL apicurioRegistryUrl() {
         return apicurioRegistryUrl;
     }
 
     @Override
     public String toString() {
         return "SchemaValidationConfig{" +
-                "useApicurioGlobalId=" + useApicurioGlobalId +
+                "apicurioGlobalId=" + apicurioGlobalId +
                 ", apicurioRegistryUrl='" + apicurioRegistryUrl + '\'' +
                 '}';
     }
