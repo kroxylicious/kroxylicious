@@ -104,7 +104,8 @@ public class StrimziTestClient implements KafkaClient {
     private List<ConsumerRecord<String, String>> getConsumerRecords(List<String> logRecords) {
         List<ConsumerRecord<String, String>> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            ClientConsumerRecord clientConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {}, logRecord);
+            ClientConsumerRecord clientConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {
+            }, logRecord);
             if (clientConsumerRecord != null) {
                 ConsumerRecord<String, String> consumerRecord = clientConsumerRecord.toConsumerRecord();
                 records.add(consumerRecord);

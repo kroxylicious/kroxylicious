@@ -97,7 +97,8 @@ public class KcatClient implements KafkaClient {
     private List<ConsumerRecord<String, String>> getConsumerRecords(List<String> logRecords) {
         List<ConsumerRecord<String, String>> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            KcatConsumerRecord kcatConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {}, logRecord);
+            KcatConsumerRecord kcatConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {
+            }, logRecord);
             if (kcatConsumerRecord != null) {
                 ConsumerRecord<String, String> consumerRecord = kcatConsumerRecord.toConsumerRecord();
                 records.add(consumerRecord);

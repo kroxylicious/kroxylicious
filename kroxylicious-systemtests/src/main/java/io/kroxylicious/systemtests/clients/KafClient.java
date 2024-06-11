@@ -128,7 +128,8 @@ public class KafClient implements KafkaClient {
     private List<ConsumerRecord<String, String>> getConsumerRecords(String topicName, List<String> logRecords) {
         List<ConsumerRecord<String, String>> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            KafConsumerRecord kafConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {}, logRecord);
+            KafConsumerRecord kafConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {
+            }, logRecord);
             if (kafConsumerRecord != null) {
                 kafConsumerRecord.setTopic(topicName);
                 ConsumerRecord<String, String> consumerRecord = kafConsumerRecord.toConsumerRecord();
