@@ -48,7 +48,7 @@ public class KcatConsumerRecord extends ConsumerRecord {
         }
         this.topic = topic;
         this.key = key;
-        this.payload = payload;
+        this.value = payload;
         this.partition = partition;
         this.offset = offset;
     }

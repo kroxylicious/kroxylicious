@@ -119,7 +119,7 @@ class RecordEncryptionST extends AbstractST {
                 },
                 () -> assertThat(resultEncrypted.stream())
                         .withFailMessage("expected message have not been received!")
-                        .allMatch(r -> r.getPayload().contains(topicName + "vault")));
+                        .allMatch(r -> r.getValue().contains(topicName + "vault")));
     }
 
     @Test
@@ -132,7 +132,7 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getPayload().contains(MESSAGE)).count();
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
         assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 }

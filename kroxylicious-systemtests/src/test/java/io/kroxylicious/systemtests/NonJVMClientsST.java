@@ -57,7 +57,7 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getPayload().contains(MESSAGE)).count();
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
         assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
@@ -77,7 +77,7 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getPayload().contains(MESSAGE)).count();
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
         assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
@@ -97,7 +97,7 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getPayload().contains(MESSAGE)).count();
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
         assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
@@ -117,7 +117,7 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getPayload().contains(MESSAGE)).count();
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
         assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
@@ -137,7 +137,7 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getPayload().contains(MESSAGE)).count();
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
         assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 
@@ -157,7 +157,7 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getPayload().contains(MESSAGE)).count();
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
         assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 

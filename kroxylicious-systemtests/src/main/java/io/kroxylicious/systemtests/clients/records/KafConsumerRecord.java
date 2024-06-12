@@ -40,7 +40,7 @@ public class KafConsumerRecord extends ConsumerRecord {
             headers.forEach(h -> recordHeaders.putAll(h));
         }
         this.key = key;
-        this.payload = payload;
+        this.value = payload;
         this.partition = partition;
         this.offset = offset;
     }

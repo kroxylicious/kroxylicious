@@ -20,7 +20,7 @@ public class ConsumerRecord {
 
     protected String topic;
     protected String key;
-    protected String payload;
+    protected String value;
     protected int partition;
     protected long offset;
     protected Map<String, String> recordHeaders;
@@ -33,8 +33,8 @@ public class ConsumerRecord {
         return key;
     }
 
-    public String getPayload() {
-        return payload;
+    public String getValue() {
+        return value;
     }
 
     public int getPartition() {
@@ -71,7 +71,7 @@ public class ConsumerRecord {
     public String toString() {
         return "ConsumerRecord(topic: " + this.topic +
                 ", key: " + this.key +
-                ", payload: " + this.payload +
+                ", value: " + this.value +
                 ", partition: " + this.partition +
                 ", offset: " + this.offset +
                 ", headers: " + this.recordHeaders +
