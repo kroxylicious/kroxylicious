@@ -25,7 +25,7 @@ public class BaseConsumerRecord {
     protected String topic;
     protected long timestamp;
     protected String timestampType;
-    protected Object key;
+    protected String key;
     protected Object payload;
     protected int partition;
     protected long offset;
@@ -65,7 +65,7 @@ public class BaseConsumerRecord {
                 KafkaUtils.getTimestampType(this.timestampType),
                 -1,
                 -1,
-                (String) this.key,
+                this.key,
                 String.valueOf(this.payload),
                 recordHeaders,
                 Optional.ofNullable(this.leaderEpoch));
