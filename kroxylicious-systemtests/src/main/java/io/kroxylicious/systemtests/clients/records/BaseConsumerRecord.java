@@ -41,9 +41,8 @@ public class BaseConsumerRecord {
      * @return the t
      */
     public static <T> T parseFromJsonString(TypeReference<T> valueTypeRef, String response) {
-        ObjectMapper objectMapper = new ObjectMapper();
         try {
-            return objectMapper.readValue(response, valueTypeRef);
+            return new ObjectMapper().readValue(response, valueTypeRef);
         }
         catch (JsonProcessingException e) {
             LOGGER.atError().setMessage("Something bad happened").setCause(e).log();
