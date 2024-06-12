@@ -35,10 +35,16 @@ public class KcatConsumerRecord extends BaseConsumerRecord {
      * @param leaderEpoch the leader epoch
      */
     @JsonCreator
-    public KcatConsumerRecord(@JsonProperty("headers") List<String> headers, @JsonProperty("ts") long timestamp,
-                              @JsonProperty("tstype") String timestampType, @JsonProperty("topic") String topic, @JsonProperty("broker") int broker,
-                              @JsonProperty("key") String key, @JsonProperty("payload") String payload, @JsonProperty("partition") int partition,
-                              @JsonProperty("offset") long offset, @JsonProperty("leaderEpoch") int leaderEpoch) {
+    public KcatConsumerRecord(@JsonProperty("headers") List<String> headers,
+                              @JsonProperty("ts") long timestamp,
+                              @JsonProperty("tstype") String timestampType,
+                              @JsonProperty("topic") String topic,
+                              @JsonProperty("broker") int broker,
+                              @JsonProperty("key") String key,
+                              @JsonProperty("payload") String payload,
+                              @JsonProperty("partition") int partition,
+                              @JsonProperty("offset") long offset,
+                              @JsonProperty("leaderEpoch") int leaderEpoch) {
         this.recordHeaders = new RecordHeaders();
         if (headers != null) {
             if (headers.size() % 2 != 0) {

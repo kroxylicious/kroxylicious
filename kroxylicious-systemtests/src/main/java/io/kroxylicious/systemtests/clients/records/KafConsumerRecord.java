@@ -34,10 +34,14 @@ public class KafConsumerRecord extends BaseConsumerRecord {
      * @param leaderEpoch the leader epoch
      */
     @JsonCreator
-    public KafConsumerRecord(@JsonProperty("headers") List<Map<String, String>> headers, @JsonProperty("timestamp") String timestamp,
+    public KafConsumerRecord(@JsonProperty("headers") List<Map<String, String>> headers,
+                             @JsonProperty("timestamp") String timestamp,
                              @JsonProperty("timestampType") String timestampType,
-                             @JsonProperty("key") String key, @JsonProperty("payload") String payload, @JsonProperty("partition") int partition,
-                             @JsonProperty("offset") long offset, @JsonProperty("leaderEpoch") int leaderEpoch) {
+                             @JsonProperty("key") String key,
+                             @JsonProperty("payload") String payload,
+                             @JsonProperty("partition") int partition,
+                             @JsonProperty("offset") long offset,
+                             @JsonProperty("leaderEpoch") int leaderEpoch) {
         this.recordHeaders = new RecordHeaders();
         if (headers != null) {
             headers.forEach(h -> h.forEach((headerKey, headerValue) -> recordHeaders.add(headerKey, headerValue.getBytes(StandardCharsets.UTF_8))));
