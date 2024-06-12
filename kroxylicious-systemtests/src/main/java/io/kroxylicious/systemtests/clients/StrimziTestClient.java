@@ -90,7 +90,7 @@ public class StrimziTestClient implements KafkaClient {
         Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
-        LOGGER.atInfo().log(log);
+        LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
         List<String> logRecords = extractRecordLinesFromLog(log);
         return getConsumerRecords(logRecords);
     }

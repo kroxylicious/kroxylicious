@@ -66,4 +66,15 @@ public class ConsumerRecord {
             return null;
         }
     }
+
+    @Override
+    public String toString() {
+        return "ConsumerRecord(topic: " + this.topic +
+                ", key: " + this.key +
+                ", payload: " + this.payload +
+                ", partition: " + this.partition +
+                ", offset: " + this.offset +
+                ", headers: " + this.recordHeaders +
+                ")";
+    }
 }

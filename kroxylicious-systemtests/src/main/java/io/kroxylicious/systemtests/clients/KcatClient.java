@@ -83,7 +83,7 @@ public class KcatClient implements KafkaClient {
         Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, kCatClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
-        LOGGER.atInfo().log(log);
+        LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
         List<String> logRecords = List.of(log.split("\n"));
         return getConsumerRecords(logRecords);
     }

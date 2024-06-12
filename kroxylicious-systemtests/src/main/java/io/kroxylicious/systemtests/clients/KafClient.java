@@ -81,7 +81,7 @@ public class KafClient implements KafkaClient {
         Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, goClientJob);
         String log = waitForConsumer(podName, numOfMessages, timeout);
-        LOGGER.atInfo().log(log);
+        LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
         List<String> logRecords = List.of(log.split("\n"));
         return getConsumerRecords(topicName, logRecords);
     }
