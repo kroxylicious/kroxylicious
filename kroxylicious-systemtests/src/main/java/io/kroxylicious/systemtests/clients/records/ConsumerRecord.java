@@ -6,10 +6,8 @@
 
 package io.kroxylicious.systemtests.clients.records;
 
-import java.util.Optional;
+import java.util.Map;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.common.header.Headers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,20 +15,39 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.systemtests.utils.KafkaUtils;
-
-public class BaseConsumerRecord {
-    private static final Logger LOGGER = LoggerFactory.getLogger(BaseConsumerRecord.class);
+public class ConsumerRecord {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerRecord.class);
 
     protected String topic;
-    protected long timestamp;
-    protected String timestampType;
     protected String key;
-    protected Object payload;
+    protected String payload;
     protected int partition;
     protected long offset;
-    protected Integer leaderEpoch;
-    protected Headers recordHeaders;
+    protected Map<String, String> recordHeaders;
+
+    public String getTopic() {
+        return topic;
+    }
+
+    public String getKey() {
+        return key;
+    }
+
+    public String getPayload() {
+        return payload;
+    }
+
+    public int getPartition() {
+        return partition;
+    }
+
+    public long getOffset() {
+        return offset;
+    }
+
+    public Map<String, String> getRecordHeaders() {
+        return recordHeaders;
+    }
 
     /**
      * Parse from json string t.
@@ -48,25 +65,5 @@ public class BaseConsumerRecord {
             LOGGER.atError().setMessage("Something bad happened").setCause(e).log();
             return null;
         }
-    }
-
-    /**
-     * To consumer record.
-     *
-     * @return the consumer record
-     */
-    public ConsumerRecord<String, String> toConsumerRecord() {
-        return new ConsumerRecord<>(
-                this.topic,
-                this.partition,
-                this.offset,
-                this.timestamp,
-                KafkaUtils.getTimestampType(this.timestampType),
-                -1,
-                -1,
-                this.key,
-                String.valueOf(this.payload),
-                recordHeaders,
-                Optional.ofNullable(this.leaderEpoch));
     }
 }

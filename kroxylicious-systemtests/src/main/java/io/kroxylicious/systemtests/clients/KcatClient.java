@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +19,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.clients.records.BaseConsumerRecord;
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.KcatConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
@@ -77,7 +76,7 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
-    public List<ConsumerRecord<String, String>> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using kcat");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat";
         List<String> args = List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-c", String.valueOf(numOfMessages), "-e", "-J");
@@ -94,14 +93,13 @@ public class KcatClient implements KafkaClient {
         return kubeClient().logsInSpecificNamespace(namespace, podName);
     }
 
-    private List<ConsumerRecord<String, String>> getConsumerRecords(List<String> logRecords) {
-        List<ConsumerRecord<String, String>> records = new ArrayList<>();
+    private List<ConsumerRecord> getConsumerRecords(List<String> logRecords) {
+        List<ConsumerRecord> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            KcatConsumerRecord kcatConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {
+            KcatConsumerRecord kcatConsumerRecord = ConsumerRecord.parseFromJsonString(new TypeReference<>() {
             }, logRecord);
             if (kcatConsumerRecord != null) {
-                ConsumerRecord<String, String> consumerRecord = kcatConsumerRecord.toConsumerRecord();
-                records.add(consumerRecord);
+                records.add(kcatConsumerRecord);
             }
         }
 

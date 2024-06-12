@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,8 +21,8 @@ import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.clients.records.BaseConsumerRecord;
-import io.kroxylicious.systemtests.clients.records.ClientConsumerRecord;
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
+import io.kroxylicious.systemtests.clients.records.StrimziTestClientConsumerRecord;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
@@ -85,7 +84,7 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     @Override
-    public List<ConsumerRecord<String, String>> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using Strimzi Test Client");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL;
         Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
@@ -101,14 +100,13 @@ public class StrimziTestClient implements KafkaClient {
         return kubeClient().logsInSpecificNamespace(namespace, podName);
     }
 
-    private List<ConsumerRecord<String, String>> getConsumerRecords(List<String> logRecords) {
-        List<ConsumerRecord<String, String>> records = new ArrayList<>();
+    private List<ConsumerRecord> getConsumerRecords(List<String> logRecords) {
+        List<ConsumerRecord> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            ClientConsumerRecord clientConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {
+            StrimziTestClientConsumerRecord clientConsumerRecord = ConsumerRecord.parseFromJsonString(new TypeReference<>() {
             }, logRecord);
             if (clientConsumerRecord != null) {
-                ConsumerRecord<String, String> consumerRecord = clientConsumerRecord.toConsumerRecord();
-                records.add(consumerRecord);
+                records.add(clientConsumerRecord);
             }
         }
 

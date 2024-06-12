@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +21,7 @@ import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.clients.records.BaseConsumerRecord;
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.clients.records.KafConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
@@ -75,7 +74,7 @@ public class KafClient implements KafkaClient {
     }
 
     @Override
-    public List<ConsumerRecord<String, String>> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using kaf");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kafka-go";
         List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName, "--output", "json");
@@ -112,27 +111,26 @@ public class KafClient implements KafkaClient {
             return 0;
         }
 
-        List<String> jsonMessages = new ArrayList<>();
+        int numOfJsonMessages = 0;
         String[] logLines = log.split("\n");
 
         for (String message : logLines) {
             if (TestUtils.getJsonNode(message) != null) {
-                jsonMessages.add(message);
+                numOfJsonMessages++;
             }
         }
 
-        return jsonMessages.size();
+        return numOfJsonMessages;
     }
 
-    private List<ConsumerRecord<String, String>> getConsumerRecords(String topicName, List<String> logRecords) {
-        List<ConsumerRecord<String, String>> records = new ArrayList<>();
+    private List<ConsumerRecord> getConsumerRecords(String topicName, List<String> logRecords) {
+        List<ConsumerRecord> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            KafConsumerRecord kafConsumerRecord = BaseConsumerRecord.parseFromJsonString(new TypeReference<>() {
+            KafConsumerRecord kafConsumerRecord = ConsumerRecord.parseFromJsonString(new TypeReference<>() {
             }, logRecord);
             if (kafConsumerRecord != null) {
                 kafConsumerRecord.setTopic(topicName);
-                ConsumerRecord<String, String> consumerRecord = kafConsumerRecord.toConsumerRecord();
-                records.add(consumerRecord);
+                records.add(kafConsumerRecord);
             }
         }
 

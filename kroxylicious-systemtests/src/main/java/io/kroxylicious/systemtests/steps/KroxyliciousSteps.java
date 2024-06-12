@@ -9,9 +9,8 @@ package io.kroxylicious.systemtests.steps;
 import java.time.Duration;
 import java.util.List;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-
 import io.kroxylicious.systemtests.clients.KafkaClients;
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 
 /**
  * The type Kroxylicious steps.
@@ -44,7 +43,7 @@ public class KroxyliciousSteps {
      * @param timeout the timeout
      * @return the list of ConsumerRecords
      */
-    public static List<ConsumerRecord<String, String>> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
+    public static List<ConsumerRecord> consumeMessages(String namespace, String topicName, String bootstrap, int numberOfMessages, Duration timeout) {
         return KafkaClients.getKafkaClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages, timeout);
     }
 
@@ -57,9 +56,9 @@ public class KroxyliciousSteps {
      * @param kafkaNamespace the namespace in which the broker is operating
      * @param numberOfMessages the number of messages
      * @param timeout maximum time to wait for the expectedMessage to appear
-     * @return the string
+     * @return the list of consumer records
      */
-    public static List<ConsumerRecord<String, String>> consumeMessageFromKafkaCluster(String clientNamespace, String topicName, String kafkaClusterName,
+    public static List<ConsumerRecord> consumeMessageFromKafkaCluster(String clientNamespace, String topicName, String kafkaClusterName,
                                                                                       String kafkaNamespace, int numberOfMessages,
                                                                                       Duration timeout) {
         String kafkaBootstrap = kafkaClusterName + "-kafka-bootstrap." + kafkaNamespace + ".svc.cluster.local:9092";

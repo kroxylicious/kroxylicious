@@ -7,10 +7,8 @@
 package io.kroxylicious.systemtests;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -23,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.vault.Vault;
@@ -108,19 +107,19 @@ class RecordEncryptionST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord<String, String>> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
+        List<ConsumerRecord> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
 
         assertAll(
                 () -> {
-                    for (ConsumerRecord<String, String> consumerRecord : resultEncrypted) {
-                        assertThat(Arrays.stream(consumerRecord.headers().toArray()).anyMatch(r -> r.key().equals("kroxylicious.io/encryption")));
+                    for (ConsumerRecord consumerRecord : resultEncrypted) {
+                        assertThat(consumerRecord.getRecordHeaders()).containsKey("kroxylicious.io/encryption");
                     }
                 },
                 () -> assertThat(resultEncrypted.stream())
                         .withFailMessage("expected message have not been received!")
-                        .allMatch(r -> r.value().contains(topicName + "vault")));
+                        .allMatch(r -> r.getPayload().contains(topicName + "vault")));
     }
 
     @Test
@@ -131,9 +130,9 @@ class RecordEncryptionST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord<String, String>> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.value().contains(MESSAGE)).count();
+        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getPayload().contains(MESSAGE)).count();
         assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
     }
 }
