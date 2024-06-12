@@ -8,11 +8,9 @@ package io.kroxylicious.systemtests.utils;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.common.record.TimestampType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,33 +69,6 @@ public class KafkaUtils {
         else {
             LOGGER.atError().setMessage("error producing messages with {}: {}").addArgument(clientName).addArgument(log).log();
             throw new KubeClusterException("error producing messages with " + clientName + ": " + log);
-        }
-    }
-
-    /**
-     * Gets timestamp type.
-     *
-     * @param timestampType the timestamp type
-     * @return the timestamp type
-     */
-    public static TimestampType getTimestampType(String timestampType) {
-        if (timestampType == null) {
-            return TimestampType.NO_TIMESTAMP_TYPE;
-        }
-
-        try {
-            return TimestampType.forName(timestampType);
-        }
-        catch (NoSuchElementException e) {
-            if (timestampType.toLowerCase().startsWith("create")) {
-                return TimestampType.CREATE_TIME;
-            }
-            else if (timestampType.toLowerCase().startsWith("log")) {
-                return TimestampType.LOG_APPEND_TIME;
-            }
-            else {
-                return TimestampType.NO_TIMESTAMP_TYPE;
-            }
         }
     }
 
