@@ -35,7 +35,7 @@ class NullEmptyBytebufValidator implements BytebufValidator {
             return result(nullValid, "Null buffer invalid");
         }
         else if (length == 0) {
-            return (result(emptyValid, "Empty buffer invalid"));
+            return result(emptyValid, "Empty buffer invalid");
         }
         return delegate.validate(buffer, length, record, isKey);
     }
