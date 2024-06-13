@@ -39,7 +39,8 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  */
 public class KcatClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(KcatClient.class);
-    private static final TypeReference<KcatConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {};
+    private static final TypeReference<KcatConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
+    };
     private String deployNamespace;
 
     /**

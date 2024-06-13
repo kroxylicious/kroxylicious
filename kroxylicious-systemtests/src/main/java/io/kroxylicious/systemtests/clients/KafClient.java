@@ -40,7 +40,8 @@ import static org.awaitility.Awaitility.await;
  */
 public class KafClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafClient.class);
-    private static final TypeReference<KafConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {};
+    private static final TypeReference<KafConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
+    };
     private String deployNamespace;
 
     /**
