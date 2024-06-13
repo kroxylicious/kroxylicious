@@ -176,6 +176,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
 
 import io.kroxylicious.proxy.frame.BareSaslRequest;
 import io.kroxylicious.proxy.frame.BareSaslResponse;
@@ -387,7 +388,10 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof BareSaslRequest) {
+        if (isInitialHaProxyMessage(msg)) {
+            ctx.fireChannelRead(msg);
+        }
+        else if (msg instanceof BareSaslRequest) {
             handleBareRequest(ctx, (BareSaslRequest) msg);
         }
         else if (msg instanceof DecodedRequestFrame) {
@@ -399,6 +403,11 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         else {
             throw new IllegalStateException("Unexpected message " + msg.getClass());
         }
+    }
+
+    private boolean isInitialHaProxyMessage(Object msg) {
+        return lastSeen == State.START
+                && msg instanceof HAProxyMessage;
     }
 
     private void handleFramedRequest(ChannelHandlerContext ctx, DecodedRequestFrame<?> frame) throws SaslException {

@@ -47,6 +47,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.haproxy.HAProxyCommand;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilter;
@@ -565,6 +569,24 @@ public class KafkaAuthnHandlerTest {
         RequestFrame frame = new CustomRequestFrame(1);
         channel.writeInbound(frame);
         assertEquals(frame, channel.readInbound());
+    }
+
+    @Test
+    void testForwardInitialHaProxyMessage() {
+        HAProxyMessage message = new HAProxyMessage(HAProxyProtocolVersion.V1,
+                HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+                "1.2.3.4", "5.6.7.8", 65535, 9092);
+        buildChannel(Map.of());
+
+        // Forward initial HaProxyMessage
+        channel.writeInbound(message);
+        assertEquals(message, channel.readInbound());
+
+        // Reject HaProxyMessage if lastSeen not in (START, AUTHN_SUCCESS)
+        kafkaAuthnHandler.lastSeen = KafkaAuthnHandler.State.API_VERSIONS;
+        assertThrows(IllegalStateException.class, () -> channel.writeInbound(message));
+
+        message.release();
     }
 
     record CustomRequestFrame(int correlationId) implements RequestFrame {
