@@ -21,6 +21,9 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
@@ -34,10 +37,13 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+@ExtendWith(MockitoExtension.class)
 public class JsonSchemaBytebufValidatorTest {
+
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    BytebufValidator mockValidator;
 
     static WireMockServer registryServer;
 
@@ -93,7 +99,6 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void testValueValidated() {
-        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "{\"firstName\":\"a\",\"lastName\":\"b\"}");
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(Map.of("apicurio.registry.url", registryServer.baseUrl()), 1L);
         Result result = validate(record, validator);
@@ -103,7 +108,6 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void testValueInvalidAgeInvalidated() {
-        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "{\"firstName\":\"a\",\"lastName\":\"b\",\"age\":-3}");
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(Map.of("apicurio.registry.url", registryServer.baseUrl()), 1L);
         Result result = validate(record, validator);
@@ -113,7 +117,6 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void testInvalidValueInValidated() {
-        BytebufValidator mockValidator = mock(BytebufValidator.class);
         Record record = createRecord("a", "123");
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(Map.of("apicurio.registry.url", registryServer.baseUrl()), 1L);
         Result result = validate(record, validator);

@@ -10,15 +10,16 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.record.Record;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.filter.schema.validation.Result;
 import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidator;
 
 import static io.kroxylicious.proxy.filter.schema.validation.record.KeyAndValueRecordValidator.keyAndValueValidator;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 class KeyAndValueRecordValidatorTest {
 
@@ -29,15 +30,14 @@ class KeyAndValueRecordValidatorTest {
     @Test
     void testInvalidKey() {
         RecordValidator recordValidator = keyAndValueValidator(INVALID, VALID);
-      RecordValidator recordValidator = keyAndValueValidator(INVALID, VALID);
-        Assertions.assertThat(recordValidator.validate(mock(Record.class)))
+        assertThat(recordValidator.validate(mock(Record.class)))
                 .isCompletedWithValue(new Result(false, "Key was invalid: " + FAIL_MESSAGE));
     }
 
     @Test
     void testInvalidValue() {
         RecordValidator recordValidator = keyAndValueValidator(VALID, INVALID);
-        Result validate = recordValidator.validate(Mockito.mock(Record.class)).toCompletableFuture().join();
+        Result validate = recordValidator.validate(mock(Record.class)).toCompletableFuture().join();
         assertFalse(validate.valid());
         assertEquals("Value was invalid: " + FAIL_MESSAGE, validate.errorMessage());
     }
@@ -45,7 +45,7 @@ class KeyAndValueRecordValidatorTest {
     @Test
     void testInvalidKeyAndValue() {
         RecordValidator recordValidator = keyAndValueValidator(INVALID, INVALID);
-        Result validate = recordValidator.validate(Mockito.mock(Record.class)).toCompletableFuture().join();
+        Result validate = recordValidator.validate(mock(Record.class)).toCompletableFuture().join();
         assertFalse(validate.valid());
         assertEquals("Key was invalid: " + FAIL_MESSAGE, validate.errorMessage());
     }
@@ -53,7 +53,7 @@ class KeyAndValueRecordValidatorTest {
     @Test
     void testValidKeyAndValue() {
         RecordValidator recordValidator = keyAndValueValidator(VALID, VALID);
-        Result validate = recordValidator.validate(Mockito.mock(Record.class)).toCompletableFuture().join();
+        Result validate = recordValidator.validate(mock(Record.class)).toCompletableFuture().join();
         assertTrue(validate.valid());
     }
 

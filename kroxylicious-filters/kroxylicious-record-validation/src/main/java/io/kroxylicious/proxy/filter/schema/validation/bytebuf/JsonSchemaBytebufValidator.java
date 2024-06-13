@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import com.fasterxml.jackson.core.JsonParseException;
 import org.apache.kafka.common.record.Record;
 
 import io.apicurio.registry.resolver.strategy.ArtifactReference;
@@ -35,7 +34,8 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
             JsonValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer.clear());
             return jsonValidationResult.success() ? Result.VALID
                     : CompletableFuture.completedFuture(new Result(false, jsonValidationResult.toString()));
-        } catch (RuntimeException ex) {
+        }
+        catch (RuntimeException ex) {
             return CompletableFuture.completedFuture(new Result(false, ex.getMessage()));
         }
     }

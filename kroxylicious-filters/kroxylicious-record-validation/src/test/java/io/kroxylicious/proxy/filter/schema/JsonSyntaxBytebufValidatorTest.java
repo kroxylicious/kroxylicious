@@ -21,8 +21,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.filter.schema.validation.Result;
@@ -37,6 +35,8 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class JsonSyntaxBytebufValidatorTest {
@@ -46,8 +46,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @BeforeEach
     public void init() {
-        MockitoAnnotations.openMocks(this);
-        Mockito.when(mockValidator.validate(any(), anyInt(), any(), anyBoolean())).thenReturn(Result.VALID);
+        when(mockValidator.validate(any(), anyInt(), any(), anyBoolean())).thenReturn(Result.VALID);
     }
 
     @Test
@@ -132,6 +131,7 @@ class JsonSyntaxBytebufValidatorTest {
         Result result = validate(record, validator);
         assertFalse(result.valid());
         assertTrue(result.errorMessage().contains("value was not syntactically correct JSON: Duplicate field"));
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
@@ -141,6 +141,7 @@ class JsonSyntaxBytebufValidatorTest {
         Result result = validate(record, validator);
         assertFalse(result.valid());
         assertTrue(result.errorMessage().contains("value was not syntactically correct JSON: Duplicate field"));
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
@@ -193,6 +194,7 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false, mockValidator);
         Result result = validate(record, validator);
         assertFalse(result.valid());
+        verifyNoMoreInteractions(mockValidator);
     }
 
     @Test
