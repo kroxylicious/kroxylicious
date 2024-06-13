@@ -9,7 +9,9 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +27,7 @@ import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -36,6 +39,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  */
 public class KcatClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(KcatClient.class);
+    private static final TypeReference<KcatConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {};
     private String deployNamespace;
 
     /**
@@ -84,7 +88,7 @@ public class KcatClient implements KafkaClient {
         String podName = KafkaUtils.createJob(deployNamespace, name, kCatClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
         LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
-        List<String> logRecords = List.of(log.split("\n"));
+        List<String> logRecords = extractRecordLinesFromLog(log);
         return getConsumerRecords(logRecords);
     }
 
@@ -93,16 +97,12 @@ public class KcatClient implements KafkaClient {
         return kubeClient().logsInSpecificNamespace(namespace, podName);
     }
 
-    private List<ConsumerRecord> getConsumerRecords(List<String> logRecords) {
-        List<ConsumerRecord> records = new ArrayList<>();
-        for (String logRecord : logRecords) {
-            KcatConsumerRecord kcatConsumerRecord = ConsumerRecord.parseFromJsonString(new TypeReference<>() {
-            }, logRecord);
-            if (kcatConsumerRecord != null) {
-                records.add(kcatConsumerRecord);
-            }
-        }
+    private List<String> extractRecordLinesFromLog(String log) {
+        return Stream.of(log.split("\n")).filter(TestUtils::isValidJson).toList();
+    }
 
-        return records;
+    private List<ConsumerRecord> getConsumerRecords(List<String> logRecords) {
+        return logRecords.stream().map(x -> ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, x))
+                .filter(Objects::nonNull).map(ConsumerRecord.class::cast).toList();
     }
 }

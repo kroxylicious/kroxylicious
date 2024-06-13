@@ -14,7 +14,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -23,6 +22,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * The type Test utils.
  */
 public class TestUtils {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private TestUtils() {
     }
@@ -59,20 +59,21 @@ public class TestUtils {
     }
 
     /**
-     * Gets json node.
+     * Is valid json.
      *
-     * @param json the json
-     * @return the value from json
+     * @param value the value
+     * @return the boolean
      */
-    public static JsonNode getJsonNode(String json) {
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode node;
+    public static boolean isValidJson(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
         try {
-            node = mapper.readTree(json);
+            OBJECT_MAPPER.readTree(value);
         }
         catch (IOException e) {
-            node = null;
+            return false;
         }
-        return node;
+        return true;
     }
 }

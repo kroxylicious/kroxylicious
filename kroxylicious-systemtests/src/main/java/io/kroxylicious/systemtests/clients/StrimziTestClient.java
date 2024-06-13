@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.awaitility.core.ConditionTimeoutException;
@@ -37,6 +38,7 @@ import static org.awaitility.Awaitility.await;
  */
 public class StrimziTestClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(StrimziTestClient.class);
+    private static final TypeReference<StrimziTestClientConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {};
     private String deployNamespace;
 
     /**
@@ -101,16 +103,8 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     private List<ConsumerRecord> getConsumerRecords(List<String> logRecords) {
-        List<ConsumerRecord> records = new ArrayList<>();
-        for (String logRecord : logRecords) {
-            StrimziTestClientConsumerRecord clientConsumerRecord = ConsumerRecord.parseFromJsonString(new TypeReference<>() {
-            }, logRecord);
-            if (clientConsumerRecord != null) {
-                records.add(clientConsumerRecord);
-            }
-        }
-
-        return records;
+        return logRecords.stream().map(x -> ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, x))
+                .filter(Objects::nonNull).map(ConsumerRecord.class::cast).toList();
     }
 
     private List<String> extractRecordLinesFromLog(String log) {

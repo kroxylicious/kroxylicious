@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.clients.records;
 
+import java.io.UncheckedIOException;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -17,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class ConsumerRecord {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerRecord.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     protected String topic;
     protected String key;
@@ -59,11 +61,11 @@ public class ConsumerRecord {
      */
     public static <T> T parseFromJsonString(TypeReference<T> valueTypeRef, String response) {
         try {
-            return new ObjectMapper().readValue(response, valueTypeRef);
+            return OBJECT_MAPPER.readValue(response, valueTypeRef);
         }
         catch (JsonProcessingException e) {
             LOGGER.atError().setMessage("Something bad happened").setCause(e).log();
-            return null;
+            throw new UncheckedIOException(e);
         }
     }
 

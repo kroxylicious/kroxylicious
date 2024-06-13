@@ -242,7 +242,7 @@ public class KubeClient {
      * @param podName the pod name
      * @return true if the job is succeeded. false otherwise
      */
-    public Boolean isPodRunSucceeded(String namespaceName, String podName) {
+    public boolean isPodRunSucceeded(String namespaceName, String podName) {
         return Optional.ofNullable(client.pods().inNamespace(namespaceName).withName(podName).get().getStatus()).map(PodStatus::getPhase)
                 .map(s -> s.equalsIgnoreCase("succeeded")).orElse(false);
     }

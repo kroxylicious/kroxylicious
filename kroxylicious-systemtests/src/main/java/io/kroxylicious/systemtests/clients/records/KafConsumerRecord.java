@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.clients.records;
 
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,8 @@ public class KafConsumerRecord extends ConsumerRecord {
                              @JsonProperty("offset") long offset) {
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
-            headers.forEach(h -> recordHeaders.putAll(h));
+            headers.forEach(h -> recordHeaders.put(new String(Base64.getDecoder().decode(h.get("Key")))
+                    , new String(Base64.getDecoder().decode(h.get("Value")))));
         }
         this.key = key;
         this.value = payload;

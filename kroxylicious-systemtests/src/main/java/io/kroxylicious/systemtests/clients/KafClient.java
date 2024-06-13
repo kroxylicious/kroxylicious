@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
@@ -39,6 +40,7 @@ import static org.awaitility.Awaitility.await;
  */
 public class KafClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafClient.class);
+    private static final TypeReference<KafConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {};
     private String deployNamespace;
 
     /**
@@ -82,7 +84,7 @@ public class KafClient implements KafkaClient {
         String podName = KafkaUtils.createJob(deployNamespace, name, goClientJob);
         String log = waitForConsumer(podName, numOfMessages, timeout);
         LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
-        List<String> logRecords = List.of(log.split("\n"));
+        List<String> logRecords = extractRecordLinesFromLog(log);
         return getConsumerRecords(topicName, logRecords);
     }
 
@@ -102,36 +104,27 @@ public class KafClient implements KafkaClient {
         catch (ConditionTimeoutException e) {
             log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
             LOGGER.atInfo().setMessage("Timeout! Received: {}").addArgument(log).log();
+            if (!kubeClient().isPodRunSucceeded(deployNamespace, podName)) {
+                throw new IllegalStateException("Error in consumer: ", e);
+            }
         }
         return log;
     }
 
     private int getNumberOfJsonMessages(String log) {
-        if (log == null) {
-            return 0;
-        }
+        return log == null ? 0 : extractRecordLinesFromLog(log).size();
+    }
 
-        int numOfJsonMessages = 0;
-        String[] logLines = log.split("\n");
-
-        for (String message : logLines) {
-            if (TestUtils.getJsonNode(message) != null) {
-                numOfJsonMessages++;
-            }
-        }
-
-        return numOfJsonMessages;
+    private List<String> extractRecordLinesFromLog(String log) {
+        return Stream.of(log.split("\n")).filter(TestUtils::isValidJson).toList();
     }
 
     private List<ConsumerRecord> getConsumerRecords(String topicName, List<String> logRecords) {
         List<ConsumerRecord> records = new ArrayList<>();
         for (String logRecord : logRecords) {
-            KafConsumerRecord kafConsumerRecord = ConsumerRecord.parseFromJsonString(new TypeReference<>() {
-            }, logRecord);
-            if (kafConsumerRecord != null) {
-                kafConsumerRecord.setTopic(topicName);
-                records.add(kafConsumerRecord);
-            }
+            KafConsumerRecord kafConsumerRecord = ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, logRecord);
+            kafConsumerRecord.setTopic(topicName);
+            records.add(kafConsumerRecord);
         }
 
         return records;

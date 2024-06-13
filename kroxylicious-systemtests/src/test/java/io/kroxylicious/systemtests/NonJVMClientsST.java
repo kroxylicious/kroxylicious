@@ -57,8 +57,10 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
-        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -77,8 +79,10 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
-        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -97,8 +101,10 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
-        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -117,8 +123,10 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
-        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -137,8 +145,10 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
-        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -157,8 +167,10 @@ class NonJVMClientsST extends AbstractST {
                 Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        int numOfMessagesReceived = (int) result.stream().filter(c -> c.getValue().contains(MESSAGE)).count();
-        assertThat(numOfMessagesReceived).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     @BeforeEach

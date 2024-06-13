@@ -39,10 +39,11 @@ public class KcatConsumerRecord extends ConsumerRecord {
                               @JsonProperty("offset") long offset) {
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
-            if (headers.size() % 2 != 0) {
+            int headersSize = headers.size();
+            if (headersSize % 2 != 0) {
                 throw new IllegalArgumentException("Invalid headers size. It must be even, not odd!");
             }
-            for (int i = 0; i < headers.size(); i += 2) {
+            for (int i = 0; i < headersSize; i += 2) {
                 recordHeaders.put(headers.get(i), Optional.ofNullable(headers.get(i + 1)).orElse(""));
             }
         }
