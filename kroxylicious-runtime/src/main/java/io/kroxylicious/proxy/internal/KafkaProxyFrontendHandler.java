@@ -435,6 +435,9 @@ public class KafkaProxyFrontendHandler
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         LOGGER.trace("INACTIVE on inbound {}", ctx.channel());
+        if (haProxyMessage != null) {
+            haProxyMessage.release();
+        }
         if (outboundCtx == null) {
             return;
         }

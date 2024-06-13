@@ -44,6 +44,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.util.ReferenceCounted;
 
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
@@ -79,6 +80,7 @@ class KafkaProxyFrontendHandlerTest {
 
     int corrId = 0;
     private final AtomicReference<NetFilter.NetFilterContext> connectContext = new AtomicReference<>();
+    private final List<ReferenceCounted> trackedObjects = new ArrayList<>();
 
     private void writeRequest(short apiVersion, ApiMessage body) {
         var apiKey = ApiKeys.forId(body.apiKey());
@@ -95,6 +97,11 @@ class KafkaProxyFrontendHandlerTest {
         inboundChannel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
     }
 
+    private <T extends ReferenceCounted> T track(T obj) {
+        trackedObjects.add(obj);
+        return obj;
+    }
+
     @BeforeEach
     public void buildChannel() {
         inboundChannel = new EmbeddedChannel();
@@ -104,6 +111,8 @@ class KafkaProxyFrontendHandlerTest {
     @AfterEach
     public void closeChannel() {
         inboundChannel.close();
+
+        assertThat(trackedObjects).allMatch(trackedObject -> trackedObject.refCnt() == 0, "refCnt() == 0");
     }
 
     public static List<Arguments> provideArgsForExpectedFlow() {
@@ -306,9 +315,9 @@ class KafkaProxyFrontendHandlerTest {
 
         if (haProxyConfigured) {
             // Simulate the HA proxy handler
-            inboundChannel.writeInbound(new HAProxyMessage(HAProxyProtocolVersion.V1,
+            inboundChannel.writeInbound(track(new HAProxyMessage(HAProxyProtocolVersion.V1,
                     HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
-                    "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT));
+                    "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT)));
         }
 
         if (sendApiVersions) {
