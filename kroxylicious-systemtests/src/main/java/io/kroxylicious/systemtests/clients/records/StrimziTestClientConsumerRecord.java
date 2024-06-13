@@ -39,7 +39,7 @@ public class StrimziTestClientConsumerRecord extends ConsumerRecord {
                                            @JsonProperty("offset") long offset) {
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
-            recordHeaders.entrySet().addAll(headers);
+            headers.forEach(h -> recordHeaders.put(h.getKey(), h.getValue()));
         }
         this.topic = topic;
         this.key = key;
