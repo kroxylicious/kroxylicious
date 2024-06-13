@@ -29,9 +29,9 @@ class KeyAndValueRecordValidatorTest {
     @Test
     void testInvalidKey() {
         RecordValidator recordValidator = keyAndValueValidator(INVALID, VALID);
-        Result validate = recordValidator.validate(Mockito.mock(Record.class)).toCompletableFuture().join();
-        assertFalse(validate.valid());
-        assertEquals("Key was invalid: " + FAIL_MESSAGE, validate.errorMessage());
+      RecordValidator recordValidator = keyAndValueValidator(INVALID, VALID);
+        Assertions.assertThat(recordValidator.validate(mock(Record.class)))
+                .isCompletedWithValue(new Result(false, "Key was invalid: " + FAIL_MESSAGE));
     }
 
     @Test
