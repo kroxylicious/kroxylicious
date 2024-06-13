@@ -32,7 +32,7 @@ class NullEmptyBytebufValidator implements BytebufValidator {
     @Override
     public CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
         if (buffer == null) {
-            return (result(nullValid, "Null buffer invalid"));
+            return result(nullValid, "Null buffer invalid");
         }
         else if (length == 0) {
             return (result(emptyValid, "Empty buffer invalid"));
