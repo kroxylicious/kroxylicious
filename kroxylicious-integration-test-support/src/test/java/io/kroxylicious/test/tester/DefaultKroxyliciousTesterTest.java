@@ -395,7 +395,7 @@ class DefaultKroxyliciousTesterTest {
             tester.deleteTopics(VIRTUAL_CLUSTER_A);
 
             // Then
-            //We can't use verifyNoInteractions or verifyNoMoreInteractions here as the try-with-resource block will trigger admin.close()
+            // We can't use verifyNoInteractions or verifyNoMoreInteractions here as the try-with-resource block will trigger admin.close()
             verify(admin, times(0)).deleteTopics(anyCollection());
         }
     }

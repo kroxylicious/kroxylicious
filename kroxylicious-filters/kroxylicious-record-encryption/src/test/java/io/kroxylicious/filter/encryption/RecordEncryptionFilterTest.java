@@ -130,9 +130,11 @@ class RecordEncryptionFilterTest {
             return CompletableFuture.completedFuture(copy);
         });
 
-        when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
+        when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
 
-        when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("decrypt", "decrypt")));
+        when(decryptionManager.decrypt(any(), anyInt(), any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("decrypt", "decrypt")));
 
         encryptionFilter = new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run));
     }
