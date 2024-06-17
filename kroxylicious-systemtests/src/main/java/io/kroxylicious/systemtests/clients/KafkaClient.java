@@ -7,7 +7,9 @@
 package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
+import java.util.List;
 
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -52,10 +54,9 @@ public interface KafkaClient {
      *
      * @param topicName the topic name
      * @param bootstrap the bootstrap
-     * @param message the message
      * @param numOfMessages the num of messages
      * @param timeout the timeout
-     * @return the string
+     * @return the list of ConsumerRecords
      */
-    String consumeMessages(String topicName, String bootstrap, String message, int numOfMessages, Duration timeout);
+    List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout);
 }

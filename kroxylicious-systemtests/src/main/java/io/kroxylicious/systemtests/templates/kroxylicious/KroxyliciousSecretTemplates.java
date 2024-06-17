@@ -50,7 +50,7 @@ public class KroxyliciousSecretTemplates {
                             .addToData(".dockerconfigjson", encoded);
                 }
                 catch (IOException e) {
-                    throw new UncheckedIOException("Faied to create secret for file " + configPath, e);
+                    throw new UncheckedIOException("Failed to create secret for file " + configPath, e);
                 }
             }
         }

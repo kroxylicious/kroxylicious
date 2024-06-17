@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests.utils;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.attribute.FileAttribute;
@@ -13,12 +14,15 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * The type Test utils.
  */
 public class TestUtils {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private TestUtils() {
     }
@@ -52,5 +56,24 @@ public class TestUtils {
             throw new IllegalStateException("Cannot determine file system path for " + resource, e);
         }
         return overrideFile;
+    }
+
+    /**
+     * Is valid json.
+     *
+     * @param value the value
+     * @return the boolean
+     */
+    public static boolean isValidJson(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
+        try {
+            OBJECT_MAPPER.readTree(value);
+        }
+        catch (IOException e) {
+            return false;
+        }
+        return true;
     }
 }
