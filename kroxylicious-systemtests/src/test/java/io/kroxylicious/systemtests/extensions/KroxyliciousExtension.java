@@ -60,12 +60,15 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
     @Override
     public void afterEach(ExtensionContext extensionContext) {
         String namespace = extractK8sNamespace(extensionContext);
+        try {
         Optional<Throwable> exception = extensionContext.getExecutionException();
         if (exception.isPresent()) {
             DeploymentUtils.collectClusterInfo(namespace, extensionContext.getRequiredTestClass().getSimpleName(), extensionContext.getRequiredTestMethod().getName());
         }
+        } finally {
 
         NamespaceUtils.deleteNamespaceWithWait(namespace);
+        }
     }
 
     @Override
