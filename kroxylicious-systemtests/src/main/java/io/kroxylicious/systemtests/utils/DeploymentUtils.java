@@ -13,7 +13,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
@@ -250,7 +250,7 @@ public class DeploymentUtils {
      */
     public static void collectClusterInfo(String namespace, String testClassName, String testMethodName) {
         String formattedDate = DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss")
-                .withZone(ZoneId.systemDefault())
+                .withZone(ZoneOffset.UTC)
                 .format(Instant.now());
         List<String> executableCommand = List.of(cmdKubeClient(namespace).toString(), "cluster-info", "dump",
                 "--namespaces", String.join(",", namespace, Constants.KAFKA_DEFAULT_NAMESPACE),
