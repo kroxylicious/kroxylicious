@@ -254,7 +254,7 @@ public class DeploymentUtils {
                 .format(Instant.now());
         List<String> executableCommand = List.of(cmdKubeClient(namespace).toString(), "cluster-info", "dump",
                 "--namespaces", String.join(",", namespace, Constants.KAFKA_DEFAULT_NAMESPACE),
-                "--output-directory", System.getProperty("java.io.tmpdir") + "/" + testClassName.replace(".", "_") + "_" +
+                "--output-directory", Environment.DUMP_LOGS + "/" + testClassName.replace(".", "_") + "_" +
                         testMethodName + "_cluster_dump_" + formattedDate);
         ExecResult result = Exec.exec(null, executableCommand, Duration.ofSeconds(20), true, false, null);
         if (result.isSuccess()) {
