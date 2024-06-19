@@ -33,7 +33,7 @@ public class Environment {
     private static final String SKIP_STRIMZI_INSTALL_ENV = "SKIP_STRIMZI_INSTALL";
     private static final String KAFKA_CLIENT_ENV = "KAFKA_CLIENT";
     private static final String STRIMZI_VERSION_ENV = "STRIMZI_VERSION";
-    private static final String DUMP_LOGS_ENV = "DUMP_LOGS";
+    private static final String CLUSTER_DUMP_DIR_ENV = "CLUSTER_DUMP_DIR";
 
     /**
      * The kafka version default value
@@ -76,7 +76,7 @@ public class Environment {
     private static final String VAULT_CHART_VERSION_DEFAULT = "0.27.0";
     private static final String SKIP_STRIMZI_INSTALL_DEFAULT = "false";
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
-    private static final String DUMP_LOGS_DEFAULT = System.getProperty("java.io.tmpdir");
+    private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("java.io.tmpdir");
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -109,7 +109,7 @@ public class Environment {
 
     public static final String STRIMZI_VERSION = getOrDefault(STRIMZI_VERSION_ENV, STRIMZI_VERSION_DEFAULT);
 
-    public static final String DUMP_LOGS = getOrDefault(DUMP_LOGS_ENV, DUMP_LOGS_DEFAULT);
+    public static final String CLUSTER_DUMP_DIR = getOrDefault(CLUSTER_DUMP_DIR_ENV, CLUSTER_DUMP_DIR_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);
