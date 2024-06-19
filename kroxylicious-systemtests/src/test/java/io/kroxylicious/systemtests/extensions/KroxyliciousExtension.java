@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.extensions;
 
 import java.lang.reflect.Parameter;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.jupiter.api.TestInfo;
@@ -49,17 +50,26 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
         Parameter parameter = parameterContext.getParameter();
         Class<?> type = parameter.getType();
         LOGGER.trace("test {}: Resolving parameter ({} {})", extensionContext.getUniqueId(), type.getSimpleName(), parameter.getName());
-        if (String.class.getTypeName().equals(type.getName())) {
-            if (parameter.getName().toLowerCase().contains("namespace")) {
-                return extractK8sNamespace(extensionContext);
-            }
+        if (String.class.equals(type) && parameter.getName().toLowerCase().contains("namespace")) {
+            return extractK8sNamespace(extensionContext);
         }
+
         return extensionContext;
     }
 
     @Override
     public void afterEach(ExtensionContext extensionContext) {
-        NamespaceUtils.deleteNamespaceWithWait(extractK8sNamespace(extensionContext));
+        String namespace = extractK8sNamespace(extensionContext);
+        try {
+            Optional<Throwable> exception = extensionContext.getExecutionException();
+            if (exception.isPresent()) {
+                DeploymentUtils.collectClusterInfo(namespace, extensionContext.getRequiredTestClass().getSimpleName(),
+                        extensionContext.getRequiredTestMethod().getName());
+            }
+        }
+        finally {
+            NamespaceUtils.deleteNamespaceWithWait(namespace);
+        }
     }
 
     @Override
