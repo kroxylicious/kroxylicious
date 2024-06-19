@@ -127,7 +127,7 @@ public class KubeClient {
     }
 
     /**
-     * List pods list.
+     * List pods.
      *
      * @param namespaceName the namespace name
      * @return the list
@@ -136,6 +136,13 @@ public class KubeClient {
         return client.pods().inNamespace(namespaceName).list().getItems();
     }
 
+    /**
+     * List pods.
+     *
+     * @param namespaceName the namespace name
+     * @param selector the selector
+     * @return the list
+     */
     public List<Pod> listPods(String namespaceName, LabelSelector selector) {
         return client.pods().inNamespace(namespaceName).withLabelSelector(selector).list().getItems();
     }
@@ -235,7 +242,7 @@ public class KubeClient {
      * @param podName the pod name
      * @return true if the job is succeeded. false otherwise
      */
-    public Boolean isPodRunSucceeded(String namespaceName, String podName) {
+    public boolean isPodRunSucceeded(String namespaceName, String podName) {
         return Optional.ofNullable(client.pods().inNamespace(namespaceName).withName(podName).get().getStatus()).map(PodStatus::getPhase)
                 .map(s -> s.equalsIgnoreCase("succeeded")).orElse(false);
     }

@@ -9,7 +9,6 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
-import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
@@ -63,10 +63,13 @@ class KroxyliciousST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -93,9 +96,13 @@ class KroxyliciousST extends AbstractST {
         KafkaSteps.restartKafkaBroker(clusterName);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(10));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(5));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -123,9 +130,13 @@ class KroxyliciousST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     @Test
@@ -163,9 +174,13 @@ class KroxyliciousST extends AbstractST {
         assertThat(currentReplicas).withFailMessage("unexpected current scaled replicas").isEqualTo(scaleTo);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        assertThat(StringUtils.countMatches(result, MESSAGE)).withFailMessage("expected messages have not been received!").isEqualTo(numberOfMessages);
+
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**

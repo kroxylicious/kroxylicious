@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.ComponentType;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
@@ -44,7 +45,6 @@ class MetricsST extends AbstractST {
     private final String clusterName = "my-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
-    private static Kroxylicious kroxylicious;
     private MetricsCollector kroxyliciousCollector;
     private String bootstrap;
 
@@ -62,7 +62,6 @@ class MetricsST extends AbstractST {
     @Test
     void kroxyliciousDownstreamMessages(String namespace) {
         int numberOfMessages = 1;
-        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -70,7 +69,7 @@ class MetricsST extends AbstractST {
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
         kroxyliciousCollector.collectMetricsFromPods();
         LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
@@ -83,7 +82,6 @@ class MetricsST extends AbstractST {
     @Test
     void kroxyliciousPayloadSize(String namespace) {
         int numberOfMessages = 1;
-        String expectedMessage = MESSAGE + " - " + (numberOfMessages - 1);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -91,7 +89,7 @@ class MetricsST extends AbstractST {
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        String result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
         kroxyliciousCollector.collectMetricsFromPods();
         LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
@@ -131,7 +129,7 @@ class MetricsST extends AbstractST {
 
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        kroxylicious = new Kroxylicious(namespace);
+        Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         bootstrap = kroxylicious.getBootstrap();
         kroxyliciousCollector = new MetricsCollector.Builder()

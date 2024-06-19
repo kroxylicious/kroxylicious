@@ -9,17 +9,25 @@ package io.kroxylicious.systemtests.clients;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
+import io.kroxylicious.systemtests.clients.records.KcatConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -31,6 +39,8 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  */
 public class KcatClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(KcatClient.class);
+    private static final TypeReference<KcatConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
+    };
     private String deployNamespace;
 
     /**
@@ -71,11 +81,29 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
-    public String consumeMessages(String topicName, String bootstrap, String messageToCheck, int numOfMessages, Duration timeout) {
+    public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using kcat");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat";
-        List<String> args = List.of("-b", bootstrap, "-t", topicName, "-C", "-c" + numOfMessages);
+        List<String> args = List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-c", String.valueOf(numOfMessages), "-e", "-J");
         Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
-        return KafkaUtils.consumeMessages(topicName, name, deployNamespace, kCatClientJob, messageToCheck, numOfMessages, timeout);
+        String podName = KafkaUtils.createJob(deployNamespace, name, kCatClientJob);
+        String log = waitForConsumer(deployNamespace, podName, timeout);
+        LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
+        List<String> logRecords = extractRecordLinesFromLog(log);
+        return getConsumerRecords(logRecords);
+    }
+
+    private String waitForConsumer(String namespace, String podName, Duration timeout) {
+        DeploymentUtils.waitForPodRunSucceeded(namespace, podName, timeout);
+        return kubeClient().logsInSpecificNamespace(namespace, podName);
+    }
+
+    private List<String> extractRecordLinesFromLog(String log) {
+        return Stream.of(log.split("\n")).filter(TestUtils::isValidJson).toList();
+    }
+
+    private List<ConsumerRecord> getConsumerRecords(List<String> logRecords) {
+        return logRecords.stream().map(x -> ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, x))
+                .filter(Objects::nonNull).map(ConsumerRecord.class::cast).toList();
     }
 }

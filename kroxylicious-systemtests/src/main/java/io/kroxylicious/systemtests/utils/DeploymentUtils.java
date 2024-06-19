@@ -157,9 +157,20 @@ public class DeploymentUtils {
      */
     public static void waitForDeploymentRunning(String namespaceName, String podName, Duration timeout) {
         LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, podName);
-        await().atMost(timeout).pollInterval(Duration.ofMillis(500))
+        waitForLeavingPendingPhase(namespaceName, podName);
+        await().alias("await pod to be running or succeeded")
+                .atMost(timeout)
+                .pollInterval(Duration.ofMillis(500))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
                         && kubeClient().isDeploymentRunning(namespaceName, podName));
+    }
+
+    private static void waitForLeavingPendingPhase(String namespaceName, String podName) {
+        await().alias("await pod to leave pending phase")
+                .atMost(Duration.ofMinutes(1))
+                .pollInterval(Duration.ofMillis(200))
+                .until(() -> Optional.ofNullable(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
+                        s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent());
     }
 
     /**
@@ -172,12 +183,8 @@ public class DeploymentUtils {
     public static void waitForPodRunSucceeded(String namespaceName, String podName, Duration timeout) {
         LOGGER.info("Waiting for pod run: {}/{} to succeed", namespaceName, podName);
 
+        waitForLeavingPendingPhase(namespaceName, podName);
         var pollInterval = 200;
-        await().alias("await pod to leave pending phase")
-                .atMost(Duration.ofMinutes(1))
-                .pollInterval(Duration.ofMillis(pollInterval))
-                .until(() -> Optional.of(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
-                        s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent());
 
         var terminalPhase = await().alias("await pod to reach terminal phase")
                 .atMost(timeout)
@@ -193,11 +200,15 @@ public class DeploymentUtils {
     }
 
     private static boolean hasReachedTerminalPhase(String p) {
-        return "failed".equalsIgnoreCase(p) || isSucceededPhase(p);
+        return isFailedPhase(p) || isSucceededPhase(p);
     }
 
     private static boolean isSucceededPhase(String p) {
         return "succeeded".equalsIgnoreCase(p);
+    }
+
+    private static boolean isFailedPhase(String p) {
+        return "failed".equalsIgnoreCase(p);
     }
 
     private static boolean isPendingPhase(String p) {
