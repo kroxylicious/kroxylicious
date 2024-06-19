@@ -6,6 +6,10 @@
 
 package io.kroxylicious.proxy.filter.schema;
 
+import java.util.Map;
+
+import io.apicurio.registry.resolver.SchemaResolverConfig;
+
 import io.kroxylicious.proxy.filter.schema.config.BytebufValidation;
 import io.kroxylicious.proxy.filter.schema.config.RecordValidationRule;
 import io.kroxylicious.proxy.filter.schema.config.ValidationConfig;
@@ -52,8 +56,15 @@ public class ProduceValidationFilterBuilder {
     }
 
     private static BytebufValidator toValidator(BytebufValidation valueRule) {
-        return valueRule.getSyntacticallyCorrectJsonConfig().map(config -> BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique()))
+        return valueRule.getSyntacticallyCorrectJsonConfig()
+                .map(config -> BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique(), toSchemaValidator(valueRule)))
                 .orElse(BytebufValidators.allValid());
     }
 
+    private static BytebufValidator toSchemaValidator(BytebufValidation valueRule) {
+        return valueRule.getSchemaValidationConfig()
+                .map(config -> BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
+                        config.apicurioGlobalId()))
+                .orElse(BytebufValidators.allValid());
+    }
 }

@@ -7,16 +7,18 @@
 package io.kroxylicious.proxy.filter.schema.validation.topic;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.record.BaseRecords;
 import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
 
-import io.kroxylicious.proxy.filter.schema.validation.Result;
 import io.kroxylicious.proxy.filter.schema.validation.record.RecordValidator;
 
 class PerRecordTopicValidator implements TopicValidator {
@@ -31,30 +33,34 @@ class PerRecordTopicValidator implements TopicValidator {
     }
 
     @Override
-    public TopicValidationResult validateTopicData(ProduceRequestData.TopicProduceData topicProduceData) {
-        return new PerPartitionTopicValidationResult(topicProduceData.name(), topicProduceData.partitionData().stream().collect(Collectors.toMap(
-                ProduceRequestData.PartitionProduceData::index, this::validateTopicPartition)));
+    public CompletionStage<TopicValidationResult> validateTopicData(ProduceRequestData.TopicProduceData topicProduceData) {
+        CompletableFuture<PartitionValidationResult>[] result = topicProduceData.partitionData().stream().map(this::validateTopicPartition)
+                .map(CompletionStage::toCompletableFuture)
+                .toArray(CompletableFuture[]::new);
+        return CompletableFuture.allOf(result).thenApply(unused -> {
+            Map<Integer, PartitionValidationResult> collect = Arrays.stream(result).map(CompletableFuture::join)
+                    .collect(Collectors.toMap(PartitionValidationResult::index, x -> x));
+            return new PerPartitionTopicValidationResult(topicProduceData.name(), collect);
+        });
     }
 
-    private PartitionValidationResult validateTopicPartition(ProduceRequestData.PartitionProduceData partitionProduceData) {
-        return new PartitionValidationResult(partitionProduceData.index(), validateRecords(partitionProduceData.records()));
-    }
-
-    private List<RecordValidationFailure> validateRecords(BaseRecords records) {
+    private CompletionStage<PartitionValidationResult> validateTopicPartition(ProduceRequestData.PartitionProduceData partitionProduceData) {
+        BaseRecords records = partitionProduceData.records();
         if (!(records instanceof MemoryRecords)) {
-            return List.of();
+            return CompletableFuture.completedFuture(new PartitionValidationResult(partitionProduceData.index(), List.of()));
         }
         int recordIndex = 0;
-        List<RecordValidationFailure> failures = new ArrayList<>();
-        for (MutableRecordBatch batch : ((MemoryRecords) records).batches()) {
-            for (Record record : batch) {
-                Result result = validator.validate(record);
-                if (!result.valid()) {
-                    failures.add(new RecordValidationFailure(recordIndex, result.errorMessage()));
+        CompletableFuture<List<RecordValidationFailure>> result = CompletableFuture.completedFuture(new ArrayList<>());
+        for (Record record : ((MemoryRecords) records).records()) {
+            int finalRecordIndex = recordIndex;
+            result = result.thenCompose(recordValidationFailures -> validator.validate(record).thenApply(result1 -> {
+                if (!result1.valid()) {
+                    recordValidationFailures.add(new RecordValidationFailure(finalRecordIndex, result1.errorMessage()));
                 }
-                recordIndex++;
-            }
+                return recordValidationFailures;
+            }));
+            recordIndex++;
         }
-        return failures;
+        return result.thenApply(recordValidationFailures -> new PartitionValidationResult(partitionProduceData.index(), recordValidationFailures));
     }
 }

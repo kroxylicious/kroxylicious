@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteBufferInputStream;
@@ -25,15 +27,17 @@ import io.kroxylicious.proxy.filter.schema.validation.Result;
  */
 class JsonSyntaxBytebufValidator implements BytebufValidator {
     private final boolean validateObjectKeysUnique;
+    private final BytebufValidator delegate;
 
     static final ObjectMapper mapper = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
-    JsonSyntaxBytebufValidator(boolean validateObjectKeysUnique) {
+    JsonSyntaxBytebufValidator(boolean validateObjectKeysUnique, BytebufValidator delegate) {
         this.validateObjectKeysUnique = validateObjectKeysUnique;
+        this.delegate = delegate;
     }
 
     @Override
-    public Result validate(ByteBuffer buffer, int size, Record record, boolean isKey) {
+    public CompletionStage<Result> validate(ByteBuffer buffer, int size, Record record, boolean isKey) {
         if (buffer == null) {
             throw new IllegalArgumentException("buffer is null");
         }
@@ -47,12 +51,12 @@ class JsonSyntaxBytebufValidator implements BytebufValidator {
             }
             while (parser.nextToken() != null) {
             }
-            return Result.VALID;
+
+            return delegate.validate(buffer, size, record, isKey);
         }
         catch (Exception e) {
             String message = "value was not syntactically correct JSON" + (e.getMessage() != null ? ": " + e.getMessage() : "");
-            return new Result(false, message);
+            return CompletableFuture.completedFuture(new Result(false, message));
         }
     }
-
 }

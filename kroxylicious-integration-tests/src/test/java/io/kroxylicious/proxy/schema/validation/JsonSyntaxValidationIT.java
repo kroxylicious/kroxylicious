@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.schema.validation;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -16,35 +15,27 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.KafkaException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.proxy.BaseIT;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.schema.ProduceValidationFilterFactory;
-import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static java.util.UUID.randomUUID;
-import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
-import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.LINGER_MS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.TRANSACTIONAL_ID_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(KafkaClusterExtension.class)
-class JsonSyntaxValidationIT extends BaseIT {
+class JsonSyntaxValidationIT extends SchemaValidationBaseIT {
 
     public static final String SYNTACTICALLY_CORRECT_JSON = "{\"value\":\"json\"}";
     public static final String SYNTACTICALLY_INCORRECT_JSON = "Not Json";
@@ -236,20 +227,4 @@ class JsonSyntaxValidationIT extends BaseIT {
             producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_CORRECT_JSON)).get();
         }
     }
-
-    private Producer<String, String> getProducer(KroxyliciousTester tester, int linger, int batchSize) {
-        return getProducerWithConfig(tester, Optional.empty(), Map.of(LINGER_MS_CONFIG, linger, ProducerConfig.BATCH_SIZE_CONFIG, batchSize));
-    }
-
-    private Consumer<String, String> getConsumer(KroxyliciousTester tester) {
-        return getConsumerWithConfig(tester, Optional.empty(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"));
-    }
-
-    private static void assertInvalidRecordExceptionThrown(Future<RecordMetadata> invalid, String message) {
-        assertThatThrownBy(() -> {
-            invalid.get(10, TimeUnit.SECONDS);
-        }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(InvalidRecordException.class).cause()
-                .hasMessageContaining(message);
-    }
-
 }
