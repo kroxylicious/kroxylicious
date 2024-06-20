@@ -18,6 +18,9 @@ import org.apache.kafka.common.message.DescribeClusterResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
@@ -47,6 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  *     <li>A can not filter X or the response to X, the flow was terminated.</li>
  * </ol>
  */
+@ExtendWith(NettyLeakDetectorExtension.class)
 public class OutOfBandRequestIT {
 
     @Test

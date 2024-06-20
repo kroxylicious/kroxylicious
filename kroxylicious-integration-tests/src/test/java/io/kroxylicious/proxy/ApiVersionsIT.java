@@ -12,6 +12,9 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
@@ -35,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * a new ApiKey that this version of Kroxylicious is unaware of)
  * TODO check if this is still sensible behaviour, potentially a RequestFilter would attempt to decode these and fail.
  */
+@ExtendWith(NettyLeakDetectorExtension.class)
 public class ApiVersionsIT {
 
     @Test

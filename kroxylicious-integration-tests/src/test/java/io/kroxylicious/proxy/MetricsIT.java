@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.micrometer.core.instrument.Metrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
@@ -34,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @ExtendWith(KafkaClusterExtension.class)
+@ExtendWith(NettyLeakDetectorExtension.class)
 class MetricsIT {
 
     @BeforeEach
