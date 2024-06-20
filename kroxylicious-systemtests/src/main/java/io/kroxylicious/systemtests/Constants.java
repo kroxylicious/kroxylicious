@@ -167,7 +167,7 @@ public interface Constants {
      * Restart policy
      */
     String RESTART_POLICY_ONFAILURE = "OnFailure";
-    String RESTART_POLICY_NEVER= "Never";
+    String RESTART_POLICY_NEVER = "Never";
 
     /**
      * Scraper pod labels
