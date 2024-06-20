@@ -45,7 +45,7 @@ public enum ForwardingStyle implements Function<ForwardingContext, CompletionSta
     ASYNCHRONOUS_DELAYED_ON_EVENTlOOP {
         @Override
         public CompletionStage<ApiMessage> apply(ForwardingContext context) {
-            ScheduledExecutorService executor = context.constructionContext().eventLoop();
+            ScheduledExecutorService executor = context.constructionContext().filterDispatchExecutor();
             CompletableFuture<ApiMessage> result = new CompletableFuture<>();
             executor.schedule(() -> {
                 result.complete(context.body());
