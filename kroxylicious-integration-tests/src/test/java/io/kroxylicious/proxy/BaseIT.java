@@ -23,12 +23,15 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.common.TopicCollection;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
+
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
+@ExtendWith(NettyLeakDetectorExtension.class)
 public abstract class BaseIT {
 
     protected CreateTopicsResult createTopics(Admin admin, NewTopic... topics) {
