@@ -12,7 +12,6 @@ import java.time.Duration;
  * The interface Constants.
  */
 public interface Constants {
-
     /**
      * The deployment name for kroxylicous
      */
@@ -165,12 +164,10 @@ public interface Constants {
     String PULL_IMAGE_IF_NOT_PRESENT = "IfNotPresent";
 
     /**
-     * Feature gate related constants
+     * Restart policy
      */
-    String USE_KRAFT_MODE = "+UseKRaft";
-    String DONT_USE_KRAFT_MODE = "-UseKRaft";
-    String USE_KAFKA_NODE_POOLS = "+KafkaNodePools";
-    String DONT_USE_KAFKA_NODE_POOLS = "-KafkaNodePools";
+    String RESTART_POLICY_ONFAILURE = "OnFailure";
+    String RESTART_POLICY_NEVER= "Never";
 
     /**
      * Scraper pod labels
