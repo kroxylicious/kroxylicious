@@ -114,7 +114,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     public RecordEncryptionFilter<K> createFilter(FilterFactoryContext context,
                                                   SharedEncryptionContext<K, E> sharedEncryptionContext) {
 
-        ScheduledExecutorService filterThreadExecutor = context.eventLoop();
+        ScheduledExecutorService filterThreadExecutor = context.filterDispatchExecutor();
         FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
         var encryptionManager = new InBandEncryptionManager<>(Encryption.V2,
                 sharedEncryptionContext.dekManager().edekSerde(),
