@@ -10,6 +10,9 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
@@ -17,6 +20,7 @@ import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
 
+@ExtendWith(NettyLeakDetectorExtension.class)
 public class SingleFilterFactoryInstanceTest {
     public static final String INITIALISATION_COUNTER = "configInstanceId";
     private MockServerKroxyliciousTester mockTester;

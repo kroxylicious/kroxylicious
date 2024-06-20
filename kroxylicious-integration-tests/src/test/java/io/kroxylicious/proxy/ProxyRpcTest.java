@@ -18,8 +18,11 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+
+import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.FixedClientIdFilterFactory;
@@ -42,6 +45,7 @@ import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
 import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@ExtendWith(NettyLeakDetectorExtension.class)
 public class ProxyRpcTest {
     private static MockServerKroxyliciousTester mockTester;
 
