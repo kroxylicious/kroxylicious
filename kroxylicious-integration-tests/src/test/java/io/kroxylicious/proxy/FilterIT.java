@@ -25,7 +25,9 @@ import javax.net.ssl.SSLSocket;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -55,6 +57,7 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory;
+import io.kroxylicious.proxy.filter.ConsumerGroupTopicMappingFilterFactory;
 import io.kroxylicious.proxy.filter.ForwardingStyle;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory;
@@ -627,6 +630,25 @@ class FilterIT {
             assertThat(records.records(topic2.name()))
                     .hasSize(1)
                     .map(ConsumerRecord::value).containsExactly(PLAINTEXT);
+        }
+    }
+
+    @Test
+    void shouldComposeSendRequest(KafkaCluster cluster, Topic topic1, Topic topic2) throws Exception {
+        var config = proxy(cluster)
+                .addToFilters(new FilterDefinitionBuilder(ConsumerGroupTopicMappingFilterFactory.class.getName()).build());
+
+        try (var tester = kroxyliciousTester(config);
+                var proxyAdmin = tester.admin()) {
+            proxyAdmin.alterConsumerGroupOffsets("mygroup", Map.of(
+                    new TopicPartition(topic1.name(), 0), new OffsetAndMetadata(0),
+                    new TopicPartition(topic2.name(), 0), new OffsetAndMetadata(0)))
+                    .all().get();
+
+            var groupOffsets = proxyAdmin.listConsumerGroupOffsets("mygroup").all().get();
+
+            assertThat(groupOffsets)
+                    .hasSize(2);
         }
     }
 
