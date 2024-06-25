@@ -76,7 +76,7 @@ public class RecordEncryptionFilter<K>
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
         var topicNameToData = request.topicData().stream().collect(Collectors.toMap(TopicProduceData::name, Function.identity()));
-        CompletionStage<Map<String, K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet()));
+        CompletionStage<Map<String, K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet(), context));
         return keks // figure out what keks we need
                 .thenCompose(kekMap -> {
                     var futures = kekMap.entrySet().stream().flatMap(e -> {

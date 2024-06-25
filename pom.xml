@@ -567,6 +567,7 @@
                         <logViolationCountToConsole>true</logViolationCountToConsole>
                         <logViolationsToConsole>true</logViolationsToConsole>
                         <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                        <excludeGeneratedSources>true</excludeGeneratedSources>
                     </configuration>
                     <executions>
                         <execution>

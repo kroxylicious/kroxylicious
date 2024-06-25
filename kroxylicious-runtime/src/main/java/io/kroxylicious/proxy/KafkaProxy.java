@@ -38,6 +38,7 @@ import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.ResourceMetadata;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
@@ -113,9 +114,9 @@ public final class KafkaProxy implements AutoCloseable {
 
             this.filterChainFactory = new FilterChainFactory(pfr, config.filters());
             var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of()));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, new ResourceMetadata(null), false, Map.of()));
             var plainServerBootstrap = buildServerBootstrap(serverEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of()));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, new ResourceMetadata(null), false, Map.of()));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
