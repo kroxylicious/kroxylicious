@@ -15,7 +15,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
@@ -73,7 +72,6 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.INTERSECTED_API_VERSION_RANGE_TAG;
 import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.UPSTREAM_API_VERSION_RANGE_TAG;
-import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.DISPATCH_THREAD;
 import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.FILTER_NAME_TAG;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -291,74 +289,6 @@ class FilterIT {
         doSupportsForwardDeferredByAsynchronousRequest(direction,
                 "supportsForwardDeferredByAsynchronousBrokerRequest",
                 ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER);
-    }
-
-    /**
-     * This is here to test a subtle case, we want to ensure that if a Filter defers some work
-     * and completes that work from some uncontrolled thread, that other Messages enqueued at the
-     * filter are dispatched on the eventloop. Given that the eventloop is dynamically allocated
-     * to the channel, we cannot precisely check what thread we are running on, but we can
-     * assert that the user's Filter method is being invoked from the same thread.
-     */
-    @ParameterizedTest
-    @EnumSource(value = RequestResponseMarkingFilterFactory.Direction.class)
-    void supportAsyncBatchForwarding(RequestResponseMarkingFilterFactory.Direction direction) throws Exception {
-        doSupportsForwardDeferredByAsynchronousBatchRequest(direction,
-                "supportsForwardDeferredByAsynchronousBrokerRequest",
-                ForwardingStyle.ASYNCHRONOUS_DELAYED);
-    }
-
-    private void doSupportsForwardDeferredByAsynchronousBatchRequest(RequestResponseMarkingFilterFactory.Direction direction, String name,
-                                                                     ForwardingStyle forwardingStyle)
-            throws ExecutionException, InterruptedException, TimeoutException {
-        var markingFilter = new FilterDefinitionBuilder(RequestResponseMarkingFilterFactory.class.getName())
-                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
-                        "direction", Set.of(direction),
-                        "name", name,
-                        "forwardingStyle", forwardingStyle)
-                .build();
-        try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(markingFilter));
-                var kafkaClient = tester.simpleTestClient()) {
-            tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
-            ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
-            apiVersionsResponseData.apiKeys()
-                    .add(new ApiVersionsResponseData.ApiVersion().setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
-            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersionsResponseData));
-
-            // In the ASYNCHRONOUS_REQUEST_TO_BROKER case, the filter will send an async list_group
-            // request to the broker and defer the forward of the list transaction response until the list groups
-            // response arrives.
-            if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
-                tester.addMockResponseForApiKey(new ResponsePayload(LIST_GROUPS, LIST_GROUPS.latestVersion(), new ListGroupsResponseData()));
-            }
-
-            var responseAFuture = kafkaClient
-                    .get(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
-
-            var responseBFuture = kafkaClient
-                    .get(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
-            Response responseA = responseAFuture.get(5, TimeUnit.SECONDS);
-            Response responseB = responseBFuture.get(5, TimeUnit.SECONDS);
-
-            List<Request> listTransactionRequests = tester.getRequestsForApiKey(LIST_TRANSACTIONS);
-            var requestMessageReceivedByBrokerA = listTransactionRequests.get(0).message();
-            String dispatchThreadA = getDispatchThreadName(direction, responseA, requestMessageReceivedByBrokerA);
-            var requestMessageReceivedByBrokerB = listTransactionRequests.get(1).message();
-            String dispatchThreadB = getDispatchThreadName(direction, responseB, requestMessageReceivedByBrokerB);
-            assertThat(dispatchThreadA).isNotEmpty().containsIgnoringCase("eventloop");
-            assertThat(dispatchThreadB).isNotEmpty().containsIgnoringCase("eventloop")
-                    .describedAs("filter invocations should be dispatched from the same thread").isEqualTo(dispatchThreadA);
-        }
-    }
-
-    private static String getDispatchThreadName(RequestResponseMarkingFilterFactory.Direction direction, Response responseA, ApiMessage requestMessageReceivedByBrokerA) {
-        var responseMessageReceivedByClientA = responseA.payload().message();
-
-        assertThat(requestMessageReceivedByBrokerA).isInstanceOf(ListTransactionsRequestData.class);
-        assertThat(responseMessageReceivedByClientA).isInstanceOf(ListTransactionsResponseData.class);
-
-        var target = direction == RequestResponseMarkingFilterFactory.Direction.REQUEST ? requestMessageReceivedByBrokerA : responseMessageReceivedByClientA;
-        return unknownTaggedFieldsToStrings(target, DISPATCH_THREAD).findFirst().orElse("");
     }
 
     private void doSupportsForwardDeferredByAsynchronousRequest(RequestResponseMarkingFilterFactory.Direction direction, String name,

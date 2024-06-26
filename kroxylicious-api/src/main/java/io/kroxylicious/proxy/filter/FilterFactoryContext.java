@@ -24,8 +24,19 @@ public interface FilterFactoryContext {
      * Should be safe
      * to mutate Filter members from this executor.
      * @return executor, or null
+     * @deprecated use {@link #filterDispatchExecutor()} instead
      */
+    @Deprecated(since = "0.7.0")
     ScheduledExecutorService eventLoop();
+
+    /**
+     * An executor backed by the single Thread responsible for dispatching
+     * work to a Filter instance for a channel.
+     * It is safe to mutate Filter members from this executor.
+     * @return executor
+     * @throws IllegalStateException if the factory is not bound to a channel yet.
+     */
+    FilterDispatchExecutor filterDispatchExecutor();
 
     /**
      * Gets a plugin instance for the given plugin type and name

@@ -9,7 +9,6 @@ package io.kroxylicious.filter.encryption;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
 
 import javax.crypto.Cipher;
 
@@ -26,6 +25,7 @@ import io.kroxylicious.filter.encryption.dek.DekException;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -65,7 +65,7 @@ class RecordEncryptionTest {
 
         doReturn(kmsService).when(fc).pluginInstance(KmsService.class, "KMS");
         doReturn(kms).when(kmsService).buildKms(any());
-        doReturn(mock(ScheduledExecutorService.class)).when(fc).eventLoop();
+        doReturn(mock(FilterDispatchExecutor.class)).when(fc).filterDispatchExecutor();
         doReturn(edekSerde).when(kms).edekSerde();
 
         doReturn(kekSelectorService).when(fc).pluginInstance(KekSelectorService.class, "SELECTOR");
