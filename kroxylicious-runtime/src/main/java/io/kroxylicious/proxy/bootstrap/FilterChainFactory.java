@@ -16,6 +16,7 @@ import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -92,6 +93,11 @@ public class FilterChainFactory implements AutoCloseable {
                 @Override
                 public ScheduledExecutorService eventLoop() {
                     return null;
+                }
+
+                @Override
+                public FilterDispatchExecutor filterDispatchExecutor() {
+                    throw new IllegalStateException("no Filter Dispatch executor available at filter factory initialization time");
                 }
 
                 @Override

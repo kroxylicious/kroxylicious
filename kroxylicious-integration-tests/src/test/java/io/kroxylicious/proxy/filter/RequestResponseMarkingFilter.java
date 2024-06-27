@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.filter;
 
 import java.util.Locale;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -33,7 +34,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  */
 public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilter {
 
-    public static final int DISPATCH_THREAD = 499;
     public static final int FILTER_NAME_TAG = 500;
     private final FilterFactoryContext constructionContext;
     private final String name;
@@ -51,10 +51,13 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
 
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, FilterContext context) {
+        if (!constructionContext.filterDispatchExecutor().isInFilterDispatchThread()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("onRequest method was not invoked by dispatch thread! "
+                    + "The framework is breaking a threading guarantee"));
+        }
         if (!(direction.contains(RequestResponseMarkingFilterFactory.Direction.REQUEST) && keysToMark.contains(apiKey))) {
             return context.forwardRequest(header, body);
         }
-        tagWithDispatchThread(body);
 
         return forwardingStyle.apply(new ForwardingContext(context, constructionContext, body))
                 .thenApply(request -> applyTaggedField(request, RequestResponseMarkingFilterFactory.Direction.REQUEST, name))
@@ -63,20 +66,17 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
 
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        if (!constructionContext.filterDispatchExecutor().isInFilterDispatchThread()) {
+            return CompletableFuture.failedFuture(new IllegalStateException("onResponse was not invoked by dispatch thread! "
+                    + "The framework is breaking a threading guarantee"));
+        }
         if (!(direction.contains(RequestResponseMarkingFilterFactory.Direction.RESPONSE) && keysToMark.contains(apiKey))) {
             return context.forwardResponse(header, response);
         }
-        tagWithDispatchThread(response);
 
         return forwardingStyle.apply(new ForwardingContext(context, constructionContext, response))
                 .thenApply(request -> applyTaggedField(request, RequestResponseMarkingFilterFactory.Direction.RESPONSE, name))
                 .thenCompose(taggedRequest -> context.forwardResponse(header, taggedRequest));
-    }
-
-    private static void tagWithDispatchThread(ApiMessage body) {
-        Thread currentThread = Thread.currentThread();
-        String identifier = currentThread.getName() + "::" + currentThread.threadId();
-        body.unknownTaggedFields().add(new RawTaggedField(DISPATCH_THREAD, identifier.getBytes()));
     }
 
     private ApiMessage applyTaggedField(ApiMessage body, RequestResponseMarkingFilterFactory.Direction direction, String name) {

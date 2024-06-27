@@ -28,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoop;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -71,6 +72,9 @@ class KafkaProxyInitializerTest {
     private VirtualClusterBinding vcb;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
+    private EventLoop eventLoop;
+
+    @Mock(strictness = Mock.Strictness.LENIENT)
     private ServerSocketChannel serverSocketChannel;
 
     @Captor
@@ -91,6 +95,7 @@ class KafkaProxyInitializerTest {
         final InetSocketAddress localhost = new InetSocketAddress(0);
         when(channel.pipeline()).thenReturn(channelPipeline);
         when(channel.parent()).thenReturn(serverSocketChannel);
+        when(channel.eventLoop()).thenReturn(eventLoop);
         when(channel.localAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 9099));
 
         when(serverSocketChannel.localAddress()).thenReturn(localhost);
