@@ -152,7 +152,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                          @NonNull MemoryRecords memoryRecords,
                                          @NonNull Dek<E>.Encryptor encryptor,
                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
-        ByteBuffer recordBuffer = ByteBuffer.allocate(recordBufferInitialBytes);
+        ByteBuffer recordBuffer = ByteBuffer.allocateDirect(recordBufferInitialBytes);
         do {
             try {
                 return RecordStream.ofRecords(memoryRecords)
