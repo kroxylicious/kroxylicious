@@ -111,7 +111,7 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
-            <scope>compile</scope>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
