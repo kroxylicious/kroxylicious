@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.filter.oauthbearer;
 
 import java.net.URI;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
@@ -20,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
+import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,7 +39,7 @@ class OauthBearerValidationTest {
     private OAuthBearerValidatorCallbackHandler callbackHandler;
 
     @Mock
-    private ScheduledExecutorService executor;
+    private FilterDispatchExecutor executor;
 
     @Test
     void mustProvideDefaultValuesForConfig() throws Exception {
@@ -77,7 +77,7 @@ class OauthBearerValidationTest {
     @SuppressWarnings("java:S5838")
     void mustInitAndCreateFilterFromConfig() throws Exception {
         // given
-        when(ffc.eventLoop()).thenReturn(executor);
+        when(ffc.filterDispatchExecutor()).thenReturn(executor);
         OauthBearerValidation oauthBearerValidation = new OauthBearerValidation(callbackHandler);
         OauthBearerValidation.Config config = new OauthBearerValidation.Config(
                 new URI("https://jwks.endpoint"),
@@ -129,7 +129,7 @@ class OauthBearerValidationTest {
     void mustInitAndCreateFilter(OauthBearerValidation.Config config) {
         // given
         OauthBearerValidation oauthBearerValidation = new OauthBearerValidation(callbackHandler);
-        when(ffc.eventLoop()).thenReturn(executor);
+        when(ffc.filterDispatchExecutor()).thenReturn(executor);
 
         // when
         SharedOauthBearerValidationContext sharedContext = oauthBearerValidation.initialize(ffc, config);

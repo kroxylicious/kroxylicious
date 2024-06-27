@@ -6,7 +6,17 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+* [#1322](https://github.com/kroxylicious/kroxylicious/pull/1322): Introduce FilterDispatchExecutor
 * [#1154](https://github.com/kroxylicious/kroxylicious/pull/1154): Apicurio based schema validation filter
+
+### Changes, deprecations and removals
+
+* FilterFactoryContext#eventLoop() is deprecated, replaced by FilterFactoryContext#filterDispatchExecutor().
+This returns FilterDispatchExecutor, a new interface extending ScheduledExecutorService. FilterDispatchExecutor
+has methods to enable Filters to check if the current thread is the Filter Dispatch Thread and it offers
+specialized futures, where chained async methods will also run on the Filter Dispatch Thread when no executor
+is supplied. This is intended to be a tool to make it convenient for Filters to hand off work to uncontrolled
+threads, then switch back to an execution context where mutation of Filter members is safe.
 
 ## 0.6.0
 

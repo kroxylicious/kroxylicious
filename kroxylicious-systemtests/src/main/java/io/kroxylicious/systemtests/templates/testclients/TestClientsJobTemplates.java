@@ -57,7 +57,7 @@ public class TestClientsJobTemplates {
                 .withName(jobName)
                 .endMetadata()
                 .withNewSpec()
-                .withRestartPolicy("Never")
+                .withRestartPolicy(Constants.RESTART_POLICY_NEVER)
                 .endSpec()
                 .endTemplate()
                 .endSpec();
@@ -171,8 +171,10 @@ public class TestClientsJobTemplates {
     public static JobBuilder defaultKafkaGoConsumerJob(String jobName, List<String> args) {
         return baseClientJob(jobName)
                 .editSpec()
+                .withBackoffLimit(3)
                 .editTemplate()
                 .editSpec()
+                .withRestartPolicy(Constants.RESTART_POLICY_ONFAILURE)
                 .withContainers(new ContainerBuilder()
                         .withName("kafka-go-consumer")
                         .withImage(Constants.KAF_CLIENT_IMAGE)

@@ -78,7 +78,7 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
     @NonNull
     @Override
     public OauthBearerValidationFilter createFilter(FilterFactoryContext context, SharedOauthBearerValidationContext sharedContext) {
-        return new OauthBearerValidationFilter(context.eventLoop(), sharedContext);
+        return new OauthBearerValidationFilter(context.filterDispatchExecutor(), sharedContext);
     }
 
     @Override
