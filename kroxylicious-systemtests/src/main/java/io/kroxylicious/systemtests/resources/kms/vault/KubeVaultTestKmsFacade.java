@@ -4,14 +4,14 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.resources.vault;
+package io.kroxylicious.systemtests.resources.kms.vault;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.URI;
-import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,7 +25,7 @@ import io.kroxylicious.kms.provider.hashicorp.vault.VaultTestKmsFacade;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.systemtests.executor.ExecResult;
-import io.kroxylicious.systemtests.installation.vault.Vault;
+import io.kroxylicious.systemtests.installation.kms.vault.Vault;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -53,14 +53,20 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     /**
      * Instantiates a new Kube vault test kms facade.
      *
-     * @param namespace the namespace
-     * @param podName the pod name
-     * @param openshiftCluster the boolean for openshift cluster
      */
-    public KubeVaultTestKmsFacade(String namespace, String podName, boolean openshiftCluster) {
-        this.namespace = namespace;
-        this.podName = podName;
-        this.vault = new Vault(namespace, VAULT_ROOT_TOKEN, openshiftCluster);
+    public KubeVaultTestKmsFacade() {
+        this.namespace = Vault.VAULT_DEFAULT_NAMESPACE;
+        this.podName = Vault.VAULT_POD_NAME;
+        this.vault = new Vault(VAULT_ROOT_TOKEN);
+    }
+
+    /**
+     * Sets openshift cluster.
+     *
+     * @param openshiftCluster the openshift cluster
+     */
+    public void setOpenshiftCluster(boolean openshiftCluster) {
+        this.vault.setOpenshiftCluster(openshiftCluster);
     }
 
     @Override
@@ -73,7 +79,7 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         vault.deploy();
         if (!isCorrectVersionInstalled()) {
             throw new KubeClusterException("Vault version installed " + getVaultVersion() + " does not match with the expected: '"
-                    + VaultTestKmsFacade.HASHICORP_VAULT + "'");
+                    + VaultTestKmsFacade.HASHICORP_VAULT.getVersionPart() + "'");
         }
         runVaultCommand(VAULT_CMD, LOGIN, VAULT_ROOT_TOKEN);
     }
@@ -185,7 +191,7 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
         @Override
         public void deleteKek(String alias) {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException("KEK deletetion is not supported in Vault");
         }
 
         public void rotateKek(String alias) {
@@ -240,14 +246,14 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
             return OBJECT_MAPPER.readValue(execResult.out(), valueTypeRef);
         }
         catch (IOException e) {
-            throw new KubeClusterException("Failed to run vault command: %s".formatted(Arrays.stream(command).toList()), e);
+            throw new KubeClusterException("Failed to run vault command: %s".formatted(List.of(command)), e);
         }
     }
 
     private ExecResult runVaultCommand(String... command) {
         var execResult = cmdKubeClient(namespace).execInPod(podName, true, command);
         if (!execResult.isSuccess()) {
-            throw new KubeClusterException("Failed to run vault command: %s, exit code: %d, stderr: %s".formatted(Arrays.stream(command).toList(),
+            throw new KubeClusterException("Failed to run vault command: %s, exit code: %d, stderr: %s".formatted(List.of(command),
                     execResult.returnCode(), execResult.err()));
         }
         return execResult;

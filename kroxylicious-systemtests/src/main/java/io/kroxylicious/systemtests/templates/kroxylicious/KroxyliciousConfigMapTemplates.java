@@ -6,9 +6,18 @@
 
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
+import java.io.UncheckedIOException;
+import java.util.Map;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.proxy.config.FilterDefinition;
+import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.systemtests.Constants;
 
 /**
@@ -46,16 +55,34 @@ public final class KroxyliciousConfigMapTemplates {
      *
      * @param clusterName the cluster name
      * @param namespaceName the namespace name
-     * @param topicName the topic name
-     * @param config config
+     * @param testKmsFacade the test kms facade
      * @return the config map builder
      */
-    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, String topicName, Config config) {
+    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade) {
         return baseKroxyliciousConfig(namespaceName)
-                .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, topicName, config));
+                .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, testKmsFacade));
     }
 
-    private static String getRecordEncryptionConfigMap(String clusterName, String topicName, Config config) {
+    private static FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
+        return new FilterDefinitionBuilder("RecordEncryption")
+                .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
+                .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
+                .withConfig("selector", "TemplateKekSelector")
+                .withConfig("selectorConfig", Map.of("template", "${topicName}"))
+                .build();
+    }
+
+    private static String getRecordEncryptionConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        FilterDefinition filterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        String configYaml;
+        try {
+            configYaml = mapper.writeValueAsString(filterDefinition).replace("---", "").indent(2).trim();
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
+        }
+
         return """
                 adminHttp:
                   endpoints:
@@ -71,23 +98,12 @@ public final class KroxyliciousConfigMapTemplates {
                       bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
                     logFrames: false
                 filters:
-                - type: RecordEncryption
-                  config:
-                    kms: VaultKmsService
-                    kmsConfig:
-                      vaultTransitEngineUrl: %VAULT_TRANSIT_ENGINE_URL%
-                      vaultToken:
-                        password: %VAULT_TOKEN%
-                    selector: TemplateKekSelector
-                    selectorConfig:
-                      template: "${topicName}"
+                - %FILTER_CONFIG%
                 """
                 .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
                 .replace("%CLUSTER_NAME%", clusterName)
                 .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME)
-                .replace("%VAULT_TOKEN%", config.vaultToken().getProvidedPassword())
-                .replace("%VAULT_TRANSIT_ENGINE_URL%", config.vaultTransitEngineUrl().toString())
-                .replace("%TOPIC_NAME%", topicName);
+                .replace("%FILTER_CONFIG%", configYaml);
     }
 
     private static String getDefaultKroxyliciousConfigMap(String clusterName) {

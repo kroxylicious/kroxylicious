@@ -1,0 +1,13 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+# Helm Overrides File for localstack used by the system tests.
+enableStartupScripts: true
+startupScriptContent: |
+  #!/bin/bash
+  awslocal configure set aws_access_key_id test
+  awslocal configure set aws_secret_access_key test
+  awslocal configure set region us-east-1

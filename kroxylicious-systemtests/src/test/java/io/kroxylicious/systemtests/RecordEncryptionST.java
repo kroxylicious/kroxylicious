@@ -9,11 +9,9 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,43 +19,35 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 
+import io.kroxylicious.kms.provider.aws.kms.AwsKmsService;
+import io.kroxylicious.kms.service.TestKekManager;
+import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
+import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
-import io.kroxylicious.systemtests.installation.vault.Vault;
-import io.kroxylicious.systemtests.resources.vault.KubeVaultTestKmsFacade;
-import io.kroxylicious.systemtests.resources.vault.KubeVaultTestKmsFacadeFactory;
+import io.kroxylicious.systemtests.resources.kms.aws.KubeAwsKmsTestKmsFacade;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
-import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 @ExtendWith(KroxyliciousExtension.class)
+@ExtendWith(TestKubeKmsFacadeInvocationContextProvider.class)
 class RecordEncryptionST extends AbstractST {
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryptionST.class);
     private static final String MESSAGE = "Hello-world";
-    private static KubeVaultTestKmsFacade kubeVaultTestKmsFacade;
     private final String clusterName = "my-cluster";
     private String bootstrap;
+    private TestKekManager testKekManager;
 
     @BeforeAll
     void setUp() {
-        kubeVaultTestKmsFacade = new KubeVaultTestKmsFacadeFactory().build(Vault.VAULT_DEFAULT_NAMESPACE, Vault.VAULT_POD_NAME, cluster.isOpenshift());
-        List<Pod> vaultPods = kubeClient().listPodsByPrefixInName(Vault.VAULT_DEFAULT_NAMESPACE, Vault.VAULT_SERVICE_NAME);
-        if (!vaultPods.isEmpty()) {
-            LOGGER.atInfo().setMessage("Skipping vault deployment. It is already deployed!").log();
-        }
-        else {
-            NamespaceUtils.createNamespaceWithWait(Vault.VAULT_DEFAULT_NAMESPACE);
-            kubeVaultTestKmsFacade.start();
-        }
-
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.atInfo().setMessage("Skipping kafka deployment. It is already deployed!").log();
@@ -72,36 +62,33 @@ class RecordEncryptionST extends AbstractST {
                 kafka);
     }
 
-    @BeforeEach
-    void beforeEach(String namespace) {
-        var testKekManager = kubeVaultTestKmsFacade.getTestKekManager();
+    @AfterEach
+    void afterEach(String namespace) {
+        try {
+            testKekManager.deleteKek(topicName);
+        }
+        catch (UnsupportedOperationException e) {
+            LOGGER.atInfo().setMessage("KEK deletion is not supported for current Kms: {}").addArgument(e).log();
+        }
+        finally {
+            KafkaSteps.deleteTopic(namespace, topicName, bootstrap);
+        }
+    }
+
+    @TestTemplate
+    void ensureClusterHasEncryptedMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topicName);
+        int numberOfMessages = 1;
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, topicName, kubeVaultTestKmsFacade.getKmsServiceConfig());
+        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade);
         bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
-    }
-
-    @AfterEach
-    void afterEach(String namespace) {
-        KafkaSteps.deleteTopic(namespace, topicName, bootstrap);
-    }
-
-    @AfterAll
-    void cleanUp() {
-        if (kubeVaultTestKmsFacade != null) {
-            kubeVaultTestKmsFacade.stop();
-        }
-    }
-
-    @Test
-    void ensureClusterHasEncryptedMessage(String namespace) {
-        int numberOfMessages = 1;
 
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -111,6 +98,12 @@ class RecordEncryptionST extends AbstractST {
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
 
+        String messageToCheck = topicName + "vault";
+        if (testKmsFacade.getKmsServiceClass().equals(AwsKmsService.class)) {
+            messageToCheck = ((KubeAwsKmsTestKmsFacade) testKmsFacade).getKekKeyId();
+        }
+
+        String finalMessageToCheck = messageToCheck;
         assertAll(
                 () -> {
                     for (ConsumerRecord consumerRecord : resultEncrypted) {
@@ -119,12 +112,23 @@ class RecordEncryptionST extends AbstractST {
                 },
                 () -> assertThat(resultEncrypted.stream())
                         .withFailMessage("expected message have not been received!")
-                        .allMatch(r -> r.getValue().contains(topicName + "vault")));
+                        .allMatch(r -> r.getValue().contains(finalMessageToCheck)));
     }
 
-    @Test
-    void produceAndConsumeMessage(String namespace) {
+    @TestTemplate
+    void produceAndConsumeMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topicName);
         int numberOfMessages = 1;
+
+        // start Kroxylicious
+        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        Kroxylicious kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade);
+        bootstrap = kroxylicious.getBootstrap();
+
+        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
