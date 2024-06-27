@@ -49,12 +49,6 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
 
         @Override
         public List<Extension> getAdditionalExtensions() {
-            // if (!kmsFacade.isAvailable()) {
-            // return List.of(
-            // (ExecutionCondition) extensionContext -> kmsFacade.isAvailable() ? ConditionEvaluationResult.enabled(null)
-            // : ConditionEvaluationResult.disabled(null));
-            // }
-
             return List.of(
                     (BeforeEachCallback) extensionContext -> {
                         if (kmsFacade.getKmsServiceClass().equals(VaultKmsService.class)) {

@@ -96,29 +96,29 @@ public class AwsKmsLocal implements AwsKmsClient {
      * @return the version
      */
     public String getLocalStackVersionInstalled() {
-        if (installedLocalStackVersion != null) {
-            return installedLocalStackVersion;
+        if (installedLocalStackVersion == null) {
+            URI url = URI.create("http://" + getAwsUrl());
+            try (var output = new ByteArrayOutputStream();
+                    var error = new ByteArrayOutputStream();
+                    var exec = kubeClient().getClient().pods()
+                            .inNamespace(deploymentNamespace)
+                            .withName(podName)
+                            .writingOutput(output)
+                            .writingError(error)
+                            .exec("sh", "-c", "curl " + url + "/_" + LOCALSTACK_SERVICE_NAME + "/info")) {
+                int exitCode = exec.exitCode().join();
+                if (exitCode != 0) {
+                    throw new UnsupportedOperationException(error.toString());
+                }
+                // version returned with format: "3.5.1.dev:6e7ddd05e"
+                installedLocalStackVersion = new ObjectMapper().readTree(output.toString()).findValue("version").textValue().split(":")[0];
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
         }
 
-        URI url = URI.create("http://" + getAwsUrl());
-        try (var output = new ByteArrayOutputStream();
-                var error = new ByteArrayOutputStream();
-                var exec = kubeClient().getClient().pods()
-                        .inNamespace(deploymentNamespace)
-                        .withName(podName)
-                        .writingOutput(output)
-                        .writingError(error)
-                        .exec("sh", "-c", "curl " + url + "/_" + LOCALSTACK_SERVICE_NAME + "/info")) {
-            int exitCode = exec.exitCode().join();
-            if (exitCode != 0) {
-                throw new UnsupportedOperationException(error.toString());
-            }
-            // version returned with format: "3.5.1.dev:6e7ddd05e"
-            return new ObjectMapper().readTree(output.toString()).findValue("version").textValue().split(":")[0];
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return installedLocalStackVersion;
     }
 
     @Override
@@ -177,9 +177,6 @@ public class AwsKmsLocal implements AwsKmsClient {
 
     @Override
     public String getAwsUrl() {
-        // export NODE_PORT=$(kubectl get --namespace "localstack" -o jsonpath="{.spec.ports[0].nodePort}" services localstack)
-        // export NODE_IP=$(kubectl get nodes --namespace "localstack" -o jsonpath="{.items[0].status.addresses[0].address}")
-        // echo http://$NODE_IP:$NODE_PORT
         var nodeIP = kubeClient(deploymentNamespace).getClient().nodes().list().getItems().get(0).getStatus().getAddresses().get(0).getAddress();
         var spec = kubeClient().getService(deploymentNamespace, LOCALSTACK_SERVICE_NAME).getSpec();
         int port = spec.getPorts().stream().map(ServicePort::getNodePort).findFirst()

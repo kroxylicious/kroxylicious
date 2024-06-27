@@ -6,9 +6,6 @@
 
 package io.kroxylicious.systemtests.installation.kms.aws;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
 
@@ -16,7 +13,6 @@ import io.kroxylicious.systemtests.executor.ExecResult;
  * The type Aws kms local.
  */
 public class AwsKms implements AwsKmsClient {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AwsKms.class);
     private static final String AWS_CMD = "aws";
 
     /**
@@ -34,20 +30,8 @@ public class AwsKms implements AwsKmsClient {
 
     @Override
     public boolean isAvailable() {
-        return true;
-        // try (var output = new ByteArrayOutputStream();
-        // var exec = kubeClient().getClient().pods()
-        // .inNamespace(deploymentNamespace)
-        // .withName(podName)
-        // .writingOutput(output)
-        // .exec("sh", "-c", AWS_LOCAL_CMD + " --version")) {
-        // int exitCode = exec.exitCode().join();
-        // return exitCode == 0 &&
-        // output.toString().toLowerCase().contains("aws-cli/");
-        // }
-        // catch (IOException e) {
-        // throw new UncheckedIOException(e);
-        // }
+        ExecResult execResult = Exec.exec(AWS_CMD, "--version");
+        return execResult.isSuccess();
     }
 
     @Override
