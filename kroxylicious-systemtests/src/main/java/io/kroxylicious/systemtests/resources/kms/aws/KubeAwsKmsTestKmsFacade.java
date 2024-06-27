@@ -104,7 +104,7 @@ public class KubeAwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     @NonNull
     @Override
     protected URI getAwsUrl() {
-        return URI.create("http://" + awsKmsClient.getAwsUrl());
+        return awsKmsClient.getAwsUrl();
     }
 
     @Override

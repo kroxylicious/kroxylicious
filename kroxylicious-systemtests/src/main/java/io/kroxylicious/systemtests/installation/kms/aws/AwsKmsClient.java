@@ -6,6 +6,8 @@
 
 package io.kroxylicious.systemtests.installation.kms.aws;
 
+import java.net.URI;
+
 import io.kroxylicious.systemtests.Environment;
 
 /**
@@ -36,7 +38,7 @@ public interface AwsKmsClient {
      *
      * @return the aws url
      */
-    String getAwsUrl();
+    URI getAwsUrl();
 
     /**
      * Gets region.

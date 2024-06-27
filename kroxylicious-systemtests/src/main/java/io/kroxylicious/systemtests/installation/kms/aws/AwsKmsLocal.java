@@ -97,7 +97,7 @@ public class AwsKmsLocal implements AwsKmsClient {
      */
     public String getLocalStackVersionInstalled() {
         if (installedLocalStackVersion == null) {
-            URI url = URI.create("http://" + getAwsUrl());
+            URI url = getAwsUrl();
             try (var output = new ByteArrayOutputStream();
                     var error = new ByteArrayOutputStream();
                     var exec = kubeClient().getClient().pods()
@@ -176,14 +176,14 @@ public class AwsKmsLocal implements AwsKmsClient {
     }
 
     @Override
-    public String getAwsUrl() {
+    public URI getAwsUrl() {
         var nodeIP = kubeClient(deploymentNamespace).getClient().nodes().list().getItems().get(0).getStatus().getAddresses().get(0).getAddress();
         var spec = kubeClient().getService(deploymentNamespace, LOCALSTACK_SERVICE_NAME).getSpec();
         int port = spec.getPorts().stream().map(ServicePort::getNodePort).findFirst()
                 .orElseThrow(() -> new KubeClusterException("Unable to get the service port of Aws"));
         String url = nodeIP + ":" + port;
         LOGGER.debug("AWS URL: {}", url);
-        return url;
+        return URI.create("http://" + url);
     }
 
     @Override

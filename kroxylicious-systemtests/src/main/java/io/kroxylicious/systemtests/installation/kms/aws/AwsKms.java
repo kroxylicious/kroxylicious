@@ -6,6 +6,8 @@
 
 package io.kroxylicious.systemtests.installation.kms.aws;
 
+import java.net.URI;
+
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
 
@@ -45,8 +47,8 @@ public class AwsKms implements AwsKmsClient {
     }
 
     @Override
-    public String getAwsUrl() {
-        return "kms." + getRegion() + ".amazonaws.com";
+    public URI getAwsUrl() {
+        return URI.create("https://kms." + getRegion() + ".amazonaws.com");
     }
 
     @Override
