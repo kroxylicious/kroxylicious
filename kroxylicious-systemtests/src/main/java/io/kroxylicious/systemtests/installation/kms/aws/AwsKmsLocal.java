@@ -132,7 +132,7 @@ public class AwsKmsLocal implements AwsKmsClient {
         NamespaceUtils.createNamespaceWithWait(deploymentNamespace);
         ResourceManager.helmClient().addRepository(LOCALSTACK_HELM_REPOSITORY_NAME, LOCALSTACK_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(LOCALSTACK_HELM_CHART_NAME, LOCALSTACK_SERVICE_NAME,
-                Optional.of(Environment.LOCALSTACK_CHART_VERSION),
+                Optional.of(Environment.AWS_LOCALSTACK_CHART_VERSION),
                 Optional.of(Path.of(TestUtils.getResourcesURI("helm_localstack_overrides.yaml"))),
                 Optional.empty());
 
@@ -154,6 +154,7 @@ public class AwsKmsLocal implements AwsKmsClient {
 
     private int compareVersions(String currentVersion, String expectedVersion) {
         Objects.requireNonNull(expectedVersion);
+        Objects.requireNonNull(currentVersion);
 
         String[] currentParts = currentVersion.split("\\.");
         String[] expectedParts = expectedVersion.split("\\.");

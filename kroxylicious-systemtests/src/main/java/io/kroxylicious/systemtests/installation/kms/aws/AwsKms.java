@@ -12,7 +12,7 @@ import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
 
 /**
- * The type Aws kms local.
+ * The type Aws kms cloud.
  */
 public class AwsKms implements AwsKmsClient {
     private static final String AWS_CMD = "aws";
