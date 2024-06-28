@@ -47,6 +47,7 @@ public class AwsKmsLocal implements AwsKmsClient {
     private final String deploymentNamespace;
     private String podName;
     private String installedLocalStackVersion;
+    private String region;
 
     /**
      * Instantiates a new Aws.
@@ -189,23 +190,26 @@ public class AwsKmsLocal implements AwsKmsClient {
 
     @Override
     public String getRegion() {
-        try (var output = new ByteArrayOutputStream();
-                var error = new ByteArrayOutputStream();
-                var exec = kubeClient().getClient().pods()
-                        .inNamespace(deploymentNamespace)
-                        .withName(podName)
-                        .writingOutput(output)
-                        .writingError(error)
-                        .exec("sh", "-c", AWS_LOCAL_CMD + " configure get region")) {
-            int exitCode = exec.exitCode().join();
-            if (exitCode != 0) {
-                throw new UnsupportedOperationException(error.toString());
+        if (region == null) {
+            try (var output = new ByteArrayOutputStream();
+                    var error = new ByteArrayOutputStream();
+                    var exec = kubeClient().getClient().pods()
+                            .inNamespace(deploymentNamespace)
+                            .withName(podName)
+                            .writingOutput(output)
+                            .writingError(error)
+                            .exec("sh", "-c", AWS_LOCAL_CMD + " configure get region")) {
+                int exitCode = exec.exitCode().join();
+                if (exitCode != 0) {
+                    throw new UnsupportedOperationException(error.toString());
+                }
+                region = output.toString().trim();
             }
-            return output.toString().trim();
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
         }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return region;
     }
 
     /**

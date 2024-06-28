@@ -16,6 +16,7 @@ import io.kroxylicious.systemtests.executor.ExecResult;
  */
 public class AwsKms implements AwsKmsClient {
     private static final String AWS_CMD = "aws";
+    private String region;
 
     /**
      * Instantiates a new Aws.
@@ -53,10 +54,14 @@ public class AwsKms implements AwsKmsClient {
 
     @Override
     public String getRegion() {
-        ExecResult execResult = Exec.exec(AWS_CMD, "configure", "get", "region");
-        if (!execResult.isSuccess()) {
-            throw new UnsupportedOperationException(execResult.err());
+        if (region == null) {
+            ExecResult execResult = Exec.exec(AWS_CMD, "configure", "get", "region");
+            if (!execResult.isSuccess()) {
+                throw new UnsupportedOperationException(execResult.err());
+            }
+            region = execResult.out().trim();
         }
-        return execResult.out().trim();
+
+        return region;
     }
 }
