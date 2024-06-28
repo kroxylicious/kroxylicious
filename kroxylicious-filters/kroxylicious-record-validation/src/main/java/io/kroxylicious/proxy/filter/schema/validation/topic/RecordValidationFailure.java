@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.filter.schema.validation.topic;
 
 /**
  * Details about an invalid record from a topic-partition
- * @param invalidIndex the index of the invalid record within it's batch
+ * @param invalidIndex the index of the invalid record within its batch
  * @param errorMessage details of what was invalid
  */
 public record RecordValidationFailure(int invalidIndex, String errorMessage) {
