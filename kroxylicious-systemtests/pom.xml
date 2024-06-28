@@ -102,11 +102,8 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-record-encryption</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
@@ -119,6 +116,7 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
