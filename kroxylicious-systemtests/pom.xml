@@ -103,7 +103,6 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-record-encryption</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>

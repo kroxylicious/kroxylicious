@@ -60,20 +60,6 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         this.vault = new Vault(VAULT_ROOT_TOKEN);
     }
 
-    /**
-     * Sets openshift cluster.
-     *
-     * @param openshiftCluster the openshift cluster
-     */
-    public void setOpenshiftCluster(boolean openshiftCluster) {
-        this.vault.setOpenshiftCluster(openshiftCluster);
-    }
-
-    @Override
-    public boolean isAvailable() {
-        return vault.isAvailable();
-    }
-
     @Override
     public void startVault() {
         vault.deploy();
@@ -102,7 +88,6 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     @Override
     @SuppressWarnings("java:S4087") // explict close is required when using redirecting input
     protected void createPolicy(String policyName, InputStream policyStream) {
-
         try (var exec = kubeClient().getClient().pods().inNamespace(namespace).withName(podName)
                 .redirectingInput()
                 .terminateOnError()
@@ -167,6 +152,7 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
     private int compareVersions(String currentVersion, String expectedVersion) {
         Objects.requireNonNull(expectedVersion);
+        Objects.requireNonNull(currentVersion);
 
         String[] currentParts = currentVersion.split("\\.");
         String[] expectedParts = expectedVersion.split("\\.");
@@ -191,7 +177,7 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
         @Override
         public void deleteKek(String alias) {
-            throw new UnsupportedOperationException("KEK deletetion is not supported in Vault");
+            throw new UnsupportedOperationException("KEK deletion is not supported in Vault");
         }
 
         public void rotateKek(String alias) {

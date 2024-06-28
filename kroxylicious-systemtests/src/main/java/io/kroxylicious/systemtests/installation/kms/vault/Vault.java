@@ -26,6 +26,7 @@ import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.getInstance;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
@@ -42,7 +43,6 @@ public class Vault {
     private static final String VAULT_CMD = "vault";
     private final String deploymentNamespace;
     private final String vaultRootToken;
-    private boolean openshiftCluster;
 
     /**
      * Instantiates a new Vault.
@@ -52,15 +52,6 @@ public class Vault {
     public Vault(String vaultRootToken) {
         this.deploymentNamespace = VAULT_DEFAULT_NAMESPACE;
         this.vaultRootToken = vaultRootToken;
-    }
-
-    /**
-     * Sets openshift cluster.
-     *
-     * @param openshiftCluster the openshift cluster
-     */
-    public void setOpenshiftCluster(boolean openshiftCluster) {
-        this.openshiftCluster = openshiftCluster;
     }
 
     /**
@@ -131,11 +122,13 @@ public class Vault {
      *
      */
     public void deploy() {
-        LOGGER.info("Deploy HashiCorp Vault in {} namespace, openshift: {}", deploymentNamespace, openshiftCluster);
         if (isDeployed()) {
             LOGGER.warn("Skipping Vault deployment. It is already deployed!");
             return;
         }
+
+        boolean openshiftCluster = getInstance().isOpenshift();
+        LOGGER.info("Deploy HashiCorp Vault in {} namespace, openshift: {}", deploymentNamespace, openshiftCluster);
 
         NamespaceUtils.createNamespaceWithWait(deploymentNamespace);
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);

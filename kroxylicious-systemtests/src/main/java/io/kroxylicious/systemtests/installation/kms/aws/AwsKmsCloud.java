@@ -8,13 +8,14 @@ package io.kroxylicious.systemtests.installation.kms.aws;
 
 import java.net.URI;
 
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
 
 /**
  * The type Aws kms cloud.
  */
-public class AwsKms implements AwsKmsClient {
+public class AwsKmsCloud implements AwsKmsClient {
     private static final String AWS_CMD = "aws";
     private String region;
 
@@ -22,7 +23,7 @@ public class AwsKms implements AwsKmsClient {
      * Instantiates a new Aws.
      *
      */
-    public AwsKms() {
+    public AwsKmsCloud() {
         // nothing to initialize
     }
 
@@ -33,8 +34,7 @@ public class AwsKms implements AwsKmsClient {
 
     @Override
     public boolean isAvailable() {
-        ExecResult execResult = Exec.exec(AWS_CMD, "--version");
-        return execResult.isSuccess();
+        return !Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
     }
 
     @Override

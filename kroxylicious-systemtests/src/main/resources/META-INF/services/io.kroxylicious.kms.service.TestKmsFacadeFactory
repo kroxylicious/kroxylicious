@@ -4,5 +4,6 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-io.kroxylicious.systemtests.resources.kms.aws.KubeAwsKmsTestKmsFacadeFactory
+io.kroxylicious.systemtests.resources.kms.aws.KubeAwsKmsCloudTestKmsFacadeFactory
+io.kroxylicious.systemtests.resources.kms.aws.KubeAwsKmsLocalTestKmsFacadeFactory
 io.kroxylicious.systemtests.resources.kms.vault.KubeVaultTestKmsFacadeFactory

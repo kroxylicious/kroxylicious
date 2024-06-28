@@ -26,7 +26,6 @@ import io.kroxylicious.kms.provider.aws.kms.AwsKmsTestKmsFacade;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
@@ -73,22 +72,7 @@ public class AwsKmsLocal implements AwsKmsClient {
 
     @Override
     public boolean isAvailable() {
-        if (!isDeployed()) {
-            return false;
-        }
-        try (var output = new ByteArrayOutputStream();
-                var exec = kubeClient().getClient().pods()
-                        .inNamespace(deploymentNamespace)
-                        .withName(podName)
-                        .writingOutput(output)
-                        .exec("sh", "-c", AWS_LOCAL_CMD + " --version")) {
-            int exitCode = exec.exitCode().join();
-            return exitCode == 0 &&
-                    output.toString().toLowerCase().contains("aws-cli/");
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
     }
 
     /**
@@ -138,7 +122,6 @@ public class AwsKmsLocal implements AwsKmsClient {
                 Optional.empty());
 
         this.podName = KafkaUtils.getPodNameByLabel(deploymentNamespace, "app.kubernetes.io/name", LOCALSTACK_SERVICE_NAME, Duration.ofSeconds(30));
-        DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, podName, Duration.ofMinutes(1));
 
         if (!isCorrectVersionInstalled()) {
             throw new KubeClusterException("AWS version installed " + getLocalStackVersionInstalled() + " does not match with the expected: '"

@@ -19,14 +19,13 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 
-import io.kroxylicious.kms.provider.aws.kms.AwsKmsService;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
-import io.kroxylicious.systemtests.resources.kms.aws.KubeAwsKmsTestKmsFacade;
+import io.kroxylicious.systemtests.resources.kms.aws.AbstractKubeAwsKmsTestKmsFacade;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
@@ -99,8 +98,8 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
 
         String messageToCheck = topicName + "vault";
-        if (testKmsFacade.getKmsServiceClass().equals(AwsKmsService.class)) {
-            messageToCheck = ((KubeAwsKmsTestKmsFacade) testKmsFacade).getKekKeyId();
+        if (testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("aws")) {
+            messageToCheck = ((AbstractKubeAwsKmsTestKmsFacade) testKmsFacade).getKekKeyId();
         }
 
         String finalMessageToCheck = messageToCheck;

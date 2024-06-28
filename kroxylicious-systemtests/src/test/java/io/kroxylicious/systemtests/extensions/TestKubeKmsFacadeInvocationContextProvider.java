@@ -11,6 +11,8 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ConditionEvaluationResult;
+import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
@@ -18,12 +20,8 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
-import io.kroxylicious.systemtests.resources.kms.vault.KubeVaultTestKmsFacade;
-
-import static io.kroxylicious.systemtests.AbstractST.cluster;
 
 public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider {
 
@@ -49,13 +47,14 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
 
         @Override
         public List<Extension> getAdditionalExtensions() {
+            if (!kmsFacade.isAvailable()) {
+                return List.of(
+                        (ExecutionCondition) extensionContext -> kmsFacade.isAvailable() ? ConditionEvaluationResult.enabled(null)
+                                : ConditionEvaluationResult.disabled(null));
+            }
+
             return List.of(
-                    (BeforeEachCallback) extensionContext -> {
-                        if (kmsFacade.getKmsServiceClass().equals(VaultKmsService.class)) {
-                            ((KubeVaultTestKmsFacade) kmsFacade).setOpenshiftCluster(cluster.isOpenshift());
-                        }
-                        kmsFacade.start();
-                    },
+                    (BeforeEachCallback) extensionContext -> kmsFacade.start(),
                     new TypeBasedParameterResolver<TestKmsFacade<?, ?, ?>>() {
                         @Override
                         public TestKmsFacade<?, ?, ?> resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {

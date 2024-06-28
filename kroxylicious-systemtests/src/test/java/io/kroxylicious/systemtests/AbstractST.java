@@ -34,7 +34,7 @@ public class AbstractST {
     /**
      * The constant cluster.
      */
-    public static KubeClusterResource cluster;
+    protected static KubeClusterResource cluster;
     /**
      * The constant strimziOperator.
      */

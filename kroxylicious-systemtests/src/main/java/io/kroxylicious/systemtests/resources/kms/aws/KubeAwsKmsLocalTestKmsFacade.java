@@ -7,27 +7,18 @@
 package io.kroxylicious.systemtests.resources.kms.aws;
 
 import java.io.IOException;
-import java.net.URI;
-import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.aws.kms.AbstractAwsKmsTestKmsFacade;
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.UnknownAliasException;
-import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
-import io.kroxylicious.systemtests.installation.kms.aws.AwsKms;
-import io.kroxylicious.systemtests.installation.kms.aws.AwsKmsClient;
 import io.kroxylicious.systemtests.installation.kms.aws.AwsKmsLocal;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kms.provider.aws.kms.AwsKms.ALIAS_PREFIX;
 import static io.kroxylicious.kms.provider.aws.kms.AwsKmsTestKmsFacade.CREATE_KEY_RESPONSE_TYPE_REF;
@@ -36,45 +27,24 @@ import static io.kroxylicious.kms.provider.aws.kms.AwsKmsTestKmsFacade.SCHEDULE_
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 
 /**
- * KMS Facade for AWS Kms running inside Kube.
- * Uses command line interaction so to avoid the complication of exposing the AWS endpoint
+ * KMS Facade for AWS Kms running inside Kube (localstack).
+ * Uses command line interaction so to avoid the complication of exposing the AWS Local endpoint
  * to the test outside the cluster.
  */
-public class KubeAwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
+public class KubeAwsKmsLocalTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacade {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final String KMS = "kms";
-    private static final String CREATE = "create-key";
-    private static final String CREATE_ALIAS = "create-alias";
-    private static final String UPDATE_ALIAS = "update-alias";
-    private static final String DELETE_ALIAS = "delete-alias";
-    private static final String DESCRIBE_KEY = "describe-key";
-    private static final String SCHEDULE_KEY_DELETION = "schedule-key-deletion";
-    private static final String PARAM_ALIAS_NAME = "--alias-name";
-    private static final String PARAM_TARGET_KEY_ID = "--target-key-id";
-    private static final String PARAM_KEY_ID = "--key-id";
-    private static final String PARAM_PENDING_WINDOW_IN_DAYS = "--pending-window-in-days";
     private final String namespace;
-    private final AwsKmsClient awsKmsClient;
-    private String kekKeyId;
     private final String awsCmd;
+    private String kekKeyId;
 
     /**
      * Instantiates a new Kube AWS Kms test kms facade.
      *
      */
-    public KubeAwsKmsTestKmsFacade() {
+    public KubeAwsKmsLocalTestKmsFacade() {
         this.namespace = AwsKmsLocal.LOCALSTACK_DEFAULT_NAMESPACE;
-        this.awsKmsClient = getAwsKmsClient();
-        awsCmd = this.awsKmsClient.getAwsCmd();
-    }
-
-    private AwsKmsClient getAwsKmsClient() {
-        if (Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT)) {
-            return new AwsKmsLocal();
-        }
-        else {
-            return new AwsKms();
-        }
+        this.awsKmsClient = new AwsKmsLocal();
+        awsCmd = awsKmsClient.getAwsCmd();
     }
 
     /**
@@ -87,47 +57,11 @@ public class KubeAwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     }
 
     @Override
-    public boolean isAvailable() {
-        return awsKmsClient.isAvailable();
-    }
-
-    @Override
-    public void startKms() {
-        awsKmsClient.deploy();
-    }
-
-    @Override
-    public void stopKms() {
-        awsKmsClient.delete();
-    }
-
-    @NonNull
-    @Override
-    protected URI getAwsUrl() {
-        return awsKmsClient.getAwsUrl();
-    }
-
-    @Override
-    protected String getRegion() {
-        return awsKmsClient.getRegion();
-    }
-
-    @Override
-    protected String getSecretKey() {
-        return awsKmsClient.getSecretKey();
-    }
-
-    @Override
-    protected String getAccessKey() {
-        return awsKmsClient.getAccessKey();
-    }
-
-    @Override
     public TestKekManager getTestKekManager() {
-        return new AwsKmsTestKekManager();
+        return new AwsKmsLocalTestKekManager();
     }
 
-    class AwsKmsTestKekManager implements TestKekManager {
+    class AwsKmsLocalTestKekManager implements TestKekManager {
         @Override
         public void generateKek(String alias) {
             Objects.requireNonNull(alias);
@@ -214,14 +148,7 @@ public class KubeAwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
         }
 
         private ExecResult runAwsKmsCommand(String... command) {
-            ExecResult execResult;
-            if (awsKmsClient.getClass().equals(AwsKms.class)) {
-                execResult = Exec.exec(null, List.of(command), Duration.ofSeconds(20), true, false, null);
-                ;
-            }
-            else {
-                execResult = cmdKubeClient(namespace).execInPod(((AwsKmsLocal) awsKmsClient).getPodName(), true, command);
-            }
+            ExecResult execResult = cmdKubeClient(namespace).execInPod(((AwsKmsLocal) awsKmsClient).getPodName(), true, command);
 
             if (!execResult.isSuccess()) {
                 throw new KubeClusterException("Failed to run AWS Kms: %s, exit code: %d, stderr: %s".formatted(List.of(command),
