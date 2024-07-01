@@ -6,17 +6,11 @@
 
 package io.kroxylicious.systemtests.resources.kms.aws;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
-import java.util.Objects;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
 import io.kroxylicious.kms.service.TestKekManager;
-import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.installation.kms.aws.AwsKmsCloud;
@@ -33,7 +27,6 @@ import static io.kroxylicious.kms.provider.aws.kms.AwsKmsTestKmsFacade.SCHEDULE_
  * to the test outside the cluster.
  */
 public class KubeAwsKmsCloudTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacade {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final String awsCmd;
     private String kekKeyId;
 
@@ -60,64 +53,23 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
         return new AwsKmsCloudTestKekManager();
     }
 
-    class AwsKmsCloudTestKekManager implements TestKekManager {
-        @Override
-        public void generateKek(String alias) {
-            Objects.requireNonNull(alias);
-
-            if (exists(alias)) {
-                throw new AlreadyExistsException(alias);
-            }
-            else {
-                create(alias);
-            }
-        }
+    class AwsKmsCloudTestKekManager extends AbstractAwsKmsTestKekManager {
 
         @Override
-        public void rotateKek(String alias) {
-            Objects.requireNonNull(alias);
-
-            if (!exists(alias)) {
-                throw new UnknownAliasException(alias);
-            }
-            else {
-                rotate(alias);
-            }
-        }
-
-        @Override
-        public void deleteKek(String alias) {
-            if (!exists(alias)) {
-                throw new UnknownAliasException(alias);
-            }
-            else {
-                delete(alias);
-            }
-        }
-
-        @Override
-        public boolean exists(String alias) {
-            try {
-                read(alias);
-                return true;
-            }
-            catch (KubeClusterException nfe) {
-                return false;
-            }
-        }
-
-        private void create(String alias) {
+        void create(String alias) {
             var createKeyResponse = runAwsKmsCommand(CREATE_KEY_RESPONSE_TYPE_REF, awsCmd, KMS, CREATE);
             kekKeyId = createKeyResponse.keyMetadata().keyId();
 
             runAwsKmsCommand(awsCmd, KMS, CREATE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias, PARAM_TARGET_KEY_ID, kekKeyId);
         }
 
-        private DescribeKeyResponse read(String alias) {
+        @Override
+        DescribeKeyResponse read(String alias) {
             return runAwsKmsCommand(DESCRIBE_KEY_RESPONSE_TYPE_REF, awsCmd, KMS, DESCRIBE_KEY, PARAM_KEY_ID, ALIAS_PREFIX + alias);
         }
 
-        private void rotate(String alias) {
+        @Override
+        void rotate(String alias) {
             // RotateKeyOnDemand is not implemented in localstack.
             // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
             // https://github.com/localstack/localstack/issues/10723
@@ -127,7 +79,8 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
             runAwsKmsCommand(awsCmd, KMS, UPDATE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias, PARAM_TARGET_KEY_ID, kekKeyId);
         }
 
-        private void delete(String alias) {
+        @Override
+        void delete(String alias) {
             var key = read(alias);
             var keyId = key.keyMetadata().keyId();
             runAwsKmsCommand(SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF,
@@ -136,17 +89,8 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
             runAwsKmsCommand(awsCmd, KMS, DELETE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias);
         }
 
-        private <T> T runAwsKmsCommand(TypeReference<T> valueTypeRef, String... command) {
-            try {
-                var execResult = runAwsKmsCommand(command);
-                return OBJECT_MAPPER.readValue(execResult.out(), valueTypeRef);
-            }
-            catch (IOException e) {
-                throw new KubeClusterException("Failed to run AWS Kms command: %s".formatted(List.of(command)), e);
-            }
-        }
-
-        private ExecResult runAwsKmsCommand(String... command) {
+        @Override
+        ExecResult runAwsKmsCommand(String... command) {
             ExecResult execResult = Exec.exec(null, List.of(command), Duration.ofSeconds(20), true, false, null);
 
             if (!execResult.isSuccess()) {
