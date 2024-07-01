@@ -12,7 +12,6 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Objects;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -133,25 +132,7 @@ public class AwsKmsLocal implements AwsKmsClient {
         String installedVersion = getLocalStackVersionInstalled();
         String expectedVersion = AwsKmsTestKmsFacade.LOCALSTACK_IMAGE.getVersionPart();
 
-        return compareVersions(installedVersion, expectedVersion) == 0;
-    }
-
-    private int compareVersions(String currentVersion, String expectedVersion) {
-        Objects.requireNonNull(expectedVersion);
-        Objects.requireNonNull(currentVersion);
-
-        String[] currentParts = currentVersion.split("\\.");
-        String[] expectedParts = expectedVersion.split("\\.");
-
-        for (int i = 0; i < expectedParts.length; i++) {
-            int currentPart = i < currentParts.length ? Integer.parseInt(currentParts[i]) : 0;
-            int expectedPart = Integer.parseInt(expectedParts[i]);
-            int comparison = Integer.compare(currentPart, expectedPart);
-            if (comparison != 0) {
-                return comparison;
-            }
-        }
-        return 0;
+        return TestUtils.compareInstalledVersions(installedVersion, expectedVersion) == 0;
     }
 
     @Override

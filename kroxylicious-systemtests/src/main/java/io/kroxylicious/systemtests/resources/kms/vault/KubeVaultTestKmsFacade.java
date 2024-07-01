@@ -27,6 +27,7 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.installation.kms.vault.Vault;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -147,25 +148,7 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         String installedVersion = getVaultVersion();
         String expectedVersion = VaultTestKmsFacade.HASHICORP_VAULT.getVersionPart();
 
-        return compareVersions(installedVersion, expectedVersion) == 0;
-    }
-
-    private int compareVersions(String currentVersion, String expectedVersion) {
-        Objects.requireNonNull(expectedVersion);
-        Objects.requireNonNull(currentVersion);
-
-        String[] currentParts = currentVersion.split("\\.");
-        String[] expectedParts = expectedVersion.split("\\.");
-
-        for (int i = 0; i < expectedParts.length; i++) {
-            int currentPart = i < currentParts.length ? Integer.parseInt(currentParts[i]) : 0;
-            int expectedPart = Integer.parseInt(expectedParts[i]);
-            int comparison = Integer.compare(currentPart, expectedPart);
-            if (comparison != 0) {
-                return comparison;
-            }
-        }
-        return 0;
+        return TestUtils.compareInstalledVersions(installedVersion, expectedVersion) == 0;
     }
 
     private class VaultTestKekManager implements TestKekManager {
