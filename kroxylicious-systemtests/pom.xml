@@ -102,10 +102,6 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-record-encryption</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-test-support</artifactId>
         </dependency>
         <dependency>
@@ -115,7 +111,6 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
@@ -140,14 +135,6 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-runtime</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-integration-test-support</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>

@@ -7,7 +7,6 @@
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import java.io.UncheckedIOException;
-import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,14 +15,13 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.proxy.config.FilterDefinition;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.systemtests.Constants;
 
 /**
  * The type Kroxylicious config templates.
  */
 public final class KroxyliciousConfigMapTemplates {
+    private static final ObjectMapper YAML_OBJECT_MAPPER = new ObjectMapper(new YAMLFactory());
 
     private KroxyliciousConfigMapTemplates() {
     }
@@ -63,25 +61,31 @@ public final class KroxyliciousConfigMapTemplates {
                 .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, testKmsFacade));
     }
 
-    private static FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
-        return new FilterDefinitionBuilder("RecordEncryption")
-                .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
-                .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
-                .withConfig("selector", "TemplateKekSelector")
-                .withConfig("selectorConfig", Map.of("template", "${topicName}"))
-                .build();
+    private static String buildEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade) {
+        return "- type: RecordEncryption"
+                + "\n  config:"
+                + "\n    kms: " + testKmsFacade.getKmsServiceClass().getSimpleName()
+                + "\n    kmsConfig:"
+                + "\n      " + getYamlKmsConfig(testKmsFacade.getKmsServiceConfig())
+                + "\n    selector: TemplateKekSelector"
+                + "\n    selectorConfig:"
+                + "\n      template: \"${topicName}\"";
     }
 
-    private static String getRecordEncryptionConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade) {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        FilterDefinition filterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+    private static String getYamlKmsConfig(Object config) {
         String configYaml;
         try {
-            configYaml = mapper.writeValueAsString(filterDefinition).replace("---", "").indent(2).trim();
+            configYaml = YAML_OBJECT_MAPPER.writeValueAsString(config).replace("---", "").indent(6).trim();
         }
         catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);
         }
+
+        return configYaml;
+    }
+
+    private static String getRecordEncryptionConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        String configYaml = buildEncryptionFilter(testKmsFacade);
 
         return """
                 adminHttp:
@@ -98,7 +102,7 @@ public final class KroxyliciousConfigMapTemplates {
                       bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
                     logFrames: false
                 filters:
-                - %FILTER_CONFIG%
+                %FILTER_CONFIG%
                 """
                 .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
                 .replace("%CLUSTER_NAME%", clusterName)
