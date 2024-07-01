@@ -69,9 +69,13 @@ public abstract class AbstractAwsKmsTestKekManager implements TestKekManager {
     }
 
     abstract void create(String alias);
+
     abstract DescribeKeyResponse read(String alias);
+
     abstract void rotate(String alias);
+
     abstract void delete(String alias);
+
     abstract ExecResult runAwsKmsCommand(String... command);
 
     protected <T> T runAwsKmsCommand(TypeReference<T> valueTypeRef, String... command) {
