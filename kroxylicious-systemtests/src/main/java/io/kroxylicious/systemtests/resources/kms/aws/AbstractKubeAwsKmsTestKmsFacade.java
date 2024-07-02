@@ -22,6 +22,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public abstract class AbstractKubeAwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     protected static final String KMS = "kms";
     protected static final String CREATE = "create-key";
+    protected static final String ROTATE = "rotate-key-on-demand";
     protected static final String CREATE_ALIAS = "create-alias";
     protected static final String UPDATE_ALIAS = "update-alias";
     protected static final String DELETE_ALIAS = "delete-alias";

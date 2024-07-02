@@ -8,8 +8,6 @@ package io.kroxylicious.systemtests.resources.kms.aws;
 
 import java.util.List;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.systemtests.executor.ExecResult;
@@ -28,7 +26,6 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
  * to the test outside the cluster.
  */
 public class KubeAwsKmsLocalTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacade {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private final String namespace;
     private final String awsCmd;
     private String kekKeyId;

@@ -70,13 +70,8 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
 
         @Override
         void rotate(String alias) {
-            // RotateKeyOnDemand is not implemented in localstack.
-            // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
-            // https://github.com/localstack/localstack/issues/10723
-            var createKeyResponse = runAwsKmsCommand(CREATE_KEY_RESPONSE_TYPE_REF, awsCmd, KMS, CREATE);
-            kekKeyId = createKeyResponse.keyMetadata().keyId();
-
-            runAwsKmsCommand(awsCmd, KMS, UPDATE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias, PARAM_TARGET_KEY_ID, kekKeyId);
+            var key = read(alias);
+            runAwsKmsCommand(awsCmd, KMS, ROTATE, PARAM_KEY_ID, key.keyMetadata().keyId());
         }
 
         @Override
