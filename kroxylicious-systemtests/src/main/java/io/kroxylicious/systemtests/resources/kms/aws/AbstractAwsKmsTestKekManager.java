@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Objects;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
