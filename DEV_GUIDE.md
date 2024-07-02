@@ -331,6 +331,7 @@ has been applied ineffectively.
 * helm [install guide](https://helm.sh/docs/helm/helm_install/)
 * User must have access to a container registry such as [quay.io](https://quay.io) or [docker.io](https://docker.io).
      Create a public accessible repository within the registry named `kroxylicious`.
+* aws cli [install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) in case an AWS Cloud account is used for KMS.
 
 ### Environment variables
 * `KROXYLICIOUS_IMAGE_REPO`: url to the image of kroxylicious to be used. Default value: `quay.io/kroxylicious/kroxylicious`
@@ -340,10 +341,12 @@ has been applied ineffectively.
 * `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. Default value: `false`
 * `CONTAINER_CONFIG_PATH`: directory where `config.json` file is located. This file contains the pull secrets to be used by
 the container engine. Default value: `$HOME/.docker/config.json`
-* `VAULT_CHART_VERSION`: version of Vault Helm Chart to be used by the System Tests for Envelope Encryption. Default value: `0.27.0`
+* `VAULT_CHART_VERSION`: version of Vault Helm Chart to be used by the System Tests for Record Encryption. Default value: `0.27.0`
 * `SKIP_STRIMZI_INSTALL`: skip strimzi installation. Default value: `false`
 * `KAFKA_CLIENT`: client used to produce/consume messages. Default value: `strimzi_test_client`. Currently supported values: `strimzi_test_client`, `kaf`, `kcat`
-
+* `AWS_ACCESS_KEY_ID`: key id of the aws account to be used for KMS. Default value: `test`
+* `AWS_SECRET_ACCESS_KEY`: secret access key of the aws account to be used for KMS. Default value: `test` 
+* `AWS_CHART_VERSION`: version of the Localstack Helm chart to be used by the System Tests for Record Encryption. Default value: `0.6.15`
 
 ### Launch system tests
 First of all, the code must be compiled and the distribution artifacts created:

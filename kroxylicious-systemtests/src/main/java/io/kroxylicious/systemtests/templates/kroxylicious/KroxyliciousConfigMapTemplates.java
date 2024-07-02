@@ -6,15 +6,22 @@
 
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
+import java.io.UncheckedIOException;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.Constants;
 
 /**
  * The type Kroxylicious config templates.
  */
 public final class KroxyliciousConfigMapTemplates {
+    private static final ObjectMapper YAML_OBJECT_MAPPER = new ObjectMapper(new YAMLFactory());
 
     private KroxyliciousConfigMapTemplates() {
     }
@@ -46,16 +53,40 @@ public final class KroxyliciousConfigMapTemplates {
      *
      * @param clusterName the cluster name
      * @param namespaceName the namespace name
-     * @param topicName the topic name
-     * @param config config
+     * @param testKmsFacade the test kms facade
      * @return the config map builder
      */
-    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, String topicName, Config config) {
+    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade) {
         return baseKroxyliciousConfig(namespaceName)
-                .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, topicName, config));
+                .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, testKmsFacade));
     }
 
-    private static String getRecordEncryptionConfigMap(String clusterName, String topicName, Config config) {
+    private static String buildEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade) {
+        return "- type: RecordEncryption"
+                + "\n  config:"
+                + "\n    kms: " + testKmsFacade.getKmsServiceClass().getSimpleName()
+                + "\n    kmsConfig:"
+                + "\n      " + getYamlKmsConfig(testKmsFacade.getKmsServiceConfig())
+                + "\n    selector: TemplateKekSelector"
+                + "\n    selectorConfig:"
+                + "\n      template: \"${topicName}\"";
+    }
+
+    private static String getYamlKmsConfig(Object config) {
+        String configYaml;
+        try {
+            configYaml = YAML_OBJECT_MAPPER.writeValueAsString(config).replace("---", "").indent(6).trim();
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        return configYaml;
+    }
+
+    private static String getRecordEncryptionConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        String configYaml = buildEncryptionFilter(testKmsFacade);
+
         return """
                 adminHttp:
                   endpoints:
@@ -71,23 +102,12 @@ public final class KroxyliciousConfigMapTemplates {
                       bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
                     logFrames: false
                 filters:
-                - type: RecordEncryption
-                  config:
-                    kms: VaultKmsService
-                    kmsConfig:
-                      vaultTransitEngineUrl: %VAULT_TRANSIT_ENGINE_URL%
-                      vaultToken:
-                        password: %VAULT_TOKEN%
-                    selector: TemplateKekSelector
-                    selectorConfig:
-                      template: "${topicName}"
+                %FILTER_CONFIG%
                 """
                 .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
                 .replace("%CLUSTER_NAME%", clusterName)
                 .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME)
-                .replace("%VAULT_TOKEN%", config.vaultToken().getProvidedPassword())
-                .replace("%VAULT_TRANSIT_ENGINE_URL%", config.vaultTransitEngineUrl().toString())
-                .replace("%TOPIC_NAME%", topicName);
+                .replace("%FILTER_CONFIG%", configYaml);
     }
 
     private static String getDefaultKroxyliciousConfigMap(String clusterName) {

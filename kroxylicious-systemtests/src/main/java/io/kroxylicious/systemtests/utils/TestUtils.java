@@ -12,6 +12,7 @@ import java.net.URISyntaxException;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Objects;
 import java.util.Set;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -75,5 +76,23 @@ public class TestUtils {
             return false;
         }
         return true;
+    }
+
+    public static int compareInstalledVersions(String currentVersion, String expectedVersion) {
+        Objects.requireNonNull(expectedVersion);
+        Objects.requireNonNull(currentVersion);
+
+        String[] currentParts = currentVersion.split("\\.");
+        String[] expectedParts = expectedVersion.split("\\.");
+
+        for (int i = 0; i < expectedParts.length; i++) {
+            int currentPart = i < currentParts.length ? Integer.parseInt(currentParts[i]) : 0;
+            int expectedPart = Integer.parseInt(expectedParts[i]);
+            int comparison = Integer.compare(currentPart, expectedPart);
+            if (comparison != 0) {
+                return comparison;
+            }
+        }
+        return 0;
     }
 }

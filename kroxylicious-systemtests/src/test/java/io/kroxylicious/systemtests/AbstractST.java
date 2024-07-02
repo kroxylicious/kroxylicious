@@ -62,10 +62,9 @@ public class AbstractST {
      * Sets up the tests.
      *
      * @param testInfo the test info
-     * @throws IOException the io exception
      */
     @BeforeAll
-    static void setup(TestInfo testInfo) throws IOException {
+    static void setup(TestInfo testInfo) {
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info(String.format("%s Test Suite - STARTED", testInfo.getTestClass().get().getName()));
         cluster = KubeClusterResource.getInstance();
