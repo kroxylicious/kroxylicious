@@ -23,29 +23,6 @@ public abstract class AbstractAwsKmsTestKekManager implements TestKekManager {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
-    public boolean exists(String alias) {
-        try {
-            read(alias);
-            return true;
-        }
-        catch (KubeClusterException nfe) {
-            return false;
-        }
-    }
-
-    @Override
-    public void generateKek(String alias) {
-        Objects.requireNonNull(alias);
-
-        if (exists(alias)) {
-            throw new AlreadyExistsException(alias);
-        }
-        else {
-            create(alias);
-        }
-    }
-
-    @Override
     public void rotateKek(String alias) {
         Objects.requireNonNull(alias);
 
@@ -58,12 +35,35 @@ public abstract class AbstractAwsKmsTestKekManager implements TestKekManager {
     }
 
     @Override
+    public boolean exists(String alias) {
+        try {
+            read(alias);
+            return true;
+        }
+        catch (KubeClusterException nfe) {
+            return false;
+        }
+    }
+
+    @Override
     public void deleteKek(String alias) {
         if (!exists(alias)) {
             throw new UnknownAliasException(alias);
         }
         else {
             delete(alias);
+        }
+    }
+
+    @Override
+    public void generateKek(String alias) {
+        Objects.requireNonNull(alias);
+
+        if (exists(alias)) {
+            throw new AlreadyExistsException(alias);
+        }
+        else {
+            create(alias);
         }
     }
 
