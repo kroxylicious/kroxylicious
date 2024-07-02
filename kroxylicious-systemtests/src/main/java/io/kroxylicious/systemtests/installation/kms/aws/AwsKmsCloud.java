@@ -34,7 +34,7 @@ public class AwsKmsCloud implements AwsKmsClient {
 
     @Override
     public boolean isAvailable() {
-        return !Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
+        return !Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_DEFAULT);
     }
 
     @Override
