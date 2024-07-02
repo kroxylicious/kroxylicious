@@ -35,7 +35,7 @@ public class Environment {
     private static final String KAFKA_CLIENT_ENV = "KAFKA_CLIENT";
     private static final String STRIMZI_VERSION_ENV = "STRIMZI_VERSION";
     private static final String CLUSTER_DUMP_DIR_ENV = "CLUSTER_DUMP_DIR";
-    private static final String AWS_ACCESS_KEY_ENV = "AWS_ACCESS_KEY";
+    private static final String AWS_ACCESS_KEY_ID_ENV = "AWS_ACCESS_KEY_ID";
     private static final String AWS_SECRET_ACCESS_KEY_ENV = "AWS_SECRET_ACCESS_KEY";
 
     /**
@@ -81,7 +81,7 @@ public class Environment {
     private static final String SKIP_STRIMZI_INSTALL_DEFAULT = "false";
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
     private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("java.io.tmpdir");
-    public static final String AWS_ACCESS_KEY_DEFAULT = "test";
+    public static final String AWS_ACCESS_KEY_ID_DEFAULT = "test";
     private static final String AWS_SECRET_ACCESS_KEY_DEFAULT = "test";
 
     /**
@@ -119,7 +119,7 @@ public class Environment {
 
     public static final String CLUSTER_DUMP_DIR = getOrDefault(CLUSTER_DUMP_DIR_ENV, CLUSTER_DUMP_DIR_DEFAULT);
 
-    public static final String AWS_ACCESS_KEY_ID = getOrDefault(AWS_ACCESS_KEY_ENV, AWS_ACCESS_KEY_DEFAULT);
+    public static final String AWS_ACCESS_KEY_ID = getOrDefault(AWS_ACCESS_KEY_ID_ENV, AWS_ACCESS_KEY_ID_DEFAULT);
 
     public static final String AWS_SECRET_ACCESS_KEY = getOrDefault(AWS_SECRET_ACCESS_KEY_ENV, AWS_SECRET_ACCESS_KEY_DEFAULT);
 

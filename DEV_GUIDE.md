@@ -344,7 +344,7 @@ the container engine. Default value: `$HOME/.docker/config.json`
 * `VAULT_CHART_VERSION`: version of Vault Helm Chart to be used by the System Tests for Record Encryption. Default value: `0.27.0`
 * `SKIP_STRIMZI_INSTALL`: skip strimzi installation. Default value: `false`
 * `KAFKA_CLIENT`: client used to produce/consume messages. Default value: `strimzi_test_client`. Currently supported values: `strimzi_test_client`, `kaf`, `kcat`
-* `AWS_ACCESS_KEY`: key id of the aws account to be used for KMS. Default value: `test`
+* `AWS_ACCESS_KEY_ID`: key id of the aws account to be used for KMS. Default value: `test`
 * `AWS_SECRET_ACCESS_KEY`: secret access key of the aws account to be used for KMS. Default value: `test` 
 * `AWS_CHART_VERSION`: version of the Localstack Helm chart to be used by the System Tests for Record Encryption. Default value: `0.6.15`
 
