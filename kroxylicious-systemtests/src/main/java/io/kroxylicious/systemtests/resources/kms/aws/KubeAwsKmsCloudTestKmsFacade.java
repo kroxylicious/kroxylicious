@@ -54,6 +54,10 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
     }
 
     class AwsKmsCloudTestKekManager extends AbstractAwsKmsTestKekManager {
+        @Override
+        DescribeKeyResponse read(String alias) {
+            return runAwsKmsCommand(DESCRIBE_KEY_RESPONSE_TYPE_REF, awsCmd, KMS, DESCRIBE_KEY, PARAM_KEY_ID, ALIAS_PREFIX + alias);
+        }
 
         @Override
         void create(String alias) {
@@ -61,11 +65,6 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
             kekKeyId = createKeyResponse.keyMetadata().keyId();
 
             runAwsKmsCommand(awsCmd, KMS, CREATE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias, PARAM_TARGET_KEY_ID, kekKeyId);
-        }
-
-        @Override
-        DescribeKeyResponse read(String alias) {
-            return runAwsKmsCommand(DESCRIBE_KEY_RESPONSE_TYPE_REF, awsCmd, KMS, DESCRIBE_KEY, PARAM_KEY_ID, ALIAS_PREFIX + alias);
         }
 
         @Override
