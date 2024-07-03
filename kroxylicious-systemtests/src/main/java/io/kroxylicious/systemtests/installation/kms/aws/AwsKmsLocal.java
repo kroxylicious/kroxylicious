@@ -60,15 +60,6 @@ public class AwsKmsLocal implements AwsKmsClient {
         return AWS_LOCAL_CMD;
     }
 
-    /**
-     * Is deployed
-     *
-     * @return true if Aws service is deployed in kubernetes, false otherwise
-     */
-    public boolean isDeployed() {
-        return kubeClient().getService(deploymentNamespace, LOCALSTACK_SERVICE_NAME) != null;
-    }
-
     @Override
     public boolean isAvailable() {
         return Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
@@ -105,14 +96,18 @@ public class AwsKmsLocal implements AwsKmsClient {
         return installedLocalStackVersion;
     }
 
+    private boolean isDeployed() {
+        return kubeClient().getService(deploymentNamespace, LOCALSTACK_SERVICE_NAME) != null;
+    }
+
     @Override
     public void deploy() {
-        LOGGER.info("Deploy AWS in {} namespace", deploymentNamespace);
         if (isDeployed()) {
             LOGGER.warn("Skipping AWS deployment. It is already deployed!");
             return;
         }
 
+        LOGGER.info("Deploy AWS in {} namespace", deploymentNamespace);
         NamespaceUtils.createNamespaceWithWait(deploymentNamespace);
         ResourceManager.helmClient().addRepository(LOCALSTACK_HELM_REPOSITORY_NAME, LOCALSTACK_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(LOCALSTACK_HELM_CHART_NAME, LOCALSTACK_SERVICE_NAME,
