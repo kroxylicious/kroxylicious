@@ -28,6 +28,7 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
+import io.kroxylicious.systemtests.utils.VersionComparator;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -127,7 +128,8 @@ public class AwsKmsLocal implements AwsKmsClient {
         String installedVersion = getLocalStackVersionInstalled();
         String expectedVersion = AwsKmsTestKmsFacade.LOCALSTACK_IMAGE.getVersionPart();
 
-        return TestUtils.compareInstalledVersions(installedVersion, expectedVersion) == 0;
+        VersionComparator comparator = new VersionComparator(installedVersion);
+        return comparator.compareTo(expectedVersion) == 0;
     }
 
     @Override
