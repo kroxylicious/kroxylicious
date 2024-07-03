@@ -22,6 +22,10 @@ import io.kroxylicious.systemtests.Constants;
  * The type Kroxylicious config templates.
  */
 public final class KroxyliciousConfigMapTemplates {
+    private static final YAMLFactory FACTORY = YAMLFactory.builder()
+            .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+            .build();
+    private static final ObjectMapper YAML_OBJECT_MAPPER = new ObjectMapper(FACTORY);
 
     private KroxyliciousConfigMapTemplates() {
     }
@@ -76,13 +80,9 @@ public final class KroxyliciousConfigMapTemplates {
 
     private static String getNestedYaml(Object config, int indent) {
         String configYaml;
-        YAMLFactory factory = YAMLFactory.builder()
-                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-                .build();
-        ObjectMapper objectMapper = new ObjectMapper(factory);
 
         try {
-            configYaml = objectMapper.writeValueAsString(config).indent(indent).trim();
+            configYaml = YAML_OBJECT_MAPPER.writeValueAsString(config).indent(indent).trim();
         }
         catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);
