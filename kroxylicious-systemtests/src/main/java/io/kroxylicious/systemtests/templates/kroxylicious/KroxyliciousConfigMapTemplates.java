@@ -11,6 +11,7 @@ import java.io.UncheckedIOException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
@@ -21,7 +22,6 @@ import io.kroxylicious.systemtests.Constants;
  * The type Kroxylicious config templates.
  */
 public final class KroxyliciousConfigMapTemplates {
-    private static final ObjectMapper YAML_OBJECT_MAPPER = new ObjectMapper(new YAMLFactory());
 
     private KroxyliciousConfigMapTemplates() {
     }
@@ -76,8 +76,13 @@ public final class KroxyliciousConfigMapTemplates {
 
     private static String getNestedYaml(Object config, int indent) {
         String configYaml;
+        YAMLFactory factory = YAMLFactory.builder()
+                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+                .build();
+        ObjectMapper objectMapper = new ObjectMapper(factory);
+
         try {
-            configYaml = YAML_OBJECT_MAPPER.writeValueAsString(config).replace("---", "").indent(indent).trim();
+            configYaml = objectMapper.writeValueAsString(config).indent(indent).trim();
         }
         catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);
