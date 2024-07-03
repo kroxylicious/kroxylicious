@@ -62,20 +62,22 @@ public final class KroxyliciousConfigMapTemplates {
     }
 
     private static String buildEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade) {
-        return "- type: RecordEncryption"
-                + "\n  config:"
-                + "\n    kms: " + testKmsFacade.getKmsServiceClass().getSimpleName()
-                + "\n    kmsConfig:"
-                + "\n      " + getYamlKmsConfig(testKmsFacade.getKmsServiceConfig())
-                + "\n    selector: TemplateKekSelector"
-                + "\n    selectorConfig:"
-                + "\n      template: \"${topicName}\"";
+        return """
+                - type: RecordEncryption
+                  config:
+                    kms: %s
+                    kmsConfig:
+                      %s
+                    selector: TemplateKekSelector
+                    selectorConfig:
+                      template: "${topicName}"
+                """.formatted(testKmsFacade.getKmsServiceClass().getSimpleName(), getNestedYaml(testKmsFacade.getKmsServiceConfig(), 6));
     }
 
-    private static String getYamlKmsConfig(Object config) {
+    private static String getNestedYaml(Object config, int indent) {
         String configYaml;
         try {
-            configYaml = YAML_OBJECT_MAPPER.writeValueAsString(config).replace("---", "").indent(6).trim();
+            configYaml = YAML_OBJECT_MAPPER.writeValueAsString(config).replace("---", "").indent(indent).trim();
         }
         catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);
@@ -97,17 +99,14 @@ public final class KroxyliciousConfigMapTemplates {
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: localhost:9292
-                        brokerAddressPattern: %KROXY_SERVICE_NAME%
+                        brokerAddressPattern: %s
                     targetCluster:
-                      bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
+                      bootstrap_servers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     logFrames: false
                 filters:
-                %FILTER_CONFIG%
+                %s
                 """
-                .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
-                .replace("%CLUSTER_NAME%", clusterName)
-                .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME)
-                .replace("%FILTER_CONFIG%", configYaml);
+                .formatted(Constants.KROXY_SERVICE_NAME, clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, configYaml);
     }
 
     private static String getDefaultKroxyliciousConfigMap(String clusterName) {
@@ -118,18 +117,16 @@ public final class KroxyliciousConfigMapTemplates {
                 virtualClusters:
                   demo:
                     targetCluster:
-                      bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
+                      bootstrap_servers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: localhost:9292
-                        brokerAddressPattern: %KROXY_SERVICE_NAME%
+                        brokerAddressPattern: %s
                     logNetwork: false
                     logFrames: false
                 """
-                .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
-                .replace("%CLUSTER_NAME%", clusterName)
-                .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME);
+                .formatted(clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, Constants.KROXY_SERVICE_NAME);
     }
 
     /**
@@ -146,7 +143,7 @@ public final class KroxyliciousConfigMapTemplates {
                 virtualClusters:
                   demo:
                     targetCluster:
-                      bootstrap_servers: %CLUSTER_EXTERNAL_IP%:9094
+                      bootstrap_servers: %s:9094
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
@@ -154,6 +151,6 @@ public final class KroxyliciousConfigMapTemplates {
                     logNetwork: false
                     logFrames: false
                 """
-                .replace("%CLUSTER_EXTERNAL_IP%", clusterExternalIP);
+                .formatted(clusterExternalIP);
     }
 }

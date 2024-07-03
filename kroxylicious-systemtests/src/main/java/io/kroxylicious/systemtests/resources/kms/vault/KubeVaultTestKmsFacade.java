@@ -17,6 +17,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -40,6 +43,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  * to the test outside the cluster.
  */
 public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
+    private static final Logger LOGGER = LoggerFactory.getLogger(KubeVaultTestKmsFacade.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String VAULT_CMD = "vault";
     private static final String LOGIN = "login";
@@ -160,7 +164,7 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
         @Override
         public void deleteKek(String alias) {
-            throw new UnsupportedOperationException("KEK deletion is not supported in Vault");
+            LOGGER.atWarn().log("KEK deletion is not supported in Vault");
         }
 
         public void rotateKek(String alias) {
