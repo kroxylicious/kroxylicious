@@ -10,6 +10,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Optional;
@@ -36,12 +39,14 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  * The type Aws kms local.
  */
 public class AwsKmsLocal implements AwsKmsClient {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AwsKmsLocal.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     public static final String LOCALSTACK_SERVICE_NAME = "localstack";
     public static final String LOCALSTACK_DEFAULT_NAMESPACE = "localstack";
     public static final String LOCALSTACK_HELM_REPOSITORY_URL = "https://localstack.github.io/helm-charts";
     public static final String LOCALSTACK_HELM_REPOSITORY_NAME = "localstack";
     public static final String LOCALSTACK_HELM_CHART_NAME = "localstack/localstack";
-    private static final Logger LOGGER = LoggerFactory.getLogger(AwsKmsLocal.class);
     private static final String AWS_LOCAL_CMD = "awslocal";
     private final String deploymentNamespace;
     private String podName;
@@ -73,24 +78,18 @@ public class AwsKmsLocal implements AwsKmsClient {
      */
     public String getLocalStackVersionInstalled() {
         if (installedLocalStackVersion == null) {
-            URI url = getAwsUrl();
-            try (var output = new ByteArrayOutputStream();
-                    var error = new ByteArrayOutputStream();
-                    var exec = kubeClient().getClient().pods()
-                            .inNamespace(deploymentNamespace)
-                            .withName(podName)
-                            .writingOutput(output)
-                            .writingError(error)
-                            .exec("sh", "-c", "curl " + url + "/_" + LOCALSTACK_SERVICE_NAME + "/info")) {
-                int exitCode = exec.exitCode().join();
-                if (exitCode != 0) {
-                    throw new UnsupportedOperationException(error.toString());
-                }
-                // version returned with format: "3.5.1.dev:6e7ddd05e"
-                installedLocalStackVersion = new ObjectMapper().readTree(output.toString()).findValue("version").textValue().split(":")[0];
+            URI url = URI.create(getAwsUrl() + "/_" + LOCALSTACK_SERVICE_NAME + "/info");
+            HttpRequest request = HttpRequest.newBuilder(url).GET().build();
+            try {
+                HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+                installedLocalStackVersion = OBJECT_MAPPER.readTree(response.body()).findValue("version").textValue().split(":")[0];
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
+            }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Interrupted during REST API call : %s".formatted(request.uri()), e);
             }
         }
 
