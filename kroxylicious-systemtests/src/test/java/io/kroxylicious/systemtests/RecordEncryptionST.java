@@ -111,7 +111,7 @@ class RecordEncryptionST extends AbstractST {
                 },
                 () -> assertThat(resultEncrypted.stream())
                         .withFailMessage("expected message have not been received!")
-                        .allMatch(r -> r.getValue().contains(finalMessageToCheck)));
+                        .allMatch(r -> r.getValue().contains(finalMessageToCheck) && !r.getValue().contains(MESSAGE)));
     }
 
     @TestTemplate
