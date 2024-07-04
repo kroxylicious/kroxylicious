@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.k8s.cmd;
 
 import java.io.File;
+import java.util.List;
 
 import io.kroxylicious.systemtests.executor.ExecResult;
 
@@ -85,5 +86,17 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      * @param command the command
      * @return the exec result
      */
-    ExecResult execInPod(String pod, boolean throwErrors, String... command);
+    default ExecResult execInPod(String pod, boolean throwErrors, String... command) {
+        return execInPod(pod, throwErrors, asList(command));
+    }
+
+    /**
+     * Exec in pod.
+     *
+     * @param pod the pod
+     * @param throwErrors the throw errors
+     * @param command the command
+     * @return the exec result
+     */
+    ExecResult execInPod(String pod, boolean throwErrors, List<String> command);
 }

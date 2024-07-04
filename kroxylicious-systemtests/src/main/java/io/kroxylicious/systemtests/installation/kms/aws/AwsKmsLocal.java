@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests.installation.kms.aws;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
@@ -15,6 +14,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -26,6 +26,7 @@ import io.fabric8.kubernetes.api.model.ServicePort;
 
 import io.kroxylicious.kms.provider.aws.kms.AwsKmsTestKmsFacade;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
@@ -33,6 +34,7 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 import io.kroxylicious.systemtests.utils.VersionComparator;
 
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
@@ -89,7 +91,7 @@ public class AwsKmsLocal implements AwsKmsClient {
             }
             catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new IllegalStateException("Interrupted during REST API call : %s".formatted(request.uri()), e);
+                throw new IllegalStateException("Interrupted during REST API call: %s".formatted(request.uri()), e);
             }
         }
 
@@ -151,23 +153,15 @@ public class AwsKmsLocal implements AwsKmsClient {
     @Override
     public String getRegion() {
         if (region == null) {
-            try (var output = new ByteArrayOutputStream();
-                    var error = new ByteArrayOutputStream();
-                    var exec = kubeClient().getClient().pods()
-                            .inNamespace(deploymentNamespace)
-                            .withName(podName)
-                            .writingOutput(output)
-                            .writingError(error)
-                            .exec("sh", "-c", AWS_LOCAL_CMD + " configure get region")) {
-                int exitCode = exec.exitCode().join();
-                if (exitCode != 0) {
-                    throw new UnsupportedOperationException(error.toString());
-                }
-                region = output.toString().trim();
+            List<String> command = List.of(AWS_LOCAL_CMD, "configure", "get", "region");
+            ExecResult execResult = cmdKubeClient(deploymentNamespace).execInPod(podName, true, command);
+
+            if (!execResult.isSuccess()) {
+                throw new KubeClusterException("Failed to run AWS Kms: %s, exit code: %d, stderr: %s".formatted(String.join(" ", command),
+                        execResult.returnCode(), execResult.err()));
             }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
+
+            region = execResult.out().trim();
         }
         return region;
     }
