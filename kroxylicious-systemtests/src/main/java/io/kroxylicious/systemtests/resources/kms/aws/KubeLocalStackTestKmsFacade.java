@@ -11,7 +11,7 @@ import java.util.List;
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.systemtests.executor.ExecResult;
-import io.kroxylicious.systemtests.installation.kms.aws.AwsKmsLocal;
+import io.kroxylicious.systemtests.installation.kms.aws.LocalStack;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 import static io.kroxylicious.kms.provider.aws.kms.AwsKms.ALIAS_PREFIX;
@@ -25,7 +25,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
  * Uses command line interaction so to avoid the complication of exposing the AWS Local endpoint
  * to the test outside the cluster.
  */
-public class KubeAwsKmsLocalTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacade {
+public class KubeLocalStackTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacade {
     private final String namespace;
     private final String awsCmd;
     private String kekKeyId;
@@ -34,9 +34,9 @@ public class KubeAwsKmsLocalTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
      * Instantiates a new Kube AWS Kms test kms facade.
      *
      */
-    public KubeAwsKmsLocalTestKmsFacade() {
-        this.namespace = AwsKmsLocal.LOCALSTACK_DEFAULT_NAMESPACE;
-        this.awsKmsClient = new AwsKmsLocal();
+    public KubeLocalStackTestKmsFacade() {
+        this.namespace = LocalStack.LOCALSTACK_DEFAULT_NAMESPACE;
+        this.awsKmsClient = new LocalStack();
         awsCmd = awsKmsClient.getAwsCmd();
     }
 
@@ -51,10 +51,10 @@ public class KubeAwsKmsLocalTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
 
     @Override
     public TestKekManager getTestKekManager() {
-        return new AwsKmsLocalTestKekManager();
+        return new LocalStackTestKekManager();
     }
 
-    class AwsKmsLocalTestKekManager extends AbstractAwsKmsTestKekManager {
+    class LocalStackTestKekManager extends AbstractAwsKmsTestKekManager {
 
         @Override
         void create(String alias) {
@@ -92,7 +92,7 @@ public class KubeAwsKmsLocalTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
 
         @Override
         ExecResult runAwsKmsCommand(String... command) {
-            ExecResult execResult = cmdKubeClient(namespace).execInPod(((AwsKmsLocal) awsKmsClient).getPodName(), true, command);
+            ExecResult execResult = cmdKubeClient(namespace).execInPod(((LocalStack) awsKmsClient).getPodName(), true, command);
 
             if (!execResult.isSuccess()) {
                 throw new KubeClusterException("Failed to run AWS Kms: %s, exit code: %d, stderr: %s".formatted(List.of(command),

@@ -9,15 +9,15 @@ package io.kroxylicious.systemtests.resources.kms.aws;
 import io.kroxylicious.kms.provider.aws.kms.AbstractAwsKmsTestKmsFacadeFactory;
 
 /**
- * Factory for {@link KubeAwsKmsLocalTestKmsFacade}s.
+ * Factory for {@link KubeLocalStackTestKmsFacade}s.
  */
-public class KubeAwsKmsLocalTestKmsFacadeFactory extends AbstractAwsKmsTestKmsFacadeFactory {
+public class KubeLocalStackTestKmsFacadeFactory extends AbstractAwsKmsTestKmsFacadeFactory {
 
     /**
      * {@inheritDoc}
      */
     @Override
-    public KubeAwsKmsLocalTestKmsFacade build() {
-        return new KubeAwsKmsLocalTestKmsFacade();
+    public KubeLocalStackTestKmsFacade build() {
+        return new KubeLocalStackTestKmsFacade();
     }
 }

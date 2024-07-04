@@ -38,10 +38,10 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
- * The type Aws kms local.
+ * The type LocalStack.
  */
-public class AwsKmsLocal implements AwsKmsClient {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AwsKmsLocal.class);
+public class LocalStack implements AwsKmsClient {
+    private static final Logger LOGGER = LoggerFactory.getLogger(LocalStack.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
     public static final String LOCALSTACK_SERVICE_NAME = "localstack";
@@ -59,7 +59,7 @@ public class AwsKmsLocal implements AwsKmsClient {
      * Instantiates a new Aws.
      *
      */
-    public AwsKmsLocal() {
+    public LocalStack() {
         this.deploymentNamespace = LOCALSTACK_DEFAULT_NAMESPACE;
     }
 
@@ -120,7 +120,7 @@ public class AwsKmsLocal implements AwsKmsClient {
         this.podName = KafkaUtils.getPodNameByLabel(deploymentNamespace, "app.kubernetes.io/name", LOCALSTACK_SERVICE_NAME, Duration.ofSeconds(30));
 
         if (!isCorrectVersionInstalled()) {
-            throw new KubeClusterException("AWS version installed " + getLocalStackVersionInstalled() + " does not match with the expected: '"
+            throw new KubeClusterException("Localstack version installed " + getLocalStackVersionInstalled() + " does not match with the expected: '"
                     + AwsKmsTestKmsFacade.LOCALSTACK_IMAGE.getVersionPart() + "'");
         }
     }
@@ -157,7 +157,7 @@ public class AwsKmsLocal implements AwsKmsClient {
             ExecResult execResult = cmdKubeClient(deploymentNamespace).execInPod(podName, true, command);
 
             if (!execResult.isSuccess()) {
-                throw new KubeClusterException("Failed to run AWS Kms: %s, exit code: %d, stderr: %s".formatted(String.join(" ", command),
+                throw new KubeClusterException("Failed to run AWS: %s, exit code: %d, stderr: %s".formatted(String.join(" ", command),
                         execResult.returnCode(), execResult.err()));
             }
 
