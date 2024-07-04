@@ -30,7 +30,7 @@ public class Environment {
     public static final String STRIMZI_FEATURE_GATES_ENV = "STRIMZI_FEATURE_GATES";
     private static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
     private static final String VAULT_CHART_VERSION_ENV = "VAULT_CHART_VERSION";
-    private static final String AWS_LOCALSTACK_CHART_VERSION_ENV = "AWS_CHART_VERSION";
+    private static final String AWS_LOCALSTACK_CHART_VERSION_ENV = "AWS_LOCALSTACK_CHART_VERSION";
     private static final String SKIP_STRIMZI_INSTALL_ENV = "SKIP_STRIMZI_INSTALL";
     private static final String KAFKA_CLIENT_ENV = "KAFKA_CLIENT";
     private static final String STRIMZI_VERSION_ENV = "STRIMZI_VERSION";

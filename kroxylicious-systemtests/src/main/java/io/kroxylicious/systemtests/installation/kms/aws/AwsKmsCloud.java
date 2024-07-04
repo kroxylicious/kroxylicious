@@ -57,7 +57,7 @@ public class AwsKmsCloud implements AwsKmsClient {
         if (region == null) {
             ExecResult execResult = Exec.exec(AWS_CMD, "configure", "get", "region");
             if (!execResult.isSuccess()) {
-                throw new UnsupportedOperationException(execResult.err());
+                throw new UnknownError(execResult.err());
             }
             region = execResult.out().trim();
         }
