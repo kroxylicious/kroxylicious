@@ -105,12 +105,12 @@ class RecordEncryptionST extends AbstractST {
         String finalMessageToCheck = messageToCheck;
         assertAll(
                 () -> {
-                    for (ConsumerRecord consumerRecord : resultEncrypted) {
-                        assertThat(consumerRecord.getRecordHeaders()).containsKey("kroxylicious.io/encryption");
-                    }
+                    assertThat(resultEncrypted.stream())
+                            .withFailMessage("expected header has not been received!")
+                            .allMatch(r -> r.getRecordHeaders().containsKey("kroxylicious.io/encryption"));
                 },
                 () -> assertThat(resultEncrypted.stream())
-                        .withFailMessage("expected message have not been received!")
+                        .withFailMessage("expected messages have not been received!")
                         .allMatch(r -> r.getValue().contains(finalMessageToCheck) && !r.getValue().contains(MESSAGE)));
     }
 
