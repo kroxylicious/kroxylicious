@@ -42,10 +42,12 @@ public class AwsKmsCloud implements AwsKmsClient {
         boolean keyIdDefaulted = Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
         if (awsCloudSelected && !keyIdDefaulted) {
             LOGGER.atInfo().log("Using AWS Kms Cloud");
-        } else {
+        }
+        else {
             if (awsCloudSelected) {
                 LOGGER.atWarn().log("AWS Cloud selected, but AWS_ACCESS_KEY_ID remains defaulted. Please insert a correct key id.");
-            } else if (!keyIdDefaulted) {
+            }
+            else if (!keyIdDefaulted) {
                 LOGGER.atWarn().log("AWS LocalStack selected, but AWS_ACCESS_KEY_ID is not defaulted. Please insert a correct key id or select AWS Cloud use.");
             }
         }

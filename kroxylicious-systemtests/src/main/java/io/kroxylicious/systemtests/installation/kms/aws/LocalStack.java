@@ -74,7 +74,8 @@ public class LocalStack implements AwsKmsClient {
         boolean keyIdDefaulted = Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
         if (keyIdDefaulted) {
             LOGGER.atInfo().log("Using AWS LocalStack");
-        } else {
+        }
+        else {
             if (!awsCloudSelected) {
                 LOGGER.atWarn().log("AWS LocalStack selected, but AWS_ACCESS_KEY_ID is not defaulted. Please insert a correct key id.");
             }
