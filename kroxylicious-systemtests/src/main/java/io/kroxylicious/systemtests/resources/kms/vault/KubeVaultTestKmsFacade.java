@@ -17,9 +17,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -43,7 +40,6 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  * to the test outside the cluster.
  */
 public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
-    private static final Logger LOGGER = LoggerFactory.getLogger(KubeVaultTestKmsFacade.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String VAULT_CMD = "vault";
     private static final String LOGIN = "login";
@@ -51,6 +47,8 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     private static final String SECRETS = "secrets";
     private static final String READ = "read";
     private static final String WRITE = "write";
+    private static final String DELETE = "delete";
+    private static final String KEYS_PATH = "transit/keys/%s";
     private final String namespace;
     private final String podName;
     private final Vault vault;
@@ -165,7 +163,12 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
 
         @Override
         public void deleteKek(String alias) {
-            LOGGER.atWarn().log("KEK deletion is not supported in Vault");
+            if (exists(alias)) {
+                delete(alias);
+            }
+            else {
+                throw new UnknownAliasException(alias);
+            }
         }
 
         public void rotateKek(String alias) {
@@ -198,19 +201,26 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
             return e.getMessage().contains("No value found");
         }
 
-        private Map<String, Object> create(String keyId) {
-            return runVaultCommand(new TypeReference<>() {
-            }, VAULT_CMD, WRITE, "-f", "transit/keys/%s".formatted(keyId));
+        private void create(String keyId) {
+            runVaultCommand(new TypeReference<>() {
+            }, VAULT_CMD, WRITE, "-f", KEYS_PATH.formatted(keyId));
         }
 
-        private Map<String, Object> read(String keyId) {
-            return runVaultCommand(new TypeReference<>() {
-            }, VAULT_CMD, READ, "transit/keys/%s".formatted(keyId));
+        private void read(String keyId) {
+            runVaultCommand(new TypeReference<>() {
+            }, VAULT_CMD, READ, KEYS_PATH.formatted(keyId));
         }
 
-        private Map<String, Object> rotate(String keyId) {
-            return runVaultCommand(new TypeReference<>() {
-            }, VAULT_CMD, WRITE, "-f", "transit/keys/%s/rotate".formatted(keyId));
+        private void rotate(String keyId) {
+            runVaultCommand(new TypeReference<>() {
+            }, VAULT_CMD, WRITE, "-f", (KEYS_PATH + "/rotate").formatted(keyId));
+        }
+
+        private void delete(String keyId) {
+            runVaultCommand(new TypeReference<>() {
+            }, VAULT_CMD, WRITE, "-f", (KEYS_PATH + "/config").formatted(keyId), "deletion_allowed=true");
+
+            runVaultCommand(VAULT_CMD, DELETE, KEYS_PATH.formatted(keyId));
         }
     }
 

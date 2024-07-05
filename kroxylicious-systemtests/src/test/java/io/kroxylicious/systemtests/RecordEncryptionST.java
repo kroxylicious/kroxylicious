@@ -25,6 +25,7 @@ import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.kms.aws.AbstractKubeAwsKmsTestKmsFacade;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
@@ -66,8 +67,9 @@ class RecordEncryptionST extends AbstractST {
         try {
             testKekManager.deleteKek(topicName);
         }
-        catch (UnsupportedOperationException e) {
-            LOGGER.atInfo().setMessage("KEK deletion is not supported for current Kms: {}").addArgument(e).log();
+        catch (KubeClusterException e) {
+            LOGGER.atError().setMessage("KEK deletion has not been successfully done: {}").addArgument(e).log();
+            throw e;
         }
         finally {
             KafkaSteps.deleteTopic(namespace, topicName, bootstrap);

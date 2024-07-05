@@ -8,6 +8,9 @@ package io.kroxylicious.systemtests.installation.kms.aws;
 
 import java.net.URI;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
@@ -16,6 +19,7 @@ import io.kroxylicious.systemtests.executor.ExecResult;
  * The type Aws kms cloud.
  */
 public class AwsKmsCloud implements AwsKmsClient {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AwsKmsCloud.class);
     private static final String AWS_CMD = "aws";
     private String region;
 
@@ -34,7 +38,19 @@ public class AwsKmsCloud implements AwsKmsClient {
 
     @Override
     public boolean isAvailable() {
-        return !Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
+        boolean awsCloudSelected = Environment.AWS_USE_CLOUD.equalsIgnoreCase("true");
+        boolean keyIdDefaulted = Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
+        if (awsCloudSelected && !keyIdDefaulted) {
+            LOGGER.atInfo().log("Using AWS Kms Cloud");
+        } else {
+            if (awsCloudSelected) {
+                LOGGER.atWarn().log("AWS Cloud selected, but AWS_ACCESS_KEY_ID remains defaulted. Please insert a correct key id.");
+            } else if (!keyIdDefaulted) {
+                LOGGER.atWarn().log("AWS LocalStack selected, but AWS_ACCESS_KEY_ID is not defaulted. Please insert a correct key id or select AWS Cloud use.");
+            }
+        }
+
+        return awsCloudSelected && !keyIdDefaulted;
     }
 
     @Override

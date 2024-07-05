@@ -70,7 +70,16 @@ public class LocalStack implements AwsKmsClient {
 
     @Override
     public boolean isAvailable() {
-        return Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
+        boolean awsCloudSelected = Environment.AWS_USE_CLOUD.equalsIgnoreCase("true");
+        boolean keyIdDefaulted = Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
+        if (keyIdDefaulted) {
+            LOGGER.atInfo().log("Using AWS LocalStack");
+        } else {
+            if (!awsCloudSelected) {
+                LOGGER.atWarn().log("AWS LocalStack selected, but AWS_ACCESS_KEY_ID is not defaulted. Please insert a correct key id.");
+            }
+        }
+        return keyIdDefaulted || !awsCloudSelected;
     }
 
     /**
@@ -80,7 +89,7 @@ public class LocalStack implements AwsKmsClient {
      */
     public String getLocalStackVersionInstalled() {
         if (installedLocalStackVersion == null) {
-            URI url = URI.create(getAwsUrl() + "/_" + LOCALSTACK_SERVICE_NAME + "/info");
+            URI url = getAwsUrl().resolve("_" + LOCALSTACK_SERVICE_NAME + "/info");
             HttpRequest request = HttpRequest.newBuilder(url).GET().build();
             try {
                 HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
