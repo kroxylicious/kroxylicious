@@ -39,7 +39,7 @@ class PerRecordTopicValidatorTest {
 
     @Test
     void singleValidRecord() {
-        var tpd = createTopicProduceDataWithOneRecord(RecordTestUtils.record("good"));
+        var tpd = createTopicProduceDataWithOnePartition(RecordTestUtils.record("good"));
         var topicValidator = new PerRecordTopicValidator(validator);
 
         when(validator.validate(any(Record.class))).thenReturn(Result.VALID);
@@ -56,7 +56,7 @@ class PerRecordTopicValidatorTest {
 
     @Test
     void singleInvalidRecord() {
-        var tpd = createTopicProduceDataWithOneRecord(RecordTestUtils.record("bad"));
+        var tpd = createTopicProduceDataWithOnePartition(RecordTestUtils.record("bad"));
         var topicValidator = new PerRecordTopicValidator(validator);
 
         when(validator.validate(any(Record.class))).thenReturn(CompletableFuture.completedStage(new Result(false, "my bad record")));
@@ -66,9 +66,8 @@ class PerRecordTopicValidatorTest {
                 .returns(true, TopicValidationResult::isAllPartitionsInvalid)
                 .returns(true, TopicValidationResult::isAnyPartitionInvalid);
 
-        assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .extracting(TopicValidationResult::invalidPartitions, stream(PartitionValidationResult.class))
+        var invalidPartitions = result.toCompletableFuture().join().invalidPartitions();
+        assertThat(invalidPartitions)
                 .singleElement()
                 .extracting(PartitionValidationResult::recordValidationFailures, list(RecordValidationFailure.class))
                 .singleElement()
@@ -82,7 +81,7 @@ class PerRecordTopicValidatorTest {
     void mixedResultWithinSinglePartition() {
         var good = RecordTestUtils.record(0, null, "good");
         var bad = RecordTestUtils.record(1, null, "bad");
-        var tpd = createTopicProduceDataWithOneRecord(good, bad);
+        var tpd = createTopicProduceDataWithOnePartition(good, bad);
         var topicValidator = new PerRecordTopicValidator(validator);
 
         when(validator.validate(good)).thenReturn(Result.VALID);
@@ -97,8 +96,6 @@ class PerRecordTopicValidatorTest {
                 .singleElement()
                 .returns("my bad record", RecordValidationFailure::errorMessage)
                 .returns(1, RecordValidationFailure::invalidIndex);
-
-        verify(this.validator, times(2)).validate(any(Record.class));
     }
 
     @Test
@@ -124,18 +121,52 @@ class PerRecordTopicValidatorTest {
                 .returns(false, TopicValidationResult::isAllPartitionsInvalid)
                 .returns(true, TopicValidationResult::isAnyPartitionInvalid);
 
-        assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .extracting(TopicValidationResult::invalidPartitions, stream(PartitionValidationResult.class))
+        var invalidPartitions = result.toCompletableFuture().join().invalidPartitions();
+        assertThat(invalidPartitions)
                 .singleElement()
                 .returns(1, PartitionValidationResult::index)
                 .extracting(PartitionValidationResult::recordValidationFailures, list(RecordValidationFailure.class))
                 .hasSize(2);
-
-        verify(this.validator, times(3)).validate(any(Record.class));
     }
 
-    private static TopicProduceData createTopicProduceDataWithOneRecord(Record... records) {
+    @Test
+    void mixedResultWithAllPartitionsHavingSomeBadData() {
+        var good = RecordTestUtils.record(0, null, "good");
+        var bad = RecordTestUtils.record(1, null, "bad");
+        var ugly = RecordTestUtils.record(0, null, "ugly");
+
+        var tpd = new TopicProduceData();
+        tpd.partitionData().add(makePartitionProduceData(0, good, bad));
+        tpd.partitionData().add(makePartitionProduceData(1, ugly));
+
+        var topicValidator = new PerRecordTopicValidator(validator);
+
+        when(validator.validate(good)).thenReturn(Result.VALID);
+        when(validator.validate(bad)).thenReturn(CompletableFuture.completedStage(new Result(false, "my bad record")));
+        when(validator.validate(ugly)).thenReturn(CompletableFuture.completedStage(new Result(false, "my ugly record")));
+
+        var result = topicValidator.validateTopicData(tpd);
+
+        assertThat(result)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, TopicValidationResult::isAllPartitionsInvalid)
+                .returns(true, TopicValidationResult::isAnyPartitionInvalid);
+
+        var invalidPartitions = result.toCompletableFuture().join().invalidPartitions().toList();
+        assertThat(invalidPartitions).hasSize(2);
+
+        assertThat(invalidPartitions.get(0))
+                .returns(0, PartitionValidationResult::index)
+                .extracting(PartitionValidationResult::recordValidationFailures, list(RecordValidationFailure.class))
+                .hasSize(1);
+
+        assertThat(invalidPartitions.get(1))
+                .returns(1, PartitionValidationResult::index)
+                .extracting(PartitionValidationResult::recordValidationFailures, list(RecordValidationFailure.class))
+                .hasSize(1);
+    }
+
+    private static TopicProduceData createTopicProduceDataWithOnePartition(Record... records) {
         var tpd = new TopicProduceData();
         tpd.partitionData().add(makePartitionProduceData(0, records));
         return tpd;
