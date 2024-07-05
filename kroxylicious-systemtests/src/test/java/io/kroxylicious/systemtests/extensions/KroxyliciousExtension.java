@@ -41,7 +41,8 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
 
     @Override
     public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
-        return parameterContext.getParameter().getType().isAssignableFrom(String.class);
+        return parameterContext.getParameter().getType().isAssignableFrom(String.class) &&
+                parameterContext.getParameter().getName().toLowerCase().contains("namespace");
     }
 
     @Override
