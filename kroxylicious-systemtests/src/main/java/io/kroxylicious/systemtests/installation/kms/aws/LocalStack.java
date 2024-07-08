@@ -150,6 +150,16 @@ public class LocalStack implements AwsKmsClient {
     }
 
     @Override
+    public String getKroxyliciousAccessKey() {
+        return Environment.AWS_ACCESS_KEY_ID;
+    }
+
+    @Override
+    public String getKroxyliciousSecretKey() {
+        return Environment.AWS_SECRET_ACCESS_KEY;
+    }
+
+    @Override
     public URI getAwsUrl() {
         var nodeIP = kubeClient(deploymentNamespace).getClient().nodes().list().getItems().get(0).getStatus().getAddresses().get(0).getAddress();
         var spec = kubeClient().getService(deploymentNamespace, LOCALSTACK_SERVICE_NAME).getSpec();
