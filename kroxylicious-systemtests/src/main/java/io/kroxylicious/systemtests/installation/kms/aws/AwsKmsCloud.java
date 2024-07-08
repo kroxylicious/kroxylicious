@@ -45,7 +45,7 @@ public class AwsKmsCloud implements AwsKmsClient {
         }
         else {
             if (awsCloudSelected) {
-                LOGGER.atWarn().log("AWS Cloud selected, but AWS_ACCESS_KEY_ID remains defaulted. Please insert a correct key id.");
+                LOGGER.atWarn().log("AWS Cloud selected, but AWS_ACCESS_KEY_ID is not specified. Please specify a key id.");
             }
             else if (!keyIdDefaulted) {
                 LOGGER.atWarn().log("AWS LocalStack selected, but AWS_ACCESS_KEY_ID is not defaulted. Please insert a correct key id or select AWS Cloud use.");
