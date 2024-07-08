@@ -40,13 +40,14 @@ public class AwsKmsCloud implements AwsKmsClient {
     public boolean isAvailable() {
         boolean awsCloudSelected = Environment.AWS_USE_CLOUD.equalsIgnoreCase("true");
         boolean keyIdDefaulted = Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
-        if (awsCloudSelected && !keyIdDefaulted) {
+        boolean kroxyliciousKeyIdDefaulted = Environment.AWS_KROXYLICIOUS_ACCESS_KEY_ID.equals(Environment.AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT);
+        if (awsCloudSelected && !keyIdDefaulted && !kroxyliciousKeyIdDefaulted) {
             LOGGER.atInfo().log("Using AWS Kms Cloud");
             return true;
         }
         else {
             if (awsCloudSelected) {
-                LOGGER.atWarn().log("AWS Cloud selected, but AWS_ACCESS_KEY_ID is not specified. Please specify a key id.");
+                LOGGER.atWarn().log("AWS Cloud selected, but AWS_ACCESS_KEY_ID and/or AWS_KROXYLICIOUS_ACCESS_KEY_ID are not specified. Please specify a key id.");
             }
             else if (!keyIdDefaulted) {
                 LOGGER.atWarn().log("AWS LocalStack selected, but AWS_ACCESS_KEY_ID is specified. Please do not specify a key id or select AWS_USE_CLOUD to true.");
