@@ -416,7 +416,6 @@
                 <artifactId>netty-leak-detector-junit-extension</artifactId>
                 <version>${netty-leak-detector-junit-extension.version}</version>
             </dependency>
-
         </dependencies>
     </dependencyManagement>
 
