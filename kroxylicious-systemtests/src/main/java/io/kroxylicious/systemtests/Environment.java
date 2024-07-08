@@ -38,6 +38,8 @@ public class Environment {
     private static final String AWS_ACCESS_KEY_ID_ENV = "AWS_ACCESS_KEY_ID";
     private static final String AWS_SECRET_ACCESS_KEY_ENV = "AWS_SECRET_ACCESS_KEY";
     private static final String AWS_USE_CLOUD_ENV = "AWS_USE_CLOUD";
+    private static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV = "AWS_KROXYLICIOUS_ACCESS_KEY_ID";
+    private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV = "AWS_KROXYLICIOUS_SECRET_ACCESS_KEY";
 
     /**
      * The kafka version default value
@@ -85,6 +87,8 @@ public class Environment {
     public static final String AWS_ACCESS_KEY_ID_DEFAULT = "test";
     private static final String AWS_SECRET_ACCESS_KEY_DEFAULT = "test";
     private static final String AWS_USE_CLOUD_DEFAULT = "false";
+    private static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT = AWS_ACCESS_KEY_ID_DEFAULT;
+    private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT = AWS_SECRET_ACCESS_KEY_DEFAULT;
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -126,6 +130,10 @@ public class Environment {
     public static final String AWS_SECRET_ACCESS_KEY = getOrDefault(AWS_SECRET_ACCESS_KEY_ENV, AWS_SECRET_ACCESS_KEY_DEFAULT);
 
     public static final String AWS_USE_CLOUD = getOrDefault(AWS_USE_CLOUD_ENV, AWS_USE_CLOUD_DEFAULT);
+
+    public static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID = getOrDefault(AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV, AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT);
+
+    public static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY = getOrDefault(AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV, AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT);
 
     private static String getOrDefault(String varName, String defaultValue) {
         return getOrDefault(varName, String::toString, defaultValue);

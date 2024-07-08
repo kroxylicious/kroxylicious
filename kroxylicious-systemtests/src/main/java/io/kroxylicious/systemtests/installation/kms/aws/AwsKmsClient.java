@@ -57,12 +57,30 @@ public interface AwsKmsClient {
     }
 
     /**
+     * Gets kroxylicious access key.
+     *
+     * @return the kroxylicious access key
+     */
+    default String getKroxyliciousAccessKey() {
+        return Environment.AWS_KROXYLICIOUS_ACCESS_KEY_ID;
+    }
+
+    /**
      * Gets secret key.
      *
      * @return the secret key
      */
     default String getSecretKey() {
         return Environment.AWS_SECRET_ACCESS_KEY;
+    }
+
+    /**
+     * Gets kroxylicious secret key.
+     *
+     * @return the kroxylicious secret key
+     */
+    default String getKroxyliciousSecretKey() {
+        return Environment.AWS_KROXYLICIOUS_SECRET_ACCESS_KEY;
     }
 
     /**

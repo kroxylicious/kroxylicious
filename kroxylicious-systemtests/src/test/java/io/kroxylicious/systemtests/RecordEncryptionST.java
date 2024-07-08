@@ -65,7 +65,7 @@ class RecordEncryptionST extends AbstractST {
     @AfterEach
     void afterEach(String namespace) {
         try {
-            testKekManager.deleteKek(topicName);
+            testKekManager.deleteKek("KEK_" + topicName);
         }
         catch (KubeClusterException e) {
             LOGGER.atError().setMessage("KEK deletion has not been successfully done: {}").addArgument(e).log();
@@ -79,7 +79,7 @@ class RecordEncryptionST extends AbstractST {
     @TestTemplate
     void ensureClusterHasEncryptedMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
-        testKekManager.generateKek(topicName);
+        testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
 
         // start Kroxylicious
@@ -117,7 +117,7 @@ class RecordEncryptionST extends AbstractST {
     @TestTemplate
     void produceAndConsumeMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
-        testKekManager.generateKek(topicName);
+        testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
 
         // start Kroxylicious

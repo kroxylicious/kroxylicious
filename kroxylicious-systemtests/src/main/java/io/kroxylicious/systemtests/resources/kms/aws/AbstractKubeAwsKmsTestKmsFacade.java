@@ -9,7 +9,9 @@ package io.kroxylicious.systemtests.resources.kms.aws;
 import java.net.URI;
 
 import io.kroxylicious.kms.provider.aws.kms.AbstractAwsKmsTestKmsFacade;
+import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.kms.service.TestKekManager;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.systemtests.installation.kms.aws.AwsKmsClient;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -68,6 +70,11 @@ public abstract class AbstractKubeAwsKmsTestKmsFacade extends AbstractAwsKmsTest
     }
 
     @Override
+    public final Config getKmsServiceConfig() {
+        return new Config(getAwsUrl(), new InlinePassword(getKroxyliciousAccessKey()), new InlinePassword(getKroxyliciousSecretKey()), getRegion(), null);
+    }
+
+    @Override
     protected String getSecretKey() {
         return awsKmsClient.getSecretKey();
     }
@@ -75,6 +82,14 @@ public abstract class AbstractKubeAwsKmsTestKmsFacade extends AbstractAwsKmsTest
     @Override
     protected String getAccessKey() {
         return awsKmsClient.getAccessKey();
+    }
+
+    protected String getKroxyliciousSecretKey() {
+        return awsKmsClient.getKroxyliciousSecretKey();
+    }
+
+    protected String getKroxyliciousAccessKey() {
+        return awsKmsClient.getKroxyliciousAccessKey();
     }
 
     @Override

@@ -32,7 +32,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
     protected abstract URI getAwsUrl();
 
     @Override
-    public final Config getKmsServiceConfig() {
+    public Config getKmsServiceConfig() {
         return new Config(getAwsUrl(), new InlinePassword(getAccessKey()), new InlinePassword(getSecretKey()), getRegion(), null);
     }
 

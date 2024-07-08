@@ -74,7 +74,7 @@ public final class KroxyliciousConfigMapTemplates {
                       %s
                     selector: TemplateKekSelector
                     selectorConfig:
-                      template: "${topicName}"
+                      template: "KEK_${topicName}"
                 """.formatted(testKmsFacade.getKmsServiceClass().getSimpleName(), getNestedYaml(testKmsFacade.getKmsServiceConfig(), 6));
     }
 
