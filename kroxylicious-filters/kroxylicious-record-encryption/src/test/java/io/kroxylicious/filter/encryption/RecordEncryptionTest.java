@@ -85,6 +85,8 @@ class RecordEncryptionTest {
         assertThat(config.resolvedAliasExpireAfterWriteDuration()).isEqualTo(Duration.ofMinutes(10));
         assertThat(config.resolvedAliasRefreshAfterWriteDuration()).isEqualTo(Duration.ofMinutes(8));
         assertThat(config.notFoundAliasExpireAfterWriteDuration()).isEqualTo(Duration.ofSeconds(30));
+        assertThat(config.encryptionDekCacheRefreshAfterWriteDuration()).isEqualTo(Duration.ofHours(1));
+        assertThat(config.encryptionDekCacheExpireAfterWriteDuration()).isEqualTo(Duration.ofHours(2));
     }
 
     @Test
@@ -96,6 +98,8 @@ class RecordEncryptionTest {
         experimental.put("resolvedAliasExpireAfterWriteSeconds", null);
         experimental.put("resolvedAliasRefreshAfterWriteSeconds", null);
         experimental.put("notFoundAliasExpireAfterWriteSeconds", null);
+        experimental.put("encryptionDekRefreshAfterWriteSeconds", null);
+        experimental.put("encryptionDekExpireAfterWriteSeconds", null);
         KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L,
                 experimental).kmsCache();
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
@@ -104,6 +108,8 @@ class RecordEncryptionTest {
         assertThat(config.resolvedAliasExpireAfterWriteDuration()).isEqualTo(Duration.ofMinutes(10));
         assertThat(config.resolvedAliasRefreshAfterWriteDuration()).isEqualTo(Duration.ofMinutes(8));
         assertThat(config.notFoundAliasExpireAfterWriteDuration()).isEqualTo(Duration.ofSeconds(30));
+        assertThat(config.encryptionDekCacheRefreshAfterWriteDuration()).isEqualTo(Duration.ofHours(1));
+        assertThat(config.encryptionDekCacheExpireAfterWriteDuration()).isEqualTo(Duration.ofHours(2));
     }
 
     @Test
@@ -114,7 +120,9 @@ class RecordEncryptionTest {
                 3,
                 Duration.ofSeconds(4L),
                 Duration.ofSeconds(5L),
-                Duration.ofSeconds(6L));
+                Duration.ofSeconds(6L),
+                Duration.ofSeconds(7L),
+                Duration.ofSeconds(8L));
 
         HashMap<String, Object> experimental = new HashMap<>();
         experimental.put("decryptedDekCacheSize", 1);
@@ -123,6 +131,8 @@ class RecordEncryptionTest {
         experimental.put("resolvedAliasExpireAfterWriteSeconds", 4);
         experimental.put("resolvedAliasRefreshAfterWriteSeconds", 5);
         experimental.put("notFoundAliasExpireAfterWriteSeconds", 6);
+        experimental.put("encryptionDekRefreshAfterWriteSeconds", 7);
+        experimental.put("encryptionDekExpireAfterWriteSeconds", 8);
         KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental).kmsCache();
         assertThat(config).isEqualTo(kmsCacheConfig);
     }

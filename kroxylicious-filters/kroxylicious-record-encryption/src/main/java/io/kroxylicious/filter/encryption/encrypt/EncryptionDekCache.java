@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption.encrypt;
 
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -51,7 +52,11 @@ public class EncryptionDekCache<K, E> {
 
     public EncryptionDekCache(@NonNull DekManager<K, E> dekManager,
                               @Nullable Executor dekCacheExecutor,
-                              int dekCacheMaxItems) {
+                              int dekCacheMaxItems,
+                              @NonNull Duration refreshAfterWrite,
+                              @NonNull Duration expireAfterWrite) {
+        Objects.requireNonNull(refreshAfterWrite, "refreshAfterWrite is null");
+        Objects.requireNonNull(expireAfterWrite, "expireAfterWrite is null");
         this.dekManager = Objects.requireNonNull(dekManager);
         this.cipherSpecResolver = CipherSpecResolver.ALL;
         Caffeine<Object, Object> cache = Caffeine.newBuilder();
@@ -61,6 +66,8 @@ public class EncryptionDekCache<K, E> {
         if (dekCacheExecutor != null) {
             cache = cache.executor(dekCacheExecutor);
         }
+        cache = cache.refreshAfterWrite(refreshAfterWrite);
+        cache = cache.expireAfterWrite(expireAfterWrite);
 
         this.dekCache = cache
                 .removalListener(this::afterCacheEviction)

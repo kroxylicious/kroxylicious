@@ -1030,7 +1030,7 @@ class InBandDecryptionManagerTest {
                                                                                        int maxCacheSize) {
 
         DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, maxEncryptionsPerDek);
-        var cache = new EncryptionDekCache<>(dekManager, directExecutor(), maxCacheSize);
+        var cache = new EncryptionDekCache<>(dekManager, directExecutor(), maxCacheSize, Duration.ofHours(1), Duration.ofHours(1));
         return new InBandEncryptionManager<>(Encryption.V2,
                 dekManager.edekSerde(),
                 recordBufferInitialBytes,

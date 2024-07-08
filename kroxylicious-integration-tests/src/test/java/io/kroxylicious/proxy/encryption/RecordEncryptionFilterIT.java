@@ -6,13 +6,17 @@
 
 package io.kroxylicious.proxy.encryption;
 
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -24,6 +28,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.header.Header;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.TestTemplate;
@@ -31,6 +36,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
+import io.kroxylicious.filter.encryption.crypto.Encryption;
+import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
+import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeInvocationContextProvider;
@@ -49,6 +57,7 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThatCode;
+import static org.assertj.core.api.InstanceOfAssertFactories.BYTE_ARRAY;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.Matchers.contains;
 
@@ -216,6 +225,65 @@ class RecordEncryptionFilterIT {
                     .extracting(ConsumerRecord::value)
                     .containsExactly(HELLO_WORLD + 1, HELLO_WORLD + 2, HELLO_WORLD + 3, HELLO_WORLD + 4, HELLO_WORLD + 5);
         }
+    }
+
+    // EDEKs can be configured with a time-based expiry. This gives us the nice property that after a KEK is rotated
+    // in the external KMS a new EDEK will be generated using the new key.
+    @TestTemplate
+    void edekExpiry(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade,
+                    @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "rotation-test") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") KafkaConsumer<byte[], byte[]> directConsumer)
+            throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+        // 1 second is the current minimum configurable value
+        Duration edekExpiry = Duration.ofSeconds(1);
+        builder.addToFilters(new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
+                .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
+                .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
+                .withConfig("experimental", Map.of("encryptionDekRefreshAfterWriteSeconds", edekExpiry.toSeconds()))
+                .withConfig("selector", TemplateKekSelector.class.getSimpleName())
+                .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
+                .build());
+
+        var messageBeforeKeyRotation = "hello world, old key";
+        var messageAfterKeyRotation = "hello world, new key";
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer()) {
+            producer.send(new ProducerRecord<>(topic.name(), messageBeforeKeyRotation)).get(5, TimeUnit.SECONDS);
+
+            Thread.sleep(edekExpiry.toMillis());
+            // refreshAfterWrite is asynchronous, so it is likely the first message triggers the refresh but uses the existing cached EDEK
+            producer.send(new ProducerRecord<>(topic.name(), messageAfterKeyRotation)).get(5, TimeUnit.SECONDS);
+            producer.send(new ProducerRecord<>(topic.name(), messageAfterKeyRotation)).get(5, TimeUnit.SECONDS);
+            producer.send(new ProducerRecord<>(topic.name(), messageAfterKeyRotation)).get(5, TimeUnit.SECONDS);
+
+            // check we can decrypt
+            try (var consumer = tester.consumer()) {
+                consumer.subscribe(List.of(topic.name()));
+                var records = consumer.poll(Duration.ofSeconds(2));
+                assertThat(records.iterator())
+                        .toIterable()
+                        .extracting(ConsumerRecord::value)
+                        .containsExactly(messageBeforeKeyRotation, messageAfterKeyRotation, messageAfterKeyRotation, messageAfterKeyRotation);
+            }
+
+            assertMoreThanOneEdekUsed(topic, directConsumer);
+        }
+    }
+
+    private static void assertMoreThanOneEdekUsed(Topic topic, KafkaConsumer<byte[], byte[]> directConsumer) {
+        directConsumer.subscribe(List.of(topic.name()));
+        ConsumerRecords<byte[], byte[]> records = directConsumer.poll(Duration.ofSeconds(2));
+        Set<BytesEdek> edeks = StreamSupport.stream(records.spliterator(), false).map(kafkaRecord -> {
+            List<byte[]> encryptionVersions = StreamSupport.stream(kafkaRecord.headers().headers(EncryptionHeader.ENCRYPTION_HEADER_NAME).spliterator(), false)
+                    .map(Header::value).toList();
+            assertThat(encryptionVersions).hasSize(1).singleElement(BYTE_ARRAY).hasSize(1);
+            Encryption encryption = EncryptionResolver.ALL.fromSerializedId(encryptionVersions.getFirst()[0]);
+            return encryption.wrapper().readSpecAndEdek(ByteBuffer.wrap(kafkaRecord.value()), BytesEdek.getSerde(), (cipherManager, o) -> o);
+        }).collect(Collectors.toSet());
+        assertThat(edeks).hasSizeGreaterThan(1);
     }
 
     // This ensures the decrypt-ability guarantee, post kek rotation
