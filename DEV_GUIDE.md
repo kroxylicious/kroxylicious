@@ -32,6 +32,7 @@ This document gives a detailed breakdown of the various build processes and opti
   * [Producing an Asciinema Cast](#producing-an-asciinema-cast)
   * [Continuous Integration](#continuous-integration)
     * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
+  * [DCO Signoff](#dco-signoff)
 * [Deprecation Policy](#deprecation-policy)
 <!-- TOC -->
 
@@ -444,6 +445,12 @@ and one repository [secret](https://docs.github.com/en/actions/security-guides/u
 * `REGISTRY_TOKEN` secret - the access token that corresponds to `REGISTRY_USERNAME` 
 
 The workflow will push the container image to `${REGISTRY_DESTINATION}` so ensure that the `${REGISTRY_USERNAME}` user has sufficient write privileges. 
+
+## DCO Signoff
+
+The project requires that all commits are signed-off, indicating that _you_ certify the changes with the developer
+certificate of origin (DCO) (https://developercertificate.org/). This can be done using `git commit -s` for each commit
+in your pull request. Alternatively, to signoff a bunch of commits you can use `git rebase --signoff _your-branch_`.
 
 # Deprecation Policy
 
