@@ -60,13 +60,13 @@
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.0.7</apicurio-schema-validation.version>
-        <apicurio-registry.version>2.5.11.Final</apicurio-registry.version>
+        <apicurio-registry.version>2.6.1.Final</apicurio-registry.version>
         <apicurio-common.version>0.1.18.Final</apicurio-common.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
         <strimzi.version>0.41.0</strimzi.version>
-        <kubernetes-client.version>6.12.1</kubernetes-client.version>
+        <kubernetes-client.version>6.13.1</kubernetes-client.version>
         <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.8</maven.core.version>
         <awaitility.version>4.2.1</awaitility.version>
@@ -656,7 +656,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.2.5</version>
+                    <version>3.3.0</version>
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
                         <failIfNoTests>false</failIfNoTests>
