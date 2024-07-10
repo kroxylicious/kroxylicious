@@ -70,17 +70,7 @@ public class LocalStack implements AwsKmsClient {
 
     @Override
     public boolean isAvailable() {
-        boolean awsCloudSelected = Environment.AWS_USE_CLOUD.equalsIgnoreCase("true");
-        boolean keyIdDefaulted = Environment.AWS_ACCESS_KEY_ID.equals(Environment.AWS_ACCESS_KEY_ID_DEFAULT);
-        if (keyIdDefaulted) {
-            LOGGER.atInfo().log("Using AWS LocalStack");
-        }
-        else {
-            if (!awsCloudSelected) {
-                LOGGER.atWarn().log("AWS LocalStack selected, but AWS_ACCESS_KEY_ID is not defaulted. Please insert a correct key id.");
-            }
-        }
-        return keyIdDefaulted || !awsCloudSelected;
+        return !Environment.AWS_USE_CLOUD.equalsIgnoreCase("true");
     }
 
     /**
@@ -147,16 +137,6 @@ public class LocalStack implements AwsKmsClient {
     public void delete() {
         LOGGER.info("Deleting Aws in {} namespace", deploymentNamespace);
         NamespaceUtils.deleteNamespaceWithWait(deploymentNamespace);
-    }
-
-    @Override
-    public String getKroxyliciousAccessKey() {
-        return Environment.AWS_ACCESS_KEY_ID;
-    }
-
-    @Override
-    public String getKroxyliciousSecretKey() {
-        return Environment.AWS_SECRET_ACCESS_KEY;
     }
 
     @Override
