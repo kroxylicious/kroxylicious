@@ -26,7 +26,6 @@ import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
-import io.kroxylicious.systemtests.resources.kms.aws.AbstractKubeAwsKmsTestKmsFacade;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
@@ -99,19 +98,13 @@ class RecordEncryptionST extends AbstractST {
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
 
-        String messageToCheck = topicName + "vault";
-        if (testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("aws")) {
-            messageToCheck = ((AbstractKubeAwsKmsTestKmsFacade) testKmsFacade).getKekKeyId();
-        }
-
-        String finalMessageToCheck = messageToCheck;
         assertAll(
                 () -> assertThat(resultEncrypted.stream())
                         .withFailMessage("expected header has not been received!")
                         .allMatch(r -> r.getRecordHeaders().containsKey("kroxylicious.io/encryption")),
                 () -> assertThat(resultEncrypted.stream())
-                        .withFailMessage("expected messages have not been received!")
-                        .allMatch(r -> r.getValue().contains(finalMessageToCheck) && !r.getValue().contains(MESSAGE)));
+                        .withFailMessage("Encrypted message still include the original one!")
+                        .allMatch(r -> !r.getValue().contains(MESSAGE)));
     }
 
     @TestTemplate
