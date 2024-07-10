@@ -103,7 +103,7 @@ class RecordEncryptionST extends AbstractST {
                         .withFailMessage("expected header has not been received!")
                         .allMatch(r -> r.getRecordHeaders().containsKey("kroxylicious.io/encryption")),
                 () -> assertThat(resultEncrypted.stream())
-                        .withFailMessage("Encrypted message still include the original one!")
+                        .withFailMessage("Encrypted message still includes the original one!")
                         .allMatch(r -> !r.getValue().contains(MESSAGE)));
     }
 
