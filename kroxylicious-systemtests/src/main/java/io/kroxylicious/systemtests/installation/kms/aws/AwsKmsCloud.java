@@ -8,9 +8,6 @@ package io.kroxylicious.systemtests.installation.kms.aws;
 
 import java.net.URI;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
@@ -19,7 +16,6 @@ import io.kroxylicious.systemtests.executor.ExecResult;
  * The type Aws kms cloud.
  */
 public class AwsKmsCloud implements AwsKmsClient {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AwsKmsCloud.class);
     private static final String AWS_CMD = "aws";
     private String region;
 
