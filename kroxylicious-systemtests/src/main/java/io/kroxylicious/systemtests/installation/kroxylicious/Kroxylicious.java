@@ -11,7 +11,7 @@ import java.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -48,10 +48,10 @@ public class Kroxylicious {
         resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
     }
 
-    private void createRecordEncryptionFilterConfigMap(String clusterName, String topicName, Config config) {
+    private void createRecordEncryptionFilterConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade) {
         LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
         resourceManager
-                .createResourceWithWait(KroxyliciousConfigMapTemplates.kroxyliciousRecordEncryptionConfig(clusterName, deploymentNamespace, topicName, config).build());
+                .createResourceWithWait(KroxyliciousConfigMapTemplates.kroxyliciousRecordEncryptionConfig(clusterName, deploymentNamespace, testKmsFacade).build());
     }
 
     private void deployPortPerBrokerPlain(int replicas) {
@@ -75,11 +75,10 @@ public class Kroxylicious {
      *
      * @param clusterName the cluster name
      * @param replicas the replicas
-     * @param topicName the topic name
-     * @param config config
+     * @param testKmsFacade the test kms facade
      */
-    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, int replicas, String topicName, Config config) {
-        createRecordEncryptionFilterConfigMap(clusterName, topicName, config);
+    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, int replicas, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        createRecordEncryptionFilterConfigMap(clusterName, testKmsFacade);
         deployPortPerBrokerPlain(replicas);
     }
 

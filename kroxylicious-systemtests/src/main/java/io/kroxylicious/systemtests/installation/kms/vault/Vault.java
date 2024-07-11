@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.installation.vault;
+package io.kroxylicious.systemtests.installation.kms.vault;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,6 +26,7 @@ import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.getInstance;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
@@ -42,19 +43,15 @@ public class Vault {
     private static final String VAULT_CMD = "vault";
     private final String deploymentNamespace;
     private final String vaultRootToken;
-    private final boolean openshiftCluster;
 
     /**
      * Instantiates a new Vault.
      *
-     * @param deploymentNamespace the deployment namespace
      * @param vaultRootToken root token to be used for the vault install
-     * @param openshiftCluster the boolean for openshift cluster
      */
-    public Vault(String deploymentNamespace, String vaultRootToken, boolean openshiftCluster) {
-        this.deploymentNamespace = deploymentNamespace;
+    public Vault(String vaultRootToken) {
+        this.deploymentNamespace = VAULT_DEFAULT_NAMESPACE;
         this.vaultRootToken = vaultRootToken;
-        this.openshiftCluster = openshiftCluster;
     }
 
     /**
@@ -125,12 +122,15 @@ public class Vault {
      *
      */
     public void deploy() {
-        LOGGER.info("Deploy HashiCorp Vault in {} namespace, openshift: {}", deploymentNamespace, openshiftCluster);
         if (isDeployed()) {
             LOGGER.warn("Skipping Vault deployment. It is already deployed!");
             return;
         }
 
+        boolean openshiftCluster = getInstance().isOpenshift();
+        LOGGER.info("Deploy HashiCorp Vault in {} namespace, openshift: {}", deploymentNamespace, openshiftCluster);
+
+        NamespaceUtils.createNamespaceWithWait(deploymentNamespace);
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
                 Optional.of(Environment.VAULT_CHART_VERSION),

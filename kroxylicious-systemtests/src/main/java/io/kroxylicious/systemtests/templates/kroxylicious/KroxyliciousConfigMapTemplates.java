@@ -6,15 +6,26 @@
 
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
+import java.io.UncheckedIOException;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.Constants;
 
 /**
  * The type Kroxylicious config templates.
  */
 public final class KroxyliciousConfigMapTemplates {
+    private static final YAMLFactory FACTORY = YAMLFactory.builder()
+            .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+            .build();
+    private static final ObjectMapper YAML_OBJECT_MAPPER = new ObjectMapper(FACTORY);
 
     private KroxyliciousConfigMapTemplates() {
     }
@@ -46,16 +57,43 @@ public final class KroxyliciousConfigMapTemplates {
      *
      * @param clusterName the cluster name
      * @param namespaceName the namespace name
-     * @param topicName the topic name
-     * @param config config
+     * @param testKmsFacade the test kms facade
      * @return the config map builder
      */
-    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, String topicName, Config config) {
+    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade) {
         return baseKroxyliciousConfig(namespaceName)
-                .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, topicName, config));
+                .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, testKmsFacade));
     }
 
-    private static String getRecordEncryptionConfigMap(String clusterName, String topicName, Config config) {
+    private static String buildEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade) {
+        return """
+                - type: RecordEncryption
+                  config:
+                    kms: %s
+                    kmsConfig:
+                      %s
+                    selector: TemplateKekSelector
+                    selectorConfig:
+                      template: "KEK_${topicName}"
+                """.formatted(testKmsFacade.getKmsServiceClass().getSimpleName(), getNestedYaml(testKmsFacade.getKmsServiceConfig(), 6));
+    }
+
+    private static String getNestedYaml(Object config, int indent) {
+        String configYaml;
+
+        try {
+            configYaml = YAML_OBJECT_MAPPER.writeValueAsString(config).indent(indent).trim();
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        return configYaml;
+    }
+
+    private static String getRecordEncryptionConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        String configYaml = buildEncryptionFilter(testKmsFacade);
+
         return """
                 adminHttp:
                   endpoints:
@@ -66,28 +104,14 @@ public final class KroxyliciousConfigMapTemplates {
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: localhost:9292
-                        brokerAddressPattern: %KROXY_SERVICE_NAME%
+                        brokerAddressPattern: %s
                     targetCluster:
-                      bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
+                      bootstrap_servers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     logFrames: false
                 filters:
-                - type: RecordEncryption
-                  config:
-                    kms: VaultKmsService
-                    kmsConfig:
-                      vaultTransitEngineUrl: %VAULT_TRANSIT_ENGINE_URL%
-                      vaultToken:
-                        password: %VAULT_TOKEN%
-                    selector: TemplateKekSelector
-                    selectorConfig:
-                      template: "${topicName}"
+                %s
                 """
-                .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
-                .replace("%CLUSTER_NAME%", clusterName)
-                .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME)
-                .replace("%VAULT_TOKEN%", config.vaultToken().getProvidedPassword())
-                .replace("%VAULT_TRANSIT_ENGINE_URL%", config.vaultTransitEngineUrl().toString())
-                .replace("%TOPIC_NAME%", topicName);
+                .formatted(Constants.KROXY_SERVICE_NAME, clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, configYaml);
     }
 
     private static String getDefaultKroxyliciousConfigMap(String clusterName) {
@@ -98,18 +122,16 @@ public final class KroxyliciousConfigMapTemplates {
                 virtualClusters:
                   demo:
                     targetCluster:
-                      bootstrap_servers: %CLUSTER_NAME%-kafka-bootstrap.%NAMESPACE%.svc.cluster.local:9092
+                      bootstrap_servers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: localhost:9292
-                        brokerAddressPattern: %KROXY_SERVICE_NAME%
+                        brokerAddressPattern: %s
                     logNetwork: false
                     logFrames: false
                 """
-                .replace("%NAMESPACE%", Constants.KAFKA_DEFAULT_NAMESPACE)
-                .replace("%CLUSTER_NAME%", clusterName)
-                .replace("%KROXY_SERVICE_NAME%", Constants.KROXY_SERVICE_NAME);
+                .formatted(clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, Constants.KROXY_SERVICE_NAME);
     }
 
     /**
@@ -126,7 +148,7 @@ public final class KroxyliciousConfigMapTemplates {
                 virtualClusters:
                   demo:
                     targetCluster:
-                      bootstrap_servers: %CLUSTER_EXTERNAL_IP%:9094
+                      bootstrap_servers: %s:9094
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
@@ -134,6 +156,6 @@ public final class KroxyliciousConfigMapTemplates {
                     logNetwork: false
                     logFrames: false
                 """
-                .replace("%CLUSTER_EXTERNAL_IP%", clusterExternalIP);
+                .formatted(clusterExternalIP);
     }
 }

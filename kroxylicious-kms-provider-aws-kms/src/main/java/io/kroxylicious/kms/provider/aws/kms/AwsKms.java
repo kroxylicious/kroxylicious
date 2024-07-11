@@ -70,7 +70,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
     private static final String TRENT_SERVICE_DECRYPT = "TrentService.Decrypt";
     static final String CONTENT_TYPE_HEADER = "Content-Type";
     static final String X_AMZ_TARGET_HEADER = "X-Amz-Target";
-    static final String ALIAS_PREFIX = "alias/";
+    public static final String ALIAS_PREFIX = "alias/";
 
     private final String accessKey;
     private final String secretKey;

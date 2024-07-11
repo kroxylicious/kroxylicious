@@ -10,7 +10,6 @@ import java.lang.reflect.Parameter;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -42,7 +41,8 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
 
     @Override
     public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
-        return !parameterContext.getParameter().getType().isAssignableFrom(TestInfo.class);
+        return parameterContext.getParameter().getType().isAssignableFrom(String.class) &&
+                parameterContext.getParameter().getName().toLowerCase().contains("namespace");
     }
 
     @Override
@@ -50,7 +50,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
         Parameter parameter = parameterContext.getParameter();
         Class<?> type = parameter.getType();
         LOGGER.trace("test {}: Resolving parameter ({} {})", extensionContext.getUniqueId(), type.getSimpleName(), parameter.getName());
-        if (String.class.equals(type) && parameter.getName().toLowerCase().contains("namespace")) {
+        if (parameter.getName().toLowerCase().contains("namespace")) {
             return extractK8sNamespace(extensionContext);
         }
 
