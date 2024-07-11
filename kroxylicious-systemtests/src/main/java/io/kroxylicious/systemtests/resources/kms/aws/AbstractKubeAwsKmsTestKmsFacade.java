@@ -29,19 +29,13 @@ public abstract class AbstractKubeAwsKmsTestKmsFacade extends AbstractAwsKmsTest
     protected static final String UPDATE_ALIAS = "update-alias";
     protected static final String DELETE_ALIAS = "delete-alias";
     protected static final String DESCRIBE_KEY = "describe-key";
+    protected static final String DISABLE_KEY = "disable-key";
     protected static final String SCHEDULE_KEY_DELETION = "schedule-key-deletion";
     protected static final String PARAM_ALIAS_NAME = "--alias-name";
     protected static final String PARAM_TARGET_KEY_ID = "--target-key-id";
     protected static final String PARAM_KEY_ID = "--key-id";
     protected static final String PARAM_PENDING_WINDOW_IN_DAYS = "--pending-window-in-days";
     protected AwsKmsClient awsKmsClient;
-
-    /**
-     * Gets kek key id.
-     *
-     * @return the kek key id
-     */
-    public abstract String getKekKeyId();
 
     @Override
     public boolean isAvailable() {

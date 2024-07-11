@@ -28,7 +28,6 @@ import static io.kroxylicious.kms.provider.aws.kms.AwsKmsTestKmsFacade.SCHEDULE_
  */
 public class KubeAwsKmsCloudTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacade {
     private final String awsCmd;
-    private String kekKeyId;
 
     /**
      * Instantiates a new Kube AWS Kms Cloud test kms facade.
@@ -37,15 +36,6 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
     public KubeAwsKmsCloudTestKmsFacade() {
         this.awsKmsClient = new AwsKmsCloud();
         awsCmd = awsKmsClient.getAwsCmd();
-    }
-
-    /**
-     * Gets kek key id.
-     *
-     * @return the kek key id
-     */
-    public String getKekKeyId() {
-        return kekKeyId;
     }
 
     @Override
@@ -62,21 +52,16 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacad
         @Override
         void create(String alias) {
             var createKeyResponse = runAwsKmsCommand(CREATE_KEY_RESPONSE_TYPE_REF, awsCmd, KMS, CREATE);
-            kekKeyId = createKeyResponse.keyMetadata().keyId();
-
-            runAwsKmsCommand(awsCmd, KMS, CREATE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias, PARAM_TARGET_KEY_ID, kekKeyId);
+            runAwsKmsCommand(awsCmd, KMS, CREATE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias, PARAM_TARGET_KEY_ID, createKeyResponse.keyMetadata().keyId());
         }
 
         @Override
-        void rotate(String alias) {
-            var key = read(alias);
-            runAwsKmsCommand(awsCmd, KMS, ROTATE, PARAM_KEY_ID, key.keyMetadata().keyId());
+        void rotate(String alias, String keyId) {
+            runAwsKmsCommand(awsCmd, KMS, ROTATE, PARAM_KEY_ID, keyId);
         }
 
         @Override
-        void delete(String alias) {
-            var key = read(alias);
-            var keyId = key.keyMetadata().keyId();
+        void delete(String alias, String keyId) {
             runAwsKmsCommand(SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF,
                     awsCmd, KMS, SCHEDULE_KEY_DELETION, PARAM_KEY_ID, keyId, PARAM_PENDING_WINDOW_IN_DAYS, "7" /* Minimum allowed */);
 

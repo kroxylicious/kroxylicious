@@ -28,7 +28,6 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 public class KubeLocalStackTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacade {
     private final String namespace;
     private final String awsCmd;
-    private String kekKeyId;
 
     /**
      * Instantiates a new Kube AWS Kms test kms facade.
@@ -38,15 +37,6 @@ public class KubeLocalStackTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacade
         this.namespace = LocalStack.LOCALSTACK_DEFAULT_NAMESPACE;
         this.awsKmsClient = new LocalStack();
         awsCmd = awsKmsClient.getAwsCmd();
-    }
-
-    /**
-     * Gets kek key id.
-     *
-     * @return the kek key id
-     */
-    public String getKekKeyId() {
-        return kekKeyId;
     }
 
     @Override
@@ -59,9 +49,7 @@ public class KubeLocalStackTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacade
         @Override
         void create(String alias) {
             var createKeyResponse = runAwsKmsCommand(CREATE_KEY_RESPONSE_TYPE_REF, awsCmd, KMS, CREATE);
-            kekKeyId = createKeyResponse.keyMetadata().keyId();
-
-            runAwsKmsCommand(awsCmd, KMS, CREATE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias, PARAM_TARGET_KEY_ID, kekKeyId);
+            runAwsKmsCommand(awsCmd, KMS, CREATE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias, PARAM_TARGET_KEY_ID, createKeyResponse.keyMetadata().keyId());
         }
 
         @Override
@@ -70,20 +58,18 @@ public class KubeLocalStackTestKmsFacade extends AbstractKubeAwsKmsTestKmsFacade
         }
 
         @Override
-        void rotate(String alias) {
+        void rotate(String alias, String keyId) {
             // RotateKeyOnDemand is not implemented in localstack.
             // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
             // https://github.com/localstack/localstack/issues/10723
             var createKeyResponse = runAwsKmsCommand(CREATE_KEY_RESPONSE_TYPE_REF, awsCmd, KMS, CREATE);
-            kekKeyId = createKeyResponse.keyMetadata().keyId();
-
-            runAwsKmsCommand(awsCmd, KMS, UPDATE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias, PARAM_TARGET_KEY_ID, kekKeyId);
+            runAwsKmsCommand(awsCmd, KMS, UPDATE_ALIAS, PARAM_ALIAS_NAME, ALIAS_PREFIX + alias, PARAM_TARGET_KEY_ID, createKeyResponse.keyMetadata().keyId());
+            // Disable key to avoid reusing the same key
+            runAwsKmsCommand(awsCmd, KMS, DISABLE_KEY, PARAM_KEY_ID, keyId);
         }
 
         @Override
-        void delete(String alias) {
-            var key = read(alias);
-            var keyId = key.keyMetadata().keyId();
+        void delete(String alias, String keyId) {
             runAwsKmsCommand(SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF,
                     awsCmd, KMS, SCHEDULE_KEY_DELETION, PARAM_KEY_ID, keyId, PARAM_PENDING_WINDOW_IN_DAYS, "7" /* Minimum allowed */);
 

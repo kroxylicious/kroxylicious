@@ -21,6 +21,7 @@ import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 public abstract class AbstractAwsKmsTestKekManager implements TestKekManager {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private DescribeKeyResponse keyResponse;
 
     @Override
     public void rotateKek(String alias) {
@@ -30,14 +31,14 @@ public abstract class AbstractAwsKmsTestKekManager implements TestKekManager {
             throw new UnknownAliasException(alias);
         }
         else {
-            rotate(alias);
+            rotate(alias, keyResponse.keyMetadata().keyId());
         }
     }
 
     @Override
     public boolean exists(String alias) {
         try {
-            read(alias);
+            keyResponse = read(alias);
             return true;
         }
         catch (KubeClusterException nfe) {
@@ -51,7 +52,7 @@ public abstract class AbstractAwsKmsTestKekManager implements TestKekManager {
             throw new UnknownAliasException(alias);
         }
         else {
-            delete(alias);
+            delete(alias, keyResponse.keyMetadata().keyId());
         }
     }
 
@@ -71,9 +72,9 @@ public abstract class AbstractAwsKmsTestKekManager implements TestKekManager {
 
     abstract DescribeKeyResponse read(String alias);
 
-    abstract void rotate(String alias);
+    abstract void rotate(String alias, String keyId);
 
-    abstract void delete(String alias);
+    abstract void delete(String alias, String keyId);
 
     abstract ExecResult runAwsKmsCommand(String... command);
 
