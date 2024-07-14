@@ -37,6 +37,7 @@ import static org.awaitility.Awaitility.await;
  * The type Strimzi Test client (java client based CLI).
  */
 public class StrimziTestClient implements KafkaClient {
+    private static final String RECEIVED_MESSAGE_MARKER = "Received message:";
     private static final Logger LOGGER = LoggerFactory.getLogger(StrimziTestClient.class);
     private static final TypeReference<StrimziTestClientConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
@@ -112,12 +113,10 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     private Stream<String> extractRecordLinesFromLog(String log) {
-        String stringToSeek = "Received message:";
-
         return Stream.of(log.split("\n"))
-                .filter(l -> l.contains(stringToSeek))
+                .filter(l -> l.contains(RECEIVED_MESSAGE_MARKER))
                 .map(line -> {
-                    final String[] split = line.split(stringToSeek, 2); // Limit is 1 based so a limit of 2 means use the seek at most 1 times
+                    final String[] split = line.split(RECEIVED_MESSAGE_MARKER, 2); // Limit is 1 based so a limit of 2 means use the seek at most 1 times
                     if (split.length > 1) {
                         return split[1];
                     }
