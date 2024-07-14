@@ -117,7 +117,7 @@ public class StrimziTestClient implements KafkaClient {
         return Stream.of(log.split("\n"))
                 .filter(l -> l.contains(stringToSeek))
                 .map(line -> {
-                    final String[] split = line.split(stringToSeek, 1);
+                    final String[] split = line.split(stringToSeek, 2); // Limit is 1 based so a limit of 2 means use the seek at most 1 times
                     if (split.length > 1) {
                         return split[1];
                     }
