@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1354](https://github.com/kroxylicious/kroxylicious/pull/1354): Make EDEK cache refresh and expiry durations configurable
 * [#1360](https://github.com/kroxylicious/kroxylicious/pull/1360): Bump kafka.version from 3.7.0 to 3.7.1
 * [#1322](https://github.com/kroxylicious/kroxylicious/pull/1322): Introduce FilterDispatchExecutor
 * [#1154](https://github.com/kroxylicious/kroxylicious/pull/1154): Apicurio based schema validation filter
@@ -19,6 +20,9 @@ has methods to enable Filters to check if the current thread is the Filter Dispa
 specialized futures, where chained async methods will also run on the Filter Dispatch Thread when no executor
 is supplied. This is intended to be a tool to make it convenient for Filters to hand off work to uncontrolled
 threads, then switch back to an execution context where mutation of Filter members is safe.
+* Record Encryption Filter: Data Encryption Keys will now be refreshed one hour after creation by default.
+This is a bugfix for [#1139](https://github.com/kroxylicious/kroxylicious/issues/1339) to ensure we start
+using new key material after key-encryption-keys are rotated in the KMS within some controlled duration.
 
 ## 0.6.0
 
