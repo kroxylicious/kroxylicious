@@ -24,13 +24,13 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Message;
 import org.apache.kafka.common.protocol.types.BoundField;
 import org.apache.kafka.common.protocol.types.Schema;
 import org.apache.kafka.common.record.BaseRecords;
-import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.RecordBatch;
@@ -199,7 +199,7 @@ public class ApiMessageSampleGenerator {
         String value = "value-" + random.nextInt(RANGE_MIN, RANGE_MAX);
         long baseOffset = random.nextInt(RANGE_MIN, RANGE_MAX);
         long logAppendTime = RecordBatch.NO_TIMESTAMP;
-        try (MemoryRecordsBuilder builder = MemoryRecords.builder(ByteBuffer.allocate(1), RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE,
+        try (MemoryRecordsBuilder builder = MemoryRecords.builder(ByteBuffer.allocate(1), RecordBatch.CURRENT_MAGIC_VALUE, Compression.NONE,
                 TimestampType.CREATE_TIME, baseOffset,
                 logAppendTime,
                 RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false,

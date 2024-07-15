@@ -12,13 +12,13 @@ import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.MutableRecordBatch;
@@ -96,7 +96,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
             for (FetchResponseData.PartitionData partitionData : topicData.partitions()) {
                 var records = (MemoryRecords) partitionData.records();
                 var stream = context.createByteBufferOutputStream(records.sizeInBytes());
-                try (var newRecords = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE, TimestampType.CREATE_TIME, 0,
+                try (var newRecords = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, Compression.NONE, TimestampType.CREATE_TIME, 0,
                         System.currentTimeMillis(), RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
                         RecordBatch.NO_PARTITION_LEADER_EPOCH,
                         stream.remaining())) {

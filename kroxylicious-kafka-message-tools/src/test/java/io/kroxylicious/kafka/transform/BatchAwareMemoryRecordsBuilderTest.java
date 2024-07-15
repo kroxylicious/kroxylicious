@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.ControlRecordType;
@@ -68,7 +69,7 @@ class BatchAwareMemoryRecordsBuilderTest {
     void shouldBePossibleToWriteBatchAfterBuildingABatch() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        builder.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 0L);
+        builder.addBatch(Compression.NONE, TimestampType.CREATE_TIME, 0L);
         byte[] value1 = { 4, 5, 6 };
         builder.appendWithOffset(0L, 1L, new byte[]{ 1, 2, 3 }, value1, new Header[]{});
         byte[] value2 = { 10, 11, 12 };
@@ -106,7 +107,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         builder.writeBatch(recordBatch);
 
         // When
-        builder.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 1L);
+        builder.addBatch(Compression.NONE, TimestampType.CREATE_TIME, 1L);
         byte[] value2 = { 4, 5, 6 };
         builder.appendWithOffset(1L, 1L, new byte[]{ 1, 2, 3 }, value2, new Header[]{});
         MemoryRecords output = builder.build();
@@ -153,7 +154,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Then
         assertThatThrownBy(() -> {
             builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                    CompressionType.NONE,
+                    Compression.NONE,
                     TimestampType.CREATE_TIME,
                     0,
                     0,
@@ -191,7 +192,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
@@ -217,7 +218,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
@@ -246,7 +247,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
@@ -293,7 +294,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
@@ -326,7 +327,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
@@ -356,7 +357,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
@@ -385,7 +386,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
@@ -416,7 +417,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(initialBufferSize));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
@@ -429,7 +430,7 @@ class BatchAwareMemoryRecordsBuilderTest {
                 0);
         builder.append(new SimpleRecord("hello".getBytes(StandardCharsets.UTF_8)));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.ZSTD,
+                Compression.zstd().build(),
                 TimestampType.LOG_APPEND_TIME,
                 1, // not base off
                 0,
@@ -470,7 +471,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(initialBufferSize));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
@@ -483,7 +484,7 @@ class BatchAwareMemoryRecordsBuilderTest {
                 0);
         builder.append(new SimpleRecord("data-key".getBytes(StandardCharsets.UTF_8), "data-value".getBytes(StandardCharsets.UTF_8)));
         builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.ZSTD,
+                Compression.zstd().build(),
                 TimestampType.LOG_APPEND_TIME,
                 1,
                 0,
@@ -534,7 +535,7 @@ class BatchAwareMemoryRecordsBuilderTest {
         // When
         var builder1 = new BatchAwareMemoryRecordsBuilder(buffer);
         builder1.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
@@ -554,7 +555,7 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         var builder2 = new BatchAwareMemoryRecordsBuilder(buffer);
         builder2.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
                 0,
