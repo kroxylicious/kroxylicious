@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+import java.util.UUID;
 
 import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
@@ -59,7 +60,7 @@ public class StrimziTestClient implements KafkaClient {
     @Override
     public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
         LOGGER.atInfo().log("Producing messages using Strimzi Test Client");
-        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL;
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-" + UUID.randomUUID().toString().replace("-","").substring(0, 4);
         Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey).build();
         KafkaUtils.produceMessages(deployNamespace, topicName, name, testClientJob);
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
@@ -90,7 +91,7 @@ public class StrimziTestClient implements KafkaClient {
     @Override
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using Strimzi Test Client");
-        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL;
+        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-" + UUID.randomUUID().toString().replace("-","").substring(0, 4);
         Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);

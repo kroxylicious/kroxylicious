@@ -75,6 +75,9 @@ public final class KroxyliciousConfigMapTemplates {
                     selector: TemplateKekSelector
                     selectorConfig:
                       template: "KEK_${topicName}"
+                    experimental:
+                      resolvedAliasExpireAfterWriteSeconds: 120
+                      resolvedAliasRefreshAfterWriteSeconds: 10
                 """.formatted(testKmsFacade.getKmsServiceClass().getSimpleName(), getNestedYaml(testKmsFacade.getKmsServiceConfig(), 6));
     }
 

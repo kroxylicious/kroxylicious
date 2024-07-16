@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
+import org.apache.commons.text.similarity.JaroWinklerDistance;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestTemplate;
@@ -133,5 +134,57 @@ class RecordEncryptionST extends AbstractST {
                 .extracting(ConsumerRecord::getValue)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+    }
+
+    @TestTemplate
+    void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek("KEK_" + topicName);
+        int numberOfMessages = 1;
+
+        // start Kroxylicious
+        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        Kroxylicious kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade);
+        bootstrap = kroxylicious.getBootstrap();
+
+        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
+
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        List<ConsumerRecord> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
+                Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
+
+        assertAll(
+                () -> assertThat(resultEncrypted.stream())
+                        .withFailMessage("expected header has not been received!")
+                        .allMatch(r -> r.getRecordHeaders().containsKey("kroxylicious.io/encryption")),
+                () -> assertThat(resultEncrypted.stream())
+                        .withFailMessage("Encrypted message still includes the original one!")
+                        .allMatch(r -> !r.getValue().contains(MESSAGE)));
+
+        testKekManager.rotateKek("KEK_" + topicName);
+
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        List<ConsumerRecord> resultEncryptedRotatedKek = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
+                Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncryptedRotatedKek).log();
+
+        assertThat(resultEncryptedRotatedKek.stream())
+                .withFailMessage("Encrypted message still includes the original one!")
+                .allMatch(r -> resultEncrypted.stream().noneMatch(re -> re.getValue().equals(r.getValue())));
+
+        double per = new JaroWinklerDistance().apply(resultEncryptedRotatedKek.stream().findFirst().get().getValue(),
+                resultEncrypted.stream().findFirst().get().getValue()) * 100;
+
+        LOGGER.atInfo().setMessage("Equality: {}%").addArgument(per).log();
+        assertThat(per).isBetween(90D, 100D);
     }
 }
