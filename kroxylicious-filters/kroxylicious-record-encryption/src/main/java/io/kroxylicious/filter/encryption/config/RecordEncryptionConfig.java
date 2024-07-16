@@ -7,6 +7,7 @@
 package io.kroxylicious.filter.encryption.config;
 
 import java.util.Map;
+import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -16,8 +17,7 @@ import io.kroxylicious.proxy.plugin.PluginImplName;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public record RecordEncryptionConfig(
-                                     @JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
+public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
                                      @PluginImplConfig(implNameProperty = "kms") Object kmsConfig,
 
                                      @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
@@ -34,31 +34,40 @@ public record RecordEncryptionConfig(
         Long resolvedAliasExpireAfterWriteSeconds = getExperimentalLong("resolvedAliasExpireAfterWriteSeconds");
         Long resolvedAliasRefreshAfterWriteSeconds = getExperimentalLong("resolvedAliasRefreshAfterWriteSeconds");
         Long notFoundAliasExpireAfterWriteSeconds = getExperimentalLong("notFoundAliasExpireAfterWriteSeconds");
-        return new KmsCacheConfig(decryptedDekCacheSize, decryptedDekExpireAfterAccessSeconds, resolvedAliasCacheSize,
-                resolvedAliasExpireAfterWriteSeconds,
-                resolvedAliasRefreshAfterWriteSeconds, notFoundAliasExpireAfterWriteSeconds);
+        Long encryptionDekRefreshAfterWriteSeconds = getExperimentalLong("encryptionDekRefreshAfterWriteSeconds");
+        Long encryptionDekExpireAfterWriteSeconds = getExperimentalLong("encryptionDekExpireAfterWriteSeconds");
+        return new KmsCacheConfig(decryptedDekCacheSize, decryptedDekExpireAfterAccessSeconds, resolvedAliasCacheSize, resolvedAliasExpireAfterWriteSeconds,
+                resolvedAliasRefreshAfterWriteSeconds, notFoundAliasExpireAfterWriteSeconds, encryptionDekRefreshAfterWriteSeconds, encryptionDekExpireAfterWriteSeconds);
     }
 
     @Nullable
     private Integer getExperimentalInt(String property) {
-        if (experimental.containsKey(property)) {
-            Object value = experimental.get(property);
+        return Optional.ofNullable(experimental.get(property)).map(value -> {
             if (value instanceof Number number) {
                 return number.intValue();
             }
-        }
-        return null;
+            else if (value instanceof String stringValue) {
+                return Integer.parseInt(stringValue);
+            }
+            else {
+                throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
+            }
+        }).orElse(null);
     }
 
     @Nullable
     private Long getExperimentalLong(String property) {
-        if (experimental.containsKey(property)) {
-            Object value = experimental.get(property);
+        return Optional.ofNullable(experimental.get(property)).map(value -> {
             if (value instanceof Number number) {
                 return number.longValue();
             }
-        }
-        return null;
+            else if (value instanceof String stringValue) {
+                return Long.parseLong(stringValue);
+            }
+            else {
+                throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
+            }
+        }).orElse(null);
     }
 
 }
