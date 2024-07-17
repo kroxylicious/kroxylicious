@@ -60,6 +60,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private static final String TRENT_SERVICE_CREATE_KEY = "TrentService.CreateKey";
     private static final String TRENT_SERVICE_CREATE_ALIAS = "TrentService.CreateAlias";
     private static final String TRENT_SERVICE_UPDATE_ALIAS = "TrentService.UpdateAlias";
+    protected static final String TRENT_SERVICE_ROTATE_KEY = "TrentService.RotateKeyOnDemand";
     private static final String TRENT_SERVICE_DELETE_ALIAS = "TrentService.DeleteAlias";
     private static final String TRENT_SERVICE_SCHEDULE_KEY_DELETION = "TrentService.ScheduleKeyDeletion";
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
@@ -139,7 +140,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
         return new AwsKmsTestKekManager();
     }
 
-    class AwsKmsTestKekManager implements TestKekManager {
+    protected class AwsKmsTestKekManager implements TestKekManager {
         @Override
         public void generateKek(String alias) {
             Objects.requireNonNull(alias);
@@ -195,13 +196,13 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             sendRequestExpectingNoResponse(aliasRequest);
         }
 
-        private DescribeKeyResponse read(String alias) {
+        protected DescribeKeyResponse read(String alias) {
             final DescribeKeyRequest describeKey = new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + alias);
             var request = createRequest(describeKey, TRENT_SERVICE_DESCRIBE_KEY);
             return sendRequest(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF);
         }
 
-        private void rotate(String alias) {
+        protected void rotate(String alias) {
             // RotateKeyOnDemand is not implemented in localstack.
             // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
             // https://github.com/localstack/localstack/issues/10723
@@ -230,7 +231,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             sendRequestExpectingNoResponse(deleteAliasRequest);
         }
 
-        private HttpRequest createRequest(Object request, String target) {
+        protected HttpRequest createRequest(Object request, String target) {
             var body = getBody(request).getBytes(UTF_8);
 
             return AwsV4SigningHttpRequestBuilder.newBuilder(getAccessKey(), getSecretKey(), getRegion(), "kms", Instant.now())
@@ -241,7 +242,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
                     .build();
         }
 
-        private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
+        protected <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
             try {
                 HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
                 checkForError(key, request.uri(), response.statusCode(), response);
@@ -278,7 +279,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             }
         }
 
-        private void sendRequestExpectingNoResponse(HttpRequest request) {
+        protected void sendRequestExpectingNoResponse(HttpRequest request) {
             try {
                 var response = client.send(request, HttpResponse.BodyHandlers.discarding());
                 if (!isHttpSuccess(response.statusCode())) {

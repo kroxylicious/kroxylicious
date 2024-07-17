@@ -15,13 +15,6 @@ import io.kroxylicious.systemtests.Environment;
  */
 public interface AwsKmsClient {
     /**
-     * Gets aws cmd.
-     *
-     * @return the aws cmd
-     */
-    String getAwsCmd();
-
-    /**
      * Is available boolean.
      *
      * @return the boolean
@@ -34,11 +27,11 @@ public interface AwsKmsClient {
     void deploy();
 
     /**
-     * Gets aws url.
+     * Gets AWS KMS url.
      *
-     * @return the aws url
+     * @return the AWS KMS url
      */
-    URI getAwsUrl();
+    URI getAwsKmsUrl();
 
     /**
      * Gets region.
