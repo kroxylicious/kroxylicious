@@ -1,6 +1,9 @@
-:aws:  https://docs.aws.amazon.com/
+// file included in the following:
+//
+// assembly-aws-kms.adoc
 
-= AWS Key Management Service
+[id='con-aws-kms-service-config-{context}']
+= Configuring the AWS KMS
 
 For AWS KMS, the KMS configuration looks like this.
 

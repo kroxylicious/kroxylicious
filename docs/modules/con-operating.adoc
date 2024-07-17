@@ -1,5 +1,14 @@
-:start-script: https://github.com/kroxylicious/kroxylicious/blob/main/kroxylicious-app/src/assembly/kroxylicious-start.sh
+// file included in the following:
+//
+// index.adoc
+
+[id='con-operating-{context}']
 = Operating proxies
+
+[role="_abstract"]
+When operating proxies, introduce custom logging configurations with `log4j2` and set root log levels. 
+Set up an admin HTTP endpoint for Prometheus metrics scraping and integrate Micrometer for enhanced observability. 
+Configure common tags and standard binders for JVM and system metrics to ensure comprehensive monitoring and efficient proxy operation.
 
 == Logging
 
@@ -26,10 +35,6 @@ KROXYLICIOUS_ROOT_LOG_LEVEL="DEBUG"
 ----
 
 to configure the root log level (note this will be very verbose at DEBUG/TRACE)
-
-== Configuring TLS
-
-== Reconfiguration
 
 == Monitoring and observability
 

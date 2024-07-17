@@ -770,6 +770,9 @@
                                 <imagesdir>./images</imagesdir>
                                 <toc>left</toc>
                                 <icons>font</icons>
+                                <attribute>revnumber!</attribute>
+                                <attribute>revdate!</attribute>
+                                <attribute>revremark!</attribute>
                             </attributes>
                             <sourceDirectory>docs</sourceDirectory>
                             <sourceDocumentName>index.adoc</sourceDocumentName>

@@ -1,7 +1,11 @@
+// file included in the following:
+//
+// index.adoc
+
+[id='con-oauthbearer-{context}']
 = OAUTHBEARER validation
 
-== What is it?
-
+[role="_abstract"]
 OauthBearerValidation filter enables a validation on the JWT token received from client before forwarding it to cluster.
 
 If the token is not validated, then the request is short-circuited.

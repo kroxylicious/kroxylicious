@@ -1,0 +1,38 @@
+// AsciiDoc settings
+:data-uri!:
+:doctype: book
+:experimental:
+:idprefix:
+:imagesdir: images
+:numbered:
+:sectanchors!:
+:sectnums:
+:source-highlighter: highlight.js
+:toc: left
+:linkattrs:
+:toclevels: 2
+:icons: font
+
+//Latest version
+:ProductVersion: 0.6
+
+//Proxy links
+:github: https://github.com/kroxylicious/kroxylicious
+:api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-api/latest
+:kms-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-kms/latest
+:encryption-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-encryption
+:design-doc: https://github.com/kroxylicious/kroxylicious/blob/main/kroxylicious-filters/kroxylicious-encryption/doc/design.adoc
+:start-script: https://github.com/kroxylicious/kroxylicious/blob/main/kroxylicious-app/src/assembly/kroxylicious-start.sh
+
+//Kafka links
+:ApacheKafkaSite: https://kafka.apache.org[Apache Kafka web site^]
+:kafka-protocol: https://kafka.apache.org/protocol.html
+
+//java links
+:java-17-javadoc: https://docs.oracle.com/en/java/javase/17/docs/api
+
+//Vault links
+:hashicorp-vault: https://developer.hashicorp.com/vault
+
+//AWS links
+:aws:  https://docs.aws.amazon.com/

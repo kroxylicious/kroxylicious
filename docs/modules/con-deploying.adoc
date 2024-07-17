@@ -1,13 +1,19 @@
+// file included in the following:
+//
+// index.adoc
+
+[id='con-deploying-{context}']
 = Deploying proxies
 
-Topologies etc
+[role="_abstract"]
+A deployment of Kroxylicious proxies requires configuration of virtual clusters representing Kafka clusters.
+It is also recommended to enable TLS for secure connections.
 
 == Selecting plugins
-Put the filter jars in some directory
+Before configuring your virtual clusters, ensure that the necessary filter plugins are available. 
+Place the required filter JAR files in a designated directory accessible by Kroxylicious. 
 
-== Providing implementations for facades
-
-
+//== Providing implementations for facades
 
 == Configuring virtual clusters
 

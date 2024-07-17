@@ -1,0 +1,29 @@
+// file included in the following:
+//
+// index.adoc
+
+[id='assembly-record-encryption-filter-{context}']
+= Record Encryption filter
+
+[role="_abstract"]
+Streams for Apache Kafka Proxy's Record Encryption filter enhances the security of Kafka messages.
+The filter uses industry-standard cryptographic techniques to apply encryption to Kafka messages, ensuring the confidentiality of data stored in the Kafka Cluster.
+Streams for Apache Kafka Proxy centralizes topic-level encryption, ensuring streamlined encryption across Kafka clusters.
+
+There are three steps to using the filter:
+
+1. Setting up a Key Management System (KMS).
+2. Establishing the encryption keys within the KMS that will be used to encrypt the topics.
+3. Configuring the filter within Kroxylicious.
+
+The filter integrates with a Key Management Service (KMS), which has ultimate responsibility for the safe storage of key material.
+Currently, the filter integrates with HashiCorp Vault and AWS Key Management Service as its KMS, though further supported KMS integrations are planned.
+
+//overview of the record encryption process
+include::../modules/record-encryption/con-record-encryption-overview.adoc[leveloffset=+1]
+//setting up hashicorp vault
+include::assembly-hashicorp-vault.adoc[leveloffset=+1]
+//setting up AWS KMS
+include::assembly-aws-kms.adoc[leveloffset=+1]
+//configuring the record encryption filter
+include::../modules/record-encryption/proc-configuring-record-encryption-filter.adoc[leveloffset=+1]

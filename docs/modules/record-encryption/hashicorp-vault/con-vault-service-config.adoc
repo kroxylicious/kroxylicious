@@ -1,5 +1,9 @@
+// file included in the following:
+//
+// assembly-hashicorp-vault.adoc
 
-= HashiCorp Vault
+[id='con-vault-service-config-{context}']
+= Configuring the HashiCorp Vault KMS
 
 For HashiCorp Vault, the KMS configuration looks like this.  Use the Vault Token and Vault Transit Engine URL values that
 you gathered above.
