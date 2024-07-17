@@ -62,7 +62,7 @@ public class KubeVaultTestKmsFacade extends VaultTestKmsFacade {
     @NonNull
     @Override
     protected URI getVaultUrl() {
-        return URI.create("http://" + vault.getVaultUrl());
+        return vault.getVaultUrl();
     }
 
     /**

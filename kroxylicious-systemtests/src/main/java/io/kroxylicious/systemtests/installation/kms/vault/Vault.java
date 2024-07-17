@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.installation.kms.vault;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -15,12 +16,11 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.api.model.ServicePort;
-
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
@@ -123,13 +123,7 @@ public class Vault {
      *
      * @return the vault url.
      */
-    public String getVaultUrl() {
-        var nodeIP = kubeClient(deploymentNamespace).getClient().nodes().list().getItems().get(0).getStatus().getAddresses().get(0).getAddress();
-        var spec = kubeClient().getService(deploymentNamespace, VAULT_SERVICE_NAME).getSpec();
-        int port = spec.getPorts().stream().map(ServicePort::getNodePort).findFirst()
-                .orElseThrow(() -> new KubeClusterException("Unable to get the service port of Vault"));
-        String url = nodeIP + ":" + port;
-        LOGGER.debug("Vault URL: {}", url);
-        return url;
+    public URI getVaultUrl() {
+        return URI.create("http://" + DeploymentUtils.getNodePortServiceUrl(deploymentNamespace, VAULT_SERVICE_NAME));
     }
 }

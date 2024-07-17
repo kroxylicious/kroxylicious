@@ -20,11 +20,9 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.fabric8.kubernetes.api.model.ServicePort;
-
 import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
@@ -111,13 +109,7 @@ public class LocalStack implements AwsKmsClient {
 
     @Override
     public URI getAwsKmsUrl() {
-        var nodeIP = kubeClient(deploymentNamespace).getClient().nodes().list().getItems().get(0).getStatus().getAddresses().get(0).getAddress();
-        var spec = kubeClient().getService(deploymentNamespace, LOCALSTACK_SERVICE_NAME).getSpec();
-        int port = spec.getPorts().stream().map(ServicePort::getNodePort).findFirst()
-                .orElseThrow(() -> new KubeClusterException("Unable to get the service port of Aws"));
-        String url = nodeIP + ":" + port;
-        LOGGER.debug("AWS URL: {}", url);
-        return URI.create("http://" + url);
+        return URI.create("http://" + DeploymentUtils.getNodePortServiceUrl(deploymentNamespace, LOCALSTACK_SERVICE_NAME));
     }
 
     @Override

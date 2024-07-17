@@ -34,6 +34,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.ServicePort;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -276,5 +277,22 @@ public class DeploymentUtils {
         public void conditionEvaluated(EvaluatedCondition<PodStatus> condition) {
             // unused
         }
+    }
+
+    /**
+     * Gets node port service url.
+     *
+     * @param namespace the namespace
+     * @param serviceName the service name
+     * @return the node port service url
+     */
+    public static String getNodePortServiceUrl(String namespace, String serviceName) {
+        var nodeIP = kubeClient(namespace).getClient().nodes().list().getItems().get(0).getStatus().getAddresses().get(0).getAddress();
+        var spec = kubeClient().getService(namespace, serviceName).getSpec();
+        int port = spec.getPorts().stream().map(ServicePort::getNodePort).findFirst()
+                .orElseThrow(() -> new KubeClusterException("Unable to get the service port of " + serviceName));
+        String url = nodeIP + ":" + port;
+        LOGGER.debug("URL: {}", url);
+        return url;
     }
 }
