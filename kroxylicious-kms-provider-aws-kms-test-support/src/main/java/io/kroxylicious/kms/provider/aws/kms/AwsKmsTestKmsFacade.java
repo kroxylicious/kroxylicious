@@ -48,11 +48,11 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private static final Logger LOG = LoggerFactory.getLogger(AwsKmsTestKmsFacade.class);
     public static final DockerImageName LOCALSTACK_IMAGE = DockerImageName.parse("localstack/localstack:3.5");
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    public static final TypeReference<CreateKeyResponse> CREATE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<CreateKeyResponse> CREATE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
-    public static final TypeReference<DescribeKeyResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<DescribeKeyResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
-    public static final TypeReference<ScheduleKeyDeletionResponse> SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<ScheduleKeyDeletionResponse> SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<ErrorResponse> ERROR_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
