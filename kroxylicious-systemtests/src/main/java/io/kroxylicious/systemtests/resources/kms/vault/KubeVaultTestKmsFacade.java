@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 
+import io.kroxylicious.kms.provider.hashicorp.vault.AbstractVaultTestKmsFacade;
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultTestKmsFacade;
 import io.kroxylicious.systemtests.installation.kms.vault.Vault;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -22,7 +23,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * Uses command line interaction so to avoid the complication of exposing the Vault endpoint
  * to the test outside the cluster.
  */
-public class KubeVaultTestKmsFacade extends VaultTestKmsFacade {
+public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     private final Vault vault;
 
     /**
@@ -34,11 +35,6 @@ public class KubeVaultTestKmsFacade extends VaultTestKmsFacade {
     }
 
     @Override
-    public boolean isAvailable() {
-        return true;
-    }
-
-    @Override
     public void startVault() {
         vault.deploy();
         String installedVersion = getVaultVersion();
@@ -47,6 +43,11 @@ public class KubeVaultTestKmsFacade extends VaultTestKmsFacade {
             throw new KubeClusterException("Vault version installed " + installedVersion + " does not match with the expected: '"
                     + expectedVersion + "'");
         }
+    }
+
+    private boolean isCorrectVersionInstalled(String installedVersion, String expectedVersion) {
+        VersionComparator comparator = new VersionComparator(installedVersion);
+        return comparator.compareTo(expectedVersion) == 0;
     }
 
     @Override
@@ -72,10 +73,5 @@ public class KubeVaultTestKmsFacade extends VaultTestKmsFacade {
      */
     public String getVaultVersion() {
         return vault.getVersionInstalled();
-    }
-
-    private boolean isCorrectVersionInstalled(String installedVersion, String expectedVersion) {
-        VersionComparator comparator = new VersionComparator(installedVersion);
-        return comparator.compareTo(expectedVersion) == 0;
     }
 }
