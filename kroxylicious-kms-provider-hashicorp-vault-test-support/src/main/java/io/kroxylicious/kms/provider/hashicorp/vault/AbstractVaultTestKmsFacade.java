@@ -178,7 +178,8 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
 
         private void delete(String keyId) {
-            var update = createVaultPost((KEYS_PATH + "/config").formatted(encode(keyId, UTF_8)), HttpRequest.BodyPublishers.ofString(getBody(new UpdateKeyConfigRequest(true))));
+            var update = createVaultPost((KEYS_PATH + "/config").formatted(encode(keyId, UTF_8)),
+                    HttpRequest.BodyPublishers.ofString(getBody(new UpdateKeyConfigRequest(true))));
             sendRequest(keyId, update, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
 
             var delete = createVaultDelete(KEYS_PATH.formatted(encode(keyId, UTF_8)));
