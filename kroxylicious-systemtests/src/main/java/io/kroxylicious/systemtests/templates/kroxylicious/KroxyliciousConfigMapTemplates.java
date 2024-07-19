@@ -17,6 +17,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.resources.kms.Experimental;
 
 /**
  * The type Kroxylicious config templates.
@@ -60,12 +61,12 @@ public final class KroxyliciousConfigMapTemplates {
      * @param testKmsFacade the test kms facade
      * @return the config map builder
      */
-    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade, Experimental experimental) {
         return baseKroxyliciousConfig(namespaceName)
-                .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, testKmsFacade));
+                .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, testKmsFacade, experimental));
     }
 
-    private static String buildEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade) {
+    private static String buildEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade, Experimental experimental) {
         return """
                 - type: RecordEncryption
                   config:
@@ -76,9 +77,9 @@ public final class KroxyliciousConfigMapTemplates {
                     selectorConfig:
                       template: "KEK_${topicName}"
                     experimental:
-                      resolvedAliasExpireAfterWriteSeconds: 120
-                      resolvedAliasRefreshAfterWriteSeconds: 10
-                """.formatted(testKmsFacade.getKmsServiceClass().getSimpleName(), getNestedYaml(testKmsFacade.getKmsServiceConfig(), 6));
+                      %s
+                """.formatted(testKmsFacade.getKmsServiceClass().getSimpleName(), getNestedYaml(testKmsFacade.getKmsServiceConfig(), 6),
+                getNestedYaml(experimental, 4));
     }
 
     private static String getNestedYaml(Object config, int indent) {
@@ -94,8 +95,8 @@ public final class KroxyliciousConfigMapTemplates {
         return configYaml;
     }
 
-    private static String getRecordEncryptionConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade) {
-        String configYaml = buildEncryptionFilter(testKmsFacade);
+    private static String getRecordEncryptionConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade, Experimental experimental) {
+        String configYaml = buildEncryptionFilter(testKmsFacade, experimental);
 
         return """
                 adminHttp:

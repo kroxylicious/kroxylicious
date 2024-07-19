@@ -27,6 +27,7 @@ import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.resources.kms.Experimental;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
@@ -141,11 +142,12 @@ class RecordEncryptionST extends AbstractST {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
+        Experimental experimental = new Experimental(5, 5, 5, 5);
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade);
+        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade, experimental);
         bootstrap = kroxylicious.getBootstrap();
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();

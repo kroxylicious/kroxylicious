@@ -176,4 +176,12 @@ public interface Constants {
     String SCRAPER_LABEL_VALUE = "scraper";
     String SCRAPER_NAME = "Scraper";
     String DEPLOYMENT_TYPE_LABEL_KEY = "deployment-type";
+
+    /**
+     * Experimental Kroxylicious configuration
+     */
+    Integer DEFAULT_ALIAS_EXPIRATION_AFTER_SECONDS = 600;
+    Integer DEFAULT_ALIAS_REFRESH_AFTER_SECONDS = 600;
+    Integer DEFAULT_DEK_EXPIRATION_AFTER_SECONDS = 600;
+    Integer DEFAULT_DEK_REFRESH_AFTER_SECONDS = 600;
 }
