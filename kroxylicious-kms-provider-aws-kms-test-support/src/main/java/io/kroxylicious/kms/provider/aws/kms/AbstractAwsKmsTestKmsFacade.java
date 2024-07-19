@@ -276,6 +276,15 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             return statusCode >= 200 && statusCode < 300;
         }
 
+        private static <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
+            try {
+                return OBJECT_MAPPER.readValue(bytes, valueTypeRef);
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+
         private String getBody(Object obj) {
             try {
                 return OBJECT_MAPPER.writeValueAsString(obj);
@@ -283,15 +292,6 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             catch (JsonProcessingException e) {
                 throw new UncheckedIOException("Failed to create request body", e);
             }
-        }
-    }
-
-    private static <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
-        try {
-            return OBJECT_MAPPER.readValue(bytes, valueTypeRef);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
         }
     }
 }
