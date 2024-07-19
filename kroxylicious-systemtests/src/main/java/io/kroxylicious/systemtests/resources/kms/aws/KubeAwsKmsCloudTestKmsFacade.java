@@ -10,8 +10,6 @@ import java.net.URI;
 
 import io.kroxylicious.kms.provider.aws.kms.AwsKmsTestKmsFacade;
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
-import io.kroxylicious.kms.provider.aws.kms.model.RotateKeyRequest;
-import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.systemtests.installation.kms.aws.AwsKmsCloud;
 
@@ -80,21 +78,5 @@ public class KubeAwsKmsCloudTestKmsFacade extends AwsKmsTestKmsFacade {
 
     private String getKroxyliciousAccessKey() {
         return awsKmsCloud.getKroxyliciousAccessKey();
-    }
-
-    @Override
-    public TestKekManager getTestKekManager() {
-        return new AwsKmsCloudTestKekManager();
-    }
-
-    class AwsKmsCloudTestKekManager extends AwsKmsTestKmsFacade.AwsKmsTestKekManager {
-
-        @Override
-        protected void rotate(String alias) {
-            var key = read(alias);
-            final RotateKeyRequest rotateKey = new RotateKeyRequest(key.keyMetadata().keyId());
-            var rotateKeyRequest = createRequest(rotateKey, TRENT_SERVICE_ROTATE_KEY);
-            sendRequestExpectingNoResponse(rotateKeyRequest);
-        }
     }
 }

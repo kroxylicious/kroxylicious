@@ -33,6 +33,7 @@ import io.kroxylicious.kms.provider.aws.kms.model.DeleteAliasRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.ErrorResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.RotateKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.UpdateAliasRequest;
@@ -60,7 +61,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private static final String TRENT_SERVICE_CREATE_KEY = "TrentService.CreateKey";
     private static final String TRENT_SERVICE_CREATE_ALIAS = "TrentService.CreateAlias";
     private static final String TRENT_SERVICE_UPDATE_ALIAS = "TrentService.UpdateAlias";
-    protected static final String TRENT_SERVICE_ROTATE_KEY = "TrentService.RotateKeyOnDemand";
+    private static final String TRENT_SERVICE_ROTATE_KEY = "TrentService.RotateKeyOnDemand";
     private static final String TRENT_SERVICE_DELETE_ALIAS = "TrentService.DeleteAlias";
     private static final String TRENT_SERVICE_SCHEDULE_KEY_DELETION = "TrentService.ScheduleKeyDeletion";
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
@@ -140,7 +141,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
         return new AwsKmsTestKekManager();
     }
 
-    protected class AwsKmsTestKekManager implements TestKekManager {
+    class AwsKmsTestKekManager implements TestKekManager {
         @Override
         public void generateKek(String alias) {
             Objects.requireNonNull(alias);
@@ -187,7 +188,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
         }
 
         private void create(String alias) {
-            final CreateKeyRequest createKey = new CreateKeyRequest("key for alias : " + alias);
+            final CreateKeyRequest createKey = new CreateKeyRequest("key for alias: " + alias);
             var createRequest = createRequest(createKey, TRENT_SERVICE_CREATE_KEY);
             var createKeyResponse = sendRequest(alias, createRequest, CREATE_KEY_RESPONSE_TYPE_REF);
 
@@ -196,20 +197,36 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             sendRequestExpectingNoResponse(aliasRequest);
         }
 
-        protected DescribeKeyResponse read(String alias) {
+        private DescribeKeyResponse read(String alias) {
             final DescribeKeyRequest describeKey = new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + alias);
             var request = createRequest(describeKey, TRENT_SERVICE_DESCRIBE_KEY);
             return sendRequest(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF);
         }
 
-        protected void rotate(String alias) {
+        private void rotate(String alias) {
+            var key = read(alias);
+            final RotateKeyRequest rotateKey = new RotateKeyRequest(key.keyMetadata().keyId());
+            var rotateKeyRequest = createRequest(rotateKey, TRENT_SERVICE_ROTATE_KEY);
+            try {
+                sendRequestExpectingNoResponse(rotateKeyRequest);
+            }
+            catch (IllegalStateException e) {
+                if (e.getMessage().contains("501")) { // only when StatusCode = 501
+                    rotateInLocalStack(alias);
+                }
+                else {
+                    throw e;
+                }
+            }
+        }
+
+        private void rotateInLocalStack(String alias) {
             // RotateKeyOnDemand is not implemented in localstack.
             // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
             // https://github.com/localstack/localstack/issues/10723
 
-            // mimic a rotate by creating a new key and repoint the alias at it, leaving the original
-            // key in place.
-            final CreateKeyRequest request = new CreateKeyRequest("[rotated] key for alias : " + alias);
+            // mimic a rotate by creating a new key and repoint the alias at it, leaving the original key in place.
+            final CreateKeyRequest request = new CreateKeyRequest("[rotated] key for alias: " + alias);
             var keyRequest = createRequest(request, TRENT_SERVICE_CREATE_KEY);
             var createKeyResponse = sendRequest(alias, keyRequest, CREATE_KEY_RESPONSE_TYPE_REF);
 
@@ -231,7 +248,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             sendRequestExpectingNoResponse(deleteAliasRequest);
         }
 
-        protected HttpRequest createRequest(Object request, String target) {
+        private HttpRequest createRequest(Object request, String target) {
             var body = getBody(request).getBytes(UTF_8);
 
             return AwsV4SigningHttpRequestBuilder.newBuilder(getAccessKey(), getSecretKey(), getRegion(), "kms", Instant.now())
@@ -242,7 +259,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
                     .build();
         }
 
-        protected <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
+        private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
             try {
                 HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
                 checkForError(key, request.uri(), response.statusCode(), response);
@@ -256,7 +273,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             }
             catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new IllegalStateException("Interrupted during REST API call : %s".formatted(request.uri()), e);
+                throw new IllegalStateException("Interrupted during REST API call: %s".formatted(request.uri()), e);
             }
         }
 
@@ -279,11 +296,11 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             }
         }
 
-        protected void sendRequestExpectingNoResponse(HttpRequest request) {
+        private void sendRequestExpectingNoResponse(HttpRequest request) {
             try {
                 var response = client.send(request, HttpResponse.BodyHandlers.discarding());
                 if (!isHttpSuccess(response.statusCode())) {
-                    throw new IllegalStateException("Unexpected response : %d to request %s".formatted(response.statusCode(), request.uri()));
+                    throw new IllegalStateException("Unexpected response: %d to request %s".formatted(response.statusCode(), request.uri()));
                 }
             }
             catch (IOException e) {
@@ -308,5 +325,4 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
             }
         }
     }
-
 }
