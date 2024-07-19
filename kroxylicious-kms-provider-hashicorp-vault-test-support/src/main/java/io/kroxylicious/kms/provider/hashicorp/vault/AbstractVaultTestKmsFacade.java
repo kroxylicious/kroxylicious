@@ -39,6 +39,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
     };
     private static final TypeReference<CreateTokenResponse> VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF = new TypeReference<>() {
     };
+    private static final String KEYS_PATH = "v1/transit/keys/%s";
     protected static final String VAULT_ROOT_TOKEN = "rootToken";
     private String kmsVaultToken;
     private final HttpClient vaultClient = HttpClient.newHttpClient();
@@ -173,25 +174,25 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
 
         private VaultResponse.ReadKeyData create(String keyId) {
-            var request = createVaultPost("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)), HttpRequest.BodyPublishers.noBody());
+            var request = createVaultPost(KEYS_PATH.formatted(encode(keyId, UTF_8)), HttpRequest.BodyPublishers.noBody());
             return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
         }
 
         private void delete(String keyId) {
-            var update = createVaultPost("v1/transit/keys/%s/config".formatted(encode(keyId, UTF_8)), HttpRequest.BodyPublishers.ofString(getBody(new UpdateKeyConfigRequest(true))));
+            var update = createVaultPost((KEYS_PATH + "/config").formatted(encode(keyId, UTF_8)), HttpRequest.BodyPublishers.ofString(getBody(new UpdateKeyConfigRequest(true))));
             sendRequest(keyId, update, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
 
-            var delete = createVaultDelete("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)));
+            var delete = createVaultDelete(KEYS_PATH.formatted(encode(keyId, UTF_8)));
             sendRequestExpectingNoContentResponse(delete);
         }
 
         private VaultResponse.ReadKeyData read(String keyId) {
-            var request = createVaultGet("v1/transit/keys/%s".formatted(encode(keyId, UTF_8)));
+            var request = createVaultGet(KEYS_PATH.formatted(encode(keyId, UTF_8)));
             return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
         }
 
         private VaultResponse.ReadKeyData rotate(String keyId) {
-            var request = createVaultPost("v1/transit/keys/%s/rotate".formatted(encode(keyId, UTF_8)), HttpRequest.BodyPublishers.noBody());
+            var request = createVaultPost((KEYS_PATH + "/rotate").formatted(encode(keyId, UTF_8)), HttpRequest.BodyPublishers.noBody());
             return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
         }
 
@@ -211,7 +212,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
                 .build();
     }
 
-    HttpRequest createVaultPost(String path, HttpRequest.BodyPublisher bodyPublisher) {
+    private HttpRequest createVaultPost(String path, HttpRequest.BodyPublisher bodyPublisher) {
         URI resolve = getVaultUrl().resolve(path);
         return createVaultRequest()
                 .uri(resolve)
@@ -224,7 +225,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
                 .header("Accept", "application/json");
     }
 
-    <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
+    private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
         try {
             HttpResponse<byte[]> response = vaultClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
             if (response.statusCode() == 404) {
@@ -249,7 +250,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
-    void sendRequestExpectingNoContentResponse(HttpRequest request) {
+    private void sendRequestExpectingNoContentResponse(HttpRequest request) {
         try {
             var response = vaultClient.send(request, HttpResponse.BodyHandlers.discarding());
             if (response.statusCode() != 204) {
@@ -265,7 +266,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
-    String getBody(Object obj) {
+    private String getBody(Object obj) {
         try {
             return OBJECT_MAPPER.writeValueAsString(obj);
         }
