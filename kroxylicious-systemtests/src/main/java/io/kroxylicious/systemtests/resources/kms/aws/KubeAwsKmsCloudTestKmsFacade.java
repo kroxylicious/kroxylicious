@@ -8,7 +8,7 @@ package io.kroxylicious.systemtests.resources.kms.aws;
 
 import java.net.URI;
 
-import io.kroxylicious.kms.provider.aws.kms.AwsKmsTestKmsFacade;
+import io.kroxylicious.kms.provider.aws.kms.AbstractAwsKmsTestKmsFacade;
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.systemtests.installation.kms.aws.AwsKmsCloud;
@@ -20,7 +20,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * Uses command line interaction so to avoid the complication of exposing the AWS Cloud endpoint
  * to the test outside the cluster.
  */
-public class KubeAwsKmsCloudTestKmsFacade extends AwsKmsTestKmsFacade {
+public class KubeAwsKmsCloudTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private final AwsKmsCloud awsKmsCloud;
 
     /**

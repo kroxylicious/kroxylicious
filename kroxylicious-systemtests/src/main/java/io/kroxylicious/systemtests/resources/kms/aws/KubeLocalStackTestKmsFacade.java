@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.resources.kms.aws;
 
 import java.net.URI;
 
+import io.kroxylicious.kms.provider.aws.kms.AbstractAwsKmsTestKmsFacade;
 import io.kroxylicious.kms.provider.aws.kms.AwsKmsTestKmsFacade;
 import io.kroxylicious.systemtests.installation.kms.aws.LocalStack;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -20,7 +21,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * Uses command line interaction so to avoid the complication of exposing the AWS Local endpoint
  * to the test outside the cluster.
  */
-public class KubeLocalStackTestKmsFacade extends AwsKmsTestKmsFacade {
+public class KubeLocalStackTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private final LocalStack localStack;
 
     /**
