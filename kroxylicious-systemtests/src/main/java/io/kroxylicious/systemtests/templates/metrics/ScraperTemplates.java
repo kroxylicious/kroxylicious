@@ -9,12 +9,12 @@ package io.kroxylicious.systemtests.templates.metrics;
 import java.util.HashMap;
 import java.util.Map;
 
-import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.templates.ContainerTemplates;
 
 public class ScraperTemplates {
 
@@ -48,12 +48,9 @@ public class ScraperTemplates {
                 .endMetadata()
                 .withNewSpec()
                 .withContainers(
-                        new ContainerBuilder()
-                                .withName(podName)
-                                .withImage(scraperImage)
+                        ContainerTemplates.baseImageBuilder(podName, scraperImage)
                                 .withCommand("sleep")
                                 .withArgs("infinity")
-                                .withImagePullPolicy("IfNotPresent")
                                 .build())
                 .withImagePullSecrets(new LocalObjectReferenceBuilder()
                         .withName("regcred")
