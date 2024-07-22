@@ -68,6 +68,11 @@
             <artifactId>junit-jupiter-api</artifactId>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- third party dependencies - runtime and compile -->
         <dependency>
             <groupId>org.slf4j</groupId>

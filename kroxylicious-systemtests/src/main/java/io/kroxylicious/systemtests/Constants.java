@@ -159,12 +159,13 @@ public interface Constants {
      */
     String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
     /**
-     * Image pull if not present.
+     * Image pull policies
      */
     String PULL_IMAGE_IF_NOT_PRESENT = "IfNotPresent";
+    String PULL_IMAGE_ALWAYS = "Always";
 
     /**
-     * Restart policy
+     * Restart policies
      */
     String RESTART_POLICY_ONFAILURE = "OnFailure";
     String RESTART_POLICY_NEVER = "Never";
