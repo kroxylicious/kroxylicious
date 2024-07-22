@@ -79,7 +79,7 @@ public final class KroxyliciousConfigMapTemplates {
                     experimental:
                       %s
                 """.formatted(testKmsFacade.getKmsServiceClass().getSimpleName(), getNestedYaml(testKmsFacade.getKmsServiceConfig(), 6),
-                getNestedYaml(experimental, 4));
+                getNestedYaml(experimental, 6));
     }
 
     private static String getNestedYaml(Object config, int indent) {

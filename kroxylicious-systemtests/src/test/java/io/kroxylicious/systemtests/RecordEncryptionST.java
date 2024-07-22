@@ -187,6 +187,6 @@ class RecordEncryptionST extends AbstractST {
                 resultEncrypted.stream().findFirst().get().getValue()) * 100;
 
         LOGGER.atInfo().setMessage("Equality: {}%").addArgument(per).log();
-        assertThat(per).isBetween(90D, 100D);
+        assertThat(per).isBetween(0D, 75D);
     }
 }
