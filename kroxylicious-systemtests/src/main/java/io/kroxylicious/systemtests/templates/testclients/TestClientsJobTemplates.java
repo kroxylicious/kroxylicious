@@ -10,12 +10,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.templates.ContainerTemplates;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -75,10 +75,7 @@ public class TestClientsJobTemplates {
                 .editSpec()
                 .editTemplate()
                 .editSpec()
-                .withContainers(new ContainerBuilder()
-                        .withName("admin")
-                        .withImage(Constants.TEST_CLIENTS_IMAGE)
-                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                .withContainers(ContainerTemplates.baseImageBuilder("admin", Constants.TEST_CLIENTS_IMAGE)
                         .withCommand("admin-client")
                         .withArgs(args)
                         .build())
@@ -111,10 +108,7 @@ public class TestClientsJobTemplates {
                 .editSpec()
                 .editTemplate()
                 .editSpec()
-                .withContainers(new ContainerBuilder()
-                        .withName(containerName)
-                        .withImage(image)
-                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                .withContainers(ContainerTemplates.baseImageBuilder(containerName, image)
                         .withEnv(envVars)
                         .build())
                 .endSpec()
@@ -150,10 +144,7 @@ public class TestClientsJobTemplates {
                 .editSpec()
                 .editTemplate()
                 .editSpec()
-                .withContainers(new ContainerBuilder()
-                        .withName("kcat")
-                        .withImage(Constants.KCAT_CLIENT_IMAGE)
-                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                .withContainers(ContainerTemplates.baseImageBuilder("kcat", Constants.KCAT_CLIENT_IMAGE)
                         .withArgs(args)
                         .build())
                 .endSpec()
@@ -175,10 +166,7 @@ public class TestClientsJobTemplates {
                 .editTemplate()
                 .editSpec()
                 .withRestartPolicy(Constants.RESTART_POLICY_ONFAILURE)
-                .withContainers(new ContainerBuilder()
-                        .withName("kafka-go-consumer")
-                        .withImage(Constants.KAF_CLIENT_IMAGE)
-                        .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                .withContainers(ContainerTemplates.baseImageBuilder("kafka-go-consumer", Constants.KAF_CLIENT_IMAGE)
                         .withArgs(args)
                         .build())
                 .endSpec()

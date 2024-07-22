@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
@@ -19,6 +18,7 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.templates.ContainerTemplates;
 
 /**
  * The type Kroxylicious deployment templates.
@@ -55,10 +55,7 @@ public class KroxyliciousDeploymentTemplates {
                 .withLabels(kroxyLabelSelector)
                 .endMetadata()
                 .withNewSpec()
-                .withContainers(new ContainerBuilder()
-                        .withName("kroxylicious")
-                        .withImage(containerImage)
-                        .withImagePullPolicy("Always")
+                .withContainers(ContainerTemplates.baseImageBuilder("kroxylicious", containerImage)
                         .withArgs("--config", "/opt/kroxylicious/config/config.yaml")
                         .withPorts(getPlainContainerPortList())
                         .withVolumeMounts(getPlainVolumeMountList())
