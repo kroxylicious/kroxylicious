@@ -31,7 +31,6 @@ import io.kroxylicious.kms.provider.aws.kms.model.RotateKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.UpdateAliasRequest;
-import io.kroxylicious.kms.service.AwsNotImplementException;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -241,6 +240,9 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
             var httpSuccess = isHttpSuccess(statusCode);
             if (!httpSuccess) {
+                if (statusCode == 501) {
+                    throw new AwsNotImplementException("AWS do not implement %s".formatted(uri));
+                }
                 try {
                     error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
                 }
@@ -250,7 +252,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
                 if (error != null && error.isNotFound()) {
                     throw new UnknownAliasException(key);
                 }
-                throw new UnsupportedRequestException("unexpected response %s (AWS error: %s) for request: %s".formatted(response.statusCode(), error, uri));
+                throw new IllegalStateException("unexpected response %s (AWS error: %s) for request: %s".formatted(response.statusCode(), error, uri));
             }
         }
 
