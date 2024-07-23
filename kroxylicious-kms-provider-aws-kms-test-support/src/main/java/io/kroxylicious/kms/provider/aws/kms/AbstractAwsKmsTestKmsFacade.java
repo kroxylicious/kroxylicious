@@ -173,11 +173,11 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
                 sendRequestExpectingNoResponse(rotateKeyRequest);
             }
             catch (AwsNotImplementException e) {
-                mimicRotateInLocalStack(alias);
+                pseudoRotate(alias);
             }
         }
 
-        private void mimicRotateInLocalStack(String alias) {
+        private void pseudoRotate(String alias) {
             // RotateKeyOnDemand is not implemented in localstack.
             // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
             // https://github.com/localstack/localstack/issues/10723
