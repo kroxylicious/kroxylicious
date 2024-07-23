@@ -17,8 +17,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * KMS Facade for AWS Kms Cloud.
- * Uses command line interaction so to avoid the complication of exposing the AWS Cloud endpoint
- * to the test outside the cluster.
  */
 public class KubeAwsKmsCloudTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private final AwsKmsCloud awsKmsCloud;

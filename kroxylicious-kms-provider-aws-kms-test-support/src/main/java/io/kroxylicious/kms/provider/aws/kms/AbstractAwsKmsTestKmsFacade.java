@@ -31,6 +31,7 @@ import io.kroxylicious.kms.provider.aws.kms.model.RotateKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.UpdateAliasRequest;
+import io.kroxylicious.kms.service.AwsNotImplementException;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -171,13 +172,8 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             try {
                 sendRequestExpectingNoResponse(rotateKeyRequest);
             }
-            catch (IllegalStateException e) {
-                if (e.getMessage().contains("501")) { // only when StatusCode = 501
-                    mimicRotateInLocalStack(alias);
-                }
-                else {
-                    throw e;
-                }
+            catch (AwsNotImplementException e) {
+                mimicRotateInLocalStack(alias);
             }
         }
 
@@ -261,6 +257,9 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             try {
                 var response = client.send(request, HttpResponse.BodyHandlers.discarding());
                 if (!isHttpSuccess(response.statusCode())) {
+                    if (response.statusCode() == 501) {
+                        throw new AwsNotImplementException("AWS do not implement %s".formatted(request.uri()));
+                    }
                     throw new IllegalStateException("Unexpected response: %d to request %s".formatted(response.statusCode(), request.uri()));
                 }
             }

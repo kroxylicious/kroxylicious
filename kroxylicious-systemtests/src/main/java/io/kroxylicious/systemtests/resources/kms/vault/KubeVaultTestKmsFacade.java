@@ -20,8 +20,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * KMS Facade for Vault running inside Kube.
- * Uses command line interaction so to avoid the complication of exposing the Vault endpoint
- * to the test outside the cluster.
  */
 public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     private final Vault vault;

@@ -18,14 +18,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * KMS Facade for AWS Kms running inside Kube (localstack).
- * Uses command line interaction so to avoid the complication of exposing the AWS Local endpoint
- * to the test outside the cluster.
  */
 public class KubeLocalStackTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private final LocalStack localStack;
 
     /**
-     * Instantiates a new Kube AWS Kms test kms facade.
+     * Instantiates a new Kube LocalStack test kms facade.
      *
      */
     public KubeLocalStackTestKmsFacade() {
@@ -60,9 +58,9 @@ public class KubeLocalStackTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     }
 
     /**
-     * Gets vault version.
+     * Gets LocalStack version.
      *
-     * @return the vault version
+     * @return the LocalStack version
      */
     public String getLocalStackVersion() {
         return localStack.getLocalStackVersionInstalled();
