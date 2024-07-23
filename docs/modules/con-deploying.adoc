@@ -254,7 +254,7 @@ upstream, or vice-versa.
 
 NOTE: TLS is recommended for both upstream and downstream for production configurations.
 
-=== Downstream TLS
+==== Downstream TLS
 
 Here's how to enable TLS for the downstream side. This means the Kafka Client will connect to the virtual cluster over
 TLS rather than clear text.  For this, you will need to obtain a TLS certificate for the virtual cluster from your
@@ -314,7 +314,7 @@ For https://datatracker.ietf.org/doc/html/rfc8017[PKCS-1 keys], https://www.boun
 must be added to the Kroxylicious classpath.See https://github.com/netty/netty/issues/7323 for more details.
 
 [#_upstream_tls]
-=== Upstream TLS
+==== Upstream TLS
 
 Here's how to enable TLS for the upstream side.This means that Kroxylicious connects to the (physical) Kafka Cluster)
 over TLS.For this, your Kafka Cluster must have already been configured to use TLS.
@@ -395,6 +395,3 @@ virtualClusters:
 
 YAML
 Proxy level configuration
-
-== Configuring proxy plugins
-Filter level configuration

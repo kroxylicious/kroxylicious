@@ -3,7 +3,7 @@
 // assembly-record-encryption-filter.adoc
 
 [id='con-topic-encryption-overview-{context}']
-= Encryption process
+= How encryption works
 
 [role="_abstract"]
 The Record Encryption filter uses envelope encryption to encrypt records with symmetric encryption keys. 
@@ -62,10 +62,10 @@ To support the filter, the KMS provides the following:
 KEKs stay within the KMS.
 The KMS generates a DEK (which is securely generated random data) for a given KEK, then returns the DEK and an encrypted DEK.
 The encrypted DEK has the same data but encrypted with the KEK.
-The KMS doesn't store DEKs; they are stored as part of the cipher record in the broker.
+The KMS doesn't store encrypted DEKs; they are stored as part of the cipher record in the broker.
 
-WARNING: The KMS must be available during runtime.
-If the KMS is unavailable, production and consumption through the filter become impossible until KMS service is restored.
+WARNING: The KMS must be available during runtime. 
+If the KMS is unavailable, the filter will not be able to obtain new encrypted DEKs on the produce path or decrypt encrypted DEKs on the consume path. The filter will continue to use previously obtained DEKs, but eventually, production and consumption will become impossible. 
 It is recommended to use the KMS in a high availability (HA) configuration.
 
 == Practicing key rotation
