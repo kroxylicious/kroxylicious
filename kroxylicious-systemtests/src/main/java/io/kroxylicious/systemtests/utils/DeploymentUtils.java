@@ -287,12 +287,17 @@ public class DeploymentUtils {
      * @return the node port service url
      */
     public static String getNodePortServiceUrl(String namespace, String serviceName) {
-        var nodeIP = kubeClient(namespace).getClient().nodes().list().getItems().get(0).getStatus().getAddresses().get(0).getAddress();
+        var nodes = kubeClient(namespace).getClient().nodes().list().getItems();
+        var nodeIP = nodes.stream().findFirst()
+                .map(Node::getStatus)
+                .map(NodeStatus::getAddresses)
+                .stream().findFirst()
+                .orElseThrow(() -> new KubeClusterException("Unable to get IP of the first node from " + nodes));
         var spec = kubeClient().getService(namespace, serviceName).getSpec();
         int port = spec.getPorts().stream().map(ServicePort::getNodePort).findFirst()
                 .orElseThrow(() -> new KubeClusterException("Unable to get the service port of " + serviceName));
         String url = nodeIP + ":" + port;
-        LOGGER.debug("URL: {}", url);
+        LOGGER.debug("Deduced nodeport address for service: {} as: {}", service, url);
         return url;
     }
 }

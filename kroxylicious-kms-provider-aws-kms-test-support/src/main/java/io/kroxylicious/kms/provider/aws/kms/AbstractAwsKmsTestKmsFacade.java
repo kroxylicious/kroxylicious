@@ -97,7 +97,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
     }
 
     @Override
-    public TestKekManager getTestKekManager() {
+    public final TestKekManager getTestKekManager() {
         return new AwsKmsTestKekManager();
     }
 
@@ -180,7 +180,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             }
         }
 
-        private void rotateInLocalStack(String alias) {
+        private void mimicRotateInLocalStack(String alias) {
             // RotateKeyOnDemand is not implemented in localstack.
             // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
             // https://github.com/localstack/localstack/issues/10723
