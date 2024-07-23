@@ -124,6 +124,6 @@ public class Vault {
      * @return the vault url.
      */
     public URI getVaultUrl() {
-        return URI.create("http://" + DeploymentUtils.getNodePortServiceUrl(deploymentNamespace, VAULT_SERVICE_NAME));
+        return URI.create("http://" + DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, VAULT_SERVICE_NAME));
     }
 }

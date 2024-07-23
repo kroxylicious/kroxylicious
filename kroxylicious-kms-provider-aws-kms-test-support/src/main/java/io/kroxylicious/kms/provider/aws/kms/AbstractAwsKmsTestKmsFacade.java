@@ -43,6 +43,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Config, String, AwsKmsEdek> {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final int MINIMUM_ALLOWED_EXPIRY_DAYS = 7;
     private static final TypeReference<CreateKeyResponse> CREATE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<DescribeKeyResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
@@ -172,7 +173,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             }
             catch (IllegalStateException e) {
                 if (e.getMessage().contains("501")) { // only when StatusCode = 501
-                    rotateInLocalStack(alias);
+                    mimicRotateInLocalStack(alias);
                 }
                 else {
                     throw e;
@@ -198,7 +199,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         private void delete(String alias) {
             var key = read(alias);
             var keyId = key.keyMetadata().keyId();
-            final ScheduleKeyDeletionRequest request = new ScheduleKeyDeletionRequest(keyId, 7 /* Minimum allowed */);
+            final ScheduleKeyDeletionRequest request = new ScheduleKeyDeletionRequest(keyId, MINIMUM_ALLOWED_EXPIRY_DAYS);
             var scheduleDeleteRequest = createRequest(request, TRENT_SERVICE_SCHEDULE_KEY_DELETION);
 
             sendRequest(keyId, scheduleDeleteRequest, SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF);

@@ -28,6 +28,9 @@ import org.awaitility.core.TimeoutEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.NodeAddress;
+import io.fabric8.kubernetes.api.model.NodeStatus;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -280,24 +283,26 @@ public class DeploymentUtils {
     }
 
     /**
-     * Gets node port service url.
+     * Gets node port service address.
      *
      * @param namespace the namespace
      * @param serviceName the service name
-     * @return the node port service url
+     * @return the node port service address
      */
-    public static String getNodePortServiceUrl(String namespace, String serviceName) {
+    public static String getNodePortServiceAddress(String namespace, String serviceName) {
         var nodes = kubeClient(namespace).getClient().nodes().list().getItems();
-        var nodeIP = nodes.stream().findFirst()
+        var nodeAddresses = nodes.stream().findFirst()
                 .map(Node::getStatus)
                 .map(NodeStatus::getAddresses)
                 .stream().findFirst()
                 .orElseThrow(() -> new KubeClusterException("Unable to get IP of the first node from " + nodes));
+        var nodeIP = nodeAddresses.stream().map(NodeAddress::getAddress).findFirst()
+                .orElseThrow(() -> new KubeClusterException("Unable to get address of the first node address from " + nodeAddresses));
         var spec = kubeClient().getService(namespace, serviceName).getSpec();
         int port = spec.getPorts().stream().map(ServicePort::getNodePort).findFirst()
                 .orElseThrow(() -> new KubeClusterException("Unable to get the service port of " + serviceName));
-        String url = nodeIP + ":" + port;
-        LOGGER.debug("Deduced nodeport address for service: {} as: {}", service, url);
-        return url;
+        String address = nodeIP + ":" + port;
+        LOGGER.debug("Deduced nodeport address for service: {} as: {}", serviceName, address);
+        return address;
     }
 }

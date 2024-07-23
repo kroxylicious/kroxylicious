@@ -109,7 +109,7 @@ public class LocalStack implements AwsKmsClient {
 
     @Override
     public URI getAwsKmsUrl() {
-        return URI.create("http://" + DeploymentUtils.getNodePortServiceUrl(deploymentNamespace, LOCALSTACK_SERVICE_NAME));
+        return URI.create("http://" + DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, LOCALSTACK_SERVICE_NAME));
     }
 
     @Override
