@@ -9,27 +9,18 @@ package io.kroxylicious.systemtests.installation.kms.aws;
 import java.net.URI;
 
 import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.executor.Exec;
-import io.kroxylicious.systemtests.executor.ExecResult;
 
 /**
  * The type Aws kms cloud.
  */
 public class AwsKmsCloud implements AwsKmsClient {
-    private static final String AWS_CMD = "aws";
-    private String region;
 
     /**
      * Instantiates a new Aws.
      *
      */
     public AwsKmsCloud() {
-        // nothing to initialize
-    }
-
-    @Override
-    public String getAwsCmd() {
-        return AWS_CMD;
+        // nothing to do
     }
 
     @Override
@@ -48,20 +39,12 @@ public class AwsKmsCloud implements AwsKmsClient {
     }
 
     @Override
-    public URI getAwsUrl() {
+    public URI getAwsKmsUrl() {
         return URI.create("https://kms." + getRegion() + ".amazonaws.com");
     }
 
     @Override
     public String getRegion() {
-        if (region == null) {
-            ExecResult execResult = Exec.exec(AWS_CMD, "configure", "get", "region");
-            if (!execResult.isSuccess()) {
-                throw new UnknownError(execResult.err());
-            }
-            region = execResult.out().trim();
-        }
-
-        return region;
+        return Environment.AWS_REGION;
     }
 }

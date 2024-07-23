@@ -8,4 +8,4 @@
 enableStartupScripts: true
 startupScriptContent: |
   #!/bin/bash
-  awslocal configure set region us-east-1
+  awslocal configure set region us-east-2
