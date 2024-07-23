@@ -66,6 +66,7 @@ class RecordEncryptionST extends AbstractST {
     @AfterEach
     void afterEach(String namespace) {
         try {
+            LOGGER.atInfo().log("Deleting KEK...");
             testKekManager.deleteKek("KEK_" + topicName);
         }
         catch (KubeClusterException e) {

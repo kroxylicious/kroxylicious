@@ -21,7 +21,7 @@
         <java.test.version>17</java.test.version>
         <maven.exec.version>3.1.0</maven.exec.version>
         <maven.compiler.version>3.10.1</maven.compiler.version>
-        <maven-dependency-plugin.version>3.7.0</maven-dependency-plugin.version>
+        <maven-dependency-plugin.version>3.7.1</maven-dependency-plugin.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
@@ -45,7 +45,7 @@
         <log4j.version>2.23.1</log4j.version>
         <caffeine.version>3.1.8</caffeine.version>
         <picocli.version>4.7.6</picocli.version>
-        <netty.version>4.1.111.Final</netty.version>
+        <netty.version>4.1.112.Final</netty.version>
         <netty.io_uring.version>0.0.25.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
@@ -55,7 +55,7 @@
         <micrometer.version>1.13.2</micrometer.version>
         <slf4j.version>2.0.13</slf4j.version>
         <sundr-builder-annotations.version>0.200.0</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.8.5</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.8.6</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
@@ -450,7 +450,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.7.0</version>
+                    <version>3.8.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -656,7 +656,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.3.1</version>
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
                         <failIfNoTests>false</failIfNoTests>
