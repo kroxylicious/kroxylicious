@@ -35,7 +35,6 @@ import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.UnknownAliasException;
-import io.kroxylicious.kms.service.UnsupportedRequestException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -263,7 +262,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
                     if (response.statusCode() == 501) {
                         throw new AwsNotImplementException("AWS do not implement %s".formatted(request.uri()));
                     }
-                    throw new UnsupportedRequestException("Unexpected response: %d to request %s".formatted(response.statusCode(), request.uri()));
+                    throw new IllegalStateException("Unexpected response: %d to request %s".formatted(response.statusCode(), request.uri()));
                 }
             }
             catch (IOException e) {
