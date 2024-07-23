@@ -290,7 +290,7 @@ public class DeploymentUtils {
      * @return the node port service address
      */
     public static String getNodePortServiceAddress(String namespace, String serviceName) {
-        var nodes = kubeClient(namespace).getClient().nodes().list().getItems();
+        var nodes = kubeClient().getClient().nodes().list().getItems();
         var nodeAddresses = nodes.stream().findFirst()
                 .map(Node::getStatus)
                 .map(NodeStatus::getAddresses)
