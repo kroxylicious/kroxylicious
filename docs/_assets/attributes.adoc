@@ -27,7 +27,7 @@
 :start-script: https://github.com/kroxylicious/kroxylicious/blob/{tag}/kroxylicious-app/src/assembly/kroxylicious-start.sh
 
 //Kafka links
-:ApacheKafkaSite: https://kafka.apache.org[Apache Kafka web site^]
+:ApacheKafkaSite: https://kafka.apache.org[Apache Kafka website^]
 :kafka-protocol: https://kafka.apache.org/protocol.html
 
 //java links

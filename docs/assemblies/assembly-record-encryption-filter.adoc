@@ -6,9 +6,9 @@
 = Record Encryption filter
 
 [role="_abstract"]
-Streams for Apache Kafka Proxy's Record Encryption filter enhances the security of Kafka messages.
+Kroxylicious's Record Encryption filter enhances the security of Kafka messages.
 The filter uses industry-standard cryptographic techniques to apply encryption to Kafka messages, ensuring the confidentiality of data stored in the Kafka Cluster.
-Streams for Apache Kafka Proxy centralizes topic-level encryption, ensuring streamlined encryption across Kafka clusters.
+Kroxylicious centralizes topic-level encryption, ensuring streamlined encryption across Kafka clusters.
 
 There are three steps to using the filter:
 
@@ -18,7 +18,7 @@ There are three steps to using the filter:
 
 The filter integrates with a Key Management Service (KMS), which has ultimate responsibility for the safe storage of sensitive key material.
 The filter relies on a KMS implementation. 
-Currently, it supports using HashiCorp Vault or AWS Key Management Service. 
+Currently, Kroxylicious integrates with either HashiCorp Vault or AWS Key Management Service. 
 You can provide implementations for your specific KMS systems. 
 Additional KMS support will be added based on demand.
 
