@@ -7,7 +7,7 @@
 
 [role="_abstract"]
 Custom filters can be written in the Java programming language.
-Knowledge of the https://kafka.apache.org/protocol.html[Kafka protocol] is generally required to write a protocol filter.
+Knowledge of the https://kafka.apache.org/protocol.html[Kafka protocol^] is generally required to write a protocol filter.
 
 There is currently one class of Custom Filters users can implement:
 
@@ -23,9 +23,9 @@ You can find them {github}/tree/main/kroxylicious-sample[here] for a hands-on in
 == API docs
 
 Custom Protocol Filters are built by implementing interfaces supplied by the
-{github}/tree/main/api/kroxylicious-api[kroxylicious-api] module
+{github}/tree/main/api/kroxylicious-api[kroxylicious-api^] module
 (https://mvnrepository.com/artifact/io.kroxylicious/kroxylicious-api[io.kroxylicious:kroxylicious-api] on
-maven central). You can view the javadoc {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html[here].
+maven central). You can view the javadoc {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html[here^].
 
 == Dependencies
 
@@ -68,7 +68,7 @@ intercept only the request, or only the response, or both the request and respon
 ==== Examples
 
 To intercept all Fetch Requests your class would implement
-{api-javadoc}/io/kroxylicious/proxy/filter/FetchRequestFilter.html[FetchRequestFilter]:
+{api-javadoc}/io/kroxylicious/proxy/filter/FetchRequestFilter.html[FetchRequestFilter^]:
 
 [source,java]
 ----
@@ -86,7 +86,7 @@ public class FetchRequestClientIdFilter implements FetchRequestFilter {
 ----
 
 To intercept all Fetch Responses your class would implement
-{api-javadoc}/io/kroxylicious/proxy/filter/FetchResponseFilter.html[FetchResponseFilter]:
+{api-javadoc}/io/kroxylicious/proxy/filter/FetchResponseFilter.html[FetchResponseFilter^]:
 
 [source,java]
 ----
@@ -104,8 +104,8 @@ public class FetchRequestClientIdFilter implements FetchResponseFilter {
 ----
 
 To intercept all Fetch Requests and all Fetch Responses your class would implement
-{api-javadoc}/io/kroxylicious/proxy/filter/FetchRequestFilter.html[FetchRequestFilter] and
-{api-javadoc}/io/kroxylicious/proxy/filter/FetchResponseFilter.html[FetchResponseFilter]:
+{api-javadoc}/io/kroxylicious/proxy/filter/FetchRequestFilter.html[FetchRequestFilter^] and
+{api-javadoc}/io/kroxylicious/proxy/filter/FetchResponseFilter.html[FetchResponseFilter^]:
 
 [source,java]
 ----
@@ -138,9 +138,9 @@ Kroxylicious will reject invalid combinations of interfaces.
 A filter may wish to intercept every message being sent from the Client to the Cluster or from the Cluster
 to the Client. To do this your custom filter will implement:
 
-- {api-javadoc}/io/kroxylicious/proxy/filter/RequestFilter.html[RequestFilter]
+- {api-javadoc}/io/kroxylicious/proxy/filter/RequestFilter.html[RequestFilter^]
 to intercept all requests.
-- {api-javadoc}/io/kroxylicious/proxy/filter/ResponseFilter.html[ResponseFilter]
+- {api-javadoc}/io/kroxylicious/proxy/filter/ResponseFilter.html[ResponseFilter^]
 to intercept all responses.
 
 Custom filters are free to implement either interface or both interfaces to intercept all messages.
@@ -242,7 +242,7 @@ The proxy guarantees that all methods of a given filter instance will always be 
 the CompletionStage completion in the case of <<Sending asynchronous requests to the Cluster>>).
 Therefore, there is no need to use synchronization when accessing such fields.
 
-See the {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html#implementing.threadSafety[`io.kroxylicious.proxy.filter`]
+See the {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html#implementing.threadSafety[`io.kroxylicious.proxy.filter`^]
 package javadoc for more information on thread-safety.
 
 === Filter Patterns
@@ -371,7 +371,7 @@ after the response is sent to the client.
 Filters can make additional asynchronous requests to the Cluster.  This is useful if the Filter needs additional
 information from the Cluster in order to know how to mutate the filtered request/response.
 
-The Filter can make use of {java-17-javadoc}/java.base/java/util/concurrent/CompletionStage.html[CompletionStage]
+The Filter can make use of {java-17-javadoc}/java.base/java/util/concurrent/CompletionStage.html[CompletionStage^]
 chaining features ([`#thenApply()` etc.) to organise for actions to be done once the asynchronous request completes.
 For example, it could chain an action that mutates the filtered request/response using the asynchronous response, and
 finally, chain an action to forward the request/response to the next filter.
@@ -413,13 +413,13 @@ and must be an API version supported by the Target Cluster.
 
 As you have read above, we need to know the API version we want our request to be encoded at. Your filter can discover
 what versions of an API the Kafka Cluster supports.  To do this use the
-{api-javadoc}/io/kroxylicious/proxy/ApiVersionsService.html[ApiVersionsService] available from the `FilterContext`
+{api-javadoc}/io/kroxylicious/proxy/ApiVersionsService.html[ApiVersionsService^] available from the `FilterContext`
 to determine programmatically what versions of an API are support and then write code to make a suitable `request`
 object.
 
 NOTE: Kroxylicious provides the guarantee that computation stages chained using the _default execution methods_ are
 executed on the same thread as the rest of the Filter work, so we can safely mutate Filter members without synchronising.
-See the {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html#implementing.threadSafety[`io.kroxylicious.proxy.filter`]
+See the {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html#implementing.threadSafety[`io.kroxylicious.proxy.filter`^]
 package javadoc for more information on thread-safety.
 
 ==== Filtering specific API Versions
@@ -455,8 +455,8 @@ public class FetchFilter implements FetchRequestFilter {
 ----
 
 === Filter Construction and Configuration
-For Kroxylicious to instantiate and configure your custom filter we use Java's {java-17-javadoc}/java.base/java/util/ServiceLoader.html[ServiceLoader] API.
-Each Custom Filter should provide a corresponding {api-javadoc}/io/kroxylicious/proxy/filter/FilterFactory.html[FilterFactory]
+For Kroxylicious to instantiate and configure your custom filter we use Java's {java-17-javadoc}/java.base/java/util/ServiceLoader.html[ServiceLoader^] API.
+Each Custom Filter should provide a corresponding {api-javadoc}/io/kroxylicious/proxy/filter/FilterFactory.html[FilterFactory^]
 implementation that can create an instance of your custom Filter. The factory can optionally declare a configuration class that Kroxylicious will
 populate (using Jackson) when loading your custom Filter. The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterFactory`
 file containing the classnames of each filter factory implementation into the JAR file.

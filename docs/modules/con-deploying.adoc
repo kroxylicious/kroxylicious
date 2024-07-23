@@ -17,10 +17,11 @@ Place the required filter JAR files in a designated directory accessible by Krox
 
 == Configuring virtual clusters
 
-As described earlier, the _Virtual Cluster_ is the downstream representation of a Kafka Cluster.  Kafka Client connect
-to the Virtual Cluster.
+As described earlier, the _Virtual Cluster_ is the downstream representation of a Kafka Cluster.  
+Kafka clients connect to the virtual cluster.
 
-You must define at least one Virtual Cluster.
+You must define at least one virtual cluster.
+One virtual cluster is required for each listener of a Kafka cluster.
 
 Let's look at how that is done by considering first a simple example.  After we will look at more advanced options
 including TLS.

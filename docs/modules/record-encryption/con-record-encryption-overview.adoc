@@ -19,9 +19,9 @@ AES(GCM) 256 bit encryption symmetric encryption keys are used to encrypt and de
 
 The process is as follows:
 
-. The filter intercepts produce requests from producing applications and encrypts the records.
+. The filter intercepts produce requests from producing applications and transforms them by encrypting the records.
 . The produce request is forwarded to the broker. 
-. The filter intercepts fetch responses from consuming applications and decrypts the records.
+. The filter intercepts fetch responses from the broker and transforms them by decrypting the records.
 . The fetch response is forwarded to the consuming application.
 
 The filter encrypts the record value only.
@@ -36,7 +36,7 @@ The filter encrypts records from produce requests as follows:
 . Filter selects a KEK to apply.
 . Requests the KMS to generate a DEK for the KEK.
 . Uses an encrypted DEK (DEK encrypted with the KEK) to encrypt the record.
-. Replaces the original record with a cipher record (encrypted record, encrypted DEK, and metadata).
+. Replaces the original record with a ciphertext record (encrypted record, encrypted DEK, and metadata).
 
 The filter uses a DEK reuse strategy.
 Encrypted records are sent to the same topic using the same DEK until a time-out or an encryption limit is reached.
@@ -50,7 +50,7 @@ The filter decrypts records from fetch responses as follows:
 . Uses the decrypted DEK to decrypt the encrypted record.
 . Replaces the cipher record with a decrypted record.
 
-The filter uses an LRU (least recently used) strategy for decrypted records.
+The filter uses an LRU (least recently used) strategy for caching decrypted DEKS.
 Decrypted DEKs are kept in memory to reduce interactions with the KMS.
 
 == How the filter uses the KMS

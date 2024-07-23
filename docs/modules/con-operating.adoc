@@ -12,11 +12,11 @@ Configure common tags and standard binders for JVM and system metrics to ensure 
 
 == Logging
 
-The Kroxylicious https://github.com/kroxylicious/kroxylicious/releases/latest[binary distributions] ship with https://logging.apache.org/log4j/2.x[log4j2] as a logging backend. To customize the logging configuration:
+The Kroxylicious {github-releases}[binary distributions^] ship with https://logging.apache.org/log4j/2.x[log4j2] as a logging backend. To customize the logging configuration:
 
 === 1. Use an Alternative Log4j configuration file
 
-When using {start-script}[bin/kroxylicious-start.sh] from the binary distribution, you can optionally set an environment variable:
+When using {start-script}[bin/kroxylicious-start.sh^] from the binary distribution, you can optionally set an environment variable:
 
 [source,shell]
 ----
@@ -27,7 +27,7 @@ to load an alternative log4j2 configuration.
 
 ===  2. Change the Root Log level
 
-When using {start-script}[bin/kroxylicious-start.sh] from the binary distribution and using the default logging configuration file, you can set an environment variable:
+When using {start-script}[bin/kroxylicious-start.sh^] from the binary distribution and using the default logging configuration file, you can set an environment variable:
 
 [source,shell]
 ----

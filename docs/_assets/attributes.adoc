@@ -15,14 +15,16 @@
 
 //Latest version
 :ProductVersion: 0.6
+:tag: v0.6.0
 
 //Proxy links
 :github: https://github.com/kroxylicious/kroxylicious
-:api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-api/latest
-:kms-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-kms/latest
-:encryption-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-encryption
-:design-doc: https://github.com/kroxylicious/kroxylicious/blob/main/kroxylicious-filters/kroxylicious-encryption/doc/design.adoc
-:start-script: https://github.com/kroxylicious/kroxylicious/blob/main/kroxylicious-app/src/assembly/kroxylicious-start.sh
+:github-releases: https://github.com/kroxylicious/kroxylicious/releases/tag/{tag}
+:api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-api/{ProductVersion}
+:kms-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-kms/{ProductVersion}
+:encryption-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-encryption/{ProductVersion}
+:design-doc: https://github.com/kroxylicious/kroxylicious/blob/{tag}/kroxylicious-filters/kroxylicious-encryption/doc/design.adoc
+:start-script: https://github.com/kroxylicious/kroxylicious/blob/{tag}/kroxylicious-app/src/assembly/kroxylicious-start.sh
 
 //Kafka links
 :ApacheKafkaSite: https://kafka.apache.org[Apache Kafka web site^]

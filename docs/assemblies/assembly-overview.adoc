@@ -6,7 +6,7 @@
 = Kroxylicious Proxy overview
 
 [role="_abstract"]
-Kroxylicious Proxy is an Apache Kafka(R) protocol-aware ("Layer 7") proxy designed to enhance Kafka-based systems.
+Kroxylicious Proxy is an Apache Kafka protocol-aware ("Layer 7") proxy designed to enhance Kafka-based systems.
 Through its filter mechanism it allows additional behavior to be introduced into a Kafka-based system without requiring changes to either your applications or the Kafka cluster itself. 
 Built-in filters are provided as part of the solution.
 

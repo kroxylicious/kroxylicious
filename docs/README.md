@@ -1,4 +1,4 @@
-[KroxyDoc]: https://kroxylicious.io/ "Kroxylicious documentation"
+[KroxyliciousDoc]: https://kroxylicious.io/ "Kroxylicious documentation"
 [AsciiDoc]: https://docs.asciidoctor.org/asciidoc/latest/syntax-quick-reference/  "AsciiDoc reference"
 
 <!-- omit from toc -->
@@ -6,8 +6,8 @@
 
 Welcome to the Kroxylicious documentation! 
 
-This folder contains the source files for managing the Kroxylicious documentation. The documentation is written in [AsciiDoc][AsciiDoc] and generated using 
- and it provides content to help you understand and set up Kroxylicious proxies.
+This folder contains the source files for managing the Kroxylicious documentation. 
+The documentation is written in [AsciiDoc][AsciiDoc] and provides content to help you understand and set up Kroxylicious proxies.
 
 <!-- omit from toc -->
 ## Table of Contents
@@ -41,7 +41,8 @@ A module contain a procedure (`proc-`), concepts (`con-`), or reference (`ref-`)
 
 If there's something that you want to add or change in the documentation, do the following:
 
-1. Set up a local Git repository
+1. Fork the repository
+1. Set up a local Git repository by cloning the forked repository
 2. Create a branch for your changes
 3. Add the changes through a pull request
 
