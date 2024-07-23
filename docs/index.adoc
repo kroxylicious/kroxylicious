@@ -9,10 +9,7 @@ include::_assets/attributes.adoc[]
 include::assemblies/assembly-overview.adoc[leveloffset=+1]
 
 //built-in filters
-include::assemblies/assembly-record-encryption-filter.adoc[leveloffset=+1]
-include::modules/multi-tenancy/con-multi-tenancy.adoc[leveloffset=1]
-include::modules/schema-validation/con-schema-validation.adoc[leveloffset=1]
-include::modules/oauthbearer/con-oauthbearer.adoc[leveloffset=1]
+include::assemblies/assembly-built-in-filters.adoc[leveloffset=+1]
 
 //community filters
 include::modules/con-community-filters.adoc[leveloffset=+1]

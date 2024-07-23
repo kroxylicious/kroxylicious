@@ -13,6 +13,7 @@ The documentation is written in [AsciiDoc][AsciiDoc] and provides content to hel
 ## Table of Contents
 - [Kroxylicious guide](#kroxylicious-guide)
 - [Documentation folder structure](#documentation-folder-structure)
+- [Generating the guide](#generating-the-guide)
 - [Contributing to the documentation](#contributing-to-the-documentation)
 
 ## Kroxylicious guide
@@ -36,6 +37,16 @@ A module contain a procedure (`proc-`), concepts (`con-`), or reference (`ref-`)
 | `modules/`               | Modules provide content for assemblies               |
 | `_assets/`               | Content common to all doc files                      |
 | `shared/attributes.adoc` | Global book attributes                               |
+
+## Generating the guide
+
+To generate the guide in HTML, run the following Maven command:
+
+```shell
+mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
+```
+
+The HTML is output to `target/html/master.html`. 
 
 ## Contributing to the documentation
 

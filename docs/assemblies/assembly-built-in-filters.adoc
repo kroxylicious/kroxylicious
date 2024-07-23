@@ -1,0 +1,14 @@
+// file included in the following:
+//
+// index.adoc
+
+[id='assembly-built-in-filters-{context}']
+= Built-in filters
+
+[role="_abstract"]
+Kroxylicious comes with a suite of built-in filters designed to enhance the functionality and security of your Kafka clusters.
+
+include::assembly-record-encryption-filter.adoc[leveloffset=+1]
+include::../modules/multi-tenancy/con-multi-tenancy.adoc[leveloffset=+1]
+include::../modules/schema-validation/con-schema-validation.adoc[leveloffset=+1]
+include::../modules/oauthbearer/con-oauthbearer.adoc[leveloffset=+1]
