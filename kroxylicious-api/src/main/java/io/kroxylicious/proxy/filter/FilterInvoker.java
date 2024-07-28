@@ -73,8 +73,9 @@ public interface FilterInvoker {
     }
 
     /**
-     * <p>Handle deserialized request data. It is implicit that the underlying filter
-     * wants to handle this data because it indicated that with {@link #shouldHandleRequest(ApiKeys, short)}
+     * <p>Handle deserialized request data. Implementations must tolerate being called with requests that this FilterInvoker
+     * is NOT interested in handling. If any FilterInvoker in the chain should handle a response, then all invokers in the chain
+     * are eligible to have their onRequest called. Implementations should forward requests they do not wish to operator on.
      * </p><p>
      * Filters must return a {@link CompletionStage<RequestFilterResult>} object.  This object
      * encapsulates the request to be forwarded and, optionally, orders for actions such as closing the connection or
@@ -97,8 +98,9 @@ public interface FilterInvoker {
     }
 
     /**
-     * <p>Handle deserialized response data. It is implicit that the underlying filter
-     * wants to handle this data because it indicated that with {@link #shouldHandleResponse(ApiKeys, short)}
+     * <p>Handle deserialized response data. Implementations must tolerate being called with responses that this FilterInvoker
+     * is NOT interested in handling. If any FilterInvoker in the chain should handle a response, then all invokers in the chain
+     * are eligible to have their onResponse called. Implementations should forward responses they do not wish to operator on.
      * </p><p>
      * Filters must return a {@link CompletionStage<ResponseFilterResult>} object.  This object
      * encapsulates the response to be forwarded and, optionally, orders for actions such as closing the connection or
