@@ -61,7 +61,8 @@ public final class KroxyliciousConfigMapTemplates {
      * @param testKmsFacade the test kms facade
      * @return the config map builder
      */
-    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade, Experimental experimental) {
+    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade,
+                                                                      Experimental experimental) {
         return baseKroxyliciousConfig(namespaceName)
                 .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, testKmsFacade, experimental));
     }

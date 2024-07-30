@@ -190,4 +190,48 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.atInfo().setMessage("Equality: {}%").addArgument(per).log();
         assertThat(per).isBetween(0D, 75D);
     }
+
+    @TestTemplate
+    void produceAndConsumeMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek("KEK_" + topicName);
+        int numberOfMessages = 1;
+        Experimental experimental = new Experimental(5, 5, 5, 5);
+
+        // start Kroxylicious
+        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        Kroxylicious kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade, experimental);
+        bootstrap = kroxylicious.getBootstrap();
+
+        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
+
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+
+        testKekManager.rotateKek("KEK_" + topicName);
+
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        List<ConsumerRecord> resultRotatedKek = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
+                Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(resultRotatedKek).log();
+
+        assertThat(resultRotatedKek).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+    }
 }
