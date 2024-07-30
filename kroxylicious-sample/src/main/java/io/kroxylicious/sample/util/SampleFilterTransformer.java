@@ -9,6 +9,7 @@ package io.kroxylicious.sample.util;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.record.AbstractRecords;
@@ -87,7 +88,8 @@ public class SampleFilterTransformer {
      * functionality in io.kroxylicious.proxy.internal, but we aren't supposed to import from there.
      */
     private static MemoryRecordsBuilder createMemoryRecordsBuilder(ByteBufferOutputStream stream, RecordBatch firstBatch) {
-        return new MemoryRecordsBuilder(stream, firstBatch.magic(), firstBatch.compressionType(), firstBatch.timestampType(), firstBatch.baseOffset(),
+        return new MemoryRecordsBuilder(stream, firstBatch.magic(), Compression.of(firstBatch.compressionType()).build(), firstBatch.timestampType(),
+                firstBatch.baseOffset(),
                 firstBatch.maxTimestamp(), firstBatch.producerId(), firstBatch.producerEpoch(), firstBatch.baseSequence(), firstBatch.isTransactional(),
                 firstBatch.isControlBatch(), firstBatch.partitionLeaderEpoch(), stream.remaining());
     }

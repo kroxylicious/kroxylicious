@@ -41,6 +41,7 @@ import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.DescribeLogDirsRequestData;
 import org.apache.kafka.common.message.DescribeProducersRequestData;
 import org.apache.kafka.common.message.DescribeQuorumRequestData;
+import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
 import org.apache.kafka.common.message.DescribeTransactionsRequestData;
 import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
 import org.apache.kafka.common.message.ElectLeadersRequestData;
@@ -234,6 +235,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 break;
             case DESCRIBE_QUORUM:
                 state = ((DescribeQuorumRequestFilter) this).onDescribeQuorumRequest((DescribeQuorumRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_TOPIC_PARTITIONS:
+                state = ((DescribeTopicPartitionsRequestFilter) this).onDescribeTopicPartitionsRequest((DescribeTopicPartitionsRequestData) decodedFrame.body(), filterContext);
                 break;
             case DESCRIBE_TRANSACTIONS:
                 state = ((DescribeTransactionsRequestFilter) this).onDescribeTransactionsRequest((DescribeTransactionsRequestData) decodedFrame.body(), filterContext);
@@ -449,6 +453,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof DescribeProducersRequestFilter;
             case DESCRIBE_QUORUM:
                 return this instanceof DescribeQuorumRequestFilter;
+            case DESCRIBE_TOPIC_PARTITIONS:
+                return this instanceof DescribeTopicPartitionsRequestFilter;
             case DESCRIBE_TRANSACTIONS:
                 return this instanceof DescribeTransactionsRequestFilter;
             case DESCRIBE_USER_SCRAM_CREDENTIALS:

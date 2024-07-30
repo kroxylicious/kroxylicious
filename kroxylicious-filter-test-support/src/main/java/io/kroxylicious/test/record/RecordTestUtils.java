@@ -14,8 +14,8 @@ import java.util.HexFormat;
 import java.util.List;
 
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.ControlRecordType;
 import org.apache.kafka.common.record.EndTransactionMarker;
 import org.apache.kafka.common.record.MemoryRecords;
@@ -301,12 +301,14 @@ public class RecordTestUtils {
     /**
      * Return a singleton RecordBatch containing a single Record with the given key, value and headers.
      * The batch will use the current magic.
+     *
      * @param baseOffset baseOffset of the single batch and offset of the single record within it
+     * @param compression
      * @return The record batch
      */
     public static MutableRecordBatch singleElementRecordBatch(byte magic,
                                                               long baseOffset,
-                                                              CompressionType compressionType,
+                                                              Compression compression,
                                                               TimestampType timestampType,
                                                               long logAppendTime,
                                                               long producerId,
@@ -318,7 +320,7 @@ public class RecordTestUtils {
                                                               byte[] key,
                                                               byte[] value,
                                                               Header... headers) {
-        MemoryRecords records = memoryRecordsWithoutCopy(magic, baseOffset, compressionType, timestampType, logAppendTime, producerId, producerEpoch, baseSequence,
+        MemoryRecords records = memoryRecordsWithoutCopy(magic, baseOffset, compression, timestampType, logAppendTime, producerId, producerEpoch, baseSequence,
                 isTransactional, isControlBatch, partitionLeaderEpoch, 0L, key, value, headers);
         return records.batches().iterator().next();
     }
@@ -442,7 +444,7 @@ public class RecordTestUtils {
 
     private static MemoryRecords memoryRecordsWithoutCopy(byte magic,
                                                           long baseOffset,
-                                                          CompressionType compressionType,
+                                                          Compression compression,
                                                           TimestampType timestampType,
                                                           long logAppendTime,
                                                           long producerId,
@@ -455,7 +457,7 @@ public class RecordTestUtils {
                                                           byte[] key,
                                                           byte[] value,
                                                           Header... headers) {
-        try (MemoryRecordsBuilder memoryRecordsBuilder = memoryRecordsBuilder(magic, baseOffset, compressionType, timestampType, logAppendTime, producerId, producerEpoch,
+        try (MemoryRecordsBuilder memoryRecordsBuilder = memoryRecordsBuilder(magic, baseOffset, compression, timestampType, logAppendTime, producerId, producerEpoch,
                 baseSequence, isTransactional, isControlBatch, partitionLeaderEpoch)) {
             memoryRecordsBuilder.appendWithOffset(baseOffset, timestamp, key, value, headers);
             return memoryRecordsBuilder.build();
@@ -528,14 +530,14 @@ public class RecordTestUtils {
 
     @NonNull
     private static MemoryRecordsBuilder memoryRecordsBuilder(byte magic, long baseOffset) {
-        return memoryRecordsBuilder(magic, baseOffset, CompressionType.NONE, TimestampType.CREATE_TIME, 0L,
+        return memoryRecordsBuilder(magic, baseOffset, Compression.NONE, TimestampType.CREATE_TIME, 0L,
                 magic > RecordBatch.MAGIC_VALUE_V1 ? 0L : RecordBatch.NO_PRODUCER_ID, (short) 0, 0, false, false, 0);
     }
 
     @NonNull
     private static MemoryRecordsBuilder memoryRecordsBuilder(byte magic,
                                                              long baseOffset,
-                                                             CompressionType compressionType,
+                                                             Compression compression,
                                                              TimestampType timestampType,
                                                              long logAppendTime,
                                                              long producerId,
@@ -547,7 +549,7 @@ public class RecordTestUtils {
         return new MemoryRecordsBuilder(
                 ByteBuffer.allocate(1024),
                 magic,
-                compressionType,
+                compression,
                 timestampType,
                 baseOffset,
                 logAppendTime,
@@ -567,7 +569,7 @@ public class RecordTestUtils {
      * @return batch
      */
     public static MutableRecordBatch abortTransactionControlBatch(int baseOffset) {
-        try (MemoryRecordsBuilder builder = new MemoryRecordsBuilder(ByteBuffer.allocate(1000), RecordBatch.CURRENT_MAGIC_VALUE, CompressionType.NONE,
+        try (MemoryRecordsBuilder builder = new MemoryRecordsBuilder(ByteBuffer.allocate(1000), RecordBatch.CURRENT_MAGIC_VALUE, Compression.NONE,
                 TimestampType.CREATE_TIME, baseOffset, 1L, 1L, (short) 1, 1, true, true, 1, 1)) {
             builder.appendEndTxnMarker(1l, new EndTransactionMarker(ControlRecordType.ABORT, 1));
             MemoryRecords controlBatchRecords = builder.build();

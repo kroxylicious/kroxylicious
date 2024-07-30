@@ -15,12 +15,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
@@ -157,7 +157,7 @@ class ProduceRequestTransformationFilterFactoryFilterTest {
 
     private static MemoryRecords buildOneRecord(String key, String value) {
         try (MemoryRecordsBuilder builder = MemoryRecords.builder(ByteBuffer.allocate(1024), RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE, TimestampType.CREATE_TIME, 0L, System.currentTimeMillis())) {
+                Compression.NONE, TimestampType.CREATE_TIME, 0L, System.currentTimeMillis())) {
             builder.append(0L, key.getBytes(), value.getBytes());
             return builder.build();
         }
