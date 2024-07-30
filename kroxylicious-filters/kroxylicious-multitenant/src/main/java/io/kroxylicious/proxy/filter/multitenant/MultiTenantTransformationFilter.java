@@ -15,6 +15,7 @@ import org.apache.kafka.common.internals.Topic;
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
@@ -53,10 +54,12 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
+import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnResponseFilter;
+import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsRequestFilter;
@@ -110,7 +113,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * TODO disallow the use of topic uids belonging to one tenant by another.
  */
 public class MultiTenantTransformationFilter
-        implements CreateTopicsRequestFilter, CreateTopicsResponseFilter,
+        implements ApiVersionsResponseFilter,
+        CreateTopicsRequestFilter, CreateTopicsResponseFilter,
         DeleteTopicsRequestFilter, DeleteTopicsResponseFilter,
         MetadataRequestFilter, MetadataResponseFilter,
         ProduceRequestFilter, ProduceResponseFilter,
@@ -136,6 +140,15 @@ public class MultiTenantTransformationFilter
         TxnOffsetCommitRequestFilter, TxnOffsetCommitResponseFilter {
     private final String prefixResourceNameSeparator;
     private String kafkaResourcePrefix;
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
+                                                                       FilterContext context) {
+        // https://github.com/kroxylicious/kroxylicious/issues/1364 (KIP-966)
+        // Exclude DESCRIBE_TOPIC_PARTITIONS as we are not ready to implement cursoring yet.
+        response.apiKeys().removeIf(x -> x.apiKey() == ApiKeys.DESCRIBE_TOPIC_PARTITIONS.id);
+        return context.forwardResponse(header, response);
+    }
 
     @Override
     public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,

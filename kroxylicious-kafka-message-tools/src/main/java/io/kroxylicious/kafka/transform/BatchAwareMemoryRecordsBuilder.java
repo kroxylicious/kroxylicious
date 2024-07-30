@@ -11,8 +11,8 @@ import java.util.Objects;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.EndTransactionMarker;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
@@ -31,8 +31,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 @NotThreadSafe
 public class BatchAwareMemoryRecordsBuilder {
-
-    public static final Header[] EMPTY_HEADERS = new Header[0];
 
     private final ByteBufferOutputStream buffer;
     private MemoryRecordsBuilder builder = null;
@@ -67,8 +65,9 @@ public class BatchAwareMemoryRecordsBuilder {
 
     /**
      * Starts a batch
+     *
      * @param magic
-     * @param compressionType
+     * @param compression
      * @param timestampType
      * @param baseOffset
      * @param logAppendTime
@@ -82,7 +81,7 @@ public class BatchAwareMemoryRecordsBuilder {
      * @return this builder
      */
     public @NonNull BatchAwareMemoryRecordsBuilder addBatch(byte magic,
-                                                            CompressionType compressionType,
+                                                            Compression compression,
                                                             TimestampType timestampType,
                                                             long baseOffset,
                                                             long logAppendTime,
@@ -98,7 +97,7 @@ public class BatchAwareMemoryRecordsBuilder {
         // MRB respects the initial position() of buffer, so this doesn't overwrite anything already in buffer
         builder = new MemoryRecordsBuilder(buffer,
                 magic,
-                compressionType,
+                compression,
                 timestampType,
                 baseOffset,
                 logAppendTime,
@@ -113,11 +112,11 @@ public class BatchAwareMemoryRecordsBuilder {
         return this;
     }
 
-    public BatchAwareMemoryRecordsBuilder addBatch(CompressionType compressionType,
+    public BatchAwareMemoryRecordsBuilder addBatch(Compression compression,
                                                    TimestampType timestampType,
                                                    long baseOffset) {
         return addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                compressionType,
+                compression,
                 timestampType,
                 baseOffset,
                 timestampType == TimestampType.LOG_APPEND_TIME ? System.currentTimeMillis() : RecordBatch.NO_TIMESTAMP,
@@ -139,7 +138,7 @@ public class BatchAwareMemoryRecordsBuilder {
         TimestampType timestampType = templateBatch.timestampType();
         long logAppendTime = timestampType == TimestampType.LOG_APPEND_TIME ? templateBatch.maxTimestamp() : RecordBatch.NO_TIMESTAMP;
         return addBatch(templateBatch.magic(),
-                templateBatch.compressionType(),
+                Compression.of(templateBatch.compressionType()).build(),
                 timestampType,
                 templateBatch.baseOffset(),
                 logAppendTime,

@@ -9,7 +9,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiMessageType;
@@ -66,8 +65,8 @@ public class RequestDecoderTest extends AbstractCodecTest {
     };
     public static final KafkaRequestDecoder MAX_FRAME_SIZE_10_BYTES_DECODER = getKafkaRequestDecoder(DECODE_EVERYTHING, 10);
 
-    public static List<Object[]> produceRequestApiVersions() {
-        List<Short> produceVersions = requestApiVersions(ApiMessageType.PRODUCE).collect(Collectors.toList());
+    static List<Object[]> produceRequestApiVersions() {
+        List<Short> produceVersions = requestApiVersions(ApiMessageType.PRODUCE).toList();
         List<Object[]> cartesianProduct = new ArrayList<>();
         produceVersions
                 .forEach(produceVersion -> Stream.of((short) 0, (short) 1, (short) -1).forEach(acks -> cartesianProduct.add(new Object[]{ produceVersion, acks })));

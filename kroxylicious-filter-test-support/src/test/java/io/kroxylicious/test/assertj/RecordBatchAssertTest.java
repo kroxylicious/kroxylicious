@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.OptionalLong;
 
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.RecordBatch;
@@ -173,7 +174,7 @@ class RecordBatchAssertTest {
         RecordBatch batch = RecordTestUtils.singleElementRecordBatch("KEY", "VALUE");
         RecordBatch batchSameMetadata = RecordTestUtils.singleElementRecordBatch("KEY", "VALUE",
                 new RecordHeader("HEADER", "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
-        RecordBatch batchDifferentMetadata = singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, CompressionType.GZIP, TimestampType.CREATE_TIME, 1L, 1L,
+        RecordBatch batchDifferentMetadata = singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, Compression.gzip().build(), TimestampType.CREATE_TIME, 1L, 1L,
                 (short) 1, 1, false,
                 false, 1,
                 "KEY".getBytes(

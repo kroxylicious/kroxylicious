@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1356](https://github.com/kroxylicious/kroxylicious/pull/1356): Changes for Kafka 3.8.0 #1356
 * [#1354](https://github.com/kroxylicious/kroxylicious/pull/1354): Make EDEK cache refresh and expiry durations configurable
 * [#1360](https://github.com/kroxylicious/kroxylicious/pull/1360): Bump kafka.version from 3.7.0 to 3.7.1
 * [#1322](https://github.com/kroxylicious/kroxylicious/pull/1322): Introduce FilterDispatchExecutor
