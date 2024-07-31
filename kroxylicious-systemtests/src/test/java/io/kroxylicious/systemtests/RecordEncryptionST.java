@@ -175,8 +175,8 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
 
         assertThat(resultEncrypted.stream())
-                    .withFailMessage("v1 is not contained in the ciphertext blob!")
-                    .allMatch(r -> r.getValue().contains("v1"));
+                .withFailMessage("v1 is not contained in the ciphertext blob!")
+                .allMatch(r -> r.getValue().contains("v1"));
 
         LOGGER.atInfo().setMessage("When KEK is rotated").log();
         testKekManager.rotateKek("KEK_" + topicName);
