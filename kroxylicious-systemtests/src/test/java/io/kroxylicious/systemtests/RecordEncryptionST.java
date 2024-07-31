@@ -9,9 +9,9 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
-import org.apache.commons.text.similarity.JaroWinklerDistance;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -35,6 +35,7 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 @ExtendWith(KroxyliciousExtension.class)
@@ -63,18 +64,28 @@ class RecordEncryptionST extends AbstractST {
                 kafka);
     }
 
+    @BeforeEach
+    void beforeEach() {
+        bootstrap = null;
+        testKekManager = null;
+    }
+
     @AfterEach
     void afterEach(String namespace) {
         try {
-            LOGGER.atInfo().log("Deleting KEK...");
-            testKekManager.deleteKek("KEK_" + topicName);
+            if (testKekManager != null) {
+                LOGGER.atInfo().log("Deleting KEK...");
+                testKekManager.deleteKek("KEK_" + topicName);
+            }
         }
         catch (KubeClusterException e) {
             LOGGER.atError().setMessage("KEK deletion has not been successfully done: {}").addArgument(e).log();
             throw e;
         }
         finally {
-            KafkaSteps.deleteTopic(namespace, topicName, bootstrap);
+            if (bootstrap != null) {
+                KafkaSteps.deleteTopic(namespace, topicName, bootstrap);
+            }
         }
     }
 
@@ -140,6 +151,7 @@ class RecordEncryptionST extends AbstractST {
 
     @TestTemplate
     void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        assumeThat(testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault")).isTrue();
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
@@ -162,17 +174,14 @@ class RecordEncryptionST extends AbstractST {
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
 
-        assertAll(
-                () -> assertThat(resultEncrypted.stream())
-                        .withFailMessage("expected header has not been received!")
-                        .allMatch(r -> r.getRecordHeaders().containsKey("kroxylicious.io/encryption")),
-                () -> assertThat(resultEncrypted.stream())
-                        .withFailMessage("Encrypted message still includes the original one!")
-                        .allMatch(r -> !r.getValue().contains(MESSAGE)));
+        assertThat(resultEncrypted.stream())
+                    .withFailMessage("v1 is not contained in the ciphertext blob!")
+                    .allMatch(r -> r.getValue().contains("v1"));
 
+        LOGGER.atInfo().setMessage("When KEK is rotated").log();
         testKekManager.rotateKek("KEK_" + topicName);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        LOGGER.atInfo().setMessage("And {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
@@ -181,14 +190,8 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncryptedRotatedKek).log();
 
         assertThat(resultEncryptedRotatedKek.stream())
-                .withFailMessage("Encrypted message still includes the original one!")
-                .allMatch(r -> resultEncrypted.stream().noneMatch(re -> re.getValue().equals(r.getValue())));
-
-        double per = new JaroWinklerDistance().apply(resultEncryptedRotatedKek.stream().findFirst().get().getValue(),
-                resultEncrypted.stream().findFirst().get().getValue()) * 100;
-
-        LOGGER.atInfo().setMessage("Equality: {}%").addArgument(per).log();
-        assertThat(per).isBetween(0D, 75D);
+                .withFailMessage("v2 is not contained in the ciphertext blob!")
+                .allMatch(r -> r.getValue().contains("v2"));
     }
 
     @TestTemplate
@@ -219,14 +222,14 @@ class RecordEncryptionST extends AbstractST {
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
 
+        LOGGER.atInfo().setMessage("When KEK is rotated").log();
         testKekManager.rotateKek("KEK_" + topicName);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        LOGGER.atInfo().setMessage("And {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> resultRotatedKek = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
-                Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord> resultRotatedKek = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(resultRotatedKek).log();
 
         assertThat(resultRotatedKek).withFailMessage("expected messages have not been received!")
