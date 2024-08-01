@@ -14,7 +14,7 @@ But there are numerous practical reasons that can prevent this, for example:
 * Functionality which requires changes to Kafka's public API and which the Apache Kafka project is unwilling to implement.
   This is the case for https://lists.apache.org/thread/x1p119hkpoy01vq9ck3d0ql67jtvm875[broker interceptors], for example.
 * Experimental functionality which might end up being implemented in Apache Kafka eventually.
-For example using Kroxylicious proxy it's easier to experiment with alternative transport protocols, such as Quic, or operating system APIs, such as io_uring, because there is already support for this in Netty, the networking framework on which Kroxylicious is built.
+For example using Kroxylicious it's easier to experiment with alternative transport protocols, such as Quic, or operating system APIs, such as io_uring, because there is already support for this in Netty, the networking framework on which Kroxylicious is built.
 
 == How Kroxylicious works
 

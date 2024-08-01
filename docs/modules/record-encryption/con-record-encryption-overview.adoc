@@ -50,7 +50,7 @@ The filter decrypts records from fetch responses as follows:
 . Uses the decrypted DEK to decrypt the encrypted record.
 . Replaces the cipher record with a decrypted record.
 
-The filter uses an LRU (least recently used) strategy for caching decrypted DEKS.
+The filter uses an LRU (least recently used) strategy for caching decrypted DEKs.
 Decrypted DEKs are kept in memory to reduce interactions with the KMS.
 
 == How the filter uses the KMS
@@ -64,7 +64,7 @@ The KMS generates a DEK (which is securely generated random data) for a given KE
 The encrypted DEK has the same data but encrypted with the KEK.
 The KMS doesn't store encrypted DEKs; they are stored as part of the cipher record in the broker.
 
-WARNING: The KMS must be available during runtime. 
+WARNING: The KMS must be available during runtime.
 If the KMS is unavailable, the filter will not be able to obtain new encrypted DEKs on the produce path or decrypt encrypted DEKs on the consume path. The filter will continue to use previously obtained DEKs, but eventually, production and consumption will become impossible. 
 It is recommended to use the KMS in a high availability (HA) configuration.
 

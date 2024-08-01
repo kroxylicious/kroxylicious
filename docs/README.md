@@ -7,7 +7,8 @@
 Welcome to the Kroxylicious documentation! 
 
 This folder contains the source files for managing the Kroxylicious documentation. 
-The documentation is written in [AsciiDoc][AsciiDoc] and provides content to help you understand and set up Kroxylicious proxies.
+The documentation is written in [AsciiDoc][AsciiDoc] and provides content to help you understand and set up Kroxylicious.
+US (global) English is used throughout.
 
 <!-- omit from toc -->
 ## Table of Contents
@@ -18,7 +19,7 @@ The documentation is written in [AsciiDoc][AsciiDoc] and provides content to hel
 
 ## Kroxylicious guide
 
-The Kroxylicious documentation is organized into a single **Kroxylicious Proxy** guide.
+The Kroxylicious documentation is organized into a single **Kroxylicious** guide.
 The content for the guide is encapsulated in a main index file:
 
 - [Index file](index.adoc)
@@ -46,7 +47,7 @@ To generate the guide in HTML, run the following Maven command:
 mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
 ```
 
-The HTML is output to `target/html/master.html`. 
+The HTML is output to `target/html/index.html`. 
 
 ## Contributing to the documentation
 

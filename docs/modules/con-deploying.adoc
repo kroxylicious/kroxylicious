@@ -313,11 +313,12 @@ NOTE: For the private-key, https://datatracker.ietf.org/doc/html/rfc5208[PKCS-8 
 For https://datatracker.ietf.org/doc/html/rfc8017[PKCS-1 keys], https://www.bouncycastle.org/[Bouncycastle] libraries
 must be added to the Kroxylicious classpath.See https://github.com/netty/netty/issues/7323 for more details.
 
-[#_upstream_tls]
+[id='con-deploying-upstream-tls-{context}']
 ==== Upstream TLS
 
-Here's how to enable TLS for the upstream side.This means that Kroxylicious connects to the (physical) Kafka Cluster)
-over TLS.For this, your Kafka Cluster must have already been configured to use TLS.
+Here's show to enable TLS for the upstream side.
+This means that Kroxylicious connects to the (physical) Kafka Cluster over TLS. 
+For this, your Kafka Cluster must have already been configured to use TLS.
 
 By default, Kroxylicious inherits what it trusts from the platform it is running on and uses this to determine whether
 the Kafka Cluster is trusted or not.
