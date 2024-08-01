@@ -6,26 +6,25 @@
 
 package io.kroxylicious.systemtests.installation.kms.vault;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.UncheckedIOException;
+import java.net.URI;
 import java.nio.file.Path;
-import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.api.model.ServicePort;
-
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.getInstance;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -43,6 +42,7 @@ public class Vault {
     private static final String VAULT_CMD = "vault";
     private final String deploymentNamespace;
     private final String vaultRootToken;
+    private String version;
 
     /**
      * Instantiates a new Vault.
@@ -64,57 +64,26 @@ public class Vault {
     }
 
     /**
-     * Is available.
-     *
-     * @return true if Vault service is available in kubernetes, false otherwise
-     */
-    public boolean isAvailable() {
-        if (!isDeployed()) {
-            return false;
-        }
-        try (var output = new ByteArrayOutputStream();
-                var exec = kubeClient().getClient().pods()
-                        .inNamespace(deploymentNamespace)
-                        .withName(VAULT_POD_NAME)
-                        .writingOutput(output)
-                        .exec("sh", "-c", VAULT_CMD + " operator init -status")) {
-            int exitCode = exec.exitCode().join();
-            return exitCode == 0 &&
-                    output.toString().toLowerCase().contains("vault is initialized");
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    /**
      * Gets the installed version.
      *
      * @return the version
      */
     public String getVersionInstalled() {
-        try (var output = new ByteArrayOutputStream();
-                var error = new ByteArrayOutputStream();
-                var exec = kubeClient().getClient().pods()
-                        .inNamespace(deploymentNamespace)
-                        .withName(VAULT_POD_NAME)
-                        .writingOutput(output)
-                        .writingError(error)
-                        .exec("sh", "-c", VAULT_CMD + " version")) {
-            int exitCode = exec.exitCode().join();
-            if (exitCode != 0) {
-                throw new UnsupportedOperationException(error.toString());
+        if (version == null || version.isEmpty()) {
+            List<String> command = List.of(VAULT_CMD, "version");
+            ExecResult execResult = cmdKubeClient(deploymentNamespace).execInPod(VAULT_POD_NAME, true, command);
+
+            if (!execResult.isSuccess()) {
+                throw new KubeClusterException("Failed to run Vault: %s, exit code: %d, stderr: %s".formatted(String.join(" ", command),
+                        execResult.returnCode(), execResult.err()));
             }
             // version returned with format: Vault v1.15.2 (blah blah), build blah
-            String version = output.toString().split("\\s+")[1].replace("v", "");
+            version = execResult.out().trim().split("\\s+")[1].replace("v", "");
             if (!version.matches("^(\\d+)(?:\\.(\\d+))?(?:\\.(\\*|\\d+))?$")) {
                 throw new NumberFormatException("Invalid version format: " + version);
             }
-            return version;
         }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        return version;
     }
 
     /**
@@ -137,8 +106,6 @@ public class Vault {
                 Optional.of(Path.of(TestUtils.getResourcesURI("helm_vault_overrides.yaml"))),
                 Optional.of(Map.of("server.dev.devRootToken", vaultRootToken,
                         "global.openshift", String.valueOf(openshiftCluster))));
-
-        DeploymentUtils.waitForDeploymentRunning(deploymentNamespace, VAULT_POD_NAME, Duration.ofMinutes(1));
     }
 
     /**
@@ -156,16 +123,7 @@ public class Vault {
      *
      * @return the vault url.
      */
-    public String getVaultUrl() {
-        var spec = kubeClient().getService(deploymentNamespace, VAULT_SERVICE_NAME).getSpec();
-        String clusterIP = spec.getClusterIP();
-        if (clusterIP == null || clusterIP.isEmpty()) {
-            throw new KubeClusterException("Unable to get the clusterIP of Vault");
-        }
-        int port = spec.getPorts().stream().map(ServicePort::getPort).findFirst()
-                .orElseThrow(() -> new KubeClusterException("Unable to get the service port of Vault"));
-        String url = clusterIP + ":" + port;
-        LOGGER.debug("Vault URL: {}", url);
-        return url;
+    public URI getVaultUrl() {
+        return URI.create("http://" + DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, VAULT_SERVICE_NAME));
     }
 }

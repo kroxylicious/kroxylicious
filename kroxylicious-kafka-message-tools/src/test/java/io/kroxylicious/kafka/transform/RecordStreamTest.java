@@ -10,8 +10,8 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.StandardCharsets;
 
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.Header;
-import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
@@ -43,7 +43,7 @@ class RecordStreamTest {
     @Test
     void ofRecordsToList() {
         var mrb = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(ByteBuffer.allocate(10)));
-        var mr = mrb.addBatch(CompressionType.NONE, TimestampType.LOG_APPEND_TIME, 10)
+        var mr = mrb.addBatch(Compression.NONE, TimestampType.LOG_APPEND_TIME, 10)
                 .append(new SimpleRecord(42, "hello".getBytes(StandardCharsets.UTF_8), "world".getBytes(StandardCharsets.UTF_8), new Header[0]))
                 .build();
         RecordStream<Void> rs = RecordStream.ofRecords(mr);
@@ -80,7 +80,7 @@ class RecordStreamTest {
     @Test
     void ofRecordsToSet() {
         var mrb = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(ByteBuffer.allocate(10)));
-        var mr = mrb.addBatch(CompressionType.NONE, TimestampType.LOG_APPEND_TIME, 10)
+        var mr = mrb.addBatch(Compression.NONE, TimestampType.LOG_APPEND_TIME, 10)
                 .append(new SimpleRecord(42, "hello".getBytes(StandardCharsets.UTF_8), "world".getBytes(StandardCharsets.UTF_8), new Header[0]))
                 .build();
         RecordStream<Void> rs = RecordStream.ofRecords(mr);
@@ -94,7 +94,7 @@ class RecordStreamTest {
     @Test
     void ofRecordsForEachRecord() {
         var mrb = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(ByteBuffer.allocate(10)));
-        var mr = mrb.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, 10)
+        var mr = mrb.addBatch(Compression.NONE, TimestampType.CREATE_TIME, 10)
                 .append(new SimpleRecord(42, "hello".getBytes(StandardCharsets.UTF_8), "world".getBytes(StandardCharsets.UTF_8), new Header[0]))
                 .build();
         RecordStream<Void> rs = RecordStream.ofRecords(mr);
@@ -112,7 +112,7 @@ class RecordStreamTest {
     void ofRecordsToMemoryRecords() {
         var mrb = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(ByteBuffer.allocate(10)));
         int baseOffset = 11;
-        var mr = mrb.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, baseOffset)
+        var mr = mrb.addBatch(Compression.NONE, TimestampType.CREATE_TIME, baseOffset)
                 .append(new SimpleRecord(42, "hello".getBytes(StandardCharsets.UTF_8), "world".getBytes(StandardCharsets.UTF_8), new Header[0]))
                 .build();
         RecordStream<Void> rs = RecordStream.ofRecords(mr);
@@ -133,7 +133,7 @@ class RecordStreamTest {
     void ofRecordsWithIndexToMemoryRecords() {
         var mrb = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(ByteBuffer.allocate(10)));
         int baseOffset = 10;
-        var mr = mrb.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, baseOffset)
+        var mr = mrb.addBatch(Compression.NONE, TimestampType.CREATE_TIME, baseOffset)
                 .append(new SimpleRecord(42, "hello".getBytes(StandardCharsets.UTF_8), "world".getBytes(StandardCharsets.UTF_8), new Header[0]))
                 .append(new SimpleRecord(65, "HELLO".getBytes(StandardCharsets.UTF_8), "WORLD".getBytes(StandardCharsets.UTF_8), new Header[0]))
                 .build();
@@ -162,7 +162,7 @@ class RecordStreamTest {
     void ofRecordsMapPerRecordToMemoryRecords() {
         var mrb = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(ByteBuffer.allocate(10)));
         int baseOffset = 10;
-        var mr = mrb.addBatch(CompressionType.NONE, TimestampType.CREATE_TIME, baseOffset)
+        var mr = mrb.addBatch(Compression.NONE, TimestampType.CREATE_TIME, baseOffset)
                 .append(new SimpleRecord(42, "hello".getBytes(StandardCharsets.UTF_8), "world".getBytes(StandardCharsets.UTF_8), new Header[0]))
                 .append(new SimpleRecord(65, "HELLO".getBytes(StandardCharsets.UTF_8), "WORLD".getBytes(StandardCharsets.UTF_8), new Header[0]))
                 .build();

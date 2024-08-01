@@ -7,9 +7,9 @@
 package io.kroxylicious.systemtests.clients;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.awaitility.core.ConditionTimeoutException;
@@ -37,6 +37,7 @@ import static org.awaitility.Awaitility.await;
  * The type Strimzi Test client (java client based CLI).
  */
 public class StrimziTestClient implements KafkaClient {
+    private static final String RECEIVED_MESSAGE_MARKER = "Received message:";
     private static final Logger LOGGER = LoggerFactory.getLogger(StrimziTestClient.class);
     private static final TypeReference<StrimziTestClientConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
@@ -94,7 +95,7 @@ public class StrimziTestClient implements KafkaClient {
         String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
         LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
-        List<String> logRecords = extractRecordLinesFromLog(log);
+        Stream<String> logRecords = extractRecordLinesFromLog(log);
         return getConsumerRecords(logRecords);
     }
 
@@ -103,20 +104,25 @@ public class StrimziTestClient implements KafkaClient {
         return kubeClient().logsInSpecificNamespace(namespace, podName);
     }
 
-    private List<ConsumerRecord> getConsumerRecords(List<String> logRecords) {
-        return logRecords.stream().map(x -> ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, x))
-                .filter(Objects::nonNull).map(ConsumerRecord.class::cast).toList();
+    private List<ConsumerRecord> getConsumerRecords(Stream<String> logRecords) {
+        return logRecords.filter(Predicate.not(String::isBlank))
+                .map(x -> ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, x))
+                .filter(Objects::nonNull)
+                .map(ConsumerRecord.class::cast)
+                .toList();
     }
 
-    private List<String> extractRecordLinesFromLog(String log) {
-        List<String> records = new ArrayList<>();
-        String stringToSeek = "Received message:";
-
-        List<String> receivedMessages = Stream.of(log.split("\n")).filter(l -> l.contains(stringToSeek)).toList();
-        for (String receivedMessage : receivedMessages) {
-            records.add(receivedMessage.split(stringToSeek)[1].trim());
-        }
-
-        return records;
+    private Stream<String> extractRecordLinesFromLog(String log) {
+        return Stream.of(log.split("\n"))
+                .filter(l -> l.contains(RECEIVED_MESSAGE_MARKER))
+                .map(line -> {
+                    final String[] split = line.split(RECEIVED_MESSAGE_MARKER, 2); // Limit is 1 based so a limit of 2 means use the seek at most 1 times
+                    if (split.length > 1) {
+                        return split[1];
+                    }
+                    else {
+                        return "";
+                    }
+                });
     }
 }

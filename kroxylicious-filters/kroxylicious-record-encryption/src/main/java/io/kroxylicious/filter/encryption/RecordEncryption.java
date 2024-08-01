@@ -104,7 +104,9 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         Kms<K, E> kms = buildKms(context, configuration);
 
         DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, 5_000_000);
-        EncryptionDekCache<K, E> encryptionDekCache = new EncryptionDekCache<>(dekManager, null, EncryptionDekCache.NO_MAX_CACHE_SIZE);
+        KmsCacheConfig cacheConfig = configuration.kmsCache();
+        EncryptionDekCache<K, E> encryptionDekCache = new EncryptionDekCache<>(dekManager, null, EncryptionDekCache.NO_MAX_CACHE_SIZE,
+                cacheConfig.encryptionDekCacheRefreshAfterWriteDuration(), cacheConfig.encryptionDekCacheExpireAfterWriteDuration());
         DecryptionDekCache<K, E> decryptionDekCache = new DecryptionDekCache<>(dekManager, null, DecryptionDekCache.NO_MAX_CACHE_SIZE);
         return new SharedEncryptionContext<>(kms, configuration, dekManager, encryptionDekCache, decryptionDekCache);
     }

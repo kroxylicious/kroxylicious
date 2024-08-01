@@ -24,9 +24,9 @@ import java.util.stream.Stream;
 
 import javax.crypto.SecretKey;
 
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MutableRecordBatch;
 import org.apache.kafka.common.record.Record;
@@ -137,13 +137,14 @@ class InBandDecryptionManagerTest {
         EncryptionScheme<UUID> scheme = createScheme(kms);
         var encryptionManager = createEncryptionManager(kms, 500_000);
 
-        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, CompressionType.GZIP, TimestampType.CREATE_TIME, 2L,
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, Compression.gzip().build(),
+                TimestampType.CREATE_TIME, 2L,
                 3L,
                 (short) 4, 5, false, false, 1, ARBITRARY_KEY.getBytes(
                         StandardCharsets.UTF_8),
                 ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8));
 
-        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, CompressionType.NONE,
+        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, Compression.NONE,
                 TimestampType.LOG_APPEND_TIME, 9L, 10L,
                 (short) 11, 12, false, false, 2, ARBITRARY_KEY_2.getBytes(
                         StandardCharsets.UTF_8),
@@ -168,13 +169,14 @@ class InBandDecryptionManagerTest {
         var encryptionManager = createEncryptionManager(kms, 500_000);
         var decryptionManager = createDecryptionManager(kms);
 
-        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, CompressionType.GZIP, TimestampType.CREATE_TIME, 2L,
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, Compression.gzip().build(),
+                TimestampType.CREATE_TIME, 2L,
                 3L,
                 (short) 4, 5, false, false, 1, ARBITRARY_KEY.getBytes(
                         StandardCharsets.UTF_8),
                 ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8));
 
-        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, CompressionType.NONE,
+        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, Compression.NONE,
                 TimestampType.LOG_APPEND_TIME, 9L, 10L,
                 (short) 11, 12, false, false, 2, ARBITRARY_KEY_2.getBytes(
                         StandardCharsets.UTF_8),
@@ -1030,7 +1032,7 @@ class InBandDecryptionManagerTest {
                                                                                        int maxCacheSize) {
 
         DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, maxEncryptionsPerDek);
-        var cache = new EncryptionDekCache<>(dekManager, directExecutor(), maxCacheSize);
+        var cache = new EncryptionDekCache<>(dekManager, directExecutor(), maxCacheSize, Duration.ofHours(1), Duration.ofHours(1));
         return new InBandEncryptionManager<>(Encryption.V2,
                 dekManager.edekSerde(),
                 recordBufferInitialBytes,

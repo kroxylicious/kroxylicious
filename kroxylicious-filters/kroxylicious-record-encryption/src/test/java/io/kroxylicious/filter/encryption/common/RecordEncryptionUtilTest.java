@@ -9,8 +9,8 @@ import java.nio.ByteBuffer;
 import java.util.function.Function;
 import java.util.stream.LongStream;
 
+import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.CompressionType;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
@@ -77,7 +77,7 @@ class RecordEncryptionUtilTest {
 
     private static void newBatch(BatchAwareMemoryRecordsBuilder recordsBuilder) {
         recordsBuilder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
-                CompressionType.NONE,
+                Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0L,
                 RecordBatch.NO_TIMESTAMP,
