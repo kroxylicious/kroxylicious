@@ -1,10 +1,9 @@
-= Overview
+// Module included in the following:
+//
+// assembly-overview.adoc
 
-== What is Kroxylicious Proxy?
-
-Kroxylicious Proxy provides a pluggable, protocol-aware ("Layer 7") proxy for https://kafka.apache.org[Apache Kafka(R)] brokers and clusters, together with an API for conveniently implementing custom logic within such a proxy.
-
-== Why?
+[id='con-proxy-overview-{context}']
+= Why use proxies?
 
 Proxies are a powerful and flexible architectural pattern.
 For Kafka, they can be used to add functionality to Kafka clusters which is not available out-of-the-box with Apache Kafka.
@@ -15,9 +14,9 @@ But there are numerous practical reasons that can prevent this, for example:
 * Functionality which requires changes to Kafka's public API and which the Apache Kafka project is unwilling to implement.
   This is the case for https://lists.apache.org/thread/x1p119hkpoy01vq9ck3d0ql67jtvm875[broker interceptors], for example.
 * Experimental functionality which might end up being implemented in Apache Kafka eventually.
-For example using Kroxylicious proxy it's easier to experiment with alternative transport protocols, such as Quic, or operating system APIs, such as io_uring, because there is already support for this in Netty, the networking framework on which Kroxylicious is built.
+For example using Kroxylicious it's easier to experiment with alternative transport protocols, such as Quic, or operating system APIs, such as io_uring, because there is already support for this in Netty, the networking framework on which Kroxylicious is built.
 
-== How it works
+== How Kroxylicious works
 
 First let's define the concepts in the landscape surrounding Kroxylicious.
 
@@ -60,7 +59,7 @@ First let's define the concepts in the landscape surrounding Kroxylicious.
 
 Now let's define some concepts used within Kroxylicious itself.
 
-=== Virtual Cluster
+=== Virtual cluster
 
 The _Virtual Cluster_ is the downstream representation of a Kafka Cluster.  At the conceptual level, a Kafka Client
 connects to a Virtual Cluster.  Kroxylicious proxies all communications made to the Virtual Cluster through to a
@@ -80,7 +79,7 @@ Kroxylicious automatically intercepts all the Kafka RPC responses that contain a
 so that it refers to the corresponding broker endpoint of the Virtual Cluster.  This means when the Kafka Client
 goes to connect to, say broker 0, it does so through the Virtual Cluster.
 
-=== Target Cluster
+=== Target cluster
 
 The _Target Cluster_ is the definition of physical Kafka Cluster within the Kroxylicious itself.
 
@@ -146,9 +145,7 @@ filter.
 A one-to-many pattern, where one Virtual Cluster points to many Target Clusters (providing amalgamation),
 is not a supported use-case.
 
-
-
-=== Filter Chain
+=== Filter chain
 
 A _Filter Chain_ consists of an *ordered list* of pluggable _protocol filters_.
 
@@ -233,7 +230,7 @@ Proxying the access of one or more clients to a particular cluster/broker that m
 // TODO include a diagram
 +
 Topic-level encryption provides one example use case for a forward proxy-style deployment.
-This might be applicable when using clients that don't support interceptors, or if an organisation wants to apply the same encryption policy in a single place, securing access to the keys within their network.
+This might be applicable when using clients that don't support interceptors, or if an organization wants to apply the same encryption policy in a single place, securing access to the keys within their network.
 
 As a reverse proxy::
 Proxying access for all clients trying to reach a particular cluster/broker.
@@ -249,11 +246,8 @@ _Transparent_ multi-tenancy means each tenant has the illusion of having their o
 // TODO we probably don't need the level of detail below, just summarize
 // and provide the detail in the deploying section
 
-We can further classify deployment topologies in how many proxy instances are used. For example:
+We can further classify deployment topologies in how many proxy instances are used. 
+For example:
 
-Single proxy instance::
-
-Proxy pool::
-//-
-
-== More about filters
+* Single proxy instance (sidecar)
+* Proxy pool

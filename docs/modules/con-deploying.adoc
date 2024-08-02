@@ -1,20 +1,27 @@
+// file included in the following:
+//
+// index.adoc
+
+[id='con-deploying-{context}']
 = Deploying proxies
 
-Topologies etc
+[role="_abstract"]
+A deployment of Kroxylicious proxies requires configuration of virtual clusters representing Kafka clusters.
+It is also recommended to enable TLS for secure connections.
 
 == Selecting plugins
-Put the filter jars in some directory
+Before configuring your virtual clusters, ensure that the necessary filter plugins are available. 
+Place the required filter JAR files in a designated directory accessible by Kroxylicious. 
 
-== Providing implementations for facades
-
-
+//== Providing implementations for facades
 
 == Configuring virtual clusters
 
-As described earlier, the _Virtual Cluster_ is the downstream representation of a Kafka Cluster.  Kafka Client connect
-to the Virtual Cluster.
+As described earlier, the _Virtual Cluster_ is the downstream representation of a Kafka Cluster.  
+Kafka clients connect to the virtual cluster.
 
-You must define at least one Virtual Cluster.
+You must define at least one virtual cluster.
+One virtual cluster is required for each listener of a Kafka cluster.
 
 Let's look at how that is done by considering first a simple example.  After we will look at more advanced options
 including TLS.
@@ -247,7 +254,7 @@ upstream, or vice-versa.
 
 NOTE: TLS is recommended for both upstream and downstream for production configurations.
 
-=== Downstream TLS
+==== Downstream TLS
 
 Here's how to enable TLS for the downstream side. This means the Kafka Client will connect to the virtual cluster over
 TLS rather than clear text.  For this, you will need to obtain a TLS certificate for the virtual cluster from your
@@ -306,11 +313,12 @@ NOTE: For the private-key, https://datatracker.ietf.org/doc/html/rfc5208[PKCS-8 
 For https://datatracker.ietf.org/doc/html/rfc8017[PKCS-1 keys], https://www.bouncycastle.org/[Bouncycastle] libraries
 must be added to the Kroxylicious classpath.See https://github.com/netty/netty/issues/7323 for more details.
 
-[#_upstream_tls]
-=== Upstream TLS
+[id='con-deploying-upstream-tls-{context}']
+==== Upstream TLS
 
-Here's how to enable TLS for the upstream side.This means that Kroxylicious connects to the (physical) Kafka Cluster)
-over TLS.For this, your Kafka Cluster must have already been configured to use TLS.
+Here's show to enable TLS for the upstream side.
+This means that Kroxylicious connects to the (physical) Kafka Cluster over TLS. 
+For this, your Kafka Cluster must have already been configured to use TLS.
 
 By default, Kroxylicious inherits what it trusts from the platform it is running on and uses this to determine whether
 the Kafka Cluster is trusted or not.
@@ -388,6 +396,3 @@ virtualClusters:
 
 YAML
 Proxy level configuration
-
-== Configuring proxy plugins
-Filter level configuration

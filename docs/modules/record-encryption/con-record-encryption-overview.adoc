@@ -1,0 +1,95 @@
+// file included in the following:
+//
+// assembly-record-encryption-filter.adoc
+
+[id='con-topic-encryption-overview-{context}']
+= How encryption works
+
+[role="_abstract"]
+The Record Encryption filter uses envelope encryption to encrypt records with symmetric encryption keys. 
+The filter encrypts records from produce requests and decrypts records from fetch responses.
+
+Envelope encryption::
+Envelope encryption is an industry-standard technique suited for encrypting large volumes of data in an efficient manner.
+Data is encrypted with a Data Encryption Key (DEK).
+The DEK is encrypted using a Key Encryption Key (KEK).
+The KEK is stored securely in a Key Management System (KMS).
+Symmetric encryption keys::
+AES(GCM) 256 bit encryption symmetric encryption keys are used to encrypt and decrypt record data. 
+
+The process is as follows:
+
+. The filter intercepts produce requests from producing applications and transforms them by encrypting the records.
+. The produce request is forwarded to the broker. 
+. The filter intercepts fetch responses from the broker and transforms them by decrypting the records.
+. The fetch response is forwarded to the consuming application.
+
+The filter encrypts the record value only.
+Record keys, headers, and timestamps are not encrypted.
+
+The entire process is transparent from the point of view of Kafka clients and Kafka brokers. 
+Neither are aware that the records are being encrypted, nor do they have any access to the encryption keys or have any influence on the ciphering process to secure the records.
+
+== How the filter encrypts records
+The filter encrypts records from produce requests as follows:
+
+. Filter selects a KEK to apply.
+. Requests the KMS to generate a DEK for the KEK.
+. Uses an encrypted DEK (DEK encrypted with the KEK) to encrypt the record.
+. Replaces the original record with a ciphertext record (encrypted record, encrypted DEK, and metadata).
+
+The filter uses a DEK reuse strategy.
+Encrypted records are sent to the same topic using the same DEK until a time-out or an encryption limit is reached.
+
+== How the filter decrypts records
+The filter decrypts records from fetch responses as follows:
+
+. Filter receives a cipher record from the Kafka broker.
+. Reverses the process that constructed the cipher record.
+. Uses KMS to decrypt the DEK.
+. Uses the decrypted DEK to decrypt the encrypted record.
+. Replaces the cipher record with a decrypted record.
+
+The filter uses an LRU (least recently used) strategy for caching decrypted DEKs.
+Decrypted DEKs are kept in memory to reduce interactions with the KMS.
+
+== How the filter uses the KMS
+To support the filter, the KMS provides the following:
+
+* A secure repository for storing Key Encryption Keys (KEKs)
+* A service for generating and decrypting Data Encryption Keys (DEKs)
+
+KEKs stay within the KMS.
+The KMS generates a DEK (which is securely generated random data) for a given KEK, then returns the DEK and an encrypted DEK.
+The encrypted DEK has the same data but encrypted with the KEK.
+The KMS doesn't store encrypted DEKs; they are stored as part of the cipher record in the broker.
+
+WARNING: The KMS must be available during runtime.
+If the KMS is unavailable, the filter will not be able to obtain new encrypted DEKs on the produce path or decrypt encrypted DEKs on the consume path. The filter will continue to use previously obtained DEKs, but eventually, production and consumption will become impossible. 
+It is recommended to use the KMS in a high availability (HA) configuration.
+
+== Practicing key rotation
+
+Key rotation involves periodically replacing cryptographic keys with new ones and is considered a best practice in cryptography.
+
+The filter allows the rotation of Key Encryption Keys (KEKs) within the Key Management System (KMS). 
+When a KEK is rotated, the new key material is used for newly produced records. Existing records, encrypted with older KEK versions, remain decryptable as long as the previous KEK versions are still in the KMS.
+
+WARNING: If an old KEK version is removed from the KMS, records encrypted with that key will become unreadable, causing fetch operations to fail. 
+In such cases, the consumer offset must be advanced beyond those records.
+
+== What part of a record is encrypted?
+
+The record encryption filter encrypts only the values of records, leaving record keys, headers, and timestamps untouched. 
+Null record values, which might represent deletions in compacted topics, are transmitted to the broker unencrypted. 
+This approach ensures that compacted topics function correctly. 
+
+== Unencrypted topics
+
+You may configure the system so that some topics are encrypted and others are not.  
+This supports scenarios where topics with confidential information are encrypted and Kafka topics with non-sensitive information can be left unencrypted.
+
+[role="_additional-resources"]
+.Additional resources
+
+* For more information on envelope encryption, see the link:https://www.nist.gov/publications/recommendation-key-management-part-1-general-1[NIST Recommendation for Key Management].

@@ -1,8 +1,9 @@
-:hashicorp-vault: https://developer.hashicorp.com/vault
+// file included in the following:
+//
+// assembly-hashicorp-vault.adoc
 
-= HashiCorp Vault
-
-== Enable the Transit Engine
+[id='con-vault-setup-{context}']
+= Enable the Transit Engine
 
 The filter integrates with the {hashicorp-vault}/docs/secrets/transit[HashiCorp Vault *Transit
 Engine*].   Vault does not enable the Transit Engine by default.  It must be
