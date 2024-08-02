@@ -81,7 +81,6 @@ public abstract class FilterHarness {
         var testVirtualCluster = new VirtualCluster("TestVirtualCluster", targetCluster, mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(),
                 false, false);
         var inboundChannel = new EmbeddedChannel();
-        var apiVersionService = new ApiVersionsServiceImpl();
         var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());
 
         var filterHandlers = Arrays.stream(filters)
@@ -90,7 +89,7 @@ public abstract class FilterHarness {
                     return d2;
                 })) // reverses order
                 .stream()
-                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f)), timeoutMs, null, testVirtualCluster, inboundChannel, apiVersionService))
+                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f)), timeoutMs, null, testVirtualCluster, inboundChannel))
                 .map(ChannelHandler.class::cast);
         var handlers = Stream.concat(channelProcessors, filterHandlers);
 

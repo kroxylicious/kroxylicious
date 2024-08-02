@@ -6,7 +6,6 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -29,7 +28,6 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 
-import io.kroxylicious.proxy.ApiVersionsService;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -66,21 +64,18 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final String sniHostname;
     private final VirtualCluster virtualCluster;
     private final Channel inboundChannel;
-    private final ApiVersionsServiceImpl apiVersionService;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private ChannelHandlerContext ctx;
     private PromiseFactory promiseFactory;
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualCluster virtualCluster, Channel inboundChannel,
-                         ApiVersionsServiceImpl apiVersionService) {
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualCluster virtualCluster, Channel inboundChannel) {
         this.filter = Objects.requireNonNull(filterAndInvoker).filter();
         this.invoker = filterAndInvoker.invoker();
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.virtualCluster = virtualCluster;
         this.inboundChannel = inboundChannel;
-        this.apiVersionService = apiVersionService;
     }
 
     String filterDescriptor() {
@@ -168,7 +163,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     private CompletableFuture<Void> readDecodedResponse(DecodedResponseFrame<?> decodedFrame) {
-        var filterContext = new InternalFilterContext(decodedFrame, apiVersionService);
+        var filterContext = new InternalFilterContext(decodedFrame);
 
         final var future = dispatchDecodedResponseFrame(decodedFrame, filterContext);
         boolean defer = !future.isDone();
@@ -201,7 +196,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     private CompletableFuture<Void> writeDecodedRequest(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise) {
-        var filterContext = new InternalFilterContext(decodedFrame, apiVersionService);
+        var filterContext = new InternalFilterContext(decodedFrame);
         final var future = dispatchDecodedRequest(decodedFrame, filterContext);
         boolean defer = !future.isDone();
         if (defer) {
@@ -420,14 +415,12 @@ public class FilterHandler extends ChannelDuplexHandler {
         });
     }
 
-    private class InternalFilterContext implements FilterContext, ApiVersionsService {
+    private class InternalFilterContext implements FilterContext {
 
         private final DecodedFrame<?, ?> decodedFrame;
-        private final ApiVersionsServiceImpl apiVersionService;
 
-        InternalFilterContext(DecodedFrame<?, ?> decodedFrame, ApiVersionsServiceImpl apiVersionService) {
+        InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
             this.decodedFrame = decodedFrame;
-            this.apiVersionService = apiVersionService;
         }
 
         @Override
@@ -450,11 +443,6 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         public String getVirtualClusterName() {
             return virtualCluster.getClusterName();
-        }
-
-        @Override
-        public ApiVersionsService getApiVersionsService() {
-            return this;
         }
 
         @Override
@@ -522,11 +510,6 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
 
             return filterPromise.minimalCompletionStage();
-        }
-
-        @Override
-        public CompletionStage<Optional<ApiVersionRanges>> getApiVersionRanges(ApiKeys keys) {
-            return apiVersionService.getApiVersionRanges(keys, this);
         }
 
     }
