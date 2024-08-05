@@ -36,7 +36,7 @@ See [prerequistes](../README.md#prerequisites-to-run-the-kubernetes-examples).
     ```
 1. Run the following script.
     ```shell { prompt="Now let's bring up minikube and install strimzi and vault. The script will also create a kafka cluster and deploy kroxylicious." }
-    ./scripts/run-example.sh kubernetes-examples/record-encryption
+    ./scripts/run-example.sh kubernetes-examples/filters/record-encryption
     ```
 
 The script will first bring up Minikube. It will then deploy Strimzi and HashiCorp Vault.
