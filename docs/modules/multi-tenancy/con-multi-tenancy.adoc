@@ -1,8 +1,11 @@
-:github: https://github.com/kroxylicious/kroxylicious
+// file included in the following:
+//
+// index.adoc
+
+[id='con-multi-tenancy-{context}']
 = Multi-tenancy
 
-== What is it?
-
+[role="_abstract"]
 Multi-tenancy filter enables isolation prefixing each metadata transiting through virtual cluster to target cluster.
 See https://kafka.apache.org/documentation/#multitenancy[Apache Kafka multi-tenancy documentation] for more information.
 

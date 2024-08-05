@@ -1,12 +1,15 @@
-:aws:  https://docs.aws.amazon.com/
+// file included in the following:
+//
+// assembly-aws-kms.adoc
 
-= AWS Key Management Service
+[id='con-aws-kms-key-creation-{context}']
+= Creating AWS KMS keys
 
 As the Administrator, use either the AWS Console or CLI to
 {aws}/kms/latest/developerguide/create-keys.html#create-symmetric-cmk[create] a *Symmetric key* with *Encrypt and decrypt*
 usage.  Multi-region keys are supported.  It is not possible to make use of keys from other AWS accountsfootnote:[https://github.com/kroxylicious/kroxylicious/issues/1217].
 
-Give the key an alias following the link:setup.adoc#_establish_an_aliasing_convention_for_keys_within_aws_kms[alias naming convention] established above.
+Give the key an alias as described in xref:con-aws-kms-setup-{context}[].
 
 If using the CLI, this can be done with commands like this:
 

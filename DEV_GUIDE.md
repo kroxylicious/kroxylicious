@@ -3,37 +3,35 @@
 This document gives a detailed breakdown of the various build processes and options for building the Kroxylicious from source.
 
 <!-- TOC -->
-* [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
-  * [Build status](#build-status)
-  * [Build Prerequisites](#build-prerequisites)
-  * [Build](#build)
-    * [Formatting the Code](#formatting-the-code)
-    * [Logging Conventions](#logging-conventions)
-  * [Run](#run)
-    * [Debugging](#debugging)
-  * [Building and pushing a Kroxylicious Container Image](#building-and-pushing-a-kroxylicious-container-image)
-  * [IDE setup](#ide-setup)
-    * [Intellij](#intellij)
-  * [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
-    * [Installing WSL](#installing-wsl)
-    * [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
-  * [Running Integration Tests on Podman](#running-integration-tests-on-podman)
-    * [DOCKER_HOST environment variable](#docker_host-environment-variable)
-    * [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
-    * [macOS](#macos)
-    * [Linux](#linux)
-    * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
-  * [Running system tests locally](#running-system-tests-locally)
-    * [Prerequisites](#prerequisites)
-    * [Environment variables](#environment-variables)
-    * [Launch system tests](#launch-system-tests)
-    * [Jenkins pipeline for system tests](#jenkins-pipeline-for-system-tests)
-  * [Rendering documentation](#rendering-documentation)
-  * [Producing an Asciinema Cast](#producing-an-asciinema-cast)
-  * [Continuous Integration](#continuous-integration)
-    * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
-  * [DCO Signoff](#dco-signoff)
-* [Deprecation Policy](#deprecation-policy)
+- [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
+  - [Build status](#build-status)
+  - [Build Prerequisites](#build-prerequisites)
+  - [Build](#build)
+    - [Formatting the Code](#formatting-the-code)
+    - [Logging Conventions](#logging-conventions)
+  - [Run](#run)
+    - [Debugging](#debugging)
+  - [Building and pushing a Kroxylicious Container Image](#building-and-pushing-a-kroxylicious-container-image)
+  - [IDE setup](#ide-setup)
+    - [Intellij](#intellij)
+  - [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
+    - [Installing WSL](#installing-wsl)
+    - [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
+    - [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
+    - [macOS](#macos)
+    - [Linux](#linux)
+    - [Verify that the fix is effective](#verify-that-the-fix-is-effective)
+  - [Running system tests locally](#running-system-tests-locally)
+    - [Prerequisites](#prerequisites)
+    - [Environment variables](#environment-variables)
+    - [Launch system tests](#launch-system-tests)
+    - [Jenkins pipeline for system tests](#jenkins-pipeline-for-system-tests)
+  - [Rendering documentation](#rendering-documentation)
+  - [Producing an Asciinema Cast](#producing-an-asciinema-cast)
+  - [Continuous Integration](#continuous-integration)
+    - [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
+  - [DCO Signoff](#dco-signoff)
+- [Deprecation Policy](#deprecation-policy)
 <!-- TOC -->
 
 ## Build status
@@ -395,14 +393,7 @@ It will launch the `kroxylicious-system-tests-pr` build, that will insert a comm
 
 ## Rendering documentation
 
-The `docs` directory has some user documentation written in [AsciiDoc](https://docs.asciidoctor.org/asciidoc/latest/) format.
-You can render it to HTML using:
-__
-```shell
-mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
-```
-
-The output will be in `target/html/master.html`. 
+For information on updating and rendering the documentation, see the `docs` directory [README](docs/README.md). 
 
 ## Producing an Asciinema Cast
 

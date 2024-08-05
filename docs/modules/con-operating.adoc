@@ -1,13 +1,22 @@
-:start-script: https://github.com/kroxylicious/kroxylicious/blob/main/kroxylicious-app/src/assembly/kroxylicious-start.sh
+// file included in the following:
+//
+// index.adoc
+
+[id='con-operating-{context}']
 = Operating proxies
+
+[role="_abstract"]
+When operating proxies, introduce custom logging configurations with `log4j2` and set root log levels. 
+Set up an admin HTTP endpoint for Prometheus metrics scraping and integrate Micrometer for enhanced observability. 
+Configure common tags and standard binders for JVM and system metrics to ensure comprehensive monitoring and efficient proxy operation.
 
 == Logging
 
-The Kroxylicious https://github.com/kroxylicious/kroxylicious/releases/latest[binary distributions] ship with https://logging.apache.org/log4j/2.x[log4j2] as a logging backend. To customize the logging configuration:
+The Kroxylicious {github-releases}[binary distributions^] ship with https://logging.apache.org/log4j/2.x[log4j2] as a logging backend. To customize the logging configuration:
 
-=== 1. Use an Alternative Log4j configuration file
+=== Use an Alternative Log4j configuration file
 
-When using {start-script}[bin/kroxylicious-start.sh] from the binary distribution, you can optionally set an environment variable:
+When using {start-script}[bin/kroxylicious-start.sh^] from the binary distribution, you can optionally set an environment variable:
 
 [source,shell]
 ----
@@ -16,9 +25,9 @@ KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=/path/to/custom/log4j2.
 
 to load an alternative log4j2 configuration.
 
-===  2. Change the Root Log level
+=== Change the Root Log level
 
-When using {start-script}[bin/kroxylicious-start.sh] from the binary distribution and using the default logging configuration file, you can set an environment variable:
+When using {start-script}[bin/kroxylicious-start.sh^] from the binary distribution and using the default logging configuration file, you can set an environment variable:
 
 [source,shell]
 ----
@@ -26,10 +35,6 @@ KROXYLICIOUS_ROOT_LOG_LEVEL="DEBUG"
 ----
 
 to configure the root log level (note this will be very verbose at DEBUG/TRACE)
-
-== Configuring TLS
-
-== Reconfiguration
 
 == Monitoring and observability
 

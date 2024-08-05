@@ -23,7 +23,7 @@
 
     <properties>
         <libs.dir>libs</libs.dir>
-        <ApiCompatability.ReferenceVersion>0.5.0</ApiCompatability.ReferenceVersion>
+        <ApiCompatability.ReferenceVersion>0.6.0</ApiCompatability.ReferenceVersion>
         <ApiCompatability.EnforceForMajorVersionZero>true</ApiCompatability.EnforceForMajorVersionZero>
     </properties>
 

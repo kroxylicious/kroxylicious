@@ -172,6 +172,13 @@ updateVersions "${RELEASE_VERSION}" "${DEVELOPMENT_VERSION}"
 ${SED} -i -e "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
 git add 'CHANGELOG.md'
+
+# bump the reference version in kroxylicious-api
+mvn -q -B -f kroxylicious-api/pom.xml versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
+# reset kroxylicious-api to enable semver checks if they have been disabled
+mvn -q -B -f kroxylicious-api/pom.xml versions:set-property -Dproperty="ApiCompatability.EnforceForMajorVersionZero" -DnewVersion="true" -DgenerateBackupPoms=false
+git add kroxylicious-api/pom.xml
+
 git commit --message "Start next development version" --signoff
 
 if [[ "${DRY_RUN:-false}" == true ]]; then

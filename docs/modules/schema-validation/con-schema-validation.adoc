@@ -1,8 +1,11 @@
-:github: https://github.com/kroxylicious/kroxylicious
+// file included in the following:
+//
+// index.adoc
+
+[id='con-schema-validation-{context}']
 = Schema Validation
 
-== What is it?
-
+[role="_abstract"]
 Schema validation filter that enables validating records using an existing schema in https://www.apicur.io/registry/[Apicurio Registry].
 
 == How to use the filter

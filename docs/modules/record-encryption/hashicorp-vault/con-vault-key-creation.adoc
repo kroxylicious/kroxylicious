@@ -1,5 +1,9 @@
+// file included in the following:
+//
+// assembly-hashicorp-vault.adoc
 
-= HashiCorp Vault
+[id='con-vault-key-creation-{context}']
+= Creating HashiCorp Vault keys
 
 Using the Administrator actor, use either the HashiCorp UI or CLI to create AES-256 symmetric keys following your
 key naming convention. The key type must be `aes256-gcm96`, which is Vault's default key type.

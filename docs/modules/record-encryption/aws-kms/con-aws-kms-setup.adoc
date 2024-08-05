@@ -1,14 +1,9 @@
-:aws:  https://docs.aws.amazon.com/
+// file included in the following:
+//
+// assembly-aws-kms.adoc
 
-= AWS Key Management Service
-
-The filter is able to integrate with {aws}/kms/latest/developerguide/overview.html[AWS Key Management Service].
-
-Follow the instructions below to prepare your AWS account.  You'll need a privileged AWS user
-that is capable of creating users and policies to perform the set-up.
-
-[#_establish_an_aliasing_convention_for_keys_within_aws_kms]
-== Establish an aliasing convention for keys within AWS KMS
+[id='con-aws-kms-setup-{context}']
+= Establish an aliasing convention for keys within AWS KMS
 
 The filter references KEKs within AWS via an {aws}/kms/latest/developerguide/alias-about.html[AWS key alias].
 
