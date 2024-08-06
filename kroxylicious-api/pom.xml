@@ -24,7 +24,7 @@
     <properties>
         <libs.dir>libs</libs.dir>
         <ApiCompatability.ReferenceVersion>0.6.0</ApiCompatability.ReferenceVersion>
-        <ApiCompatability.EnforceForMajorVersionZero>true</ApiCompatability.EnforceForMajorVersionZero>
+        <ApiCompatability.EnforceForMajorVersionZero>false</ApiCompatability.EnforceForMajorVersionZero>
     </properties>
 
     <name>Kroxylicious API</name>
