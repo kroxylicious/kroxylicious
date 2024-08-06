@@ -15,7 +15,7 @@ import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
-import io.kroxylicious.systemtests.resources.kms.Experimental;
+import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;
@@ -49,11 +49,11 @@ public class Kroxylicious {
         resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
     }
 
-    private void createRecordEncryptionFilterConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade, Experimental experimental) {
+    private void createRecordEncryptionFilterConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
         LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
         resourceManager
                 .createResourceWithWait(
-                        KroxyliciousConfigMapTemplates.kroxyliciousRecordEncryptionConfig(clusterName, deploymentNamespace, testKmsFacade, experimental).build());
+                        KroxyliciousConfigMapTemplates.kroxyliciousRecordEncryptionConfig(clusterName, deploymentNamespace, testKmsFacade, experimentalKmsConfig).build());
     }
 
     private void deployPortPerBrokerPlain(int replicas) {
@@ -83,8 +83,8 @@ public class Kroxylicious {
      * @param replicas the replicas
      * @param testKmsFacade the test kms facade
      */
-    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, int replicas, TestKmsFacade<?, ?, ?> testKmsFacade, Experimental experimental) {
-        createRecordEncryptionFilterConfigMap(clusterName, testKmsFacade, experimental);
+    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, int replicas, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
+        createRecordEncryptionFilterConfigMap(clusterName, testKmsFacade, experimentalKmsConfig);
         deployPortPerBrokerPlain(replicas);
     }
 

@@ -8,7 +8,7 @@ package io.kroxylicious.systemtests.resources.kms;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record Experimental(
+public record ExperimentalKmsConfig(
                            @JsonProperty int resolvedAliasExpireAfterWriteSeconds,
                            @JsonProperty int resolvedAliasRefreshAfterWriteSeconds,
                            @JsonProperty int encryptionDekRefreshAfterWriteSeconds,
