@@ -151,6 +151,7 @@ class RecordEncryptionST extends AbstractST {
 
     @TestTemplate
     void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        // Skip AWS test execution because the ciphertext blob metadata to read the version of the KEK is not available anywhere
         assumeThat(testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault")).isTrue();
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
