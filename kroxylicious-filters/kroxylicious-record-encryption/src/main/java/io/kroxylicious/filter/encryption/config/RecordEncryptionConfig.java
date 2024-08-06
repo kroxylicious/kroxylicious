@@ -40,6 +40,12 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
                 resolvedAliasRefreshAfterWriteSeconds, notFoundAliasExpireAfterWriteSeconds, encryptionDekRefreshAfterWriteSeconds, encryptionDekExpireAfterWriteSeconds);
     }
 
+    public DekManagerConfig dekManager() {
+        Long maxEncryptionsPerDek = getExperimentalLong("maxEncryptionsPerDek");
+        return new DekManagerConfig(maxEncryptionsPerDek);
+
+    }
+
     @Nullable
     private Integer getExperimentalInt(String property) {
         return Optional.ofNullable(experimental.get(property)).map(value -> {

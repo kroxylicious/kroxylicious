@@ -8,6 +8,7 @@ package io.kroxylicious.filter.encryption;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Future;
 
 import javax.crypto.Cipher;
@@ -16,6 +17,7 @@ import org.assertj.core.api.AbstractThrowableAssert;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.encryption.config.CipherSpec;
+import io.kroxylicious.filter.encryption.config.DekManagerConfig;
 import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
@@ -90,8 +92,14 @@ class RecordEncryptionTest {
     }
 
     @Test
+    void testDekManagerConfigDefaults() {
+        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, null).dekManager();
+        assertThat(config.maxEncryptionsPerDek()).isEqualTo(5_000_000L);
+    }
+
+    @Test
     void testKmsCacheConfigDefaultsWhenPropertiesNull() {
-        HashMap<String, Object> experimental = new HashMap<>();
+        Map<String, Object> experimental = new HashMap<>();
         experimental.put("decryptedDekCacheSize", null);
         experimental.put("decryptedDekExpireAfterAccessSeconds", null);
         experimental.put("resolvedAliasCacheSize", null);
@@ -113,6 +121,15 @@ class RecordEncryptionTest {
     }
 
     @Test
+    void testDekManagerConfigDefaultsWhenPropertiesNull() {
+        Map<String, Object> experimental = new HashMap<>();
+        experimental.put("maxEncryptionsPerDek", null);
+
+        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, null).dekManager();
+        assertThat(config.maxEncryptionsPerDek()).isEqualTo(5_000_000L);
+    }
+
+    @Test
     void testKmsCacheConfigOverrides() {
         KmsCacheConfig kmsCacheConfig = new KmsCacheConfig(
                 1,
@@ -124,7 +141,7 @@ class RecordEncryptionTest {
                 Duration.ofSeconds(7L),
                 Duration.ofSeconds(8L));
 
-        HashMap<String, Object> experimental = new HashMap<>();
+        Map<String, Object> experimental = new HashMap<>();
         experimental.put("decryptedDekCacheSize", 1);
         experimental.put("decryptedDekExpireAfterAccessSeconds", 2);
         experimental.put("resolvedAliasCacheSize", 3);
@@ -135,6 +152,18 @@ class RecordEncryptionTest {
         experimental.put("encryptionDekExpireAfterWriteSeconds", 8);
         KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental).kmsCache();
         assertThat(config).isEqualTo(kmsCacheConfig);
+    }
+
+    @Test
+    void testDekManagerConfigOverrides() {
+        var dekManagerCacheConfig = new DekManagerConfig(
+                1_000L);
+
+        Map<String, Object> experimental = new HashMap<>();
+        experimental.put("maxEncryptionsPerDek", 1_000L);
+
+        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental).dekManager();
+        assertThat(config).isEqualTo(dekManagerCacheConfig);
     }
 
     @Test
