@@ -11,12 +11,16 @@ import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,7 +38,9 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
@@ -56,7 +62,6 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.DOUBLE;
 
 /**
@@ -66,17 +71,19 @@ import static org.assertj.core.api.InstanceOfAssertFactories.DOUBLE;
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
+@EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 class OauthBearerValidationIT {
 
     private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server").withTag("2.1.8");
-    private static final String JWKS_ENDPOINT_URL = "http://localhost:28089/default/jwks";
+    private static final int OAUTH_SERVER_PORT = 28089;
+    private static final String JWKS_ENDPOINT_URL = "http://localhost:" + OAUTH_SERVER_PORT + "/default/jwks";
     private static final URI OAUTH_ENDPOINT_URL = URI.create(JWKS_ENDPOINT_URL).resolve("/");
     private static final URI TOKEN_ENDPOINT_URL = OAUTH_ENDPOINT_URL.resolve("default/token");
     private static final String EXPECTED_AUDIENCE = "default";
     private static final String BAD_TOKEN = "eyJraWQiOiJkZWZhdWx0IiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ."
             + "eyJzdWIiOiJjbGllbnRJZElnbm9yZSIsImF1ZCI6ImRlZmF1bHQiLCJuYmYiOjE3MjA3MjIyOTAsImF6cCI6ImNsaWVudElkSWdub3JlIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDoyODA4OS9kZWZhdWx0IiwiZXhwIjoxNzIwNzI1ODkwLCJpYXQiOjE3MjA3MjIyOTAsImp0aSI6IjE0MGZjMmFhLWRjZmQtNDE1Mi05MWJmLWQyMDZiM2M1MzAxZiIsInRpZCI6ImRlZmF1bHQifQ."
-            + "I4LUI4Lp6XwUzD-UN2LDRfiNPCvhHDQJVH_LCE4gkuY5UxrRMJ8H3C9408zmjGPRChWmKU4aRIy8rtSPbfRmDLenoM91dr1mDy8B01TZohEOACnAxBSvsN73-cNUUvaRzZmMeUkGbmgEtGhqZ2d3MELe7bm0fEyuNRyM9fv-AahGm551hchMe3bzeYjbcBKuatKYoiHuPTX_HuNF4AAwI_vz_lYzHliKDmPRJwpsaMUaCtsfUKbSzpRPe6X2FWWkkgOLtCD-W14sp3r8z2KrHryH_ILz2MtPvIlvmkJE8U0CRaVyQ-6L2sL-iUdXoUGTHmV384X2R-cy5gKFhN3Ibg";
-    private static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC = "kroxylicious_payload_size_bytes_count"; // notsecret
+            + "I4LUI4Lp6XwUzD-UN2LDRfiNPCvhHDQJVH_LCE4gkuY5UxrRMJ8H3C9408zmjGPRChWmKU4aRIy8rtSPbfRmDLenoM91dr1mDy8B01TZohEOACnAxBSvsN73-cNUUvaRzZmMeUkGbmgEtGhqZ2d3MELe7bm0fEyuNRyM9fv-AahGm551hchMe3bzeYjbcBKuatKYoiHuPTX_HuNF4AAwI_vz_lYzHliKDmPRJwpsaMUaCtsfUKbSzpRPe6X2FWWkkgOLtCD-W14sp3r8z2KrHryH_ILz2MtPvIlvmkJE8U0CRaVyQ-6L2sL-iUdXoUGTHmV384X2R-cy5gKFhN3Ibg"; // notsecret
+    private static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC = "kroxylicious_payload_size_bytes_count";
     private static final Predicate<SimpleMetric> UPSTREAM_SASL_HANDSHAKE_LABELS_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
             && m.labels().entrySet().containsAll(
                     Map.of("ApiKey", "SASL_HANDSHAKE", "flowing", "upstream").entrySet());
@@ -93,13 +100,10 @@ class OauthBearerValidationIT {
 
     @BeforeAll
     public static void beforeAll() {
-        assumeThat(DockerClientFactory.instance().isDockerAvailable()).withFailMessage("docker unavailable").isTrue();
-
-        int port = OAUTH_ENDPOINT_URL.getPort();
         oauthServer = new OauthServerContainer(OauthBearerValidationIT.DOCKER_IMAGE_NAME);
         oauthServer.setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*started server on address.*"));
-        oauthServer.addFixedExposedPort(port, port);
-        oauthServer.withEnv("SERVER_PORT", port + "");
+        oauthServer.addFixedExposedPort(OAUTH_SERVER_PORT, OAUTH_SERVER_PORT);
+        oauthServer.withEnv("SERVER_PORT", OAUTH_SERVER_PORT + "");
         oauthServer.start();
     }
 
@@ -112,6 +116,10 @@ class OauthBearerValidationIT {
 
     @AfterEach
     public void afterEach() throws Exception {
+        workaroundKafka17134();
+    }
+
+    private void workaroundKafka17134() throws Exception {
         // https://issues.apache.org/jira/browse/KAFKA-17134
         // Workaround for defect in Kafka where closed VerificationKeyResolvers get left in the
         // cache. This is impactful to the proxy because its config is constant (so cache hits).
@@ -151,15 +159,15 @@ class OauthBearerValidationIT {
     }
 
     @Test
-    void authWithBadToken() throws Exception {
-        var badTokenFile = Files.createTempFile("badtoken", "b64");
+    void authWithBadToken(@TempDir Path tempdir) throws Exception {
+        var badTokenFile = Files.createTempFile(tempdir, "badtoken", "b64");
         Files.writeString(badTokenFile, BAD_TOKEN);
         var config = getClientConfig(badTokenFile.toUri());
 
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
                 var admin = tester.admin(config)) {
             assertThatThrownBy(() -> performClusterOperation(admin))
-                    .hasCauseInstanceOf(SaslAuthenticationException.class)
+                    .isInstanceOf(SaslAuthenticationException.class)
                     .hasMessageContaining("invalid_token");
 
             var text = AdminHttpClient.INSTANCE.getFromAdminEndpoint(METRICS).body();
@@ -175,10 +183,6 @@ class OauthBearerValidationIT {
                     .isPositive();
 
             assertThat(saslAuthenticationResponsesComingDown).isNotPresent();
-        }
-        finally {
-            @SuppressWarnings("java:S1481")
-            var ignored = badTokenFile.toFile().delete();
         }
 
     }
@@ -221,10 +225,26 @@ class OauthBearerValidationIT {
      * Pings the cluster in order to assert connectivity. We don't care about the result.
      * @param admin admin
      */
-    @SuppressWarnings("java:S1481") // making clear the intent that the result of the operation is unneeded.
     private void performClusterOperation(Admin admin) {
-        var unused = admin.describeCluster().nodes().toCompletionStage().toCompletableFuture().join();
-        assertThat(unused).isNotNull();
+        try {
+            var unused = admin.describeCluster().nodes().toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
+            assertThat(unused).isNotNull();
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+        catch (ExecutionException e) {
+            if (e.getCause() instanceof RuntimeException re) {
+                throw re;
+            }
+            else {
+                throw new RuntimeException(e.getCause());
+            }
+        }
+        catch (TimeoutException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static class OauthServerContainer extends GenericContainer<OauthServerContainer> {
@@ -279,4 +299,9 @@ class OauthBearerValidationIT {
                     .collect(Collectors.toMap(nv -> nv.group("name"), nv -> nv.group("value")));
         }
     }
+
+    static boolean isDockerAvailable() {
+        return DockerClientFactory.instance().isDockerAvailable();
+    }
+
 }
