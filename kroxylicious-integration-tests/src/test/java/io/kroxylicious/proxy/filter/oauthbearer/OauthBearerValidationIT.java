@@ -252,6 +252,7 @@ class OauthBearerValidationIT {
             super(dockerImageName);
         }
 
+        @Override
         protected void addFixedExposedPort(int hostPort, int containerPort) {
             super.addFixedExposedPort(hostPort, containerPort);
         }
