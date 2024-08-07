@@ -9,7 +9,9 @@ package io.kroxylicious.systemtests.extensions;
 import java.lang.reflect.Parameter;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 
+import org.junit.AssumptionViolatedException;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -74,11 +76,11 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
         String namespace = extractK8sNamespace(extensionContext);
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
-            if (exception.isPresent() && exception.stream().anyMatch(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException"))) {
+            exception.filter(Predicate.not(AssumptionViolatedException.class::isInstance)).ifPresent(e -> {
                 DeploymentUtils.collectClusterInfo(namespace, extensionContext.getRequiredTestClass().getSimpleName(),
                         extensionContext.getRequiredTestMethod().getName());
                 clusterDumpCollected = true;
-            }
+            });
         }
         finally {
             NamespaceUtils.deleteNamespaceWithWait(namespace);

@@ -53,7 +53,8 @@ public class Kroxylicious {
         LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
         resourceManager
                 .createResourceWithWait(
-                        KroxyliciousConfigMapTemplates.kroxyliciousRecordEncryptionConfig(clusterName, deploymentNamespace, testKmsFacade, experimentalKmsConfig).build());
+                        KroxyliciousConfigMapTemplates.kroxyliciousRecordEncryptionConfig(clusterName, deploymentNamespace, testKmsFacade, experimentalKmsConfig)
+                                .build());
     }
 
     private void deployPortPerBrokerPlain(int replicas) {
@@ -72,6 +73,13 @@ public class Kroxylicious {
         deployPortPerBrokerPlain(replicas);
     }
 
+    /**
+     * Deploy - Port per broker plain with no filters config
+     *
+     * @param clusterName the cluster name
+     * @param replicas the replicas
+     * @param testKmsFacade the test kms facade
+     */
     public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, int replicas, TestKmsFacade<?, ?, ?> testKmsFacade) {
         deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, replicas, testKmsFacade, null);
     }
@@ -83,7 +91,8 @@ public class Kroxylicious {
      * @param replicas the replicas
      * @param testKmsFacade the test kms facade
      */
-    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, int replicas, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
+    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, int replicas, TestKmsFacade<?, ?, ?> testKmsFacade,
+                                                                   ExperimentalKmsConfig experimentalKmsConfig) {
         createRecordEncryptionFilterConfigMap(clusterName, testKmsFacade, experimentalKmsConfig);
         deployPortPerBrokerPlain(replicas);
     }
