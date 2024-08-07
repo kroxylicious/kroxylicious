@@ -6,6 +6,7 @@
 
 package io.kroxylicious.test.tester;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -30,7 +31,7 @@ import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
 import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 
-class KroxyliciousClients {
+class KroxyliciousClients implements Closeable {
     private final Map<String, Object> defaultClientConfiguration;
 
     private final List<Admin> admins;
