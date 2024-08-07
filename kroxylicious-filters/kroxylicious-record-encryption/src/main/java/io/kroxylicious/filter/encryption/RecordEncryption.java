@@ -103,7 +103,9 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         checkCipherSuite();
         Kms<K, E> kms = buildKms(context, configuration);
 
-        DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, 5_000_000);
+        var dekConfig = configuration.dekManager();
+        DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, dekConfig.maxEncryptionsPerDek());
+
         KmsCacheConfig cacheConfig = configuration.kmsCache();
         EncryptionDekCache<K, E> encryptionDekCache = new EncryptionDekCache<>(dekManager, null, EncryptionDekCache.NO_MAX_CACHE_SIZE,
                 cacheConfig.encryptionDekCacheRefreshAfterWriteDuration(), cacheConfig.encryptionDekCacheExpireAfterWriteDuration());

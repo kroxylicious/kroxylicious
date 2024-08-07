@@ -41,20 +41,20 @@ import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModul
 @Plugin(configType = OauthBearerValidation.Config.class)
 public class OauthBearerValidation implements FilterFactory<OauthBearerValidation.Config, SharedOauthBearerValidationContext> {
 
-    @SuppressWarnings("unused")
-    @VisibleForTesting
-    public OauthBearerValidation() {
-        this.oauthHandler = new OAuthBearerValidatorCallbackHandler();
-    }
-
-    public OauthBearerValidation(OAuthBearerValidatorCallbackHandler oauthHandler) {
-        this.oauthHandler = oauthHandler;
-    }
-
     private final OAuthBearerValidatorCallbackHandler oauthHandler;
 
     static {
         OAuthBearerSaslServerProvider.initialize();
+    }
+
+    @SuppressWarnings("unused")
+    public OauthBearerValidation() {
+        this(new OAuthBearerValidatorCallbackHandler());
+    }
+
+    @VisibleForTesting
+    OauthBearerValidation(OAuthBearerValidatorCallbackHandler oauthHandler) {
+        this.oauthHandler = oauthHandler;
     }
 
     @Override

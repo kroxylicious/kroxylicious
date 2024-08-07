@@ -7,6 +7,10 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1404](https://github.com/kroxylicious/kroxylicious/pull/1404): Move deprecated Context classes out of kroxylicious-api
+* [#1402](https://github.com/kroxylicious/kroxylicious/pull/1402): Move FilterInvoker classes to kroxylicious-runtime
+* [#1289](https://github.com/kroxylicious/kroxylicious/issues/1289): Record Encryption - expose maxEncryptionsPerDek for configuration
+* [#1394](https://github.com/kroxylicious/kroxylicious/pull/1394): Make ClusterNetworkAddressConfigProvider and co internal
 * [#1356](https://github.com/kroxylicious/kroxylicious/pull/1356): Changes for Kafka 3.8.0 #1356
 * [#1354](https://github.com/kroxylicious/kroxylicious/pull/1354): Make EDEK cache refresh and expiry durations configurable
 * [#1360](https://github.com/kroxylicious/kroxylicious/pull/1360): Bump kafka.version from 3.7.0 to 3.7.1
@@ -24,6 +28,15 @@ threads, then switch back to an execution context where mutation of Filter membe
 * Record Encryption Filter: Data Encryption Keys will now be refreshed one hour after creation by default.
 This is a bugfix for [#1139](https://github.com/kroxylicious/kroxylicious/issues/1339) to ensure we start
 using new key material after key-encryption-keys are rotated in the KMS within some controlled duration.
+* **Breaking changes to public kroxylicious-api module**, Filter Authors may be affected
+  - Deprecated `io.kroxylicious.proxy.clusternetworkaddressconfigprovider.ClusterNetworkAddressConfigProviderContributor` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.service.HostPort` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.filter.FilterInvoker` and implementations moved to internal module
+  - Deprecated `io.kroxylicious.proxy.filter.FilterAndInvoker` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.filter.FilterInvokers` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.service.Context` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.service.Contributor` moved to internal module
 
 ## 0.6.0
 
