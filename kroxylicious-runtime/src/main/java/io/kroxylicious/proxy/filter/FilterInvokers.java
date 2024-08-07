@@ -12,9 +12,7 @@ import java.util.stream.Stream;
 /**
  * Factory for FilterInvokers. The intention is to keep the Invoker implementations
  * as private as we can, so that invocation is a framework concern.
- * @deprecated intend to move this to the kroxylicious runtime and not have it public
  */
-@Deprecated(since = "0.3.0")
 public class FilterInvokers {
 
     private FilterInvokers() {
