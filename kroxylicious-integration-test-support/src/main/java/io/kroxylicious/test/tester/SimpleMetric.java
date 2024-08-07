@@ -10,7 +10,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -35,30 +34,31 @@ public record SimpleMetric(String name, Map<String, String> labels, double value
             .compile("^(?<metric>[a-zA-Z_:][a-zA-Z0-9_:]*)(\\{(?<labels>.*)})?[\\t ]*(?<value>[0-9E.]*)[\\t ]*(?<timestamp>\\d+)?$");
     private static final Pattern NAME_WITH_QUOTED_VALUE = Pattern.compile("^(?<name>[a-zA-Z_:][a-zA-Z0-9_:]*)=\"(?<value>.*)\"$");
 
-    static List<SimpleMetric> parse(String output) {
-        var all = new ArrayList<SimpleMetric>();
-        try (var reader = new BufferedReader(new StringReader(output))) {
-            var line = reader.readLine();
-            while (line != null) {
-                if (!(line.startsWith("#") || line.isEmpty())) {
-                    var matched = PROM_TEXT_EXPOSITION_PATTERN.matcher(line);
-                    if (!matched.matches()) {
-                        throw new IllegalArgumentException("Failed to parse metric %s".formatted(line));
-                    }
+    private record LineMatcher(String line, Matcher matcher) {};
 
-                    all.add(parseMetric(matched, line));
-                }
-                line = reader.readLine();
-            }
-            return all;
+    static List<SimpleMetric> parse(String output) {
+        try (var reader = new BufferedReader(new StringReader(output))) {
+            return reader.lines()
+                    .filter(line -> !(line.startsWith("#") || line.isEmpty()))
+                    .map(line -> new LineMatcher(line, PROM_TEXT_EXPOSITION_PATTERN.matcher(line)))
+                    .peek(SimpleMetric::verifyMatches)
+                    .map(SimpleMetric::parseMetric)
+                    .toList();
         }
         catch (IOException e) {
             throw new UncheckedIOException("Failed to parse metrics", e);
         }
     }
 
-    private static SimpleMetric parseMetric(Matcher matched, String line) {
+    private static void verifyMatches(LineMatcher lineMatcher) {
+        if (!lineMatcher.matcher.matches()) {
+            throw new IllegalArgumentException("Failed to parse metric %s".formatted(lineMatcher.line));
+        }
+    }
+
+    private static SimpleMetric parseMetric(LineMatcher lineMatcher) {
         try {
+            Matcher matched = lineMatcher.matcher;
             var metricName = matched.group("metric");
             var metricValue = Double.parseDouble(matched.group("value"));
             var metricLabels = matched.group("labels");
@@ -66,7 +66,7 @@ public record SimpleMetric(String name, Map<String, String> labels, double value
             return new SimpleMetric(metricName, labels, metricValue);
         }
         catch (IllegalArgumentException iae) {
-            throw new IllegalArgumentException("Failed to parse metric %s".formatted(line), iae);
+            throw new IllegalArgumentException("Failed to parse metric %s".formatted(lineMatcher.line), iae);
         }
     }
 
