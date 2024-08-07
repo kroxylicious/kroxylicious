@@ -20,7 +20,7 @@ import io.kroxylicious.filter.encryption.config.CipherSpec;
 
 public class Aes implements CipherManager {
 
-    public static final Aes AES_256_GCM_128 = new Aes("AES_256/GCM/NoPadding", (byte) 0, CipherSpec.AES_256_GCM_128);
+    public static final Aes AES_256_GCM_128 = new Aes("AES/GCM/NoPadding", 256, (byte) 0, CipherSpec.AES_256_GCM_128);
 
     private static final int IV_SIZE_BYTES = 12;
     private static final int TAG_LENGTH_BITS = 128;
@@ -28,12 +28,19 @@ public class Aes implements CipherManager {
     private final byte serializedId;
     private final CipherSpec spec;
     private final SecureRandom rng;
+    private final int numKeyBits;
 
-    private Aes(String transformation, byte serializedId, CipherSpec spec) {
+    private Aes(String transformation, int numKeyBits, byte serializedId, CipherSpec spec) {
         this.transformation = transformation;
+        this.numKeyBits = numKeyBits;
         this.serializedId = serializedId;
         this.spec = spec;
         rng = new SecureRandom();
+    }
+
+    @Override
+    public int numKeyBits() {
+        return numKeyBits;
     }
 
     @Override
