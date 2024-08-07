@@ -42,6 +42,13 @@ class OauthBearerValidationTest {
     private FilterDispatchExecutor executor;
 
     @Test
+    void noArgsConstructor() {
+        var validation = new OauthBearerValidation();
+        assertThat(validation).isNotNull();
+        validation.close(null);
+    }
+
+    @Test
     void mustProvideDefaultValuesForConfig() throws Exception {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         OauthBearerValidation.Config yamlConfig = yamlMapper.readerFor(OauthBearerValidation.Config.class).readValue("""
