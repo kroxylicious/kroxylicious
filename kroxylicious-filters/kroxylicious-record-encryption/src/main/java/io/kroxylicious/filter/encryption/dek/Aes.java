@@ -39,7 +39,7 @@ public class Aes implements CipherManager {
     }
 
     @Override
-    public int numKeyBits() {
+    public int requiredNumKeyBits() {
         return numKeyBits;
     }
 

@@ -69,9 +69,9 @@ public class DekManager<K, E> {
         return kms.generateDekPair(kekRef)
                 .thenApply(dekPair -> {
                     DestroyableRawSecretKey destroyableKey = DestroyableRawSecretKey.toDestroyableKey(dekPair.dek());
-                    if (destroyableKey.numKeyBits() < cipherManager.numKeyBits()) {
+                    if (destroyableKey.numKeyBits() < cipherManager.requiredNumKeyBits()) {
                         throw new EncryptionConfigurationException("KMS returned " + destroyableKey.numKeyBits() + "-bit DEK but "
-                                + cipherManager.name() + " requires keys of " + cipherManager.numKeyBits() + " bits");
+                                + cipherManager.name() + " requires keys of " + cipherManager.requiredNumKeyBits() + " bits");
                     }
                     return new Dek<>(dekPair.edek(), destroyableKey, cipherManager, maxEncryptionsPerDek);
                 });

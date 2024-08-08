@@ -69,5 +69,5 @@ public interface CipherManager extends PersistedIdentifiable<CipherSpec> {
      */
     AlgorithmParameterSpec readParameters(ByteBuffer parametersBuffer);
 
-    int numKeyBits();
+    int requiredNumKeyBits();
 }

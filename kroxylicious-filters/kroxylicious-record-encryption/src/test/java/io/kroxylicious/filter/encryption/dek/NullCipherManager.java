@@ -32,7 +32,7 @@ public class NullCipherManager implements CipherManager {
     }
 
     @Override
-    public int numKeyBits() {
+    public int requiredNumKeyBits() {
         return 0;
     }
 
