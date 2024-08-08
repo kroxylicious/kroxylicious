@@ -6,8 +6,11 @@
 
 package io.kroxylicious.filter.encryption.config;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -15,6 +18,7 @@ import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
@@ -76,4 +80,24 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
         }).orElse(null);
     }
 
+    @Nullable
+    private String getExperimentalString(String property) {
+        return Optional.ofNullable(experimental.get(property)).map(value -> {
+            if (value instanceof String stringValue) {
+                return stringValue;
+            }
+            else {
+                throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to String");
+            }
+        }).orElse(null);
+    }
+
+    public @NonNull CipherOverrideConfig cipherOverrideConfig() {
+        return new CipherOverrideConfig(Arrays.stream(CipherSpec.values())
+                .collect(Collectors.toMap(Function.identity(), this::getOverridesForSpec)));
+    }
+
+    private @NonNull CipherOverrides getOverridesForSpec(CipherSpec spec) {
+        return new CipherOverrides(getExperimentalString(spec.name() + ".transformationOverride"));
+    }
 }

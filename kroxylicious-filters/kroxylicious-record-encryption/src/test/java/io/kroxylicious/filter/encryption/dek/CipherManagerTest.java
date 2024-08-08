@@ -11,6 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -20,6 +21,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,15 +29,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CipherManagerTest {
 
     public static List<Arguments> allCipherManagers() {
-        return Arrays.stream(CipherSpec.values()).map(cs -> Arguments.of(CipherSpecResolver.ALL.fromName(cs))).toList();
+        return Arrays.stream(CipherSpec.values()).map(cs -> Arguments.of(CipherSpecResolver.all(new CipherOverrideConfig(Map.of())).fromName(cs))).toList();
     }
 
     @ParameterizedTest
     @MethodSource("allCipherManagers")
     void serializedParamsGoodForDecrypt(CipherManager cipherManager) throws GeneralSecurityException {
 
-        assertThat(CipherSpecResolver.ALL.fromSerializedId(
-                CipherSpecResolver.ALL.toSerializedId(cipherManager))).isSameAs(cipherManager);
+        assertThat(CipherSpecResolver.all(new CipherOverrideConfig(Map.of())).fromSerializedId(
+                CipherSpecResolver.all(new CipherOverrideConfig(Map.of())).toSerializedId(cipherManager))).isEqualTo(cipherManager);
 
         var params = cipherManager.paramSupplier().get();
 

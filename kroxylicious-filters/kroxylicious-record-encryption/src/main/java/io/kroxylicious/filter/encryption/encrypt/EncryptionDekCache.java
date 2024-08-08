@@ -54,11 +54,12 @@ public class EncryptionDekCache<K, E> {
                               @Nullable Executor dekCacheExecutor,
                               int dekCacheMaxItems,
                               @NonNull Duration refreshAfterWrite,
-                              @NonNull Duration expireAfterWrite) {
+                              @NonNull Duration expireAfterWrite,
+                              CipherSpecResolver cipherSpecResolver) {
         Objects.requireNonNull(refreshAfterWrite, "refreshAfterWrite is null");
         Objects.requireNonNull(expireAfterWrite, "expireAfterWrite is null");
         this.dekManager = Objects.requireNonNull(dekManager);
-        this.cipherSpecResolver = CipherSpecResolver.ALL;
+        this.cipherSpecResolver = cipherSpecResolver;
         Caffeine<Object, Object> cache = Caffeine.newBuilder();
         if (dekCacheMaxItems != NO_MAX_CACHE_SIZE) {
             cache = cache.maximumSize(dekCacheMaxItems);

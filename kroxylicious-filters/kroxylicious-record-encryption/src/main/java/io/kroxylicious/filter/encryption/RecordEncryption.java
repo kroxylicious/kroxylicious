@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
+import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
@@ -75,14 +77,14 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
      * finding out at decrypt time that we cannot build a Cipher for data encrypted with
      * a known CipherSpec. Instead, we fail early, which stops the Proxy from starting.
      */
-    private static void checkCipherSuite() {
-        checkCipherSuite(CipherManager::newCipher);
+    private static void checkCipherSuite(RecordEncryptionConfig configuration) {
+        checkCipherSuite(CipherManager::newCipher, configuration);
     }
 
-    /* exposed for testing */ static void checkCipherSuite(Function<CipherManager, Cipher> cipherFunc) {
+    /* exposed for testing */ static void checkCipherSuite(Function<CipherManager, Cipher> cipherFunc, RecordEncryptionConfig configuration) {
         List<CipherSpec> failures = Arrays.stream(CipherSpec.values()).flatMap(cipherSpec -> {
             try {
-                cipherFunc.apply(CipherSpecResolver.ALL.fromName(cipherSpec));
+                cipherFunc.apply(CipherSpecResolver.all(configuration.cipherOverrideConfig()).fromName(cipherSpec));
                 return Stream.empty();
             }
             catch (Exception e) {
@@ -100,15 +102,17 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     public SharedEncryptionContext<K, E> initialize(FilterFactoryContext context,
                                                     RecordEncryptionConfig configuration)
             throws PluginConfigurationException {
-        checkCipherSuite();
+        checkCipherSuite(configuration);
         Kms<K, E> kms = buildKms(context, configuration);
 
         var dekConfig = configuration.dekManager();
         DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, dekConfig.maxEncryptionsPerDek());
 
         KmsCacheConfig cacheConfig = configuration.kmsCache();
+        CipherSpecResolver cipherSpecResolver = CipherSpecResolver.all(configuration.cipherOverrideConfig());
         EncryptionDekCache<K, E> encryptionDekCache = new EncryptionDekCache<>(dekManager, null, EncryptionDekCache.NO_MAX_CACHE_SIZE,
-                cacheConfig.encryptionDekCacheRefreshAfterWriteDuration(), cacheConfig.encryptionDekCacheExpireAfterWriteDuration());
+                cacheConfig.encryptionDekCacheRefreshAfterWriteDuration(), cacheConfig.encryptionDekCacheExpireAfterWriteDuration(),
+                cipherSpecResolver);
         DecryptionDekCache<K, E> decryptionDekCache = new DecryptionDekCache<>(dekManager, null, DecryptionDekCache.NO_MAX_CACHE_SIZE);
         return new SharedEncryptionContext<>(kms, configuration, dekManager, encryptionDekCache, decryptionDekCache);
     }
@@ -120,14 +124,15 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
         ScheduledExecutorService filterThreadExecutor = context.filterDispatchExecutor();
         FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
-        var encryptionManager = new InBandEncryptionManager<>(Encryption.V2,
+        CipherOverrideConfig cipherOverrideConfig = sharedEncryptionContext.configuration().cipherOverrideConfig();
+        var encryptionManager = new InBandEncryptionManager<>(Encryption.v2(cipherOverrideConfig),
                 sharedEncryptionContext.dekManager().edekSerde(),
                 1024 * 1024,
                 8 * 1024 * 1024,
                 sharedEncryptionContext.encryptionDekCache(),
                 executor);
 
-        var decryptionManager = new InBandDecryptionManager<>(EncryptionResolver.ALL,
+        var decryptionManager = new InBandDecryptionManager<>(EncryptionResolver.all(cipherOverrideConfig),
                 sharedEncryptionContext.dekManager(),
                 sharedEncryptionContext.decryptionDekCache(),
                 executor);

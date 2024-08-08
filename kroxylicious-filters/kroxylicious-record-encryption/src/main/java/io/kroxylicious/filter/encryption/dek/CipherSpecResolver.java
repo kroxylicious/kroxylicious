@@ -10,13 +10,16 @@ import java.util.Collection;
 import java.util.List;
 
 import io.kroxylicious.filter.encryption.common.AbstractResolver;
+import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 
 public class CipherSpecResolver extends AbstractResolver<CipherSpec, CipherManager, CipherSpecResolver> {
 
-    public static final CipherSpecResolver ALL = new CipherSpecResolver(List.of(
-            Aes.AES_256_GCM_128,
-            ChaChaPoly.INSTANCE));
+    public static CipherSpecResolver all(CipherOverrideConfig cipherOverrideConfig) {
+        return new CipherSpecResolver(List.of(
+                Aes.aes256gcm128(cipherOverrideConfig),
+                ChaChaPoly.INSTANCE));
+    }
 
     public CipherSpecResolver(Collection<CipherManager> impls) {
         super(impls);
@@ -27,8 +30,8 @@ public class CipherSpecResolver extends AbstractResolver<CipherSpec, CipherManag
         return new UnknownCipherSpecException(msg);
     }
 
-    public static CipherSpecResolver of(CipherSpec... cipherSpec) {
-        return ALL.subset(cipherSpec);
+    public static CipherSpecResolver of(CipherOverrideConfig cipherOverrideConfig, CipherSpec... cipherSpec) {
+        return all(cipherOverrideConfig).subset(cipherSpec);
     }
 
     @Override

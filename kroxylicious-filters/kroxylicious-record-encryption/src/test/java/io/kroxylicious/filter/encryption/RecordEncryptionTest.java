@@ -180,7 +180,7 @@ class RecordEncryptionTest {
         AbstractThrowableAssert<?, ? extends Throwable> throwableAssert = assertThatThrownBy(() -> {
             RecordEncryption.checkCipherSuite(cipherSpec -> {
                 throw new DekException("Could not construct cipher for " + cipherSpec);
-            });
+            }, configuration);
         }).isInstanceOf(EncryptionConfigurationException.class);
         throwableAssert.hasMessageContaining("Cipher Suite check failed, one or more ciphers could not be loaded");
         for (CipherSpec value : CipherSpec.values()) {
@@ -190,7 +190,7 @@ class RecordEncryptionTest {
 
     @Test
     void checkCipherSuiteSuccess() {
-        assertThatCode(() -> RecordEncryption.checkCipherSuite(cipherSpec -> arbitraryCipher)).doesNotThrowAnyException();
+        assertThatCode(() -> RecordEncryption.checkCipherSuite(cipherSpec -> arbitraryCipher, configuration)).doesNotThrowAnyException();
     }
 
 }

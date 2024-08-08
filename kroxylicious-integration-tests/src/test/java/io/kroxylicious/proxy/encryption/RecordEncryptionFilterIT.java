@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
+
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -280,7 +282,7 @@ class RecordEncryptionFilterIT {
             List<byte[]> encryptionVersions = StreamSupport.stream(kafkaRecord.headers().headers(EncryptionHeader.ENCRYPTION_HEADER_NAME).spliterator(), false)
                     .map(Header::value).toList();
             assertThat(encryptionVersions).hasSize(1).singleElement(BYTE_ARRAY).hasSize(1);
-            Encryption encryption = EncryptionResolver.ALL.fromSerializedId(encryptionVersions.getFirst()[0]);
+            Encryption encryption = EncryptionResolver.all(new CipherOverrideConfig(Map.of())).fromSerializedId(encryptionVersions.getFirst()[0]);
             return encryption.wrapper().readSpecAndEdek(ByteBuffer.wrap(kafkaRecord.value()), BytesEdek.getSerde(), (cipherManager, o) -> o);
         }).collect(Collectors.toSet());
         assertThat(edeks).hasSizeGreaterThan(1);

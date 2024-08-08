@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -47,6 +48,7 @@ import io.kroxylicious.filter.encryption.EncryptorCreationException;
 import io.kroxylicious.filter.encryption.TestingDek;
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
+import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
@@ -995,7 +997,7 @@ class InBandDecryptionManagerTest {
                 .filter(testingRecord -> Stream.of(testingRecord.headers()).anyMatch(header -> header.key().equals(EncryptionHeader.ENCRYPTION_HEADER_NAME)))
                 .map(testingRecord -> {
                     ByteBuffer wrapper = testingRecord.value();
-                    CipherSpecResolver.ALL.fromSerializedId(wrapper.get());
+                    CipherSpecResolver.all(new CipherOverrideConfig(Map.of())).fromSerializedId(wrapper.get());
                     var edekLength = ByteUtils.readUnsignedVarint(wrapper);
                     byte[] edekBytes = new byte[edekLength];
                     wrapper.get(edekBytes);
@@ -1009,7 +1011,7 @@ class InBandDecryptionManagerTest {
 
         DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, 1);
         var dekCache = new DecryptionDekCache<>(dekManager, directExecutor(), DecryptionDekCache.NO_MAX_CACHE_SIZE);
-        return new InBandDecryptionManager<>(EncryptionResolver.ALL,
+        return new InBandDecryptionManager<>(EncryptionResolver.all(new CipherOverrideConfig(Map.of())),
                 dekManager,
                 dekCache,
                 new FilterThreadExecutor(directExecutor()));
@@ -1032,8 +1034,9 @@ class InBandDecryptionManagerTest {
                                                                                        int maxCacheSize) {
 
         DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, maxEncryptionsPerDek);
-        var cache = new EncryptionDekCache<>(dekManager, directExecutor(), maxCacheSize, Duration.ofHours(1), Duration.ofHours(1));
-        return new InBandEncryptionManager<>(Encryption.V2,
+        var cache = new EncryptionDekCache<>(dekManager, directExecutor(), maxCacheSize, Duration.ofHours(1), Duration.ofHours(1),
+                CipherSpecResolver.all(new CipherOverrideConfig(Map.of())));
+        return new InBandEncryptionManager<>(Encryption.v2(new CipherOverrideConfig(Map.of())),
                 dekManager.edekSerde(),
                 recordBufferInitialBytes,
                 recordBufferMaxBytes,

@@ -10,11 +10,14 @@ import java.util.Collection;
 import java.util.List;
 
 import io.kroxylicious.filter.encryption.common.AbstractResolver;
+import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
 import io.kroxylicious.filter.encryption.config.EncryptionVersion;
 
 public class EncryptionResolver extends AbstractResolver<EncryptionVersion, Encryption, EncryptionResolver> {
 
-    public static final EncryptionResolver ALL = new EncryptionResolver(List.of(Encryption.V1, Encryption.V2));
+    public static EncryptionResolver all(CipherOverrideConfig config) {
+        return new EncryptionResolver(List.of(Encryption.V1, Encryption.v2(config)));
+    }
 
     EncryptionResolver(Collection<Encryption> impls) {
         super(impls);

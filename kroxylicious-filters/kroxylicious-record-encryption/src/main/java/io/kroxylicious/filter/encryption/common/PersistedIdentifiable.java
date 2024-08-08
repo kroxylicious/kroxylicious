@@ -7,7 +7,7 @@
 package io.kroxylicious.filter.encryption.common;
 
 /**
- * <p>Abstraction for identifying specific behaviours (implementations such as {@link io.kroxylicious.filter.encryption.dek.Aes#AES_256_GCM_128}
+ * <p>Abstraction for identifying specific behaviours (implementations such as {@link io.kroxylicious.filter.encryption.dek.Aes}
  * or {@link io.kroxylicious.filter.encryption.dek.ChaChaPoly#INSTANCE})
  * from a set of possible behaviours (interfaces such as {@link io.kroxylicious.filter.encryption.dek.CipherManager}) in a way that guarantees
  * backwards compatibility between releases of the filter.</p>
@@ -21,7 +21,7 @@ package io.kroxylicious.filter.encryption.common;
  *
  * <h2>Example</h2>
  * <p>Users refer to a specific cipher via an element of the enum {@link io.kroxylicious.filter.encryption.config.CipherSpec} (this is the name).
- * When a particular {@link io.kroxylicious.filter.encryption.dek.CipherManager} implementation (such as {@link io.kroxylicious.filter.encryption.dek.Aes#AES_256_GCM_128})
+ * When a particular {@link io.kroxylicious.filter.encryption.dek.CipherManager} implementation (such as {@link io.kroxylicious.filter.encryption.dek.Aes})
  * is used to encrypt a plaintext we store it's {@link #serializedId()} in the record.
  * When we need to decrypt that a ciphertext we use the {@link #serializedId()} within the record to recover the implementation.</p>
  *

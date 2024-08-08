@@ -10,17 +10,54 @@ import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.GCMParameterSpec;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
+import io.kroxylicious.filter.encryption.config.CipherOverrides;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
+import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class Aes implements CipherManager {
 
-    public static final Aes AES_256_GCM_128 = new Aes("AES_256/GCM/NoPadding", (byte) 0, CipherSpec.AES_256_GCM_128);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Aes.class);
+    private static final String DEFAULT_AES256_GCM_TRANSFORMATION = "AES_256/GCM/NoPadding";
+    private static final Set<String> ALLOWED_AES256_GCM_TRANSFORMATIONS = Set.of(DEFAULT_AES256_GCM_TRANSFORMATION, "AES/GCM/NoPadding");
+
+    public static Aes aes256gcm128(CipherOverrideConfig config) {
+        String transformation = overrideTransformationElseDefault(config);
+        return new Aes(transformation, (byte) 0, CipherSpec.AES_256_GCM_128);
+    }
+
+    private static @NonNull String overrideTransformationElseDefault(CipherOverrideConfig config) {
+        String transformation = DEFAULT_AES256_GCM_TRANSFORMATION;
+        if (config.overridesMap().containsKey(CipherSpec.AES_256_GCM_128)) {
+            CipherOverrides cipherOverrides = config.overridesMap().get(CipherSpec.AES_256_GCM_128);
+            String overrideTransformation = cipherOverrides.transformation();
+            if (overrideTransformation != null) {
+                if (ALLOWED_AES256_GCM_TRANSFORMATIONS.contains(overrideTransformation)) {
+                    LOGGER.info("overriding AES256 GCM_128 transformation to {}", overrideTransformation);
+                    transformation = overrideTransformation;
+                }
+                else {
+                    throw new EncryptionConfigurationException(
+                            "AES_256_GCM_128 override transformation: " + overrideTransformation + " is not one of the allowed values: "
+                                    + ALLOWED_AES256_GCM_TRANSFORMATIONS.stream().sorted().toList());
+                }
+            }
+        }
+        return transformation;
+    }
 
     private static final int IV_SIZE_BYTES = 12;
     private static final int TAG_LENGTH_BITS = 128;
@@ -95,4 +132,21 @@ public class Aes implements CipherManager {
         return new GCMParameterSpec(TAG_LENGTH_BITS, b);
     }
 
+    // equality important as the class is used as a map key in AbstractResolver
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Aes aes = (Aes) o;
+        return serializedId == aes.serializedId && Objects.equals(transformation, aes.transformation) && spec == aes.spec;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(transformation, serializedId, spec);
+    }
 }

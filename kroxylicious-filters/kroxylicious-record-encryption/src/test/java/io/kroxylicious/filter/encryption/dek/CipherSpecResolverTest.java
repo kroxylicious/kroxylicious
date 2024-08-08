@@ -7,10 +7,12 @@
 package io.kroxylicious.filter.encryption.dek;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,12 +21,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CipherSpecResolverTest {
     @Test
     void fromPersistentIdShouldThrowIfUnknownPersistentId() {
-        assertThatThrownBy(() -> CipherSpecResolver.ALL.fromSerializedId((byte) 123)).isExactlyInstanceOf(UnknownCipherSpecException.class);
+        assertThatThrownBy(() -> CipherSpecResolver.all(new CipherOverrideConfig(Map.of())).fromSerializedId((byte) 123))
+                .isExactlyInstanceOf(UnknownCipherSpecException.class);
     }
 
     @Test
     void persistentIdsShouldBeUnique() {
-        assertThat(Arrays.stream(CipherSpec.values()).map(CipherSpecResolver.ALL::fromName).collect(Collectors.toSet()))
+        assertThat(Arrays.stream(CipherSpec.values()).map(CipherSpecResolver.all(new CipherOverrideConfig(Map.of()))::fromName).collect(Collectors.toSet()))
                 .hasSize(CipherSpec.values().length);
     }
 }

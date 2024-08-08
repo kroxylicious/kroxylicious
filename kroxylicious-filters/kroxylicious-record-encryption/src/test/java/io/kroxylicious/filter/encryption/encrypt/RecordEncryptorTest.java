@@ -8,6 +8,7 @@ package io.kroxylicious.filter.encryption.encrypt;
 
 import java.io.Closeable;
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.encryption.FixedDekKmsService;
+import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.decrypt.DecryptState;
@@ -68,7 +70,8 @@ class RecordEncryptorTest {
         try {
             fixedDekKmsService = new FixedDekKmsService(keysize);
             DekManager<ByteBuffer, ByteBuffer> manager = new DekManager<>(fixedDekKmsService, new FixedDekKmsService.Config(), 10000);
-            CompletionStage<Dek<ByteBuffer>> dekCompletionStage = manager.generateDek(fixedDekKmsService.getKekId(), Aes.AES_256_GCM_128);
+            CompletionStage<Dek<ByteBuffer>> dekCompletionStage = manager.generateDek(fixedDekKmsService.getKekId(),
+                    Aes.aes256gcm128(new CipherOverrideConfig(Map.of())));
             Dek<ByteBuffer> dek = dekCompletionStage.toCompletableFuture().get(0, TimeUnit.SECONDS);
             var encryptor = dek.encryptor(1000);
             var decryptor = dek.decryptor();
@@ -96,7 +99,7 @@ class RecordEncryptorTest {
     private Record encryptSingleRecord(TestComponents components, Set<RecordField> fields, long offset, long timestamp, String key, String value, Header... headers) {
         var re = new RecordEncryptor(
                 "topic", 0,
-                Encryption.V2,
+                Encryption.v2(new CipherOverrideConfig(Map.of())),
                 new EncryptionScheme<>("key", fields),
                 components.edekSerde,
                 ByteBuffer.allocate(100));
@@ -142,7 +145,7 @@ class RecordEncryptorTest {
 
         // And when
         var rd = new RecordDecryptor("topic", 0);
-        var rt = transformRecord(rd, new DecryptState(Encryption.V2).withDecryptor(components.decryptor), t);
+        var rt = transformRecord(rd, new DecryptState(Encryption.v2(new CipherOverrideConfig(Map.of()))).withDecryptor(components.decryptor), t);
 
         // Then
         KafkaAssertions.assertThat(rt)
@@ -181,7 +184,7 @@ class RecordEncryptorTest {
         // And when
         var rd = new RecordDecryptor("topic", 0); // index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR)
 
-        var rt = transformRecord(rd, new DecryptState(Encryption.V2).withDecryptor(components.decryptor), t);
+        var rt = transformRecord(rd, new DecryptState(Encryption.v2(new CipherOverrideConfig(Map.of()))).withDecryptor(components.decryptor), t);
 
         // Then
         KafkaAssertions.assertThat(rt)
@@ -252,7 +255,7 @@ class RecordEncryptorTest {
 
         // And when
         var rd = new RecordDecryptor("topic", 0);
-        var rt = transformRecord(rd, new DecryptState<>(Encryption.V2).withDecryptor(components.decryptor), t);
+        var rt = transformRecord(rd, new DecryptState<>(Encryption.v2(new CipherOverrideConfig(Map.of()))).withDecryptor(components.decryptor), t);
 
         // Then
         KafkaAssertions.assertThat(rt)
