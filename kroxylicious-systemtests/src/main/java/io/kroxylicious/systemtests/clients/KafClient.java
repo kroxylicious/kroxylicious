@@ -44,12 +44,14 @@ public class KafClient implements KafkaClient {
     private static final TypeReference<KafConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
     private String deployNamespace;
+    private int offset;
 
     /**
      * Instantiates a new Kaf client.
      */
     public KafClient() {
         this.deployNamespace = kubeClient().getNamespace();
+        this.offset = 0;
     }
 
     @Override
@@ -81,7 +83,8 @@ public class KafClient implements KafkaClient {
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using kaf");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kaf-" + MobyNamesGenerator.getRandomName().replace("_", "-");
-        List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName, "--output", "json", "--commit", "--group", MobyNamesGenerator.getRandomName());
+        List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName, "--output", "json", "--offset", String.valueOf(offset));
+        offset += numOfMessages;
         Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, goClientJob);
         String log = waitForConsumer(podName, numOfMessages, timeout);

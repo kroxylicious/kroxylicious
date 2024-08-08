@@ -35,7 +35,7 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assumptions.assumeThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
 @ExtendWith(KroxyliciousExtension.class)
@@ -152,7 +152,7 @@ class RecordEncryptionST extends AbstractST {
     @TestTemplate
     void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         // Skip AWS test execution because the ciphertext blob metadata to read the version of the KEK is not available anywhere
-        assumeThat(testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault")).isTrue();
+        assumeTrue(testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault"));
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
@@ -192,7 +192,7 @@ class RecordEncryptionST extends AbstractST {
 
         assertThat(resultEncryptedRotatedKek.stream())
                 .withFailMessage("v2 is not contained in the ciphertext blob!")
-                .anyMatch(r -> testKekManager.assertKekVersionWithinParcel(r.getValue()));
+                .allMatch(r -> testKekManager.assertKekVersionWithinParcel(r.getValue()));
     }
 
     @TestTemplate
@@ -235,6 +235,7 @@ class RecordEncryptionST extends AbstractST {
 
         assertThat(resultRotatedKek).withFailMessage("expected messages have not been received!")
                 .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 }

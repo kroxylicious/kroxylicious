@@ -11,7 +11,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
 
-import org.junit.AssumptionViolatedException;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -19,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolutionException;
 import org.junit.jupiter.api.extension.ParameterResolver;
+import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +76,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
         String namespace = extractK8sNamespace(extensionContext);
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
-            exception.filter(Predicate.not(AssumptionViolatedException.class::isInstance)).ifPresent(e -> {
+            exception.filter(Predicate.not(TestAbortedException.class::isInstance)).ifPresent(e -> {
                 DeploymentUtils.collectClusterInfo(namespace, extensionContext.getRequiredTestClass().getSimpleName(),
                         extensionContext.getRequiredTestMethod().getName());
                 clusterDumpCollected = true;
