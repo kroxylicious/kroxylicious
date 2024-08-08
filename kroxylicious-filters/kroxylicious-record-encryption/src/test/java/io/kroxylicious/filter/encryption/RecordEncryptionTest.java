@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption;
 
+import java.security.Security;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,6 +15,7 @@ import java.util.concurrent.Future;
 import javax.crypto.Cipher;
 
 import org.assertj.core.api.AbstractThrowableAssert;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.encryption.config.CipherSpec;
@@ -23,6 +25,7 @@ import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
 import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
+import io.kroxylicious.filter.encryption.dek.CipherManager;
 import io.kroxylicious.filter.encryption.dek.DekException;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
@@ -180,7 +183,7 @@ class RecordEncryptionTest {
         AbstractThrowableAssert<?, ? extends Throwable> throwableAssert = assertThatThrownBy(() -> {
             RecordEncryption.checkCipherSuite(cipherSpec -> {
                 throw new DekException("Could not construct cipher for " + cipherSpec);
-            }, configuration);
+            }, new RecordEncryptionConfig(null, null, null, null, Map.of()));
         }).isInstanceOf(EncryptionConfigurationException.class);
         throwableAssert.hasMessageContaining("Cipher Suite check failed, one or more ciphers could not be loaded");
         for (CipherSpec value : CipherSpec.values()) {
@@ -189,8 +192,52 @@ class RecordEncryptionTest {
     }
 
     @Test
+    void checkCipherSuiteFailureDueToNonExistentProvider() {
+        RecordEncryptionConfig fail = new RecordEncryptionConfig(null, null, null, null, Map.of(
+                CipherSpec.AES_256_GCM_128.name() + ".provider", "NonExistentProvider"));
+        AbstractThrowableAssert<?, ? extends Throwable> throwableAssert = assertThatThrownBy(() -> {
+            RecordEncryption.checkCipherSuite(CipherManager::newCipher, fail);
+        }).isInstanceOf(EncryptionConfigurationException.class);
+        throwableAssert.hasMessage("Cipher Suite check failed, one or more ciphers could not be loaded: " + CipherSpec.AES_256_GCM_128.name());
+    }
+
+    @Test
+    void checkCipherSuiteSucceedsWithAlternativeProvider() {
+        BouncyCastleProvider provider = new BouncyCastleProvider();
+        Security.addProvider(provider);
+        try {
+            RecordEncryptionConfig valid = new RecordEncryptionConfig(null, null, null, null, Map.of(
+                    CipherSpec.AES_256_GCM_128.name() + ".transformationOverride", "AES/GCM/NoPadding",
+                    CipherSpec.AES_256_GCM_128.name() + ".provider", provider.getName()));
+            assertThatCode(() -> RecordEncryption.checkCipherSuite(CipherManager::newCipher, valid)).doesNotThrowAnyException();
+        }
+        finally {
+            Security.removeProvider(provider.getName());
+        }
+    }
+
+    @Test
+    void checkCipherSuiteFailsWithAlternativeProviderAndUnsupportedTransformation() {
+        BouncyCastleProvider provider = new BouncyCastleProvider();
+        Security.addProvider(provider);
+        try {
+            RecordEncryptionConfig invalid = new RecordEncryptionConfig(null, null, null, null, Map.of(
+                    // bouncy castle does not support the default transformation string we use for aes256
+                    CipherSpec.AES_256_GCM_128.name() + ".provider", provider.getName()));
+            AbstractThrowableAssert<?, ? extends Throwable> throwableAssert = assertThatThrownBy(() -> {
+                RecordEncryption.checkCipherSuite(CipherManager::newCipher, invalid);
+            }).isInstanceOf(EncryptionConfigurationException.class);
+            throwableAssert.hasMessage("Cipher Suite check failed, one or more ciphers could not be loaded: " + CipherSpec.AES_256_GCM_128.name());
+        }
+        finally {
+            Security.removeProvider(provider.getName());
+        }
+    }
+
+    @Test
     void checkCipherSuiteSuccess() {
-        assertThatCode(() -> RecordEncryption.checkCipherSuite(cipherSpec -> arbitraryCipher, configuration)).doesNotThrowAnyException();
+        assertThatCode(() -> RecordEncryption.checkCipherSuite(cipherSpec -> arbitraryCipher,
+                new RecordEncryptionConfig(null, null, null, null, Map.of()))).doesNotThrowAnyException();
     }
 
 }

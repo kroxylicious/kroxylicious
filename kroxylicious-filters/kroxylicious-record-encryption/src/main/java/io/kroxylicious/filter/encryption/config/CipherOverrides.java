@@ -6,4 +6,4 @@
 
 package io.kroxylicious.filter.encryption.config;
 
-public record CipherOverrides(String transformation) {}
+public record CipherOverrides(String transformation, String provider) {}

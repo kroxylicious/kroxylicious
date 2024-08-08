@@ -98,6 +98,6 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
     }
 
     private @NonNull CipherOverrides getOverridesForSpec(CipherSpec spec) {
-        return new CipherOverrides(getExperimentalString(spec.name() + ".transformationOverride"));
+        return new CipherOverrides(getExperimentalString(spec.name() + ".transformationOverride"), getExperimentalString(spec.name() + ".provider"));
     }
 }

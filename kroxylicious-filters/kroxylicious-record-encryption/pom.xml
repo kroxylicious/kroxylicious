@@ -39,7 +39,7 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kafka-message-tools</artifactId>
         </dependency>
-        
+
 	    <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms</artifactId>
@@ -139,6 +139,12 @@
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.78.1</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

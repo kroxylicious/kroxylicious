@@ -8,6 +8,7 @@ package io.kroxylicious.filter.encryption.dek;
 
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.SecureRandom;
 import java.security.spec.AlgorithmParameterSpec;
 import java.util.Objects;
@@ -27,6 +28,7 @@ import io.kroxylicious.filter.encryption.config.CipherSpec;
 import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class Aes implements CipherManager {
 
@@ -36,7 +38,19 @@ public class Aes implements CipherManager {
 
     public static Aes aes256gcm128(CipherOverrideConfig config) {
         String transformation = overrideTransformationElseDefault(config);
-        return new Aes(transformation, (byte) 0, CipherSpec.AES_256_GCM_128);
+        String provider = getProvider(config);
+        return new Aes(transformation, provider, (byte) 0, CipherSpec.AES_256_GCM_128);
+    }
+
+    @Nullable
+    private static String getProvider(CipherOverrideConfig config) {
+        if (config.overridesMap().containsKey(CipherSpec.AES_256_GCM_128)) {
+            CipherOverrides cipherOverrides = config.overridesMap().get(CipherSpec.AES_256_GCM_128);
+            return cipherOverrides.provider();
+        }
+        else {
+            return null;
+        }
     }
 
     private static @NonNull String overrideTransformationElseDefault(CipherOverrideConfig config) {
@@ -62,12 +76,14 @@ public class Aes implements CipherManager {
     private static final int IV_SIZE_BYTES = 12;
     private static final int TAG_LENGTH_BITS = 128;
     private final String transformation;
+    private final String provider;
     private final byte serializedId;
     private final CipherSpec spec;
     private final SecureRandom rng;
 
-    private Aes(String transformation, byte serializedId, CipherSpec spec) {
+    private Aes(String transformation, @Nullable String provider, byte serializedId, CipherSpec spec) {
         this.transformation = transformation;
+        this.provider = provider;
         this.serializedId = serializedId;
         this.spec = spec;
         rng = new SecureRandom();
@@ -86,9 +102,14 @@ public class Aes implements CipherManager {
     @Override
     public Cipher newCipher() {
         try {
-            return Cipher.getInstance(transformation);
+            if (provider != null) {
+                return Cipher.getInstance(transformation, provider);
+            }
+            else {
+                return Cipher.getInstance(transformation);
+            }
         }
-        catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+        catch (NoSuchAlgorithmException | NoSuchPaddingException | NoSuchProviderException e) {
             throw new DekException(e);
         }
     }
