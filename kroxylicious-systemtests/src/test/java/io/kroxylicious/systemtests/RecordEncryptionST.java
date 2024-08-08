@@ -96,21 +96,21 @@ class RecordEncryptionST extends AbstractST {
         int numberOfMessages = 1;
 
         // start Kroxylicious
-        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade);
         bootstrap = kroxylicious.getBootstrap();
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        LOGGER.info("Then the messages are consumed");
         List<ConsumerRecord> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
+        LOGGER.info("Received: {}", resultEncrypted);
 
         assertAll(
                 () -> assertThat(resultEncrypted.stream())
@@ -128,20 +128,20 @@ class RecordEncryptionST extends AbstractST {
         int numberOfMessages = 1;
 
         // start Kroxylicious
-        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade);
         bootstrap = kroxylicious.getBootstrap();
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        LOGGER.info("Then the messages are consumed");
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+        LOGGER.info("Received: {}", result);
 
         assertThat(result).withFailMessage("expected messages have not been received!")
                 .extracting(ConsumerRecord::getValue)
@@ -159,36 +159,36 @@ class RecordEncryptionST extends AbstractST {
         ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(1, 1, 1, 1);
 
         // start Kroxylicious
-        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade, experimentalKmsConfig);
         bootstrap = kroxylicious.getBootstrap();
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        LOGGER.info("Then the messages are consumed");
         List<ConsumerRecord> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncrypted).log();
+        LOGGER.info("Received: {}", resultEncrypted);
 
         assertThat(resultEncrypted.stream())
                 .withFailMessage("v1 is not contained in the ciphertext blob!")
                 .allMatch(r -> r.getValue().contains("v1"));
 
-        LOGGER.atInfo().setMessage("When KEK is rotated").log();
+        LOGGER.info("When KEK is rotated");
         testKekManager.rotateKek("KEK_" + topicName);
 
-        LOGGER.atInfo().setMessage("And {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        LOGGER.info("And {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        LOGGER.info("Then the messages are consumed");
         List<ConsumerRecord> resultEncryptedRotatedKek = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(resultEncryptedRotatedKek).log();
+        LOGGER.info("Received: {}", resultEncryptedRotatedKek);
 
         assertThat(resultEncryptedRotatedKek.stream())
                 .withFailMessage("v2 is not contained in the ciphertext blob!")
@@ -203,35 +203,35 @@ class RecordEncryptionST extends AbstractST {
         ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(1, 1, 1, 1);
 
         // start Kroxylicious
-        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade, experimentalKmsConfig);
         bootstrap = kroxylicious.getBootstrap();
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
+        LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        LOGGER.info("Then the messages are consumed");
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+        LOGGER.info("Received: {}", result);
 
         assertThat(result).withFailMessage("expected messages have not been received!")
                 .extracting(ConsumerRecord::getValue)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
 
-        LOGGER.atInfo().setMessage("When KEK is rotated").log();
+        LOGGER.info("When KEK is rotated");
         testKekManager.rotateKek("KEK_" + topicName);
 
-        LOGGER.atInfo().setMessage("And {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
+        LOGGER.info("And {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        LOGGER.info("Then the messages are consumed");
         List<ConsumerRecord> resultRotatedKek = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(resultRotatedKek).log();
+        LOGGER.info("Received: {}", resultRotatedKek);
 
         assertThat(resultRotatedKek).withFailMessage("expected messages have not been received!")
                 .extracting(ConsumerRecord::getValue)
