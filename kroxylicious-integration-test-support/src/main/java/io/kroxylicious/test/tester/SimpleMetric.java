@@ -34,14 +34,13 @@ public record SimpleMetric(String name, Map<String, String> labels, double value
             .compile("^(?<metric>[a-zA-Z_:][a-zA-Z0-9_:]*)(\\{(?<labels>.*)})?[\\t ]*(?<value>[0-9E.]*)[\\t ]*(?<timestamp>\\d+)?$");
     private static final Pattern NAME_WITH_QUOTED_VALUE = Pattern.compile("^(?<name>[a-zA-Z_:][a-zA-Z0-9_:]*)=\"(?<value>.*)\"$");
 
-    private record LineMatcher(String line, Matcher matcher) {};
+    private record LineMatcher(String line, Matcher matcher) {}
 
     static List<SimpleMetric> parse(String output) {
         try (var reader = new BufferedReader(new StringReader(output))) {
             return reader.lines()
                     .filter(line -> !(line.startsWith("#") || line.isEmpty()))
                     .map(line -> new LineMatcher(line, PROM_TEXT_EXPOSITION_PATTERN.matcher(line)))
-                    .peek(SimpleMetric::verifyMatches)
                     .map(SimpleMetric::parseMetric)
                     .toList();
         }
@@ -50,18 +49,15 @@ public record SimpleMetric(String name, Map<String, String> labels, double value
         }
     }
 
-    private static void verifyMatches(LineMatcher lineMatcher) {
-        if (!lineMatcher.matcher.matches()) {
+    private static SimpleMetric parseMetric(LineMatcher lineMatcher) {
+        var matcher = lineMatcher.matcher;
+        if (!matcher.matches()) {
             throw new IllegalArgumentException("Failed to parse metric %s".formatted(lineMatcher.line));
         }
-    }
-
-    private static SimpleMetric parseMetric(LineMatcher lineMatcher) {
         try {
-            Matcher matched = lineMatcher.matcher;
-            var metricName = matched.group("metric");
-            var metricValue = Double.parseDouble(matched.group("value"));
-            var metricLabels = matched.group("labels");
+            var metricName = matcher.group("metric");
+            var metricValue = Double.parseDouble(matcher.group("value"));
+            var metricLabels = matcher.group("labels");
             var labels = labelsToMap(metricLabels);
             return new SimpleMetric(metricName, labels, metricValue);
         }
