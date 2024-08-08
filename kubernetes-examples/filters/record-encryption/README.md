@@ -11,7 +11,7 @@ the kafka records as they pass through Kroxylicious. On the consume path, the re
 
 It will:
 
-* deploy an Apache Kafka Cluster to Kubernetes using Strimzi.
+* deploy an Apache Kafka&#174; Cluster to Kubernetes using Strimzi.
 * deploy an instance of Kroxylicious to the same Kubernetes cluster  to proxy the Kafka Cluster with configuration for
   `RecordEncryption`.
 * deploy an instance of HashiCorp Vault to store the keys used to encrypt the kafka records.

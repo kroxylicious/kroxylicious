@@ -126,7 +126,7 @@ kaf consume billingapp --group billinggroup --commit
 # cluster itself.
 
 # the kafka cluster actually isn't available off cluster, so we'll use an ephemeral pod
-# to query it using the Apache Kafka tooling.
+# to query it using the Apache Kafka&#174; tooling.
 
 # first the topics
 kubectl -n kafka run listtopics -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 --rm=true --restart=Never -- bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9092 --list

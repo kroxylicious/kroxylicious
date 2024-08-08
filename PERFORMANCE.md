@@ -10,7 +10,7 @@ and `kafka-consumer-perf-test.sh` to get simple throughput and latency numbers f
 The script uses Docker Compose to orchestrate the tests with Apache Kafka, Kroxylicious and HashiCorp Vault
 running within containers.
 
-Five scenarios are tested, including a baseline for Apache Kafka alone.  That lets you understand the cost of
+Five scenarios are tested, including a baseline for Apache Kafka&#174; alone.  That lets you understand the cost of
 adding Kroxylicious in terms of throughput and latency.    The tests currently use a Kafka Cluster with a single
 broker.
 

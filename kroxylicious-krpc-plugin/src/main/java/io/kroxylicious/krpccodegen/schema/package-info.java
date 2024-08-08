@@ -6,7 +6,7 @@
 
 /**
  * This package contains copies of the classes from {@code org.apache.kafka.message} from
- * Apache Kafka generator module.  Unfortunately, the Apache Kafka project does not publish
+ * Apache Kafka&#174; generator module.  Unfortunately, the Apache Kafka&#174; project does not publish
  * an artefact containing these classes.
  */
 package io.kroxylicious.krpccodegen.schema;

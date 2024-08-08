@@ -7,7 +7,7 @@
 
 [role="_abstract"]
 Multi-tenancy filter enables isolation prefixing each metadata transiting through virtual cluster to target cluster.
-See https://kafka.apache.org/documentation/#multitenancy[Apache Kafka multi-tenancy documentation] for more information.
+See https://kafka.apache.org/documentation/#multitenancy[Apache Kafka&#174; multi-tenancy documentation] for more information.
 
 == How to use the filter
 

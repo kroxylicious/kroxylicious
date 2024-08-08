@@ -43,7 +43,7 @@ import freemarker.template.TemplateExceptionHandler;
 import freemarker.template.Version;
 
 /**
- * Code generator driven by Apache Kafka message specifications definitions.
+ * Code generator driven by Apache Kafka&#174; message specifications definitions.
  */
 public class KrpcGenerator {
 

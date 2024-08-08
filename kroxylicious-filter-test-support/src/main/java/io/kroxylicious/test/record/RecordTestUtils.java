@@ -498,7 +498,7 @@ public class RecordTestUtils {
      * a producer's last sequence number.
      * </p>
      * @param baseOffset the baseOffset of the single batch contained in the output MemoryRecords
-     * @see <a href="https://kafka.apache.org/documentation/#recordbatch">Apache Kafka RecordBatch documentation</a>
+     * @see <a href="https://kafka.apache.org/documentation/#recordbatch">Apache Kafka&#174; RecordBatch documentation</a>
      */
     @NonNull
     public static MemoryRecords memoryRecordsWithAllRecordsRemoved(long baseOffset) {

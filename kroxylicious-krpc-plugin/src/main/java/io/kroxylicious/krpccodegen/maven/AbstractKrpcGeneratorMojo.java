@@ -22,7 +22,7 @@ import org.codehaus.plexus.build.BuildContext;
 import io.kroxylicious.krpccodegen.main.KrpcGenerator;
 
 /**
- * Abstract Maven plugin capable of generating java source from Apache Kafka message
+ * Abstract Maven plugin capable of generating java source from Apache Kafka&#174; message
  * specifications definitions.
  */
 abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
