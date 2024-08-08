@@ -488,6 +488,36 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
+    @Test
+    void shouldFailIfAdminHttpNotConfigured() {
+        try (var tester = buildDefaultTester()) {
+            assertThatThrownBy(tester::getAdminHttpClient)
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("admin http interface not configured");
+        }
+    }
+
+    @Test
+    void shouldExposeMetrics() {
+        var proxy = proxy(backingCluster).withNewAdminHttp()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endAdminHttp();
+        var testerBuilder = new KroxyliciousTesterBuilder()
+                .setConfigurationBuilder(proxy)
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy);
+
+        try (var tester = (KroxyliciousTester) testerBuilder
+                .createDefaultKroxyliciousTester()) {
+            var adminHttpClient = tester.getAdminHttpClient();
+            assertThat(adminHttpClient).isNotNull();
+            var metrics = adminHttpClient.scrapeMetrics();
+            assertThat(metrics).hasSizeGreaterThan(0);
+        }
+    }
+
     private void allowCreateTopic(KroxyliciousClients kroxyliciousClients, Admin admin) {
         when(kroxyliciousClients.admin()).thenReturn(admin);
         final CreateTopicsResult createTopicsResultA = mock(CreateTopicsResult.class);

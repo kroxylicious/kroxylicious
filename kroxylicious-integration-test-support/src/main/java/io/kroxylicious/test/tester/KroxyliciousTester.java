@@ -263,4 +263,10 @@ public interface KroxyliciousTester extends Closeable {
      * @return the bootstrap address of the named virtual cluster
      */
     String getBootstrapAddress(String clusterName);
+
+    /**
+     * @return the Admin Http Client
+     * @throws IllegalStateException admin interface not available
+     */
+    AdminHttpClient getAdminHttpClient();
 }
