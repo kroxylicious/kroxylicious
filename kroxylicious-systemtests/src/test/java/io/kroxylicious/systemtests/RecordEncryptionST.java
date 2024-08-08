@@ -177,7 +177,7 @@ class RecordEncryptionST extends AbstractST {
 
         assertThat(resultEncrypted.stream())
                 .withFailMessage("v1 is not contained in the ciphertext blob!")
-                .allMatch(r -> r.getValue().contains("v1"));
+                .allMatch(r -> testKekManager.assertKekVersionWithinParcel(r.getValue()));
 
         LOGGER.info("When KEK is rotated");
         testKekManager.rotateKek("KEK_" + topicName);
@@ -192,7 +192,7 @@ class RecordEncryptionST extends AbstractST {
 
         assertThat(resultEncryptedRotatedKek.stream())
                 .withFailMessage("v2 is not contained in the ciphertext blob!")
-                .anyMatch(r -> r.getValue().contains("v2"));
+                .anyMatch(r -> testKekManager.assertKekVersionWithinParcel(r.getValue()));
     }
 
     @TestTemplate
