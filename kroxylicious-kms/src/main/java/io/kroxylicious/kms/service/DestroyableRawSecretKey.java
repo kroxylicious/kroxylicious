@@ -37,6 +37,9 @@ public final class DestroyableRawSecretKey implements SecretKey {
         this.key = Objects.requireNonNull(bytes);
     }
 
+    /**
+     * @return The number of bits in this key
+     */
     public int numKeyBits() {
         return key.length * Byte.SIZE;
     }
