@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.encryption;
 
 import java.nio.ByteBuffer;
+import java.security.Security;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,8 +18,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-
-import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -35,9 +34,12 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.testcontainers.shaded.org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
+import io.kroxylicious.filter.encryption.config.CipherOverrideConfig;
+import io.kroxylicious.filter.encryption.config.CipherSpec;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
@@ -46,6 +48,7 @@ import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeInvocationContextProvider;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.ClientConfig;
@@ -58,6 +61,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThatCode;
 import static org.assertj.core.api.InstanceOfAssertFactories.BYTE_ARRAY;
 import static org.awaitility.Awaitility.await;
@@ -93,6 +97,70 @@ class RecordEncryptionFilterIT {
                     .singleElement()
                     .extracting(ConsumerRecord::value)
                     .isEqualTo(HELLO_WORLD);
+        }
+    }
+
+    @TestTemplate
+    void roundTripAlternativeAes256GcmProvider(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+        BouncyCastleProvider provider = new BouncyCastleProvider();
+        Security.addProvider(provider);
+        try {
+            var testKekManager = testKmsFacade.getTestKekManager();
+            testKekManager.generateKek(topic.name());
+
+            var builder = proxy(cluster);
+
+            builder.addToFilters(new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
+                    .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
+                    .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
+                    .withConfig("selector", TemplateKekSelector.class.getSimpleName())
+                    .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
+                    .withConfig("experimental", Map.of(CipherSpec.AES_256_GCM_128.name() + ".transformationOverride", "AES/GCM/NoPadding",
+                            CipherSpec.AES_256_GCM_128.name() + ".provider", provider.getName()))
+                    .build());
+
+            try (var tester = kroxyliciousTester(builder);
+                    var producer = tester.producer();
+                    var consumer = tester.consumer()) {
+
+                producer.send(new ProducerRecord<>(topic.name(), HELLO_WORLD)).get(5, TimeUnit.SECONDS);
+
+                consumer.subscribe(List.of(topic.name()));
+                var records = consumer.poll(Duration.ofSeconds(2));
+                assertThat(records.iterator())
+                        .toIterable()
+                        .singleElement()
+                        .extracting(ConsumerRecord::value)
+                        .isEqualTo(HELLO_WORLD);
+            }
+        }
+        finally {
+            Security.removeProvider(provider.getName());
+        }
+    }
+
+    @TestTemplate
+    void startupFailsIfBouncyCastleProviderMissingAndFilterConfiguredToUseIt(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+        BouncyCastleProvider provider = new BouncyCastleProvider();
+        try {
+            var testKekManager = testKmsFacade.getTestKekManager();
+            testKekManager.generateKek(topic.name());
+
+            var builder = proxy(cluster);
+
+            builder.addToFilters(new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
+                    .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
+                    .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
+                    .withConfig("selector", TemplateKekSelector.class.getSimpleName())
+                    .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
+                    .withConfig("experimental", Map.of(CipherSpec.AES_256_GCM_128.name() + ".transformationOverride", "AES/GCM/NoPadding",
+                            CipherSpec.AES_256_GCM_128.name() + ".provider", provider.getName()))
+                    .build());
+            assertThatThrownBy(() -> kroxyliciousTester(builder)).isInstanceOf(PluginConfigurationException.class)
+                    .hasMessageContaining("Cipher Suite check failed, one or more ciphers could not be loaded: AES_256_GCM_128");
+        }
+        finally {
+            Security.removeProvider(provider.getName());
         }
     }
 
