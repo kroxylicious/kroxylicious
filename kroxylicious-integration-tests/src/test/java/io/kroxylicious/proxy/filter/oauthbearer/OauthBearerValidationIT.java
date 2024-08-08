@@ -5,15 +5,9 @@
  */
 package io.kroxylicious.proxy.filter.oauthbearer;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,9 +16,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
@@ -50,7 +41,7 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
-import io.kroxylicious.test.tester.AdminHttpClient;
+import io.kroxylicious.test.tester.SimpleMetric;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
@@ -90,7 +81,6 @@ class OauthBearerValidationIT {
     private static final Predicate<SimpleMetric> DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
             && m.labels().entrySet().containsAll(
                     Map.of("ApiKey", "SASL_AUTHENTICATE", "flowing", "downstream").entrySet());
-    private static final String METRICS = "metrics";
     @SaslMechanism(value = OAuthBearerLoginModule.OAUTHBEARER_MECHANISM)
     @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.jwks.endpoint.url", value = JWKS_ENDPOINT_URL)
     @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.expected.audience", value = EXPECTED_AUDIENCE)
@@ -135,11 +125,11 @@ class OauthBearerValidationIT {
         var config = getClientConfig(TOKEN_ENDPOINT_URL);
 
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
-                var admin = tester.admin(config)) {
+                var admin = tester.admin(config);
+                var ahc = tester.getAdminHttpClient()) {
             performClusterOperation(admin);
 
-            var text = AdminHttpClient.INSTANCE.getFromAdminEndpoint(METRICS).body();
-            var allMetrics = SimpleMetric.parse(text);
+            var allMetrics = ahc.scrapeMetrics();
 
             var saslHandshakeRequestsGoingUpCount = findFirstMetricMatching(allMetrics, UPSTREAM_SASL_HANDSHAKE_LABELS_PREDICATE);
             var saslAuthenticationResponsesComingDown = findFirstMetricMatching(allMetrics, DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE);
@@ -165,13 +155,13 @@ class OauthBearerValidationIT {
         var config = getClientConfig(badTokenFile.toUri());
 
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
-                var admin = tester.admin(config)) {
+                var admin = tester.admin(config);
+                var ahc = tester.getAdminHttpClient()) {
             assertThatThrownBy(() -> performClusterOperation(admin))
                     .isInstanceOf(SaslAuthenticationException.class)
                     .hasMessageContaining("invalid_token");
 
-            var text = AdminHttpClient.INSTANCE.getFromAdminEndpoint(METRICS).body();
-            var allMetrics = SimpleMetric.parse(text);
+            var allMetrics = ahc.scrapeMetrics();
 
             var saslHandshakeRequestsGoingUpCount = findFirstMetricMatching(allMetrics, UPSTREAM_SASL_HANDSHAKE_LABELS_PREDICATE);
             var saslAuthenticationResponsesComingDown = findFirstMetricMatching(allMetrics, DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE);
@@ -255,49 +245,6 @@ class OauthBearerValidationIT {
         @Override
         protected void addFixedExposedPort(int hostPort, int containerPort) {
             super.addFixedExposedPort(hostPort, containerPort);
-        }
-    }
-
-    private record SimpleMetric(String name, Map<String, String> labels, double value) {
-
-        // https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md
-        // note: RE doesn't handle escaping within label values
-        static Pattern PROM_TEXT_EXPOSITION_PATTERN = Pattern
-                .compile("^(?<metric>[a-zA-Z_:][a-zA-Z0-9_:]*]*)(\\{(?<labels>.*)})?[\\t ]*(?<value>[0-9E.]*)[\\t ]*(?<timestamp>[0-9]+)?$");
-        static Pattern NAME_WITH_QUOTED_VALUE = Pattern.compile("^(?<name>[a-zA-Z_:][a-zA-Z0-9_:]*)=\"(?<value>.*)\"$");
-        static List<SimpleMetric> parse(String output) {
-            var all = new ArrayList<SimpleMetric>();
-            try (var reader = new BufferedReader(new StringReader(output))) {
-                var line = reader.readLine();
-                while (line != null) {
-                    if (!(line.startsWith("#") || line.isEmpty())) {
-                        var matched = PROM_TEXT_EXPOSITION_PATTERN.matcher(line);
-                        if (!matched.matches()) {
-                            throw new IllegalArgumentException("Failed to parse metric %s".formatted(line));
-                        }
-                        var metricName = matched.group("metric");
-                        var metricValue = Double.parseDouble(matched.group("value"));
-                        var metricLabels = matched.group("labels");
-                        var labels = labelsToMap(metricLabels);
-
-                        all.add(new SimpleMetric(metricName, labels, metricValue));
-                    }
-                    line = reader.readLine();
-                }
-                return all;
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException("Failed to parse metrics", e);
-            }
-        }
-
-        @NonNull
-        private static Map<String, String> labelsToMap(String metricLabels) {
-            var splitLabels = metricLabels.split(",");
-            return Arrays.stream(splitLabels)
-                    .map(nv -> NAME_WITH_QUOTED_VALUE.matcher(nv))
-                    .filter(Matcher::matches)
-                    .collect(Collectors.toMap(nv -> nv.group("name"), nv -> nv.group("value")));
         }
     }
 

@@ -6,6 +6,8 @@
 
 package io.kroxylicious.test.tester;
 
+import java.io.Closeable;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -57,6 +59,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     private final ClientFactory clientFactory;
 
+    private final List<Closeable> closeables = new ArrayList<>();
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultKroxyliciousTester.class);
 
     DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory,
@@ -229,8 +232,9 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         try {
             List<Exception> exceptions = new ArrayList<>();
             for (KroxyliciousClients c : clients.values()) {
-                closeClient(c).ifPresent(exceptions::add);
+                closeCloseable(c).ifPresent(exceptions::add);
             }
+            closeables.forEach(c -> closeCloseable(c).ifPresent(exceptions::add));
             proxy.close();
             if (!exceptions.isEmpty()) {
                 // if we encountered any exceptions while closing, log them all and then throw whichever one came first.
@@ -243,7 +247,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
     }
 
-    private static Optional<Exception> closeClient(KroxyliciousClients c) {
+    private static Optional<Exception> closeCloseable(Closeable c) {
         try {
             c.close();
             return Optional.empty();
@@ -311,6 +315,16 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         catch (TimeoutException e) {
             throw new IllegalStateException("Timed out deleting topics on " + virtualCluster, e);
         }
+    }
+
+    @Override
+    public AdminHttpClient getAdminHttpClient() {
+        var client = Optional.ofNullable(kroxyliciousConfig.adminHttpConfig())
+                .map(ahc -> URI.create("http://localhost:" + ahc.port()))
+                .map(AdminHttpClient::new)
+                .orElseThrow(() -> new IllegalStateException("admin http interface not configured"));
+        closeables.add(client);
+        return client;
     }
 
     private Set<String> topicsForVirtualCluster(String clusterName) {
