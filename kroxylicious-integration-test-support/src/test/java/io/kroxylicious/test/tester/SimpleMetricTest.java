@@ -39,18 +39,30 @@ class SimpleMetricTest {
                                 rpc_duration_seconds{quantile="0.05"} 3272""",
                         List.of(new SimpleMetric("rpc_duration_seconds", Map.of("quantile", "0.01"), 3102),
                                 new SimpleMetric("rpc_duration_seconds", Map.of("quantile", "0.05"), 3272))),
-                Arguments.of("with help",
+                Arguments.of("metric with help",
                         """
                                 # HELP rpc_duration_seconds A summary of the RPC duration in seconds.
                                 # TYPE rpc_duration_seconds summary
                                 rpc_duration_seconds{quantile="0.05"} 3272""",
                         List.of(new SimpleMetric("rpc_duration_seconds", Map.of("quantile", "0.05"), 3272))),
-                Arguments.of("ignores empty lines",
+                Arguments.of("metric surrounded by empty lines",
                         """
-                                # HELP rpc_duration_seconds A summary of the RPC duration in seconds.
 
-                                rpc_duration_seconds{quantile="0.05"} 3272""",
-                        List.of(new SimpleMetric("rpc_duration_seconds", Map.of("quantile", "0.05"), 3272))));
+                                rpc_duration_seconds{quantile="0.05"} 3272
+                                """,
+                        List.of(new SimpleMetric("rpc_duration_seconds", Map.of("quantile", "0.05"), 3272))),
+                Arguments.of("no metrics - newlines only",
+                        """
+
+
+                                """,
+                        List.of()),
+                Arguments.of("no metrics - comments only",
+                        """
+                                #Mary had a little lamb
+                                #His fleece was white as snow
+                                """,
+                        List.of()));
     }
 
     @ParameterizedTest(name = "{0}")
