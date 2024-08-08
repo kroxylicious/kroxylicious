@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1393](https://github.com/kroxylicious/kroxylicious/pull/1393): Remove api versions service
 * [#1404](https://github.com/kroxylicious/kroxylicious/pull/1404): Move deprecated Context classes out of kroxylicious-api
 * [#1402](https://github.com/kroxylicious/kroxylicious/pull/1402): Move FilterInvoker classes to kroxylicious-runtime
 * [#1289](https://github.com/kroxylicious/kroxylicious/issues/1289): Record Encryption - expose maxEncryptionsPerDek for configuration
@@ -37,6 +38,7 @@ using new key material after key-encryption-keys are rotated in the KMS within s
   - Deprecated `io.kroxylicious.proxy.filter.FilterInvokers` moved to internal module
   - Deprecated `io.kroxylicious.proxy.service.Context` moved to internal module
   - Deprecated `io.kroxylicious.proxy.service.Contributor` moved to internal module
+  - Deprecated `io.kroxylicious.proxy.ApiVersionsService` removed without replacement
 
 ## 0.6.0
 
