@@ -150,6 +150,10 @@
             <groupId>info.schnatterer.moby-names-generator</groupId>
             <artifactId>moby-names-generator</artifactId>
         </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
