@@ -36,13 +36,8 @@ import org.apache.kafka.common.message.ListTransactionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -53,7 +48,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
-import io.kroxylicious.proxy.filter.ApiVersionsMarkingFilterFactory;
 import io.kroxylicious.proxy.filter.ForwardingStyle;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory;
@@ -64,14 +58,11 @@ import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
-import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
-import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.INTERSECTED_API_VERSION_RANGE_TAG;
-import static io.kroxylicious.proxy.filter.ApiVersionsMarkingFilter.UPSTREAM_API_VERSION_RANGE_TAG;
 import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.FILTER_NAME_TAG;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -100,13 +91,6 @@ class FilterIT {
 
     private static final String PLAINTEXT = "Hello, world!";
     private static final FilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new FilterDefinitionBuilder(RejectingCreateTopicFilterFactory.class.getName());
-
-    @BeforeAll
-    public static void beforeAll() {
-
-        final LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-        final Configuration config = ctx.getConfiguration();
-    }
 
     @Test
     void reversibleEncryption() {
@@ -358,25 +342,6 @@ class FilterIT {
                 .withCauseInstanceOf(InvalidTopicException.class)
                 .havingCause()
                 .withMessage(RejectingCreateTopicFilter.ERROR_MESSAGE);
-    }
-
-    @Test
-    void testApiVersionsAvailableToFilter() {
-        try (MockServerKroxyliciousTester tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder(ApiVersionsMarkingFilterFactory.class.getName()).build()));
-                var kafkaClient = tester.simpleTestClient()) {
-            ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
-            short kroxyliciousLatestVersion = METADATA.latestVersion();
-            int upstreamLatestVersion = kroxyliciousLatestVersion + 1;
-            apiVersionsResponseData.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(METADATA.id).setMinVersion(METADATA.oldestVersion()).setMaxVersion(
-                    (short) upstreamLatestVersion));
-            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersionsResponseData));
-            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
-            kafkaClient.getSync(new Request(METADATA, METADATA.latestVersion(), "client", new MetadataRequestData()));
-            ApiMessage message = tester.getOnlyRequestForApiKey(METADATA).message();
-            assertThat(unknownTaggedFieldsToStrings(message, INTERSECTED_API_VERSION_RANGE_TAG)).containsExactly("0-" + kroxyliciousLatestVersion);
-            assertThat(unknownTaggedFieldsToStrings(message, UPSTREAM_API_VERSION_RANGE_TAG)).containsExactly("0-" + upstreamLatestVersion);
-        }
     }
 
     @Test

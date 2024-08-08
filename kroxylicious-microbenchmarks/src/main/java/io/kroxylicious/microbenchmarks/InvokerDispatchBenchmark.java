@@ -33,7 +33,6 @@ import io.kroxylicious.filters.FourInterfaceFilter0;
 import io.kroxylicious.filters.FourInterfaceFilter1;
 import io.kroxylicious.filters.FourInterfaceFilter2;
 import io.kroxylicious.filters.FourInterfaceFilter3;
-import io.kroxylicious.proxy.ApiVersionsService;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -176,11 +175,6 @@ public class InvokerDispatchBenchmark {
 
         @Override
         public String getVirtualClusterName() {
-            return null;
-        }
-
-        @Override
-        public ApiVersionsService getApiVersionsService() {
             return null;
         }
 
