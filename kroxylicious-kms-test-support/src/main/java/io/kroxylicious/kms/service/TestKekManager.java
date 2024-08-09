@@ -42,16 +42,6 @@ public interface TestKekManager {
      */
     boolean exists(String alias);
 
-    /**
-     * Assert kek version within parcel.
-     *
-     * @param parcel the parcel
-     * @return the boolean
-     */
-    default boolean assertKekVersionWithinParcel(String parcel) {
-        throw new UnsupportedOperationException();
-    }
-
     class AlreadyExistsException extends KmsException {
         public AlreadyExistsException(String alias) {
             super(alias);

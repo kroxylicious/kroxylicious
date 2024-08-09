@@ -126,7 +126,6 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
     }
 
     class VaultTestKekManager implements TestKekManager {
-        private int expectedVersion = 1;
 
         @Override
         public void generateKek(String alias) {
@@ -157,7 +156,6 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
             if (exists(alias)) {
                 rotate(alias);
-                expectedVersion++;
             }
             else {
                 throw new UnknownAliasException(alias);
@@ -173,11 +171,6 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
             catch (UnknownAliasException uae) {
                 return false;
             }
-        }
-
-        @Override
-        public boolean assertKekVersionWithinParcel(String parcel) {
-            return parcel.contains("v" + expectedVersion);
         }
 
         private VaultResponse.ReadKeyData create(String keyId) {
