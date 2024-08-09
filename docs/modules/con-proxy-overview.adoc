@@ -11,9 +11,9 @@ In an ideal world, such functionality would be implemented directly in Apache Ka
 But there are numerous practical reasons that can prevent this, for example:
 
 * Organizations having very niche requirements which are unsuitable for implementation directly in Apache Kafka.
-* Functionality which requires changes to Kafka's public API and which the Apache Kafka project is unwilling to implement.
+* Functionality which requires changes to Kafka's public API and which the Apache Kafka&#174; project is unwilling to implement.
   This is the case for https://lists.apache.org/thread/x1p119hkpoy01vq9ck3d0ql67jtvm875[broker interceptors], for example.
-* Experimental functionality which might end up being implemented in Apache Kafka eventually.
+* Experimental functionality which might end up being implemented in Apache Kafka&#174; eventually.
 For example using Kroxylicious it's easier to experiment with alternative transport protocols, such as Quic, or operating system APIs, such as io_uring, because there is already support for this in Netty, the networking framework on which Kroxylicious is built.
 
 == How Kroxylicious works
@@ -214,7 +214,7 @@ In practice they will often need to understand what each filter does in some det
 The proxy is written in Java, on top of https://netty.io[Netty].
 The usual https://netty.io/4.1/api/io/netty/channel/ChannelHandler.html[`ChannelHandlers`] provided by the Netty project are used where appropriate (e.g. SSL support uses https://netty.io/4.1/api/io/netty/handler/ssl/SslHandler.html[`SslHandler`]), and Kroxylicious provides Kafka-specific handlers of its own.
 
-The Kafka-aware parts use the Apache Kafka project's own classes for serialization and deserialization.
+The Kafka-aware parts use the Apache Kafka&#174; project's own classes for serialization and deserialization.
 
 Protocol filters get executed using a handler-per-filter model.
 
@@ -238,7 +238,7 @@ Proxying access for all clients trying to reach a particular cluster/broker.
 // TODO include a diagram
 +
 Transparent multi-tenancy provides an example use case for a reverse proxy.
-While Apache Kafka itself has some features that enable multi-tenancy, they rely on topic name prefixing as the primary mechanism for ensuring namespace isolation.
+While Apache Kafka&#174; itself has some features that enable multi-tenancy, they rely on topic name prefixing as the primary mechanism for ensuring namespace isolation.
 Tenants have to adhere to the naming policy and know they're a tenant of a larger shared cluster.
 +
 _Transparent_ multi-tenancy means each tenant has the illusion of having their own cluster, with almost complete freedom over topic and group naming, while still actually sharing a cluster.

@@ -11,7 +11,7 @@ the kafka records as they pass through Kroxylicious. On the consume path, the re
 
 It will:
 
-* deploy an Apache Kafka Cluster to Kubernetes using Strimzi.
+* deploy an Apache Kafka&#174; Cluster to Kubernetes using Strimzi.
 * deploy an instance of Kroxylicious to the same Kubernetes cluster  to proxy the Kafka Cluster with configuration for
   `RecordEncryption`.
 * deploy an instance of HashiCorp Vault to store the keys used to encrypt the kafka records.
@@ -36,7 +36,7 @@ See [prerequistes](../README.md#prerequisites-to-run-the-kubernetes-examples).
     ```
 1. Run the following script.
     ```shell { prompt="Now let's bring up minikube and install strimzi and vault. The script will also create a kafka cluster and deploy kroxylicious." }
-    ./scripts/run-example.sh kubernetes-examples/record-encryption
+    ./scripts/run-example.sh kubernetes-examples/filters/record-encryption
     ```
 
 The script will first bring up Minikube. It will then deploy Strimzi and HashiCorp Vault.
