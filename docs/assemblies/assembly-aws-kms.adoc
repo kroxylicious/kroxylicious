@@ -1,6 +1,6 @@
 // file included in the following:
 //
-// assembly-record-encryption.adoc
+// assembly-record-encryption-filter.adoc
 
 [id='assembly-aws-kms-{context}']
 = Setting up AWS KMS

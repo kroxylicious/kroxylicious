@@ -60,4 +60,4 @@ If there's something that you want to add or change in the documentation, do the
 
 The pull request will be reviewed and the changes merged when the review is complete.
 The guide is then rebuilt and the updated content is published on the Kroxylicious website.
-Published documentation for the current _main_ branch as well as all releases can be found on our [website][KroxyDoc].
+Published documentation for the current _main_ branch as well as all releases can be found on our [website][KroxyliciousDoc].

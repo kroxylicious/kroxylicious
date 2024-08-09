@@ -1,6 +1,6 @@
 // file included in the following:
 //
-// index.adoc
+// assembly-built-in-filters.adoc
 
 [id='assembly-record-encryption-filter-{context}']
 = Record Encryption filter

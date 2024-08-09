@@ -1,6 +1,6 @@
 // file included in the following:
 //
-// assembly-record-encryption.adoc
+// assembly-record-encryption-filter.adoc
 
 [id='proc-configuring-record-encryption-filter-{context}']
 = Setting up the Record Encryption filter
