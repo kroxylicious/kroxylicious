@@ -13,6 +13,9 @@ import io.kroxylicious.systemtests.enums.KafkaClientType;
  * The type Kafka clients.
  */
 public class KafkaClients {
+    private static KafClient kafClient;
+    private static KcatClient kcatClient;
+    private static StrimziTestClient strimziTestClient;
 
     private KafkaClients() {
     }
@@ -36,7 +39,10 @@ public class KafkaClients {
      * @return the kaf client
      */
     public static KafClient kaf() {
-        return new KafClient();
+        if (kafClient == null) {
+            kafClient = new KafClient();
+        }
+        return kafClient;
     }
 
     /**
@@ -45,7 +51,10 @@ public class KafkaClients {
      * @return the Strimzi test client
      */
     public static StrimziTestClient strimziTestClient() {
-        return new StrimziTestClient();
+        if (strimziTestClient == null) {
+            strimziTestClient = new StrimziTestClient();
+        }
+        return strimziTestClient;
     }
 
     /**
@@ -54,6 +63,9 @@ public class KafkaClients {
      * @return the kcat client
      */
     public static KcatClient kcat() {
-        return new KcatClient();
+        if (kcatClient == null) {
+            kcatClient = new KcatClient();
+        }
+        return kcatClient;
     }
 }
