@@ -73,7 +73,15 @@ It is recommended to use the KMS in a high availability (HA) configuration.
 Key rotation involves periodically replacing cryptographic keys with new ones and is considered a best practice in cryptography.
 
 The filter allows the rotation of Key Encryption Keys (KEKs) within the Key Management System (KMS). 
-When a KEK is rotated, the new key material is used for newly produced records. Existing records, encrypted with older KEK versions, remain decryptable as long as the previous KEK versions are still in the KMS.
+When a KEK is rotated, the new key material is eventually used for newly produced records. Existing records, encrypted with older KEK versions, remain decryptable as long as the previous KEK versions are still in the KMS.
+
+When the KEK is rotated in the external KMS, it will take up to 2 hours (by default) before all records produced by the filter
+contain a DEK encrypted with the new key material. This is because existing encrypted DEKs are used for a configurable
+amount of time after creation, the Filter caches the encrypted DEK.
+
+In a worst case scenario like the key material being compromised you can execute a rolling restart of your cluster of
+Kroxylicious instances after the key rotation. After the restart, messages being encrypted by the Record Encryption Filter
+will all use the latest key material.
 
 WARNING: If an old KEK version is removed from the KMS, records encrypted with that key will become unreadable, causing fetch operations to fail. 
 In such cases, the consumer offset must be advanced beyond those records.

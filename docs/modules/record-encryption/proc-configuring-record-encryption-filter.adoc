@@ -35,6 +35,10 @@ filters:
       selector: <KEK_selector_service_name> # <3>
       selectorConfig:
         template: "KEK_${topicName}" # <4>
+      experimental:
+        "encryptionDekRefreshAfterWriteSeconds": 3600 # <6>
+        "encryptionDekExpireAfterWriteSeconds": 7200 # <7>
+        "maxEncryptionsPerDek": 5000000 # <8>
 	 # ...
 ----
 <1> The KMS service name.
@@ -42,7 +46,10 @@ filters:
 <3> The Key Encryption Key (KEK) selector to use. The `${topicName}` is a literal understood by the proxy. 
 For example, if using the `TemplateKekSelector` with the template `KEK_$\{topicName}`, create a key for every topic that
 is to be encrypted with the key name matching the topic name, prefixed by the string `KEK_`.
-<4> The template for deriving the KEK, based on a specific topic name. 
+<4> The template for deriving the KEK, based on a specific topic name.
+<5> How long to use a DEK for encryption after it has been created, after this time the Filter will asynchronously obtain a new DEK while continuing using the old one. This can be used to control how quickly we respond to the fact that a KEK has been rotated externally. Note that tuning this value has a cost implication. Shorter durations will result in increased operations on the KMS at encrypt and decrypt time, because more DEKs will be created and used.
+<6> How long after creation a DEK is eligible to be evicted from the cache. Only actively used DEKs will be refreshed, this setting puts a bound on how long unused DEKs remain cached.
+<7> The maximum number of records any DEK should be used to encrypt. After this limit is hit, that DEK will be destroyed and a new one created. As above, reducing the value has a cost because we may create more DEKs.
 
 . Verify that the encryption has been applied to the specified topics by producing messages through the proxy and then consuming directly and indirectly from the Kafka cluster.
 
