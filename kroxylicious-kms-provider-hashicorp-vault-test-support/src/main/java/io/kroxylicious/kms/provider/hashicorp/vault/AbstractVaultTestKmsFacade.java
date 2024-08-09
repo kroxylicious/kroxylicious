@@ -126,7 +126,6 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
     }
 
     class VaultTestKekManager implements TestKekManager {
-
         @Override
         public void generateKek(String alias) {
             Objects.requireNonNull(alias);

@@ -74,11 +74,11 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
         String namespace = extractK8sNamespace(extensionContext);
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
-//            if (exception.isPresent() && exception.stream().anyMatch(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException"))) {
-//                DeploymentUtils.collectClusterInfo(namespace, extensionContext.getRequiredTestClass().getSimpleName(),
-//                        extensionContext.getRequiredTestMethod().getName());
-//                clusterDumpCollected = true;
-//            }
+            // if (exception.isPresent() && exception.stream().anyMatch(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException"))) {
+            // DeploymentUtils.collectClusterInfo(namespace, extensionContext.getRequiredTestClass().getSimpleName(),
+            // extensionContext.getRequiredTestMethod().getName());
+            // clusterDumpCollected = true;
+            // }
             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
                 DeploymentUtils.collectClusterInfo(namespace, extensionContext.getRequiredTestClass().getSimpleName(),
                         extensionContext.getRequiredTestMethod().getName());
