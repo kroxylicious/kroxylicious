@@ -52,18 +52,16 @@ filter to be kept separate from any keys used by other systems.  This document a
 will be to prefix the keys used by the filter with the word `KEK_`.  If a different naming convention is used, adapt
 the instructions accordingly.
 
-== Administrator Actor
+== Role of the Administrator
 
-To use the filter, there must be an administrative actor established.  This actor, which is likely to be a human,
-has the responsibility to create keys within Vault for use by the filter.
+In order to use the filter, there must be an *Administrator*.  The Administrator has the responsibility
+to create encryption keys within Vault which will be used to encrypt the records. It is up to the organization
+deploying Record Encryption to decide how the role of the *Administrator* maps into their organization structure.
 
-The Administrator must have permissions to log in to Vault and create keys beneath `transit/keys/KEK_*` in the
+The *Administrator* must have permissions to log in to Vault and create keys beneath `transit/keys/KEK_*` in the
 Vault hierarchy.
 
-The exact steps required to establish an administrative actor will depend on the way that Vault instance has been
-{hashicorp-vault}/tutorials/auth-methods[setup].
-
-A minimal Vault policy required by the Administrator is as follows:
+As a guideline, the minimal Vault policy required by the *Administrator* is as follows:
 
 [source,shell]
 ----
@@ -72,12 +70,13 @@ capabilities = ["read", "write"]
 }
 ----
 
-== Filter Actor
+== Filter Token
 
-To use the filter, there must be a Vault identity established for the filter itself.  This identity must have
-permissions to perform the operations needed for envelope encryption (generating and decrypting DEKs).
+The filter needs to be able to authenticate to Vault in order to perform the operations needed for Envelope Encryption
+(generating and decrypting DEKs).  To this end, there must be a Vault identity established for the filter itself with
+sufficient permissions.
 
-Create a Vault policy for the filter actor:
+Create a Vault policy for the filter:
 
 [source,shell]
 ----
@@ -101,7 +100,7 @@ configuration of the token to suit the standards required by your organization]:
 
 [source,shell]
 ----
-vault token create -display-name "kroxylicious encryption filter" \
+vault token create -display-name "kroxylicious record encryption" \
                    -policy=kroxylicious_encryption_filter_policy \
                    -period=768h \                                     <1>
                    -no-default-policy \                               <2>
@@ -123,7 +122,7 @@ token_policies     [kroxylicious_encryption_filter_policy]
 ----
 
 The token must be {hashicorp-vault}/docs/concepts/tokens#token-time-to-live-periodic-tokens-and-explicit-max-ttls[renewed]
-before expiration.  It is the responsibility of the Administrator to do this.
+before expiration.  It is the responsibility of the *Administrator* to do this.
 
 This can be done with a command like:
 
