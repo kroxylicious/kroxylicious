@@ -14,7 +14,7 @@ import io.kroxylicious.krpccodegen.main.KrpcGenerator.Builder;
 /**
  * A Maven plugin capable of generating java source from Apache Kafka message
  * specifications definitions. This generator is invoked once per execution.
- * The Apache FreeMaker variable {@code messageSpecs} will be defined with a list containing
+ * The Apache FreeMaker&#174; variable {@code messageSpecs} will be defined with a list containing
  * all message specifications.
  */
 @Mojo(name = "generate-single", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
