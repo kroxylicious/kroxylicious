@@ -107,5 +107,9 @@
             <artifactId>spotbugs-annotations</artifactId>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>io.apicurio</groupId>
+            <artifactId>apicurio-registry-serde-common</artifactId>
+        </dependency>
     </dependencies>
 </project>
