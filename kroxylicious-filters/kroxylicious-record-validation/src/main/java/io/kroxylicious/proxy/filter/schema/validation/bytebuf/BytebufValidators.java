@@ -6,7 +6,11 @@
 
 package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Static factory methods for creating/getting {@link BytebufValidator} instances
@@ -40,11 +44,12 @@ public class BytebufValidators {
 
     /**
      * get validator that validates if a non-null/non-empty buffer contains syntactically correct JSON
+     *
      * @param validateObjectKeysUnique optionally check if JSON Objects contain unique keys
      * @return validator
      */
-    public static BytebufValidator jsonSyntaxValidator(boolean validateObjectKeysUnique, BytebufValidator delegate) {
-        return new JsonSyntaxBytebufValidator(validateObjectKeysUnique, delegate);
+    public static BytebufValidator jsonSyntaxValidator(boolean validateObjectKeysUnique) {
+        return new JsonSyntaxBytebufValidator(validateObjectKeysUnique);
     }
 
     /**
@@ -53,5 +58,23 @@ public class BytebufValidators {
      */
     public static BytebufValidator jsonSchemaValidator(Map<String, Object> schemaResolverConfig, Long globalId) {
         return new JsonSchemaBytebufValidator(schemaResolverConfig, globalId);
+    }
+
+    /**
+     * A chain of {@link BytebufValidators}.  Validators are executed in the order
+     *  * they are defined.  Validation stops after the first validation failure.
+     * @param elements list of validators
+     *
+     * @return BytebufValidator that will validate against all.
+     */
+    public static BytebufValidator chainOf(@NonNull List<BytebufValidator> elements) {
+        Objects.nonNull(elements);
+
+        if (elements.isEmpty()) {
+            return allValid();
+        }
+        else {
+            return new ChainingByteBufferValidator(elements);
+        }
     }
 }

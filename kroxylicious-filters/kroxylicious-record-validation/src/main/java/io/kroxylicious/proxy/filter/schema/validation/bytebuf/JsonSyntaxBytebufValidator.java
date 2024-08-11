@@ -27,13 +27,11 @@ import io.kroxylicious.proxy.filter.schema.validation.Result;
  */
 class JsonSyntaxBytebufValidator implements BytebufValidator {
     private final boolean validateObjectKeysUnique;
-    private final BytebufValidator delegate;
 
     static final ObjectMapper mapper = new ObjectMapper().enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
-    JsonSyntaxBytebufValidator(boolean validateObjectKeysUnique, BytebufValidator delegate) {
+    JsonSyntaxBytebufValidator(boolean validateObjectKeysUnique) {
         this.validateObjectKeysUnique = validateObjectKeysUnique;
-        this.delegate = delegate;
     }
 
     @Override
@@ -52,7 +50,7 @@ class JsonSyntaxBytebufValidator implements BytebufValidator {
             while (parser.nextToken() != null) {
             }
 
-            return delegate.validate(buffer, size, record, isKey);
+            return Result.VALID;
         }
         catch (Exception e) {
             String message = "value was not syntactically correct JSON" + (e.getMessage() != null ? ": " + e.getMessage() : "");
