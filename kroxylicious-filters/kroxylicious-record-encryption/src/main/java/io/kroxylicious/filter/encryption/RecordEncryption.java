@@ -6,9 +6,11 @@
 
 package io.kroxylicious.filter.encryption;
 
+import java.security.Provider;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -82,7 +84,9 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     /* exposed for testing */ static void checkCipherSuite(Function<CipherManager, Cipher> cipherFunc) {
         List<CipherSpec> failures = Arrays.stream(CipherSpec.values()).flatMap(cipherSpec -> {
             try {
-                cipherFunc.apply(CipherSpecResolver.ALL.fromName(cipherSpec));
+                Cipher cipher = cipherFunc.apply(CipherSpecResolver.ALL.fromName(cipherSpec));
+                String provider = Optional.ofNullable(cipher.getProvider()).map(Provider::getName).orElse("(no provider)");
+                LOGGER.info("Loaded Cipher {} from provider {} for CipherSpec {}", cipher, provider, cipherSpec);
                 return Stream.empty();
             }
             catch (Exception e) {
