@@ -36,7 +36,7 @@ class ChainingByteBufferValidator implements BytebufValidator {
         for (BytebufValidator bv : elements) {
             future = future.thenCompose(x -> {
                 if (x.valid()) {
-                    return bv.validate(buffer.duplicate(), length, kafkaRecord, isKey);
+                    return bv.validate(buffer.asReadOnlyBuffer(), length, kafkaRecord, isKey);
                 }
                 else {
                     return CompletableFuture.completedStage(x);

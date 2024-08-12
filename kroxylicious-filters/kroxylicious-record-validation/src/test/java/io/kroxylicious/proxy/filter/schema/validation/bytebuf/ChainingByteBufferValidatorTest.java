@@ -15,6 +15,8 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.kafka.common.record.Record;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -43,6 +45,9 @@ class ChainingByteBufferValidatorTest {
     private BytebufValidator validator1 = mock(BytebufValidator.class);
     @Mock
     private BytebufValidator validator2 = mock(BytebufValidator.class);
+
+    @Captor
+    private ArgumentCaptor<ByteBuffer> byteBufferCaptor;
 
     @Test
     void chainOfOneSucceeds() {
@@ -114,6 +119,24 @@ class ChainingByteBufferValidatorTest {
                 .succeedsWithin(Duration.ofSeconds(1))
                 .returns(true, Result::valid);
 
+    }
+
+    @Test
+    void passesReadOnlyBuffersToValidators() {
+        // Given
+        when(validator1.validate(byteBufferCaptor.capture(), anyInt(), any(Record.class), anyBoolean())).thenReturn(Result.VALID);
+
+        var chain = BytebufValidators.chainOf(List.of(validator1));
+
+        // When
+        chain.validate(BUF, 1, kafkaRecord, false);
+
+        // Then
+        assertThat(byteBufferCaptor.getAllValues())
+                .singleElement()
+                .returns(true, ByteBuffer::isReadOnly);
+
+        verify(validator1, times(1)).validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean());
     }
 
 }
