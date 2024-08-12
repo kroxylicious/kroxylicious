@@ -58,7 +58,7 @@ In order to use the filter, there must be an *Administrator*.  The Administrator
 to create encryption keys within Vault which will be used to encrypt the records. It is up to the organization
 deploying Record Encryption to decide how the role of the *Administrator* maps into their organization structure.
 
-The *Administrator* must have permissions to log in to Vault and create keys beneath `transit/keys/KEK_*` in the
+The *Administrator* must have permissions to create keys beneath `transit/keys/KEK_*` in the
 Vault hierarchy.
 
 As a guideline, the minimal Vault policy required by the *Administrator* is as follows:
@@ -70,7 +70,7 @@ capabilities = ["read", "write"]
 }
 ----
 
-== Filter Token
+== Establish an application identity for the Filter
 
 The filter needs to be able to authenticate to Vault in order to perform the operations needed for Envelope Encryption
 (generating and decrypting DEKs).  To this end, there must be a Vault identity established for the filter itself with

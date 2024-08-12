@@ -14,11 +14,10 @@ the instructions accordingly.
 
 == Role of the Administrator
 
-In order to use the filter, there must be an *Administrator*.  The Administrator has the responsibility
-to create encryption keys within AWS KMS which will be used to encrypt the records. It is up to the organization
-deploying Record Encryption to decide how the role of the *Administrator* maps into their organization structure.
+In order to use the filter, there must be an external entity which is responsible for creating encryption keys within AWS KMS which will be used to encrypt the records. It is up to the organization
+deploying Record Encryption to decide how this entity is managed.
 
-The *Administrator* must have permissions to log in to AWS and create keys in AWS KMS.  As a starting point, the
+The *Administrator* must have permissions to create keys in AWS KMS.  As a starting point, the
 built-in AWS policy `AWSKeyManagementServicePowerUser` confers sufficient key management privileges.
 
 To help get you started, the following commands can be used to establish an Administrator user with permissions
@@ -39,16 +38,16 @@ aws iam create-login-profile --user-name ${ADMIN} --password ${INITIAL_PASSWORD}
 echo Now log in at ${CONSOLE_URL}  with user name ${ADMIN} password ${INITIAL_PASSWORD} and change the password.
 ----
 
-== Filter IAM Identity
+== Establish an application identity for the Filter
 
 The filter needs to be able to authenticate to AWS in order to perform the operations needed for Envelope Encryption
 (generating and decrypting DEKs).  To this end, there must be an AWS IAM identity established for the filter itself with
 sufficient permissions.
 
-Use AWS IAM to create the `kroxylicious` user. Create an *Access Key* for this user. The Access Key/Secret Key pair
+Use AWS IAM to create the identity. Create an *Access Key* for this user. The Access Key/Secret Key pair
 will be used by the Filter. Do not enable the Console for this user.
 
-If using the CLI, these commands can be used to establish the Filter IAM Identity.  This example illustrates using the
+If using the CLI, these commands can be used to establish the IAM Identity for the Filter.  This example illustrates using the
 user-name `kroxylicious`. The choice of name is not significant.  If a different user-name is used, adapt the
 instructions accordingly.
 
@@ -58,7 +57,7 @@ aws iam create-user --user-name kroxylicious
 aws iam create-access-key --user-name kroxylicious
 ----
 
-== Create Alias Based Policy
+== Create Alias Based Policy for keys matching the KEK aliasing convention
 
 Create an alias based policy granting permissions to use keys aliased by the established alias naming convention.
 
@@ -93,9 +92,9 @@ EOF
 aws iam create-policy --policy-name KroxyliciousRecordEncryption --policy-document file:///tmp/policy
 ----
 
-== Apply Alias Based Policy to Filter IAM Identity
+== Apply the Alias Based Policy to the Filter's Application Identity
 
-Attach the alias policy to the Filter IAM Identity.  This will allow the Filter to invoke the
+Attach the alias policy to the Filter's Application Identity.  This will allow the filter to invoke the
 necessary key operations on all KEKs with aliases of the prescribed form.
 
 [source,shell]
