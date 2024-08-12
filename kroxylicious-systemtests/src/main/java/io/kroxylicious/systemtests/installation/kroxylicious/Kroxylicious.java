@@ -74,7 +74,7 @@ public class Kroxylicious {
     }
 
     /**
-     * Deploy - Port per broker plain with no filters config
+     * Deploy port per broker plain with record encryption filter.
      *
      * @param clusterName the cluster name
      * @param replicas the replicas

@@ -156,7 +156,7 @@ class RecordEncryptionST extends AbstractST {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
-        ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(1, 1, 1, 1);
+        ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(null, null, 5L, 5L);
 
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
@@ -175,10 +175,17 @@ class RecordEncryptionST extends AbstractST {
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: {}", resultEncrypted);
 
-        assertKekVersionWithinParcel(resultEncrypted, "v1", testKekManager);
+        assertKekVersionWithinParcel(resultEncrypted, ":v1:", testKekManager);
 
         LOGGER.info("When KEK is rotated");
         testKekManager.rotateKek("KEK_" + topicName);
+
+        try {
+            Thread.sleep(5000);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
         LOGGER.info("And {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -188,24 +195,23 @@ class RecordEncryptionST extends AbstractST {
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: {}", resultEncryptedRotatedKek);
 
-        assertKekVersionWithinParcel(resultEncryptedRotatedKek.stream().filter(r -> !r.getValue().contains("v1")).toList(),
-                "v2", testKekManager);
+        resultEncryptedRotatedKek.removeAll(resultEncrypted);
+        assertKekVersionWithinParcel(resultEncryptedRotatedKek,
+                ":v2:", testKekManager);
     }
 
     private void assertKekVersionWithinParcel(List<ConsumerRecord> consumerRecords, String expectedValue, TestKekManager testKekManager) {
-        assertThat(consumerRecords.size())
+        assertThat(consumerRecords)
                 .withFailMessage("expected messages not received! Consumer records is empty")
-                .isNotZero();
+                .isNotEmpty();
 
         assertThat(testKekManager.getClass().getSimpleName().toLowerCase())
                 .withFailMessage("Another KMS different from Vault is not currently supported!")
                 .contains("vault");
 
-        if (testKekManager.getClass().getSimpleName().toLowerCase().contains("vault")) {
-            assertThat(consumerRecords.stream())
-                    .withFailMessage(expectedValue + " is not contained in the ciphertext blob!")
-                    .allMatch(r -> r.getValue().contains(expectedValue));
-        }
+        assertThat(consumerRecords.stream())
+                .withFailMessage(expectedValue + " is not contained in the ciphertext blob!")
+                .allMatch(r -> r.getValue().contains(expectedValue));
     }
 
     @TestTemplate
@@ -213,7 +219,7 @@ class RecordEncryptionST extends AbstractST {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
-        ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(1, 1, 1, 1);
+        ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(5L, 5L, 5L, 5L);
 
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
@@ -239,6 +245,13 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("When KEK is rotated");
         testKekManager.rotateKek("KEK_" + topicName);
 
+        try {
+            Thread.sleep(5000);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         LOGGER.info("And {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
@@ -248,6 +261,6 @@ class RecordEncryptionST extends AbstractST {
 
         assertThat(resultRotatedKek).withFailMessage("expected messages have not been received!")
                 .extracting(ConsumerRecord::getValue)
-                .anySatisfy(v -> assertThat(v).contains(MESSAGE));
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 }

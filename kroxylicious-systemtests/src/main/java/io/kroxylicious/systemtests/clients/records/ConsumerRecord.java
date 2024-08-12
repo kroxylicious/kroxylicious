@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests.clients.records;
 
 import java.io.UncheckedIOException;
 import java.util.Map;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +50,28 @@ public class ConsumerRecord {
 
     public Map<String, String> getRecordHeaders() {
         return recordHeaders;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ConsumerRecord that = (ConsumerRecord) o;
+        return Objects.equals(topic, that.topic) &&
+                Objects.equals(key, that.key) &&
+                Objects.equals(value, that.value) &&
+                partition == that.partition &&
+                offset == that.offset &&
+                recordHeaders.equals(that.recordHeaders);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(topic, key, value, partition, offset, recordHeaders);
     }
 
     /**

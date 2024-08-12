@@ -85,6 +85,7 @@ public class KcatClient implements KafkaClient {
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using kcat");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat-" + MobyNamesGenerator.getRandomName().replace("_", "-");
+        // Running consumer with parameters to get the latest N number of messages received to avoid consuming twice the same messages
         List<String> args = List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-o", "-" + numOfMessages, "-e", "-J");
         Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, kCatClientJob);
