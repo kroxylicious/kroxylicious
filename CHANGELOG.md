@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1416](https://github.com/kroxylicious/kroxylicious/pull/1416): Schema validation should not rely on the syntax validation
 * [#1393](https://github.com/kroxylicious/kroxylicious/pull/1393): Remove api versions service
 * [#1404](https://github.com/kroxylicious/kroxylicious/pull/1404): Move deprecated Context classes out of kroxylicious-api
 * [#1402](https://github.com/kroxylicious/kroxylicious/pull/1402): Move FilterInvoker classes to kroxylicious-runtime

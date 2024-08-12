@@ -108,9 +108,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
-                                Map.of("allowsNulls", true,
-                                        "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
-                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", 1L)))))
+                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", 1L)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
@@ -132,9 +130,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic2.name()), "valueRule",
-                                Map.of("allowsNulls", true,
-                                        "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
-                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", 1L)))))
+                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", 1L)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
@@ -158,9 +154,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
-                                Map.of("allowsNulls", true,
-                                        "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true),
-                                        "schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", 3L)))))
+                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", 3L)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
