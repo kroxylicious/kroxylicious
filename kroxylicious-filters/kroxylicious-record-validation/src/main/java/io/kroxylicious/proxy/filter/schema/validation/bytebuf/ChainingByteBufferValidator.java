@@ -30,13 +30,13 @@ class ChainingByteBufferValidator implements BytebufValidator {
     }
 
     @Override
-    public CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
+    public CompletionStage<Result> validate(ByteBuffer buffer, int length, Record kafkaRecord, boolean isKey) {
         var future = Result.VALID;
 
         for (BytebufValidator bv : elements) {
             future = future.thenCompose(x -> {
                 if (x.valid()) {
-                    return bv.validate(buffer.duplicate(), length, record, isKey);
+                    return bv.validate(buffer.duplicate(), length, kafkaRecord, isKey);
                 }
                 else {
                     return CompletableFuture.completedStage(x);
