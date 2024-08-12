@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -63,8 +64,6 @@ class ChainingByteBufferValidatorTest {
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .returns(true, Result::valid);
-
-        verify(validator1, times(1)).validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean());
     }
 
     @Test
@@ -82,9 +81,23 @@ class ChainingByteBufferValidatorTest {
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .returns(true, Result::valid);
+    }
 
-        verify(validator1, times(1)).validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean());
-        verify(validator2, times(1)).validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean());
+    @Test
+    void validatorsInvokedInExpectedSequenceAndCorrectNumberOfTimes() {
+        // Given
+        when(validator1.validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean())).thenReturn(Result.VALID);
+        when(validator2.validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean())).thenReturn(Result.VALID);
+
+        var chain = BytebufValidators.chainOf(List.of(validator1, validator2));
+
+        // When
+        chain.validate(BUF, 1, kafkaRecord, false);
+
+        // Then
+        var inOrder = inOrder(validator1, validator2);
+        inOrder.verify(validator1, times(1)).validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean());
+        inOrder.verify(validator2, times(1)).validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean());
     }
 
     @Test
@@ -104,6 +117,24 @@ class ChainingByteBufferValidatorTest {
 
         verify(validator1, times(1)).validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean());
         verifyNoInteractions(validator2);
+    }
+
+    @Test
+    void secondFailReported() {
+        // Given
+        when(validator1.validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean())).thenReturn(Result.VALID);
+        when(validator2.validate(any(ByteBuffer.class), anyInt(), any(Record.class), anyBoolean())).thenReturn(CompletableFuture.completedStage(FAIL_RESULT));
+
+        var chain = BytebufValidators.chainOf(List.of(validator1, validator2));
+
+        // When
+        var result = chain.validate(BUF, 1, kafkaRecord, false);
+
+        // Then
+        assertThat(result)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(false, Result::valid);
+
     }
 
     @Test
