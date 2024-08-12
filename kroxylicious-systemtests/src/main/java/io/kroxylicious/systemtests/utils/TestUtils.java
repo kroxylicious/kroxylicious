@@ -17,6 +17,7 @@ import java.util.Set;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 /**
  * The type Test utils.
@@ -75,5 +76,14 @@ public class TestUtils {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Gets random suffix to be added to a pod Name.
+     *
+     * @return the random pod name
+     */
+    public static String getRandomPodNameSuffix() {
+        return MobyNamesGenerator.getRandomName().replace("_", "-");
     }
 }

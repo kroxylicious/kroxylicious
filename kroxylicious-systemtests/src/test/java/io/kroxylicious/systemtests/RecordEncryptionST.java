@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
@@ -195,9 +196,9 @@ class RecordEncryptionST extends AbstractST {
                 Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.info("Received: {}", resultEncryptedRotatedKek);
 
-        resultEncryptedRotatedKek.removeAll(resultEncrypted);
-        assertKekVersionWithinParcel(resultEncryptedRotatedKek,
-                ":v2:", testKekManager);
+        List<ConsumerRecord> finalEncryptedResults = new ArrayList<>(resultEncryptedRotatedKek);
+        finalEncryptedResults.removeAll(resultEncrypted);
+        assertKekVersionWithinParcel(finalEncryptedResults, ":v2:", testKekManager);
     }
 
     private void assertKekVersionWithinParcel(List<ConsumerRecord> consumerRecords, String expectedValue, TestKekManager testKekManager) {
