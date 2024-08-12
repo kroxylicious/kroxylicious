@@ -150,6 +150,7 @@ class RecordEncryptionST extends AbstractST {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
+    @SuppressWarnings("java:S2925")
     @TestTemplate
     void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         // Skip AWS test execution because the ciphertext blob metadata to read the version of the KEK is not available anywhere
@@ -215,6 +216,7 @@ class RecordEncryptionST extends AbstractST {
                 .allMatch(r -> r.getValue().contains(expectedValue));
     }
 
+    @SuppressWarnings("java:S2925")
     @TestTemplate
     void produceAndConsumeMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
