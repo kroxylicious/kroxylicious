@@ -158,7 +158,7 @@ class RecordEncryptionST extends AbstractST {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
-        ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(null, null, 5L, 5L);
+        ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(null, null, null, 5L);
 
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
@@ -222,7 +222,10 @@ class RecordEncryptionST extends AbstractST {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
-        ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(5L, 5L, 5L, 5L);
+        boolean isVaultKms = testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault");
+        Long resolvedAliasExpireAfterWriteSeconds = isVaultKms ? null : 5L;
+        Long resolvedDekExpireAfterWriteSeconds = isVaultKms ? 5L : null;
+        ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(resolvedAliasExpireAfterWriteSeconds, null, null, resolvedDekExpireAfterWriteSeconds);
 
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);

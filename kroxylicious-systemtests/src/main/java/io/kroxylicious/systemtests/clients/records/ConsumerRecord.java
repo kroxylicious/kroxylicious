@@ -66,7 +66,7 @@ public class ConsumerRecord {
                 Objects.equals(value, that.value) &&
                 partition == that.partition &&
                 offset == that.offset &&
-                recordHeaders.equals(that.recordHeaders);
+                Objects.deepEquals(recordHeaders, that.recordHeaders);
     }
 
     @Override
