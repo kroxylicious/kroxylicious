@@ -9,11 +9,16 @@ package io.kroxylicious.filter.encryption.dek;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.filter.encryption.FixedDekKmsService;
+import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryEdek;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.Serde;
@@ -96,6 +101,19 @@ class DekManagerTest {
         var decodedPlaintext = ByteBuffer.allocate(plaintext.capacity());
         decrypted.decryptor().decrypt(ciphertext[0], aad, params[0], decodedPlaintext);
         assertThat(new String(decodedPlaintext.array(), StandardCharsets.UTF_8)).isEqualTo("hello, world");
+    }
+
+    @Test
+    void aes256KeyMustBe256bits() {
+        var fixedDekKmsService = new FixedDekKmsService(128);
+        DekManager<ByteBuffer, ByteBuffer> manager = new DekManager<>(fixedDekKmsService, new FixedDekKmsService.Config(), 10000);
+        CompletionStage<Dek<ByteBuffer>> dekCompletionStage = manager.generateDek(fixedDekKmsService.getKekId(), Aes.AES_256_GCM_128);
+        assertThat(dekCompletionStage).failsWithin(10, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .havingCause()
+                .isExactlyInstanceOf(EncryptionConfigurationException.class)
+                .withMessage("KMS returned 128-bit DEK but AES_256_GCM_128 requires keys of 256 bits");
+
     }
 
 }

@@ -28,14 +28,12 @@ import io.kroxylicious.filter.encryption.decrypt.DecryptState;
 import io.kroxylicious.filter.encryption.decrypt.RecordDecryptor;
 import io.kroxylicious.filter.encryption.dek.Aes;
 import io.kroxylicious.filter.encryption.dek.Dek;
-import io.kroxylicious.filter.encryption.dek.DekException;
 import io.kroxylicious.filter.encryption.dek.DekManager;
 import io.kroxylicious.kafka.transform.RecordTransform;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.test.record.RecordTestUtils;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 class RecordEncryptorTest {
@@ -76,20 +74,6 @@ class RecordEncryptorTest {
         }
         catch (Exception e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    @Test
-    void aes256KeyMustBe256bits() {
-        try (TestComponents componentsWith128BitDek = setup(128)) {
-            Set<RecordField> fields = Set.of(RecordField.RECORD_VALUE);
-            long offset = 55L;
-            long timestamp = System.currentTimeMillis();
-            var key = "hello";
-            var value = "world";
-
-            assertThatThrownBy(() -> encryptSingleRecord(componentsWith128BitDek, fields, offset, timestamp, key, value)).isInstanceOf(DekException.class)
-                    .hasMessageContaining("The key must be 32 bytes");
         }
     }
 

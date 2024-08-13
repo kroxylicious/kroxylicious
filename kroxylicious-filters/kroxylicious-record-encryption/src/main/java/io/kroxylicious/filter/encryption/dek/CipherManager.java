@@ -68,4 +68,10 @@ public interface CipherManager extends PersistedIdentifiable<CipherSpec> {
      * the {@link #size(AlgorithmParameterSpec)} at the time the buffer was written.
      */
     AlgorithmParameterSpec readParameters(ByteBuffer parametersBuffer);
+
+    /**
+     * Returns the size of the keys (in bits) that this ciphertext manager requires.
+     * @return the required key size in bits.
+     */
+    int requiredNumKeyBits();
 }

@@ -38,6 +38,13 @@ public final class DestroyableRawSecretKey implements SecretKey {
     }
 
     /**
+     * @return The number of bits in this key
+     */
+    public int numKeyBits() {
+        return key.length * Byte.SIZE;
+    }
+
+    /**
      * Create a new key by becoming owner of the given key material.
      * The caller should not modify the given bytes after calling this method.
      *

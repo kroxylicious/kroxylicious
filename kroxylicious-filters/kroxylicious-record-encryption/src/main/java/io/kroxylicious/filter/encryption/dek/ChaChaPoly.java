@@ -27,6 +27,11 @@ public class ChaChaPoly implements CipherManager {
     }
 
     @Override
+    public int requiredNumKeyBits() {
+        return 256;
+    }
+
+    @Override
     public byte serializedId() {
         return 1;
     }
