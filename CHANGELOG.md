@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1401](https://github.com/kroxylicious/kroxylicious/issues/1401): Support a FIPs-certified cipher from an alternative provider
 * [#1416](https://github.com/kroxylicious/kroxylicious/pull/1416): Schema validation should not rely on the syntax validation
 * [#1393](https://github.com/kroxylicious/kroxylicious/pull/1393): Remove api versions service
 * [#1404](https://github.com/kroxylicious/kroxylicious/pull/1404): Move deprecated Context classes out of kroxylicious-api
@@ -21,6 +22,9 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
+* The Record Encryption Filter now uses `AES/GCM/NoPadding` as the transformation String and checks the KMS 
+returns a 256bit DEK. This enables users to configure an alternative JCE Provider in their JRE configuration
+that offers this algorithm.
 * FilterFactoryContext#eventLoop() is deprecated, replaced by FilterFactoryContext#filterDispatchExecutor().
 This returns FilterDispatchExecutor, a new interface extending ScheduledExecutorService. FilterDispatchExecutor
 has methods to enable Filters to check if the current thread is the Filter Dispatch Thread and it offers
