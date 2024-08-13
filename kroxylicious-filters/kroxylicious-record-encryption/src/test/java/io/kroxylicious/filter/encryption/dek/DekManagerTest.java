@@ -107,12 +107,11 @@ class DekManagerTest {
         var fixedDekKmsService = new FixedDekKmsService(128);
         DekManager<ByteBuffer, ByteBuffer> manager = new DekManager<>(fixedDekKmsService, new FixedDekKmsService.Config(), 10000);
         CompletionStage<Dek<ByteBuffer>> dekCompletionStage = manager.generateDek(fixedDekKmsService.getKekId(), Aes.AES_256_GCM_128);
-        assertThatThrownBy(() -> {
-            dekCompletionStage.toCompletableFuture().join();
-        }).isInstanceOf(CompletionException.class)
-                .cause()
+        assertThat(dekCompletionStage).failsWithin(10, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .havingCause()
                 .isExactlyInstanceOf(EncryptionConfigurationException.class)
-                .hasMessageContaining("KMS returned 128-bit DEK but AES_256_GCM_128 requires keys of 256 bits");
+                .withMessage("KMS returned 128-bit DEK but AES_256_GCM_128 requires keys of 256 bits");
 
     }
 

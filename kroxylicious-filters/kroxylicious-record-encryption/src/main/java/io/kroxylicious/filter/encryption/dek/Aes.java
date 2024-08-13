@@ -32,6 +32,9 @@ public class Aes implements CipherManager {
 
     private Aes(String transformation, int numKeyBits, byte serializedId, CipherSpec spec) {
         this.transformation = transformation;
+        if (numKeyBits < 0) {
+            throw new IllegalArgumentException();
+        }
         this.numKeyBits = numKeyBits;
         this.serializedId = serializedId;
         this.spec = spec;
