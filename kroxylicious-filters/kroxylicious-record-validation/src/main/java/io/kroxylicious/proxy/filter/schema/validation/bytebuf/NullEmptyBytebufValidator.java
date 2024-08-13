@@ -30,17 +30,22 @@ class NullEmptyBytebufValidator implements BytebufValidator {
     }
 
     @Override
-    public CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
-        if (buffer == null) {
-            return result(nullValid, "Null buffer invalid");
+    public CompletionStage<Result> validate(ByteBuffer buffer, Record record, boolean isKey) {
+        var result = isKey ? validateField(record.hasKey(), record.keySize()) : validateField(record.hasValue(), record.valueSize());
+        if (result != null) {
+            return CompletableFuture.completedStage(result);
         }
-        else if (length == 0) {
-            return result(emptyValid, "Empty buffer invalid");
-        }
-        return delegate.validate(buffer, length, record, isKey);
+        return delegate.validate(buffer, record, isKey);
     }
 
-    private CompletionStage<Result> result(boolean allowed, String message) {
-        return allowed ? Result.VALID : CompletableFuture.completedFuture(new Result(false, message));
+    private Result validateField(boolean hasField, int fieldLenth) {
+        if (!hasField) {
+            return nullValid ? Result.VALID_RESULT : new Result(false, "Null buffer invalid");
+        }
+        else if (fieldLenth <= 0) {
+            return emptyValid ? Result.VALID_RESULT : new Result(false, "Empty buffer invalid");
+        }
+        return null;
     }
+
 }

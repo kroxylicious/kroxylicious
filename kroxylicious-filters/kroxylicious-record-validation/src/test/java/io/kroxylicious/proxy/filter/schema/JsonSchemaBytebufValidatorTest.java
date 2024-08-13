@@ -126,7 +126,7 @@ public class JsonSchemaBytebufValidatorTest {
 
     private static Result validate(Record record, BytebufValidator validator) {
         try {
-            return validator.validate(record.value(), record.valueSize(), record, false).toCompletableFuture().get(5, TimeUnit.SECONDS);
+            return validator.validate(record.value(), record, false).toCompletableFuture().get(5, TimeUnit.SECONDS);
         }
         catch (ExecutionException | InterruptedException | TimeoutException e) {
             throw new RuntimeException(e);

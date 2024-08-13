@@ -36,7 +36,7 @@ public class KeyAndValueRecordValidator implements RecordValidator {
 
     @Override
     public CompletionStage<Result> validate(Record record) {
-        CompletionStage<Result> keyValid = keyValidator.validate(record.key(), record.keySize(), record, true);
+        CompletionStage<Result> keyValid = keyValidator.validate(record.key(), record, true);
         return keyValid.thenCompose(result -> {
             if (!result.valid()) {
                 return CompletableFuture.completedFuture(new Result(false, "Key was invalid: " + result.errorMessage()));
@@ -48,13 +48,13 @@ public class KeyAndValueRecordValidator implements RecordValidator {
     }
 
     private CompletionStage<Result> validateValue(Record record) {
-        CompletionStage<Result> valueValid = valueValidator.validate(record.value(), record.valueSize(), record, false);
+        CompletionStage<Result> valueValid = valueValidator.validate(record.value(), record, false);
         return valueValid.thenCompose(result1 -> {
             if (!result1.valid()) {
                 return CompletableFuture.completedFuture(new Result(false, "Value was invalid: " + result1.errorMessage()));
             }
             else {
-                return Result.VALID;
+                return Result.VALID_RESULT_STAGE;
             }
         });
     }
