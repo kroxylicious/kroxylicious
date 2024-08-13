@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.filter.schema;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 import io.apicurio.registry.resolver.SchemaResolverConfig;
@@ -56,15 +57,13 @@ public class ProduceValidationFilterBuilder {
     }
 
     private static BytebufValidator toValidator(BytebufValidation valueRule) {
-        return valueRule.getSyntacticallyCorrectJsonConfig()
-                .map(config -> BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique(), toSchemaValidator(valueRule)))
-                .orElse(BytebufValidators.allValid());
+        var validators = new ArrayList<BytebufValidator>();
+        valueRule.getSyntacticallyCorrectJsonConfig().ifPresent(config -> validators.add(BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique())));
+        valueRule.getSchemaValidationConfig().ifPresent(
+                config -> validators.add(BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
+                        config.apicurioGlobalId())));
+
+        return BytebufValidators.chainOf(validators);
     }
 
-    private static BytebufValidator toSchemaValidator(BytebufValidation valueRule) {
-        return valueRule.getSchemaValidationConfig()
-                .map(config -> BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
-                        config.apicurioGlobalId()))
-                .orElse(BytebufValidators.allValid());
-    }
 }

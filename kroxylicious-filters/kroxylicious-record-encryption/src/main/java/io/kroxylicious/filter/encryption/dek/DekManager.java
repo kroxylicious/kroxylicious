@@ -11,6 +11,7 @@ import java.util.concurrent.CompletionStage;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
@@ -66,7 +67,14 @@ public class DekManager<K, E> {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(cipherManager);
         return kms.generateDekPair(kekRef)
-                .thenApply(dekPair -> new Dek<>(dekPair.edek(), DestroyableRawSecretKey.toDestroyableKey(dekPair.dek()), cipherManager, maxEncryptionsPerDek));
+                .thenApply(dekPair -> {
+                    DestroyableRawSecretKey destroyableKey = DestroyableRawSecretKey.toDestroyableKey(dekPair.dek());
+                    if (destroyableKey.numKeyBits() < cipherManager.requiredNumKeyBits()) {
+                        throw new EncryptionConfigurationException("KMS returned " + destroyableKey.numKeyBits() + "-bit DEK but "
+                                + cipherManager.name() + " requires keys of " + cipherManager.requiredNumKeyBits() + " bits");
+                    }
+                    return new Dek<>(dekPair.edek(), destroyableKey, cipherManager, maxEncryptionsPerDek);
+                });
     }
 
     /**

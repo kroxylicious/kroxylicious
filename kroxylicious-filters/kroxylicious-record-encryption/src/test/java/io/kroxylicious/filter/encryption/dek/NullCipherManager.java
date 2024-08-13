@@ -32,6 +32,11 @@ public class NullCipherManager implements CipherManager {
     }
 
     @Override
+    public int requiredNumKeyBits() {
+        return 0;
+    }
+
+    @Override
     public byte serializedId() {
         return id;
     }

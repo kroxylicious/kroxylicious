@@ -102,5 +102,10 @@
             <artifactId>kroxylicious-filter-test-support</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 </project>
