@@ -10,7 +10,8 @@ This procedure describes how to set up the Multi-tenancy filter by configuring i
 The filter dynamically prefixes resource names to create isolation between tenants using the same Kafka cluster.
 The prefix representing a tenant is taken from the name of the virtual cluster representing the tenant. 
 For example, if the virtual cluster is named `tenant-1`, the prefix is `tenant-1`.
-Each tenant must be represented by a unique virtual cluster that points to the same cluster.
+Each tenant must be represented by a unique virtual cluster, and virtual cluster names must be globally unique within the Kroxylicious configuration. 
+This means that the same virtual cluster name cannot be used to represent different Kafka clusters.
 
 .Prerequisites
 
