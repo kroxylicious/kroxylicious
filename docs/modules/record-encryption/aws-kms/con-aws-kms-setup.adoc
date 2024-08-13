@@ -12,7 +12,7 @@ filter to be kept separate from any keys used by other systems. This document as
 will be to prefix the alias used by the filter with the word `KEK_`. If a different naming convention is used, adapt
 the instructions accordingly.
 
-== Role of the Administrator
+== Role of the administrator
 
 In order to use the filter, there must be an external entity which is responsible for creating encryption keys within AWS KMS which will be used to encrypt the records. It is up to the organization
 deploying Record Encryption to decide how this entity is managed.
@@ -20,10 +20,10 @@ deploying Record Encryption to decide how this entity is managed.
 The *Administrator* must have permissions to create keys in AWS KMS.  As a starting point, the
 built-in AWS policy `AWSKeyManagementServicePowerUser` confers sufficient key management privileges.
 
-To help get you started, the following commands can be used to establish an Administrator user with permissions
-suitable for managing encryption keys in KMS via an AWS Cloud Shell. This example illustrates using the user-name
-`kroxylicious-admin` but the choice of name is not significant.  If a different user-name is used, adapt the
-instructions accordingly.
+To get started, use the following commands to set up an administrator with permissions
+suitable for managing encryption keys in KMS through an AWS Cloud Shell. 
+This example illustrates using the user name`kroxylicious-admin`, but you can choose a different name if preferred.  
+Adjust the instructions accordingly if you use a different user name.
 
 [source,shell]
 ----
@@ -38,11 +38,10 @@ aws iam create-login-profile --user-name ${ADMIN} --password ${INITIAL_PASSWORD}
 echo Now log in at ${CONSOLE_URL}  with user name ${ADMIN} password ${INITIAL_PASSWORD} and change the password.
 ----
 
-== Establish an application identity for the Filter
+== Establish an application identity for the filter
 
-The filter needs to be able to authenticate to AWS in order to perform the operations needed for Envelope Encryption
-(generating and decrypting DEKs).  To this end, there must be an AWS IAM identity established for the filter itself with
-sufficient permissions.
+The filter must authenticate to AWS in order to perform envelope encryption operations, such as generating and decrypting DEKs. 
+Therefore, an AWS IAM identity with sufficient permissions must be created for the filter.
 
 Use AWS IAM to create the identity. Create an *Access Key* for this user. The Access Key/Secret Key pair
 will be used by the Filter. Do not enable the Console for this user.
