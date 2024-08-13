@@ -70,7 +70,7 @@ public class KcatClient implements KafkaClient {
         }
 
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kcat").addArgument(topicName).log();
-        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kcat";
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kcat-" + TestUtils.getRandomPodNameSuffix();
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
                 "--image=" + Constants.KCAT_CLIENT_IMAGE,
@@ -83,8 +83,9 @@ public class KcatClient implements KafkaClient {
     @Override
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using kcat");
-        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat";
-        List<String> args = List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-c", String.valueOf(numOfMessages), "-e", "-J");
+        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kcat-" + TestUtils.getRandomPodNameSuffix();
+        // Running consumer with parameters to get the latest N number of messages received to avoid consuming twice the same messages
+        List<String> args = List.of("-b", bootstrap, "-K ,", "-t", topicName, "-C", "-o", "-" + numOfMessages, "-e", "-J");
         Job kCatClientJob = TestClientsJobTemplates.defaultKcatJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, kCatClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);

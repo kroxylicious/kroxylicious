@@ -132,10 +132,6 @@ public interface Constants {
     String DEPLOYMENT = "Deployment";
 
     /**
-     * Strimzi kafka image url in quay
-     */
-    String STRIMZI_KAFKA_IMAGE = "quay.io/strimzi/kafka:latest-kafka-" + Environment.KAFKA_VERSION;
-    /**
      * Test clients image url
      */
     String TEST_CLIENTS_IMAGE = "quay.io/strimzi-test-clients/test-clients:latest-kafka-" + Environment.KAFKA_VERSION;

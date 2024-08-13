@@ -61,7 +61,7 @@ public class KafClient implements KafkaClient {
     public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
-        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf";
+        String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
 
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
@@ -79,7 +79,7 @@ public class KafClient implements KafkaClient {
     @Override
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using kaf");
-        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kafka-go";
+        String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
         List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName, "--output", "json");
         Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, goClientJob);
@@ -100,7 +100,7 @@ public class KafClient implements KafkaClient {
                             return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
                         }
                         return null;
-                    }, m -> getNumberOfJsonMessages(m) == numOfMessages);
+                    }, m -> getNumberOfJsonMessages(m) >= numOfMessages);
         }
         catch (ConditionTimeoutException e) {
             log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);

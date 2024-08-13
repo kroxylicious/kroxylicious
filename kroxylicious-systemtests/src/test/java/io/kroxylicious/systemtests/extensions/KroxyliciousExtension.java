@@ -10,6 +10,7 @@ import java.lang.reflect.Parameter;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -26,11 +27,12 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
 /**
  * The type Kroxylicious extension.
  */
-public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallback, AfterEachCallback {
+public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallback, AfterEachCallback, AfterAllCallback {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousExtension.class);
     private static final String K8S_NAMESPACE_KEY = "namespace";
     private static final String EXTENSION_STORE_NAME = "io.kroxylicious.systemtests";
     private final ExtensionContext.Namespace junitNamespace;
+    private boolean clusterDumpCollected = false;
 
     /**
      * Instantiates a new Kroxylicious extension.
@@ -58,14 +60,25 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
     }
 
     @Override
+    public void afterAll(ExtensionContext extensionContext) {
+        if (!clusterDumpCollected) {
+            Optional<Throwable> exception = extensionContext.getExecutionException();
+            if (exception.isPresent()) {
+                DeploymentUtils.collectClusterInfo("default", extensionContext.getRequiredTestClass().getSimpleName(), "");
+            }
+        }
+    }
+
+    @Override
     public void afterEach(ExtensionContext extensionContext) {
         String namespace = extractK8sNamespace(extensionContext);
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
-            if (exception.isPresent()) {
+            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
                 DeploymentUtils.collectClusterInfo(namespace, extensionContext.getRequiredTestClass().getSimpleName(),
                         extensionContext.getRequiredTestMethod().getName());
-            }
+                clusterDumpCollected = true;
+            });
         }
         finally {
             NamespaceUtils.deleteNamespaceWithWait(namespace);

@@ -47,5 +47,4 @@ public interface TestKekManager {
             super(alias);
         }
     }
-
 }
