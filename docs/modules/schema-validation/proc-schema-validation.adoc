@@ -1,35 +1,20 @@
 // file included in the following:
 //
-// assembly-built-in-filters.adoc
+// assembly-schema-validation-filter.adoc
 
-[id='con-record-validation-{context}']
-= Record Validation
+[id='proc-record-validation-{context}']
+= (Preview) Setting up the Record Validation filter
 
-[role="_abstract"]
-The Record Validation filter validates records sent by a producer.   Only records that pass the validation are sent to
-the broker. This filter can be used to prevent _poison messages_ entering the Kafka system, that may otherwise lead to
-consumer failure.
 
-The filter currently supports two modes of operation:
+.Prerequisites
 
-1. Schema validation validates the content of the record against a schema stored in an https://www.apicur.io/registry/[Apicurio Registry].
-2. Syntactically Correct JSON validation ensures the producer is producing messages that contain syntactically valid JSON.
+* An instance of Kroxylicious.
+For information on deploying Kroxylicious, see the link:{github}[samples and examples^].
+* A config map for Kroxylicious that includes the configuration for creating a virtual cluster.
 
-Validation rules can validate the content of the Kafka record key or value.
+.Procedure
 
-If the validation fails, the product request is rejected and the producing application receives an error response.  The broker
-will not receive the rejected records.
-
-== How to use the filter
-
-There is just one step to use the filter.
-
-1. <<Configuring virtual clusters>>
-2. Configuring the filter within Kroxylicious.
-
-=== Configuring the filter within Kroxylicious.
-
-.Example Record Validation filter configuration
+. Configure a `ProduceValidationFilterFactory` type filter.
 
 [source,yaml]
 ----
@@ -43,17 +28,26 @@ filters:
             <rule definition>                                          # <2>
           valueRule:
             <rule definition>                                          # <3>
-        isForwardPartialRequests: false                                # <4>
+        defaultRule:                                                   # <4>
+          keyRule:
+            <rule definition>                                          # <2>
+          valueRule:
+            <rule definition>                                          # <3>
+        forwardPartialRequests: false                                  # <5>
 ----
 <1> List of topic names to which the validation rules will be applied.
 <2> Validation rules that are applied to the record's key.
 <3> Validation rules that are applied to the record's value.
-<4> If `false`, any failing record validation will cause the entire produce request to be rejected.
-    If `true`, partitions where all records validated successfully will be forwarded to the broker. The
-    response the client will receive will be a mixed response with response returned from the broker
-    for the successful partitions and error responses for the partitions that failed validation.
+<4> (Optional) Default rule that is applied to any topics for which there is no explict rule defined.
+<5> If `false`, any record failing validation will cause the entire produce request to be rejected.
+    If `true`, only partitions within the request where all records validated successfully will be forwarded to the
+    broker. The response the client will receive will be a mixed response with response returned from the broker
+    for the partitions whose records passed validation and error responses for the partitions that failed validation.
     If the client is using transactions, this setting is *ignored*. Any failing record validation will
     cause the entire produce request to be rejected.
+
+Replace the token `<rule definition>`  with the YAML either a Schema Validation Rule or a Syntactically Correct
+JSON Validation Rule depending on your requirements.
 
 .Example Schema Validation Rule Definition
 
