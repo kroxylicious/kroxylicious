@@ -42,7 +42,7 @@ class PerRecordTopicValidatorTest {
         var tpd = createTopicProduceDataWithOnePartition(RecordTestUtils.record("good"));
         var topicValidator = new PerRecordTopicValidator(validator);
 
-        when(validator.validate(any(Record.class))).thenReturn(Result.VALID);
+        when(validator.validate(any(Record.class))).thenReturn(Result.VALID_RESULT_STAGE);
         var result = topicValidator.validateTopicData(tpd);
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
@@ -84,7 +84,7 @@ class PerRecordTopicValidatorTest {
         var tpd = createTopicProduceDataWithOnePartition(good, bad);
         var topicValidator = new PerRecordTopicValidator(validator);
 
-        when(validator.validate(good)).thenReturn(Result.VALID);
+        when(validator.validate(good)).thenReturn(Result.VALID_RESULT_STAGE);
         when(validator.validate(bad)).thenReturn(CompletableFuture.completedStage(new Result(false, "my bad record")));
         var result = topicValidator.validateTopicData(tpd);
 
@@ -110,7 +110,7 @@ class PerRecordTopicValidatorTest {
 
         var topicValidator = new PerRecordTopicValidator(validator);
 
-        when(validator.validate(good)).thenReturn(Result.VALID);
+        when(validator.validate(good)).thenReturn(Result.VALID_RESULT_STAGE);
         when(validator.validate(bad)).thenReturn(CompletableFuture.completedStage(new Result(false, "my bad record")));
         when(validator.validate(ugly)).thenReturn(CompletableFuture.completedStage(new Result(false, "my ugly record")));
 
@@ -141,7 +141,7 @@ class PerRecordTopicValidatorTest {
 
         var topicValidator = new PerRecordTopicValidator(validator);
 
-        when(validator.validate(good)).thenReturn(Result.VALID);
+        when(validator.validate(good)).thenReturn(Result.VALID_RESULT_STAGE);
         when(validator.validate(bad)).thenReturn(CompletableFuture.completedStage(new Result(false, "my bad record")));
         when(validator.validate(ugly)).thenReturn(CompletableFuture.completedStage(new Result(false, "my ugly record")));
 

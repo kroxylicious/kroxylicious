@@ -177,7 +177,7 @@ class JsonSyntaxBytebufValidatorTest {
     void testKeyValidated() throws ExecutionException, InterruptedException, TimeoutException {
         Record record = createRecord("\"abc\"", "123");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
-        Result result = validator.validate(record.key(), record.keySize(), record, true).toCompletableFuture().get(5, TimeUnit.SECONDS);
+        Result result = validator.validate(record.key(), record, true).toCompletableFuture().get(5, TimeUnit.SECONDS);
         assertTrue(result.valid());
     }
 
@@ -194,14 +194,12 @@ class JsonSyntaxBytebufValidatorTest {
     void testNullValueThrows() {
         Record record = createRecord("a", null);
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
-        assertThrows(IllegalArgumentException.class, () -> {
-            validate(record, validator);
-        });
+        assertThrows(IllegalArgumentException.class, () -> validate(record, validator));
     }
 
     private static Result validate(Record record, BytebufValidator validator) {
         try {
-            return validator.validate(record.value(), record.valueSize(), record, false).toCompletableFuture().get(5, TimeUnit.SECONDS);
+            return validator.validate(record.value(), record, false).toCompletableFuture().get(5, TimeUnit.SECONDS);
         }
         catch (ExecutionException | InterruptedException | TimeoutException e) {
             throw new RuntimeException(e);

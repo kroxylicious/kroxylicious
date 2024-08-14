@@ -27,10 +27,9 @@ public interface BytebufValidator {
      * </p>
      *
      * @param buffer the buffer containing data
-     * @param length the length of the value in the buffer (buffer may contain more data after the value)
      * @param record the record the buffer was extracted from
      * @param isKey true if the buffer is the key of the record, false if it is the value of the record
      * @return a valid result if the buffer is valid
      */
-    CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey);
+    CompletionStage<Result> validate(ByteBuffer buffer, Record record, boolean isKey);
 }

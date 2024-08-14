@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.filter.schema.validation.bytebuf;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -35,13 +36,15 @@ class JsonSyntaxBytebufValidator implements BytebufValidator {
     }
 
     @Override
-    public CompletionStage<Result> validate(ByteBuffer buffer, int size, Record record, boolean isKey) {
+    public CompletionStage<Result> validate(ByteBuffer buffer, Record record, boolean isKey) {
+        Objects.requireNonNull(record);
         if (buffer == null) {
             throw new IllegalArgumentException("buffer is null");
         }
-        if (size < 1) {
+        if (buffer.remaining() < 1) {
             throw new IllegalArgumentException("size is less than 1");
         }
+
         try (InputStream inputStream = new ByteBufferInputStream(buffer);
                 JsonParser parser = mapper.getFactory().createParser(inputStream)) {
             if (validateObjectKeysUnique) {
@@ -50,7 +53,7 @@ class JsonSyntaxBytebufValidator implements BytebufValidator {
             while (parser.nextToken() != null) {
             }
 
-            return Result.VALID;
+            return Result.VALID_RESULT_STAGE;
         }
         catch (Exception e) {
             String message = "value was not syntactically correct JSON" + (e.getMessage() != null ? ": " + e.getMessage() : "");

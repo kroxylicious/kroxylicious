@@ -24,8 +24,8 @@ import static org.mockito.Mockito.mock;
 class KeyAndValueRecordValidatorTest {
 
     public static final String FAIL_MESSAGE = "fail";
-    public static final BytebufValidator INVALID = (buffer, length, record, isKey) -> CompletableFuture.completedFuture(new Result(false, FAIL_MESSAGE));
-    public static final BytebufValidator VALID = (buffer, length, record, isKey) -> Result.VALID;
+    public static final BytebufValidator INVALID = (buffer, record, isKey) -> CompletableFuture.completedFuture(new Result(false, FAIL_MESSAGE));
+    public static final BytebufValidator VALID = (buffer, record, isKey) -> Result.VALID_RESULT_STAGE;
 
     @Test
     void testInvalidKey() {

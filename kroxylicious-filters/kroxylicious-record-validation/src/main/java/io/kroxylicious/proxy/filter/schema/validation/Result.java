@@ -16,8 +16,6 @@ import java.util.concurrent.CompletionStage;
  */
 public record Result(boolean valid, String errorMessage) {
 
-    /**
-     * valid result
-     */
-    public static CompletionStage<Result> VALID = CompletableFuture.completedFuture(new Result(true, null));
+    public static final Result VALID_RESULT = new Result(true, null);
+    public static CompletionStage<Result> VALID_RESULT_STAGE = CompletableFuture.completedFuture(VALID_RESULT);
 }

@@ -29,10 +29,10 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
     }
 
     @Override
-    public CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
+    public CompletionStage<Result> validate(ByteBuffer buffer, Record record, boolean isKey) {
         try {
             JsonValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer.clear());
-            return jsonValidationResult.success() ? Result.VALID
+            return jsonValidationResult.success() ? Result.VALID_RESULT_STAGE
                     : CompletableFuture.completedFuture(new Result(false, jsonValidationResult.toString()));
         }
         catch (RuntimeException ex) {
