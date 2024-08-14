@@ -6,17 +6,11 @@
 
 package io.kroxylicious.proxy.filter.schema;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.kafka.common.record.DefaultRecord;
 import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -25,6 +19,7 @@ import io.kroxylicious.proxy.filter.schema.validation.Result;
 import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidator;
 import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidators;
 
+import static io.kroxylicious.test.record.RecordTestUtils.record;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -34,7 +29,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testSyntacticallyIncorrectRecordInvalidated() {
-        Record record = createRecord("a", "b");
+        Record record = record("a", "b");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         Result result = validate(record, validator);
         assertFalse(result.valid());
@@ -42,7 +37,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testSyntacticallyCorrectRecordValidated() {
-        Record record = createRecord("a", "{\"a\":\"a\"}");
+        Record record = record("a", "{\"a\":\"a\"}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         Result result = validate(record, validator);
         assertTrue(result.valid());
@@ -50,7 +45,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testDuplicatedObjectKeyInvalidated() {
-        Record record = createRecord("a", "{\"a\":\"a\",\"a\":\"b\"}");
+        Record record = record("a", "{\"a\":\"a\",\"a\":\"b\"}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertFalse(result.valid());
@@ -59,7 +54,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testDuplicatedObjectKeyInNestedObjectInvalidated() {
-        Record record = createRecord("a", "{\"inner\":{\"a\":\"a\",\"a\":\"b\"}}");
+        Record record = record("a", "{\"inner\":{\"a\":\"a\",\"a\":\"b\"}}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertFalse(result.valid());
@@ -68,7 +63,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testDuplicatedObjectKeyInArrayInvalidated() {
-        Record record = createRecord("a", "[{\"a\":\"a\",\"a\":\"b\"}]");
+        Record record = record("a", "[{\"a\":\"a\",\"a\":\"b\"}]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertFalse(result.valid());
@@ -77,7 +72,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testNonDuplicatedObjectKeyInArrayValidated() {
-        Record record = createRecord("a", "[{\"a\":\"a\",\"b\":\"b\"}]");
+        Record record = record("a", "[{\"a\":\"a\",\"b\":\"b\"}]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertTrue(result.valid());
@@ -85,7 +80,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testArrayWithTwoObjectsWithSameKeysValidated() {
-        Record record = createRecord("a", "[{\"a\":\"a\"},{\"a\":\"a\"}]");
+        Record record = record("a", "[{\"a\":\"a\"},{\"a\":\"a\"}]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertTrue(result.valid());
@@ -93,7 +88,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testNestedObjectsUsingSameKeysValidated() {
-        Record record = createRecord("a", "[{\"a\":{\"a\":\"a\"}}]");
+        Record record = record("a", "[{\"a\":{\"a\":\"a\"}}]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertTrue(result.valid());
@@ -101,7 +96,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testNestedObjectsWithDuplicateKeysInvalidated() {
-        Record record = createRecord("a", "[{\"a\":{\"a\":\"a\",\"a\":\"b\"}}]");
+        Record record = record("a", "[{\"a\":{\"a\":\"a\",\"a\":\"b\"}}]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertFalse(result.valid());
@@ -110,7 +105,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testDeepObjectsWithDuplicateKeysInvalidated() {
-        Record record = createRecord("a", "[[[{\"a\":{\"b\":[1,true,null,{\"duplicate\":1,\"duplicate\":1}]}}]]]]");
+        Record record = record("a", "[[[{\"a\":{\"b\":[1,true,null,{\"duplicate\":1,\"duplicate\":1}]}}]]]]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertFalse(result.valid());
@@ -119,7 +114,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testArrayWithTwoObjectsWithSameKeysAndOtherDataValidated() {
-        Record record = createRecord("a", "[{\"a\":\"a\"},2,{\"a\":\"a\"},\"banana\"]");
+        Record record = record("a", "[{\"a\":\"a\"},2,{\"a\":\"a\"},\"banana\"]");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertTrue(result.valid());
@@ -127,7 +122,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testNonDuplicatedObjectKeysWithDuplicationValidationEnabled() {
-        Record record = createRecord("a", "{\"a\":\"b\",\"c\":\"d\"}");
+        Record record = record("a", "{\"a\":\"b\",\"c\":\"d\"}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertTrue(result.valid());
@@ -135,7 +130,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testDuplicatedObjectKeyValidatedWithDuplicationValidationDisabled() {
-        Record record = createRecord("a", "{\"a\":\"a\",\"a\":\"b\"}");
+        Record record = record("a", "{\"a\":\"a\",\"a\":\"b\"}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         Result result = validate(record, validator);
         assertTrue(result.valid());
@@ -143,7 +138,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testDifferentObjectsCanHaveSameKeyNames() {
-        Record record = createRecord("a", "{\"a\":{\"a\":1},\"b\":{\"a\":2}}");
+        Record record = record("a", "{\"a\":{\"a\":1},\"b\":{\"a\":2}}");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertTrue(result.valid());
@@ -151,7 +146,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testTrailingCharactersInvalidated() {
-        Record record = createRecord("a", "{\"a\":\"a\"}abc");
+        Record record = record("a", "{\"a\":\"a\"}abc");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         Result result = validate(record, validator);
         assertFalse(result.valid());
@@ -159,7 +154,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testLeadingCharactersInvalidated() {
-        Record record = createRecord("a", "abc{\"a\":\"a\"}abc");
+        Record record = record("a", "abc{\"a\":\"a\"}abc");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         Result result = validate(record, validator);
         assertFalse(result.valid());
@@ -167,7 +162,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testValueValidated() {
-        Record record = createRecord("a", "123");
+        Record record = record("a", "123");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validate(record, validator);
         assertTrue(result.valid());
@@ -175,7 +170,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testKeyValidated() throws ExecutionException, InterruptedException, TimeoutException {
-        Record record = createRecord("\"abc\"", "123");
+        Record record = record("\"abc\"", "123");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         Result result = validator.validate(record.key(), record, true).toCompletableFuture().get(5, TimeUnit.SECONDS);
         assertTrue(result.valid());
@@ -183,7 +178,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testEmptyStringThrows() {
-        Record record = createRecord("a", "");
+        Record record = record("a", "");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         assertThrows(IllegalArgumentException.class, () -> {
             validate(record, validator);
@@ -192,7 +187,7 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testNullValueThrows() {
-        Record record = createRecord("a", null);
+        Record record = record("a", (String) null);
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         assertThrows(IllegalArgumentException.class, () -> validate(record, validator));
     }
@@ -206,28 +201,4 @@ class JsonSyntaxBytebufValidatorTest {
         }
     }
 
-    private Record createRecord(String key, String value) {
-        ByteBuffer keyBuf = toBufNullable(key);
-        ByteBuffer valueBuf = toBufNullable(value);
-
-        try (ByteBufferOutputStream bufferOutputStream = new ByteBufferOutputStream(1000); DataOutputStream dataOutputStream = new DataOutputStream(bufferOutputStream)) {
-            DefaultRecord.writeTo(dataOutputStream, 0, 0, keyBuf, valueBuf, Record.EMPTY_HEADERS);
-            dataOutputStream.flush();
-            bufferOutputStream.flush();
-            ByteBuffer buffer = bufferOutputStream.buffer();
-            buffer.flip();
-            return DefaultRecord.readFrom(buffer, 0, 0, 0, 0L);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static ByteBuffer toBufNullable(String key) {
-        if (key == null) {
-            return null;
-        }
-        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
-        return ByteBuffer.wrap(keyBytes);
-    }
 }

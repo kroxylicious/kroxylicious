@@ -6,9 +6,6 @@
 
 package io.kroxylicious.proxy.filter.schema;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -16,9 +13,7 @@ import java.util.Map;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
-import org.apache.kafka.common.record.DefaultRecord;
 import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -36,6 +31,7 @@ import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidators;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+import static io.kroxylicious.test.record.RecordTestUtils.record;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class JsonSchemaBytebufValidatorTest {
@@ -103,7 +99,7 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void valuePassesSchemaValidation() {
-        Record record = createRecord(RECORD_KEY, VALID_JSON);
+        Record record = record(RECORD_KEY, VALID_JSON);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
 
@@ -114,7 +110,7 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void jsonValueFailsSchemaValidation() {
-        Record record = createRecord(RECORD_KEY, INVALID_JSON);
+        Record record = record(RECORD_KEY, INVALID_JSON);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
 
@@ -125,7 +121,7 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void nonJsonValueFailsValidation() {
-        Record record = createRecord(RECORD_KEY, "123".getBytes(StandardCharsets.UTF_8));
+        Record record = record(RECORD_KEY, "123".getBytes(StandardCharsets.UTF_8));
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
@@ -135,7 +131,8 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void valueWithCorrectSchemaIdInHeaderPassesValidation() {
-        Record record = createRecord(RECORD_KEY, VALID_JSON, new RecordHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID)));
+        Header[] headers = new Header[]{ new RecordHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID)) };
+        Record record = record(RECORD_KEY, VALID_JSON, headers);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
@@ -146,7 +143,7 @@ public class JsonSchemaBytebufValidatorTest {
     @Test
     void valueWithCorrectSchemaIdInBodyPassesValidation() {
         var value = asSchemaIdPrefixBuf(GLOBAL_ID, VALID_JSON);
-        Record record = createRecord(RECORD_KEY, value);
+        Record record = record(RECORD_KEY, value);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
@@ -156,7 +153,8 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void valueWithWrongSchemaIdInHeaderRejected() {
-        Record record = createRecord(RECORD_KEY, VALID_JSON, new RecordHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID + 1)));
+        Header[] headers = new Header[]{ new RecordHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID + 1)) };
+        Record record = record(RECORD_KEY, VALID_JSON, headers);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
@@ -168,38 +166,13 @@ public class JsonSchemaBytebufValidatorTest {
     @Test
     void valueWithWrongSchemaIdInBodyRejected() {
         var value = asSchemaIdPrefixBuf(GLOBAL_ID + 1, VALID_JSON);
-        Record record = createRecord(RECORD_KEY, value);
+        Record record = record(RECORD_KEY, value);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .returns(false, Result::valid)
                 .returns("Unexpected schema id in record (2), expecting 1", Result::errorMessage);
-    }
-
-    private Record createRecord(byte[] key, byte[] value, Header... headers) {
-        ByteBuffer keyBuf = toBufNullable(key);
-        ByteBuffer valueBuf = toBufNullable(value);
-
-        try (ByteBufferOutputStream bufferOutputStream = new ByteBufferOutputStream(1000);
-                DataOutputStream dataOutputStream = new DataOutputStream(bufferOutputStream)) {
-            DefaultRecord.writeTo(dataOutputStream, 0, 0, keyBuf, valueBuf, headers);
-            dataOutputStream.flush();
-            bufferOutputStream.flush();
-            ByteBuffer buffer = bufferOutputStream.buffer();
-            buffer.flip();
-            return DefaultRecord.readFrom(buffer, 0, 0, 0, 0L);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    private static ByteBuffer toBufNullable(byte[] buf) {
-        if (buf == null) {
-            return null;
-        }
-        return ByteBuffer.wrap(buf);
     }
 
     private byte[] toByteArray(long globalId) {
