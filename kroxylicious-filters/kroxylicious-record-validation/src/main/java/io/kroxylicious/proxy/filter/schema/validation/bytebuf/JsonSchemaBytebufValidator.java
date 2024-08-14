@@ -31,18 +31,19 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class JsonSchemaBytebufValidator implements BytebufValidator {
     private final JsonValidator jsonValidator;
     private final Long globalId;
-    private final Map<Boolean, HeadersHandler> headerHandler;
-    private final Map<Boolean, IdHandler> idHandler;
+    private final HeadersHandler keyHeaderHandler;
+    private final HeadersHandler valueHeaderHandler;
+    private final IdHandler keyIdHandler;
+    private final IdHandler valueIdHandler;
 
     public JsonSchemaBytebufValidator(Map<String, Object> schemaResolverConfig, Long globalId) {
         this.globalId = globalId;
         this.jsonValidator = new JsonValidator(schemaResolverConfig, Optional.of(ArtifactReference.fromGlobalId(globalId)));
-        this.headerHandler = Map.of(
-                true, buildHeaderHandler(true),
-                false, buildHeaderHandler(false));
-        this.idHandler = Map.of(
-                true, buildIdHandler(true),
-                false, buildIdHandler(false));
+        this.keyHeaderHandler = buildHeaderHandler(true);
+        this.keyIdHandler = buildIdHandler(true);
+
+        this.valueHeaderHandler = buildHeaderHandler(false);
+        this.valueIdHandler = buildIdHandler(false);
     }
 
     @Override
@@ -67,17 +68,19 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
     private Optional<Long> extractGlobalIdFromRecord(ByteBuffer buffer, Record kafkaRecord, boolean isKey) {
         if (kafkaRecord.headers().length > 0) {
             var recordHeaders = new RecordHeaders(kafkaRecord.headers());
-            var ref = headerHandler.get(isKey).readHeaders(recordHeaders);
+            var headerHandler = isKey ? keyHeaderHandler : valueHeaderHandler;
+            var ref = headerHandler.readHeaders(recordHeaders);
 
             if (ref.getGlobalId() != null) {
                 return Optional.of(ref.getGlobalId());
             }
         }
 
-        var minBytes = 1 + idHandler.get(isKey).idSize();
+        var idHandler = isKey ? keyIdHandler : valueIdHandler;
+        var minBytes = 1 + idHandler.idSize();
         if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == AbstractKafkaSerDe.MAGIC_BYTE) {
             buffer.get(); // ignore magic
-            return Optional.of(idHandler.get(isKey).readId(buffer).getGlobalId());
+            return Optional.of(idHandler.readId(buffer).getGlobalId());
         }
         return Optional.empty();
     }
