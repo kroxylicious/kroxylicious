@@ -91,11 +91,11 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
     private static final String APICURIO_REGISTRY_HOST = "http://localhost";
     private static final Integer APICURIO_REGISTRY_PORT = 8081;
     private static final String APICURIO_REGISTRY_URL = APICURIO_REGISTRY_HOST + ":" + APICURIO_REGISTRY_PORT;
-    public static final String FIRST_ARTIFACT_ID = UUID.randomUUID().toString();
-    public static final String SECOND_ARTIFACT_ID = UUID.randomUUID().toString();
-    public static long FIRST_GLOBAL_ID;
-    public static long SECOND_GLOBAL_ID;
-    private final static ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String FIRST_ARTIFACT_ID = UUID.randomUUID().toString();
+    private static final String SECOND_ARTIFACT_ID = UUID.randomUUID().toString();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    public static long firstGlobalId;
+    public static long secondGlobalId;
 
     private static GenericContainer registryContainer;
 
@@ -120,8 +120,8 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
 
         // Preparation: In this test class, a schema already registered in Apicurio Registry with globalId one is expected, so we register it upfront.
         try (var client = RegistryClientFactory.create(APICURIO_REGISTRY_URL)) {
-            FIRST_GLOBAL_ID = client.createArtifact(null, FIRST_ARTIFACT_ID, IoUtil.toStream(JSON_SCHEMA_TOPIC_1)).getGlobalId();
-            SECOND_GLOBAL_ID = client.createArtifact(null, SECOND_ARTIFACT_ID, IoUtil.toStream(JSON_SCHEMA_TOPIC_1)).getGlobalId();
+            firstGlobalId = client.createArtifact(null, FIRST_ARTIFACT_ID, IoUtil.toStream(JSON_SCHEMA_TOPIC_1)).getGlobalId();
+            secondGlobalId = client.createArtifact(null, SECOND_ARTIFACT_ID, IoUtil.toStream(JSON_SCHEMA_TOPIC_1)).getGlobalId();
         }
     }
 
@@ -130,7 +130,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", FIRST_GLOBAL_ID)))))
+                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", firstGlobalId)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
@@ -152,7 +152,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic2.name()), "valueRule",
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", FIRST_GLOBAL_ID)))))
+                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", firstGlobalId)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
@@ -193,7 +193,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
         public ArtifactReference artifactReference(Record data, ParsedSchema parsedSchema) {
             return ArtifactReference.builder()
                     .artifactId(FIRST_ARTIFACT_ID)
-                    .globalId(FIRST_GLOBAL_ID)
+                    .globalId(firstGlobalId)
                     .build();
         }
 
@@ -212,7 +212,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", FIRST_GLOBAL_ID)))))
+                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", firstGlobalId)))))
                         .build());
 
         var keySerde = new Serdes.StringSerde();
@@ -254,7 +254,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", SECOND_GLOBAL_ID)))))
+                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", secondGlobalId)))))
                         .build());
 
         var keySerde = new Serdes.StringSerde();
