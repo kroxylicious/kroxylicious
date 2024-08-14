@@ -4,12 +4,12 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-FROM registry.access.redhat.com/ubi9/openjdk-17:1.15 AS builder
+FROM registry.access.redhat.com/ubi9/openjdk-17:1.20 AS builder
 
 USER root
 WORKDIR /opt/kroxylicious
 COPY . .
-RUN ./mvnw -q -B clean package -Pdist -Dquick
+RUN mvn -q -B clean package -Pdist -Dquick
 USER 185
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.2
 
