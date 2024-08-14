@@ -2,11 +2,23 @@
 //
 // assembly-built-in-filters.adoc
 
-[id='con-schema-validation-{context}']
-= Schema Validation
+[id='con-record-validation-{context}']
+= Record Validation
 
 [role="_abstract"]
-Schema validation filter that enables validating records using an existing schema in https://www.apicur.io/registry/[Apicurio Registry].
+The Record Validation filter validates records sent by a producer.   Only records that pass the validation are sent to
+the broker. This filter can be used to prevent _poison messages_ entering the Kafka system, that may otherwise lead to
+consumer failure.
+
+The filter currently supports two modes of operation:
+
+1. Schema validation validates the content of the record against a schema stored in an https://www.apicur.io/registry/[Apicurio Registry].
+2. Syntactically Correct JSON validation ensures the producer is producing messages that contain syntactically valid JSON.
+
+Validation rules can validate the content of the Kafka record key or value.
+
+If the validation fails, the product request is rejected and the producing application receives an error response.  The broker
+will not receive the rejected records.
 
 == How to use the filter
 
@@ -17,19 +29,58 @@ There is just one step to use the filter.
 
 === Configuring the filter within Kroxylicious.
 
+.Example Record Validation filter configuration
+
 [source,yaml]
+----
 filters:
   - type: ProduceValidationFilterFactory
     config:
         rules:
-        - topicNames:
-            - test-topic
-            valueRule:
-                schemaValidationConfig:
-                    apicurioGlobalId: 1
-                    apicurioRegistryUrl: http://localhost:8080
+        - topicNames:                                                  # <1>
+            - <topic name>
+          keyRule:
+            <rule definition>                                          # <2>
+          valueRule:
+            <rule definition>                                          # <3>
+        isForwardPartialRequests: false                                # <4>
+----
+<1> List of topic names to which the validation rules will be applied.
+<2> Validation rules that are applied to the record's key.
+<3> Validation rules that are applied to the record's value.
+<4> If `false`, any failing record validation will cause the entire produce request to be rejected.
+    If `true`, partitions where all records validated successfully will be forwarded to the broker. The
+    response the client will receive will be a mixed response with response returned from the broker
+    for the successful partitions and error responses for the partitions that failed validation.
+    If the client is using transactions, this setting is *ignored*. Any failing record validation will
+    cause the entire produce request to be rejected.
 
+.Example Schema Validation Rule Definition
 
-The apicurioGlobalId parameter is the global identifier of the schema that will be used to validate the value of the records in test-topic. The second parameter, apicurioRegistryUrl, is the URL of your Apicurio Registry instance.
+The Schema Validation rule validates that the key or value matches the identified schema.
 
-With this configuration, the values of all the records you produce to the test-topic 1 will be validated using the schema present in Apicurio Registry with global identifier 1.
+[source,yaml]
+----
+schemaValidationConfig:
+    apicurioGlobalId: 1001                                       # <1>
+    apicurioRegistryUrl: http://registry.local:8080              # <2>
+allowNulls: true                                                 # <3>
+allowEmpty: true                                                 # <4>
+----
+<1> Apicurio registry global id identifying the schema that will be enforced
+<2> Apicurio Registry endpoint
+<3> if true, the validator allows null keys/values, the default is false.
+<4> if true, the validator allow empty keys/values, the default is false.
+
+.Example Syntactically Correct JSON Validation Rule Definition
+
+[source,yaml]
+----
+syntacticallyCorrectJson:
+    validateObjectKeysUnique: true                               # <1>
+allowNulls: true                                                 # <2>
+allowEmpty: true                                                 # <3>
+----
+<1> if true, the validator will enforce that objects keys are unique, the default is false.
+<2> if true, the validator allow null keys/values, the default is false.
+<3> if true, the validator allow empty keys/values, the default is false.
