@@ -204,7 +204,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
 
     }
 
-    public record PersonBean(String firstName, String lastName, int age) {}
+    record PersonBean(String firstName, String lastName, int age) {}
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
