@@ -250,7 +250,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void detectsClientProducingWithWrongSchema(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic1) {
+    void detectsClientProducingWithWrongSchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic1) {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
@@ -258,14 +258,14 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
                         .build());
 
         var keySerde = new Serdes.StringSerde();
-        var valuSerde = new JsonSchemaSerde<PersonBean>();
-        valuSerde.configure(Map.of(
+        var valueSerde = new JsonSchemaSerde<PersonBean>();
+        valueSerde.configure(Map.of(
                 SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
                 SerdeConfig.ARTIFACT_RESOLVER_STRATEGY, FixedArtifactReferenceResolver.class.getName(),
                 SerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(keySerde, valuSerde, Map.of(
+                var producer = tester.producer(keySerde, valueSerde, Map.of(
                         ProducerConfig.LINGER_MS_CONFIG, 0,
                         ProducerConfig.BATCH_SIZE_CONFIG, 16384))) {
             var bean = new PersonBean("john", "smith", 23);
