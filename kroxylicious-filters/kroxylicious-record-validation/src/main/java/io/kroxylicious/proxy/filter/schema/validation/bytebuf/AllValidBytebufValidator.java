@@ -18,5 +18,6 @@ class AllValidBytebufValidator implements BytebufValidator {
     @Override
     public CompletionStage<Result> validate(ByteBuffer buffer, int length, Record record, boolean isKey) {
         return Result.VALID;
+
     }
 }
