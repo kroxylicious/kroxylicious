@@ -39,3 +39,6 @@
 
 //AWS links
 :aws:  https://docs.aws.amazon.com/
+
+// Apicurio links
+:apicurio-docs: https://www.apicur.io/registry/docs/apicurio-registry/2.6.x/
