@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1417](https://github.com/kroxylicious/kroxylicious/pull/1417): Extend JsonSchemaValidator to validate the incoming schema id matches the expected.
 * [#1401](https://github.com/kroxylicious/kroxylicious/issues/1401): Support a FIPs-certified cipher from an alternative provider
 * [#1416](https://github.com/kroxylicious/kroxylicious/pull/1416): Schema validation should not rely on the syntax validation
 * [#1393](https://github.com/kroxylicious/kroxylicious/pull/1393): Remove api versions service

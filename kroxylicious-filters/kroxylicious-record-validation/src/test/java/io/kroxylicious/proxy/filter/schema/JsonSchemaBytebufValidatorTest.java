@@ -172,14 +172,12 @@ public class JsonSchemaBytebufValidatorTest {
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid)
-                .returns("Unexpected schema id in record (2), expecting 1", Result::errorMessage);
+                .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
     }
 
     private byte[] toByteArray(long globalId) {
         var buf = ByteBuffer.allocate(Long.BYTES);
         buf.putLong(globalId);
-        buf.flip();
         return buf.array();
     }
 

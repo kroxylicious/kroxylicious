@@ -86,8 +86,10 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
             }
             """;
 
-    private static final String JSON_MESSAGE = "{\"firstName\":\"json1\",\"lastName\":\"json2\"}";
-    private static final String INVALID_AGE_MESSAGE = "{\"firstName\":\"json1\",\"lastName\":\"json2\",\"age\":-3}";
+    private static final String JSON_MESSAGE = """
+            {"firstName":"json1","lastName":"json2"}""";
+    private static final String INVALID_AGE_MESSAGE = """
+            {"firstName":"json1","lastName":"json2","age":-3}""";
     private static final String APICURIO_REGISTRY_HOST = "http://localhost";
     private static final Integer APICURIO_REGISTRY_PORT = 8081;
     private static final String APICURIO_REGISTRY_URL = APICURIO_REGISTRY_HOST + ":" + APICURIO_REGISTRY_PORT;

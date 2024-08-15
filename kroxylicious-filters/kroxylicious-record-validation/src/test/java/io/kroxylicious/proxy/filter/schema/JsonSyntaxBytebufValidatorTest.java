@@ -21,7 +21,6 @@ import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidators;
 import static io.kroxylicious.test.record.RecordTestUtils.record;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 
 @ExtendWith(MockitoExtension.class)
 class JsonSyntaxBytebufValidatorTest {
@@ -48,43 +47,50 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testDuplicatedObjectKeyInvalidated() {
-        Record record = record("a", "{\"a\":\"a\",\"a\":\"b\"}");
+        Record record = record("a", """
+                {"a":"a","a":"b"}""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid)
-                .extracting(Result::errorMessage, STRING)
-                .contains("value was not syntactically correct JSON: Duplicate field");
+                .satisfies(r -> {
+                    assertThat(r.valid()).isFalse();
+                    assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
+                });
     }
 
     @Test
     void testDuplicatedObjectKeyInNestedObjectInvalidated() {
-        Record record = record("a", "{\"inner\":{\"a\":\"a\",\"a\":\"b\"}}");
+        Record record = record("a", """
+                {"inner":{"a":"a","a":"b"}}""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid)
-                .extracting(Result::errorMessage, STRING)
-                .contains("value was not syntactically correct JSON: Duplicate field");
+                .satisfies(r -> {
+                    assertThat(r.valid()).isFalse();
+                    assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
+                });
     }
 
     @Test
     void testDuplicatedObjectKeyInArrayInvalidated() {
-        Record record = record("a", "[{\"a\":\"a\",\"a\":\"b\"}]");
+        Record record = record("a", """
+                [{"a":"a","a":"b"}]""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid)
-                .extracting(Result::errorMessage, STRING)
-                .contains("value was not syntactically correct JSON: Duplicate field");
+                .satisfies(r -> {
+                    assertThat(r.valid()).isFalse();
+                    assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
+                });
     }
 
     @Test
     void testNonDuplicatedObjectKeyInArrayValidated() {
-        Record record = record("a", "[{\"a\":\"a\",\"b\":\"b\"}]");
+        Record record = record("a", """
+                [{"a":"a","b":"b"}]""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
@@ -94,7 +100,8 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testArrayWithTwoObjectsWithSameKeysValidated() {
-        Record record = record("a", "[{\"a\":\"a\"},{\"a\":\"a\"}]");
+        Record record = record("a", """
+                [{"a":"a"},{"a":"a"}]""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
@@ -104,7 +111,8 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testNestedObjectsUsingSameKeysValidated() {
-        Record record = record("a", "[{\"a\":{\"a\":\"a\"}}]");
+        Record record = record("a", """
+                [{"a":{"a":"a"}}] """);
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
@@ -114,31 +122,36 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testNestedObjectsWithDuplicateKeysInvalidated() {
-        Record record = record("a", "[{\"a\":{\"a\":\"a\",\"a\":\"b\"}}]");
+        Record record = record("a", """
+                [{"a":{"a":"a","a":"b"}}]""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid)
-                .extracting(Result::errorMessage, STRING)
-                .contains("value was not syntactically correct JSON: Duplicate field");
+                .satisfies(r -> {
+                    assertThat(r.valid()).isFalse();
+                    assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
+                });
     }
 
     @Test
     void testDeepObjectsWithDuplicateKeysInvalidated() {
-        Record record = record("a", "[[[{\"a\":{\"b\":[1,true,null,{\"duplicate\":1,\"duplicate\":1}]}}]]]]");
+        Record record = record("a", """
+                [[[{"a":{"b":[1,true,null,{"duplicate":1,"duplicate":1}]}}]]]]""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid)
-                .extracting(Result::errorMessage, STRING)
-                .contains("value was not syntactically correct JSON: Duplicate field");
+                .satisfies(r -> {
+                    assertThat(r.valid()).isFalse();
+                    assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
+                });
     }
 
     @Test
     void testArrayWithTwoObjectsWithSameKeysAndOtherDataValidated() {
-        Record record = record("a", "[{\"a\":\"a\"},2,{\"a\":\"a\"},\"banana\"]");
+        Record record = record("a", """
+                [{"a":"a"},2,{"a":"a"},"banana"]""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
@@ -148,7 +161,8 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testNonDuplicatedObjectKeysWithDuplicationValidationEnabled() {
-        Record record = record("a", "{\"a\":\"b\",\"c\":\"d\"}");
+        Record record = record("a", """
+                {"a":"b","c":"d"}""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
@@ -158,7 +172,8 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testDuplicatedObjectKeyValidatedWithDuplicationValidationDisabled() {
-        Record record = record("a", "{\"a\":\"a\",\"a\":\"b\"}");
+        Record record = record("a", """
+                {"a":"a","a":"b"}""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
@@ -168,7 +183,8 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testDifferentObjectsCanHaveSameKeyNames() {
-        Record record = record("a", "{\"a\":{\"a\":1},\"b\":{\"a\":2}}");
+        Record record = record("a", """
+                {"a":{"a":1},"b":{"a":2}}""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
@@ -178,7 +194,8 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testTrailingCharactersInvalidated() {
-        Record record = record("a", "{\"a\":\"a\"}abc");
+        Record record = record("a", """
+                {"a":"a"}abc""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
@@ -188,7 +205,8 @@ class JsonSyntaxBytebufValidatorTest {
 
     @Test
     void testLeadingCharactersInvalidated() {
-        Record record = record("a", "abc{\"a\":\"a\"}abc");
+        Record record = record("a", """
+                abc{"a":"a"}abc""");
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         var result1 = validator.validate(record.value(), record, false);
         assertThat(result1)
