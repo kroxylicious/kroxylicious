@@ -47,23 +47,18 @@ https://myvaultinstance:8200/v1/mytransit
 
 == Establish the naming convention for keys within Vault hierarchy
 
-It is necessary to determine a naming convention for the KEKs within Vault.  This will allow the keys used by the
-filter to be kept separate from any keys used by other systems.  This document assumes that the naming convention
-will be to prefix the keys used by the filter with the word `KEK_`.  If a different naming convention is used, adapt
-the instructions accordingly.
+Establish a naming convention for keys to keep the filter’s keys separate from those used by other systems.
+Here, we use a prefix of KEK_ for filter key name.
+Adjust the instructions if a different naming convention is used.
 
-== Administrator Actor
+== Role of the administrator
 
-To use the filter, there must be an administrative actor established.  This actor, which is likely to be a human,
-has the responsibility to create keys within Vault for use by the filter.
+To use the filter, an administrator (or administrative process) must create the encryption keys within Vault that will be used to encrypt the records.
+The organization deploying the Record Encryption filter is responsible for managing this administrator or process.
 
-The Administrator must have permissions to log in to Vault and create keys beneath `transit/keys/KEK_*` in the
-Vault hierarchy.
+The administrator must have permissions to create keys beneath `transit/keys/KEK_*` in the Vault hierarchy.
 
-The exact steps required to establish an administrative actor will depend on the way that Vault instance has been
-{hashicorp-vault}/tutorials/auth-methods[setup].
-
-A minimal Vault policy required by the Administrator is as follows:
+As a guideline, the minimal Vault policy required by the administrator is as follows:
 
 [source,shell]
 ----
@@ -72,12 +67,12 @@ capabilities = ["read", "write"]
 }
 ----
 
-== Filter Actor
+== Establish an application identity for the filter
 
-To use the filter, there must be a Vault identity established for the filter itself.  This identity must have
-permissions to perform the operations needed for envelope encryption (generating and decrypting DEKs).
+The filter must authenticate to Vault in order to perform envelope encryption operations, such as generating and decrypting DEKs
+Therefore, a Vault identity with sufficient permissions must be created for the filter.
 
-Create a Vault policy for the filter actor:
+Create a Vault policy for the filter:
 
 [source,shell]
 ----
@@ -101,7 +96,7 @@ configuration of the token to suit the standards required by your organization]:
 
 [source,shell]
 ----
-vault token create -display-name "kroxylicious encryption filter" \
+vault token create -display-name "kroxylicious record encryption" \
                    -policy=kroxylicious_encryption_filter_policy \
                    -period=768h \                                     <1>
                    -no-default-policy \                               <2>
@@ -123,7 +118,8 @@ token_policies     [kroxylicious_encryption_filter_policy]
 ----
 
 The token must be {hashicorp-vault}/docs/concepts/tokens#token-time-to-live-periodic-tokens-and-explicit-max-ttls[renewed]
-before expiration.  It is the responsibility of the Administrator to do this.
+before expiration.  
+It is the responsibility of the administrator to do this.
 
 This can be done with a command like:
 
@@ -132,12 +128,12 @@ This can be done with a command like:
 vault token renew --accessor <token_accessor>
 ----
 
-== Testing the Kroxylicious Vault Token using the CLI
+== Testing the application identity for the filter using the CLI
 
-To test whether the Kroxylicious Vault Token and the policy are working correctly, a
+To test whether the application identity and the policy are working correctly, a
 https://raw.githubusercontent.com/kroxylicious/kroxylicious/main/scripts/validate_vault_token.sh[script] can be used.
 
-First, as an Administrator, create a KEK in the hierarchy at this path `transit/keys/KEK_testkey`.
+First, as the administrator, create a KEK in the hierarchy at this path `transit/keys/KEK_testkey`.
 
 [source,shell]
 ----
