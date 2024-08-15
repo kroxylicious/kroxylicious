@@ -62,8 +62,8 @@ allowEmpty: true                                                 # <4>
 ----
 <1> Apicurio registry global ID identifying the schema that will be enforced.
 <2> Apicurio Registry endpoint.
-<3> if `true`, the validator allows keys and or values to be `null`. The default is false.
-<4> if `true`, the validator allows keys and or values to be empty. The default is false.
+<3> if `true`, the validator allows keys and or values to be `null`. The default is `false`.
+<4> if `true`, the validator allows keys and or values to be empty. The default is `false`.
 
 NOTE: Schema Validation mode currently has the capability to enforce only JSON schemas (https://github.com/kroxylicious/kroxylicious/issues/1431[issue])
 
