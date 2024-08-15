@@ -46,9 +46,9 @@ Use AWS IAM to create this identity and generate an *Access Key* for it.
 The Access Key/Secret Key pair is used by the filter. 
 Do not enable console access for this user.
 
-If using the CLI, these commands can be used to establish the IAM Identity for the Filter.  This example illustrates using the
-user-name `kroxylicious`. The choice of name is not significant.  If a different user-name is used, adapt the
-instructions accordingly.
+Using the CLI, the following commands create the IAM identity for the filter. 
+This example uses the user name `kroxylicious`, but you can choose a different name if needed. 
+Adjust the instructions accordingly if using a different user name.
 
 [source,shell]
 ----
