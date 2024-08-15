@@ -54,9 +54,8 @@ the instructions accordingly.
 
 == Role of the Administrator
 
-In order to use the filter, there must be an *Administrator*.  The Administrator has the responsibility
-to create encryption keys within Vault which will be used to encrypt the records. It is up to the organization
-deploying Record Encryption to decide how the role of the *Administrator* maps into their organization structure.
+To use the filter, an administrator (or administrative process) must create the encryption keys within Vault that will be used to encrypt the records.
+The organization deploying the Record Encryption filter is responsible for managing this administrator or process.
 
 The administrator must have permissions to create keys beneath `transit/keys/KEK_*` in the
 Vault hierarchy.
