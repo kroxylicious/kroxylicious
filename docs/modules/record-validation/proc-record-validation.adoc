@@ -46,7 +46,7 @@ filters:
     If the client is using transactions, this setting is *ignored*. Any failing record validation will
     cause the entire produce request to be rejected.
 
-Replace the token `<rule definition>`  with the YAML either a Schema Validation rule or a JSON Syntax Validation rule depending on your requirements.
+Replace the token `<rule definition>`  in the YAML configuration with either a Schema Validation rule or a JSON Syntax Validation rule depending on your requirements.
 
 .Example Schema Validation Rule Definition
 
