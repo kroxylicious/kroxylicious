@@ -79,5 +79,5 @@ allowNulls: true                                                 # <2>
 allowEmpty: true                                                 # <3>
 ----
 <1> If `true`, the validator enforces that objects keys must be unique. The default is `false`.
-<2> if `true`, the validator allows keys and or values to be `null`. The default is false.
-<3> if `true`, the validator allows keys and or values to be empty. The default is false.
+<2> if `true`, the validator allows keys and or values to be `null`. The default is `false`.
+<3> if `true`, the validator allows keys and or values to be empty. The default is `false`.
