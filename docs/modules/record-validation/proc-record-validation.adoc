@@ -10,7 +10,7 @@
 * An instance of Kroxylicious.
 For information on deploying Kroxylicious, see the link:{github}[samples and examples^].
 * A config map for Kroxylicious that includes the configuration for creating a virtual cluster.
-* Apicurio Registry (if wanting to use Schema Validation).
+* Apicurio Registry (if wanting to use Schema validation).
 
 .Procedure
 
