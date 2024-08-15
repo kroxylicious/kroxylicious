@@ -6,27 +6,23 @@
 
 package io.kroxylicious.proxy.filter.schema;
 
-import java.io.DataOutputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-import org.apache.kafka.common.record.DefaultRecord;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
-import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
+
+import io.apicurio.registry.serde.AbstractKafkaSerDe;
+import io.apicurio.registry.serde.SerdeHeaders;
 
 import io.kroxylicious.proxy.filter.schema.validation.Result;
 import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidator;
@@ -35,17 +31,21 @@ import io.kroxylicious.proxy.filter.schema.validation.bytebuf.BytebufValidators;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static io.kroxylicious.test.record.RecordTestUtils.record;
+import static org.assertj.core.api.Assertions.assertThat;
 
-@ExtendWith(MockitoExtension.class)
 public class JsonSchemaBytebufValidatorTest {
 
-    @Mock(strictness = Mock.Strictness.LENIENT)
-    BytebufValidator mockValidator;
+    private static final long GLOBAL_ID = 1L;
+    private static final byte[] VALID_JSON = """
+            {"firstName":"a","lastName":"b"}""".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] INVALID_JSON = """
+            {"firstName":"a","lastName":"b","age":-3}""".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] RECORD_KEY = "a".getBytes(StandardCharsets.UTF_8);
 
-    static WireMockServer registryServer;
+    private static WireMockServer registryServer;
+
+    private static Map<String, Object> apicurioConfig;
 
     private static final String JSON_SCHEMA = """
             {
@@ -90,6 +90,8 @@ public class JsonSchemaBytebufValidatorTest {
                         .willReturn(WireMock.aResponse()
                                 .withHeader("Content-Type", "application/json")
                                 .withBody("[]")));
+
+        apicurioConfig = Map.of("apicurio.registry.url", registryServer.baseUrl());
     }
 
     @AfterAll
@@ -98,63 +100,93 @@ public class JsonSchemaBytebufValidatorTest {
     }
 
     @Test
-    void testValueValidated() {
-        Record record = createRecord("a", "{\"firstName\":\"a\",\"lastName\":\"b\"}");
-        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(Map.of("apicurio.registry.url", registryServer.baseUrl()), 1L);
-        Result result = validate(record, validator);
-        assertTrue(result.valid());
-        verifyNoMoreInteractions(mockValidator);
+    void valuePassesSchemaValidation() {
+        Record record = record(RECORD_KEY, VALID_JSON);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.value(), record, false);
+
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
     }
 
     @Test
-    void testValueInvalidAgeInvalidated() {
-        Record record = createRecord("a", "{\"firstName\":\"a\",\"lastName\":\"b\",\"age\":-3}");
-        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(Map.of("apicurio.registry.url", registryServer.baseUrl()), 1L);
-        Result result = validate(record, validator);
-        assertFalse(result.valid());
-        verifyNoMoreInteractions(mockValidator);
+    void jsonValueFailsSchemaValidation() {
+        Record record = record(RECORD_KEY, INVALID_JSON);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.value(), record, false);
+
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(false, Result::valid);
     }
 
     @Test
-    void testInvalidValueInValidated() {
-        Record record = createRecord("a", "123");
-        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(Map.of("apicurio.registry.url", registryServer.baseUrl()), 1L);
-        Result result = validate(record, validator);
-        assertFalse(result.valid());
-        verifyNoMoreInteractions(mockValidator);
+    void nonJsonValueFailsValidation() {
+        Record record = record(RECORD_KEY, "123".getBytes(StandardCharsets.UTF_8));
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.value(), record, false);
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(false, Result::valid);
     }
 
-    private static Result validate(Record record, BytebufValidator validator) {
-        try {
-            return validator.validate(record.value(), record, false).toCompletableFuture().get(5, TimeUnit.SECONDS);
-        }
-        catch (ExecutionException | InterruptedException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+    @Test
+    void valueWithCorrectSchemaIdInHeaderPassesValidation() {
+        Header[] headers = new Header[]{ new RecordHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID)) };
+        Record record = record(RECORD_KEY, VALID_JSON, headers);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.value(), record, false);
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
     }
 
-    private Record createRecord(String key, String value) {
-        ByteBuffer keyBuf = toBufNullable(key);
-        ByteBuffer valueBuf = toBufNullable(value);
-
-        try (ByteBufferOutputStream bufferOutputStream = new ByteBufferOutputStream(1000); DataOutputStream dataOutputStream = new DataOutputStream(bufferOutputStream)) {
-            DefaultRecord.writeTo(dataOutputStream, 0, 0, keyBuf, valueBuf, Record.EMPTY_HEADERS);
-            dataOutputStream.flush();
-            bufferOutputStream.flush();
-            ByteBuffer buffer = bufferOutputStream.buffer();
-            buffer.flip();
-            return DefaultRecord.readFrom(buffer, 0, 0, 0, 0L);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    @Test
+    void valueWithCorrectSchemaIdInBodyPassesValidation() {
+        var value = asSchemaIdPrefixBuf(GLOBAL_ID, VALID_JSON);
+        Record record = record(RECORD_KEY, value);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.value(), record, false);
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
     }
 
-    private static ByteBuffer toBufNullable(String key) {
-        if (key == null) {
-            return null;
-        }
-        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
-        return ByteBuffer.wrap(keyBytes);
+    @Test
+    void valueWithWrongSchemaIdInHeaderRejected() {
+        Header[] headers = new Header[]{ new RecordHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID + 1)) };
+        Record record = record(RECORD_KEY, VALID_JSON, headers);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.value(), record, false);
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
+    }
+
+    @Test
+    void valueWithUnexpectedSchemaIdInBodyRejected() {
+        var value = asSchemaIdPrefixBuf(GLOBAL_ID + 1, VALID_JSON);
+        Record record = record(RECORD_KEY, value);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.value(), record, false);
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
+    }
+
+    private byte[] toByteArray(long globalId) {
+        var buf = ByteBuffer.allocate(Long.BYTES);
+        buf.putLong(globalId);
+        return buf.array();
+    }
+
+    private byte[] asSchemaIdPrefixBuf(long globalId, byte[] content) {
+        ByteBuffer buf = ByteBuffer.allocate(1 /* magic */ + Long.BYTES /* global id */ + content.length);
+        buf.put(AbstractKafkaSerDe.MAGIC_BYTE);
+        buf.putLong(globalId);
+        buf.put(content);
+
+        return buf.array();
     }
 }
