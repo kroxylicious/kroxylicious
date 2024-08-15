@@ -56,7 +56,7 @@ aws iam create-user --user-name kroxylicious
 aws iam create-access-key --user-name kroxylicious
 ----
 
-== Create Alias Based Policy for keys matching the KEK aliasing convention
+== Create an alias-based policy for KEK aliases
 
 Create an alias based policy granting permissions to use keys aliased by the established alias naming convention.
 
