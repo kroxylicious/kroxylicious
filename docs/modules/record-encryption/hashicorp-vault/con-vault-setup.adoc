@@ -128,12 +128,12 @@ This can be done with a command like:
 vault token renew --accessor <token_accessor>
 ----
 
-== Testing the Kroxylicious Vault Token using the CLI
+== Testing the application identity for the filter using the CLI
 
-To test whether the Kroxylicious Vault Token and the policy are working correctly, a
+To test whether the application identity and the policy are working correctly, a
 https://raw.githubusercontent.com/kroxylicious/kroxylicious/main/scripts/validate_vault_token.sh[script] can be used.
 
-First, as an Administrator, create a KEK in the hierarchy at this path `transit/keys/KEK_testkey`.
+First, as the administrator, create a KEK in the hierarchy at this path `transit/keys/KEK_testkey`.
 
 [source,shell]
 ----
