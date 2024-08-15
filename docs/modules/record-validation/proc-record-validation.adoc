@@ -18,12 +18,12 @@ For information on deploying Kroxylicious, see the link:{github}[samples and exa
 
 .Procedure
 
-. Configure a `ProduceValidationFilterFactory` type filter.
+. Configure a `RecordValidation` type filter.
 
 [source,yaml]
 ----
 filters:
-  - type: ProduceValidationFilterFactory
+  - type: RecordValidation
     config:
         rules:
         - topicNames:                                                  # <1>
