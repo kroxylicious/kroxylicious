@@ -52,13 +52,12 @@ filter to be kept separate from any keys used by other systems.  This document a
 will be to prefix the keys used by the filter with the word `KEK_`.  If a different naming convention is used, adapt
 the instructions accordingly.
 
-== Role of the Administrator
+== Role of the administrator
 
 To use the filter, an administrator (or administrative process) must create the encryption keys within Vault that will be used to encrypt the records.
 The organization deploying the Record Encryption filter is responsible for managing this administrator or process.
 
-The administrator must have permissions to create keys beneath `transit/keys/KEK_*` in the
-Vault hierarchy.
+The administrator must have permissions to create keys beneath `transit/keys/KEK_*` in the Vault hierarchy.
 
 As a guideline, the minimal Vault policy required by the administrator is as follows:
 
