@@ -126,7 +126,7 @@ class JsonSchemaValidationIT extends SchemaValidationBaseIT {
     }
 
     @Test
-    void validJsonProduceAccepted(KafkaCluster cluster, Topic topic1) throws Exception {
+    void shouldAcceptValidJsonInProduceRequest(KafkaCluster cluster, Topic topic1) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(ProduceValidationFilterFactory.class.getName()).withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",

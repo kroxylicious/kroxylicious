@@ -37,8 +37,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class JsonSchemaBytebufValidatorTest {
 
     private static final long GLOBAL_ID = 1L;
-    private static final byte[] VALID_JSON = "{\"firstName\":\"a\",\"lastName\":\"b\"}".getBytes(StandardCharsets.UTF_8);
-    private static final byte[] INVALID_JSON = "{\"firstName\":\"a\",\"lastName\":\"b\",\"age\":-3}".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] VALID_JSON = """
+            {"firstName":"a","lastName":"b"}""".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] INVALID_JSON = """
+            {"firstName":"a","lastName":"b","age":-3}""".getBytes(StandardCharsets.UTF_8);
     private static final byte[] RECORD_KEY = "a".getBytes(StandardCharsets.UTF_8);
 
     private static WireMockServer registryServer;
@@ -159,12 +161,11 @@ public class JsonSchemaBytebufValidatorTest {
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid)
-                .returns("Unexpected schema id in record (2), expecting 1", Result::errorMessage);
+                .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
     }
 
     @Test
-    void valueWithWrongSchemaIdInBodyRejected() {
+    void valueWithUnexpectedSchemaIdInBodyRejected() {
         var value = asSchemaIdPrefixBuf(GLOBAL_ID + 1, VALID_JSON);
         Record record = record(RECORD_KEY, value);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
