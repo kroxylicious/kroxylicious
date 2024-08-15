@@ -805,6 +805,40 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>maven-environment</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration combine.children="override">
+                            <!--override so that we can enforce JDK 21+ in the integration tests-->
+                            <failFast>true</failFast>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>[3.6.3,)</version>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>enforce-java-versions</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[${java.version},)</version>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
@@ -953,19 +987,6 @@
                                             <banSnapshots>false</banSnapshots>
                                             <phases>clean,deploy,site</phases>
                                         </requirePluginVersions>
-                                    </rules>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <id>enforce-java-versions</id>
-                                <goals>
-                                    <goal>enforce</goal>
-                                </goals>
-                                <configuration>
-                                    <rules>
-                                        <requireJavaVersion>
-                                            <version>[${java.version},)</version>
-                                        </requireJavaVersion>
                                     </rules>
                                 </configuration>
                             </execution>
