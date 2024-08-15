@@ -42,8 +42,9 @@ echo Now log in at ${CONSOLE_URL}  with user name ${ADMIN} password ${INITIAL_PA
 The filter must authenticate to AWS in order to perform envelope encryption operations, such as generating and decrypting DEKs. 
 Therefore, an AWS IAM identity with sufficient permissions must be created for the filter.
 
-Use AWS IAM to create the identity. Create an *Access Key* for this user. The Access Key/Secret Key pair
-will be used by the Filter. Do not enable the Console for this user.
+Use AWS IAM to create this identity and generate an *Access Key* for it. 
+The Access Key/Secret Key pair is used by the filter. 
+Do not enable console access for this user.
 
 If using the CLI, these commands can be used to establish the IAM Identity for the Filter.  This example illustrates using the
 user-name `kroxylicious`. The choice of name is not significant.  If a different user-name is used, adapt the
