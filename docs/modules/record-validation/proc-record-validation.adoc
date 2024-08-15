@@ -46,8 +46,7 @@ filters:
     If the client is using transactions, this setting is *ignored*. Any failing record validation will
     cause the entire produce request to be rejected.
 
-Replace the token `<rule definition>`  with the YAML either a Schema Validation Rule or a Syntactically Correct
-JSON Validation Rule depending on your requirements.
+Replace the token `<rule definition>`  with the YAML either a Schema Validation rule or a JSON Syntax Validation Rule depending on your requirements.
 
 .Example Schema Validation Rule Definition
 
@@ -69,6 +68,8 @@ allowEmpty: true                                                 # <4>
 NOTE: Schema Validation mode currently has the capability to enforce only JSON schemas (https://github.com/kroxylicious/kroxylicious/issues/1431[issue])
 
 .Example JSON Syntax Validation Rule Definition
+
+The JSON Syntax Validation rule validates that the key or value contains only syntactically correct JSON.
 
 [source,yaml]
 ----
