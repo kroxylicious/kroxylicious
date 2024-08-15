@@ -6,9 +6,9 @@
 = (Preview) Record Validation
 
 [role="_abstract"]
-The Record Validation filter validates records sent by a producer.   Only records that pass the validation are sent to
-the broker. This filter can be used to prevent _poison messages_ entering the Kafka system, that may otherwise lead to
-consumer failure.
+The Record Validation filter validates records sent by a producer. Only records that pass the validation are sent to
+the broker. 
+This filter can be used to prevent _poison messages_—such as those containing corrupted data or invalid formats—from entering the Kafka system, which may otherwise lead to consumer failure.
 
 The filter currently supports two modes of operation:
 

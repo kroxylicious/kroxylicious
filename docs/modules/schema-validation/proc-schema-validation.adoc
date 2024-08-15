@@ -62,12 +62,12 @@ schemaValidationConfig:
 allowNulls: true                                                 # <3>
 allowEmpty: true                                                 # <4>
 ----
-<1> Apicurio registry global id identifying the schema that will be enforced
+<1> Apicurio registry global ID identifying the schema that will be enforced
 <2> Apicurio Registry endpoint
-<3> if `true`, the validator allows null keys/values, the default is false.
-<4> if `true`, the validator allow empty keys/values, the default is false.
+<3> if `true`, the validator allows keys and or values to be `null`. The default is false.
+<4> if `true`, the validator allows keys and or values to be empty. The default is false.
 
-NOTE: Schema validation currently has the capability to enforce only JSON Schemas (https://github.com/kroxylicious/kroxylicious/issues/1431[issue])
+NOTE: Schema Validation mode currently has the capability to enforce only JSON schemas (https://github.com/kroxylicious/kroxylicious/issues/1431[issue])
 
 .Example Syntactically Correct JSON Validation Rule Definition
 
@@ -78,6 +78,6 @@ syntacticallyCorrectJson:
 allowNulls: true                                                 # <2>
 allowEmpty: true                                                 # <3>
 ----
-<1> if `true`, the validator will enforce that objects keys are unique, the default is false.
-<2> if `true`, the validator allow null keys/values, the default is false.
-<3> if `true`, the validator allow empty keys/values, the default is false.
+<1> If `true`, the validator enforces that objects keys must be unique. The default is `false`.
+<2> if `true`, the validator allows keys and or values to be `null`. The default is false.
+<3> if `true`, the validator allows keys and or values to be empty. The default is false.
