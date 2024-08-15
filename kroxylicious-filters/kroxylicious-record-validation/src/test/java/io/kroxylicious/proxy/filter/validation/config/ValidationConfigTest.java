@@ -77,7 +77,7 @@ class ValidationConfigTest {
     }
 
     @Test
-    public void testDecodeDefaultValuesSchemaValidation() throws JsonProcessingException {
+    void testDecodeDefaultValuesSchemaValidation() throws JsonProcessingException {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
                 defaultRule:
