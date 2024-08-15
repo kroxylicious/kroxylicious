@@ -13,7 +13,7 @@ This filter can be used to prevent _poison messages_—such as those containing 
 The filter currently supports two modes of operation:
 
 1. Schema validation validates the content of the record against a schema stored in an https://www.apicur.io/registry/[Apicurio Registry].
-2. Syntactically Correct JSON validation ensures the producer is producing messages that contain syntactically valid JSON.
+2. JSON Syntax validation ensures the producer is producing messages that contain syntactically valid JSON.
 
 Validation rules can validate the content of the Kafka record key or value.
 
