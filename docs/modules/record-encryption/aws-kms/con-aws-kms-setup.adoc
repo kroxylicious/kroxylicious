@@ -93,8 +93,8 @@ aws iam create-policy --policy-name KroxyliciousRecordEncryption --policy-docume
 
 == Apply the alias-based policy to the filter's application identity
 
-Attach the alias policy to the Filter's Application Identity.  This will allow the filter to invoke the
-necessary key operations on all KEKs with aliases of the prescribed form.
+Attach the alias policy to the filter's application identity. 
+This will allow the filter to perform key operations on all KEKs with aliases that match the specified naming convention.
 
 [source,shell]
 ----
