@@ -54,7 +54,14 @@ Replace the token `<rule definition>`  in the YAML configuration with either a S
 
 .Example Schema Validation Rule Definition
 
-The Schema Validation rule validates that the key or value matches the identified schema.
+The Schema Validation rule validates that the key or value matches a schema identified by its global ID within an Apicurio Schema Registry.
+
+If the key or value does not adhere to the schema, the record will be rejected.  
+
+Additionally, if the kafka producer has embedded a global ID within the record, using either Apicurio `globalId` record header or serialized at the start the content itself
+it will be validated against the global ID defined by the rule.  If they do not match, the record will be rejected.  See the 
+(https://www.apicur.io/registry/docs/apicurio-registry/2.6.x/getting-started/assembly-using-kafka-client-serdes.html#_consumer_schema_configuration)[Apicurio documentation) for details
+of how the global ID is embedded into the record.
 
 [source,yaml]
 ----
