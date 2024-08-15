@@ -15,9 +15,9 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -127,20 +127,19 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void shouldAcceptValidJsonInProduceRequest(KafkaCluster cluster, Topic topic1) throws Exception {
+    void shouldAcceptValidJsonInProduceRequest(KafkaCluster cluster, Topic topic) throws Exception {
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
+                        List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
                                 Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", firstGlobalId)))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
-                var producer = getProducer(tester, 0, 16384);
-                var consumer = getConsumer(tester)) {
-            producer.send(new ProducerRecord<>(topic1.name(), "my-key", JSON_MESSAGE)).get();
-            consumer.subscribe(Set.of(topic1.name()));
-            var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records.records(topic1.name()))
+                var producer = tester.producer()) {
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", JSON_MESSAGE)).get();
+
+            var records = consumeAll(tester, topic);
+            assertThat(records.records(topic.name()))
                     .hasSize(1)
                     .map(ConsumerRecord::value)
                     .containsExactly(JSON_MESSAGE);
@@ -157,16 +156,16 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                         .build());
 
         try (var tester = kroxyliciousTester(config);
-                var producer = getProducer(tester, 0, 16384);
-                var consumer = getConsumer(tester)) {
+                var producer = tester.producer()) {
             // Topic 2 has schema validation defined, invalid data cannot be produced.
-            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(topic2.name(), "my-key", INVALID_AGE_MESSAGE));
-            assertInvalidRecordExceptionThrown(invalid, "$.age: must have a minimum value of 0");
+            var invalid = producer.send(new ProducerRecord<>(topic2.name(), "my-key", INVALID_AGE_MESSAGE));
+            assertThatFutureFails(invalid, InvalidRecordException.class, "$.age: must have a minimum value of 0");
 
             // Topic 1 has no schema validation, invalid data is produced.
-            producer.send(new ProducerRecord<>(topic1.name(), "my-key", INVALID_AGE_MESSAGE)).get();
-            consumer.subscribe(Set.of(topic1.name()));
-            var records = consumer.poll(Duration.ofSeconds(10));
+            var accepted = producer.send(new ProducerRecord<>(topic1.name(), "my-key", INVALID_AGE_MESSAGE));
+            assertThatFutureSucceeds(accepted);
+
+            var records = consumeAll(tester, topic1);
             assertThat(records.records(topic1.name()))
                     .hasSize(1)
                     .map(ConsumerRecord::value)
@@ -183,9 +182,10 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                         .build());
 
         try (var tester = kroxyliciousTester(config);
-                var producer = getProducer(tester, 0, 16384)) {
+                var producer = tester.producer()) {
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", JSON_MESSAGE));
-            assertInvalidRecordExceptionThrown(invalid, "No artifact with ID '3' in group 'null' was found");
+            assertThatFutureFails(invalid, InvalidRecordException.class, "No artifact with ID '3' in group 'null' was found");
+
         }
     }
 
@@ -228,9 +228,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                 SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL), false);
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(keySerde, producerValueSerde, Map.of(
-                        ProducerConfig.LINGER_MS_CONFIG, 0,
-                        ProducerConfig.BATCH_SIZE_CONFIG, 16384));
+                var producer = tester.producer(keySerde, producerValueSerde, Map.of());
                 var consumer = tester.consumer(keySerde, consumerValueSerde, Map.of(
                         GROUP_ID_CONFIG, "my-group-id",
                         AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
@@ -266,12 +264,11 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                 SerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(keySerde, valueSerde, Map.of(
-                        ProducerConfig.LINGER_MS_CONFIG, 0,
-                        ProducerConfig.BATCH_SIZE_CONFIG, 16384))) {
+                var producer = tester.producer(keySerde, valueSerde, Map.of())) {
             var bean = new PersonBean("john", "smith", 23);
             var invalid = producer.send(new ProducerRecord<>(topic1.name(), "my-key", bean));
-            assertInvalidRecordExceptionThrown(invalid, "Unexpected schema id in record (1), expecting 2");
+            assertThatFutureFails(invalid, InvalidRecordException.class, "Unexpected schema id in record (1), expecting 2");
+
         }
     }
 

@@ -6,40 +6,43 @@
 
 package io.kroxylicious.proxy.filter.validation;
 
+import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ExecutionException;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.clients.producer.Producer;
-import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.apache.kafka.common.InvalidRecordException;
 
 import io.kroxylicious.proxy.BaseIT;
 import io.kroxylicious.test.tester.KroxyliciousTester;
+import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
-import static org.apache.kafka.clients.producer.ProducerConfig.LINGER_MS_CONFIG;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public abstract class RecordValidationBaseIT extends BaseIT {
 
-    protected Producer<String, String> getProducer(KroxyliciousTester tester, int linger, int batchSize) {
-        return getProducerWithConfig(tester, Optional.empty(), Map.of(LINGER_MS_CONFIG, linger, ProducerConfig.BATCH_SIZE_CONFIG, batchSize));
+    public void assertThatFutureSucceeds(Future<RecordMetadata> future) {
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(5))
+                .isNotNull();
     }
 
-    protected org.apache.kafka.clients.consumer.Consumer<String, String> getConsumer(KroxyliciousTester tester) {
-        return getConsumerWithConfig(tester, Optional.empty(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"));
+    public void assertThatFutureFails(Future<RecordMetadata> rejected, Class<? extends Throwable> expectedCause, String expectedMessage) {
+        assertThat(rejected)
+                .failsWithin(Duration.ofSeconds(5))
+                .withThrowableThat()
+                .withCauseInstanceOf(expectedCause)
+                .withMessageContaining(expectedMessage);
     }
 
-    protected static void assertInvalidRecordExceptionThrown(Future<RecordMetadata> invalid, String message) {
-        assertThatThrownBy(() -> {
-            invalid.get(10, TimeUnit.SECONDS);
-        }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(InvalidRecordException.class).cause()
-                .hasMessageContaining(message);
+    public ConsumerRecords<String, String> consumeAll(KroxyliciousTester tester, Topic topic) {
+        try (var consumer = tester.consumer(Map.of(GROUP_ID_CONFIG, UUID.randomUUID().toString(), AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            consumer.subscribe(Set.of(topic.name()));
+            return consumer.poll(Duration.ofSeconds(10));
+        }
     }
-
 }

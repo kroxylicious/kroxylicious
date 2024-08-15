@@ -5,25 +5,23 @@
  */
 package io.kroxylicious.proxy.filter.validation;
 
-import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.clients.admin.Admin;
-import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.KafkaException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Topic;
+import io.kroxylicious.testing.kafka.junit5ext.TopicPartitions;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -31,203 +29,209 @@ import static java.util.UUID.randomUUID;
 import static org.apache.kafka.clients.producer.ProducerConfig.LINGER_MS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.TRANSACTIONAL_ID_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(KafkaClusterExtension.class)
 class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
     public static final String SYNTACTICALLY_CORRECT_JSON = "{\"value\":\"json\"}";
     public static final String SYNTACTICALLY_INCORRECT_JSON = "Not Json";
-    private static final String TOPIC_1 = "my-test-topic";
-    private static final String TOPIC_2 = "my-test-topic-2";
 
     @Test
-    void testInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopic(admin, TOPIC_1, 1);
-
+    void invalidJsonProduceRejected(KafkaCluster cluster, Topic topic) {
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
-                        .build());
+                .addToFilters(createFilterDef(false, topic));
         try (var tester = kroxyliciousTester(config);
-                var producer = getProducer(tester, 0, 16384)) {
-            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
+                var producer = tester.producer()) {
+            var invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            assertThatFutureFails(invalid, InvalidRecordException.class, "value was not syntactically correct JSON");
         }
     }
 
     @Test
-    void testInvalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Admin admin) throws Exception {
+    void invalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
-                        .build());
+                .addToFilters(createFilterDef(false, topic1));
         try (var tester = kroxyliciousTester(config);
-                var producer = getProducer(tester, 0, 16384);
-                var consumer = getConsumer(tester)) {
-            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-            producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_INCORRECT_JSON)).get();
-            consumer.subscribe(Set.of(TOPIC_2));
-            var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records.count()).isOne();
-            assertThat(records.iterator().next().value()).isEqualTo(SYNTACTICALLY_INCORRECT_JSON);
+                var producer = tester.producer()) {
+            var rejected = producer.send(new ProducerRecord<>(topic1.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            assertThatFutureFails(rejected, InvalidRecordException.class, "value was not syntactically correct JSON");
+
+            var accepted = producer.send(new ProducerRecord<>(topic2.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            assertThatFutureSucceeds(accepted);
+
+            var records = consumeAll(tester, topic2);
+            assertThat(records)
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(SYNTACTICALLY_INCORRECT_JSON);
         }
     }
 
     @Test
-    void testPartiallyInvalidJsonTransactionalAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
+    void partiallyInvalidJsonTransactionalAllRejected(KafkaCluster cluster, Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("forwardPartialRequests", true, "rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
-                        .build());
+                .addToFilters(createFilterDef(true, topic1));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000, TRANSACTIONAL_ID_CONFIG, randomUUID().toString()))) {
             producer.initTransactions();
             producer.beginTransaction();
-            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-            Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
+            var invalid = producer.send(new ProducerRecord<>(topic1.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            var valid = producer.send(new ProducerRecord<>(topic2.name(), "my-key", SYNTACTICALLY_CORRECT_JSON));
             producer.flush();
-            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-            assertInvalidRecordExceptionThrown(valid, "Invalid record in another topic-partition caused whole ProduceRequest to be invalidated");
+            assertThatFutureFails(invalid, InvalidRecordException.class, "value was not syntactically correct JSON");
+            assertThatFutureFails(valid, InvalidRecordException.class, "Invalid record in another topic-partition caused whole ProduceRequest to be invalidated");
             producer.abortTransaction();
         }
     }
 
     @Test
-    void testPartiallyInvalidJsonNotConfiguredToForwardAllRejected(KafkaCluster cluster, Admin admin) throws Exception {
+    void partiallyInvalidJsonNotConfiguredToForwardAllRejected(KafkaCluster cluster, Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
-        boolean forwardPartialRequests = false;
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName())
-                        .withConfig("forwardPartialRequests", forwardPartialRequests, "rules",
-                                List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
-                        .build());
+                .addToFilters(createFilterDef(false, topic1));
 
         try (var tester = kroxyliciousTester(config);
-                var producer = getProducer(tester, 5000, 16384)) {
-            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-            Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
+                var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
+            var invalid = producer.send(new ProducerRecord<>(topic1.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            var valid = producer.send(new ProducerRecord<>(topic2.name(), "my-key", SYNTACTICALLY_CORRECT_JSON));
             producer.flush();
-            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-            assertInvalidRecordExceptionThrown(valid, "Invalid record in another topic-partition caused whole ProduceRequest to be invalidated");
+            assertThatFutureFails(invalid, InvalidRecordException.class, "value was not syntactically correct JSON");
+            assertThatFutureFails(valid, InvalidRecordException.class, "Invalid record in another topic-partition caused whole ProduceRequest to be invalidated");
         }
     }
 
     @Test
-    void testPartiallyInvalidJsonProduceRejected(KafkaCluster cluster, Admin admin) throws Exception {
+    void partiallyInvalidJsonProduceRejected(KafkaCluster cluster, Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopics(admin, new NewTopic(TOPIC_1, 1, (short) 1), new NewTopic(TOPIC_2, 1, (short) 1));
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName())
-                        .withConfig("forwardPartialRequests", true,
-                                "rules", List.of(Map.of("topicNames", List.of(TOPIC_1, TOPIC_2), "valueRule",
-                                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
-                        .build());
+                .addToFilters(createFilterDef(true, topic1));
 
         try (var tester = kroxyliciousTester(config);
-                var producer = getProducer(tester, 5000, 16384);
-                var consumer = getConsumer(tester)) {
-            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-            Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_2, "my-key", SYNTACTICALLY_CORRECT_JSON));
+                var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
+            var invalid = producer.send(new ProducerRecord<>(topic1.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            var valid = producer.send(new ProducerRecord<>(topic2.name(), "my-key", SYNTACTICALLY_CORRECT_JSON));
             producer.flush();
-            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-            RecordMetadata metadata = valid.get(10, TimeUnit.SECONDS);
-            assertThat(metadata.hasOffset()).isTrue();
+            assertThatFutureFails(invalid, InvalidRecordException.class, "value was not syntactically correct JSON");
 
-            consumer.subscribe(Set.of(TOPIC_2));
-            var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records.count()).isOne();
-            assertThat(records.iterator().next().value()).isEqualTo(SYNTACTICALLY_CORRECT_JSON);
+            assertThatFutureSucceeds(valid);
+
+            var records = consumeAll(tester, topic2);
+            assertThat(records)
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
         }
     }
 
     @Test
-    void testPartiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, Admin admin) throws Exception {
+    void partiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, @TopicPartitions(2) Topic topic) {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopic(admin, TOPIC_1, 2);
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName())
-                        .withConfig("forwardPartialRequests", true,
-                                "rules", List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                        Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
-                        .build());
+                .addToFilters(createFilterDef(true, topic));
 
         try (var tester = kroxyliciousTester(config);
-                var producer = getProducer(tester, 5000, 16384);
-                var consumer = getConsumer(tester)) {
-            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, 0, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-            Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_1, 1, "my-key", SYNTACTICALLY_CORRECT_JSON));
+                var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
+            var invalid = producer.send(new ProducerRecord<>(topic.name(), 0, "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            var valid = producer.send(new ProducerRecord<>(topic.name(), 1, "my-key", SYNTACTICALLY_CORRECT_JSON));
             producer.flush();
-            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-            RecordMetadata metadata = valid.get(10, TimeUnit.SECONDS);
-            assertThat(metadata.hasOffset()).isTrue();
+            assertThatFutureFails(invalid, InvalidRecordException.class, "value was not syntactically correct JSON");
 
-            consumer.subscribe(Set.of(TOPIC_1));
-            var records = consumer.poll(Duration.ofSeconds(10));
-            assertThat(records.count()).isOne();
-            assertThat(records.iterator().next().value()).isEqualTo(SYNTACTICALLY_CORRECT_JSON);
+            assertThatFutureSucceeds(valid);
+
+            var records = consumeAll(tester, topic);
+            assertThat(records)
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
         }
     }
 
     @Test
-    void testPartiallyInvalidWithinOnePartitionOfTopic(KafkaCluster cluster, Admin admin) throws Exception {
+    void partiallyInvalidWithinOnePartitionOfTopic(KafkaCluster cluster, Topic topic) {
         assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopic(admin, TOPIC_1, 1);
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("forwardPartialRequests", true, "rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
-                        .build());
+                .addToFilters(createFilterDef(true, topic));
 
         try (var tester = kroxyliciousTester(config);
-                var producer = getProducer(tester, 5000, 16384)) {
-            Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_INCORRECT_JSON));
-            Future<RecordMetadata> valid = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_CORRECT_JSON));
+                var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
+            var invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
+            var valid = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_CORRECT_JSON));
             producer.flush();
-            assertInvalidRecordExceptionThrown(invalid, "value was not syntactically correct JSON");
-            assertThatThrownBy(() -> {
-                valid.get(10, TimeUnit.SECONDS);
-            }).isInstanceOf(ExecutionException.class).hasCauseInstanceOf(KafkaException.class).cause()
-                    .hasMessageContaining("Failed to append record because it was part of a batch which had one more more invalid records");
+
+            assertThatFutureFails(invalid, InvalidRecordException.class, "value was not syntactically correct JSON");
+            assertThatFutureFails(valid, KafkaException.class, "Failed to append record because it was part of a batch which had one more more invalid records");
         }
     }
 
     @Test
-    void testValidJsonProduceAccepted(KafkaCluster cluster, Admin admin) throws Exception {
-        assertThat(cluster.getNumOfBrokers()).isOne();
-        createTopic(admin, TOPIC_1, 1);
+    void validJsonProduceAccepted(KafkaCluster cluster, Topic topic) {
+        var config = proxy(cluster)
+                .addToFilters(createFilterDef(false, topic));
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer()) {
+            var result = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_CORRECT_JSON));
+            assertThatFutureSucceeds(result);
+
+            var records = consumeAll(tester, topic);
+            assertThat(records)
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
+        }
+    }
+
+    @Test
+    void allowNulls(KafkaCluster cluster, Topic topic) {
+        var config = proxy(cluster)
+                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
+                        List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
+                                Map.of("allowNulls", true, "syntacticallyCorrectJson", Map.of()))))
+                        .build());
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer()) {
+            var result = producer.send(new ProducerRecord<>(topic.name(), "my-key", null));
+            assertThatFutureSucceeds(result);
+
+            var records = consumeAll(tester, topic);
+            assertThat(records)
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isNull();
+        }
+    }
+
+    @Test
+    void rejectNulls(KafkaCluster cluster, Topic topic) {
 
         var config = proxy(cluster)
                 .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(TOPIC_1), "valueRule",
-                                Map.of("allowsNulls", true, "syntacticallyCorrectJson", Map.of("validateObjectKeysUnique", true)))))
+                        List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
+                                Map.of("allowNulls", false, "syntacticallyCorrectJson", Map.of()))))
                         .build());
 
         try (var tester = kroxyliciousTester(config);
-                var producer = getProducer(tester, 0, 16384)) {
-            var result = producer.send(new ProducerRecord<>(TOPIC_1, "my-key", SYNTACTICALLY_CORRECT_JSON));
-            assertThat(result)
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .isNotNull();
-
+                var producer = tester.producer()) {
+            var result = producer.send(new ProducerRecord<>(topic.name(), "my-key", null));
+            assertThatFutureFails(result, InvalidRecordException.class, "Null buffer invalid");
         }
     }
+
+    private FilterDefinition createFilterDef(boolean forwardPartialRequests, Topic... topics) {
+        return new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("forwardPartialRequests", forwardPartialRequests, "rules",
+                List.of(Map.of("topicNames", Arrays.stream(topics).map(Topic::name).toList(), "valueRule",
+                        Map.of("syntacticallyCorrectJson", Map.of()))))
+                .build();
+    }
+
 }
