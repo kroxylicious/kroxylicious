@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1414](https://github.com/kroxylicious/kroxylicious/issues/1414) Address record validation filter name inconsistency
 * [#1348](https://github.com/kroxylicious/kroxylicious/issues/1348) Fix #1348: Rework the Record Encryption documentation describing the role of the administrator
 * [#1415](https://github.com/kroxylicious/kroxylicious/pull/1415) Fix #1415: Improve record validation docs #1429
 * [#1417](https://github.com/kroxylicious/kroxylicious/pull/1417): Extend JsonSchemaValidator to validate the incoming schema id matches the expected.
