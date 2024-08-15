@@ -21,16 +21,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RecordValidationTest {
 
     @Test
-    void testGetConfigTypeViaConfigurationDefinition() {
+    void initRejectsMissingConfig() {
         RecordValidation factory = new RecordValidation();
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
                 .hasMessage(RecordValidation.class.getSimpleName() + " requires configuration, but config object is null");
     }
 
     @Test
-    void testGetInstance() {
+    void shouldInitAndCreateFilter() {
         RecordValidation factory = new RecordValidation();
-        ValidationConfig config = new ValidationConfig(true, List.of(), new RecordValidationRule(null, null));
+        var config = factory.initialize(null, new ValidationConfig(true, List.of(), new RecordValidationRule(null, null)));
         Filter filter = factory.createFilter(null, config);
         assertThat(filter).isNotNull().isInstanceOf(RecordValidationFilter.class);
     }

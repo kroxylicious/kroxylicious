@@ -120,8 +120,8 @@ public class JsonSchemaBytebufValidatorTest {
     }
 
     @Test
-    void nonJsonValueFailsValidation() {
-        Record record = record(RECORD_KEY, "123".getBytes(StandardCharsets.UTF_8));
+    void nonJsonValueFailsToParse() {
+        Record record = record(RECORD_KEY, "not a json value".getBytes(StandardCharsets.UTF_8));
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
@@ -168,6 +168,28 @@ public class JsonSchemaBytebufValidatorTest {
         Record record = record(RECORD_KEY, value);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
+    }
+
+    @Test
+    void keyWithCorrectSchemaIdInHeaderPassesValidation() {
+        Header[] headers = new Header[]{ new RecordHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID)) };
+        Record record = record(VALID_JSON, null, headers);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.key(), record, true);
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
+    }
+
+    @Test
+    void keyWithUnexpectedSchemaIdInBodyRejected() {
+        var key = asSchemaIdPrefixBuf(GLOBAL_ID + 1, VALID_JSON);
+        Record record = record(key, null, new Header[]{});
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.key(), record, true);
         assertThat(future)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
