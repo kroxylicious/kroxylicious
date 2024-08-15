@@ -2,12 +2,12 @@
 //
 // assembly-built-in-filters.adoc
 
-[id='assembly-schema-validation-filter-{context}']
+[id='assembly-record-validation-filter-{context}']
 = (Preview) Record Validation
 
 [role="_abstract"]
-The Record Validation filter validates records sent by a producer. Only records that pass the validation are sent to
-the broker. 
+The Record Validation filter validates records sent by a producer.
+Only records that pass the validation are sent to the broker.
 This filter can be used to prevent _poison messages_—such as those containing corrupted data or invalid formats—from entering the Kafka system, which may otherwise lead to consumer failure.
 
 The filter currently supports two modes of operation:
@@ -23,5 +23,5 @@ will not receive the rejected records.
 NOTE: This filter is currently in incubation and available as a preview.
 We would not recommend using it in a production environment.
 
-//configuring the schema-validation filter
-include::../modules/schema-validation/proc-schema-validation.adoc[leveloffset=+1]
+//configuring the record-validation filter
+include::../modules/record-validation/proc-record-validation.adoc[leveloffset=+1]

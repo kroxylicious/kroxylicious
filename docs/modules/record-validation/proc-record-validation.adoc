@@ -1,10 +1,9 @@
 // file included in the following:
 //
-// assembly-schema-validation-filter.adoc
+// assembly-record-validation-filter.adoc
 
 [id='proc-record-validation-{context}']
 = (Preview) Setting up the Record Validation filter
-
 
 .Prerequisites
 
