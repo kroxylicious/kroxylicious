@@ -7,10 +7,9 @@
 
 The filter references KEKs within AWS via an {aws}/kms/latest/developerguide/alias-about.html[AWS key alias].
 
-It is necessary to establish a naming convention for the alias names. This will allow the keys used by the
-filter to be kept separate from any keys used by other systems. This document assumes that the naming convention
-will be to prefix the alias used by the filter with the word `KEK_`. If a different naming convention is used, adapt
-the instructions accordingly.
+Establish a naming convention for key aliases to keep the filter’s keys separate from those used by other systems.
+Here, we use a prefix of KEK_ for filter aliases.
+Adjust the instructions if a different naming convention is used.
 
 == Role of the administrator
 

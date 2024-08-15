@@ -47,10 +47,9 @@ https://myvaultinstance:8200/v1/mytransit
 
 == Establish the naming convention for keys within Vault hierarchy
 
-It is necessary to determine a naming convention for the KEKs within Vault.  This will allow the keys used by the
-filter to be kept separate from any keys used by other systems.  This document assumes that the naming convention
-will be to prefix the keys used by the filter with the word `KEK_`.  If a different naming convention is used, adapt
-the instructions accordingly.
+Establish a naming convention for keys to keep the filter’s keys separate from those used by other systems.
+Here, we use a prefix of KEK_ for filter key name.
+Adjust the instructions if a different naming convention is used.
 
 == Role of the administrator
 
