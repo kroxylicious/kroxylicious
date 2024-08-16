@@ -208,7 +208,6 @@ class RecordValidationFilterTest {
                 });
     }
 
-
     @Test
     void requestWithSomePartitionsFailedIsRejected() {
         // Given
@@ -253,7 +252,8 @@ class RecordValidationFilterTest {
                                         .matches(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
                                 assertThat(tpr.partitionResponses())
                                         .element(1)
-                                        .matches(pr -> pr.errorMessage().contentEquals("Invalid record in another topic-partition caused whole ProduceRequest to be invalidated"));
+                                        .matches(pr -> pr.errorMessage()
+                                                .contentEquals("Invalid record in another topic-partition caused whole ProduceRequest to be invalidated"));
                             });
                 });
     }
