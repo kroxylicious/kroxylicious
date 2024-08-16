@@ -208,6 +208,56 @@ class RecordValidationFilterTest {
                 });
     }
 
+
+    @Test
+    void requestWithSomePartitionsFailedIsRejected() {
+        // Given
+        var validator = new RecordValidationFilter(false, produceRequestValidator);
+
+        when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
+        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(false);
+        when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
+        when(topicValidationResult.getPartitionResult(1)).thenReturn(new PartitionValidationResult(1, List.of()));
+
+        var header = new RequestHeaderData();
+        final ProduceRequestData.PartitionProduceData partition1 = new ProduceRequestData.PartitionProduceData();
+        final ProduceRequestData.PartitionProduceData partition2 = new ProduceRequestData.PartitionProduceData();
+        partition2.setIndex(1);
+        var request = buildProduceRequestData(new ProduceRequestData.TopicProduceData()
+                .setName(MY_TOPIC)
+                .setPartitionData(
+                        new ArrayList<>(List.of(
+                                partition1,
+                                partition2))));
+        when(produceRequestValidator.validateRequest(request)).thenReturn(
+                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult))));
+
+        // When
+        var result = validator.onProduceRequest(HIGHEST_SUPPORTED_VERSION, header, request, context);
+
+        // Then
+        assertThat(result)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> {
+                    assertThat(rfr.shortCircuitResponse()).isTrue();
+                    assertThat(rfr.message())
+                            .isInstanceOf(ProduceResponseData.class);
+
+                    var prd = (ProduceResponseData) rfr.message();
+                    assertThat(prd.responses())
+                            .singleElement()
+                            .satisfies(tpr -> {
+                                assertThat(tpr.name()).isEqualTo(MY_TOPIC);
+                                assertThat(tpr.partitionResponses())
+                                        .element(0)
+                                        .matches(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
+                                assertThat(tpr.partitionResponses())
+                                        .element(1)
+                                        .matches(pr -> pr.errorMessage().contentEquals("Invalid record in another topic-partition caused whole ProduceRequest to be invalidated"));
+                            });
+                });
+    }
+
     @Test
     void requestWithAllPartitionsFailedIsRejectedWithShortCircuitResponseInTransaction() {
         // Given
