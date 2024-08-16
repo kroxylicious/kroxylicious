@@ -60,7 +60,8 @@ If the key or value does not adhere to the schema, the record will be rejected.
 
 Additionally, if the kafka producer has embedded a global ID within the record it will be validated against the global ID defined by the rule. If they do not match, the record will be rejected.  See the 
 ({apicurio-docs}/getting-started/assembly-using-kafka-client-serdes.html#_consumer_schema_configuration)[Apicurio documentation) for details
-of how the global ID could be embedded into the record. The filter supports extracting ID's from either Apicurio `globalId` record header or serialized at the start the content itself (Confluent avro style)
+on how the global ID could be embedded into the record. 
+The filter supports extracting ID's from either the Apicurio `globalId` record header or from the serialized content itself (Confluent Avro style).
 
 [source,yaml]
 ----
