@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.filter.validation;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -156,6 +157,53 @@ class RecordValidationFilterTest {
                                 assertThat(tpr.partitionResponses())
                                         .singleElement()
                                         .matches(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
+                            });
+                });
+    }
+
+    @Test
+    void requestWithSomePartitionsFailedIsIsForwarded() {
+        // Given
+        var validator = new RecordValidationFilter(true, produceRequestValidator);
+
+        when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
+        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(false);
+        when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
+        when(topicValidationResult.getPartitionResult(1)).thenReturn(new PartitionValidationResult(1, List.of()));
+
+        var header = new RequestHeaderData();
+        final ProduceRequestData.PartitionProduceData partition1 = new ProduceRequestData.PartitionProduceData();
+        final ProduceRequestData.PartitionProduceData partition2 = new ProduceRequestData.PartitionProduceData();
+        partition2.setIndex(1);
+        var request = buildProduceRequestData(new ProduceRequestData.TopicProduceData()
+                .setName(MY_TOPIC)
+                .setPartitionData(
+                        new ArrayList<>(List.of(
+                                partition1,
+                                partition2))));
+        when(produceRequestValidator.validateRequest(request)).thenReturn(
+                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult))));
+
+        // When
+        var result = validator.onProduceRequest(HIGHEST_SUPPORTED_VERSION, header, request, context);
+
+        // Then
+        assertThat(result)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> {
+                    assertThat(rfr.shortCircuitResponse()).isFalse();
+                    assertThat(rfr.message())
+                            .isInstanceOf(ProduceRequestData.class);
+
+                    var prd = (ProduceRequestData) rfr.message();
+                    assertThat(prd.topicData())
+                            .singleElement()
+                            .satisfies(tpr -> {
+                                assertThat(tpr.name()).isEqualTo(MY_TOPIC);
+                                assertThat(tpr.partitionData())
+                                        .singleElement()
+                                        .extracting(ProduceRequestData.PartitionProduceData::index)
+                                        .isEqualTo(1);
                             });
                 });
     }
