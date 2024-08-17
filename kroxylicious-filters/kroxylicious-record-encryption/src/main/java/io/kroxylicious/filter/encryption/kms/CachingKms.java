@@ -24,6 +24,7 @@ import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -114,4 +115,20 @@ public class CachingKms<K, E> implements Kms<K, E> {
         });
         return resolved;
     }
+
+    @VisibleForTesting
+    void decryptDekCacheCleanUp() {
+        decryptDekCache.synchronous().cleanUp();
+    }
+
+    @VisibleForTesting
+    void resolveAliasCacheCleanUp() {
+        resolveAliasCache.synchronous().cleanUp();
+    }
+
+    @VisibleForTesting
+    void notFoundAliasCacheCleanUp() {
+        notFoundAliasCache.cleanUp();
+    }
+
 }
