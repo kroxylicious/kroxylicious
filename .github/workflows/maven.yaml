@@ -27,6 +27,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: 'Test for Sonar secret'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> $GITHUB_ENV
       - name: 'Check out repository'
         uses: actions/checkout@v4
         with:
@@ -52,12 +57,12 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       - name: 'Build Kroxylicious maven project'
-        if: github.ref_name != 'main'
+        if: github.ref_name != 'main' || env.SONAR_TOKEN_SET != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mvn -B clean verify -Pci
-      - name: 'Build Kroxylicious maven project on main'
-        if: github.event_name == 'push' && github.ref_name == 'main'
+      - name: 'Build Kroxylicious maven project on main with Sonar'
+        if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
