@@ -22,6 +22,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
+import io.kroxylicious.kms.provider.aws.kms.config.AccessAndSecretKeyTupleCredentialsProviderConfig;
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
@@ -149,8 +150,8 @@ class AwsKmsTest {
         try {
             var address = httpServer.getAddress();
             var awsAddress = "http://127.0.0.1:" + address.getPort();
-            var config = new Config(URI.create(awsAddress), new InlinePassword("access"), new InlinePassword("secret"), "us-west-2", null);
-            @SuppressWarnings("resource")
+            var credentialsProvider = new AccessAndSecretKeyTupleCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret"));
+            var config = new Config(URI.create(awsAddress), credentialsProvider, "us-west-2", null);
             var awsKmsService = new AwsKmsService();
             awsKmsService.initialize(config);
             var service = awsKmsService.buildKms();

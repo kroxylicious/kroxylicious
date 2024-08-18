@@ -35,8 +35,7 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
     public AwsKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");
         return new AwsKms(config.endpointUrl(),
-                config.accessKey().getProvidedPassword(),
-                config.secretKey().getProvidedPassword(),
+                config.credentialsProvider().createCredentialsProvider(),
                 config.region(),
                 Duration.ofSeconds(20), config.sslContext());
     }
