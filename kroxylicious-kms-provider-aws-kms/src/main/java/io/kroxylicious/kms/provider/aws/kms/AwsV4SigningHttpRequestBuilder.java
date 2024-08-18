@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import io.kroxylicious.kms.provider.aws.kms.credentials.Credentials;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -57,42 +58,39 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
     private static final String NO_PAYLOAD_HEXED_SHA256 = HEX_FORMATTER.formatHex(newSha256Digester().digest(new byte[]{}));
 
     private static final String X_AMZ_DATE_HEADER = "X-Amz-Date";
+
+    private static final String X_AMZ_SECURITY_TOKEN_HEADER = "X-Amz-Security-Token";
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String HOST_HEADER = "Host";
     private static final String AWS_4_REQUEST = "aws4_request";
 
-    private final String accessKey;
-    private final String secretKey;
     private final String region;
     private final String service;
     private final Instant date;
     private final Builder builder;
+    private final Credentials credentials;
     private String payloadHexedSha56;
 
     /**
-     *
      * Creates an AwsV4SigningHttpRequestBuilder builder.
      *
-     * @param accessKey AWS access key
-     * @param secretKey AWS secret key
+     * @param credentials AWS credentials
      * @param region AWS region
      * @param service AWS service
      * @param date request date
      * @return a new request builder
      */
-    public static Builder newBuilder(@NonNull String accessKey, @NonNull String secretKey, @NonNull String region, @NonNull String service, @NonNull Instant date) {
-        return new AwsV4SigningHttpRequestBuilder(accessKey, secretKey, region, service, date, HttpRequest.newBuilder());
+    public static Builder newBuilder(@NonNull Credentials credentials, @NonNull String region, @NonNull String service, @NonNull Instant date) {
+        return new AwsV4SigningHttpRequestBuilder(region, service, date, HttpRequest.newBuilder(), credentials);
     }
 
-    private AwsV4SigningHttpRequestBuilder(String accessKey, String secretKey, String region, String service, Instant date, Builder builder) {
-        Objects.requireNonNull(accessKey);
-        Objects.requireNonNull(secretKey);
+    private AwsV4SigningHttpRequestBuilder(String region, String service, Instant date, Builder builder, Credentials credentials) {
+        Objects.requireNonNull(credentials);
         Objects.requireNonNull(region);
         Objects.requireNonNull(service);
         Objects.requireNonNull(date);
         Objects.requireNonNull(builder);
-        this.accessKey = accessKey;
-        this.secretKey = secretKey;
+        this.credentials = credentials;
         this.region = region;
         this.service = service;
         this.date = date;
@@ -167,7 +165,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
     @Override
     public Builder copy() {
-        return new AwsV4SigningHttpRequestBuilder(accessKey, secretKey, region, service, date, builder.copy());
+        return new AwsV4SigningHttpRequestBuilder(region, service, date, builder.copy(), credentials);
     }
 
     @Override
@@ -223,7 +221,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         var isoDate = isoDateTime.substring(0, 8);
         var unsignedRequest = builder.build();
 
-        // Note: AWS only specify signing behaviour for headers with a single value.
+        // Note: AWS only specifies signing behaviour for headers with a single value.
         var allHeaders = new HashMap<>(getSingleValuedHeaders(unsignedRequest));
         allHeaders.put(HOST_HEADER, getHostHeaderForSigning(unsignedRequest.uri()));
         allHeaders.put(X_AMZ_DATE_HEADER, isoDateTime);
@@ -234,6 +232,9 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
         builder.header(AUTHORIZATION_HEADER, authorization);
         builder.header(X_AMZ_DATE_HEADER, isoDateTime);
+        // The security token is added as a header but is not part of the authorization
+        // https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html
+        credentials.securityToken().ifPresent(securityToken -> builder.header(X_AMZ_SECURITY_TOKEN_HEADER, securityToken));
     }
 
     @NonNull
@@ -280,20 +281,21 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
     @NonNull
     private String computeAuthorization(CanonicalRequestResult canonicalRequestResult, StringToSignResult stringToSignResult, String isoDate) {
-        var dateHmac = hmac(("AWS4" + secretKey).getBytes(StandardCharsets.UTF_8), isoDate);
+        var dateHmac = hmac(("AWS4" + credentials.secretAccessKey()).getBytes(StandardCharsets.UTF_8), isoDate);
         var regionHmac = hmac(dateHmac, this.region);
         var serviceHmac = hmac(regionHmac, this.service);
         var signHmac = hmac(serviceHmac, AWS_4_REQUEST);
         var signature = HEX_FORMATTER.formatHex(hmac(signHmac, stringToSignResult.stringToSign()));
 
-        return "AWS4-HMAC-SHA256 Credential=" + accessKey + "/" + stringToSignResult.credentialScope() + ", SignedHeaders=" + canonicalRequestResult.signedHeaders()
+        return "AWS4-HMAC-SHA256 Credential=" + credentials.accessKeyId() + "/" + stringToSignResult.credentialScope() + ", SignedHeaders="
+                + canonicalRequestResult.signedHeaders()
                 + ", Signature=" + signature;
     }
 
     /**
      * This implementation must match the HTTP client's computation of the contents of the Host header.
      *
-     * @param uri uri
+     * @param uri metadataEndpoint
      * @return host string
      */
     @VisibleForTesting
