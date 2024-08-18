@@ -22,23 +22,40 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * Configuration for the Vault KMS service.
  *
- * @param endpointUrl URL of the Vault Transit Engine e.g. {@code https://myhashicorpvault:8200/v1/transit}
- * @param accessKey AWS accessKey
- * @param secretKey the password provider that will provide the Vault token.
- * @param region AWS region
+ * @param endpointUrl URL of the AWS KMS e.g. {@code https://kms.us-east1.amazonaws.com}
+ * @param credentialsProvider AWS credentials provider
+ * @param region AWS region e.g. us-east1
+ * @param tls TLS
  */
-
-public record Config(
-                     @JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @JsonProperty(required = true) PasswordProvider accessKey,
-                     @JsonProperty(required = true) PasswordProvider secretKey,
+public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
+                     @JsonProperty(value = "credentialsProvider", required = true) CredentialsProviderConfig<?> credentialsProvider,
                      @JsonProperty(required = true) String region,
                      Tls tls) {
+
     public Config {
         Objects.requireNonNull(endpointUrl);
+        Objects.requireNonNull(credentialsProvider);
         Objects.requireNonNull(region);
-        Objects.requireNonNull(accessKey);
-        Objects.requireNonNull(secretKey);
+    }
+
+    /**
+     * Configuration for the AWS KMS service.
+     *
+     * @param endpointUrl URL of the AWS KMS e.g. {@code https://kms.us-east1.amazonaws.com}
+     * @param accessKey AWS accessKey
+     * @param secretKey AWS secretKey
+     * @param region AWS region
+     * @param tls TLS
+     *
+     * @deprecated use {@link Config#Config(URI, CredentialsProviderConfig, String, Tls)}
+     */
+    @Deprecated(forRemoval = true, since = "0.7.0")
+    public Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
+                  @JsonProperty(required = true) PasswordProvider accessKey,
+                  @JsonProperty(required = true) PasswordProvider secretKey,
+                  @JsonProperty(required = true) String region,
+                  Tls tls) {
+        this(endpointUrl, new AccessAndSecretKeyTupleCredentialsProviderConfig(accessKey, secretKey), region, tls);
     }
 
     @NonNull

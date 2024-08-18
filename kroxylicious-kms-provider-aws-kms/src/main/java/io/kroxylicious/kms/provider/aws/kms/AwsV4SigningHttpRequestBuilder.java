@@ -293,7 +293,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
     /**
      * This implementation must match the HTTP client's computation of the contents of the Host header.
      *
-     * @param uri uri
+     * @param uri metadataEndpoint
      * @return host string
      */
     @VisibleForTesting
