@@ -152,7 +152,7 @@ updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
 replaceInFile "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
 replaceInFile "s_:ProductVersion:.*_:ProductVersion: ${RELEASE_VERSION%.*}_g" docs/_assets/attributes.adoc
-replaceInFile "s_:tag:.*_:tag: v${RELEASE_VERSION//./\\.}_g" docs/_assets/attributes.adoc
+replaceInFile "s_:gitRef:.*_:gitRef: v${RELEASE_VERSION//./\\.}_g" docs/_assets/attributes.adoc
 
 echo "Validating things still build"
 mvn -q -B clean install -Pquick
@@ -182,7 +182,7 @@ replaceInFile "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION
 
 # bump the docs for the development version
 replaceInFile "s_:ProductVersion:.*_:ProductVersion: ${DEVELOPMENT_VERSION%.*}_g" docs/_assets/attributes.adoc
-replaceInFile "s_:tag:.*_:tag: v${DEVELOPMENT_VERSION//./\\.}_g" docs/_assets/attributes.adoc # this doesn't make a lot sense...
+replaceInFile "s_:gitRef:.*_:gitRef: v${DEVELOPMENT_VERSION//./\\.}_g" docs/_assets/attributes.adoc # this doesn't make a lot sense...
 
 # bump the reference version in kroxylicious-api
 mvn -q -B -f kroxylicious-api/pom.xml versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
