@@ -16,6 +16,7 @@
 //Latest version
 :ProductVersion: 0.6
 :tag: v0.6.0
+:ApicurioVersion: 2.6.x
 
 //Proxy links
 :github: https://github.com/kroxylicious/kroxylicious
@@ -39,3 +40,6 @@
 
 //AWS links
 :aws:  https://docs.aws.amazon.com/
+
+// Apicurio links
+:apicurio-docs: https://www.apicur.io/registry/docs/apicurio-registry/{ApicurioVersion}/
