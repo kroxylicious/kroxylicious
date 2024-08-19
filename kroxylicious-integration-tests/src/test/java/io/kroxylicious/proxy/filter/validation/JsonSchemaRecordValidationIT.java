@@ -15,10 +15,13 @@ import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.InvalidRecordException;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.assertj.core.api.iterable.ThrowingExtractor;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -46,10 +49,14 @@ import io.apicurio.registry.serde.SerdeConfig;
 import io.apicurio.registry.serde.jsonschema.JsonSchemaSerde;
 import io.apicurio.rest.client.util.IoUtil;
 
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -95,6 +102,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     private static final String FIRST_ARTIFACT_ID = UUID.randomUUID().toString();
     private static final String SECOND_ARTIFACT_ID = UUID.randomUUID().toString();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    public static final PersonBean PERSON_BEAN = new PersonBean("john", "smith", 23);
     public static long firstGlobalId;
     public static long secondGlobalId;
 
@@ -128,32 +136,22 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void shouldAcceptValidJsonInProduceRequest(KafkaCluster cluster, Topic topic) throws Exception {
-        var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", firstGlobalId)))))
-                        .build());
+        var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", firstGlobalId);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             producer.send(new ProducerRecord<>(topic.name(), "my-key", JSON_MESSAGE)).get();
 
             var records = consumeAll(tester, topic);
-            assertThat(records.records(topic.name()))
-                    .hasSize(1)
-                    .map(ConsumerRecord::value)
-                    .containsExactly(JSON_MESSAGE);
+
+            assertSingleRecordInTopicHasProperty(records, topic, ConsumerRecord::value, JSON_MESSAGE);
         }
     }
 
     @Test
     void invalidAgeProduceRejectedUsingTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) throws Exception {
         // Topic 2 has schema validation, invalid data cannot be sent.
-        var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic2.name()), "valueRule",
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", firstGlobalId)))))
-                        .build());
+        var config = createGlobalIdRecordValidationConfig(cluster, topic2, "valueRule", firstGlobalId);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -166,26 +164,20 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
             assertThatFutureSucceeds(accepted);
 
             var records = consumeAll(tester, topic1);
-            assertThat(records.records(topic1.name()))
-                    .hasSize(1)
-                    .map(ConsumerRecord::value)
-                    .containsExactly(INVALID_AGE_MESSAGE);
+
+            assertSingleRecordInTopicHasProperty(records, topic1, ConsumerRecord::value, INVALID_AGE_MESSAGE);
+
         }
     }
 
     @Test
     void nonExistentSchema(KafkaCluster cluster, Topic topic) {
-        var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", 3L)))))
-                        .build());
+        var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", 3L);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             Future<RecordMetadata> invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", JSON_MESSAGE));
             assertThatFutureFails(invalid, InvalidRecordException.class, "No artifact with ID '3' in group 'null' was found");
-
         }
     }
 
@@ -209,67 +201,117 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void clientSideUsesSchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic1) throws Exception {
-        var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", firstGlobalId)))))
-                        .build());
+    void clientSideUsesValueSchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) throws Exception {
+        var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", firstGlobalId);
 
         var keySerde = new Serdes.StringSerde();
-        var producerValueSerde = new JsonSchemaSerde<PersonBean>();
-        producerValueSerde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
-                SerdeConfig.ARTIFACT_RESOLVER_STRATEGY, FixedArtifactReferenceResolver.class.getName(),
-                SerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
-
-        var consumerValueSerde = new JsonSchemaSerde<>();
-        consumerValueSerde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL), false);
+        var producerValueSerde = createJsonSchemaProducerSerde(schemaIdInHeader, false);
+        var consumerValueSerde = createJsonSchemaConsumerSerde(false);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(keySerde, producerValueSerde, Map.of());
-                var consumer = tester.consumer(keySerde, consumerValueSerde, Map.of(
-                        GROUP_ID_CONFIG, "my-group-id",
-                        AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-            var bean = new PersonBean("john", "smith", 23);
-            producer.send(new ProducerRecord<>(topic1.name(), "my-key", bean)).get();
-            consumer.subscribe(Set.of(topic1.name()));
+                var consumer = consumeFromEarliestOffsets(tester, keySerde, consumerValueSerde)) {
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN)).get();
+            consumer.subscribe(Set.of(topic.name()));
 
-            // note that when the schemaid is in the value, there's no type information so the deserializer will give a JsonNode.
-            Object expected = schemaIdInHeader ? bean : OBJECT_MAPPER.valueToTree(bean);
             var records = consumer.poll(Duration.ofSeconds(10));
 
-            assertThat(records.records(topic1.name()))
-                    .hasSize(1)
-                    .map(ConsumerRecord::value)
-                    .containsExactly(expected);
+            // note that when the schemaid is in the value, there's no type information so the deserializer will give a JsonNode.
+            var expected = schemaIdInHeader ? PERSON_BEAN : OBJECT_MAPPER.valueToTree(PERSON_BEAN);
+            assertSingleRecordInTopicHasProperty(records, topic, ConsumerRecord::value, expected);
         }
     }
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void detectsClientProducingWithWrongSchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic1) {
-        var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic1.name()), "valueRule",
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", secondGlobalId)))))
-                        .build());
+    void clientSideUsesKeySchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) throws Exception {
+        var config = createGlobalIdRecordValidationConfig(cluster, topic, "keyRule", firstGlobalId);
+
+        boolean isKey = true;
+        var producerKeySerde = createJsonSchemaProducerSerde(schemaIdInHeader, isKey);
+        var consumerKeySerde = createJsonSchemaConsumerSerde(isKey);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(producerKeySerde, new Serdes.StringSerde(), Map.of());
+                var consumer = consumeFromEarliestOffsets(tester, consumerKeySerde, new Serdes.StringSerde())) {
+            producer.send(new ProducerRecord<>(topic.name(), PERSON_BEAN, "my-value")).get();
+            consumer.subscribe(Set.of(topic.name()));
+
+            var records = consumer.poll(Duration.ofSeconds(10));
+
+            // note that when the schemaid is in the value, there's no type information so the deserializer will give a JsonNode.
+            var expected = schemaIdInHeader ? PERSON_BEAN : OBJECT_MAPPER.valueToTree(PERSON_BEAN);
+            assertSingleRecordInTopicHasProperty(records, topic, ConsumerRecord::key, expected);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void detectsClientProducingWithWrongValueSchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
+        var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", secondGlobalId);
 
         var keySerde = new Serdes.StringSerde();
-        var valueSerde = new JsonSchemaSerde<PersonBean>();
-        valueSerde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
-                SerdeConfig.ARTIFACT_RESOLVER_STRATEGY, FixedArtifactReferenceResolver.class.getName(),
-                SerdeConfig.ENABLE_HEADERS, schemaIdInHeader), false);
+        var valueSerde = createJsonSchemaProducerSerde(schemaIdInHeader, false);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(keySerde, valueSerde, Map.of())) {
-            var bean = new PersonBean("john", "smith", 23);
-            var invalid = producer.send(new ProducerRecord<>(topic1.name(), "my-key", bean));
+            var invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", PERSON_BEAN));
             assertThatFutureFails(invalid, InvalidRecordException.class, "Unexpected schema id in record (1), expecting 2");
-
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void detectsClientProducingWithWrongKeySchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
+        var config = createGlobalIdRecordValidationConfig(cluster, topic, "keyRule", secondGlobalId);
+
+        var valueSerde = new Serdes.StringSerde();
+        var keySerde = createJsonSchemaProducerSerde(schemaIdInHeader, true);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(keySerde, valueSerde, Map.of())) {
+            var invalid = producer.send(new ProducerRecord<>(topic.name(), PERSON_BEAN, "my-key"));
+            assertThatFutureFails(invalid, InvalidRecordException.class, "Unexpected schema id in record (1), expecting 2");
+        }
+    }
+
+    private static <T, S, U> void assertSingleRecordInTopicHasProperty(ConsumerRecords<T, S> records, Topic topic,
+                                                                       ThrowingExtractor<ConsumerRecord<T, S>, U, RuntimeException> property, U expected) {
+        assertThat(records.records(topic.name()))
+                .hasSize(1)
+                .map(property)
+                .containsExactly(expected);
+    }
+
+    private static @NonNull JsonSchemaSerde<Object> createJsonSchemaConsumerSerde(boolean isKey) {
+        var consumerKeySerde = new JsonSchemaSerde<>();
+        consumerKeySerde.configure(Map.of(
+                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL), isKey);
+        return consumerKeySerde;
+    }
+
+    private static @NonNull JsonSchemaSerde<PersonBean> createJsonSchemaProducerSerde(boolean schemaIdInHeader, boolean isKey) {
+        var producerKeySerde = new JsonSchemaSerde<PersonBean>();
+        producerKeySerde.configure(Map.of(
+                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
+                SerdeConfig.ARTIFACT_RESOLVER_STRATEGY, FixedArtifactReferenceResolver.class.getName(),
+                SerdeConfig.ENABLE_HEADERS, schemaIdInHeader), isKey);
+        return producerKeySerde;
+    }
+
+    private static ConfigurationBuilder createGlobalIdRecordValidationConfig(KafkaCluster cluster, Topic topic, String ruleType, long globalId) {
+        return proxy(cluster)
+                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
+                        List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
+                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", globalId)))))
+                        .build());
+    }
+
+    private static <T, S> org.apache.kafka.clients.consumer.Consumer<T, S> consumeFromEarliestOffsets(KroxyliciousTester tester, Serde<T> keySerde,
+                                                                                                      Serde<S> valueSerde) {
+        return tester.consumer(keySerde, valueSerde, Map.of(
+                GROUP_ID_CONFIG, "my-group-id",
+                AUTO_OFFSET_RESET_CONFIG, "earliest"));
     }
 
     @AfterAll
