@@ -12,7 +12,7 @@ Configure common tags and standard binders for JVM and system metrics to ensure 
 
 == Logging
 
-The Kroxylicious {github-releases}[binary distributions^] ship with https://logging.apache.org/log4j/2.x[log4j2] as a logging backend. To customize the logging configuration:
+The Kroxylicious {github-releases}[binary distribution^] bundles https://logging.apache.org/log4j/2.x[log4j2] as a logging backend. To customize the logging configuration users can:
 
 === Use an Alternative Log4j configuration file
 

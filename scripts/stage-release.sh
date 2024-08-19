@@ -75,6 +75,13 @@ NC='\033[0m' # No Color
 
 ORIGINAL_WORKING_BRANCH=$(git branch --show-current)
 
+replaceInFile() {
+  local EXPRESSION=$1
+  local FILE=$2
+  ${SED} -i -e "${EXPRESSION}" "${FILE}"
+  git add "${FILE}"
+}
+
 cleanup() {
     if [[ -n ${ORIGINAL_WORKING_BRANCH} ]]; then
         git checkout "${ORIGINAL_WORKING_BRANCH}" || true
@@ -142,8 +149,10 @@ fi
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
 #Set the release version in the Changelog
-${SED} -i -e "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
-git add 'CHANGELOG.md'
+replaceInFile "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+
+replaceInFile "s_:ProductVersion:.*_:ProductVersion: ${RELEASE_VERSION%.*}_g" docs/_assets/attributes.adoc
+replaceInFile "s_:gitRef:.*_:gitRef: releases/tag/v${RELEASE_VERSION//./\\.}_g" docs/_assets/attributes.adoc
 
 echo "Validating things still build"
 mvn -q -B clean install -Pquick
@@ -169,9 +178,11 @@ git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
 updateVersions "${RELEASE_VERSION}" "${DEVELOPMENT_VERSION}"
 # bump the Changelog to the next SNAPSHOT version. We do it this way so the changelog has the new release as the first entry
-${SED} -i -e "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+replaceInFile "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
-git add 'CHANGELOG.md'
+# bump the docs for the development version
+replaceInFile "s_:ProductVersion:.*_:ProductVersion: ${DEVELOPMENT_VERSION%.*}_g" docs/_assets/attributes.adoc
+replaceInFile "s_:gitRef:.*_:gitRef: tree/main_g" docs/_assets/attributes.adoc # this doesn't make a lot sense...
 
 # bump the reference version in kroxylicious-api
 mvn -q -B -f kroxylicious-api/pom.xml versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
@@ -199,7 +210,11 @@ gh repo set-default "$(git remote get-url "${REPOSITORY}")"
 echo "Creating draft release notes."
 API_COMPATABILITY_REPORT=kroxylicious-api/target/japicmp/"${RELEASE_VERSION}"-compatability.html
 cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
-gh release create --title "${RELEASE_TAG}" --notes-file "CHANGELOG.md" --draft "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* "${API_COMPATABILITY_REPORT}"
+RELEASE_NOTES_DIR=.releaseNotes
+mkdir -p ${RELEASE_NOTES_DIR}
+csplit -f "${RELEASE_NOTES_DIR}/release-notes_" CHANGELOG.md "/^## /" '{*}'
+# csplit will create a file for every version as we use ## to denote versions. We also use # CHANGELOG as a header so the current release is actually in the 01 file (zero based)
+gh release create --title "${RELEASE_TAG}" --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" --draft "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* "${API_COMPATABILITY_REPORT}"
 
 
 BODY="Release version ${RELEASE_VERSION}"
