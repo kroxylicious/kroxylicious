@@ -143,9 +143,11 @@ echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
 #Set the release version in the Changelog
 ${SED} -i -e "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+git add 'CHANGELOG.md'
+
 ${SED} -i -e "s_:ProductVersion:.*_:ProductVersion: ${RELEASE_VERSION%.*}_g" docs/_assets/attributes.adoc
 ${SED} -i -e "s_:tag:.*_:tag: v${RELEASE_VERSION//./\\.}_g" docs/_assets/attributes.adoc
-git add 'CHANGELOG.md'
+git add 'docs/_assets/attributes.adoc'
 
 echo "Validating things still build"
 mvn -q -B clean install -Pquick
