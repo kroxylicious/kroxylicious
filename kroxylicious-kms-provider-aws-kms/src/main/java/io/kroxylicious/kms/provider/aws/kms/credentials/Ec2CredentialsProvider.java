@@ -8,11 +8,13 @@ package io.kroxylicious.kms.provider.aws.kms.credentials;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,6 +37,8 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
 
     private static final TypeReference<SecurityCredentials> SECURITY_CREDENTIALS_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
+    @SuppressWarnings("java:S1313")
+    private static final URI DEFAULT_IP4_METADATA_ENDPOINT = URI.create("http://169.254.169.254/");
     private final Ec2CredentialsProviderConfig config;
     private final HttpClient client;
 
@@ -79,10 +83,14 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
 
     private HttpRequest createTokenRequest() {
         return HttpRequest.newBuilder()
-                .uri(config.metadataEndpoint().resolve("/latest/api/token"))
+                .uri(getMetadataEndpoint().resolve("/latest/api/token"))
                 .header("X-aws-ec2-metadata-token-ttl-seconds", "21600")
                 .PUT(HttpRequest.BodyPublishers.noBody())
                 .build();
+    }
+
+    private URI getMetadataEndpoint() {
+        return Optional.ofNullable(config.metadataEndpoint()).orElse(DEFAULT_IP4_METADATA_ENDPOINT);
     }
 
     private HttpRequest createSecurityCredentialsRequest(String token) {
