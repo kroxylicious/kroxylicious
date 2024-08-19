@@ -210,7 +210,11 @@ gh repo set-default "$(git remote get-url "${REPOSITORY}")"
 echo "Creating draft release notes."
 API_COMPATABILITY_REPORT=kroxylicious-api/target/japicmp/"${RELEASE_VERSION}"-compatability.html
 cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
-gh release create --title "${RELEASE_TAG}" --notes-file "CHANGELOG.md" --draft "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* "${API_COMPATABILITY_REPORT}"
+RELEASE_NOTES_DIR=releaseNotes
+mkdir -p ${RELEASE_NOTES_DIR}
+csplit -f "${RELEASE_NOTES_DIR}/release-notes_" CHANGELOG.md "/^## /" '{*}'
+# csplit will create a file for every version as we use ## to denote versions. We also use # CHANGELOG as a header so the current release is actually in the 01 file (zero based)
+gh release create --title "${RELEASE_TAG}" --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" --draft "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* "${API_COMPATABILITY_REPORT}"
 
 
 BODY="Release version ${RELEASE_VERSION}"
