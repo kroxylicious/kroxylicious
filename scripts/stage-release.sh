@@ -75,6 +75,13 @@ NC='\033[0m' # No Color
 
 ORIGINAL_WORKING_BRANCH=$(git branch --show-current)
 
+replaceInFile() {
+  local EXPRESSION=$1
+  local FILE=$2
+  ${SED} -i -e "${EXPRESSION}" "${FILE}"
+  git add "${FILE}"
+}
+
 cleanup() {
     if [[ -n ${ORIGINAL_WORKING_BRANCH} ]]; then
         git checkout "${ORIGINAL_WORKING_BRANCH}" || true
@@ -142,12 +149,10 @@ fi
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
 updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
 #Set the release version in the Changelog
-${SED} -i -e "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
-git add 'CHANGELOG.md'
+replaceInFile "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
-${SED} -i -e "s_:ProductVersion:.*_:ProductVersion: ${RELEASE_VERSION%.*}_g" docs/_assets/attributes.adoc
-${SED} -i -e "s_:tag:.*_:tag: v${RELEASE_VERSION//./\\.}_g" docs/_assets/attributes.adoc
-git add 'docs/_assets/attributes.adoc'
+replaceInFile "s_:ProductVersion:.*_:ProductVersion: ${RELEASE_VERSION%.*}_g" docs/_assets/attributes.adoc
+replaceInFile "s_:tag:.*_:tag: v${RELEASE_VERSION//./\\.}_g" docs/_assets/attributes.adoc
 
 echo "Validating things still build"
 mvn -q -B clean install -Pquick
@@ -173,9 +178,11 @@ git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
 updateVersions "${RELEASE_VERSION}" "${DEVELOPMENT_VERSION}"
 # bump the Changelog to the next SNAPSHOT version. We do it this way so the changelog has the new release as the first entry
-${SED} -i -e "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
+replaceInFile "s_##\s${RELEASE_VERSION//./\\.}_## SNAPSHOT\n## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
-git add 'CHANGELOG.md'
+# bump the docs for the development version
+replaceInFile "s_:ProductVersion:.*_:ProductVersion: ${DEVELOPMENT_VERSION%.*}_g" docs/_assets/attributes.adoc
+replaceInFile "s_:tag:.*_:tag: v${DEVELOPMENT_VERSION//./\\.}_g" docs/_assets/attributes.adoc # this doesn't make a lot sense...
 
 # bump the reference version in kroxylicious-api
 mvn -q -B -f kroxylicious-api/pom.xml versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
