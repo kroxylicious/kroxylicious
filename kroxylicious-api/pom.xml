@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.7.0</version>
+        <version>0.8.0-SNAPSHOIT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -23,8 +23,8 @@
 
     <properties>
         <libs.dir>libs</libs.dir>
-        <ApiCompatability.ReferenceVersion>0.6.0</ApiCompatability.ReferenceVersion>
-        <ApiCompatability.EnforceForMajorVersionZero>false</ApiCompatability.EnforceForMajorVersionZero>
+        <ApiCompatability.ReferenceVersion>0.7.0</ApiCompatability.ReferenceVersion>
+        <ApiCompatability.EnforceForMajorVersionZero>true</ApiCompatability.EnforceForMajorVersionZero>
     </properties>
 
     <name>Kroxylicious API</name>

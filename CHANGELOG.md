@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.7.0
 
 * [#1414](https://github.com/kroxylicious/kroxylicious/issues/1414) Address record validation filter name inconsistency
