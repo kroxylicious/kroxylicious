@@ -14,8 +14,8 @@
 :icons: font
 
 //Latest version
-:ProductVersion: 0.6
-:gitRef: v0.6.0
+:ProductVersion: 0.7
+:gitRef: releases/tag/v0.7.0
 :ApicurioVersion: 2.6.x
 
 //Proxy links
