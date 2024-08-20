@@ -25,4 +25,11 @@ public record Ec2CredentialsProviderConfig(@JsonProperty(value = "iamRole", requ
     public CredentialsProvider createCredentialsProvider() {
         return new Ec2CredentialsProvider(this);
     }
+
+    @Override
+    public String toString() {
+        return "Ec2CredentialsProviderConfig[" +
+                "metadataEndpoint=" + metadataEndpoint + ',' +
+                "iamRole=" + iamRole + ']';
+    }
 }

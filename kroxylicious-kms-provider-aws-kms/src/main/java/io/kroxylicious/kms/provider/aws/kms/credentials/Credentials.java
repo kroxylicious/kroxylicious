@@ -6,8 +6,14 @@
 
 package io.kroxylicious.kms.provider.aws.kms.credentials;
 
+import java.util.Optional;
+
 public interface Credentials {
     String accessKey();
 
     String secretKey();
+
+    default Optional<String> securityToken() {
+        return Optional.empty();
+    }
 }

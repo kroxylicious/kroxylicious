@@ -58,6 +58,8 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
     private static final String NO_PAYLOAD_HEXED_SHA256 = HEX_FORMATTER.formatHex(newSha256Digester().digest(new byte[]{}));
 
     private static final String X_AMZ_DATE_HEADER = "X-Amz-Date";
+
+    private static final String X_AMZ_SECURITY_TOKEN_HEADER = "X-Amz-Security-Token";
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String HOST_HEADER = "Host";
     private static final String AWS_4_REQUEST = "aws4_request";
@@ -219,7 +221,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         var isoDate = isoDateTime.substring(0, 8);
         var unsignedRequest = builder.build();
 
-        // Note: AWS only specify signing behaviour for headers with a single value.
+        // Note: AWS only specifies signing behaviour for headers with a single value.
         var allHeaders = new HashMap<>(getSingleValuedHeaders(unsignedRequest));
         allHeaders.put(HOST_HEADER, getHostHeaderForSigning(unsignedRequest.uri()));
         allHeaders.put(X_AMZ_DATE_HEADER, isoDateTime);
@@ -230,6 +232,9 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
         builder.header(AUTHORIZATION_HEADER, authorization);
         builder.header(X_AMZ_DATE_HEADER, isoDateTime);
+        // The security token is added as a header but is not part of the authorization
+        // https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_use-resources.html
+        credentials.securityToken().ifPresent(securityToken -> builder.header(X_AMZ_SECURITY_TOKEN_HEADER, securityToken));
     }
 
     @NonNull
