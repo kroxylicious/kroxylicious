@@ -210,7 +210,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
         var body = getBody(request).getBytes(UTF_8);
 
         return credentialsProvider.getCredentials()
-                .thenApply(c -> AwsV4SigningHttpRequestBuilder.newBuilder(c.accessKey(), c.secretKey(), region, "kms", Instant.now())
+                .thenApply(c -> AwsV4SigningHttpRequestBuilder.newBuilder(c, region, "kms", Instant.now())
                         .uri(getAwsUrl())
                         .header(CONTENT_TYPE_HEADER, APPLICATION_X_AMZ_JSON_1_1)
                         .header(X_AMZ_TARGET_HEADER, target)

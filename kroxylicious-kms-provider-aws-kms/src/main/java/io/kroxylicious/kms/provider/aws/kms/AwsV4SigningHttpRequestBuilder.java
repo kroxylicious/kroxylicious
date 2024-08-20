@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import io.kroxylicious.kms.provider.aws.kms.credentials.Credentials;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -61,38 +62,33 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
     private static final String HOST_HEADER = "Host";
     private static final String AWS_4_REQUEST = "aws4_request";
 
-    private final String accessKey;
-    private final String secretKey;
     private final String region;
     private final String service;
     private final Instant date;
     private final Builder builder;
+    private final Credentials credentials;
     private String payloadHexedSha56;
 
     /**
-     *
      * Creates an AwsV4SigningHttpRequestBuilder builder.
      *
-     * @param accessKey AWS access key
-     * @param secretKey AWS secret key
+     * @param credentials AWS credentials
      * @param region AWS region
      * @param service AWS service
      * @param date request date
      * @return a new request builder
      */
-    public static Builder newBuilder(@NonNull String accessKey, @NonNull String secretKey, @NonNull String region, @NonNull String service, @NonNull Instant date) {
-        return new AwsV4SigningHttpRequestBuilder(accessKey, secretKey, region, service, date, HttpRequest.newBuilder());
+    public static Builder newBuilder(@NonNull Credentials credentials, @NonNull String region, @NonNull String service, @NonNull Instant date) {
+        return new AwsV4SigningHttpRequestBuilder(region, service, date, HttpRequest.newBuilder(), credentials);
     }
 
-    private AwsV4SigningHttpRequestBuilder(String accessKey, String secretKey, String region, String service, Instant date, Builder builder) {
-        Objects.requireNonNull(accessKey);
-        Objects.requireNonNull(secretKey);
+    private AwsV4SigningHttpRequestBuilder(String region, String service, Instant date, Builder builder, Credentials credentials) {
+        Objects.requireNonNull(credentials);
         Objects.requireNonNull(region);
         Objects.requireNonNull(service);
         Objects.requireNonNull(date);
         Objects.requireNonNull(builder);
-        this.accessKey = accessKey;
-        this.secretKey = secretKey;
+        this.credentials = credentials;
         this.region = region;
         this.service = service;
         this.date = date;
@@ -167,7 +163,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
     @Override
     public Builder copy() {
-        return new AwsV4SigningHttpRequestBuilder(accessKey, secretKey, region, service, date, builder.copy());
+        return new AwsV4SigningHttpRequestBuilder(region, service, date, builder.copy(), credentials);
     }
 
     @Override
@@ -280,13 +276,14 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
     @NonNull
     private String computeAuthorization(CanonicalRequestResult canonicalRequestResult, StringToSignResult stringToSignResult, String isoDate) {
-        var dateHmac = hmac(("AWS4" + secretKey).getBytes(StandardCharsets.UTF_8), isoDate);
+        var dateHmac = hmac(("AWS4" + credentials.secretKey()).getBytes(StandardCharsets.UTF_8), isoDate);
         var regionHmac = hmac(dateHmac, this.region);
         var serviceHmac = hmac(regionHmac, this.service);
         var signHmac = hmac(serviceHmac, AWS_4_REQUEST);
         var signature = HEX_FORMATTER.formatHex(hmac(signHmac, stringToSignResult.stringToSign()));
 
-        return "AWS4-HMAC-SHA256 Credential=" + accessKey + "/" + stringToSignResult.credentialScope() + ", SignedHeaders=" + canonicalRequestResult.signedHeaders()
+        return "AWS4-HMAC-SHA256 Credential=" + credentials.accessKey() + "/" + stringToSignResult.credentialScope() + ", SignedHeaders="
+                + canonicalRequestResult.signedHeaders()
                 + ", Signature=" + signature;
     }
 
