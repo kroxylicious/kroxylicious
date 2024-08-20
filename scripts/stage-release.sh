@@ -185,9 +185,9 @@ replaceInFile "s_:ProductVersion:.*_:ProductVersion: ${DEVELOPMENT_VERSION%.*}_g
 replaceInFile "s_:gitRef:.*_:gitRef: tree/main_g" docs/_assets/attributes.adoc # this doesn't make a lot sense...
 
 # bump the reference version in kroxylicious-api
-mvn -q -B -f kroxylicious-api/pom.xml versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
+mvn -q -B -pl :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.ReferenceVersion" -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
 # reset kroxylicious-api to enable semver checks if they have been disabled
-mvn -q -B -f kroxylicious-api/pom.xml versions:set-property -Dproperty="ApiCompatability.EnforceForMajorVersionZero" -DnewVersion="true" -DgenerateBackupPoms=false
+mvn -q -B -pl :kroxylicious-api versions:set-property -Dproperty="ApiCompatability.EnforceForMajorVersionZero" -DnewVersion="true" -DgenerateBackupPoms=false
 git add kroxylicious-api/pom.xml
 
 git commit --message "Start next development version" --signoff
