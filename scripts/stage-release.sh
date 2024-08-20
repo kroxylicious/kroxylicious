@@ -18,6 +18,7 @@ SKIP_VALIDATION="false"
 TEMPORARY_RELEASE_BRANCH=""
 PREPARE_DEVELOPMENT_BRANCH=""
 ORIGINAL_GH_DEFAULT_REPO=""
+RELEASE_NOTES_DIR=${RELEASE_NOTES_DIR:-.releaseNotes}
 while getopts ":v:b:k:r:n:dsh" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
@@ -172,7 +173,11 @@ echo "Deploying release"
 # Quoting leads to an extra space which causes maven to barf!
 mvn -q -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN} -DprocessAllModules=true deploy
 
-echo "Release deployed, preparing for development of ${DEVELOPMENT_VERSION}"
+echo "Release deployed. Extracting release notes in: ${RELEASE_NOTES_DIR}"
+mkdir -p "${RELEASE_NOTES_DIR}"
+csplit --silent --prefix "${RELEASE_NOTES_DIR}/release-notes_" CHANGELOG.md "/^## /" '{*}'
+
+echo "Preparing for development of ${DEVELOPMENT_VERSION}"
 PREPARE_DEVELOPMENT_BRANCH="prepare-development-${RELEASE_DATE}"
 git checkout -b "${PREPARE_DEVELOPMENT_BRANCH}" "${TEMPORARY_RELEASE_BRANCH}"
 
@@ -210,9 +215,6 @@ gh repo set-default "$(git remote get-url "${REPOSITORY}")"
 echo "Creating draft release notes."
 API_COMPATABILITY_REPORT=kroxylicious-api/target/japicmp/"${RELEASE_VERSION}"-compatability.html
 cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
-RELEASE_NOTES_DIR=.releaseNotes
-mkdir -p ${RELEASE_NOTES_DIR}
-csplit -f "${RELEASE_NOTES_DIR}/release-notes_" CHANGELOG.md "/^## /" '{*}'
 # csplit will create a file for every version as we use ## to denote versions. We also use # CHANGELOG as a header so the current release is actually in the 01 file (zero based)
 gh release create --title "${RELEASE_TAG}" --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" --draft "${RELEASE_TAG}" ./kroxylicious-*/target/kroxylicious-*-bin.* "${API_COMPATABILITY_REPORT}"
 
