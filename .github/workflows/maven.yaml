@@ -44,6 +44,10 @@ jobs:
         with:
           java-version: 21
           distribution: 'temurin'
+      - name: 'Test for unpublished reference release (japicmp)'
+        run: |
+          REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
+          echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: Cache SonarCloud packages
         uses: actions/cache@v4
         with:
@@ -60,13 +64,13 @@ jobs:
         if: github.ref_name != 'main' || env.SONAR_TOKEN_SET != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -B clean verify -Pci
+        run: mvn -B clean verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
       - name: 'Build Kroxylicious maven project on main with Sonar'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -B clean verify -Pci org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar -Dsonar.projectKey=kroxylicious_kroxylicious
+        run: mvn -B clean verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar -Dsonar.projectKey=kroxylicious_kroxylicious
       - name: Save PR number to file
         if: github.event_name == 'pull_request' && ${{ matrix.os }} == 'ubuntu-latest'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
