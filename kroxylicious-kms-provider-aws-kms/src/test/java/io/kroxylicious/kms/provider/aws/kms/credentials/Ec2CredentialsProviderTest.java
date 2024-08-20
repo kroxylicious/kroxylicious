@@ -14,23 +14,22 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Ec2CredentialsProviderConfig;
 import io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.SecurityCredentials;
+import io.kroxylicious.kms.service.KmsException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+import static io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT;
+import static io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.TOKEN_RETRIEVAL_ENDPOINT;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class Ec2CredentialsProviderTest {
-
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private static final String IAM_ROLE = "myrole";
 
@@ -63,12 +62,12 @@ class Ec2CredentialsProviderTest {
     @Test
     void credentialFromKnownGood() {
         metadataServer.stubFor(
-                put(urlEqualTo("/latest/api/token"))
+                put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
                         .willReturn(WireMock.aResponse()
                                 .withBody("mytoken")));
 
         metadataServer.stubFor(
-                get(urlEqualTo("/latest/meta-data/iam/security-credentials/" + IAM_ROLE))
+                get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
                                 .withBody(KNOWN_GOOD_SECURITY_CREDENTIAL_RESPONSE)));
 
@@ -85,12 +84,12 @@ class Ec2CredentialsProviderTest {
     @Test
     void returnsCachedCredential() {
         metadataServer.stubFor(
-                put(urlEqualTo("/latest/api/token"))
+                put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
                         .willReturn(WireMock.aResponse()
                                 .withBody("mytoken")));
 
         metadataServer.stubFor(
-                get(urlEqualTo("/latest/meta-data/iam/security-credentials/" + IAM_ROLE))
+                get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
                                 .withBody(KNOWN_GOOD_SECURITY_CREDENTIAL_RESPONSE)));
 
@@ -113,12 +112,12 @@ class Ec2CredentialsProviderTest {
     @Test
     void expiredCredentialRefreshed() {
         metadataServer.stubFor(
-                put(urlEqualTo("/latest/api/token"))
+                put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
                         .willReturn(WireMock.aResponse()
                                 .withBody("mytoken")));
 
         metadataServer.stubFor(
-                get(urlEqualTo("/latest/meta-data/iam/security-credentials/" + IAM_ROLE))
+                get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
                                 .withBody("""
                                         {
@@ -143,6 +142,45 @@ class Ec2CredentialsProviderTest {
             assertThat(again)
                     .succeedsWithin(Duration.ofSeconds(1))
                     .isEqualTo(credential);
+        }
+    }
+
+    @Test
+    void tokenRequestFails() {
+        metadataServer.stubFor(
+                put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
+                        .willReturn(WireMock.aResponse()
+                                .withStatus(500)));
+
+        try (var provider = new Ec2CredentialsProvider(new Ec2CredentialsProviderConfig(IAM_ROLE, URI.create(metadataServer.baseUrl())))) {
+            var result = provider.getCredentials();
+            assertThat(result)
+                    .failsWithin(Duration.ofSeconds(1))
+                    .withThrowableThat()
+                    .withCauseInstanceOf(KmsException.class)
+                    .withMessageContaining("HTTP status code 500");
+        }
+    }
+
+    @Test
+    void securityCredentialRequestFails() {
+        metadataServer.stubFor(
+                put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
+                        .willReturn(WireMock.aResponse()
+                                .withBody("mytoken")));
+
+        metadataServer.stubFor(
+                get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
+                        .willReturn(WireMock.aResponse()
+                                .withStatus(500)));
+
+        try (var provider = new Ec2CredentialsProvider(new Ec2CredentialsProviderConfig(IAM_ROLE, URI.create(metadataServer.baseUrl())))) {
+            var result = provider.getCredentials();
+            assertThat(result)
+                    .failsWithin(Duration.ofSeconds(1))
+                    .withThrowableThat()
+                    .withCauseInstanceOf(KmsException.class)
+                    .withMessageContaining("HTTP status code 500");
         }
     }
 
