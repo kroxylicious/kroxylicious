@@ -28,7 +28,7 @@ For information on deploying Kroxylicious, see the link:{github}[samples and exa
 filters:
   - type: RecordEncryption
     config:
-      kms:<kms_service_name> # <1>
+      kms: <kms_service_name> # <1>
       kmsConfig:
         <kms_specific_config> # <2>
         # ...
