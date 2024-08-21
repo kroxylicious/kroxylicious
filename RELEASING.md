@@ -6,11 +6,12 @@ The component is released using GitHub automation.
 
 At a high level, the process is as follows:
 
+1. The developer prepares the release blog post.
 1. The developer adds their private key/passphrase as repository secrets
 1. The workflow `stage_release` tags, builds/signs the release, and stages the release on a Nexus staging repository. This process uses the GitHub machine account [kroxylicious-robot](https://github.com/kroxylicious-robot) and a user token owned by Sonatype account `kroxylicious` account.
 1. The stage release is verified using manual verification steps.
-1. The workflow `deploy_release` releases from the staged repository to Maven Central.
-1. The developer removes their private key/passphrase as repository secrets.
+1. The release is made public.
+1. The developer removes their private key/passphrase from the repository secrets.
 
 ## Pre-Requisites
 
@@ -31,6 +32,11 @@ gpg --armor --export-secret-key ${KEY_ID} | pbcopy
 
 While `pbcopy` is macOS specific, similar utilities exist for Linux see [StackExchange](https://superuser.com/a/288333)
 
+## Prepare the release blog post
+
+Prepare the release blog post by opening a PR [kroxylicious.github.io](https://github.com/kroxylicious/kroxylicious.github.io.  Get the PR
+reviewed by your peers, addressing any comments, until the content is agreed.  Don't merge it yet.
+
 ## Release steps
 
 Use the [Kroxylicious Team Developers](https://kroxylicious.slack.com/archives/C04V1K6EAKZ) Slack Channel to coordinate
@@ -50,8 +56,8 @@ This will:
 
 ### Verify the Release
 
-You can validate the staged artefacts by having a test application (we'll call it `T`) that uses kroxylicious use the Maven artefacts by making
-temporary (local) changes to its POM.
+You can validate the staged artefacts by using a test application, `T`, use the Maven artefacts.   The [kroxylicious-wasm](https://github.com/andreaTP/kroxylicious-wasm) from the
+[community-gallery](https://github.com/kroxylicious/kroxylicious-community-gallery) is a suitable choice.
 
 1. Find the staging repository in the [Nexus UI](https://s01.oss.sonatype.org/). It'll be named `iokroxylious-nn`.
 1. Add a [`<repositories>`](https://maven.apache.org/pom.html#Repositories) that references the staging repository public url to `T`'s POM.
@@ -70,6 +76,9 @@ The local changes made to `T`'s POM can be reverted.
    setting the `next-state` to `release` to publish the artefact and publish the release notes.
 1. Merge release PR (use Rebase and Merge strategy).
 1. Let [Kroxylicious Team Developers](https://kroxylicious.slack.com/archives/C04V1K6EAKZ) know the release is finished.
+1. [Publish](https://github.com/kroxylicious/kroxylicious.github.io/blob/main/docs/README.md) the documentation for the release
+1. Merge the blog post PR
+1. Post to social media about the release.
 
 If anything goes wrong, follow the steps in the next section.
 
