@@ -22,13 +22,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * Configuration for the Vault KMS service.
  *
- * @param endpointUrl URL of the AWS KMS e.g. {@code https://kms.us-east1.amazonaws.com}
+ * @param endpointUrl URL of the AWS KMS e.g. {@code https://kms.us-east-1.amazonaws.com}
  * @param credentialsProvider AWS credentials provider
- * @param region AWS region e.g. us-east1
+ * @param region AWS region e.g. us-east-1
  * @param tls TLS
  */
 public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @JsonProperty(value = "credentialsProvider", required = true) CredentialsProviderConfig<?> credentialsProvider,
+                     @JsonProperty(value = "credentialsProvider", required = false) CredentialsProviderConfig<?> credentialsProvider,
                      @JsonProperty(required = true) String region,
                      Tls tls) {
 
@@ -41,15 +41,15 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
     /**
      * Configuration for the AWS KMS service.
      *
-     * @param endpointUrl URL of the AWS KMS e.g. {@code https://kms.us-east1.amazonaws.com}
+     * @param endpointUrl URL of the AWS KMS e.g. {@code https://kms.us-east-1.amazonaws.com}
      * @param accessKey AWS accessKey
      * @param secretKey AWS secretKey
-     * @param region AWS region
+     * @param region AWS region e.g. us-east-1
      * @param tls TLS
      *
      * @deprecated use {@link Config#Config(URI, CredentialsProviderConfig, String, Tls)}
      */
-    @Deprecated(forRemoval = true, since = "0.7.0")
+    @Deprecated(forRemoval = true, since = "0.8.0")
     public Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
                   @JsonProperty(required = true) PasswordProvider accessKey,
                   @JsonProperty(required = true) PasswordProvider secretKey,
