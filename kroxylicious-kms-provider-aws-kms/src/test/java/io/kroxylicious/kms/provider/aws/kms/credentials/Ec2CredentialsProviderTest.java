@@ -6,20 +6,34 @@
 
 package io.kroxylicious.kms.provider.aws.kms.credentials;
 
+import java.io.UncheckedIOException;
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Ec2CredentialsProviderConfig;
 import io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.SecurityCredentials;
 import io.kroxylicious.kms.service.KmsException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
@@ -28,9 +42,16 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 import static io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT;
 import static io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.TOKEN_RETRIEVAL_ENDPOINT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class Ec2CredentialsProviderTest {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
 
+    private static final String MY_TOKEN = "mytoken";
     private static final String IAM_ROLE = "myrole";
 
     // From https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-metadata-security-credentials.html
@@ -45,13 +66,13 @@ class Ec2CredentialsProviderTest {
               "Expiration" : "2017-05-17T15:09:54Z"
             }""";
     private static WireMockServer metadataServer;
+    private Ec2CredentialsProviderConfig config;
+    private ScheduledExecutorService executorService;
 
     @BeforeAll
     public static void initMockRegistry() {
         metadataServer = new WireMockServer(wireMockConfig().dynamicPort());
-
         metadataServer.start();
-
     }
 
     @AfterAll
@@ -59,19 +80,32 @@ class Ec2CredentialsProviderTest {
         metadataServer.shutdown();
     }
 
-    @Test
-    void credentialFromKnownGood() {
+    @BeforeEach
+    void setUp() {
+        config = new Ec2CredentialsProviderConfig(IAM_ROLE, Optional.of(URI.create(metadataServer.baseUrl())), Optional.of(0.20));
+        executorService = Executors.newSingleThreadScheduledExecutor();
+
         metadataServer.stubFor(
                 put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
                         .willReturn(WireMock.aResponse()
-                                .withBody("mytoken")));
+                                .withBody(MY_TOKEN)));
+
+    }
+
+    @AfterEach
+    void afterEach() {
+        executorService.shutdownNow();
+    }
+
+    @Test
+    void credentialFromKnownGood() {
 
         metadataServer.stubFor(
                 get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
                                 .withBody(KNOWN_GOOD_SECURITY_CREDENTIAL_RESPONSE)));
 
-        try (var provider = new Ec2CredentialsProvider(new Ec2CredentialsProviderConfig(IAM_ROLE, URI.create(metadataServer.baseUrl())))) {
+        try (var provider = new Ec2CredentialsProvider(config)) {
             var credentialsStage = provider.getCredentials();
             assertThat(credentialsStage)
                     .succeedsWithin(Duration.ofSeconds(5))
@@ -82,18 +116,17 @@ class Ec2CredentialsProviderTest {
     }
 
     @Test
-    void returnsCachedCredential() {
-        metadataServer.stubFor(
-                put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
-                        .willReturn(WireMock.aResponse()
-                                .withBody("mytoken")));
+    void subsequentCallReturnsCachedCredential() {
+        var now = Instant.now();
+        var fixedClock = Clock.fixed(now, ZoneId.systemDefault());
 
+        var credentials = createTestCredential("Success", "accessKey", "secretKey", "token", Instant.now().plusSeconds(1));
         metadataServer.stubFor(
                 get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
-                                .withBody(KNOWN_GOOD_SECURITY_CREDENTIAL_RESPONSE)));
+                                .withBody(toJson(credentials))));
 
-        try (var provider = new Ec2CredentialsProvider(new Ec2CredentialsProviderConfig(IAM_ROLE, URI.create(metadataServer.baseUrl())))) {
+        try (var provider = new Ec2CredentialsProvider(config, executorService, fixedClock)) {
             var credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -109,39 +142,83 @@ class Ec2CredentialsProviderTest {
 
     }
 
+    @NonNull
+    private SecurityCredentials createTestCredential(String code, String accessKey, String secretKey, String token, Instant expiration) {
+        return new SecurityCredentials(code, accessKey, secretKey, token, expiration);
+    }
+
     @Test
-    void expiredCredentialRefreshed() {
-        metadataServer.stubFor(
-                put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
-                        .willReturn(WireMock.aResponse()
-                                .withBody("mytoken")));
+    void credentialGetsPreemptivelyRefreshed() {
+        var now = Instant.now();
+        var initial = createTestCredential("Success", "accessKey", "initialKey", "token", now.plusSeconds(10));
 
         metadataServer.stubFor(
                 get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
-                                .withBody("""
-                                        {
-                                          "Code" : "Success",
-                                          "LastUpdated" : "2012-04-26T16:39:16Z",
-                                          "Type" : "AWS-HMAC",
-                                          "AccessKeyId" : "ASIAIOSFODNN7EXAMPLE",
-                                          "SecretAccessKey" : "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-                                          "Token" : "token",
-                                          "Expiration" : "2027-05-17T15:09:54Z"
-                                        }""")));
+                                .withBody(toJson(initial))));
 
-        try (var provider = new Ec2CredentialsProvider(new Ec2CredentialsProviderConfig(IAM_ROLE, URI.create(metadataServer.baseUrl())))) {
+        try (var provider = new Ec2CredentialsProvider(config, executorService, Clock.systemUTC())) {
             var credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
+                    .returns("initialKey", SecurityCredentials::secretKey)
                     .isNotNull();
 
-            var credential = credentialStage.toCompletableFuture().join();
+            var refreshed = createTestCredential("Success", "accessKey", "refreshedKey", "token", now.plusSeconds(20));
+            metadataServer.stubFor(
+                    get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
+                            .willReturn(WireMock.aResponse()
+                                    .withBody(toJson(refreshed))));
 
-            var again = provider.getCredentials();
-            assertThat(again)
+            await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> {
+                        var refreshedStage = provider.getCredentials();
+                        assertThat(refreshedStage)
+                                .succeedsWithin(Duration.ofSeconds(1))
+                                .returns("refreshedKey", SecurityCredentials::secretKey);
+                    });
+        }
+    }
+
+    @Test
+    void expiredCredentialRefreshed() {
+        var clock = mock(Clock.class);
+        var executor = mock(ScheduledThreadPoolExecutor.class);
+
+        var now = Instant.now();
+        var initial = createTestCredential("Success", "accessKey", "initialKey", "token", now.plusSeconds(10));
+
+        doAnswer(invocation -> {
+            var runnable = ((Runnable) invocation.getArguments()[0]);
+            runnable.run();
+            return null;
+        }).when(executor).execute(any(Runnable.class));
+
+        metadataServer.stubFor(
+                get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
+                        .willReturn(WireMock.aResponse()
+                                .withBody(toJson(initial))));
+
+        try (var provider = new Ec2CredentialsProvider(config, executor, clock)) {
+            var credentialStage = provider.getCredentials();
+            assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
-                    .isEqualTo(credential);
+                    .returns("initialKey", SecurityCredentials::secretKey)
+                    .isNotNull();
+
+            var refreshed = createTestCredential("Success", "accessKey", "refreshedKey", "token", now.plusSeconds(20));
+            metadataServer.stubFor(
+                    get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
+                            .willReturn(WireMock.aResponse()
+                                    .withBody(toJson(refreshed))));
+
+            var timeBeyondInitialExpiry = initial.expiration().plusSeconds(1);
+            when(clock.instant()).thenReturn(timeBeyondInitialExpiry);
+
+            credentialStage = provider.getCredentials();
+            assertThat(credentialStage)
+                    .succeedsWithin(Duration.ofSeconds(1))
+                    .returns("refreshedKey", SecurityCredentials::secretKey);
         }
     }
 
@@ -152,7 +229,7 @@ class Ec2CredentialsProviderTest {
                         .willReturn(WireMock.aResponse()
                                 .withStatus(500)));
 
-        try (var provider = new Ec2CredentialsProvider(new Ec2CredentialsProviderConfig(IAM_ROLE, URI.create(metadataServer.baseUrl())))) {
+        try (var provider = new Ec2CredentialsProvider(config)) {
             var result = provider.getCredentials();
             assertThat(result)
                     .failsWithin(Duration.ofSeconds(1))
@@ -167,14 +244,14 @@ class Ec2CredentialsProviderTest {
         metadataServer.stubFor(
                 put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
                         .willReturn(WireMock.aResponse()
-                                .withBody("mytoken")));
+                                .withBody(MY_TOKEN)));
 
         metadataServer.stubFor(
                 get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
                                 .withStatus(500)));
 
-        try (var provider = new Ec2CredentialsProvider(new Ec2CredentialsProviderConfig(IAM_ROLE, URI.create(metadataServer.baseUrl())))) {
+        try (var provider = new Ec2CredentialsProvider(config)) {
             var result = provider.getCredentials();
             assertThat(result)
                     .failsWithin(Duration.ofSeconds(1))
@@ -184,4 +261,12 @@ class Ec2CredentialsProviderTest {
         }
     }
 
+    private byte[] toJson(SecurityCredentials credentials) {
+        try {
+            return OBJECT_MAPPER.writeValueAsBytes(credentials);
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 }
