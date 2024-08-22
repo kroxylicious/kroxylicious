@@ -5,17 +5,16 @@ BEGINFILE {
         nextfile
     }
 }
-/^\[source,yaml\]/                           { SNIPPET = 1; next} # code block follows between `----`
+/^\[source,yaml\]/                           { SNIPPET = FNR; next} # code block follows between `----`
 SNIPPET && !CODEBLOCK && /[-]{4}/            { CODEBLOCK = 1; COUNTER = COUNTER++ ; next} # code block found
 CODEBLOCK && /[-]{4}/                        {
-    CODEBLOCK = 0;
-    SNIPPET = 0;
     yq_cmd = ("echo '" buf "' | yq 'true' > /dev/null")
     ext = system(yq_cmd);
     if (ext != 0) {
-        print "Invalid YAML snippet at " FNR " of " FILENAME
+        printf "Invalid %s snippet between lines %s and %s of %s \n", BLOCKTYPE, SNIPPET, FNR, FILENAME
     }
-    SNIPPET = 0
+    CODEBLOCK = 0;
+    SNIPPET = 0;
     buf = ""
 } # code block terminated
 CODEBLOCK                                    { buf = buf $0 ORS }
