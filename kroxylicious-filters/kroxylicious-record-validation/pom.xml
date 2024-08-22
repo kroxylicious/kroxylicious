@@ -55,6 +55,12 @@
         <dependency>
             <groupId>io.apicurio</groupId>
             <artifactId>apicurio-registry-schema-resolver</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.projectlombok</groupId>
+                    <artifactId>lombok</artifactId>
+                </exclusion>
+            </exclusions> 
         </dependency>
         <dependency>
             <groupId>io.apicurio</groupId>
