@@ -1,3 +1,8 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
 BEGIN {CODEBLOCK = 0; SNIPPET = 0; RED = "\\033[0;31m"; NO_COLOUR = "\\033[0m"; }
 BEGINFILE {
     if (ERRNO != "") {
