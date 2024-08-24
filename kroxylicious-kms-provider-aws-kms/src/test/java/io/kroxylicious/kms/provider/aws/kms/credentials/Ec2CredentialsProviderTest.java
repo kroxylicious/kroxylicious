@@ -242,10 +242,22 @@ class Ec2CredentialsProviderTest {
     @Test
     void securityCredentialRequestFails() {
         metadataServer.stubFor(
-                put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
+                get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
-                                .withBody(MY_TOKEN)));
+                                .withStatus(500)));
 
+        try (var provider = new Ec2CredentialsProvider(config)) {
+            var result = provider.getCredentials();
+            assertThat(result)
+                    .failsWithin(Duration.ofSeconds(1))
+                    .withThrowableThat()
+                    .withCauseInstanceOf(KmsException.class)
+                    .withMessageContaining("HTTP status code 500");
+        }
+    }
+
+    @Test
+    void securityCredentialRetrievedAfterRequestFails() {
         metadataServer.stubFor(
                 get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
@@ -258,6 +270,18 @@ class Ec2CredentialsProviderTest {
                     .withThrowableThat()
                     .withCauseInstanceOf(KmsException.class)
                     .withMessageContaining("HTTP status code 500");
+
+            var credential = createTestCredential("Success", "accessKey", "secretKey", "token", Clock.systemUTC().instant().plusSeconds(30));
+            metadataServer.stubFor(
+                    get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
+                            .willReturn(WireMock.aResponse()
+                                    .withBody(toJson(credential))));
+
+            result = provider.getCredentials();
+            assertThat(result)
+                    .succeedsWithin(Duration.ofSeconds(1))
+                    .returns("secretKey", SecurityCredentials::secretKey);
+
         }
     }
 

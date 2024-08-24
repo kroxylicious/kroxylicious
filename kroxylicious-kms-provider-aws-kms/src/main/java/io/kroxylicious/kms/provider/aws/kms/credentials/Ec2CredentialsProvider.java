@@ -14,9 +14,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -24,8 +26,10 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.kafka.common.utils.ExponentialBackoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,9 +58,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * If an error occurs whilst retrieving the credential, the next call will cause the
  * provider to try again.  A progress backoff is applied to retry attempts.
  * </p>
- * TODO:
- *
- * http timeouts
  */
 public class Ec2CredentialsProvider implements CredentialsProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(Ec2CredentialsProvider.class);
@@ -67,9 +68,11 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
     };
     @SuppressWarnings("java:S1313")
     private static final URI DEFAULT_IP4_METADATA_ENDPOINT = URI.create("http://169.254.169.254/");
-    private static final String X_AWS_EC_2_METADATA_TOKEN_TTL_SECONDS = "X-aws-ec2-metadata-token-ttl-seconds";
-    private static final String X_AWS_EC_2_METADATA_TOKEN = "X-aws-ec2-metadata-token";
-    private static final String TOKEN_EXPIRATION_SECONDS = "60";
+    private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(10);
+    private static final Duration HTTP_CONNECT_TIMEOUT = Duration.ofSeconds(10);
+    private static final String AWS_METADATA_TOKEN_TTL_SECONDS_HEADER = "X-aws-ec2-metadata-token-ttl-seconds";
+    private static final String AWS_METADATA_TOKEN_HEADER = "X-aws-ec2-metadata-token";
+    private static final String AWS_TOKEN_EXPIRATION_SECONDS = "60";
     private static final double DEFAULT_CREDENTIALS_LIFETIME_FACTOR = 0.80;
 
     /**
@@ -86,10 +89,13 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
 
     private final Clock systemClock;
     private final AtomicReference<CompletableFuture<SecurityCredentials>> current = new AtomicReference<>();
+
+    private final AtomicLong tokenRefreshErrorCount = new AtomicLong();
     private final Ec2CredentialsProviderConfig config;
     private final HttpClient client;
 
     private final ScheduledExecutorService executorService;
+    private final ExponentialBackoff backoff = new ExponentialBackoff(100, 2, 60000, new Random().nextDouble());
 
     public Ec2CredentialsProvider(@NonNull Ec2CredentialsProviderConfig config) {
         this(config, Executors.newSingleThreadScheduledExecutor(r -> {
@@ -114,6 +120,7 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
         var builder = HttpClient.newBuilder();
         return builder
                 .followRedirects(HttpClient.Redirect.NORMAL)
+                .connectTimeout(HTTP_CONNECT_TIMEOUT)
                 .build();
     }
 
@@ -145,8 +152,15 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
         }
         else if (witness.isCompletedExceptionally()) {
             // we failed to generate a credential. retry whilst progressively backing off.
-            current.compareAndSet(witness, null);
-            return getCredentials();
+            var retry = new CompletableFuture<SecurityCredentials>();
+            var retryWitness = current.compareAndExchange(witness, retry);
+            if (retryWitness == witness) {
+                executorService.schedule(() -> refreshCredential(retry), backoff.backoff(tokenRefreshErrorCount.get()), TimeUnit.MILLISECONDS);
+                return retry;
+            }
+            else {
+                return retryWitness;
+            }
         }
 
         return witness.minimalCompletionStage();
@@ -186,9 +200,11 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
 
     private Void updateCredential(CompletableFuture<SecurityCredentials> future, SecurityCredentials credentials, Throwable t) {
         if (t != null) {
+            tokenRefreshErrorCount.incrementAndGet();
             future.completeExceptionally(t);
         }
         else {
+            tokenRefreshErrorCount.set(0);
             future.complete(credentials);
         }
         return null;
@@ -202,15 +218,17 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
     private HttpRequest createTokenRequest() {
         return HttpRequest.newBuilder()
                 .uri(getMetadataEndpoint().resolve(TOKEN_RETRIEVAL_ENDPOINT))
-                .header(X_AWS_EC_2_METADATA_TOKEN_TTL_SECONDS, TOKEN_EXPIRATION_SECONDS) // What does this timeout correspond to?
+                .header(AWS_METADATA_TOKEN_TTL_SECONDS_HEADER, AWS_TOKEN_EXPIRATION_SECONDS)
                 .PUT(HttpRequest.BodyPublishers.noBody())
+                .timeout(HTTP_REQUEST_TIMEOUT)
                 .build();
     }
 
     private HttpRequest createSecurityCredentialsRequest(String token) {
         return HttpRequest.newBuilder()
                 .uri(getMetadataEndpoint().resolve(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + config.ec2IamRole()))
-                .header(X_AWS_EC_2_METADATA_TOKEN, token)
+                .header(AWS_METADATA_TOKEN_HEADER, token)
+                .timeout(HTTP_REQUEST_TIMEOUT)
                 .GET()
                 .build();
     }
