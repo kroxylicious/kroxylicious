@@ -139,12 +139,11 @@ class Ec2CredentialsProviderTest {
                     .succeedsWithin(Duration.ofSeconds(1))
                     .isEqualTo(credential);
         }
-
     }
 
     @NonNull
     private SecurityCredentials createTestCredential(String code, String accessKey, String secretKey, String token, Instant expiration) {
-        return new SecurityCredentials(code, accessKey, secretKey, token, expiration);
+        return new SecurityCredentials(accessKey, secretKey, token, expiration);
     }
 
     @Test
@@ -279,9 +278,8 @@ class Ec2CredentialsProviderTest {
 
             result = provider.getCredentials();
             assertThat(result)
-                    .succeedsWithin(Duration.ofSeconds(1))
+                    .succeedsWithin(Duration.ofSeconds(2))
                     .returns("secretKey", SecurityCredentials::secretKey);
-
         }
     }
 

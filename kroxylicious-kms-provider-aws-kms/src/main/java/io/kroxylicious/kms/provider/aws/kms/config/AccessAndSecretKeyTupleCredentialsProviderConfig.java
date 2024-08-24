@@ -17,7 +17,7 @@ import io.kroxylicious.proxy.config.secret.PasswordProvider;
  * @param secretKey AWS secretKey
  */
 public record AccessAndSecretKeyTupleCredentialsProviderConfig(PasswordProvider accessKey, PasswordProvider secretKey)
-        implements CredentialsProviderConfig<AccessAndSecretKeyTupleCredentialsProviderConfig> {
+        implements CredentialsProviderConfig {
     @Override
     public CredentialsProvider createCredentialsProvider() {
         return new AccessAndSecretKeyTupleCredentialsProvider(this);

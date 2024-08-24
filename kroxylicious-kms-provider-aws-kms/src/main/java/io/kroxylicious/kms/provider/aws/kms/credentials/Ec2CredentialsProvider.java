@@ -95,7 +95,8 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
     private final HttpClient client;
 
     private final ScheduledExecutorService executorService;
-    private final ExponentialBackoff backoff = new ExponentialBackoff(100, 2, 60000, new Random().nextDouble());
+    @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
+    private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
 
     public Ec2CredentialsProvider(@NonNull Ec2CredentialsProviderConfig config) {
         this(config, Executors.newSingleThreadScheduledExecutor(r -> {
@@ -133,11 +134,11 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
             // there's no current credential, let's create one
             executorService.execute(() -> {
                 refreshCredential(newCredFuture);
-                // schedule a preemptive-refresh
+                // schedule a pre-emptive refresh
                 newCredFuture.thenCompose(this::schedulePreemptiveCredentialRefresh)
                         .thenAccept(sc -> current.compareAndSet(newCredFuture, CompletableFuture.completedFuture(sc)))
                         .exceptionally(t -> {
-                            LOGGER.warn("Preemptive refresh of credentials failed.", t);
+                            LOGGER.warn("Preemptive refresh of credentials failed.");
                             return null;
                         });
             });
@@ -151,15 +152,14 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
             return getCredentials();
         }
         else if (witness.isCompletedExceptionally()) {
-            // we failed to generate a credential. retry whilst progressively backing off.
+            // we failed to generate a credential. retry with progressive backing off.
             var retry = new CompletableFuture<SecurityCredentials>();
-            var retryWitness = current.compareAndExchange(witness, retry);
-            if (retryWitness == witness) {
+            if (current.compareAndSet(witness, retry)) {
                 executorService.schedule(() -> refreshCredential(retry), backoff.backoff(tokenRefreshErrorCount.get()), TimeUnit.MILLISECONDS);
-                return retry;
+                return retry.minimalCompletionStage();
             }
             else {
-                return retryWitness;
+                return getCredentials();
             }
         }
 
@@ -195,19 +195,19 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
                 .thenApply(Ec2CredentialsProvider::checkResponseStatus)
                 .thenApply(HttpResponse::body)
                 .thenApply(this::toSecurityCredentials)
-                .handle((credentials, t) -> updateCredential(future, credentials, t));
+                .whenComplete((credentials, t) -> propagateResult(credentials, t, future));
     }
 
-    private Void updateCredential(CompletableFuture<SecurityCredentials> future, SecurityCredentials credentials, Throwable t) {
+    private void propagateResult(SecurityCredentials credentials, Throwable t, CompletableFuture<SecurityCredentials> target) {
         if (t != null) {
+            LOGGER.warn("Refresh of EC2 credentials failed. Is IAM role {} assigned to this EC2 instance?", config.ec2IamRole(), t);
             tokenRefreshErrorCount.incrementAndGet();
-            future.completeExceptionally(t);
+            target.completeExceptionally(t);
         }
         else {
             tokenRefreshErrorCount.set(0);
-            future.complete(credentials);
+            target.complete(credentials);
         }
-        return null;
     }
 
     private CompletableFuture<HttpResponse<String>> getToken() {
@@ -263,16 +263,13 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record SecurityCredentials(@JsonProperty(value = "Code") @NonNull String code,
-                                      @JsonProperty(value = "AccessKeyId") @NonNull String accessKey,
+    public record SecurityCredentials(@JsonProperty(value = "AccessKeyId") @NonNull String accessKey,
                                       @JsonProperty(value = "SecretAccessKey") @NonNull String secretKey,
-
                                       @JsonProperty(value = "Token") @NonNull String token,
                                       @JsonProperty(value = "Expiration") @NonNull Instant expiration)
             implements Credentials {
 
         public SecurityCredentials {
-            Objects.requireNonNull(code);
             Objects.requireNonNull(accessKey);
             Objects.requireNonNull(secretKey);
             Objects.requireNonNull(token);

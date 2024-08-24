@@ -28,7 +28,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param tls TLS
  */
 public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @JsonProperty(value = "credentialsProvider", required = false) CredentialsProviderConfig<?> credentialsProvider,
+                     @JsonProperty(value = "credentialsProvider", required = false) CredentialsProviderConfig credentialsProvider,
                      @JsonProperty(required = true) String region,
                      Tls tls) {
 

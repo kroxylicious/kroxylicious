@@ -25,7 +25,7 @@ import io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider;
 public record Ec2CredentialsProviderConfig(@JsonProperty(value = "ec2IamRole", required = true) String ec2IamRole,
                                            @JsonProperty(value = "metadataEndpoint", required = false) Optional<URI> metadataEndpoint,
                                            @JsonProperty(value = "credentialLifetimeFactor", required = false) Optional<Double> credentialLifetimeFactor)
-        implements CredentialsProviderConfig<Ec2CredentialsProviderConfig> {
+        implements CredentialsProviderConfig {
     public Ec2CredentialsProviderConfig {
         Objects.requireNonNull(ec2IamRole);
     }

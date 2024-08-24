@@ -13,7 +13,7 @@ import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProvider;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
 @JsonSubTypes({ @JsonSubTypes.Type(AccessAndSecretKeyTupleCredentialsProviderConfig.class), @JsonSubTypes.Type(Ec2CredentialsProviderConfig.class) })
-public interface CredentialsProviderConfig<C extends CredentialsProviderConfig<?>> {
+public interface CredentialsProviderConfig {
 
     CredentialsProvider createCredentialsProvider();
 }
