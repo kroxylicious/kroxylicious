@@ -25,18 +25,19 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.IoHandlerFactory;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.Epoll;
-import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollIoHandler;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.kqueue.KQueue;
-import io.netty.channel.kqueue.KQueueEventLoopGroup;
+import io.netty.channel.kqueue.KQueueIoHandler;
 import io.netty.channel.kqueue.KQueueServerSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.incubator.channel.uring.IOUring;
-import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
-import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
+import io.netty.channel.uring.IoUring;
+import io.netty.channel.uring.IoUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
@@ -78,6 +79,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
 
         public static EventGroupConfig build(String name, Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier, boolean useIoUring) {
+            // Specifying 0 threads means we apply Netty defaults which are (2 * availableCores) or the system property io.netty.eventLoopThreads.
             int workerThreadCount = resolveThreadCount(configuration, settingsSupplier);
             if (useIoUring) {
                 if (!IOUring.isAvailable()) {
@@ -231,11 +233,44 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {
-        return new ServerBootstrap().group(virtualHostEventGroup.bossGroup(), virtualHostEventGroup.workerGroup())
+        return new ServerBootstrap()
+                .group(virtualHostEventGroup.bossGroup(), virtualHostEventGroup.workerGroup())
                 .channel(virtualHostEventGroup.clazz())
                 .option(ChannelOption.SO_REUSEADDR, true)
                 .childHandler(kafkaProxyInitializer)
                 .childOption(ChannelOption.TCP_NODELAY, true);
+    }
+
+    private EventGroupConfig buildNettyEventGroups(String name, int availableCores, boolean useIoUring) {
+        final Class<? extends ServerChannel> channelClass;
+        final EventLoopGroup bossGroup;
+        final EventLoopGroup workerGroup;
+
+        final IoHandlerFactory ioHandlerFactory;
+        if (useIoUring && !IoUring.isAvailable()) {
+            throw new IllegalStateException("io_uring not available due to: " + IoUring.unavailabilityCause());
+        }
+        if (IoUring.isAvailable() && useIoUring) {
+            ioHandlerFactory = io.netty.channel.uring.IoUringIoHandler.newFactory();
+            channelClass = IoUringServerSocketChannel.class;
+        }
+        else if (Epoll.isAvailable()) {
+            ioHandlerFactory = EpollIoHandler.newFactory();
+            channelClass = EpollServerSocketChannel.class;
+        }
+        else if (KQueue.isAvailable()) {
+            ioHandlerFactory = KQueueIoHandler.newFactory();
+            channelClass = KQueueServerSocketChannel.class;
+        }
+        else {
+            ioHandlerFactory = NioIoHandler.newFactory();
+            channelClass = NioServerSocketChannel.class;
+        }
+
+        bossGroup = new MultiThreadIoEventLoopGroup(availableCores, ioHandlerFactory);
+        workerGroup = new MultiThreadIoEventLoopGroup(availableCores, ioHandlerFactory);
+
+        return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
     }
 
     private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {

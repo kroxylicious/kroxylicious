@@ -51,11 +51,10 @@
         <log4j.version>2.25.2</log4j.version>
         <caffeine.version>3.2.2</caffeine.version>
         <picocli.version>4.7.7</picocli.version>
-        <netty.version>4.1.127.Final</netty.version>
-        <netty.io_uring.version>0.0.26.Final</netty.io_uring.version>
-        <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
-        <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
-        <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
+        <netty.version>4.2.3.Final</netty.version>
+        <netty.epoll.architecture>linux-x86_64</netty.epoll.architecture>
+        <netty.io_uring.architecture>linux-x86_64</netty.io_uring.architecture>
+        <netty.kqueue.architecture>osx-x86_64</netty.kqueue.architecture>
         <assertj-core.version>3.27.6</assertj-core.version>
         <mockito.version>5.19.0</mockito.version>
         <micrometer.version>1.15.4</micrometer.version>
@@ -207,17 +206,6 @@
                 <version>${netty.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.netty.incubator</groupId>
-                <artifactId>netty-incubator-transport-classes-io_uring</artifactId>
-                <version>${netty.io_uring.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.netty.incubator</groupId>
-                <artifactId>netty-incubator-transport-native-io_uring</artifactId>
-                <version>${netty.io_uring.version}</version>
-                <classifier>${netty.io_uring.classifier}</classifier>
             </dependency>
             <dependency>
                 <groupId>io.sundr</groupId>
