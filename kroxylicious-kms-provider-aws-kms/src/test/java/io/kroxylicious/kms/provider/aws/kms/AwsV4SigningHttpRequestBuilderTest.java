@@ -78,13 +78,15 @@ class AwsV4SigningHttpRequestBuilderTest {
         try {
             var builder = AwsV4SigningHttpRequestBuilder.newBuilder(
                     new Credentials() {
+                        @NonNull
                         @Override
-                        public String accessKey() {
+                        public String accessKeyId() {
                             return testDef.accessKeyId();
                         }
 
+                        @NonNull
                         @Override
-                        public String secretKey() {
+                        public String secretAccessKey() {
                             return testDef.secretAccessKey();
                         }
                     }, testDef.region(),
@@ -200,13 +202,15 @@ class AwsV4SigningHttpRequestBuilderTest {
     @NonNull
     private HttpRequest.Builder createBuilder(URI uri) {
         var builder = AwsV4SigningHttpRequestBuilder.newBuilder(new Credentials() {
+            @NonNull
             @Override
-            public String accessKey() {
+            public String accessKeyId() {
                 return ACCESS_KEY;
             }
 
+            @NonNull
             @Override
-            public String secretKey() {
+            public String secretAccessKey() {
                 return SECRET_KEY;
             }
         }, REGION, SERVICE, Instant.ofEpochMilli(0));

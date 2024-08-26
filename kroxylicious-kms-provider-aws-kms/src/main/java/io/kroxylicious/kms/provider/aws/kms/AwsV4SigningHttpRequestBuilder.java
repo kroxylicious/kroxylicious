@@ -281,13 +281,13 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
     @NonNull
     private String computeAuthorization(CanonicalRequestResult canonicalRequestResult, StringToSignResult stringToSignResult, String isoDate) {
-        var dateHmac = hmac(("AWS4" + credentials.secretKey()).getBytes(StandardCharsets.UTF_8), isoDate);
+        var dateHmac = hmac(("AWS4" + credentials.secretAccessKey()).getBytes(StandardCharsets.UTF_8), isoDate);
         var regionHmac = hmac(dateHmac, this.region);
         var serviceHmac = hmac(regionHmac, this.service);
         var signHmac = hmac(serviceHmac, AWS_4_REQUEST);
         var signature = HEX_FORMATTER.formatHex(hmac(signHmac, stringToSignResult.stringToSign()));
 
-        return "AWS4-HMAC-SHA256 Credential=" + credentials.accessKey() + "/" + stringToSignResult.credentialScope() + ", SignedHeaders="
+        return "AWS4-HMAC-SHA256 Credential=" + credentials.accessKeyId() + "/" + stringToSignResult.credentialScope() + ", SignedHeaders="
                 + canonicalRequestResult.signedHeaders()
                 + ", Signature=" + signature;
     }

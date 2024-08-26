@@ -25,13 +25,15 @@ public class AccessAndSecretKeyTupleCredentialsProvider implements CredentialsPr
     public CompletionStage<Credentials> getCredentials() {
         var value = new Credentials() {
 
+            @NonNull
             @Override
-            public String accessKey() {
+            public String accessKeyId() {
                 return config.accessKey().getProvidedPassword();
             }
 
+            @NonNull
             @Override
-            public String secretKey() {
+            public String secretAccessKey() {
                 return config.secretKey().getProvidedPassword();
             }
         };

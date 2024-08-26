@@ -209,13 +209,15 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             var body = getBody(request).getBytes(UTF_8);
 
             return AwsV4SigningHttpRequestBuilder.newBuilder(new Credentials() {
+                @NonNull
                 @Override
-                public String accessKey() {
+                public String accessKeyId() {
                     return getAccessKey();
                 }
 
+                @NonNull
                 @Override
-                public String secretKey() {
+                public String secretAccessKey() {
                     return getSecretKey();
                 }
             }, getRegion(), "kms", Instant.now())
