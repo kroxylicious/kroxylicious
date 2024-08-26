@@ -50,7 +50,7 @@ public record JdkTls(Tls tls) {
 
     public JdkTls {
         if (tls != null && tls.key() != null) {
-            logger.warn("TLS key material is currently not supported by the vault client");
+            logger.warn("TLS key material is currently not supported by the AWS client");
         }
     }
 
