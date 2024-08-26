@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
+import io.kroxylicious.kms.provider.aws.kms.config.FixedCredentialsProviderConfig;
 import io.kroxylicious.kms.provider.aws.kms.credentials.Credentials;
 import io.kroxylicious.kms.provider.aws.kms.model.CreateAliasRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.CreateKeyRequest;
@@ -79,7 +80,8 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
 
     @Override
     public Config getKmsServiceConfig() {
-        return new Config(getAwsUrl(), new InlinePassword(getAccessKey()), new InlinePassword(getSecretKey()), getRegion(), null);
+        var credentialsProviderConfig = new FixedCredentialsProviderConfig(new InlinePassword(getAccessKey()), new InlinePassword(getSecretKey()));
+        return new Config(getAwsUrl(), credentialsProviderConfig, getRegion(), null);
     }
 
     protected abstract String getRegion();

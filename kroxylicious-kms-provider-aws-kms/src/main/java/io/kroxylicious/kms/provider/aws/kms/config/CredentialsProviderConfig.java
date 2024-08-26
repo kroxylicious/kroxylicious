@@ -13,8 +13,9 @@ import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProvider;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
-@JsonSubTypes({ @JsonSubTypes.Type(LongTermCredentialsProviderConfig.class), @JsonSubTypes.Type(Ec2CredentialsProviderConfig.class) })
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes({ @JsonSubTypes.Type(value = FixedCredentialsProviderConfig.class, name = "fixed"),
+        @JsonSubTypes.Type(value = Ec2MetadataCredentialsProviderConfig.class, name = "ec2Metadata") })
 public interface CredentialsProviderConfig {
 
     @NonNull

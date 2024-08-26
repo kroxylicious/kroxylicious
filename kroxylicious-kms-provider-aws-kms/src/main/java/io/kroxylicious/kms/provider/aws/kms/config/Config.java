@@ -12,6 +12,10 @@ import java.util.Objects;
 
 import javax.net.ssl.SSLContext;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
@@ -29,8 +33,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
                      @JsonProperty(value = "credentialsProvider", required = false) CredentialsProviderConfig credentialsProvider,
-                     @JsonProperty(required = true) String region,
-                     Tls tls) {
+                     @JsonProperty(value = "region", required = true) String region,
+                     @JsonProperty(value = "tls", required = false) Tls tls) {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Config.class);
 
     public Config {
         Objects.requireNonNull(endpointUrl);
@@ -50,12 +56,12 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
      * @deprecated use {@link Config#Config(URI, CredentialsProviderConfig, String, Tls)}
      */
     @Deprecated(forRemoval = true, since = "0.8.0")
-    public Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                  @JsonProperty(required = true) PasswordProvider accessKey,
-                  @JsonProperty(required = true) PasswordProvider secretKey,
-                  @JsonProperty(required = true) String region,
-                  Tls tls) {
-        this(endpointUrl, new LongTermCredentialsProviderConfig(accessKey, secretKey), region, tls);
+    private Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
+                   @JsonProperty(value = "accessKey", required = true) PasswordProvider accessKey,
+                   @JsonProperty(value = "secretKey", required = true) PasswordProvider secretKey,
+                   @JsonProperty(value = "region", required = true) String region,
+                   @JsonProperty(value = "tls", required = false) Tls tls) {
+        this(endpointUrl, new FixedCredentialsProviderConfig(accessKey, secretKey), region, tls);
     }
 
     @NonNull
@@ -72,4 +78,28 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
             throw new SslConfigurationException(e);
         }
     }
+
+    @JsonCreator
+    @SuppressWarnings("removal")
+    public static Config create(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
+                                @JsonProperty(value = "accessKey", required = false) PasswordProvider accessKey,
+                                @JsonProperty(value = "secretKey", required = false) PasswordProvider secretKey,
+                                @JsonProperty(value = "credentialsProvider", required = false) CredentialsProviderConfig credentialsProvider,
+                                @JsonProperty(value = "region", required = true) String region,
+                                @JsonProperty(value = "tls", required = false) Tls tls) {
+        if (credentialsProvider != null) {
+            if (accessKey != null) {
+                throw new IllegalArgumentException("Cannot provide accessKey when using credentialsProvider");
+            }
+            if (secretKey != null) {
+                throw new IllegalArgumentException("Cannot provide secretKey when using credentialsProvider");
+            }
+            return new Config(endpointUrl, credentialsProvider, region, tls);
+        }
+        else {
+            LOGGER.warn("Use of deprecated accessKey and secretKey. Use credentialsProvider type fixed to configure long-lived credentials.");
+            return new Config(endpointUrl, accessKey, secretKey, region, tls);
+        }
+    }
+
 }

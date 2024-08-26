@@ -10,17 +10,17 @@ import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
+import io.kroxylicious.kms.provider.aws.kms.config.FixedCredentialsProviderConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class LongTermCredentialsProviderTest {
+class FixedCredentialsProviderTest {
 
     @Test
     void obtainsCredentials() {
-        try (var provider = new LongTermCredentialsProvider(new LongTermCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret")))) {
+        try (var provider = new FixedCredentialsProvider(new FixedCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret")))) {
             assertThat(provider.getCredentials())
                     .succeedsWithin(Duration.ofSeconds(1))
                     .isEqualTo(Credentials.longTermCredentials("access", "secret"));
@@ -29,7 +29,7 @@ class LongTermCredentialsProviderTest {
 
     @Test
     void rejectsNullConfig() {
-        assertThatThrownBy(() -> new LongTermCredentialsProvider(null))
+        assertThatThrownBy(() -> new FixedCredentialsProvider(null))
                 .isInstanceOf(NullPointerException.class);
     }
 }
