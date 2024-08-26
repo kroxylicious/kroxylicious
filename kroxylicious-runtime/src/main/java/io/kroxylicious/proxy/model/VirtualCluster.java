@@ -176,9 +176,9 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     }
 
     private Optional<SslContext> buildDownstreamSslContext() {
-        return tls.map(tls -> {
+        return tls.map(tlsConfiguration -> {
             try {
-                return Optional.of(tls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer).orElseThrow().build();
+                return Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer).orElseThrow().build();
             }
             catch (SSLException e) {
                 throw new UncheckedIOException(e);
