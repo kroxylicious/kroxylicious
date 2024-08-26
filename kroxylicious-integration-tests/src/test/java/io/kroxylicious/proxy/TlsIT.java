@@ -185,7 +185,7 @@ class TlsIT extends BaseIT {
 
         var brokerCert = new KeytoolCertificateGenerator();
         var clientCert = new KeytoolCertificateGenerator();
-        clientCert.generateSelfSignedCertificateEntry("clientTest@kroxylicious.io", "client", "Dev", "Kroxylicious.ip", null, null, "US");
+        clientCert.generateSelfSignedCertificateEntry("clientTest@kroxylicious.io", "client", "Dev", "Kroxylicious.io", null, null, "US");
 
         try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
                 .brokerKeytoolCertificateGenerator(brokerCert)
