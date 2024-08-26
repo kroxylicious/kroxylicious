@@ -38,7 +38,7 @@ public abstract class BaseIT {
         List<NewTopic> topicsList = List.of(topics);
         var created = admin.createTopics(topicsList);
         assertThat(created.values()).hasSizeGreaterThanOrEqualTo(topicsList.size());
-        assertThat(created.all()).succeedsWithin(10, TimeUnit.SECONDS);
+        assertThat(created.all()).as("The future(s) creating topic(s) did not complete within the timeout.").succeedsWithin(10, TimeUnit.SECONDS);
         return created;
     }
 
@@ -48,11 +48,12 @@ public abstract class BaseIT {
 
     protected DeleteTopicsResult deleteTopics(Admin admin, TopicCollection topics) {
         var deleted = admin.deleteTopics(topics);
-        assertThat(deleted.all()).succeedsWithin(10, TimeUnit.SECONDS);
+        assertThat(deleted.all()).as("The future(s) deleting topic(s) did not complete within the timeout.").succeedsWithin(10, TimeUnit.SECONDS);
         return deleted;
     }
 
-    protected Map<String, Object> buildClientConfig(Map<String, Object>... configs) {
+    @SafeVarargs
+    protected final Map<String, Object> buildClientConfig(Map<String, Object>... configs) {
         Map<String, Object> clientConfig = new HashMap<>();
         for (var config : configs) {
             clientConfig.putAll(config);
@@ -60,7 +61,9 @@ public abstract class BaseIT {
         return clientConfig;
     }
 
-    protected Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    @SafeVarargs
+    protected final Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
         var consumerConfig = buildClientConfig(configs);
         if (virtualCluster.isPresent()) {
             return tester.consumer(virtualCluster.get(), consumerConfig);
@@ -68,7 +71,9 @@ public abstract class BaseIT {
         return tester.consumer(consumerConfig);
     }
 
-    protected Producer<String, String> getProducerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    @SafeVarargs
+    protected final Producer<String, String> getProducerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
         var producerConfig = buildClientConfig(configs);
         if (virtualCluster.isPresent()) {
             return tester.producer(virtualCluster.get(), producerConfig);

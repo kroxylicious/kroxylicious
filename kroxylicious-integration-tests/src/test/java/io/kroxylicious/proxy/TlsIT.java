@@ -234,7 +234,7 @@ class TlsIT extends BaseIT {
             try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
                 // do some work to ensure connection is opened
                 final var result = admin.describeCluster().clusterId();
-                assertThat(result).succeedsWithin(Duration.ofSeconds(10));
+                assertThat(result).as("Unable to get the clusterId from the Kafka cluster").succeedsWithin(Duration.ofSeconds(10));
             }
         }
     }
