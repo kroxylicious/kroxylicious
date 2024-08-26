@@ -239,7 +239,7 @@ class TlsIT extends BaseIT {
         }
     }
 
-    private void assertSuccessfulDirectClientAuthConnectionWithClientCert(KafkaCluster cluster) throws Exception {
+    private void assertSuccessfulDirectClientAuthConnectionWithClientCert(KafkaCluster cluster) {
         try (var admin = CloseableAdmin.create(cluster.getKafkaClientConfiguration())) {
             // Any operation to test successful connection to cluster
             var result = admin.describeCluster().clusterId();
