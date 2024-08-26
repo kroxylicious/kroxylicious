@@ -80,12 +80,12 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
      * Note that  use of "latest" is
      * <a href="https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html#imds-considerations">required</a>.
      */
-    static final String TOKEN_RETRIEVAL_ENDPOINT = "/latest/api/token";
+    private static final String TOKEN_RETRIEVAL_ENDPOINT = "/latest/api/token";
 
     /**
      * EC2 Meta-data security credentials endpoint.
      */
-    static final String META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT = "/2024-04-11/meta-data/iam/security-credentials/";
+    private static final String META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT = "/2024-04-11/meta-data/iam/security-credentials/";
 
     private final Clock systemClock;
     private final AtomicReference<CompletableFuture<SecurityCredentials>> current = new AtomicReference<>();
