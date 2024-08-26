@@ -15,6 +15,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProvider;
 import io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * Config for the EC2 Credentials Provider.
  *
@@ -31,7 +33,7 @@ public record Ec2CredentialsProviderConfig(@JsonProperty(value = "ec2IamRole", r
     }
 
     @Override
-    public CredentialsProvider createCredentialsProvider() {
+    public @NonNull CredentialsProvider createCredentialsProvider() {
         return new Ec2CredentialsProvider(this);
     }
 

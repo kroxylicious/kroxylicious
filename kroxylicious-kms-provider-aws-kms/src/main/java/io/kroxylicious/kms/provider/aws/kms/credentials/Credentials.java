@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kms.provider.aws.kms.credentials;
 
+import java.util.Objects;
 import java.util.Optional;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -40,4 +41,11 @@ public interface Credentials {
     default Optional<String> securityToken() {
         return Optional.empty();
     }
+
+    static Credentials longTermCredentials(String accessKeyId, String secretAccessKey) {
+        Objects.requireNonNull(accessKeyId);
+        Objects.requireNonNull(secretAccessKey);
+        return new LongTermCredentialsProvider.LongTermCredentials(accessKeyId, secretAccessKey);
+    }
+
 }

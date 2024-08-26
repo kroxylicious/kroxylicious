@@ -42,6 +42,7 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 import static io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT;
 import static io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.TOKEN_RETRIEVAL_ENDPOINT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -95,6 +96,12 @@ class Ec2CredentialsProviderTest {
     @AfterEach
     void afterEach() {
         executorService.shutdownNow();
+    }
+
+    @Test
+    void rejectsNullConfig() {
+        assertThatThrownBy(() -> new Ec2CredentialsProvider(null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
