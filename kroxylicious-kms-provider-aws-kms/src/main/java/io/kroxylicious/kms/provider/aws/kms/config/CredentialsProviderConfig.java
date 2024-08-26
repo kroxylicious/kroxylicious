@@ -11,9 +11,12 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProvider;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 @JsonTypeInfo(use = JsonTypeInfo.Id.DEDUCTION)
-@JsonSubTypes({ @JsonSubTypes.Type(AccessAndSecretKeyTupleCredentialsProviderConfig.class), @JsonSubTypes.Type(Ec2CredentialsProviderConfig.class) })
+@JsonSubTypes({ @JsonSubTypes.Type(LongTermCredentialsProviderConfig.class), @JsonSubTypes.Type(Ec2CredentialsProviderConfig.class) })
 public interface CredentialsProviderConfig {
 
+    @NonNull
     CredentialsProvider createCredentialsProvider();
 }
