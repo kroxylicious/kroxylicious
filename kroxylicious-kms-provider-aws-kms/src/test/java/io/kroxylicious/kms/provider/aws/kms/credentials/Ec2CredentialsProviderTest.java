@@ -39,8 +39,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
-import static io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT;
-import static io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.TOKEN_RETRIEVAL_ENDPOINT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -54,6 +52,8 @@ class Ec2CredentialsProviderTest {
 
     private static final String MY_TOKEN = "mytoken";
     private static final String IAM_ROLE = "myrole";
+    private static final String TOKEN_RETRIEVAL_ENDPOINT = "/latest/api/token";
+    private static final String META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT = "/2024-04-11/meta-data/iam/security-credentials/";
 
     // From https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-metadata-security-credentials.html
     private static final String KNOWN_GOOD_SECURITY_CREDENTIAL_RESPONSE = """
