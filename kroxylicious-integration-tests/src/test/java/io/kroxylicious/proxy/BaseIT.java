@@ -10,9 +10,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
@@ -35,19 +33,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class BaseIT {
 
     protected CreateTopicsResult createTopics(Admin admin, NewTopic... topics) {
-        try {
-            List<NewTopic> topicsList = List.of(topics);
-            var created = admin.createTopics(topicsList);
-            assertThat(created.values()).hasSizeGreaterThanOrEqualTo(topicsList.size());
-            created.all().get(10, TimeUnit.SECONDS);
-            return created;
-        }
-        catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
-        }
-        catch (InterruptedException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        List<NewTopic> topicsList = List.of(topics);
+        var created = admin.createTopics(topicsList);
+        assertThat(created.values()).hasSizeGreaterThanOrEqualTo(topicsList.size());
+        assertThat(created.all()).as("The future(s) creating topic(s) did not complete within the timeout.").succeedsWithin(10, TimeUnit.SECONDS);
+        return created;
     }
 
     protected CreateTopicsResult createTopic(Admin admin, String topic, int numPartitions) {
@@ -55,20 +45,13 @@ public abstract class BaseIT {
     }
 
     protected DeleteTopicsResult deleteTopics(Admin admin, TopicCollection topics) {
-        try {
-            var deleted = admin.deleteTopics(topics);
-            deleted.all().get(10, TimeUnit.SECONDS);
-            return deleted;
-        }
-        catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
-        }
-        catch (InterruptedException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        var deleted = admin.deleteTopics(topics);
+        assertThat(deleted.all()).as("The future(s) deleting topic(s) did not complete within the timeout.").succeedsWithin(10, TimeUnit.SECONDS);
+        return deleted;
     }
 
-    protected Map<String, Object> buildClientConfig(Map<String, Object>... configs) {
+    @SafeVarargs
+    protected final Map<String, Object> buildClientConfig(Map<String, Object>... configs) {
         Map<String, Object> clientConfig = new HashMap<>();
         for (var config : configs) {
             clientConfig.putAll(config);
@@ -76,7 +59,9 @@ public abstract class BaseIT {
         return clientConfig;
     }
 
-    protected Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    @SafeVarargs
+    protected final Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
         var consumerConfig = buildClientConfig(configs);
         if (virtualCluster.isPresent()) {
             return tester.consumer(virtualCluster.get(), consumerConfig);
@@ -84,7 +69,9 @@ public abstract class BaseIT {
         return tester.consumer(consumerConfig);
     }
 
-    protected Producer<String, String> getProducerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    @SafeVarargs
+    protected final Producer<String, String> getProducerWithConfig(KroxyliciousTester tester, Optional<String> virtualCluster, Map<String, Object>... configs) {
         var producerConfig = buildClientConfig(configs);
         if (virtualCluster.isPresent()) {
             return tester.producer(virtualCluster.get(), producerConfig);
