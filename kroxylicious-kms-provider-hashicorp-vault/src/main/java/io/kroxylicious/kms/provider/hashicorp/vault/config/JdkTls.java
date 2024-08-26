@@ -27,6 +27,7 @@ import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.KeyProvider;
 import io.kroxylicious.proxy.config.tls.KeyProviderVisitor;
+import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustProviderVisitor;
@@ -180,6 +181,11 @@ public record JdkTls(Tls tls) {
                 else {
                     return getDefaultTrustManagers();
                 }
+            }
+
+            @Override
+            public TrustManager[] visit(PlatformTrustProvider platformTrustProviderTls) {
+                return getDefaultTrustManagers();
             }
 
             private static TrustManager[] getDefaultTrustManagers() {

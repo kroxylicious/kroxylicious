@@ -42,6 +42,7 @@ class NettyTrustProviderTest {
         var sslContext = sslContextBuilder.build();
         assertThat(sslContext).isNotNull();
         assertThat(sslContext.isClient()).isTrue();
+        assertThat(sslContextBuilder).extracting("endpointIdentificationAlgorithm").isEqualTo("HTTPS");
     }
 
     @Test
@@ -60,4 +61,27 @@ class NettyTrustProviderTest {
                 .hasRootCauseInstanceOf(FileNotFoundException.class);
     }
 
+    @Test
+    void shouldDisableHostnameVerification() {
+        // Given
+        var trustStore = new NettyTrustProvider(new InsecureTls(true));
+
+        // When
+        trustStore.apply(sslContextBuilder);
+
+        // Then
+        assertThat(sslContextBuilder).extracting("endpointIdentificationAlgorithm").isNull();
+    }
+
+    @Test
+    void shouldEnableHostnameVerification() {
+        // Given
+        var trustStore = new NettyTrustProvider(new InsecureTls(false));
+
+        // When
+        trustStore.apply(sslContextBuilder);
+
+        // Then
+        assertThat(sslContextBuilder).extracting("endpointIdentificationAlgorithm").isEqualTo("HTTPS");
+    }
 }

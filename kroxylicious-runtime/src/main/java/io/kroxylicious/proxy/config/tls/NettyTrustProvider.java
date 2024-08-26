@@ -19,8 +19,11 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class NettyTrustProvider {
 
+    public static final String HTTPS_HOSTNAME_VERIFICATION = "HTTPS";
     private final TrustProvider trustProvider;
 
     public NettyTrustProvider(TrustProvider trustProvider) {
@@ -32,6 +35,7 @@ public class NettyTrustProvider {
             @Override
             public SslContextBuilder visit(TrustStore trustStore) {
                 try {
+                    enableHostnameVerification();
                     if (trustStore.isPemType()) {
                         return builder.trustManager(new File(trustStore.storeFile()));
                     }
@@ -57,15 +61,35 @@ public class NettyTrustProvider {
             public SslContextBuilder visit(InsecureTls insecureTls) {
                 try {
                     if (insecureTls.insecure()) {
+                        disableHostnameVerification();
                         return builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
                     }
                     else {
+                        enableHostnameVerification();
                         return builder;
                     }
                 }
                 catch (Exception e) {
                     throw new SslContextBuildException("Error building SSLContext for InsecureTls: " + insecureTls, e);
                 }
+            }
+
+            @Override
+            public SslContextBuilder visit(PlatformTrustProvider platformTrustProviderTls) {
+                enableHostnameVerification();
+                return builder;
+            }
+
+            private void enableHostnameVerification() {
+                setEndpointAlgorithm(HTTPS_HOSTNAME_VERIFICATION);
+            }
+
+            private void disableHostnameVerification() {
+                setEndpointAlgorithm(null);
+            }
+
+            private void setEndpointAlgorithm(@Nullable String httpsHostnameVerification) {
+                builder.endpointIdentificationAlgorithm(httpsHostnameVerification);
             }
         });
     }

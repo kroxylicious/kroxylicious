@@ -22,7 +22,9 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
+import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -191,9 +193,10 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
             try {
                 var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
                         .orElse(SslContextBuilder.forClient());
-                var withTrust = Optional.ofNullable(targetClusterTls.trust()).map(NettyTrustProvider::new).map(tp -> tp.apply(sslContextBuilder))
-                        .orElse(sslContextBuilder);
-                withTrust.endpointIdentificationAlgorithm("HTTPS");
+
+                final TrustProvider trustProvider = Optional.ofNullable(targetClusterTls.trust()).orElse(new PlatformTrustProvider());
+                var withTrust = new NettyTrustProvider(trustProvider).apply(sslContextBuilder);
+
                 return withTrust.build();
             }
             catch (SSLException e) {

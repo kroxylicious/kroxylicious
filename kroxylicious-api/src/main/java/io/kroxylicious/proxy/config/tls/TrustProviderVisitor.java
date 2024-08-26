@@ -16,4 +16,6 @@ public interface TrustProviderVisitor<T> {
 
     T visit(InsecureTls insecureTls);
 
+    T visit(PlatformTrustProvider platformTrustProviderTls);
+
 }

@@ -27,5 +27,4 @@ public interface TrustProvider {
      * @param visitor visitor.
      */
     <T> T accept(TrustProviderVisitor<T> visitor);
-
 }
