@@ -174,6 +174,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     private CompletableFuture<SecurityCredentials> schedulePreemptiveCredentialRefresh(SecurityCredentials current) {
         var lifetimeFactor = config.credentialLifetimeFactor().orElse(DEFAULT_CREDENTIALS_LIFETIME_FACTOR);
         var delay = (long) (lifetimeFactor * (current.expiration().toEpochMilli() - systemClock.millis()));
+        LOGGER.debug("Scheduling refresh of AWS credentials in {}ms", delay);
+
         var refresh = new CompletableFuture<SecurityCredentials>();
         executorService.schedule(() -> refreshCredential(refresh), Math.max(delay, 0), TimeUnit.MILLISECONDS);
         return refresh;
@@ -210,6 +212,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
             target.completeExceptionally(t);
         }
         else {
+            LOGGER.debug("Obtained AWS credentials from EC2 metadata using IAM role {}, expiry {}", config.iamRole(), credentials.expiration());
             tokenRefreshErrorCount.set(0);
             target.complete(credentials);
         }
