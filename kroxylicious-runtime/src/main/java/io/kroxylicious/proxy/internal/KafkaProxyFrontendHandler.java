@@ -311,7 +311,7 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
         }
 
-        virtualCluster.getUpstreamSslContext().ifPresent(c -> pipeline.addFirst("ssl", c.newHandler(outboundChannel.alloc())));
+        virtualCluster.getUpstreamSslContext().ifPresent(c -> pipeline.addFirst("ssl", c.newHandler(outboundChannel.alloc(), remote.host(), remote.port())));
 
         connectFuture.addListener(future -> {
             if (future.isSuccess()) {
