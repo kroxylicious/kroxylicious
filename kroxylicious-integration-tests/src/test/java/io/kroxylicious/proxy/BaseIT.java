@@ -35,19 +35,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class BaseIT {
 
     protected CreateTopicsResult createTopics(Admin admin, NewTopic... topics) {
-        try {
-            List<NewTopic> topicsList = List.of(topics);
-            var created = admin.createTopics(topicsList);
-            assertThat(created.values()).hasSizeGreaterThanOrEqualTo(topicsList.size());
-            created.all().get(10, TimeUnit.SECONDS);
-            return created;
-        }
-        catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
-        }
-        catch (InterruptedException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        List<NewTopic> topicsList = List.of(topics);
+        var created = admin.createTopics(topicsList);
+        assertThat(created.values()).hasSizeGreaterThanOrEqualTo(topicsList.size());
+        assertThat(created.all()).succeedsWithin(10, TimeUnit.SECONDS);
+        return created;
     }
 
     protected CreateTopicsResult createTopic(Admin admin, String topic, int numPartitions) {
@@ -55,17 +47,9 @@ public abstract class BaseIT {
     }
 
     protected DeleteTopicsResult deleteTopics(Admin admin, TopicCollection topics) {
-        try {
-            var deleted = admin.deleteTopics(topics);
-            deleted.all().get(10, TimeUnit.SECONDS);
-            return deleted;
-        }
-        catch (ExecutionException e) {
-            throw new RuntimeException(e.getCause());
-        }
-        catch (InterruptedException | TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+        var deleted = admin.deleteTopics(topics);
+        assertThat(deleted.all()).succeedsWithin(10, TimeUnit.SECONDS);
+        return deleted;
     }
 
     protected Map<String, Object> buildClientConfig(Map<String, Object>... configs) {
