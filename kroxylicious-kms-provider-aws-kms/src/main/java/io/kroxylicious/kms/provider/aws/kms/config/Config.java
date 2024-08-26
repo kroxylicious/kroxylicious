@@ -20,7 +20,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Configuration for the Vault KMS service.
+ * Configuration for the AWS KMS service.
  *
  * @param endpointUrl URL of the AWS KMS e.g. {@code https://kms.us-east-1.amazonaws.com}
  * @param credentialsProvider AWS credentials provider

@@ -105,8 +105,8 @@ class AwsKmsTest {
         var plainTextBytes = BASE64_DECODER.decode("VdzKNHGzUAzJeRBVY+uUmofUGGiDzyB3+i9fVkh3piw=");
         var expectedKey = DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES");
 
-        withMockAwsWithSingleResponse(response, vaultKms -> {
-            var aliasStage = vaultKms.generateDekPair("alias");
+        withMockAwsWithSingleResponse(response, awsKms -> {
+            var aliasStage = awsKms.generateDekPair("alias");
             assertThat(aliasStage)
                     .succeedsWithin(Duration.ofSeconds(5))
                     .extracting(DekPair::edek)
