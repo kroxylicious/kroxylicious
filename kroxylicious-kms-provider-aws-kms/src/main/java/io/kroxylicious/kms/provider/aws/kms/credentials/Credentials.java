@@ -45,7 +45,7 @@ public interface Credentials {
     static Credentials longTermCredentials(String accessKeyId, String secretAccessKey) {
         Objects.requireNonNull(accessKeyId);
         Objects.requireNonNull(secretAccessKey);
-        return new LongTermCredentialsProvider.LongTermCredentials(accessKeyId, secretAccessKey);
+        return new FixedCredentialsProvider.LongTermCredentials(accessKeyId, secretAccessKey);
     }
 
 }

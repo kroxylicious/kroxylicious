@@ -29,8 +29,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 
-import io.kroxylicious.kms.provider.aws.kms.config.Ec2CredentialsProviderConfig;
-import io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider.SecurityCredentials;
+import io.kroxylicious.kms.provider.aws.kms.config.Ec2MetadataCredentialsProviderConfig;
+import io.kroxylicious.kms.provider.aws.kms.credentials.Ec2MetadataCredentialsProvider.SecurityCredentials;
 import io.kroxylicious.kms.service.KmsException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -47,7 +47,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class Ec2CredentialsProviderTest {
+class Ec2MetadataCredentialsProviderTest {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private static final String MY_TOKEN = "mytoken";
@@ -67,7 +67,7 @@ class Ec2CredentialsProviderTest {
               "Expiration" : "2017-05-17T15:09:54Z"
             }""";
     private static WireMockServer metadataServer;
-    private Ec2CredentialsProviderConfig config;
+    private Ec2MetadataCredentialsProviderConfig config;
     private ScheduledExecutorService executorService;
 
     @BeforeAll
@@ -83,7 +83,7 @@ class Ec2CredentialsProviderTest {
 
     @BeforeEach
     void setUp() {
-        config = new Ec2CredentialsProviderConfig(IAM_ROLE, Optional.of(URI.create(metadataServer.baseUrl())), Optional.of(0.20));
+        config = new Ec2MetadataCredentialsProviderConfig(IAM_ROLE, Optional.of(URI.create(metadataServer.baseUrl())), Optional.of(0.20));
         executorService = Executors.newSingleThreadScheduledExecutor();
 
         metadataServer.stubFor(
@@ -100,7 +100,7 @@ class Ec2CredentialsProviderTest {
 
     @Test
     void rejectsNullConfig() {
-        assertThatThrownBy(() -> new Ec2CredentialsProvider(null))
+        assertThatThrownBy(() -> new Ec2MetadataCredentialsProvider(null))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -112,7 +112,7 @@ class Ec2CredentialsProviderTest {
                         .willReturn(WireMock.aResponse()
                                 .withBody(KNOWN_GOOD_SECURITY_CREDENTIAL_RESPONSE)));
 
-        try (var provider = new Ec2CredentialsProvider(config)) {
+        try (var provider = new Ec2MetadataCredentialsProvider(config)) {
             var credentialsStage = provider.getCredentials();
             assertThat(credentialsStage)
                     .succeedsWithin(Duration.ofSeconds(5))
@@ -133,7 +133,7 @@ class Ec2CredentialsProviderTest {
                         .willReturn(WireMock.aResponse()
                                 .withBody(toJson(credentials))));
 
-        try (var provider = new Ec2CredentialsProvider(config, executorService, fixedClock)) {
+        try (var provider = new Ec2MetadataCredentialsProvider(config, executorService, fixedClock)) {
             var credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -163,7 +163,7 @@ class Ec2CredentialsProviderTest {
                         .willReturn(WireMock.aResponse()
                                 .withBody(toJson(initial))));
 
-        try (var provider = new Ec2CredentialsProvider(config, executorService, Clock.systemUTC())) {
+        try (var provider = new Ec2MetadataCredentialsProvider(config, executorService, Clock.systemUTC())) {
             var credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -205,7 +205,7 @@ class Ec2CredentialsProviderTest {
                         .willReturn(WireMock.aResponse()
                                 .withBody(toJson(initial))));
 
-        try (var provider = new Ec2CredentialsProvider(config, executor, clock)) {
+        try (var provider = new Ec2MetadataCredentialsProvider(config, executor, clock)) {
             var credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -235,7 +235,7 @@ class Ec2CredentialsProviderTest {
                         .willReturn(WireMock.aResponse()
                                 .withStatus(500)));
 
-        try (var provider = new Ec2CredentialsProvider(config)) {
+        try (var provider = new Ec2MetadataCredentialsProvider(config)) {
             var result = provider.getCredentials();
             assertThat(result)
                     .failsWithin(Duration.ofSeconds(1))
@@ -252,7 +252,7 @@ class Ec2CredentialsProviderTest {
                         .willReturn(WireMock.aResponse()
                                 .withStatus(500)));
 
-        try (var provider = new Ec2CredentialsProvider(config)) {
+        try (var provider = new Ec2MetadataCredentialsProvider(config)) {
             var result = provider.getCredentials();
             assertThat(result)
                     .failsWithin(Duration.ofSeconds(1))
@@ -269,7 +269,7 @@ class Ec2CredentialsProviderTest {
                         .willReturn(WireMock.aResponse()
                                 .withStatus(500)));
 
-        try (var provider = new Ec2CredentialsProvider(config)) {
+        try (var provider = new Ec2MetadataCredentialsProvider(config)) {
             var result = provider.getCredentials();
             assertThat(result)
                     .failsWithin(Duration.ofSeconds(1))

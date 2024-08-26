@@ -11,30 +11,34 @@ import java.util.Objects;
 import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 
+import io.kroxylicious.kms.provider.aws.kms.credentials.Credentials;
 import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProvider;
-import io.kroxylicious.kms.provider.aws.kms.credentials.Ec2CredentialsProvider;
+import io.kroxylicious.kms.provider.aws.kms.credentials.Ec2MetadataCredentialsProvider;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Config for the EC2 Credentials Provider.
  *
- * @param ec2IamRole name of the IAM role expected to the bound to the EC2 instance (required).
+ * Configuration for the provider that obtains {@link Credentials} from the metadata server of the EC2 instance.
+ *
+ * @param iamRole name of the IAM role expected to the bound to the EC2 instance (required).
  * @param metadataEndpoint metadata endpoint (defaulted)
  * @param credentialLifetimeFactor the factor applied to determine how long until a credential is preemptively refreshed
  */
-public record Ec2CredentialsProviderConfig(@JsonProperty(value = "ec2IamRole", required = true) String ec2IamRole,
-                                           @JsonProperty(value = "metadataEndpoint", required = false) Optional<URI> metadataEndpoint,
-                                           @JsonProperty(value = "credentialLifetimeFactor", required = false) Optional<Double> credentialLifetimeFactor)
+@JsonTypeName("ec2Metadata")
+public record Ec2MetadataCredentialsProviderConfig(@JsonProperty(value = "iamRole", required = true) String iamRole,
+                                                   @JsonProperty(value = "metadataEndpoint", required = false) Optional<URI> metadataEndpoint,
+                                                   @JsonProperty(value = "credentialLifetimeFactor", required = false) Optional<Double> credentialLifetimeFactor)
         implements CredentialsProviderConfig {
-    public Ec2CredentialsProviderConfig {
-        Objects.requireNonNull(ec2IamRole);
+    public Ec2MetadataCredentialsProviderConfig {
+        Objects.requireNonNull(iamRole);
     }
 
     @Override
     public @NonNull CredentialsProvider createCredentialsProvider() {
-        return new Ec2CredentialsProvider(this);
+        return new Ec2MetadataCredentialsProvider(this);
     }
 
     @Override
@@ -42,6 +46,6 @@ public record Ec2CredentialsProviderConfig(@JsonProperty(value = "ec2IamRole", r
         return "Ec2CredentialsProviderConfig[" +
                 "metadataEndpoint=" + metadataEndpoint.map(URI::toString).orElse("<default>") + ',' +
                 "credentialLifetimeFactor=" + credentialLifetimeFactor.map(String::valueOf).orElse("<default>") + ',' +
-                "ec2IamRole=" + ec2IamRole + ']';
+                "iamRole=" + iamRole + ']';
     }
 }

@@ -39,7 +39,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-import io.kroxylicious.kms.provider.aws.kms.config.Ec2CredentialsProviderConfig;
+import io.kroxylicious.kms.provider.aws.kms.config.Ec2MetadataCredentialsProviderConfig;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -59,8 +59,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * provider to try again.  A progress backoff is applied to retry attempts.
  * </p>
  */
-public class Ec2CredentialsProvider implements CredentialsProvider {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Ec2CredentialsProvider.class);
+public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
+    private static final Logger LOGGER = LoggerFactory.getLogger(Ec2MetadataCredentialsProvider.class);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -91,23 +91,28 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
     private final AtomicReference<CompletableFuture<SecurityCredentials>> current = new AtomicReference<>();
 
     private final AtomicLong tokenRefreshErrorCount = new AtomicLong();
-    private final Ec2CredentialsProviderConfig config;
+    private final Ec2MetadataCredentialsProviderConfig config;
     private final HttpClient client;
 
     private final ScheduledExecutorService executorService;
     @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
     private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
 
-    public Ec2CredentialsProvider(@NonNull Ec2CredentialsProviderConfig config) {
+    /**
+     * Creates the EC2 metadata credentials provider.
+     *
+     * @param config config.
+     */
+    public Ec2MetadataCredentialsProvider(@NonNull Ec2MetadataCredentialsProviderConfig config) {
         this(config, Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread thread = new Thread(r, Ec2CredentialsProvider.class.getName() + "thread");
+            Thread thread = new Thread(r, Ec2MetadataCredentialsProvider.class.getName() + "thread");
             thread.setDaemon(true);
             return thread;
         }), Clock.systemUTC());
     }
 
     @VisibleForTesting
-    Ec2CredentialsProvider(@NonNull Ec2CredentialsProviderConfig config, @NonNull ScheduledExecutorService executorService, @NonNull Clock systemClock) {
+    Ec2MetadataCredentialsProvider(@NonNull Ec2MetadataCredentialsProviderConfig config, @NonNull ScheduledExecutorService executorService, @NonNull Clock systemClock) {
         Objects.requireNonNull(config);
         Objects.requireNonNull(executorService);
         Objects.requireNonNull(systemClock);
@@ -192,7 +197,7 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
     private void refreshCredential(CompletableFuture<SecurityCredentials> future) {
         getToken()
                 .thenCompose(tokenResponse -> client.sendAsync(createSecurityCredentialsRequest(tokenResponse.body()), HttpResponse.BodyHandlers.ofByteArray()))
-                .thenApply(Ec2CredentialsProvider::checkResponseStatus)
+                .thenApply(Ec2MetadataCredentialsProvider::checkResponseStatus)
                 .thenApply(HttpResponse::body)
                 .thenApply(this::toSecurityCredentials)
                 .whenComplete((credentials, t) -> propagateResult(credentials, t, future));
@@ -200,7 +205,7 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
 
     private void propagateResult(SecurityCredentials credentials, Throwable t, CompletableFuture<SecurityCredentials> target) {
         if (t != null) {
-            LOGGER.warn("Refresh of EC2 credentials failed. Is IAM role {} assigned to this EC2 instance?", config.ec2IamRole(), t);
+            LOGGER.warn("Refresh of EC2 credentials failed. Is IAM role {} assigned to this EC2 instance?", config.iamRole(), t);
             tokenRefreshErrorCount.incrementAndGet();
             target.completeExceptionally(t);
         }
@@ -212,7 +217,7 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
 
     private CompletableFuture<HttpResponse<String>> getToken() {
         return client.sendAsync(createTokenRequest(), HttpResponse.BodyHandlers.ofString())
-                .thenApply(Ec2CredentialsProvider::checkResponseStatus);
+                .thenApply(Ec2MetadataCredentialsProvider::checkResponseStatus);
     }
 
     private HttpRequest createTokenRequest() {
@@ -226,7 +231,7 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
 
     private HttpRequest createSecurityCredentialsRequest(String token) {
         return HttpRequest.newBuilder()
-                .uri(getMetadataEndpoint().resolve(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + config.ec2IamRole()))
+                .uri(getMetadataEndpoint().resolve(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + config.iamRole()))
                 .header(AWS_METADATA_TOKEN_HEADER, token)
                 .timeout(HTTP_REQUEST_TIMEOUT)
                 .GET()
