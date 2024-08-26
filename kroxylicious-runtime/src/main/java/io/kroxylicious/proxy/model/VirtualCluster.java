@@ -187,11 +187,13 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     }
 
     private Optional<SslContext> buildUpstreamSslContext() {
-        return targetCluster.tls().map(tls -> {
+        return targetCluster.tls().map(targetClusterTls -> {
             try {
-                var sslContextBuilder = Optional.ofNullable(tls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient).orElse(SslContextBuilder.forClient());
-                var withTrust = Optional.ofNullable(tls.trust()).map(NettyTrustProvider::new).map(tp -> tp.apply(sslContextBuilder))
+                var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
+                        .orElse(SslContextBuilder.forClient());
+                var withTrust = Optional.ofNullable(targetClusterTls.trust()).map(NettyTrustProvider::new).map(tp -> tp.apply(sslContextBuilder))
                         .orElse(sslContextBuilder);
+                withTrust.endpointIdentificationAlgorithm("HTTPS");
                 return withTrust.build();
             }
             catch (SSLException e) {
