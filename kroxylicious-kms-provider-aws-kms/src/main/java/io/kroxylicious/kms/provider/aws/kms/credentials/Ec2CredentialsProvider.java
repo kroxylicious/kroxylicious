@@ -263,19 +263,20 @@ public class Ec2CredentialsProvider implements CredentialsProvider {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record SecurityCredentials(@JsonProperty(value = "AccessKeyId") @NonNull String accessKey,
-                                      @JsonProperty(value = "SecretAccessKey") @NonNull String secretKey,
+    public record SecurityCredentials(@JsonProperty(value = "AccessKeyId") @NonNull String accessKeyId,
+                                      @JsonProperty(value = "SecretAccessKey") @NonNull String secretAccessKey,
                                       @JsonProperty(value = "Token") @NonNull String token,
                                       @JsonProperty(value = "Expiration") @NonNull Instant expiration)
             implements Credentials {
 
         public SecurityCredentials {
-            Objects.requireNonNull(accessKey);
-            Objects.requireNonNull(secretKey);
+            Objects.requireNonNull(accessKeyId);
+            Objects.requireNonNull(secretAccessKey);
             Objects.requireNonNull(token);
             Objects.requireNonNull(expiration);
         }
 
+        @NonNull
         @Override
         public Optional<String> securityToken() {
             return Optional.of(token);

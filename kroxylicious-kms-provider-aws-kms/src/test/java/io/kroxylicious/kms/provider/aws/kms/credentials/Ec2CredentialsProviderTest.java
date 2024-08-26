@@ -109,8 +109,8 @@ class Ec2CredentialsProviderTest {
             var credentialsStage = provider.getCredentials();
             assertThat(credentialsStage)
                     .succeedsWithin(Duration.ofSeconds(5))
-                    .returns("ASIAIOSFODNN7EXAMPLE", SecurityCredentials::accessKey)
-                    .returns("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", SecurityCredentials::secretKey)
+                    .returns("ASIAIOSFODNN7EXAMPLE", SecurityCredentials::accessKeyId)
+                    .returns("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", SecurityCredentials::secretAccessKey)
                     .returns(Instant.parse("2017-05-17T15:09:54Z"), SecurityCredentials::expiration);
         }
     }
@@ -120,7 +120,7 @@ class Ec2CredentialsProviderTest {
         var now = Instant.now();
         var fixedClock = Clock.fixed(now, ZoneId.systemDefault());
 
-        var credentials = createTestCredential("Success", "accessKey", "secretKey", "token", Instant.now().plusSeconds(1));
+        var credentials = createTestCredential("Success", "accessKeyId", "secretAccessKey", "token", Instant.now().plusSeconds(1));
         metadataServer.stubFor(
                 get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
@@ -149,7 +149,7 @@ class Ec2CredentialsProviderTest {
     @Test
     void credentialGetsPreemptivelyRefreshed() {
         var now = Instant.now();
-        var initial = createTestCredential("Success", "accessKey", "initialKey", "token", now.plusSeconds(10));
+        var initial = createTestCredential("Success", "accessKeyId", "initialKey", "token", now.plusSeconds(10));
 
         metadataServer.stubFor(
                 get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
@@ -160,10 +160,10 @@ class Ec2CredentialsProviderTest {
             var credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
-                    .returns("initialKey", SecurityCredentials::secretKey)
+                    .returns("initialKey", SecurityCredentials::secretAccessKey)
                     .isNotNull();
 
-            var refreshed = createTestCredential("Success", "accessKey", "refreshedKey", "token", now.plusSeconds(20));
+            var refreshed = createTestCredential("Success", "accessKeyId", "refreshedKey", "token", now.plusSeconds(20));
             metadataServer.stubFor(
                     get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                             .willReturn(WireMock.aResponse()
@@ -174,7 +174,7 @@ class Ec2CredentialsProviderTest {
                         var refreshedStage = provider.getCredentials();
                         assertThat(refreshedStage)
                                 .succeedsWithin(Duration.ofSeconds(1))
-                                .returns("refreshedKey", SecurityCredentials::secretKey);
+                                .returns("refreshedKey", SecurityCredentials::secretAccessKey);
                     });
         }
     }
@@ -185,7 +185,7 @@ class Ec2CredentialsProviderTest {
         var executor = mock(ScheduledThreadPoolExecutor.class);
 
         var now = Instant.now();
-        var initial = createTestCredential("Success", "accessKey", "initialKey", "token", now.plusSeconds(10));
+        var initial = createTestCredential("Success", "accessKeyId", "initialKey", "token", now.plusSeconds(10));
 
         doAnswer(invocation -> {
             var runnable = ((Runnable) invocation.getArguments()[0]);
@@ -202,10 +202,10 @@ class Ec2CredentialsProviderTest {
             var credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
-                    .returns("initialKey", SecurityCredentials::secretKey)
+                    .returns("initialKey", SecurityCredentials::secretAccessKey)
                     .isNotNull();
 
-            var refreshed = createTestCredential("Success", "accessKey", "refreshedKey", "token", now.plusSeconds(20));
+            var refreshed = createTestCredential("Success", "accessKeyId", "refreshedKey", "token", now.plusSeconds(20));
             metadataServer.stubFor(
                     get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                             .willReturn(WireMock.aResponse()
@@ -217,7 +217,7 @@ class Ec2CredentialsProviderTest {
             credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
-                    .returns("refreshedKey", SecurityCredentials::secretKey);
+                    .returns("refreshedKey", SecurityCredentials::secretAccessKey);
         }
     }
 
@@ -270,7 +270,7 @@ class Ec2CredentialsProviderTest {
                     .withCauseInstanceOf(KmsException.class)
                     .withMessageContaining("HTTP status code 500");
 
-            var credential = createTestCredential("Success", "accessKey", "secretKey", "token", Clock.systemUTC().instant().plusSeconds(30));
+            var credential = createTestCredential("Success", "accessKeyId", "secretAccessKey", "token", Clock.systemUTC().instant().plusSeconds(30));
             metadataServer.stubFor(
                     get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                             .willReturn(WireMock.aResponse()
@@ -279,7 +279,7 @@ class Ec2CredentialsProviderTest {
             result = provider.getCredentials();
             assertThat(result)
                     .succeedsWithin(Duration.ofSeconds(2))
-                    .returns("secretKey", SecurityCredentials::secretKey);
+                    .returns("secretAccessKey", SecurityCredentials::secretAccessKey);
         }
     }
 
