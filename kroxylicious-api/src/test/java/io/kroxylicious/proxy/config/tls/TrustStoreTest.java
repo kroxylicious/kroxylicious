@@ -49,6 +49,11 @@ class TrustStoreTest {
             public TrustStore visit(InsecureTls insecureTls) {
                 throw new RuntimeException("unexpected call to visit(InsecureTls)");
             }
+
+            @Override
+            public TrustStore visit(PlatformTrustProvider platformTrustProviderTls) {
+                throw new RuntimeException("unexpected call to visit(PlatformTrustProvider)");
+            }
         });
         assertThat(result).isSameAs(trustProvider);
     }

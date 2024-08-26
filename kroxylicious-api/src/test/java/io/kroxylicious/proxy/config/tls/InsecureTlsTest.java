@@ -18,13 +18,19 @@ class InsecureTlsTest {
         InsecureTls result = trustProvider.accept(new TrustProviderVisitor<>() {
             @Override
             public InsecureTls visit(TrustStore trustStore) {
-                throw new RuntimeException("should not be called");
+                throw new RuntimeException("unexpected call to visit(TrustStore)");
             }
 
             @Override
             public InsecureTls visit(InsecureTls insecureTls) {
                 return insecureTls;
             }
+
+            @Override
+            public InsecureTls visit(PlatformTrustProvider platformTrustProviderTls) {
+                throw new RuntimeException("unexpected call to visit(PlatformTrustProvider)");
+            }
+
         });
         assertThat(result).isSameAs(trustProvider);
     }
