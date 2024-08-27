@@ -100,7 +100,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         var localCause = cause;
         while (localCause != null) {
             if (responsesByExceptionType.containsKey(localCause.getClass())) {
-                //Not logging in this case its "handled"
+                // Not logging in this case its "handled"
                 frontendHandler.closeWith(ctx.channel(), responsesByExceptionType.get(localCause.getClass()).apply(localCause));
                 return;
             }

@@ -28,7 +28,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyBackendHandlerTest {
 
-    //TODO nasty mocking our own class but needs too much wiring for now.
+    // TODO nasty mocking our own class but needs too much wiring for now.
     @Mock
     KafkaProxyFrontendHandler frontendHandler;
 
