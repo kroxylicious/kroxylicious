@@ -9,17 +9,12 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-import javax.net.ssl.SSLHandshakeException;
-
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static java.util.Objects.requireNonNull;
 
@@ -37,7 +32,6 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         this.frontendHandler = frontendHandler;
         this.inboundCtx = requireNonNull(inboundCtx);
         responsesByExceptionType = new ConcurrentHashMap<>();
-        registerExceptionResponse(SSLHandshakeException.class, UnknownServerException::new);
     }
 
     @Override
@@ -112,8 +106,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         frontendHandler.closeOnFlush(ctx.channel());
     }
 
-    @VisibleForTesting
-    protected void registerExceptionResponse(Class<? extends Exception> exceptionClass, Function<Throwable, ?> responseFunction) {
+    public void registerExceptionResponse(Class<? extends Exception> exceptionClass, Function<Throwable, ?> responseFunction) {
         responsesByExceptionType.put(exceptionClass, responseFunction);
     }
 }

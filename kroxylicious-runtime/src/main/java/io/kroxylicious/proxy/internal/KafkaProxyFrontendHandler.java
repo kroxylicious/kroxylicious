@@ -12,6 +12,9 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.net.ssl.SSLHandshakeException;
+
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
@@ -311,7 +314,10 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
         }
 
-        virtualCluster.getUpstreamSslContext().ifPresent(c -> pipeline.addFirst("ssl", c.newHandler(outboundChannel.alloc(), remote.host(), remote.port())));
+        virtualCluster.getUpstreamSslContext().ifPresent(c -> {
+            pipeline.addFirst("ssl", c.newHandler(outboundChannel.alloc(), remote.host(), remote.port()));
+            backendHandler.registerExceptionResponse(SSLHandshakeException.class, UnknownServerException::new);
+        });
 
         connectFuture.addListener(future -> {
             if (future.isSuccess()) {
