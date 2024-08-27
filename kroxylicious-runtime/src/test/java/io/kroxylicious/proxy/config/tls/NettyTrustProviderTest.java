@@ -84,4 +84,16 @@ class NettyTrustProviderTest {
         // Then
         assertThat(sslContextBuilder).extracting("endpointIdentificationAlgorithm").isEqualTo("HTTPS");
     }
+
+    @Test
+    void shouldEnableHostnameVerificationForPlatformTrust() {
+        // Given
+        var trustStore = new NettyTrustProvider(PlatformTrustProvider.INSTANCE);
+
+        // When
+        trustStore.apply(sslContextBuilder);
+
+        // Then
+        assertThat(sslContextBuilder).extracting("endpointIdentificationAlgorithm").isEqualTo("HTTPS");
+    }
 }
