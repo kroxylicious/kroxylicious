@@ -29,7 +29,9 @@ import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
+import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -115,6 +117,38 @@ class TlsIT extends BaseIT {
             // do some work to ensure connection is opened
             final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void upstreamConnectionValidatesHostnames(@Tls KafkaCluster cluster) {
+        var bootstrapServers = cluster.getBootstrapServers();
+        var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+        assertThat(brokerTruststore).isNotEmpty();
+        assertThat(brokerTruststorePassword).isNotEmpty();
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers.replace("localhost", "127.0.0.1"))
+                        .withNewTls()
+                        .withNewTrustStoreTrust()
+                        .withStoreFile(brokerTruststore)
+                        .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
+                        .endTrustStoreTrust()
+                        .endTls()
+                        .endTargetCluster()
+                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
+            // do some work to ensure connection is opened
+            assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(10_000)).clusterId()).failsWithin(Duration.ofSeconds(30))
+                    .withThrowableThat()
+                    .withCauseInstanceOf(TimeoutException.class)
+                    .havingCause()
+                    .withMessageStartingWith("Timed out waiting for a node assignment.");
         }
     }
 
