@@ -132,6 +132,7 @@ class TlsIT extends BaseIT {
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers.replace("localhost", "127.0.0.1"))
+                        // 127.0.0.1 is not included as Subject Alternate Name (SAN) so hostname validation will fail.
                         .withNewTls()
                         .withNewTrustStoreTrust()
                         .withStoreFile(brokerTruststore)
