@@ -19,6 +19,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 import static java.util.Objects.requireNonNull;
 
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
@@ -35,7 +37,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         this.frontendHandler = frontendHandler;
         this.inboundCtx = requireNonNull(inboundCtx);
         responsesByExceptionType = new ConcurrentHashMap<>();
-        responsesByExceptionType.put(SSLHandshakeException.class, UnknownServerException::new);
+        registerExceptionResponse(SSLHandshakeException.class, UnknownServerException::new);
     }
 
     @Override
@@ -110,6 +112,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         frontendHandler.closeOnFlush(ctx.channel());
     }
 
+    @VisibleForTesting
     protected void registerExceptionResponse(Class<? extends Exception> exceptionClass, Function<Throwable, ?> responseFunction) {
         responsesByExceptionType.put(exceptionClass, responseFunction);
     }
