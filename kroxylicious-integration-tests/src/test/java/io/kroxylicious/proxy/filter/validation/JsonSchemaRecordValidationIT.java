@@ -40,10 +40,6 @@ import com.github.dockerjava.api.model.ExposedPort;
 import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Ports;
 
-import io.apicurio.registry.resolver.ParsedSchema;
-import io.apicurio.registry.resolver.data.Record;
-import io.apicurio.registry.resolver.strategy.ArtifactReference;
-import io.apicurio.registry.resolver.strategy.ArtifactReferenceResolverStrategy;
 import io.apicurio.registry.rest.client.RegistryClientFactory;
 import io.apicurio.registry.serde.SerdeConfig;
 import io.apicurio.registry.serde.jsonschema.JsonSchemaSerde;
@@ -181,22 +177,6 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         }
     }
 
-    public static class FixedArtifactReferenceResolver implements ArtifactReferenceResolverStrategy {
-        @Override
-        public ArtifactReference artifactReference(Record data, ParsedSchema parsedSchema) {
-            return ArtifactReference.builder()
-                    .artifactId(FIRST_ARTIFACT_ID)
-                    .globalId(firstGlobalId)
-                    .build();
-        }
-
-        @Override
-        public boolean loadSchema() {
-            return false;
-        }
-
-    }
-
     record PersonBean(String firstName, String lastName, int age) {}
 
     @ParameterizedTest
@@ -294,7 +274,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         var producerKeySerde = new JsonSchemaSerde<PersonBean>();
         producerKeySerde.configure(Map.of(
                 SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
-                SerdeConfig.ARTIFACT_RESOLVER_STRATEGY, FixedArtifactReferenceResolver.class.getName(),
+                SerdeConfig.EXPLICIT_ARTIFACT_ID, FIRST_ARTIFACT_ID,
                 SerdeConfig.ENABLE_HEADERS, schemaIdInHeader), isKey);
         return producerKeySerde;
     }
