@@ -457,9 +457,16 @@ public class KafkaProxyFrontendHandler
     /**
      * Closes the specified channel after all queued write requests are flushed.
      */
-    static void closeOnFlush(Channel ch) {
+    void closeOnFlush(Channel ch) {
+        closeWith(ch, Unpooled.EMPTY_BUFFER);
+    }
+
+    /**
+     * Closes the specified channel after all queued write requests are flushed.
+     */
+    void closeWith(Channel ch, Object response) {
         if (ch.isActive()) {
-            ch.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+            ch.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
         }
     }
 
