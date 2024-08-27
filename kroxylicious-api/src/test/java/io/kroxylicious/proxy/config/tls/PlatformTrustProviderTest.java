@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PlatformTrustProviderTest {
     @Test
     void testAccept() {
-        TrustProvider trustProvider = new PlatformTrustProvider();
+        TrustProvider trustProvider = PlatformTrustProvider.INSTANCE;
         Void result = trustProvider.accept(new TrustProviderVisitor<>() {
             @Override
             public Void visit(TrustStore trustStore) {

@@ -194,7 +194,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                 var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
                         .orElse(SslContextBuilder.forClient());
 
-                final TrustProvider trustProvider = Optional.ofNullable(targetClusterTls.trust()).orElse(new PlatformTrustProvider());
+                final TrustProvider trustProvider = Optional.ofNullable(targetClusterTls.trust()).orElse(PlatformTrustProvider.INSTANCE);
                 var withTrust = new NettyTrustProvider(trustProvider).apply(sslContextBuilder);
 
                 return withTrust.build();
