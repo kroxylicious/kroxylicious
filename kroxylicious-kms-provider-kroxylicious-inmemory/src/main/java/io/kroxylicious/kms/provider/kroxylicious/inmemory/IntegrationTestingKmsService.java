@@ -37,7 +37,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @see UnitTestingKmsService
  */
 @Plugin(configType = IntegrationTestingKmsService.Config.class)
-public class IntegrationTestingKmsService implements KmsService<IntegrationTestingKmsService.Config, UUID, InMemoryEdek> {
+public class IntegrationTestingKmsService implements KmsService<IntegrationTestingKmsService.Config, IntegrationTestingKmsService.Config, UUID, InMemoryEdek> {
 
     public static IntegrationTestingKmsService newInstance() {
         return (IntegrationTestingKmsService) ServiceLoader.load(KmsService.class).stream()
@@ -60,8 +60,8 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
 
     @NonNull
     @Override
-    public InMemoryKms buildKms(Config options) {
-        return KMSES.computeIfAbsent(options.name(), ignored -> new InMemoryKms(12, 128, Map.of(), Map.of()));
+    public InMemoryKms buildKms(Config initializationData) {
+        return KMSES.computeIfAbsent(initializationData.name(), ignored -> new InMemoryKms(12, 128, Map.of(), Map.of()));
     }
 
     public static void delete(String name) {

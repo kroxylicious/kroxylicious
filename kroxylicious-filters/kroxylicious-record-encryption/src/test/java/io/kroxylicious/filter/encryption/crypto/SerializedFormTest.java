@@ -182,7 +182,7 @@ class SerializedFormTest {
         DekPair dekPair = new DekPair(HexFormat.of().parseHex(edekHex), DestroyableRawSecretKey.takeOwnershipOf(HexFormat.of().parseHex("0dec"), "foo"));
         doReturn(CompletableFuture.completedFuture(dekPair)).when(kms).generateDekPair(kekId);
         doReturn(new ByteArraySerde()).when(kms).edekSerde();
-        KmsService<Object, byte[], byte[]> kmsService = Mockito.mock(KmsService.class);
+        KmsService<Object, Object, byte[], byte[]> kmsService = Mockito.mock(KmsService.class);
         doReturn(kms).when(kmsService).buildKms(null);
         var dm = new DekManager<>(kmsService, null, 1);
 

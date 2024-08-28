@@ -36,7 +36,7 @@ import static java.util.stream.Collectors.toMap;
  * @see IntegrationTestingKmsService
  */
 @Plugin(configType = UnitTestingKmsService.Config.class)
-public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.Config, UUID, InMemoryEdek> {
+public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.Config, UnitTestingKmsService.Config, UUID, InMemoryEdek> {
     private Map<Config, InMemoryKms> kmsMap = new ConcurrentHashMap<>();
 
     public static UnitTestingKmsService newInstance() {
@@ -79,14 +79,14 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
 
     @NonNull
     @Override
-    public InMemoryKms buildKms(Config options) {
-        return kmsMap.computeIfAbsent(options, config -> {
-            List<Kek> kekDefs = options.existingKeks();
+    public InMemoryKms buildKms(Config initializationData) {
+        return kmsMap.computeIfAbsent(initializationData, config -> {
+            List<Kek> kekDefs = initializationData.existingKeks();
             Map<UUID, DestroyableRawSecretKey> keys = kekDefs.stream()
                     .collect(toMap(k -> UUID.fromString(k.uuid), k -> DestroyableRawSecretKey.takeCopyOf(k.key, k.algorithm)));
             Map<String, UUID> aliases = kekDefs.stream().collect(toMap(k -> k.alias, k -> UUID.fromString(k.uuid)));
-            return new InMemoryKms(options.numIvBytes(),
-                    options.numAuthBits(),
+            return new InMemoryKms(initializationData.numIvBytes(),
+                    initializationData.numAuthBits(),
                     keys, aliases);
         });
     }

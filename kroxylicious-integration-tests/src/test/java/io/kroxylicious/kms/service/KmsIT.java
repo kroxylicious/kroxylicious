@@ -35,7 +35,7 @@ class KmsIT<C, K, E> {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void beforeEach(TestKmsFacade<?, ?, ?> facade) throws Exception {
-        var service = (KmsService<C, K, E>) facade.getKmsServiceClass().getDeclaredConstructor(new Class[]{}).newInstance();
+        var service = (KmsService<C, C, K, E>) facade.getKmsServiceClass().getDeclaredConstructor(new Class[]{}).newInstance();
         kms = service.buildKms((C) facade.getKmsServiceConfig());
         manager = facade.getTestKekManager();
 

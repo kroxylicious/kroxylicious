@@ -24,24 +24,28 @@ public class SharedEncryptionContext<K, E> {
     private final DekManager<K, E> dekManager;
     private final EncryptionDekCache<K, E> encryptionDekCache;
     private final DecryptionDekCache<K, E> decryptionDekCache;
+    private final Runnable kmsCloser;
 
     /**
      * @param kms
      * @param configuration
      * @param dekManager
      * @param encryptionDekCache
+     * @param kmsCloser kms closer
      */
     SharedEncryptionContext(
                             Kms<K, E> kms,
                             RecordEncryptionConfig configuration,
                             DekManager<K, E> dekManager,
                             EncryptionDekCache<K, E> encryptionDekCache,
-                            DecryptionDekCache<K, E> decryptionDekCache) {
+                            DecryptionDekCache<K, E> decryptionDekCache,
+                            Runnable kmsCloser) {
         this.kms = kms;
         this.configuration = configuration;
         this.dekManager = dekManager;
         this.encryptionDekCache = encryptionDekCache;
         this.decryptionDekCache = decryptionDekCache;
+        this.kmsCloser = kmsCloser;
     }
 
     public Kms<K, E> kms() {
@@ -62,5 +66,9 @@ public class SharedEncryptionContext<K, E> {
 
     public DecryptionDekCache<K, E> decryptionDekCache() {
         return decryptionDekCache;
+    }
+
+    public Runnable kmsCloser() {
+        return kmsCloser;
     }
 }

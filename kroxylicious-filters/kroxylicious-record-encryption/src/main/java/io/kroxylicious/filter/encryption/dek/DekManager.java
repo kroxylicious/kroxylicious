@@ -32,7 +32,7 @@ public class DekManager<K, E> {
     private final Kms<K, E> kms;
     private final long maxEncryptionsPerDek;
 
-    public <C> DekManager(KmsService<C, K, E> kmsService, C config, long maxEncryptionsPerDek) {
+    public <C> DekManager(KmsService<C, C, K, E> kmsService, C config, long maxEncryptionsPerDek) {
         this.kms = kmsService.buildKms(config);
         this.maxEncryptionsPerDek = maxEncryptionsPerDek;
     }

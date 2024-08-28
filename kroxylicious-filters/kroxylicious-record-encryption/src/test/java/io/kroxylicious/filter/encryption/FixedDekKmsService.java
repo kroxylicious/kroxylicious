@@ -22,7 +22,7 @@ import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config, ByteBuffer, ByteBuffer> {
+public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config, FixedDekKmsService.Config, ByteBuffer, ByteBuffer> {
 
     private final SecretKey dek;
     private final ByteBuffer edek;
@@ -43,7 +43,7 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
 
     @NonNull
     @Override
-    public Kms<ByteBuffer, ByteBuffer> buildKms(Config options) {
+    public Kms<ByteBuffer, ByteBuffer> buildKms(Config initializationData) {
         return fixedEdekKms;
     }
 

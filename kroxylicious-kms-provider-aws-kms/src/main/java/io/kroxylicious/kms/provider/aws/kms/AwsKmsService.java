@@ -18,16 +18,16 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * An implementation of the {@link KmsService} interface backed by a remote instance of AWS KMS.
  */
 @Plugin(configType = Config.class)
-public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
+public class AwsKmsService implements KmsService<Config, Config, String, AwsKmsEdek> {
 
     @NonNull
     @Override
-    public AwsKms buildKms(Config options) {
-        return new AwsKms(options.endpointUrl(),
-                options.accessKey().getProvidedPassword(),
-                options.secretKey().getProvidedPassword(),
-                options.region(),
-                Duration.ofSeconds(20), options.sslContext());
+    public AwsKms buildKms(Config initializationData) {
+        return new AwsKms(initializationData.endpointUrl(),
+                initializationData.accessKey().getProvidedPassword(),
+                initializationData.secretKey().getProvidedPassword(),
+                initializationData.region(),
+                Duration.ofSeconds(20), initializationData.sslContext());
     }
 
 }
