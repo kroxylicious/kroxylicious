@@ -158,6 +158,8 @@
                         <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
                         <excludes>
                             <exclude>io.kroxylicious.proxy.config.secret.FilePasswordFilePath</exclude>  <!-- used purely in config files and the name still exists (as a JSON alias) -->
+                            <exclude>io.kroxylicious.proxy.config.tls.PlatformTrustProvider</exclude>  <!-- only used from kroxylicious-runtime, temporary exclusion for 0.7.1 -->
+                            <exclude>io.kroxylicious.proxy.config.tls.TrustProviderVisitor</exclude>  <!-- new method only used from kroxylicious-runtime, temporary exclusion for 0.7.1 -->
                         </excludes>
                         <!-- see documentation -->
                     </parameter>
