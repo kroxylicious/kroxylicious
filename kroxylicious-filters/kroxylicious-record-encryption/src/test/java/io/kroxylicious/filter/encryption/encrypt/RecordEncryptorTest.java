@@ -65,7 +65,8 @@ class RecordEncryptorTest {
     static TestComponents setup(int keysize) {
         try {
             fixedDekKmsService = new FixedDekKmsService(keysize);
-            DekManager<ByteBuffer, ByteBuffer> manager = new DekManager<>(fixedDekKmsService, new FixedDekKmsService.Config(), 10000);
+            var kms = fixedDekKmsService.buildKms();
+            DekManager<ByteBuffer, ByteBuffer> manager = new DekManager<>(kms, 10000);
             CompletionStage<Dek<ByteBuffer>> dekCompletionStage = manager.generateDek(fixedDekKmsService.getKekId(), Aes.AES_256_GCM_128);
             Dek<ByteBuffer> dek = dekCompletionStage.toCompletableFuture().get(0, TimeUnit.SECONDS);
             var encryptor = dek.encryptor(1000);

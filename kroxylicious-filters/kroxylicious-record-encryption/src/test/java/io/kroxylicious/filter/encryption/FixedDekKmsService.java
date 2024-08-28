@@ -22,11 +22,11 @@ import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config, ByteBuffer, ByteBuffer> {
+public class FixedDekKmsService implements KmsService<Void, ByteBuffer, ByteBuffer> {
 
+    private static final ByteBuffer KEK_ID = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
     private final SecretKey dek;
     private final ByteBuffer edek;
-    private static final ByteBuffer KEK_ID = ByteBuffer.wrap(new byte[]{ 1, 2, 3 });
     private final FixedEdekKms fixedEdekKms = new FixedEdekKms();
 
     public FixedDekKmsService(int keysize) {
@@ -41,9 +41,14 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
         }
     }
 
+    @Override
+    public void initialize(@NonNull Void config) {
+        // this KMS requires no config
+    }
+
     @NonNull
     @Override
-    public Kms<ByteBuffer, ByteBuffer> buildKms(Config options) {
+    public Kms<ByteBuffer, ByteBuffer> buildKms() {
         return fixedEdekKms;
     }
 
@@ -54,8 +59,6 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
     public Serde<ByteBuffer> edekSerde() {
         return fixedEdekKms.edekSerde();
     }
-
-    public record Config() {}
 
     private class FixedEdekKms implements Kms<ByteBuffer, ByteBuffer> {
 
