@@ -69,7 +69,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         retryThread.setDaemon(true);
         return retryThread;
     });
-    private static KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(Metrics.globalRegistry);
+    private static final KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(Metrics.globalRegistry);
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryption.class);
 
     /**
@@ -105,16 +105,18 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
                                                     RecordEncryptionConfig configuration)
             throws PluginConfigurationException {
         checkCipherSuite();
-        Kms<K, E> kms = buildKms(context, configuration);
+        KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
+        kmsPlugin.initialize(configuration.kmsConfig());
+        Kms<K, E> kms = buildKms(configuration, kmsPlugin);
 
         var dekConfig = configuration.dekManager();
-        DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, dekConfig.maxEncryptionsPerDek());
+        DekManager<K, E> dekManager = new DekManager<>(kms, dekConfig.maxEncryptionsPerDek());
 
         KmsCacheConfig cacheConfig = configuration.kmsCache();
         EncryptionDekCache<K, E> encryptionDekCache = new EncryptionDekCache<>(dekManager, null, EncryptionDekCache.NO_MAX_CACHE_SIZE,
                 cacheConfig.encryptionDekCacheRefreshAfterWriteDuration(), cacheConfig.encryptionDekCacheExpireAfterWriteDuration());
         DecryptionDekCache<K, E> decryptionDekCache = new DecryptionDekCache<>(dekManager, null, DecryptionDekCache.NO_MAX_CACHE_SIZE);
-        return new SharedEncryptionContext<>(kms, configuration, dekManager, encryptionDekCache, decryptionDekCache);
+        return new SharedEncryptionContext<>(kms, kmsPlugin::close, configuration, dekManager, encryptionDekCache, decryptionDekCache);
     }
 
     @NonNull
@@ -143,9 +145,8 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
     @NonNull
     @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
-    private static <K, E> Kms<K, E> buildKms(FilterFactoryContext context, RecordEncryptionConfig configuration) {
-        KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
-        Kms<K, E> kms = kmsPlugin.buildKms(configuration.kmsConfig());
+    private static <C, K, E> Kms<K, E> buildKms(RecordEncryptionConfig configuration, KmsService<C, K, E> kmsPlugin) {
+        Kms<K, E> kms = kmsPlugin.buildKms();
         kms = InstrumentedKms.wrap(kms, kmsMetrics);
         ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
                 ThreadLocalRandom.current());
@@ -159,5 +160,10 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         LOGGER.debug("KMS cache configuration: {}", config);
         return CachingKms.wrap(resilientKms, config.decryptedDekCacheSize(), config.decryptedDekExpireAfterAccessDuration(), config.resolvedAliasCacheSize(),
                 config.resolvedAliasExpireAfterWriteDuration(), config.resolvedAliasRefreshAfterWriteDuration(), config.notFoundAliasExpireAfterWriteDuration());
+    }
+
+    @Override
+    public void close(SharedEncryptionContext<K, E> initializationData) {
+        initializationData.kmsServiceCloser().run();
     }
 }

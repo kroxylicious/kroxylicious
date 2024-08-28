@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,6 +48,9 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
                 .orElse(null);
     }
 
+    @SuppressWarnings("java:S3077") // Config is an immutable object
+    private volatile Config config;
+
     public record Config(
                          String name) {
         public Config {
@@ -58,10 +62,23 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
 
     private static final Map<String, InMemoryKms> KMSES = new ConcurrentHashMap<>();
 
+    @Override
+    public void initialize(@NonNull Config config) {
+        Objects.requireNonNull(config);
+        if (this.config != null) {
+            throw new IllegalStateException("KMS service is already initialized");
+        }
+        this.config = config;
+    }
+
     @NonNull
     @Override
-    public InMemoryKms buildKms(Config options) {
-        return KMSES.computeIfAbsent(options.name(), ignored -> new InMemoryKms(12, 128, Map.of(), Map.of()));
+    public InMemoryKms buildKms() {
+        if (config == null) {
+            throw new IllegalStateException("KMS service not initialized");
+        }
+
+        return KMSES.computeIfAbsent(config.name(), ignored -> new InMemoryKms(12, 128, Map.of(), Map.of()));
     }
 
     public static void delete(String name) {

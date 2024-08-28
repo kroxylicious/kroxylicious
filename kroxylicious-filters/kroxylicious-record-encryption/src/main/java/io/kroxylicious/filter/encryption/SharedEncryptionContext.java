@@ -15,52 +15,20 @@ import io.kroxylicious.kms.service.Kms;
 /**
  * Things which are shared between instances of the filter.
  * Because they're shared between filter instances, the things shared here must be thread-safe.
+ *
+ * @param kms KMS
+ * @param kmsServiceCloser KMS closer
+ * @param configuration configuration
+ * @param dekManager DEK manager
+ * @param encryptionDekCache Encryption DEK Cache
+ * @param decryptionDekCache Decryption DEK Cache
+ *
  * @param <K> The type of KEK id.
  * @param <E> The type of the encrypted DEK.
  */
-public class SharedEncryptionContext<K, E> {
-    private final Kms<K, E> kms;
-    private final RecordEncryptionConfig configuration;
-    private final DekManager<K, E> dekManager;
-    private final EncryptionDekCache<K, E> encryptionDekCache;
-    private final DecryptionDekCache<K, E> decryptionDekCache;
-
-    /**
-     * @param kms
-     * @param configuration
-     * @param dekManager
-     * @param encryptionDekCache
-     */
-    SharedEncryptionContext(
-                            Kms<K, E> kms,
-                            RecordEncryptionConfig configuration,
-                            DekManager<K, E> dekManager,
-                            EncryptionDekCache<K, E> encryptionDekCache,
-                            DecryptionDekCache<K, E> decryptionDekCache) {
-        this.kms = kms;
-        this.configuration = configuration;
-        this.dekManager = dekManager;
-        this.encryptionDekCache = encryptionDekCache;
-        this.decryptionDekCache = decryptionDekCache;
-    }
-
-    public Kms<K, E> kms() {
-        return kms;
-    }
-
-    public RecordEncryptionConfig configuration() {
-        return configuration;
-    }
-
-    public DekManager<K, E> dekManager() {
-        return dekManager;
-    }
-
-    public EncryptionDekCache<K, E> encryptionDekCache() {
-        return encryptionDekCache;
-    }
-
-    public DecryptionDekCache<K, E> decryptionDekCache() {
-        return decryptionDekCache;
-    }
-}
+record SharedEncryptionContext<K, E>(Kms<K, E> kms,
+                                     Runnable kmsServiceCloser,
+                                     RecordEncryptionConfig configuration,
+                                     DekManager<K, E> dekManager,
+                                     EncryptionDekCache<K, E> encryptionDekCache,
+                                     DecryptionDekCache<K, E> decryptionDekCache) {}

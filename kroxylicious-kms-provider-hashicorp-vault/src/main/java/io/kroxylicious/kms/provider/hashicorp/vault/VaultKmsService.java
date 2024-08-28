@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import java.time.Duration;
+import java.util.Objects;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.KmsService;
@@ -20,10 +21,26 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 @Plugin(configType = Config.class)
 public class VaultKmsService implements KmsService<Config, String, VaultEdek> {
 
+    @SuppressWarnings("java:S3077") // Config is an immutable object
+    private volatile Config config;
+
+    @Override
+    public void initialize(@NonNull Config config) {
+        Objects.requireNonNull(config);
+        if (this.config != null) {
+            throw new IllegalStateException("KMS service is already initialized");
+        }
+        this.config = config;
+    }
+
     @NonNull
     @Override
-    public VaultKms buildKms(Config options) {
-        return new VaultKms(options.vaultTransitEngineUrl(), options.vaultToken().getProvidedPassword(), Duration.ofSeconds(20), options.sslContext());
+    public VaultKms buildKms() {
+        if (config == null) {
+            throw new IllegalStateException("KMS service not initialized");
+        }
+        return new VaultKms(config.vaultTransitEngineUrl(), config.vaultToken().getProvidedPassword(), Duration.ofSeconds(20),
+                config.sslContext());
     }
 
 }

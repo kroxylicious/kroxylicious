@@ -203,7 +203,10 @@ class VaultKmsTest {
             InetSocketAddress address = httpServer.getAddress();
             String vaultAddress = "http://127.0.0.1:" + address.getPort() + "/v1/transit";
             var config = new Config(URI.create(vaultAddress), new InlinePassword("token"), null);
-            VaultKms service = new VaultKmsService().buildKms(config);
+            @SuppressWarnings("resource")
+            var vaultKmsService = new VaultKmsService();
+            vaultKmsService.initialize(config);
+            var service = vaultKmsService.buildKms();
             consumer.accept(service);
         }
         finally {
@@ -226,13 +229,14 @@ class VaultKmsTest {
     private void assertReusesConnectionsOn404(Consumer<VaultKms> consumer) {
         RemotePortTrackingHandler handler = new RemotePortTrackingHandler();
         HttpServer httpServer = httpServer(handler);
-        try {
+        try (var vaultKmsService = new VaultKmsService()) {
             InetSocketAddress address = httpServer.getAddress();
             String vaultAddress = "http://127.0.0.1:" + address.getPort() + "/v1/transit";
             var config = new Config(URI.create(vaultAddress), new InlinePassword("token"), null);
-            VaultKms service = new VaultKmsService().buildKms(config);
+            vaultKmsService.initialize(config);
+            VaultKms kms = vaultKmsService.buildKms();
             for (int i = 0; i < 5; i++) {
-                consumer.accept(service);
+                consumer.accept(kms);
             }
             assertThat(handler.remotePorts).hasSize(1);
         }
