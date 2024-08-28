@@ -5,10 +5,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,12 +22,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     private final ChannelHandlerContext inboundCtx;
     private ChannelHandlerContext blockedOutboundCtx;
     private boolean unflushedWrites;
-    private final Map<Class<? extends Exception>, Function<Throwable, ?>> responsesByExceptionType;
 
     public KafkaProxyBackendHandler(KafkaProxyFrontendHandler frontendHandler, ChannelHandlerContext inboundCtx) {
         this.frontendHandler = frontendHandler;
         this.inboundCtx = requireNonNull(inboundCtx);
-        responsesByExceptionType = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -93,20 +87,14 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        var localCause = cause;
-        while (localCause != null) {
-            if (responsesByExceptionType.containsKey(localCause.getClass())) {
-                // Not logging in this case its "handled"
-                frontendHandler.closeWith(ctx.channel(), responsesByExceptionType.get(localCause.getClass()).apply(localCause));
-                return;
-            }
-            localCause = localCause.getCause();
+        // If the frontEnd has an exception handler for this exception it's likely to have already dealt with it.
+        // So only act here if its un-expected by the front end.
+        if (frontendHandler.handleException(cause).isEmpty()) {
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                    .addArgument(cause != null ? cause.getMessage() : "")
+                    .log("Netty caught exception from the backend: {}. Increase log level to DEBUG for stacktrace");
+            frontendHandler.closeOnFlush(ctx.channel());
         }
-        LOGGER.warn("Netty caught exception from the backend: {}", cause != null ? cause.getMessage() : "", cause);
-        frontendHandler.closeOnFlush(ctx.channel());
-    }
-
-    public void registerExceptionResponse(Class<? extends Exception> exceptionClass, Function<Throwable, ?> responseFunction) {
-        responsesByExceptionType.put(exceptionClass, responseFunction);
     }
 }

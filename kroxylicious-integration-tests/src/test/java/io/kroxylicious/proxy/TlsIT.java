@@ -145,7 +145,8 @@ class TlsIT extends BaseIT {
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
-            assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(10_000)).clusterId()).failsWithin(Duration.ofSeconds(30))
+            assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(10_000)).clusterId())
+                    .failsWithin(Duration.ofSeconds(30))
                     .withThrowableThat()
                     .withCauseInstanceOf(TimeoutException.class)
                     .havingCause()

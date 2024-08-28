@@ -12,7 +12,9 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -27,7 +29,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
@@ -44,6 +45,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
@@ -132,7 +134,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testMessageHandledAfterConnectingBeforeConnected() {
         // Given
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), Mockito.mock(VirtualCluster.class));
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
         givenHandlerIsConnecting(handler, "initial");
         writeInboundApiVersionsRequest("post-connecting");
 
@@ -146,7 +148,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testMessageHandledAfterConnectedBeforeOutboundActive() {
         // Given
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), Mockito.mock(VirtualCluster.class));
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
         givenHandlerIsConnected(handler);
         writeInboundApiVersionsRequest("post-connected");
 
@@ -160,7 +162,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testUnexpectedMessageReceivedBeforeConnected() {
         // Given
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), Mockito.mock(VirtualCluster.class));
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
         givenHandlerIsConnecting(handler, "initial");
 
         // When
@@ -208,7 +210,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testUnexpectedMessageReceivedBeforeOutboundActive() {
         // Given
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), Mockito.mock(VirtualCluster.class));
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
         givenHandlerIsConnected(handler);
 
         // When
@@ -354,6 +356,37 @@ class KafkaProxyFrontendHandlerTest {
             handleConnect(filter, handler);
         }
 
+    }
+
+    @Test
+    void shouldCloseWithForRegisteredException() {
+        // Given
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
+        handler.registerExceptionResponse(SSLHandshakeException.class, (throwable) -> Optional.of(new UnknownServerException(throwable)));
+        final Future<Void> failedChannelPromise = new DefaultChannelPromise(inboundChannel).setFailure(new SSLHandshakeException("it went wrong"));
+
+        // When
+        handler.onConnectionFailed(new HostPort("localhost", 9092), failedChannelPromise, inboundChannel);
+
+        // Then
+        final Object outbound = inboundChannel.readOutbound();
+        assertThat(outbound).isInstanceOf(UnknownServerException.class);
+    }
+
+    @Test
+    void shouldUnwrapCauseToFindForRegisteredException() {
+        // Given
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
+        handler.registerExceptionResponse(SSLHandshakeException.class, (throwable) -> Optional.of(new UnknownServerException(throwable)));
+        final Future<Void> failedChannelPromise = new DefaultChannelPromise(inboundChannel)
+                .setFailure(new DecoderException(new SSLHandshakeException("it went wrong")));
+
+        // When
+        handler.onConnectionFailed(new HostPort("localhost", 9092), failedChannelPromise, inboundChannel);
+
+        // Then
+        final Object outbound = inboundChannel.readOutbound();
+        assertThat(outbound).isInstanceOf(UnknownServerException.class);
     }
 
     private void initialiseInboundChannel(KafkaProxyFrontendHandler handler) {
