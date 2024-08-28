@@ -846,6 +846,22 @@
                             </rules>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>ban-build-time-dependencies-from-runtime</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>com.github.spotbugs:spotbugs-annotations:*:*:compile</exclude>
+                                        <exclude>com.github.spotbugs:spotbugs-annotations:*:*:runtime</exclude>
+                                    </excludes>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
         </plugins>
