@@ -111,7 +111,6 @@
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.apicurio</groupId>
