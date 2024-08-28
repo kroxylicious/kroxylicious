@@ -11,10 +11,8 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
-import javax.net.ssl.SSLHandshakeException;
-
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
@@ -38,6 +36,8 @@ import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -158,19 +158,22 @@ public class KafkaProxyFrontendHandler
     }
 
     public void outboundChannelActive(ChannelHandlerContext ctx) {
+        this.outboundCtx = ctx;
+    }
+
+    public void outboundChannelUsable() {
         if (state != State.CONNECTED) {
             throw illegalState(null);
         }
         LOGGER.trace("{}: outboundChannelActive", inboundCtx.channel().id());
-        outboundCtx = ctx;
         // connection is complete, so first forward the buffered message
         for (Object bufferedMsg : bufferedMsgs) {
-            forwardOutbound(ctx, bufferedMsg);
+            forwardOutbound(outboundCtx, bufferedMsg);
         }
         bufferedMsgs = null; // don't pin in memory once we no longer need it
         if (pendingReadComplete) {
             pendingReadComplete = false;
-            channelReadComplete(ctx);
+            channelReadComplete(outboundCtx);
         }
         state = State.OUTBOUND_ACTIVE;
 
@@ -295,8 +298,9 @@ public class KafkaProxyFrontendHandler
                 .option(ChannelOption.TCP_NODELAY, true);
 
         LOGGER.trace("Connecting to outbound {}", remote);
-        ChannelFuture connectFuture = initConnection(remote.host(), remote.port(), b);
-        Channel outboundChannel = connectFuture.channel();
+        ChannelFuture tcpConnectFuture = initConnection(remote.host(), remote.port(), b);
+        AtomicReference<Future<Channel>> sslHandshakeFuture = new AtomicReference<>();
+        Channel outboundChannel = tcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
         // Note: Because we are acting as a client of the target cluster and are thus writing Request data to an outbound channel, the Request flows from the
@@ -315,29 +319,41 @@ public class KafkaProxyFrontendHandler
         }
 
         virtualCluster.getUpstreamSslContext().ifPresent(c -> {
-            pipeline.addFirst("ssl", c.newHandler(outboundChannel.alloc(), remote.host(), remote.port()));
-            backendHandler.registerExceptionResponse(SSLHandshakeException.class, UnknownServerException::new);
+            final SslHandler handler = c.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
+            pipeline.addFirst("ssl", handler);
+            sslHandshakeFuture.set(handler.handshakeFuture());
         });
-
-        connectFuture.addListener(future -> {
+        // If we have an SSL future we want to wait for completion of the handshake before declaring the channel active.
+        final Future<Channel> handshakeFuture = sslHandshakeFuture.get();
+        Future<?> kafkaAvailableFuture = handshakeFuture != null ? handshakeFuture : tcpConnectFuture;
+        kafkaAvailableFuture.addListener(future -> {
             if (future.isSuccess()) {
-                state = State.CONNECTED;
-                LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
-                // Now we know which filters are to be used we need to update the DecodePredicate
-                // so that the decoder starts decoding the messages that the filters want to intercept
-                dp.setDelegate(DecodePredicate.forFilters(filters));
+                onConnection(filters);
             }
             else {
-                state = State.FAILED;
-                // Close the connection if the connection attempt has failed.
-                Throwable failureCause = future.cause();
-                LOGGER.atWarn()
-                        .setCause(LOGGER.isDebugEnabled() ? failureCause : null)
-                        .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace", remote,
-                                failureCause.getMessage());
-                inboundChannel.close();
+                onConnectionFailed(remote, future, inboundChannel);
             }
         });
+    }
+
+    private void onConnection(List<FilterAndInvoker> filters) {
+        state = State.CONNECTED;
+        LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
+        // Now we know which filters are to be used we need to update the DecodePredicate
+        // so that the decoder starts decoding the messages that the filters want to intercept
+        dp.setDelegate(DecodePredicate.forFilters(filters));
+        outboundChannelUsable();
+    }
+
+    private void onConnectionFailed(HostPort remote, Future<?> future, Channel inboundChannel) {
+        state = State.FAILED;
+        // Close the connection if the connection attempt has failed.
+        Throwable failureCause = future.cause();
+        LOGGER.atWarn()
+                .setCause(LOGGER.isDebugEnabled() ? failureCause : null)
+                .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace", remote,
+                        failureCause.getMessage());
+        inboundChannel.close();
     }
 
     @VisibleForTesting

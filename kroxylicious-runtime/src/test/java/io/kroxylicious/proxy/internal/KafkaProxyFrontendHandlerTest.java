@@ -79,13 +79,13 @@ class KafkaProxyFrontendHandlerTest {
 
     int corrId = 0;
     private final AtomicReference<NetFilter.NetFilterContext> connectContext = new AtomicReference<>();
+    private DefaultChannelPromise outboundChannelTcpConnectionFuture;
 
     private void writeRequest(short apiVersion, ApiMessage body) {
         var apiKey = ApiKeys.forId(body.apiKey());
 
         int downstreamCorrelationId = corrId++;
 
-        short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         RequestHeaderData header = new RequestHeaderData()
                 .setRequestApiKey(apiKey.id)
                 .setRequestApiVersion(apiVersion)
@@ -233,7 +233,9 @@ class KafkaProxyFrontendHandlerTest {
                 // trying to re-register the outbound channel => IllegalStateException
                 // So we override this method to short-circuit that
                 outboundChannel = new EmbeddedChannel();
-                return new DefaultChannelPromise(outboundChannel).setSuccess();
+                outboundChannelTcpConnectionFuture = new DefaultChannelPromise(outboundChannel);
+                return outboundChannelTcpConnectionFuture.addListener(
+                        future -> this.outboundChannelActive(outboundChannel.pipeline().firstContext().fireChannelActive()));
             }
         };
     }
@@ -355,15 +357,18 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     private void initialiseInboundChannel(KafkaProxyFrontendHandler handler) {
-        inboundChannel.pipeline().addLast(handler);
-        inboundChannel.pipeline().fireChannelActive();
-
+        final ChannelPipeline pipeline = inboundChannel.pipeline();
+        if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
+            pipeline.addLast(handler);
+        }
         assertEquals(State.START, handler.state());
+
+        pipeline.fireChannelActive();
     }
 
     private void handleConnect(NetFilter filter, KafkaProxyFrontendHandler handler) {
         verify(filter).selectServer(handler);
-        assertEquals(State.CONNECTED, handler.state());
+        assertEquals(State.CONNECTING, handler.state());
         assertFalse(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound not yet active");
 
@@ -372,9 +377,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     private void outboundChannelBecomesActive(KafkaProxyFrontendHandler handler) {
-        ChannelHandlerContext outboundContext = outboundChannel.pipeline().context(outboundChannel.pipeline().names().get(0));
-        handler.outboundChannelActive(outboundContext);
-        outboundChannel.pipeline().fireChannelActive();
+        outboundChannelTcpConnectionFuture.setSuccess();
         assertTrue(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound now active");
         assertEquals(State.OUTBOUND_ACTIVE, handler.state());
@@ -406,7 +409,7 @@ class KafkaProxyFrontendHandlerTest {
 
     private void whenConnectedAndOutboundBecomesActive(KafkaProxyFrontendHandler handler) {
         connectionInitiated(connectContext.get());
-        assertEquals(State.CONNECTED, handler.state());
+        assertEquals(State.CONNECTING, handler.state());
         outboundChannelBecomesActive(handler);
         assertEquals(State.OUTBOUND_ACTIVE, handler.state());
     }
@@ -414,7 +417,7 @@ class KafkaProxyFrontendHandlerTest {
     private void givenHandlerIsConnected(KafkaProxyFrontendHandler handler) {
         givenHandlerIsConnecting(handler, "initial");
         connectionInitiated(connectContext.get());
-        assertEquals(State.CONNECTED, handler.state());
+        assertEquals(State.CONNECTING, handler.state());
     }
 
     private void connectionInitiated(NetFilter.NetFilterContext connectContext) {
