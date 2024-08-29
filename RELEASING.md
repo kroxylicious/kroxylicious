@@ -18,12 +18,20 @@ At a high level, the process is as follows:
 You must be a member of the Kroxylicious organization and have access to [create 
 secrets](https://github.com/kroxylicious/kroxylicious/settings/secrets/actions) within the kroxylicious repository.
 
+You will need a GPG key, follow this [guide](https://help.ubuntu.com/community/GnuPrivacyGuardHowto#Generating_an_OpenPGP_Key).
+
+You will need to upload your GPG **public** key to some keyservers. You can follow [this](https://help.ubuntu.com/community/GnuPrivacyGuardHowto#Uploading_the_key_to_Ubuntu_keyserver) which explains how to obtain your public key. Upload that key to the following keyservers:
+- https://keyserver.ubuntu.com/
+- https://keys.openpgp.org/upload
+- http://pgp.mit.edu:11371/
+
 Create the following repository secrets:
 
 | Secret                                        | Description                                                                |
 |-----------------------------------------------|----------------------------------------------------------------------------|
 | `KROXYLICIOUS_RELEASE_PRIVATE_KEY`            | Private key, in armor format, of the project admin conducting the release. |
 | `KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE` | Passphrase used to protect the private key                                 |
+
 
 To export your key run something like
 ```shell
