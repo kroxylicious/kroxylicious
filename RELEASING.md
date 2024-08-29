@@ -18,12 +18,20 @@ At a high level, the process is as follows:
 You must be a member of the Kroxylicious organization and have access to [create 
 secrets](https://github.com/kroxylicious/kroxylicious/settings/secrets/actions) within the kroxylicious repository.
 
-Create the following repository secrets:
+You will need a GPG key, follow this [guide](https://help.ubuntu.com/community/GnuPrivacyGuardHowto#Generating_an_OpenPGP_Key).
+
+You will need to upload your GPG **public** key to some keyservers. You can follow [this](https://help.ubuntu.com/community/GnuPrivacyGuardHowto#Uploading_the_key_to_Ubuntu_keyserver) which explains how to obtain your public key. Upload that key to the following keyservers:
+- https://keyserver.ubuntu.com/
+- https://keys.openpgp.org/upload
+- http://pgp.mit.edu:11371/
+
+Create-or-update the following repository secrets:
 
 | Secret                                        | Description                                                                |
 |-----------------------------------------------|----------------------------------------------------------------------------|
 | `KROXYLICIOUS_RELEASE_PRIVATE_KEY`            | Private key, in armor format, of the project admin conducting the release. |
 | `KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE` | Passphrase used to protect the private key                                 |
+
 
 To export your key run something like
 ```shell
@@ -54,12 +62,20 @@ This will:
   2. the second will re-open main for development, at the next snapshot.
 * stage a release [Nexus UI](https://s01.oss.sonatype.org/). It'll be named `iokroxylicious-nn`.
 
+If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
+
 ### Verify the Release
 
 You can validate the staged artefacts by using a test application, `T`, use the Maven artefacts.   The [kroxylicious-wasm](https://github.com/andreaTP/kroxylicious-wasm) from the
 [community-gallery](https://github.com/kroxylicious/kroxylicious-community-gallery) is a suitable choice.
 
-1. Find the staging repository in the [Nexus UI](https://s01.oss.sonatype.org/). It'll be named `iokroxylious-nn`.
+1. Find the staging repository URL by executing.
+   ```shell
+   curl -sS --header 'Accept: application/json' \
+     https://s01.oss.sonatype.org/service/local/all_repositories \
+     | jq '.data[] | select(.name | contains("kroxylicious")) | .contentResourceURI'
+   ```
+   The repository url should include `iokroxylious-nn`. You can also browse to it via the [Nexus UI](https://s01.oss.sonatype.org/).
 1. Add a [`<repositories>`](https://maven.apache.org/pom.html#Repositories) that references the staging repository public url to `T`'s POM.
 1. Update `T`'s kroxylicious dependency to refer to the `<RELEASE_VERSION>`.
 1. Run `T` build/test cycle but use an alternative cache location to be sure artefacts are being fetched.  Check the build output, you'll see the
@@ -74,23 +90,24 @@ The local changes made to `T`'s POM can be reverted.
 
 1. Run [deploy_workflow](https://github.com/kroxylicious/kroxylicious/actions/workflows/deploy_release.yaml)
    setting the `next-state` to `release` to publish the artefact and publish the release notes.
-1. Merge release PR (use Rebase and Merge strategy).
+1. Merge release PR (use Rebase and Merge strategy) and delete the branch after.
 1. Let [Kroxylicious Team Developers](https://kroxylicious.slack.com/archives/C04V1K6EAKZ) know the release is finished.
 1. [Publish](https://github.com/kroxylicious/kroxylicious.github.io/blob/main/docs/README.md) the documentation for the release
 1. Merge the blog post PR
 1. Post to social media about the release.
 
-If anything goes wrong, follow the steps in the next section.
+If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
 
 ### Failed Releases
 
 If the release fails verification, use the [deploy_workflow](https://github.com/kroxylicious/kroxylicious/actions/workflows/deploy_release.yaml) with  the `drop` argument.
-This will drop the snapshot repository and delete the release notes. Manually close the PR.
+This will drop the snapshot repository and delete the release notes. Manually close the PR
+and delete the associated branch.
 
 ### Remove your private key/passphrase
 
-Remove your private key/passphrase secrets from the
-[repository secrets](https://github.com/kroxylicious/kroxylicious/settings/secrets/actions).
+Update the private key/passphrase secrets from the
+[repository secrets](https://github.com/kroxylicious/kroxylicious/settings/secrets/actions) to whitespace.
 
 
 
