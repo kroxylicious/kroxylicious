@@ -35,10 +35,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 class RecordEncryptionTest {
 
@@ -55,9 +55,12 @@ class RecordEncryptionTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void shouldInitAndCreateFilter() {
-        RecordEncryptionConfig config = new RecordEncryptionConfig("KMS", null, "SELECTOR", null, null);
-        var ee = new RecordEncryption<>();
+        var kmsConfig = new Object();
+        var kmsInitData = new Object();
+        var config = new RecordEncryptionConfig("KMS", kmsConfig, "SELECTOR", null, null);
+        var recordEncryption = new RecordEncryption<>();
         var fc = mock(FilterFactoryContext.class);
         var kmsService = mock(KmsService.class);
         var kms = mock(Kms.class);
@@ -66,16 +69,39 @@ class RecordEncryptionTest {
         var edekSerde = mock(Serde.class);
 
         doReturn(kmsService).when(fc).pluginInstance(KmsService.class, "KMS");
-        doReturn(kms).when(kmsService).buildKms(any());
+        doReturn(kmsInitData).when(kmsService).initialize(kmsConfig);
+        doReturn(kms).when(kmsService).buildKms(kmsInitData);
         doReturn(mock(FilterDispatchExecutor.class)).when(fc).filterDispatchExecutor();
         doReturn(edekSerde).when(kms).edekSerde();
 
         doReturn(kekSelectorService).when(fc).pluginInstance(KekSelectorService.class, "SELECTOR");
         doReturn(kekSelector).when(kekSelectorService).buildSelector(any(), any());
 
-        var sec = ee.initialize(fc, config);
-        var filter = ee.createFilter(fc, sec);
-        assertNotNull(filter);
+        var sec = recordEncryption.initialize(fc, config);
+        var filter = recordEncryption.createFilter(fc, sec);
+        assertThat(filter).isNotNull();
+        recordEncryption.close(sec);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void closePropagatedToKmsService() {
+        var kmsConfig = new Object();
+        var kmsInitData = new Object();
+        var config = new RecordEncryptionConfig("KMS", kmsConfig, "SELECTOR", null, null);
+        var recordEncryption = new RecordEncryption<>();
+        var fc = mock(FilterFactoryContext.class);
+        var kmsService = mock(KmsService.class);
+        var kms = mock(Kms.class);
+
+        doReturn(kmsService).when(fc).pluginInstance(KmsService.class, "KMS");
+        doReturn(kmsInitData).when(kmsService).initialize(kmsConfig);
+        doReturn(kms).when(kmsService).buildKms(kmsInitData);
+
+        var sec = recordEncryption.initialize(fc, config);
+        recordEncryption.close(sec);
+
+        verify(kmsService).close(kmsInitData);
     }
 
     @Test

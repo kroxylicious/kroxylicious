@@ -203,7 +203,9 @@ class VaultKmsTest {
             InetSocketAddress address = httpServer.getAddress();
             String vaultAddress = "http://127.0.0.1:" + address.getPort() + "/v1/transit";
             var config = new Config(URI.create(vaultAddress), new InlinePassword("token"), null);
-            VaultKms service = new VaultKmsService().buildKms(config);
+            var vaultKmsService = new VaultKmsService();
+            var initData = vaultKmsService.initialize(config);
+            var service = vaultKmsService.buildKms(initData);
             consumer.accept(service);
         }
         finally {

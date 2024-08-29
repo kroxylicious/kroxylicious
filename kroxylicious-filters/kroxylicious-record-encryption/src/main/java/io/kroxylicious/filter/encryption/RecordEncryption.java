@@ -106,8 +106,8 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
             throws PluginConfigurationException {
         checkCipherSuite();
         KmsService<Object, Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
-        var init = kmsPlugin.initialize(configuration.kmsConfig());
-        Kms<K, E> kms = buildKms(configuration, kmsPlugin, init);
+        var kmsInitData = kmsPlugin.initialize(configuration.kmsConfig());
+        Kms<K, E> kms = buildKms(configuration, kmsPlugin, kmsInitData);
 
         var dekConfig = configuration.dekManager();
         DekManager<K, E> dekManager = new DekManager<>(ignored -> kms, null, dekConfig.maxEncryptionsPerDek());
@@ -116,7 +116,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         EncryptionDekCache<K, E> encryptionDekCache = new EncryptionDekCache<>(dekManager, null, EncryptionDekCache.NO_MAX_CACHE_SIZE,
                 cacheConfig.encryptionDekCacheRefreshAfterWriteDuration(), cacheConfig.encryptionDekCacheExpireAfterWriteDuration());
         DecryptionDekCache<K, E> decryptionDekCache = new DecryptionDekCache<>(dekManager, null, DecryptionDekCache.NO_MAX_CACHE_SIZE);
-        return new SharedEncryptionContext<>(kms, configuration, dekManager, encryptionDekCache, decryptionDekCache, () -> kmsPlugin.close(init));
+        return new SharedEncryptionContext<>(kms, () -> kmsPlugin.close(kmsInitData), configuration, dekManager, encryptionDekCache, decryptionDekCache);
     }
 
     @NonNull
@@ -164,6 +164,6 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
     @Override
     public void close(SharedEncryptionContext<K, E> initializationData) {
-        initializationData.kmsCloser().run();
+        initializationData.kmsServiceCloser().run();
     }
 }

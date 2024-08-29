@@ -17,13 +17,33 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public interface KmsService<C, I, K, E> {
 
+    /**
+     * Initialises the service.  This method must be invoked exactly once
+     * before {@link #buildKms(Object)} is called.
+     *
+     * @param config configuration
+     * @return initializationData
+     */
     default I initialize(C config) {
         return (I) config;
     }
 
+    /**
+     * Builds the KMS service.
+     *
+     * @param initializationData initialization data
+     * @return the KMS.
+     */
     @NonNull
     Kms<K, E> buildKms(I initializationData);
 
+    /**
+     * Closes the service.  The caller must pass the {@code initializationData}
+     * returned by the call to {@link #initialize(Object)}.  Implementations
+     * of this method must be idempotent.
+     *
+     * @param initializationData initialization data
+     */
     default void close(I initializationData) {
     }
 }
