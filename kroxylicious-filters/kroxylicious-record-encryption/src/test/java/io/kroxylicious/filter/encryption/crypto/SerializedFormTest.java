@@ -184,7 +184,7 @@ class SerializedFormTest {
         doReturn(new ByteArraySerde()).when(kms).edekSerde();
         KmsService<Object, Object, byte[], byte[]> kmsService = Mockito.mock(KmsService.class);
         doReturn(kms).when(kmsService).buildKms(null);
-        var dm = new DekManager<>(kmsService, null, 1);
+        var dm = new DekManager<>(kms, 1);
 
         var dek = dm.generateDek(kekId, cm).toCompletableFuture().join();
         byte[] edek = dek.edek();
