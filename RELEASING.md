@@ -95,7 +95,8 @@ If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
 ### Failed Releases
 
 If the release fails verification, use the [deploy_workflow](https://github.com/kroxylicious/kroxylicious/actions/workflows/deploy_release.yaml) with  the `drop` argument.
-This will drop the snapshot repository and delete the release notes. Manually close the PR.
+This will drop the snapshot repository and delete the release notes. Manually close the PR
+and delete the associated branch.
 
 ### Remove your private key/passphrase
 
