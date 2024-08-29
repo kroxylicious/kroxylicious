@@ -69,7 +69,13 @@ If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
 You can validate the staged artefacts by using a test application, `T`, use the Maven artefacts.   The [kroxylicious-wasm](https://github.com/andreaTP/kroxylicious-wasm) from the
 [community-gallery](https://github.com/kroxylicious/kroxylicious-community-gallery) is a suitable choice.
 
-1. Find the staging repository in the [Nexus UI](https://s01.oss.sonatype.org/). It'll be named `iokroxylious-nn`.
+1. Find the staging repository URL by executing.
+   ```shell
+   curl -sS --header 'Accept: application/json' \
+     https://s01.oss.sonatype.org/service/local/all_repositories \
+     | jq '.data[] | select(.name | contains("kroxylicious")) | .contentResourceURI'
+   ```
+   The repository url should include `iokroxylious-nn`. You can also browse to it via the [Nexus UI](https://s01.oss.sonatype.org/).
 1. Add a [`<repositories>`](https://maven.apache.org/pom.html#Repositories) that references the staging repository public url to `T`'s POM.
 1. Update `T`'s kroxylicious dependency to refer to the `<RELEASE_VERSION>`.
 1. Run `T` build/test cycle but use an alternative cache location to be sure artefacts are being fetched.  Check the build output, you'll see the
