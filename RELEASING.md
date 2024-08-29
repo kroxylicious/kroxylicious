@@ -62,6 +62,8 @@ This will:
   2. the second will re-open main for development, at the next snapshot.
 * stage a release [Nexus UI](https://s01.oss.sonatype.org/). It'll be named `iokroxylicious-nn`.
 
+If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
+
 ### Verify the Release
 
 You can validate the staged artefacts by using a test application, `T`, use the Maven artefacts.   The [kroxylicious-wasm](https://github.com/andreaTP/kroxylicious-wasm) from the
@@ -88,7 +90,7 @@ The local changes made to `T`'s POM can be reverted.
 1. Merge the blog post PR
 1. Post to social media about the release.
 
-If anything goes wrong, follow the steps in the next section.
+If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
 
 ### Failed Releases
 
