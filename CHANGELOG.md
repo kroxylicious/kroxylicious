@@ -5,7 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
-## SNAPSHOT
+## 0.8.0
 
 * [#1414](https://github.com/kroxylicious/kroxylicious/issues/1474) Enable hostname verification when connecting to upstream clusters using TLS 
 
