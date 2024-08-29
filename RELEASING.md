@@ -25,7 +25,7 @@ You will need to upload your GPG **public** key to some keyservers. You can foll
 - https://keys.openpgp.org/upload
 - http://pgp.mit.edu:11371/
 
-Create the following repository secrets:
+Create-or-update the following repository secrets:
 
 | Secret                                        | Description                                                                |
 |-----------------------------------------------|----------------------------------------------------------------------------|
@@ -99,8 +99,8 @@ This will drop the snapshot repository and delete the release notes. Manually cl
 
 ### Remove your private key/passphrase
 
-Remove your private key/passphrase secrets from the
-[repository secrets](https://github.com/kroxylicious/kroxylicious/settings/secrets/actions).
+Update the private key/passphrase secrets from the
+[repository secrets](https://github.com/kroxylicious/kroxylicious/settings/secrets/actions) to whitespace.
 
 
 
