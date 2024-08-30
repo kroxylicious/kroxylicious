@@ -134,7 +134,6 @@ import org.apache.kafka.common.requests.DescribeGroupsRequest;
 import org.apache.kafka.common.requests.DescribeLogDirsRequest;
 import org.apache.kafka.common.requests.DescribeProducersRequest;
 import org.apache.kafka.common.requests.DescribeQuorumRequest;
-import org.apache.kafka.common.requests.DescribeQuorumResponse;
 import org.apache.kafka.common.requests.DescribeTopicPartitionsRequest;
 import org.apache.kafka.common.requests.DescribeTransactionsRequest;
 import org.apache.kafka.common.requests.DescribeUserScramCredentialsRequest;

@@ -38,15 +38,14 @@ class KafkaProxyExceptionHandlerTest {
 
     private static final SSLHandshakeException HANDSHAKE_EXCEPTION = new SSLHandshakeException("it went wrong");
     private static final short ACKS_ALL = (short) -1;
-    //The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
+    // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.PRODUCE, ApiKeys.LIST_OFFSETS, ApiKeys.METADATA, ApiKeys.UPDATE_METADATA,
             ApiKeys.JOIN_GROUP, ApiKeys.LEAVE_GROUP, ApiKeys.DESCRIBE_GROUPS, ApiKeys.CONSUMER_GROUP_DESCRIBE, ApiKeys.DELETE_GROUPS, ApiKeys.OFFSET_COMMIT,
             ApiKeys.CREATE_TOPICS, ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS, ApiKeys.INIT_PRODUCER_ID, ApiKeys.CREATE_ACLS, ApiKeys.DESCRIBE_ACLS,
             ApiKeys.DELETE_ACLS, ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS,
             ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS, ApiKeys.ALTER_REPLICA_LOG_DIRS,
             ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
-            ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS
-    );
+            ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
     private static final Map<ApiKeys, Consumer<ApiMessage>> customisers = new HashMap<>();
 
@@ -97,7 +96,7 @@ class KafkaProxyExceptionHandlerTest {
     static Stream<DecodedRequestFrame<?>> decodedFrameSource() {
         return Stream.of(EnumSet.complementOf(SPECIAL_CASES))
                 .flatMap(Collection::stream)
-                //return Stream.of(ApiKeys.values())
+                // return Stream.of(ApiKeys.values())
                 .map(apiKey -> {
                     final RequestHeaderData requestHeaderData = new RequestHeaderData();
                     requestHeaderData.setCorrelationId(124);
