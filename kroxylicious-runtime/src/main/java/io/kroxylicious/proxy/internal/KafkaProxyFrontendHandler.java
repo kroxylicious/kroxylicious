@@ -357,7 +357,7 @@ public class KafkaProxyFrontendHandler
     }
 
     private ChannelPromise adaptHandshakeFutureToChannelFuture(Future<Channel> handshakeFuture) {
-        final ChannelPromise sslHandshakeChannelPromise = outboundCtx.newPromise();
+        final ChannelPromise sslHandshakeChannelPromise = inboundCtx.newPromise();
         handshakeFuture.addListener(future -> {
             if (future.isSuccess()) {
                 sslHandshakeChannelPromise.setSuccess();
