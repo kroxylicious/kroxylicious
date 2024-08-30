@@ -12,9 +12,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
 
-import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -45,7 +43,6 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
@@ -227,7 +224,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, VirtualCluster virtualCluster) {
-        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster) {
+        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, new KafkaProxyExceptionHandler()) {
             @Override
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
@@ -356,37 +353,6 @@ class KafkaProxyFrontendHandlerTest {
             handleConnect(filter, handler);
         }
 
-    }
-
-    @Test
-    void shouldCloseWithForRegisteredException() {
-        // Given
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
-        handler.registerExceptionResponse(SSLHandshakeException.class, (throwable) -> Optional.of(new UnknownServerException(throwable)));
-        final Future<Void> failedChannelPromise = new DefaultChannelPromise(inboundChannel).setFailure(new SSLHandshakeException("it went wrong"));
-
-        // When
-        handler.onConnectionFailed(new HostPort("localhost", 9092), failedChannelPromise, inboundChannel);
-
-        // Then
-        final Object outbound = inboundChannel.readOutbound();
-        assertThat(outbound).isInstanceOf(UnknownServerException.class);
-    }
-
-    @Test
-    void shouldUnwrapCauseToFindForRegisteredException() {
-        // Given
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
-        handler.registerExceptionResponse(SSLHandshakeException.class, (throwable) -> Optional.of(new UnknownServerException(throwable)));
-        final Future<Void> failedChannelPromise = new DefaultChannelPromise(inboundChannel)
-                .setFailure(new DecoderException(new SSLHandshakeException("it went wrong")));
-
-        // When
-        handler.onConnectionFailed(new HostPort("localhost", 9092), failedChannelPromise, inboundChannel);
-
-        // Then
-        final Object outbound = inboundChannel.readOutbound();
-        assertThat(outbound).isInstanceOf(UnknownServerException.class);
     }
 
     private void initialiseInboundChannel(KafkaProxyFrontendHandler handler) {

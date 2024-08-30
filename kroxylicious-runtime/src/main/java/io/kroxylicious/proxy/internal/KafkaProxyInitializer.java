@@ -159,6 +159,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
         var virtualCluster = binding.virtualCluster();
         ChannelPipeline pipeline = ch.pipeline();
+        final KafkaProxyExceptionHandler exceptionHandler = new KafkaProxyExceptionHandler();
         if (virtualCluster.isLogNetwork()) {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
@@ -183,12 +184,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         if (!authnHandlers.isEmpty()) {
             LOGGER.debug("Adding authn handler for handlers {}", authnHandlers);
-            pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers));
+            pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers, exceptionHandler));
         }
 
         ApiVersionsServiceImpl apiVersionService = new ApiVersionsServiceImpl();
         final NetFilter netFilter = new InitalizerNetFilter(dp, apiVersionService, ch, binding, pfr, filterChainFactory, endpointReconciler);
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster);
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster, exceptionHandler);
 
         pipeline.addLast("netHandler", frontendHandler);
 

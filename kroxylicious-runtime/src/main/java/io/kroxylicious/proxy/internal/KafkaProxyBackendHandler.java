@@ -20,12 +20,14 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private final KafkaProxyFrontendHandler frontendHandler;
     private final ChannelHandlerContext inboundCtx;
+    private final KafkaProxyExceptionHandler exceptionHandler;
     private ChannelHandlerContext blockedOutboundCtx;
     private boolean unflushedWrites;
 
-    public KafkaProxyBackendHandler(KafkaProxyFrontendHandler frontendHandler, ChannelHandlerContext inboundCtx) {
+    public KafkaProxyBackendHandler(KafkaProxyFrontendHandler frontendHandler, ChannelHandlerContext inboundCtx, KafkaProxyExceptionHandler exceptionHandler) {
         this.frontendHandler = frontendHandler;
         this.inboundCtx = requireNonNull(inboundCtx);
+        this.exceptionHandler = exceptionHandler;
     }
 
     @Override
@@ -89,7 +91,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         // If the frontEnd has an exception handler for this exception it's likely to have already dealt with it.
         // So only act here if its un-expected by the front end.
-        if (frontendHandler.handleException(cause).isEmpty()) {
+        if (exceptionHandler.handleException(cause).isEmpty()) {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
                     .addArgument(cause != null ? cause.getMessage() : "")
