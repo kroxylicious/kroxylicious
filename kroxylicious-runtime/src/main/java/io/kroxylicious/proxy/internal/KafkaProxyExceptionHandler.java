@@ -253,7 +253,7 @@ public class KafkaProxyExceptionHandler {
                                     x -> x.topics().stream().flatMap(
                                             t -> t.partitionIndexes().stream().map(
                                                     p -> new TopicPartition(t.name(), p)))
-                                            .collect(Collectors.toList()))),
+                                            .toList())),
                             true, false)
                             .build(apiVersion);
                 }
@@ -264,7 +264,7 @@ public class KafkaProxyExceptionHandler {
                             offsetFetchRequestData.topics().stream().flatMap(
                                     x -> x.partitionIndexes().stream().map(
                                             p -> new TopicPartition(x.name(), p)))
-                                    .collect(Collectors.toList()),
+                                    .toList(),
                             false)
                             .build(apiVersion);
                 }
@@ -388,7 +388,7 @@ public class KafkaProxyExceptionHandler {
             case DESCRIBE_DELEGATION_TOKEN:
                 DescribeDelegationTokenRequestData tokenRequestData = (DescribeDelegationTokenRequestData) reqBody;
                 req = new DescribeDelegationTokenRequest.Builder(
-                        tokenRequestData.owners().stream().map(o -> new KafkaPrincipal(o.principalType(), o.principalName())).collect(Collectors.toList()))
+                        tokenRequestData.owners().stream().map(o -> new KafkaPrincipal(o.principalType(), o.principalName())).toList())
                         .build(apiVersion);
                 break;
             case DELETE_GROUPS:
@@ -401,7 +401,7 @@ public class KafkaProxyExceptionHandler {
                         electLeaders.topicPartitions().stream().flatMap(
                                 t -> t.partitions().stream().map(
                                         p -> new TopicPartition(t.topic(), p)))
-                                .collect(Collectors.toList()),
+                                .toList(),
                         electLeaders.timeoutMs())
                         .build(apiVersion);
                 break;
@@ -491,7 +491,7 @@ public class KafkaProxyExceptionHandler {
                                         x.brokerId(),
                                         x.hostName(),
                                         x.port()))
-                                .collect(Collectors.toList()))
+                                .toList())
                         .build(apiVersion);
                 break;
             case STOP_REPLICA:

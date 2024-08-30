@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLHandshakeException;
 
-import org.apache.kafka.common.errors.UnknownServerException;
+import org.apache.kafka.common.errors.BrokerNotAvailableException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
@@ -67,6 +67,7 @@ public class KafkaProxyFrontendHandler
 
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
+    public static final BrokerNotAvailableException ERROR_NEGOTIATING_SSL_CONNECTION = new BrokerNotAvailableException("Error negotiating SSL connection");
 
     static {
         var objectMapper = new ObjectMapper();
@@ -200,7 +201,7 @@ public class KafkaProxyFrontendHandler
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (state == State.OUTBOUND_ACTIVE) { // post-backend connection
             forwardOutbound(ctx, msg);
         }
@@ -334,7 +335,7 @@ public class KafkaProxyFrontendHandler
                 Object result;
                 final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
                 if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-                    result = buildErrorResponseFrame(triggerFrame, new UnknownServerException());
+                    result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
                 }
                 else {
                     result = null;
