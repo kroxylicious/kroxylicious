@@ -35,7 +35,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.logging.LoggingHandler;
@@ -326,25 +325,22 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
         }
 
-        final ChannelFuture kafkaAvailableFuture = virtualCluster.getUpstreamSslContext()
-                .map(c -> {
-                    final SslHandler handler = c.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
-                    pipeline.addFirst("ssl", handler);
-                    exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> {
-                        Object result;
-                        final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
-                        if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-                            result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
-                        }
-                        else {
-                            result = null;
-                        }
-                        return Optional.ofNullable(result);
-                    });
-                    final ChannelPromise sslHandshakeChannelPromise = adaptHandshakeFutureToChannelFuture(handler.handshakeFuture());
-                    return (ChannelFuture) sslHandshakeChannelPromise;
-                })
-                .orElse(tcpConnectFuture);
+        Future<?> kafkaAvailableFuture = virtualCluster.getUpstreamSslContext().<Future<?>> map(c -> {
+            final SslHandler handler = c.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
+            pipeline.addFirst("ssl", handler);
+            exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> {
+                Object result;
+                final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
+                if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
+                    result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
+                }
+                else {
+                    result = null;
+                }
+                return Optional.ofNullable(result);
+            });
+            return handler.handshakeFuture();
+        }).orElse(tcpConnectFuture);
 
         kafkaAvailableFuture.addListener(future -> {
             if (future.isSuccess()) {
@@ -354,22 +350,6 @@ public class KafkaProxyFrontendHandler
                 onConnectionFailed(remote, future, inboundChannel);
             }
         });
-    }
-
-    private ChannelPromise adaptHandshakeFutureToChannelFuture(Future<Channel> handshakeFuture) {
-        final ChannelPromise sslHandshakeChannelPromise = inboundCtx.newPromise();
-        handshakeFuture.addListener(future -> {
-            if (future.isSuccess()) {
-                sslHandshakeChannelPromise.setSuccess();
-            }
-            else if (future.isCancelled()) {
-                sslHandshakeChannelPromise.cancel(true);
-            }
-            else {
-                sslHandshakeChannelPromise.setFailure(future.cause());
-            }
-        });
-        return sslHandshakeChannelPromise;
     }
 
     private @NonNull Object buildErrorResponseFrame(DecodedRequestFrame<?> triggerFrame, Throwable error) {
