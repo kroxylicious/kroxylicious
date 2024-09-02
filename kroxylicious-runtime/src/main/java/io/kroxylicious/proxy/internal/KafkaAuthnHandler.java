@@ -183,7 +183,8 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     private final KafkaProxyExceptionHandler exceptionHandler;
 
     public KafkaAuthnHandler(Channel ch,
-                             Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers, KafkaProxyExceptionHandler exceptionHandler) {
+                             Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers,
+                             KafkaProxyExceptionHandler exceptionHandler) {
         this(ch, State.START, mechanismHandlers, exceptionHandler);
     }
 
