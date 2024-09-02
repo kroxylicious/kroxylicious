@@ -173,27 +173,6 @@ public class KafkaProxyFrontendHandler
         }
     }
 
-    public void outboundChannelUsable() {
-        if (state != State.CONNECTED) {
-            throw illegalState(null);
-        }
-        LOGGER.trace("{}: outboundChannelActive", inboundCtx.channel().id());
-        // connection is complete, so first forward the buffered message
-        for (Object bufferedMsg : bufferedMsgs) {
-            forwardOutbound(outboundCtx, bufferedMsg);
-        }
-        bufferedMsgs = null; // don't pin in memory once we no longer need it
-        if (pendingReadComplete) {
-            pendingReadComplete = false;
-            channelReadComplete(outboundCtx);
-        }
-        state = State.OUTBOUND_ACTIVE;
-
-        var inboundChannel = this.inboundCtx.channel();
-        // once buffered message has been forwarded we enable auto-read to start accepting further messages
-        inboundChannel.config().setAutoRead(true);
-    }
-
     @Override
     public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
         super.channelWritabilityChanged(ctx);
@@ -616,5 +595,26 @@ public class KafkaProxyFrontendHandler
     @Override
     public String toString() {
         return "KafkaProxyFrontendHandler{inbound = " + inboundCtx.channel() + ", state = " + state + "}";
+    }
+
+    private void outboundChannelUsable() {
+        if (state != State.CONNECTED) {
+            throw illegalState(null);
+        }
+        LOGGER.trace("{}: outboundChannelActive", inboundCtx.channel().id());
+        // connection is complete, so first forward the buffered message
+        for (Object bufferedMsg : bufferedMsgs) {
+            forwardOutbound(outboundCtx, bufferedMsg);
+        }
+        bufferedMsgs = null; // don't pin in memory once we no longer need it
+        if (pendingReadComplete) {
+            pendingReadComplete = false;
+            channelReadComplete(outboundCtx);
+        }
+        state = State.OUTBOUND_ACTIVE;
+
+        var inboundChannel = this.inboundCtx.channel();
+        // once buffered message has been forwarded we enable auto-read to start accepting further messages
+        inboundChannel.config().setAutoRead(true);
     }
 }
