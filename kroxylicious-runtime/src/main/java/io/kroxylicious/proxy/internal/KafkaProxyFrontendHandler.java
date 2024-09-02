@@ -40,7 +40,9 @@ import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
+import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
@@ -68,6 +70,7 @@ public class KafkaProxyFrontendHandler
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
     public static final ApiException ERROR_NEGOTIATING_SSL_CONNECTION = new NetworkException("Error negotiating SSL connection");
+    public static final AttributeKey<Object> REMOTE_PEER_KEY = AttributeKey.valueOf("remotePeer");
 
     static {
         var objectMapper = new ObjectMapper();
@@ -123,17 +126,21 @@ public class KafkaProxyFrontendHandler
         /** The outbound connection is active */
         OUTBOUND_ACTIVE,
         /** The connection to the outbound cluster failed */
-        FAILED
+        FAILED,
+        /** The outbound connection is active but still TLS is still being negotiated */
+        NEGOTIATING_TLS
     }
 
     /**
      * The current state.
      * Transitions:
      * <code><pre>
-     *    START ──→ HA_PROXY ──→ API_VERSIONS ─╭─→ CONNECTING ──→ CONNECTED ──→ OUTBOUND_ACTIVE
-     *      ╰──────────╰──────────────╰────────╯        |
-     *                                                  |
-     *                                                  ╰──→ FAILED
+     *    START ──→ HA_PROXY ──→ API_VERSIONS ─╭─→ CONNECTING ──→ CONNECTED ────→ OUTBOUND_ACTIVE
+     *      ╰──────────╰──────────────╰────────╯        ⎸             ⎸                      ↑
+     *                                                  ⎸             ⎸                      ⎸
+     *                                                  ╰──→ FAILED  ╰──→ NEGOTIATING_TLS ──╯
+     *                                                         ↑              ⎸
+     *                                                         ╰──────────────╯
      * </pre></code>
      * Unexpected state transitions and exceptions also cause a
      * transition to {@link State#FAILED} (via {@link #illegalState(String)}}
@@ -168,9 +175,8 @@ public class KafkaProxyFrontendHandler
 
     public void outboundChannelActive(ChannelHandlerContext ctx) {
         this.outboundCtx = ctx;
-        if (this.state == State.CONNECTED) {
-            outboundChannelUsable();
-        }
+        this.state = State.CONNECTED;
+        virtualCluster.getUpstreamSslContext().ifPresentOrElse(this::onUpstreamSslContext, this::outboundChannelUsable);
     }
 
     @Override
@@ -293,6 +299,8 @@ public class KafkaProxyFrontendHandler
         Channel outboundChannel = tcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
+        outboundChannel.attr(REMOTE_PEER_KEY).set(remote);
+
         // Note: Because we are acting as a client of the target cluster and are thus writing Request data to an outbound channel, the Request flows from the
         // last outbound handler in the pipeline to the first. When Responses are read from the cluster, the inbound handlers of the pipeline are invoked in
         // the reverse order, from first to last. This is the opposite of how we configure a server pipeline like we do in KafkaProxyInitializer where the channel
@@ -308,28 +316,11 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
         }
 
-        Future<?> kafkaAvailableFuture = virtualCluster.getUpstreamSslContext().<Future<?>> map(c -> {
-            final SslHandler handler = c.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
-            pipeline.addFirst("ssl", handler);
-            exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> {
-                Object result;
-                final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
-                if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-                    result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
-                }
-                else {
-                    result = null;
-                }
-                return Optional.ofNullable(result);
-            });
-            return handler.handshakeFuture();
-        }).orElse(tcpConnectFuture);
-
         // Now we know which filters are to be used we need to update the DecodePredicate
         // so that the decoder starts decoding the messages that the filters want to intercept
         dp.setDelegate(DecodePredicate.forFilters(filters));
 
-        kafkaAvailableFuture.addListener(future -> {
+        tcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
                 onConnection();
             }
@@ -363,11 +354,7 @@ public class KafkaProxyFrontendHandler
     }
 
     private void onConnection() {
-        state = State.CONNECTED;
         LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
-        if (outboundCtx != null) {
-            outboundChannelUsable();
-        }
     }
 
     @VisibleForTesting
@@ -598,7 +585,7 @@ public class KafkaProxyFrontendHandler
     }
 
     private void outboundChannelUsable() {
-        if (state != State.CONNECTED) {
+        if (state != State.CONNECTED && state != State.NEGOTIATING_TLS) {
             throw illegalState(null);
         }
         LOGGER.trace("{}: outboundChannelActive", inboundCtx.channel().id());
@@ -617,4 +604,31 @@ public class KafkaProxyFrontendHandler
         // once buffered message has been forwarded we enable auto-read to start accepting further messages
         inboundChannel.config().setAutoRead(true);
     }
+
+    private void onUpstreamSslContext(SslContext sslContext) {
+        this.state = State.NEGOTIATING_TLS;
+        final HostPort remote = (HostPort) outboundCtx.channel().attr(REMOTE_PEER_KEY).get();
+        final SslHandler handler = sslContext.newHandler(outboundCtx.channel().alloc(), remote.host(), remote.port());
+        outboundCtx.channel().pipeline().addFirst("ssl", handler);
+        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> {
+            Object result;
+            final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
+            if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
+                result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
+            }
+            else {
+                result = null;
+            }
+            return Optional.ofNullable(result);
+        });
+        handler.handshakeFuture().addListener(handshakeFuture -> {
+            if (handshakeFuture.isSuccess()) {
+                this.outboundChannelUsable();
+            }
+            else {
+                this.onConnectionFailed(remote, handshakeFuture, this.inboundCtx.channel());
+            }
+        });
+    }
+
 }
