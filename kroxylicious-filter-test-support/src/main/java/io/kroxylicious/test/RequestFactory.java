@@ -16,7 +16,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
+import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -32,17 +34,20 @@ public class RequestFactory {
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.METADATA, ApiKeys.UPDATE_METADATA,
+    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.UPDATE_METADATA,
             ApiKeys.JOIN_GROUP, ApiKeys.LEAVE_GROUP, ApiKeys.DESCRIBE_GROUPS, ApiKeys.CONSUMER_GROUP_DESCRIBE, ApiKeys.DELETE_GROUPS, ApiKeys.OFFSET_COMMIT,
             ApiKeys.CREATE_TOPICS, ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS, ApiKeys.INIT_PRODUCER_ID, ApiKeys.CREATE_ACLS, ApiKeys.DESCRIBE_ACLS,
             ApiKeys.DELETE_ACLS, ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS,
             ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS, ApiKeys.ALTER_REPLICA_LOG_DIRS,
             ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
             ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
+
     private static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = Map.of(
-            ApiKeys.PRODUCE, (RequestFactory::populateProduceRequest),
-            ApiKeys.LIST_OFFSETS, (RequestFactory::populateListOffsetsRequest),
-            ApiKeys.OFFSET_FETCH, (RequestFactory::populateOffsetFetchRequest)
+            ApiKeys.PRODUCE, RequestFactory::populateProduceRequest,
+            ApiKeys.LIST_OFFSETS, RequestFactory::populateListOffsetsRequest,
+            ApiKeys.OFFSET_FETCH, RequestFactory::populateOffsetFetchRequest,
+            ApiKeys.METADATA, RequestFactory::populateMetadataRequest
+
     );
 
     private RequestFactory() {
@@ -107,5 +112,14 @@ public class RequestFactory {
         offsetFetchRequestData.setGroupId(MobyNamesGenerator.getRandomName());
         offsetFetchRequestData.setTopics(List.of(t1));
     }
+
+    private static void populateMetadataRequest(ApiMessage apiMessage) {
+        final MetadataRequestData metadataRequestData = (MetadataRequestData) apiMessage;
+        final MetadataRequestData.MetadataRequestTopic t1 = new MetadataRequestData.MetadataRequestTopic();
+        t1.setName(MobyNamesGenerator.getRandomName());
+        t1.setTopicId(Uuid.randomUuid());
+        metadataRequestData.setTopics(List.of(t1));
+    }
+
 
 }
