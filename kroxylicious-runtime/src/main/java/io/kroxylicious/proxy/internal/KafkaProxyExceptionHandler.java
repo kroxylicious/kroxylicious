@@ -6,8 +6,11 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -196,11 +199,20 @@ public class KafkaProxyExceptionHandler {
     @SuppressWarnings("java:S1452")
     public Optional<?> handleException(Throwable throwable) {
         var localCause = throwable;
+        Set<Throwable> visitedExceptions = Collections.newSetFromMap(new IdentityHashMap<>());
         while (localCause != null) {
+            visitedExceptions.add(localCause);
             if (responsesByExceptionType.containsKey(localCause.getClass())) {
                 return responsesByExceptionType.get(localCause.getClass()).apply(localCause);
             }
-            localCause = localCause.getCause();
+            if (visitedExceptions.contains(localCause.getCause())) {
+                // As we have seen the cause before break the loop and stop searching
+                localCause = null;
+            }
+            else {
+                localCause = localCause.getCause();
+            }
+
         }
         return Optional.empty();
     }

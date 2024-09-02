@@ -69,6 +69,38 @@ class KafkaProxyExceptionHandlerTest {
         assertThat(result).isNotEmpty().get().isInstanceOf(UnknownServerException.class);
     }
 
+    @Test
+    void shouldCompleteWithCircularCauseChainDoesnotMatch() {
+        // Given
+        kafkaProxyExceptionHandler.registerExceptionResponse(RuntimeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
+        Exception e1 = new Exception("1");
+        Exception e2 = new Exception("2", e1);
+        Exception e3 = new Exception("3", e2);
+        e1.initCause(e3);
+
+        // When
+        final Optional<?> result = kafkaProxyExceptionHandler.handleException(e1);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void shouldCompleteWithCircularCauseChainMatches() {
+        // Given
+        kafkaProxyExceptionHandler.registerExceptionResponse(RuntimeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
+        Exception e1 = new Exception("1");
+        Exception e2 = new RuntimeException("2", e1);
+        Exception e3 = new Exception("3", e2);
+        e1.initCause(e3);
+
+        // When
+        final Optional<?> result = kafkaProxyExceptionHandler.handleException(e1);
+
+        // Then
+        assertThat(result).isNotEmpty().get().isInstanceOf(UnknownServerException.class);
+    }
+
     @ParameterizedTest
     @MethodSource({ "decodedFrameSourceLatestVersion", "decodedFrameSourceOldestVersion" })
     void shouldGenerateErrorResponseApiKey(DecodedRequestFrame<?> request) {
@@ -101,7 +133,7 @@ class KafkaProxyExceptionHandlerTest {
         requestHeaderData.setCorrelationId(124);
         final short apiVersion = apiMessageAndVersion.apiVersion();
         final ApiMessage apiMessage = apiMessageAndVersion.apiMessage();
-        return named(apiMessage.apiKey() + "-v" + apiVersion, new DecodedRequestFrame<>(apiVersion, 1, false, requestHeaderData, apiMessage));
+        return named( ApiKeys.forId(apiMessage.apiKey()) + "-v" + apiVersion, new DecodedRequestFrame<>(apiVersion, 1, false, requestHeaderData, apiMessage));
     }
 
 }
