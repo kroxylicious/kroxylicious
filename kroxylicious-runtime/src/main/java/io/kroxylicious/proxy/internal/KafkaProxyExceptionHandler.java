@@ -242,11 +242,15 @@ public class KafkaProxyExceptionHandler {
             case LIST_OFFSETS:
                 ListOffsetsRequestData listOffsetsRequestData = (ListOffsetsRequestData) reqBody;
                 if (listOffsetsRequestData.replicaId() == ListOffsetsRequest.CONSUMER_REPLICA_ID) {
-                    req = ListOffsetsRequest.Builder.forConsumer(true, IsolationLevel.forId(listOffsetsRequestData.isolationLevel()), true)
+                    req = ListOffsetsRequest.Builder.forConsumer(true,
+                                    IsolationLevel.forId(listOffsetsRequestData.isolationLevel()),
+                                    true)
+                            .setTargetTimes(listOffsetsRequestData.topics())
                             .build(apiVersion);
                 }
                 else {
                     req = ListOffsetsRequest.Builder.forReplica(apiVersion, listOffsetsRequestData.replicaId())
+                            .setTargetTimes(listOffsetsRequestData.topics())
                             .build(apiVersion);
                 }
                 break;

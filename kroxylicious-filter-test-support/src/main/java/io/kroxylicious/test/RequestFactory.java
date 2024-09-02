@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -23,13 +24,14 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 public class RequestFactory {
 
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.LIST_OFFSETS, ApiKeys.OFFSET_FETCH, ApiKeys.METADATA, ApiKeys.UPDATE_METADATA,
+    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.OFFSET_FETCH, ApiKeys.METADATA, ApiKeys.UPDATE_METADATA,
             ApiKeys.JOIN_GROUP, ApiKeys.LEAVE_GROUP, ApiKeys.DESCRIBE_GROUPS, ApiKeys.CONSUMER_GROUP_DESCRIBE, ApiKeys.DELETE_GROUPS, ApiKeys.OFFSET_COMMIT,
             ApiKeys.CREATE_TOPICS, ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS, ApiKeys.INIT_PRODUCER_ID, ApiKeys.CREATE_ACLS, ApiKeys.DESCRIBE_ACLS,
             ApiKeys.DELETE_ACLS, ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS,
@@ -37,7 +39,8 @@ public class RequestFactory {
             ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
             ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
     private static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = Map.of(
-            ApiKeys.PRODUCE, (RequestFactory::populateProduceRequest));
+            ApiKeys.PRODUCE, (RequestFactory::populateProduceRequest),
+            ApiKeys.LIST_OFFSETS, (RequestFactory::populateListOffsetsRequest));
 
     private RequestFactory() {
     }
@@ -75,9 +78,22 @@ public class RequestFactory {
         final ProduceRequestData.TopicProduceDataCollection v = new ProduceRequestData.TopicProduceDataCollection(1);
         final ProduceRequestData.TopicProduceData topicProduceData = new ProduceRequestData.TopicProduceData();
         final ProduceRequestData.PartitionProduceData produceData = new ProduceRequestData.PartitionProduceData();
-        produceData.setRecords(RecordTestUtils.memoryRecords(List.of(RecordTestUtils.record("wibble"))));
+        produceData.setRecords(RecordTestUtils.memoryRecords(List.of(RecordTestUtils.record(MobyNamesGenerator.getRandomName()))));
         topicProduceData.setPartitionData(List.of(produceData));
         v.add(topicProduceData);
         produceRequestData.setTopicData(v);
     }
+
+    private static void populateListOffsetsRequest(ApiMessage apiMessage) {
+        final ListOffsetsRequestData listOffsetsRequestData = (ListOffsetsRequestData) apiMessage;
+        final ListOffsetsRequestData.ListOffsetsPartition p1 = new ListOffsetsRequestData.ListOffsetsPartition();
+        p1.setPartitionIndex(0);
+        p1.setCurrentLeaderEpoch(1);
+        final ListOffsetsRequestData.ListOffsetsTopic listOffsetsTopic = new ListOffsetsRequestData.ListOffsetsTopic();
+        listOffsetsTopic.setName(MobyNamesGenerator.getRandomName());
+        listOffsetsTopic.setPartitions(List.of(p1));
+        listOffsetsRequestData.setReplicaId(-1);
+        listOffsetsRequestData.setTopics(List.of(listOffsetsTopic));
+    }
+
 }
