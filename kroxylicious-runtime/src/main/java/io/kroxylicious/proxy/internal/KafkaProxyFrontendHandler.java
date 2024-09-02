@@ -15,7 +15,8 @@ import java.util.Optional;
 
 import javax.net.ssl.SSLHandshakeException;
 
-import org.apache.kafka.common.errors.BrokerNotAvailableException;
+import org.apache.kafka.common.errors.ApiException;
+import org.apache.kafka.common.errors.NetworkException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
@@ -66,7 +67,7 @@ public class KafkaProxyFrontendHandler
 
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
-    public static final BrokerNotAvailableException ERROR_NEGOTIATING_SSL_CONNECTION = new BrokerNotAvailableException("Error negotiating SSL connection");
+    public static final ApiException ERROR_NEGOTIATING_SSL_CONNECTION = new NetworkException("Error negotiating SSL connection");
 
     static {
         var objectMapper = new ObjectMapper();
