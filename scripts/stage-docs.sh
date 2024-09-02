@@ -136,11 +136,12 @@ echo "${RELEASE_DOCS_INDEX_TEMPLATE}" > "${WEBSITE_DOCS_LOCATION}/index.adoc"
 echo "Update _data/kroxylicious.yml to add new version to website navigation"
 match="url: '\/kroxylicious'"
 insert="  - title: '${RELEASE_TAG}'\n    url: '\/docs\/${RELEASE_TAG}\/'"
-file="_data/kroxylicious.yml"
-sed -i "s/$match/$match\n$insert/" $file
+KROXYLICIOUS_NAV_FILE="_data/kroxylicious.yml"
+${SED} -i "s/$match/$match\n$insert/" "${KROXYLICIOUS_NAV_FILE}"
 
 echo "Committing release documentation to git"
 # Commit and push changes to branch in `kroxylicious/kroxylicious.github.io`
+git add "${WEBSITE_DOCS_LOCATION}" "${KROXYLICIOUS_NAV_FILE}"
 git commit --message "Prepare ${RELEASE_TAG} release documentation" --signoff
 git push "${REPOSITORY}" "${RELEASE_DOCS_BRANCH}" ${GIT_DRYRUN:-}
 
