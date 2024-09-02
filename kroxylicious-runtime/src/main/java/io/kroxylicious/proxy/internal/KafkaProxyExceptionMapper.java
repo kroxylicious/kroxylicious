@@ -188,7 +188,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 /**
  * In the operation of the proxy there are various exceptions which are "anticipated" but not necessarily handled directly.
  * SSL Handshake errors are an illustrative example, where they are thrown and propagate through the netty channel without being handled.
- * <p/>
+ * <p>
  * The exception mapper provides a mechanism to register specific exceptions with function to evaluate them and if appropriate generate a message to respond to the
  * client with.
  */
