@@ -121,5 +121,4 @@ public class RequestFactory {
         metadataRequestData.setTopics(List.of(t1));
     }
 
-
 }
