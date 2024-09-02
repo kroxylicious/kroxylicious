@@ -8,6 +8,7 @@ package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,8 +37,8 @@ import static java.util.stream.Collectors.toMap;
  * @see IntegrationTestingKmsService
  */
 @Plugin(configType = UnitTestingKmsService.Config.class)
-public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.Config, UnitTestingKmsService.Config, UUID, InMemoryEdek> {
-    private Map<Config, InMemoryKms> kmsMap = new ConcurrentHashMap<>();
+public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.Config, UnitTestingKmsService.Init, UUID, InMemoryEdek> {
+    private final Map<Init, InMemoryKms> kmsMap = new ConcurrentHashMap<>();
 
     public static UnitTestingKmsService newInstance() {
         return (UnitTestingKmsService) ServiceLoader.load(KmsService.class).stream()
@@ -70,23 +71,30 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
         public Config() {
             this(12, 128, List.of());
         }
+    }
 
-        @Override
-        public List<Kek> existingKeks() {
-            return existingKeks == null ? List.of() : existingKeks;
+    public record Init(
+                       Config config) {
+        public Init {
+            Objects.requireNonNull(config);
         }
+    }
+
+    @Override
+    public Init initialize(Config config) {
+        return new Init(config);
     }
 
     @NonNull
     @Override
-    public InMemoryKms buildKms(Config initializationData) {
-        return kmsMap.computeIfAbsent(initializationData, config -> {
-            List<Kek> kekDefs = initializationData.existingKeks();
+    public InMemoryKms buildKms(Init initializationData) {
+        return kmsMap.computeIfAbsent(initializationData, init -> {
+            List<Kek> kekDefs = init.config().existingKeks();
             Map<UUID, DestroyableRawSecretKey> keys = kekDefs.stream()
                     .collect(toMap(k -> UUID.fromString(k.uuid), k -> DestroyableRawSecretKey.takeCopyOf(k.key, k.algorithm)));
             Map<String, UUID> aliases = kekDefs.stream().collect(toMap(k -> k.alias, k -> UUID.fromString(k.uuid)));
-            return new InMemoryKms(initializationData.numIvBytes(),
-                    initializationData.numAuthBits(),
+            return new InMemoryKms(init.config().numIvBytes(),
+                    init.config().numAuthBits(),
                     keys, aliases);
         });
     }

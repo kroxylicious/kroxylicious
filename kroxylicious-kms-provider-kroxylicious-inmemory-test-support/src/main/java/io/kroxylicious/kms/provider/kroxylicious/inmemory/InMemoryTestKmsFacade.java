@@ -11,18 +11,23 @@ import java.util.UUID;
 import java.util.concurrent.CompletionException;
 
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.IntegrationTestingKmsService.Config;
+import io.kroxylicious.kms.provider.kroxylicious.inmemory.IntegrationTestingKmsService.Init;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.UnknownAliasException;
 
-public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemoryEdek> {
+public class InMemoryTestKmsFacade implements TestKmsFacade<Config, Init, UUID, InMemoryEdek> {
 
     private final UUID kmsId = UUID.randomUUID();
     private InMemoryKms kms;
 
     @Override
     public void start() {
-        kms = IntegrationTestingKmsService.newInstance().buildKms(new Config(kmsId.toString()));
+        var config = new Config(kmsId.toString());
+
+        var service = IntegrationTestingKmsService.newInstance();
+        var initData = service.initialize(config);
+        kms = service.buildKms(initData);
     }
 
     @Override

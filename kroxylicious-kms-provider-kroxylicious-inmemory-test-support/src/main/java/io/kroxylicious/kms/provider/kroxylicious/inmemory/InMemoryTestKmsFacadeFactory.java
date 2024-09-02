@@ -9,12 +9,13 @@ package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 import java.util.UUID;
 
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.IntegrationTestingKmsService.Config;
+import io.kroxylicious.kms.provider.kroxylicious.inmemory.IntegrationTestingKmsService.Init;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 
 /**
  * Factory for {@link InMemoryTestKmsFacade}s.
  */
-public class InMemoryTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, UUID, InMemoryEdek> {
+public class InMemoryTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, Init, UUID, InMemoryEdek> {
     /**
      * {@inheritDoc}
      */

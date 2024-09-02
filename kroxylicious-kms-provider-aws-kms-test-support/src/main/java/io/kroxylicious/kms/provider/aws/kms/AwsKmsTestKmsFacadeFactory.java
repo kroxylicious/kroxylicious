@@ -12,7 +12,7 @@ import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 /**
  * Factory for {@link AwsKmsTestKmsFacade}s.
  */
-public class AwsKmsTestKmsFacadeFactory extends AbstractAwsKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, AwsKmsEdek> {
+public class AwsKmsTestKmsFacadeFactory extends AbstractAwsKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, Config, String, AwsKmsEdek> {
     /**
      * {@inheritDoc}
      */

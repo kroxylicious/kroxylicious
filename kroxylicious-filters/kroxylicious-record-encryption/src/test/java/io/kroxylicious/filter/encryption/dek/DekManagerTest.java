@@ -31,9 +31,10 @@ class DekManagerTest {
     @Test
     void testResolveAlias() {
         // Given
-        UnitTestingKmsService unitTestingKmsService = UnitTestingKmsService.newInstance();
-        UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96, List.of());
-        var kms = unitTestingKmsService.buildKms(options);
+        var unitTestingKmsService = UnitTestingKmsService.newInstance();
+        var config = new UnitTestingKmsService.Config(12, 96, List.of());
+        var init = unitTestingKmsService.initialize(config);
+        var kms = unitTestingKmsService.buildKms(init);
         var kekId = kms.generateKey();
         kms.createAlias(kekId, "foo");
         var dm = new DekManager<>(kms, 1);
@@ -49,9 +50,10 @@ class DekManagerTest {
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
     void testLimitsNumbersOfEncryptors(CipherManager cipherManager) {
         // Given
-        UnitTestingKmsService unitTestingKmsService = UnitTestingKmsService.newInstance();
-        UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96, List.of());
-        var kms = unitTestingKmsService.buildKms(options);
+        var unitTestingKmsService = UnitTestingKmsService.newInstance();
+        var config = new UnitTestingKmsService.Config(12, 96, List.of());
+        var init = unitTestingKmsService.initialize(config);
+        var kms = unitTestingKmsService.buildKms(init);
         var kekId = kms.generateKey();
         kms.createAlias(kekId, "foo");
         var dm = new DekManager<>(kms, 1);
@@ -67,9 +69,10 @@ class DekManagerTest {
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
     void testDecryptedEdekIsGoodForDecryptingData(CipherManager cipherManager) {
         // Given
-        UnitTestingKmsService unitTestingKmsService = UnitTestingKmsService.newInstance();
-        UnitTestingKmsService.Config options = new UnitTestingKmsService.Config(12, 96, List.of());
-        var kms = unitTestingKmsService.buildKms(options);
+        var unitTestingKmsService = UnitTestingKmsService.newInstance();
+        var config = new UnitTestingKmsService.Config(12, 96, List.of());
+        var init = unitTestingKmsService.initialize(config);
+        var kms = unitTestingKmsService.buildKms(init);
         var kekId = kms.generateKey();
         kms.createAlias(kekId, "foo");
         var dm = new DekManager<>(kms, 1_000);
@@ -106,7 +109,8 @@ class DekManagerTest {
     @Test
     void aes256KeyMustBe256bits() {
         var fixedDekKmsService = new FixedDekKmsService(128);
-        var kms = fixedDekKmsService.buildKms(null);
+        var init = fixedDekKmsService.initialize(null);
+        var kms = fixedDekKmsService.buildKms(init);
         DekManager<ByteBuffer, ByteBuffer> manager = new DekManager<>(kms, 10000);
         CompletionStage<Dek<ByteBuffer>> dekCompletionStage = manager.generateDek(fixedDekKmsService.getKekId(), Aes.AES_256_GCM_128);
         assertThat(dekCompletionStage).failsWithin(10, TimeUnit.SECONDS)

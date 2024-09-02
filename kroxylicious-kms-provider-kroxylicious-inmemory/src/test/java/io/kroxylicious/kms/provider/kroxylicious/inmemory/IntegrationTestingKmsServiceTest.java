@@ -54,13 +54,17 @@ class IntegrationTestingKmsServiceTest {
     void shouldWorkAcrossServiceInstances() {
         // given
         var kmsId = UUID.randomUUID().toString();
-        var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
+        var init = service.initialize(new IntegrationTestingKmsService.Config(kmsId));
+        var kms = service.buildKms(init);
         var kek = kms.generateKey();
         assertNotNull(kek);
         kms.createAlias(kek, "myAlias");
 
+        var service2 = IntegrationTestingKmsService.newInstance();
+        var init2 = service2.initialize(new IntegrationTestingKmsService.Config(kmsId));
+
         // when
-        var theSameKms = IntegrationTestingKmsService.newInstance().buildKms(new IntegrationTestingKmsService.Config(kmsId));
+        var theSameKms = service2.buildKms(init2);
 
         // then
         assertEquals(kek, theSameKms.resolveAlias("myAlias").join());
@@ -72,9 +76,13 @@ class IntegrationTestingKmsServiceTest {
     void shouldGenerateDeks() {
         // given
         var kms1Id = UUID.randomUUID().toString();
-        var kms1 = service.buildKms(new IntegrationTestingKmsService.Config(kms1Id));
+        var init1 = service.initialize(new IntegrationTestingKmsService.Config(kms1Id));
+        var kms1 = service.buildKms(init1);
+
         var kms2Id = UUID.randomUUID().toString();
-        var kms2 = IntegrationTestingKmsService.newInstance().buildKms(new IntegrationTestingKmsService.Config(kms2Id));
+        var service2 = IntegrationTestingKmsService.newInstance();
+        var init2 = service.initialize(new IntegrationTestingKmsService.Config(kms2Id));
+        var kms2 = service2.buildKms(init2);
         var key1 = kms1.generateKey();
         assertNotNull(key1);
         var key2 = kms2.generateKey();
@@ -96,9 +104,12 @@ class IntegrationTestingKmsServiceTest {
     void shouldRejectsAnotherKmsesKeks() {
         // given
         var kms1Id = UUID.randomUUID().toString();
-        var kms1 = service.buildKms(new IntegrationTestingKmsService.Config(kms1Id));
+        var init1 = service.initialize(new IntegrationTestingKmsService.Config(kms1Id));
+        var kms1 = service.buildKms(init1);
         var kms2Id = UUID.randomUUID().toString();
-        var kms2 = IntegrationTestingKmsService.newInstance().buildKms(new IntegrationTestingKmsService.Config(kms2Id));
+        var service2 = IntegrationTestingKmsService.newInstance();
+        var init2 = service.initialize(new IntegrationTestingKmsService.Config(kms2Id));
+        var kms2 = service2.buildKms(init2);
         var key1 = kms1.generateKey();
         assertNotNull(key1);
         var key2 = kms2.generateKey();
@@ -127,7 +138,8 @@ class IntegrationTestingKmsServiceTest {
     void shouldDecryptDeks() {
         // given
         var kmsId = UUID.randomUUID().toString();
-        var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
+        var init = service.initialize(new IntegrationTestingKmsService.Config(kmsId));
+        var kms = service.buildKms(init);
         var kek = kms.generateKey();
         assertNotNull(kek);
         var pair = kms.generateDekPair(kek).join();
@@ -148,7 +160,8 @@ class IntegrationTestingKmsServiceTest {
     @Test
     void shouldSerializeAndDeserializeEdeks() {
         var kmsId = UUID.randomUUID().toString();
-        var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
+        var init = service.initialize(new IntegrationTestingKmsService.Config(kmsId));
+        var kms = service.buildKms(init);
         var kek = kms.generateKey();
 
         var edek = kms.generateDekPair(kek).join().edek();
@@ -169,7 +182,8 @@ class IntegrationTestingKmsServiceTest {
     @Test
     void shouldLookupByAlias() {
         var kmsId = UUID.randomUUID().toString();
-        var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
+        var init = service.initialize(new IntegrationTestingKmsService.Config(kmsId));
+        var kms = service.buildKms(init);
         var kek = kms.generateKey();
 
         var lookup = kms.resolveAlias("bob");
@@ -195,7 +209,8 @@ class IntegrationTestingKmsServiceTest {
     @Test
     void deleteAliasFailsWithUnknownAlias() {
         var kmsId = UUID.randomUUID().toString();
-        var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
+        var init = service.initialize(new IntegrationTestingKmsService.Config(kmsId));
+        var kms = service.buildKms(init);
 
         assertThatThrownBy(() -> kms.deleteAlias("bob"))
                 .isInstanceOf(UnknownAliasException.class);
@@ -206,7 +221,8 @@ class IntegrationTestingKmsServiceTest {
     @Test
     void deleteKey() {
         var kmsId = UUID.randomUUID().toString();
-        var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
+        var init = service.initialize(new IntegrationTestingKmsService.Config(kmsId));
+        var kms = service.buildKms(init);
         var kek = kms.generateKey();
 
         kms.deleteKey(kek);
@@ -219,7 +235,8 @@ class IntegrationTestingKmsServiceTest {
     @Test
     void deleteKeyFailsIfAliasPresent() {
         var kmsId = UUID.randomUUID().toString();
-        var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
+        var init = service.initialize(new IntegrationTestingKmsService.Config(kmsId));
+        var kms = service.buildKms(init);
         var kek = kms.generateKey();
         kms.createAlias(kek, "bob");
 

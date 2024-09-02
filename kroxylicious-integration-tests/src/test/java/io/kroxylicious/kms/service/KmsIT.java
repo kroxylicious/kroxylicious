@@ -10,6 +10,7 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,23 +25,34 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @param <E> The type of encrypted DEK
  */
 @ExtendWith(TestKmsFacadeInvocationContextProvider.class)
-class KmsIT<C, K, E> {
+class KmsIT<C, I, K, E> {
 
     private Kms<K, E> kms;
 
     private TestKekManager manager;
     private String alias;
     private K resolvedKekId;
+    private KmsService<C, I, K, E> service;
+    private I initData;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
-    void beforeEach(TestKmsFacade<?, ?, ?> facade) throws Exception {
-        var service = (KmsService<C, C, K, E>) facade.getKmsServiceClass().getDeclaredConstructor(new Class[]{}).newInstance();
-        kms = service.buildKms((C) facade.getKmsServiceConfig());
+    void beforeEach(TestKmsFacade<?, ?, ?, ?> facade) throws Exception {
+        service = (KmsService<C, I, K, E>) facade.getKmsServiceClass().getDeclaredConstructor(new Class[]{}).newInstance();
+        C kmsServiceConfig = (C) facade.getKmsServiceConfig();
+        initData = service.initialize(kmsServiceConfig);
+        kms = service.buildKms(initData);
         manager = facade.getTestKekManager();
 
         alias = "alias-" + UUID.randomUUID();
         resolvedKekId = createAndResolve(alias);
+    }
+
+    @AfterEach
+    void afterEach() {
+        if (service != null && initData != null) {
+            service.close(initData);
+        }
     }
 
     @TestTemplate

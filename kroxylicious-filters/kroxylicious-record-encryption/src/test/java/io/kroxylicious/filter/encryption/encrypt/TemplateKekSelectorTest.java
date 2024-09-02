@@ -42,7 +42,9 @@ class TemplateKekSelectorTest {
 
     @Test
     void shouldResolveWhenAliasExists() {
-        var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
+        var kmsService = UnitTestingKmsService.newInstance();
+        var init = kmsService.initialize(new UnitTestingKmsService.Config());
+        var kms = kmsService.buildKms(init);
         var selector = getSelector(kms, "topic-${topicName}");
 
         var kek = kms.generateKey();
@@ -55,7 +57,9 @@ class TemplateKekSelectorTest {
 
     @Test
     void shouldNotThrowWhenAliasDoesNotExist() {
-        var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
+        var kmsService = UnitTestingKmsService.newInstance();
+        var init = kmsService.initialize(new UnitTestingKmsService.Config());
+        var kms = kmsService.buildKms(init);
         var selector = getSelector(kms, "topic-${topicName}");
 
         var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();

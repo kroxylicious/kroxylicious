@@ -91,7 +91,7 @@ class RecordEncryptionST extends AbstractST {
     }
 
     @TestTemplate
-    void ensureClusterHasEncryptedMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void ensureClusterHasEncryptedMessage(String namespace, TestKmsFacade<?, ?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
@@ -123,7 +123,7 @@ class RecordEncryptionST extends AbstractST {
     }
 
     @TestTemplate
-    void produceAndConsumeMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void produceAndConsumeMessage(String namespace, TestKmsFacade<?, ?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
@@ -152,7 +152,7 @@ class RecordEncryptionST extends AbstractST {
 
     @SuppressWarnings("java:S2925")
     @TestTemplate
-    void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?, ?> testKmsFacade) {
         // Skip AWS test execution because the ciphertext blob metadata to read the version of the KEK is not available anywhere
         assumeThat(testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault")).isTrue();
         testKekManager = testKmsFacade.getTestKekManager();
@@ -218,7 +218,7 @@ class RecordEncryptionST extends AbstractST {
 
     @SuppressWarnings("java:S2925")
     @TestTemplate
-    void produceAndConsumeMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void produceAndConsumeMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;

@@ -38,7 +38,7 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                 .map(TestKubeKmsFacadeInvocationContextProvider.TemplateInvocationContext::new);
     }
 
-    private record TemplateInvocationContext(TestKmsFacade<?, ?, ?> kmsFacade) implements TestTemplateInvocationContext {
+    private record TemplateInvocationContext(TestKmsFacade<?, ?, ?, ?> kmsFacade) implements TestTemplateInvocationContext {
 
         @Override
         public String getDisplayName(int invocationIndex) {
@@ -55,9 +55,9 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
 
             return List.of(
                     (BeforeEachCallback) extensionContext -> kmsFacade.start(),
-                    new TypeBasedParameterResolver<TestKmsFacade<?, ?, ?>>() {
+                    new TypeBasedParameterResolver<TestKmsFacade<?, ?, ?, ?>>() {
                         @Override
-                        public TestKmsFacade<?, ?, ?> resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
+                        public TestKmsFacade<?, ?, ?, ?> resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
                             return kmsFacade;
                         }
                     },

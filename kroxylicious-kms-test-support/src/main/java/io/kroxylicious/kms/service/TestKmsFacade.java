@@ -9,10 +9,11 @@ package io.kroxylicious.kms.service;
 /**
  * Represents the Kms itself, exposed for test purpose.
  * @param <C> The config type
+ * @param <I> The init type
  * @param <K> The key reference
  * @param <E> The type of encrypted DEK
  */
-public interface TestKmsFacade<C, K, E> extends AutoCloseable {
+public interface TestKmsFacade<C, I, K, E> extends AutoCloseable {
 
     /**
      * Returns true of this facade is available, or false otherwise.
@@ -43,7 +44,7 @@ public interface TestKmsFacade<C, K, E> extends AutoCloseable {
      *
      * @return service class
      */
-    Class<? extends KmsService<C, C, K, E>> getKmsServiceClass();
+    Class<? extends KmsService<C, I, K, E>> getKmsServiceClass();
 
     /**
      * Gets the configuration Kroxylicious will need to use to connect to the underlying KMS.

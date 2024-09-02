@@ -41,7 +41,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Config, String, AwsKmsEdek> {
+public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Config, Config, String, AwsKmsEdek> {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int MINIMUM_ALLOWED_EXPIRY_DAYS = 7;
     private static final TypeReference<CreateKeyResponse> CREATE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {

@@ -1063,7 +1063,8 @@ class InBandDecryptionManagerTest {
     @NonNull
     private static InMemoryKms getInMemoryKms() {
         var kmsService = UnitTestingKmsService.newInstance();
-        return kmsService.buildKms(new UnitTestingKmsService.Config());
+        var init = kmsService.initialize(new UnitTestingKmsService.Config());
+        return kmsService.buildKms(init);
     }
 
     @NonNull

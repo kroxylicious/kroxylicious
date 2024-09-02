@@ -32,7 +32,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
+public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config, Config, String, VaultEdek> {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<VaultResponse<VaultResponse.ReadKeyData>> VAULT_RESPONSE_READ_KEY_DATA_TYPEREF = new TypeReference<>() {
     };

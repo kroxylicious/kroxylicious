@@ -9,7 +9,7 @@ package io.kroxylicious.kms.provider.aws.kms;
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 
-public abstract class AbstractAwsKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, AwsKmsEdek> {
+public abstract class AbstractAwsKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, Config, String, AwsKmsEdek> {
     @Override
     public abstract AbstractAwsKmsTestKmsFacade build();
 }

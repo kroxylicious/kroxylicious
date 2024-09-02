@@ -16,7 +16,7 @@ import io.kroxylicious.kms.service.AbstractTestKmsFacadeTest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
-class AwsKmsTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, String, AwsKmsEdek> {
+class AwsKmsTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, Config, String, AwsKmsEdek> {
 
     AwsKmsTestKmsFacadeTest() {
         super(new AwsKmsTestKmsFacadeFactory());

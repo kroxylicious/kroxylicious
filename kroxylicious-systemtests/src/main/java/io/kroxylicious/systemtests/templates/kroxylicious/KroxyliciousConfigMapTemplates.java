@@ -61,13 +61,13 @@ public final class KroxyliciousConfigMapTemplates {
      * @param testKmsFacade the test kms facade
      * @return the config map builder
      */
-    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade,
+    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, TestKmsFacade<?, ?, ?, ?> testKmsFacade,
                                                                       ExperimentalKmsConfig experimentalKmsConfig) {
         return baseKroxyliciousConfig(namespaceName)
                 .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, testKmsFacade, experimentalKmsConfig));
     }
 
-    private static String buildEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
+    private static String buildEncryptionFilter(TestKmsFacade<?, ?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
         return """
                 - type: RecordEncryption
                   config:
@@ -96,7 +96,7 @@ public final class KroxyliciousConfigMapTemplates {
         return configYaml;
     }
 
-    private static String getRecordEncryptionConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
+    private static String getRecordEncryptionConfigMap(String clusterName, TestKmsFacade<?, ?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
         String configYaml = buildEncryptionFilter(testKmsFacade, experimentalKmsConfig);
 
         return """

@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +38,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @see UnitTestingKmsService
  */
 @Plugin(configType = IntegrationTestingKmsService.Config.class)
-public class IntegrationTestingKmsService implements KmsService<IntegrationTestingKmsService.Config, IntegrationTestingKmsService.Config, UUID, InMemoryEdek> {
+public class IntegrationTestingKmsService implements KmsService<IntegrationTestingKmsService.Config, IntegrationTestingKmsService.Init, UUID, InMemoryEdek> {
 
     public static IntegrationTestingKmsService newInstance() {
         return (IntegrationTestingKmsService) ServiceLoader.load(KmsService.class).stream()
@@ -56,12 +57,24 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
         }
     }
 
+    public record Init(
+                       Config config) {
+        public Init {
+            Objects.requireNonNull(config);
+        }
+    }
+
     private static final Map<String, InMemoryKms> KMSES = new ConcurrentHashMap<>();
+
+    @Override
+    public Init initialize(Config config) {
+        return new Init(config);
+    }
 
     @NonNull
     @Override
-    public InMemoryKms buildKms(Config initializationData) {
-        return KMSES.computeIfAbsent(initializationData.name(), ignored -> new InMemoryKms(12, 128, Map.of(), Map.of()));
+    public InMemoryKms buildKms(Init initializationData) {
+        return KMSES.computeIfAbsent(initializationData.config().name(), ignored -> new InMemoryKms(12, 128, Map.of(), Map.of()));
     }
 
     public static void delete(String name) {

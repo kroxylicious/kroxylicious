@@ -38,7 +38,7 @@ class EnvelopeEncryptionFilterIT {
     private static final String HELLO_WORLD = "hello world";
 
     @TestTemplate
-    void roundTripSingleRecord(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+    void roundTripSingleRecord(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?, ?> testKmsFacade) throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -63,7 +63,7 @@ class EnvelopeEncryptionFilterIT {
     }
 
     @SuppressWarnings("removal")
-    private FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
+    private FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?, ?> testKmsFacade) {
         return new FilterDefinitionBuilder(EnvelopeEncryption.class.getSimpleName())
                 .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
                 .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
