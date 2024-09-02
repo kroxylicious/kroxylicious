@@ -287,7 +287,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                     ctx.fireChannelRead(frame);
                 }
                 else {
-                    writeFramedResponse(ctx, frame, exceptionHandler.errorResponse(frame, NOT_AUTHENTICATED_EXCEPTION).data());
+                    writeFramedResponse(ctx, frame, exceptionHandler.errorResponseMessage(frame, NOT_AUTHENTICATED_EXCEPTION));
                 }
         }
     }

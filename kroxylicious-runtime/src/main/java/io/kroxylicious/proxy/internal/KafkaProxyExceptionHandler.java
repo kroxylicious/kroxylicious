@@ -183,6 +183,7 @@ import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyExceptionHandler {
 
@@ -217,7 +218,14 @@ public class KafkaProxyExceptionHandler {
         return Optional.empty();
     }
 
-    public AbstractResponse errorResponse(DecodedRequestFrame<?> frame, Throwable error) {
+
+    public ApiMessage errorResponseMessage(DecodedRequestFrame<?> frame, Throwable error) {
+        return errorResponse(frame, error).data();
+    }
+
+
+    @VisibleForTesting
+    AbstractResponse errorResponse(DecodedRequestFrame<?> frame, Throwable error) {
         /*
          * This monstrosity is needed because there isn't any _nicely_ abstracted code we can borrow from Kafka
          * which creates and response with error codes set appropriately.

@@ -340,7 +340,7 @@ public class KafkaProxyFrontendHandler
     }
 
     private @NonNull Object buildErrorResponseFrame(DecodedRequestFrame<?> triggerFrame, Throwable error) {
-        var responseData = exceptionHandler.errorResponse(triggerFrame, error).data();
+        var responseData = exceptionHandler.errorResponseMessage(triggerFrame, error);
         final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
         responseHeaderData.setCorrelationId(triggerFrame.correlationId());
         return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
