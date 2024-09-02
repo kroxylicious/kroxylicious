@@ -167,6 +167,9 @@ public class KafkaProxyFrontendHandler
 
     public void outboundChannelActive(ChannelHandlerContext ctx) {
         this.outboundCtx = ctx;
+        if (this.state == State.CONNECTED) {
+            outboundChannelUsable();
+        }
     }
 
     public void outboundChannelUsable() {
@@ -342,9 +345,13 @@ public class KafkaProxyFrontendHandler
             return handler.handshakeFuture();
         }).orElse(tcpConnectFuture);
 
+        // Now we know which filters are to be used we need to update the DecodePredicate
+        // so that the decoder starts decoding the messages that the filters want to intercept
+        dp.setDelegate(DecodePredicate.forFilters(filters));
+
         kafkaAvailableFuture.addListener(future -> {
             if (future.isSuccess()) {
-                onConnection(filters);
+                onConnection();
             }
             else {
                 onConnectionFailed(remote, future, inboundChannel);
@@ -375,13 +382,12 @@ public class KafkaProxyFrontendHandler
                 });
     }
 
-    private void onConnection(List<FilterAndInvoker> filters) {
+    private void onConnection() {
         state = State.CONNECTED;
         LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
-        // Now we know which filters are to be used we need to update the DecodePredicate
-        // so that the decoder starts decoding the messages that the filters want to intercept
-        dp.setDelegate(DecodePredicate.forFilters(filters));
-        outboundChannelUsable();
+        if (outboundCtx != null) {
+            outboundChannelUsable();
+        }
     }
 
     @VisibleForTesting

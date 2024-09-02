@@ -49,8 +49,8 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.trace("Channel active {}", ctx);
-        super.channelActive(ctx);
         this.frontendHandler.outboundChannelActive(ctx);
+        super.channelActive(ctx);
     }
 
     @Override
