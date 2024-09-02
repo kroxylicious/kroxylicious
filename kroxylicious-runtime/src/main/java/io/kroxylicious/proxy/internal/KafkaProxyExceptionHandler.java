@@ -187,13 +187,13 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyExceptionHandler {
 
-    private final ConcurrentMap<Class<? extends Exception>, Function<Throwable, Optional<?>>> responsesByExceptionType;
+    private final ConcurrentMap<Class<? extends Throwable>, Function<Throwable, Optional<?>>> responsesByExceptionType;
 
     public KafkaProxyExceptionHandler() {
         responsesByExceptionType = new ConcurrentHashMap<>();
     }
 
-    public void registerExceptionResponse(Class<? extends Exception> exceptionClass, Function<Throwable, Optional<?>> responseFunction) {
+    public void registerExceptionResponse(Class<? extends Throwable> exceptionClass, Function<Throwable, Optional<?>> responseFunction) {
         responsesByExceptionType.put(exceptionClass, responseFunction);
     }
 
