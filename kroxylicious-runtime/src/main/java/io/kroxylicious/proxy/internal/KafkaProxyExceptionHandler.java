@@ -262,7 +262,7 @@ public class KafkaProxyExceptionHandler {
                 break;
             case OFFSET_FETCH:
                 OffsetFetchRequestData offsetFetchRequestData = (OffsetFetchRequestData) reqBody;
-                if (offsetFetchRequestData.groups() != null) {
+                if (offsetFetchRequestData.groups() != null && !offsetFetchRequestData.groups().isEmpty()) {
                     req = new OffsetFetchRequest.Builder(
                             offsetFetchRequestData.groups().stream().collect(Collectors.toMap(
                                     OffsetFetchRequestData.OffsetFetchRequestGroup::groupId,
@@ -273,7 +273,7 @@ public class KafkaProxyExceptionHandler {
                             true, false)
                             .build(apiVersion);
                 }
-                else if (offsetFetchRequestData.topics() != null) {
+                else if (offsetFetchRequestData.topics() != null && !offsetFetchRequestData.topics().isEmpty()) {
                     req = new OffsetFetchRequest.Builder(
                             offsetFetchRequestData.groupId(),
                             offsetFetchRequestData.requireStable(),
