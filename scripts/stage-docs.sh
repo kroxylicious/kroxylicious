@@ -15,9 +15,11 @@ REPOSITORY="origin"
 BRANCH_FROM="main"
 DRY_RUN="false"
 ORIGINAL_GH_DEFAULT_REPO=""
-while getopts ":v:b:r:dh" opt; do
+while getopts ":v:u:b:r:dh" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
+    ;;
+    u) WEBSITE_REPO_URL="${OPTARG}"
     ;;
     b) BRANCH_FROM="${OPTARG}"
     ;;
@@ -27,8 +29,9 @@ while getopts ":v:b:r:dh" opt; do
     ;;
     h)
       1>&2 cat << EOF
-usage: $0 -v version [-b branch] [-r repository] [-d] [-h]
+usage: $0 -v version -u url [-b branch] [-r repository] [-d] [-h]
  -v version number e.g. 0.3.0
+ -u url of the website repository e.g. https://github.com/kroxylicious/kroxylicious.github.io.git
  -b branch to release from (defaults to 'main')
  -r the remote name of the kroxylicious.github.io repository (defaults to 'origin')
  -d dry-run mode
@@ -45,6 +48,11 @@ done
 
 if [[ -z ${RELEASE_VERSION} ]]; then
   echo "No version specified, aborting"
+  exit 1
+fi
+
+if [[ -z ${WEBSITE_REPO_URL} ]]; then
+  echo "No website repository URL specified, aborting"
   exit 1
 fi
 
@@ -100,9 +108,8 @@ git checkout "tags/${RELEASE_TAG}"
 
 # Move up a directory so we don't end up with website files in the main repository
 cd ../
-echo "In '$(pwd)', cloning website files"
-# Clone `kroxylicious/kroxylicious.github.io` (SSH or HTTPS for this???)
-git clone git@github.com:kroxylicious/kroxylicious.github.io
+echo "In '$(pwd)', cloning website repository at ${WEBSITE_REPO_URL}"
+git clone "${WEBSITE_REPO_URL}"
 cd ./kroxylicious.github.io/
 
 ORIGINAL_WEBSITE_WORKING_BRANCH=$(git branch --show-current)
