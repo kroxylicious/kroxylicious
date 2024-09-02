@@ -212,7 +212,7 @@ public class KafkaProxyExceptionMapper {
     /**
      * Maps a given throwable by applying the function registered for the shallowest cause.
      * @param throwable to have its cause chain searched.
-     * @return an <code>Optional</code> empty if the there was no associated function, or that function returned <code>null</code>.
+     * @return an <code>Optional</code> empty if the there was no associated function.
      */
     @SuppressWarnings("java:S1452")
     public Optional<?> mapException(Throwable throwable) {

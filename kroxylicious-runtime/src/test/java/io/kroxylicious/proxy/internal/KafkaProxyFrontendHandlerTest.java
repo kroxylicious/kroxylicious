@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -30,11 +31,12 @@ import org.mockito.ArgumentCaptor;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.EmptyByteBuf;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.DefaultChannelPromise;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
@@ -73,12 +75,14 @@ class KafkaProxyFrontendHandlerTest {
     public static final String SNI_HOSTNAME = "external.example.com";
     public static final String CLUSTER_HOST = "internal.example.org";
     public static final int CLUSTER_PORT = 9092;
+    public static final String TLS_NEGOTIATION_ERROR = "TLS negotiation error";
     EmbeddedChannel inboundChannel;
     EmbeddedChannel outboundChannel;
 
     int corrId = 0;
     private final AtomicReference<NetFilter.NetFilterContext> connectContext = new AtomicReference<>();
-    private DefaultChannelPromise outboundChannelTcpConnectionFuture;
+    private ChannelPromise outboundChannelTcpConnectionFuture;
+    private KafkaProxyExceptionMapper exceptionHandler;
 
     private void writeRequest(short apiVersion, ApiMessage body) {
         var apiKey = ApiKeys.forId(body.apiKey());
@@ -98,6 +102,7 @@ class KafkaProxyFrontendHandlerTest {
     public void buildChannel() {
         inboundChannel = new EmbeddedChannel();
         corrId = 0;
+        exceptionHandler = new KafkaProxyExceptionMapper();
     }
 
     @AfterEach
@@ -224,7 +229,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, VirtualCluster virtualCluster) {
-        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, new KafkaProxyExceptionMapper()) {
+        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, exceptionHandler) {
             @Override
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
@@ -232,7 +237,7 @@ class KafkaProxyFrontendHandlerTest {
                 // trying to re-register the outbound channel => IllegalStateException
                 // So we override this method to short-circuit that
                 outboundChannel = new EmbeddedChannel();
-                outboundChannelTcpConnectionFuture = new DefaultChannelPromise(outboundChannel);
+                outboundChannelTcpConnectionFuture = outboundChannel.newPromise();
                 return outboundChannelTcpConnectionFuture.addListener(
                         future -> this.outboundChannelActive(outboundChannel.pipeline().firstContext().fireChannelActive()));
             }
@@ -353,6 +358,34 @@ class KafkaProxyFrontendHandlerTest {
             handleConnect(filter, handler);
         }
 
+    }
+
+    @Test
+    void shouldCloseWithMappedResponseChannelOnFailedConnection() {
+        // Given
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
+        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(throwable.getMessage()));
+
+        // When
+        handler.onConnectionFailed(new HostPort("wibble", 9092), inboundChannel.newFailedFuture(new SSLHandshakeException(TLS_NEGOTIATION_ERROR)), inboundChannel);
+
+        // Then
+        assertThat(inboundChannel.<String> readOutbound()).isEqualTo(TLS_NEGOTIATION_ERROR);
+        assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    @Test
+    void shouldCloseResponseChannelOnFailedConnection() {
+        // Given
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
+        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(throwable.getMessage()));
+
+        // When
+        handler.onConnectionFailed(new HostPort("wibble", 9092), inboundChannel.newFailedFuture(new RuntimeException(TLS_NEGOTIATION_ERROR)), inboundChannel);
+
+        // Then
+        assertThat(inboundChannel.<ByteBuf> readOutbound()).isNotNull().isExactlyInstanceOf(EmptyByteBuf.class);
+        assertThat(inboundChannel.isOpen()).isFalse();
     }
 
     private void initialiseInboundChannel(KafkaProxyFrontendHandler handler) {
