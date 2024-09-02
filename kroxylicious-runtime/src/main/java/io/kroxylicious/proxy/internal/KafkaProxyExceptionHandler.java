@@ -8,10 +8,10 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.Collections;
 import java.util.IdentityHashMap;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -186,7 +186,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 
 public class KafkaProxyExceptionHandler {
 
-    private final Map<Class<? extends Exception>, Function<Throwable, Optional<?>>> responsesByExceptionType;
+    private final ConcurrentMap<Class<? extends Exception>, Function<Throwable, Optional<?>>> responsesByExceptionType;
 
     public KafkaProxyExceptionHandler() {
         responsesByExceptionType = new ConcurrentHashMap<>();
