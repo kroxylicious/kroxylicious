@@ -34,24 +34,24 @@ import static io.kroxylicious.test.assertj.ResponseAssert.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Named.named;
 
-class KafkaProxyExceptionHandlerTest {
+class KafkaProxyExceptionMapperTest {
 
     private static final SSLHandshakeException HANDSHAKE_EXCEPTION = new SSLHandshakeException("it went wrong");
 
-    private KafkaProxyExceptionHandler kafkaProxyExceptionHandler;
+    private KafkaProxyExceptionMapper kafkaProxyExceptionMapper;
 
     @BeforeEach
     void setUp() {
-        kafkaProxyExceptionHandler = new KafkaProxyExceptionHandler();
+        kafkaProxyExceptionMapper = new KafkaProxyExceptionMapper();
     }
 
     @Test
     void shouldCloseWithForRegisteredException() {
         // Given
-        kafkaProxyExceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
+        kafkaProxyExceptionMapper.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
 
         // When
-        final Optional<?> result = kafkaProxyExceptionHandler.handleException(HANDSHAKE_EXCEPTION);
+        final Optional<?> result = kafkaProxyExceptionMapper.mapException(HANDSHAKE_EXCEPTION);
 
         // Then
         assertThat(result).isNotEmpty().get().isInstanceOf(UnknownServerException.class);
@@ -60,10 +60,10 @@ class KafkaProxyExceptionHandlerTest {
     @Test
     void shouldUnwrapCauseToFindForRegisteredException() {
         // Given
-        kafkaProxyExceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
+        kafkaProxyExceptionMapper.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
 
         // When
-        final Optional<?> result = kafkaProxyExceptionHandler.handleException(new DecoderException(HANDSHAKE_EXCEPTION));
+        final Optional<?> result = kafkaProxyExceptionMapper.mapException(new DecoderException(HANDSHAKE_EXCEPTION));
 
         // Then
         assertThat(result).isNotEmpty().get().isInstanceOf(UnknownServerException.class);
@@ -72,14 +72,14 @@ class KafkaProxyExceptionHandlerTest {
     @Test
     void shouldCompleteWithCircularCauseChainDoesnotMatch() {
         // Given
-        kafkaProxyExceptionHandler.registerExceptionResponse(RuntimeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
+        kafkaProxyExceptionMapper.registerExceptionResponse(RuntimeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
         Exception e1 = new Exception("1");
         Exception e2 = new Exception("2", e1);
         Exception e3 = new Exception("3", e2);
         e1.initCause(e3);
 
         // When
-        final Optional<?> result = kafkaProxyExceptionHandler.handleException(e1);
+        final Optional<?> result = kafkaProxyExceptionMapper.mapException(e1);
 
         // Then
         assertThat(result).isEmpty();
@@ -88,14 +88,14 @@ class KafkaProxyExceptionHandlerTest {
     @Test
     void shouldCompleteWithCircularCauseChainMatches() {
         // Given
-        kafkaProxyExceptionHandler.registerExceptionResponse(RuntimeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
+        kafkaProxyExceptionMapper.registerExceptionResponse(RuntimeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
         Exception e1 = new Exception("1");
         Exception e2 = new RuntimeException("2", e1);
         Exception e3 = new Exception("3", e2);
         e1.initCause(e3);
 
         // When
-        final Optional<?> result = kafkaProxyExceptionHandler.handleException(e1);
+        final Optional<?> result = kafkaProxyExceptionMapper.mapException(e1);
 
         // Then
         assertThat(result).isNotEmpty().get().isInstanceOf(UnknownServerException.class);
@@ -106,7 +106,7 @@ class KafkaProxyExceptionHandlerTest {
     void shouldGenerateErrorResponseApiKey(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final AbstractResponse response = kafkaProxyExceptionHandler.errorResponse(request, new BrokerNotAvailableException("handshake failure", HANDSHAKE_EXCEPTION));
+        final AbstractResponse response = kafkaProxyExceptionMapper.errorResponse(request, new BrokerNotAvailableException("handshake failure", HANDSHAKE_EXCEPTION));
 
         // Then
         assertThat(response)
@@ -117,14 +117,14 @@ class KafkaProxyExceptionHandlerTest {
     public static Stream<Arguments> decodedFrameSourceLatestVersion() {
         return RequestFactory
                 .apiMessageFor(ApiKeys::latestVersion)
-                .map(KafkaProxyExceptionHandlerTest::toDecodedFrame)
+                .map(KafkaProxyExceptionMapperTest::toDecodedFrame)
                 .map(Arguments::of);
     }
 
     public static Stream<Arguments> decodedFrameSourceOldestVersion() {
         return RequestFactory
                 .apiMessageFor(ApiKeys::oldestVersion)
-                .map(KafkaProxyExceptionHandlerTest::toDecodedFrame)
+                .map(KafkaProxyExceptionMapperTest::toDecodedFrame)
                 .map(Arguments::of);
     }
 

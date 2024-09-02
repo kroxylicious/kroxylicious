@@ -180,11 +180,11 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
 
     @VisibleForTesting
     State lastSeen;
-    private final KafkaProxyExceptionHandler exceptionHandler;
+    private final KafkaProxyExceptionMapper exceptionHandler;
 
     public KafkaAuthnHandler(Channel ch,
                              Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers,
-                             KafkaProxyExceptionHandler exceptionHandler) {
+                             KafkaProxyExceptionMapper exceptionHandler) {
         this(ch, State.START, mechanismHandlers, exceptionHandler);
     }
 
@@ -192,7 +192,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     KafkaAuthnHandler(Channel ch,
                       State init,
                       Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers,
-                      KafkaProxyExceptionHandler exceptionHandler) {
+                      KafkaProxyExceptionMapper exceptionHandler) {
         this.lastSeen = init;
         this.exceptionHandler = exceptionHandler;
         LOG.debug("{}: Initial state {}", ch, lastSeen);

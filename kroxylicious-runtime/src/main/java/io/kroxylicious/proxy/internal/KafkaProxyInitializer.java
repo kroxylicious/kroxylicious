@@ -159,7 +159,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
         var virtualCluster = binding.virtualCluster();
         ChannelPipeline pipeline = ch.pipeline();
-        final KafkaProxyExceptionHandler exceptionHandler = new KafkaProxyExceptionHandler();
+        final KafkaProxyExceptionMapper exceptionHandler = new KafkaProxyExceptionMapper();
         if (virtualCluster.isLogNetwork()) {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }

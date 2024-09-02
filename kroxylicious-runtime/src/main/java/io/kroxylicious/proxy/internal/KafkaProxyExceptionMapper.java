@@ -185,20 +185,37 @@ import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-public class KafkaProxyExceptionHandler {
+/**
+ * In the operation of the proxy there are various exceptions which are "anticipated" but not necessarily handled directly.
+ * SSL Handshake errors are an illustrative example, where they are thrown and propagate through the netty channel without being handled.
+ * <p/>
+ * The exception mapper provides a mechanism to register specific exceptions with function to evaluate them and if appropriate generate a message to respond to the
+ * client with.
+ */
+public class KafkaProxyExceptionMapper {
 
     private final ConcurrentMap<Class<? extends Throwable>, Function<Throwable, Optional<?>>> responsesByExceptionType;
 
-    public KafkaProxyExceptionHandler() {
+    public KafkaProxyExceptionMapper() {
         responsesByExceptionType = new ConcurrentHashMap<>();
     }
 
-    public void registerExceptionResponse(Class<? extends Throwable> exceptionClass, Function<Throwable, Optional<?>> responseFunction) {
-        responsesByExceptionType.put(exceptionClass, responseFunction);
+    /**
+     * Register a function to be invoked when the particular throwable is encountered.
+     * @param throwableClass the target class to register
+     * @param responseFunction the function to invoke when the throwable is encountered
+     */
+    public void registerExceptionResponse(Class<? extends Throwable> throwableClass, Function<Throwable, Optional<?>> responseFunction) {
+        responsesByExceptionType.put(throwableClass, responseFunction);
     }
 
+    /**
+     * Maps a given throwable by applying the function registered for the shallowest cause.
+     * @param throwable to have its cause chain searched.
+     * @return an <code>Optional</code> empty if the there was no associated function, or that function returned <code>null</code>.
+     */
     @SuppressWarnings("java:S1452")
-    public Optional<?> handleException(Throwable throwable) {
+    public Optional<?> mapException(Throwable throwable) {
         var localCause = throwable;
         Set<Throwable> visitedExceptions = Collections.newSetFromMap(new IdentityHashMap<>());
         while (localCause != null) {
@@ -218,11 +235,9 @@ public class KafkaProxyExceptionHandler {
         return Optional.empty();
     }
 
-
     public ApiMessage errorResponseMessage(DecodedRequestFrame<?> frame, Throwable error) {
         return errorResponse(frame, error).data();
     }
-
 
     @VisibleForTesting
     AbstractResponse errorResponse(DecodedRequestFrame<?> frame, Throwable error) {

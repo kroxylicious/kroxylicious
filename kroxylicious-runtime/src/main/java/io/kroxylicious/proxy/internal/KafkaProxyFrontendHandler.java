@@ -89,7 +89,7 @@ public class KafkaProxyFrontendHandler
 
     private final NetFilter filter;
     private final SaslDecodePredicate dp;
-    private final KafkaProxyExceptionHandler exceptionHandler;
+    private final KafkaProxyExceptionMapper exceptionHandler;
 
     private AuthenticationEvent authentication;
     private String clientSoftwareName;
@@ -146,7 +146,7 @@ public class KafkaProxyFrontendHandler
     KafkaProxyFrontendHandler(NetFilter filter,
                               SaslDecodePredicate dp,
                               VirtualCluster virtualCluster,
-                              KafkaProxyExceptionHandler exceptionHandler) {
+                              KafkaProxyExceptionMapper exceptionHandler) {
         this.filter = filter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
@@ -351,7 +351,7 @@ public class KafkaProxyFrontendHandler
         state = State.FAILED;
         // Close the connection if the connection attempt has failed.
         Throwable failureCause = future.cause();
-        exceptionHandler.handleException(failureCause).ifPresentOrElse(
+        exceptionHandler.mapException(failureCause).ifPresentOrElse(
                 result -> closeWith(inboundChannel, result),
                 () -> {
                     LOGGER.atWarn()
