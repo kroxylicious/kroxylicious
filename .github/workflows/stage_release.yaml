@@ -47,9 +47,9 @@ on:
         required: false
         default: 'main'
       website-repository:
-        description: 'The URL of the website repository, e.g. https://github.com/kroxylicious/kroxylicious.github.io.git'
+        description: 'The URL of the website repository, e.g. git@github.com:kroxylicious/kroxylicious.github.io.git'
         required: false
-        default: 'https://github.com/kroxylicious/kroxylicious.github.io.git'
+        default: 'git@github.com:kroxylicious/kroxylicious.github.io.git'
       skip-tests:
         description: 'Whether to skip the tests before pushing the tag'
         type: boolean

@@ -31,7 +31,7 @@ while getopts ":v:u:b:r:dh" opt; do
       1>&2 cat << EOF
 usage: $0 -v version -u url [-b branch] [-r repository] [-d] [-h]
  -v version number e.g. 0.3.0
- -u url of the website repository e.g. https://github.com/kroxylicious/kroxylicious.github.io.git
+ -u url of the website repository e.g. git@github.com:kroxylicious/kroxylicious.github.io.git
  -b branch to release from (defaults to 'main')
  -r the remote name of the kroxylicious.github.io repository (defaults to 'origin')
  -d dry-run mode
