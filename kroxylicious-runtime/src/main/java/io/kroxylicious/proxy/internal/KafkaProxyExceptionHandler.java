@@ -192,7 +192,7 @@ public class KafkaProxyExceptionHandler {
         responsesByExceptionType = new ConcurrentHashMap<>();
     }
 
-    public <T extends Throwable> void registerExceptionResponse(Class<T> exceptionClass, Function<T, Optional<?>> responseFunction) {
+    public void registerExceptionResponse(Class<? extends Exception> exceptionClass, Function<Throwable, Optional<?>> responseFunction) {
         responsesByExceptionType.put(exceptionClass, responseFunction);
     }
 
