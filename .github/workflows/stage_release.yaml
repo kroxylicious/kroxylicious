@@ -46,6 +46,10 @@ on:
         description: 'The branch from which the release is cut'
         required: false
         default: 'main'
+      website-repository:
+        description: 'The URL of the website repository, e.g. https://github.com/kroxylicious/kroxylicious.github.io.git'
+        required: false
+        default: 'https://github.com/kroxylicious/kroxylicious.github.io.git'
       skip-tests:
         description: 'Whether to skip the tests before pushing the tag'
         type: boolean
@@ -122,6 +126,7 @@ jobs:
       - name: 'Stage release docs'
         if: ${{ success() }}
         run: ./scripts/stage-docs.sh -v ${{ github.event.inputs.release-version }} \
+                                     -u ${{ github.event.inputs.website-repository }} \
                                      -b ${{ github.event.inputs.branch }} \
                                      ${{ github.event.inputs.dry-run == 'true' && '-d' || '' }}
         env:
