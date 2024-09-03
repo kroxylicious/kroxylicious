@@ -23,6 +23,7 @@ import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
 import org.apache.kafka.common.message.CreateAclsRequestData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
+import org.apache.kafka.common.message.DeleteAclsRequestData;
 import org.apache.kafka.common.message.DeleteGroupsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
@@ -51,11 +52,10 @@ public class RequestFactory {
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.DELETE_ACLS,
-            ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS, ApiKeys.TXN_OFFSET_COMMIT,
-            ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS, ApiKeys.ALTER_REPLICA_LOG_DIRS, ApiKeys.CREATE_PARTITIONS,
-            ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.DESCRIBE_PRODUCERS,
-            ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
+    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN,
+            ApiKeys.WRITE_TXN_MARKERS, ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS,
+            ApiKeys.ALTER_REPLICA_LOG_DIRS, ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS,
+            ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
     private static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = new EnumMap<>(ApiKeys.class);
 
@@ -76,6 +76,7 @@ public class RequestFactory {
         messagePopulators.put(ApiKeys.INIT_PRODUCER_ID, RequestFactory::populateInitProducerIdRequest);
         messagePopulators.put(ApiKeys.CREATE_ACLS, RequestFactory::populateCreateAclsRequest);
         messagePopulators.put(ApiKeys.DESCRIBE_ACLS, RequestFactory::populateDescribeAclsRequest);
+        messagePopulators.put(ApiKeys.DELETE_ACLS, RequestFactory::populateDeleteAclsRequest);
     }
 
     private RequestFactory() {
@@ -246,5 +247,16 @@ public class RequestFactory {
         describeAclsRequestData.setPermissionType(AclPermissionType.ANY.code());
         describeAclsRequestData.setResourceNameFilter(MobyNamesGenerator.getRandomName());
         describeAclsRequestData.setResourceTypeFilter(ResourceType.ANY.code());
+    }
+
+    private static void populateDeleteAclsRequest(ApiMessage apiMessage) {
+        final DeleteAclsRequestData deleteAclsRequestData = (DeleteAclsRequestData) apiMessage;
+        final DeleteAclsRequestData.DeleteAclsFilter daf = new DeleteAclsRequestData.DeleteAclsFilter();
+        daf.setPatternTypeFilter(PatternType.ANY.code());
+        daf.setOperation(AclOperation.ANY.code());
+        daf.setPermissionType(AclPermissionType.ANY.code());
+        daf.setResourceNameFilter(MobyNamesGenerator.getRandomName());
+        daf.setResourceTypeFilter(ResourceType.ANY.code());
+        deleteAclsRequestData.setFilters(List.of(daf));
     }
 }
