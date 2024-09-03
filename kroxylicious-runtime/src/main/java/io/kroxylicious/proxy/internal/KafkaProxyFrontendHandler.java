@@ -70,7 +70,7 @@ public class KafkaProxyFrontendHandler
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
     public static final ApiException ERROR_NEGOTIATING_SSL_CONNECTION = new NetworkException("Error negotiating SSL connection");
-    public static final AttributeKey<Object> REMOTE_PEER_KEY = AttributeKey.valueOf("remotePeer");
+    public static final AttributeKey<Object> UPSTREAM_PEER_KEY = AttributeKey.valueOf("upstreamPeer");
 
     static {
         var objectMapper = new ObjectMapper();
@@ -299,7 +299,7 @@ public class KafkaProxyFrontendHandler
         Channel outboundChannel = tcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
-        outboundChannel.attr(REMOTE_PEER_KEY).set(remote);
+        outboundChannel.attr(UPSTREAM_PEER_KEY).set(remote);
 
         // Note: Because we are acting as a client of the target cluster and are thus writing Request data to an outbound channel, the Request flows from the
         // last outbound handler in the pipeline to the first. When Responses are read from the cluster, the inbound handlers of the pipeline are invoked in
@@ -315,6 +315,11 @@ public class KafkaProxyFrontendHandler
         if (logNetwork) {
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
         }
+        virtualCluster.getUpstreamSslContext().ifPresent(sslContext -> {
+            final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
+            pipeline.addFirst("ssl", handler);
+            exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, this::onSslHandshakeException);
+        });
 
         // Now we know which filters are to be used we need to update the DecodePredicate
         // so that the decoder starts decoding the messages that the filters want to intercept
@@ -607,21 +612,9 @@ public class KafkaProxyFrontendHandler
 
     private void onUpstreamSslContext(SslContext sslContext) {
         this.state = State.NEGOTIATING_TLS;
-        final HostPort remote = (HostPort) outboundCtx.channel().attr(REMOTE_PEER_KEY).get();
-        final SslHandler handler = sslContext.newHandler(outboundCtx.channel().alloc(), remote.host(), remote.port());
-        outboundCtx.channel().pipeline().addFirst("ssl", handler);
-        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> {
-            Object result;
-            final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
-            if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-                result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
-            }
-            else {
-                result = null;
-            }
-            return Optional.ofNullable(result);
-        });
-        handler.handshakeFuture().addListener(handshakeFuture -> {
+        final HostPort remote = (HostPort) outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get();
+        final SslHandler sslHandler = this.outboundCtx.pipeline().get(SslHandler.class);
+        sslHandler.handshakeFuture().addListener(handshakeFuture -> {
             if (handshakeFuture.isSuccess()) {
                 this.outboundChannelUsable();
             }
@@ -629,6 +622,18 @@ public class KafkaProxyFrontendHandler
                 this.onConnectionFailed(remote, handshakeFuture, this.inboundCtx.channel());
             }
         });
+    }
+
+    private Optional<?> onSslHandshakeException(Throwable throwable) {
+        Object result;
+        final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
+        if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
+            result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
+        }
+        else {
+            result = null;
+        }
+        return Optional.ofNullable(result);
     }
 
 }
