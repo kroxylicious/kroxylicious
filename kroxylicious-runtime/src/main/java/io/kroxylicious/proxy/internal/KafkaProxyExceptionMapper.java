@@ -96,6 +96,7 @@ import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.UnregisterBrokerRequestData;
 import org.apache.kafka.common.message.UpdateFeaturesRequestData;
+import org.apache.kafka.common.message.UpdateMetadataRequestData;
 import org.apache.kafka.common.message.VoteRequestData;
 import org.apache.kafka.common.message.WriteTxnMarkersRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -175,6 +176,7 @@ import org.apache.kafka.common.requests.SyncGroupRequest;
 import org.apache.kafka.common.requests.TxnOffsetCommitRequest;
 import org.apache.kafka.common.requests.UnregisterBrokerRequest;
 import org.apache.kafka.common.requests.UpdateFeaturesRequest;
+import org.apache.kafka.common.requests.UpdateMetadataRequest;
 import org.apache.kafka.common.requests.VoteRequest;
 import org.apache.kafka.common.requests.WriteTxnMarkersRequest;
 import org.apache.kafka.common.resource.PatternType;
@@ -557,7 +559,7 @@ public class KafkaProxyExceptionMapper {
                         .build(apiVersion);
                 break;
             case UPDATE_METADATA:
-                req = new UpdateFeaturesRequest((UpdateFeaturesRequestData) reqBody, apiVersion);
+                req = new UpdateMetadataRequest((UpdateMetadataRequestData) reqBody, apiVersion);
                 break;
             case CONTROLLED_SHUTDOWN:
                 req = new ControlledShutdownRequest.Builder((ControlledShutdownRequestData) reqBody, apiVersion)
