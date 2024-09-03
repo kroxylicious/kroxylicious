@@ -23,6 +23,7 @@ import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.UpdateMetadataRequestData;
@@ -39,7 +40,7 @@ public class RequestFactory {
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.OFFSET_COMMIT, ApiKeys.CREATE_TOPICS, ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS,
+    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.CREATE_TOPICS, ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS,
             ApiKeys.INIT_PRODUCER_ID, ApiKeys.CREATE_ACLS, ApiKeys.DESCRIBE_ACLS, ApiKeys.DELETE_ACLS, ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS,
             ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS, ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS,
             ApiKeys.INCREMENTAL_ALTER_CONFIGS, ApiKeys.ALTER_REPLICA_LOG_DIRS, ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS,
@@ -55,8 +56,8 @@ public class RequestFactory {
             ApiKeys.LEAVE_GROUP, RequestFactory::populateLeaveGroupRequest,
             ApiKeys.DESCRIBE_GROUPS, RequestFactory::populateDescribeGroupsRequest,
             ApiKeys.CONSUMER_GROUP_DESCRIBE, RequestFactory::populateConsumeGroupDescribeRequest,
-            ApiKeys.DELETE_GROUPS, RequestFactory::populateDeleteGroupRequest
-    );
+            ApiKeys.DELETE_GROUPS, RequestFactory::populateDeleteGroupRequest,
+            ApiKeys.OFFSET_COMMIT, RequestFactory::populateOffsetCommitRequest);
 
     private RequestFactory() {
     }
@@ -156,5 +157,19 @@ public class RequestFactory {
     private static void populateDeleteGroupRequest(ApiMessage apiMessage) {
         final DeleteGroupsRequestData deleteGroupsRequestData = (DeleteGroupsRequestData) apiMessage;
         deleteGroupsRequestData.setGroupsNames(List.of(MobyNamesGenerator.getRandomName(), MobyNamesGenerator.getRandomName()));
+    }
+
+    private static void populateOffsetCommitRequest(ApiMessage apiMessage) {
+        final OffsetCommitRequestData offsetCommitRequestData = (OffsetCommitRequestData) apiMessage;
+        offsetCommitRequestData.setGroupId(MobyNamesGenerator.getRandomName());
+        offsetCommitRequestData.setMemberId(MobyNamesGenerator.getRandomName());
+        final OffsetCommitRequestData.OffsetCommitRequestTopic t1 = new OffsetCommitRequestData.OffsetCommitRequestTopic();
+        t1.setName(MobyNamesGenerator.getRandomName());
+        final OffsetCommitRequestData.OffsetCommitRequestPartition p1 = new OffsetCommitRequestData.OffsetCommitRequestPartition();
+        p1.setCommittedOffset(23456L);
+        p1.setPartitionIndex(0);
+        t1.setPartitions(List.of(p1));
+        offsetCommitRequestData.setTopics(List.of(t1));
+
     }
 }
