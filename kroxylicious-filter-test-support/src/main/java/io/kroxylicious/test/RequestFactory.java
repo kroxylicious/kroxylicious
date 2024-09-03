@@ -35,6 +35,7 @@ import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
+import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.UpdateMetadataRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -52,7 +53,7 @@ public class RequestFactory {
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN,
+    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN,
             ApiKeys.WRITE_TXN_MARKERS, ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS,
             ApiKeys.ALTER_REPLICA_LOG_DIRS, ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS,
             ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
@@ -77,6 +78,7 @@ public class RequestFactory {
         messagePopulators.put(ApiKeys.CREATE_ACLS, RequestFactory::populateCreateAclsRequest);
         messagePopulators.put(ApiKeys.DESCRIBE_ACLS, RequestFactory::populateDescribeAclsRequest);
         messagePopulators.put(ApiKeys.DELETE_ACLS, RequestFactory::populateDeleteAclsRequest);
+        messagePopulators.put(ApiKeys.OFFSET_FOR_LEADER_EPOCH, RequestFactory::populateOffsetForLeaderEpochRequest);
     }
 
     private RequestFactory() {
@@ -258,5 +260,17 @@ public class RequestFactory {
         daf.setResourceNameFilter(MobyNamesGenerator.getRandomName());
         daf.setResourceTypeFilter(ResourceType.ANY.code());
         deleteAclsRequestData.setFilters(List.of(daf));
+    }
+
+    private static void populateOffsetForLeaderEpochRequest(ApiMessage apiMessage) {
+        final OffsetForLeaderEpochRequestData offsetForLeaderEpochRequestData = (OffsetForLeaderEpochRequestData) apiMessage;
+        final OffsetForLeaderEpochRequestData.OffsetForLeaderTopicCollection topicCollection = new OffsetForLeaderEpochRequestData.OffsetForLeaderTopicCollection();
+        final OffsetForLeaderEpochRequestData.OffsetForLeaderTopic offsetForLeaderTopic = new OffsetForLeaderEpochRequestData.OffsetForLeaderTopic();
+        offsetForLeaderTopic.setTopic(MobyNamesGenerator.getRandomName());
+        final OffsetForLeaderEpochRequestData.OffsetForLeaderPartition p0 = new OffsetForLeaderEpochRequestData.OffsetForLeaderPartition();
+        p0.setPartition(0);
+        offsetForLeaderTopic.setPartitions(List.of(p0));
+        topicCollection.add(offsetForLeaderTopic);
+        offsetForLeaderEpochRequestData.setTopics(topicCollection);
     }
 }
