@@ -17,6 +17,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
@@ -35,10 +36,9 @@ public class RequestFactory {
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.JOIN_GROUP, ApiKeys.LEAVE_GROUP, ApiKeys.DESCRIBE_GROUPS, ApiKeys.CONSUMER_GROUP_DESCRIBE,
-            ApiKeys.DELETE_GROUPS, ApiKeys.OFFSET_COMMIT,
-            ApiKeys.CREATE_TOPICS, ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS, ApiKeys.INIT_PRODUCER_ID, ApiKeys.CREATE_ACLS, ApiKeys.DESCRIBE_ACLS,
-            ApiKeys.DELETE_ACLS, ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS,
+    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.DESCRIBE_GROUPS, ApiKeys.CONSUMER_GROUP_DESCRIBE, ApiKeys.DELETE_GROUPS,
+            ApiKeys.OFFSET_COMMIT, ApiKeys.CREATE_TOPICS, ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS, ApiKeys.INIT_PRODUCER_ID, ApiKeys.CREATE_ACLS,
+            ApiKeys.DESCRIBE_ACLS, ApiKeys.DELETE_ACLS, ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS,
             ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS, ApiKeys.ALTER_REPLICA_LOG_DIRS,
             ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
             ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
@@ -48,7 +48,8 @@ public class RequestFactory {
             ApiKeys.LIST_OFFSETS, RequestFactory::populateListOffsetsRequest,
             ApiKeys.OFFSET_FETCH, RequestFactory::populateOffsetFetchRequest,
             ApiKeys.METADATA, RequestFactory::populateMetadataRequest,
-            ApiKeys.UPDATE_METADATA, RequestFactory::populateUpdateMetadataRequest
+            ApiKeys.UPDATE_METADATA, RequestFactory::populateUpdateMetadataRequest,
+            ApiKeys.LEAVE_GROUP, RequestFactory::populateLeaveGroupRequest
     );
 
     private RequestFactory() {
@@ -129,4 +130,10 @@ public class RequestFactory {
         updateMetadataRequestData.setTopicStates(List.of(t1));
     }
 
+    private static void populateLeaveGroupRequest(ApiMessage apiMessage) {
+        final LeaveGroupRequestData leaveGroupRequestData = (LeaveGroupRequestData) apiMessage;
+        final LeaveGroupRequestData.MemberIdentity memberIdentity = new LeaveGroupRequestData.MemberIdentity();
+        memberIdentity.setMemberId(MobyNamesGenerator.getRandomName());
+        leaveGroupRequestData.setMembers(List.of(memberIdentity));
+    }
 }
