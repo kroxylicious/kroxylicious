@@ -26,6 +26,7 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DeleteGroupsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
+import org.apache.kafka.common.message.DescribeAclsRequestData;
 import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
@@ -50,7 +51,7 @@ public class RequestFactory {
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.DESCRIBE_ACLS, ApiKeys.DELETE_ACLS,
+    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.DELETE_ACLS,
             ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS, ApiKeys.TXN_OFFSET_COMMIT,
             ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS, ApiKeys.ALTER_REPLICA_LOG_DIRS, ApiKeys.CREATE_PARTITIONS,
             ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.DESCRIBE_PRODUCERS,
@@ -74,6 +75,7 @@ public class RequestFactory {
         messagePopulators.put(ApiKeys.DELETE_RECORDS, RequestFactory::populateDeleteRecordsRequest);
         messagePopulators.put(ApiKeys.INIT_PRODUCER_ID, RequestFactory::populateInitProducerIdRequest);
         messagePopulators.put(ApiKeys.CREATE_ACLS, RequestFactory::populateCreateAclsRequest);
+        messagePopulators.put(ApiKeys.DESCRIBE_ACLS, RequestFactory::populateDescribeAclsRequest);
     }
 
     private RequestFactory() {
@@ -235,5 +237,14 @@ public class RequestFactory {
         aclCreation.setPermissionType(AclPermissionType.ANY.code());
         aclCreation.setResourceType(ResourceType.ANY.code());
         createAclsRequestData.setCreations(List.of(aclCreation));
+    }
+
+    private static void populateDescribeAclsRequest(ApiMessage apiMessage) {
+        final DescribeAclsRequestData describeAclsRequestData = (DescribeAclsRequestData) apiMessage;
+        describeAclsRequestData.setPatternTypeFilter(PatternType.ANY.code());
+        describeAclsRequestData.setOperation(AclOperation.ANY.code());
+        describeAclsRequestData.setPermissionType(AclPermissionType.ANY.code());
+        describeAclsRequestData.setResourceNameFilter(MobyNamesGenerator.getRandomName());
+        describeAclsRequestData.setResourceTypeFilter(ResourceType.ANY.code());
     }
 }
