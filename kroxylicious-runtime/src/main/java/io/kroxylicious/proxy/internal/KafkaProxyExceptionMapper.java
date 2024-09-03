@@ -216,23 +216,36 @@ public class KafkaProxyExceptionMapper {
      */
     @SuppressWarnings("java:S1452")
     public Optional<?> mapException(Throwable throwable) {
-        var localCause = throwable;
+        var candidate = throwable;
         Set<Throwable> visitedExceptions = Collections.newSetFromMap(new IdentityHashMap<>());
-        while (localCause != null) {
-            visitedExceptions.add(localCause);
-            if (responsesByExceptionType.containsKey(localCause.getClass())) {
-                return responsesByExceptionType.get(localCause.getClass()).apply(localCause);
-            }
-            if (visitedExceptions.contains(localCause.getCause())) {
-                // As we have seen the cause before break the loop and stop searching
-                localCause = null;
+        while (candidate != null) {
+            visitedExceptions.add(candidate);
+            final var localCandidate = candidate;
+
+            final Optional<Class<? extends Throwable>> mappedClass = containsMapping(candidate);
+            if (mappedClass.isPresent()) {
+                return responsesByExceptionType.get(mappedClass.get()).apply(localCandidate);
             }
             else {
-                localCause = localCause.getCause();
+                candidate = nextCause(visitedExceptions, candidate);
             }
-
         }
         return Optional.empty();
+    }
+
+    private static Throwable nextCause(Set<Throwable> visitedExceptions, Throwable candidate) {
+        if (visitedExceptions.contains(candidate.getCause())) {
+            // As we have seen the cause before break the loop and stop searching
+            return null;
+        }
+        else {
+            return candidate.getCause();
+        }
+    }
+
+    private Optional<Class<? extends Throwable>> containsMapping(Throwable localCause) {
+        return responsesByExceptionType.keySet().stream().filter(keyClass -> keyClass.isAssignableFrom(localCause.getClass()))
+                .findFirst();
     }
 
     public ApiMessage errorResponseMessage(DecodedRequestFrame<?> frame, Throwable error) {

@@ -26,6 +26,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.netty.handler.codec.DecoderException;
+import io.netty.handler.ssl.SslHandshakeTimeoutException;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.test.RequestFactory;
@@ -64,6 +65,18 @@ class KafkaProxyExceptionMapperTest {
 
         // When
         final Optional<?> result = kafkaProxyExceptionMapper.mapException(new DecoderException(HANDSHAKE_EXCEPTION));
+
+        // Then
+        assertThat(result).isNotEmpty().get().isInstanceOf(UnknownServerException.class);
+    }
+
+    @Test
+    void shouldMapSubclassesOfRegisteredException() {
+        // Given
+        kafkaProxyExceptionMapper.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(new UnknownServerException(throwable)));
+
+        // When
+        final Optional<?> result = kafkaProxyExceptionMapper.mapException(new DecoderException(new SslHandshakeTimeoutException("It took to long, guv!")));
 
         // Then
         assertThat(result).isNotEmpty().get().isInstanceOf(UnknownServerException.class);
