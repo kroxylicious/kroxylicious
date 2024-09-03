@@ -21,6 +21,7 @@ import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DeleteGroupsRequestData;
+import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
@@ -42,7 +43,7 @@ public class RequestFactory {
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS,
+    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.DELETE_RECORDS,
             ApiKeys.INIT_PRODUCER_ID, ApiKeys.CREATE_ACLS, ApiKeys.DESCRIBE_ACLS, ApiKeys.DELETE_ACLS, ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS,
             ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS, ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS,
             ApiKeys.INCREMENTAL_ALTER_CONFIGS, ApiKeys.ALTER_REPLICA_LOG_DIRS, ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS,
@@ -63,6 +64,7 @@ public class RequestFactory {
         messagePopulators.put(ApiKeys.DELETE_GROUPS, RequestFactory::populateDeleteGroupRequest);
         messagePopulators.put(ApiKeys.OFFSET_COMMIT, RequestFactory::populateOffsetCommitRequest);
         messagePopulators.put(ApiKeys.CREATE_TOPICS, RequestFactory::populateCreateTopicsRequest);
+        messagePopulators.put(ApiKeys.DELETE_TOPICS, RequestFactory::populateDeleteTopicsRequest);
     }
 
     private RequestFactory() {
@@ -186,5 +188,14 @@ public class RequestFactory {
         t1.setNumPartitions(10);
         creatableTopicCollection.add(t1);
         createTopicsRequestData.setTopics(creatableTopicCollection);
+    }
+
+    private static void populateDeleteTopicsRequest(ApiMessage apiMessage) {
+        final DeleteTopicsRequestData deleteTopicsRequestData = (DeleteTopicsRequestData) apiMessage;
+        final DeleteTopicsRequestData.DeleteTopicState t1 = new DeleteTopicsRequestData.DeleteTopicState();
+        t1.setTopicId(Uuid.randomUuid());
+        t1.setName(MobyNamesGenerator.getRandomName());
+        deleteTopicsRequestData.setTopics(List.of(t1));
+        deleteTopicsRequestData.setTopicNames(List.of(t1.name()));
     }
 }
