@@ -8,8 +8,8 @@ package io.kroxylicious.test;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,7 +49,7 @@ public class RequestFactory {
             ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS,
             ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
-    private static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = new HashMap<>();
+    private static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = new EnumMap<>(ApiKeys.class);
 
     static {
         messagePopulators.put(ApiKeys.PRODUCE, RequestFactory::populateProduceRequest);
