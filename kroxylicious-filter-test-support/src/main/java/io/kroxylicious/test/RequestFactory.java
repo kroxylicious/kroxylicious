@@ -17,6 +17,7 @@ import java.util.function.Function;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
 import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
@@ -37,7 +38,7 @@ public class RequestFactory {
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.CONSUMER_GROUP_DESCRIBE, ApiKeys.DELETE_GROUPS,
+    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.DELETE_GROUPS,
             ApiKeys.OFFSET_COMMIT, ApiKeys.CREATE_TOPICS, ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS, ApiKeys.INIT_PRODUCER_ID, ApiKeys.CREATE_ACLS,
             ApiKeys.DESCRIBE_ACLS, ApiKeys.DELETE_ACLS, ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS,
             ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS, ApiKeys.ALTER_REPLICA_LOG_DIRS,
@@ -51,7 +52,8 @@ public class RequestFactory {
             ApiKeys.METADATA, RequestFactory::populateMetadataRequest,
             ApiKeys.UPDATE_METADATA, RequestFactory::populateUpdateMetadataRequest,
             ApiKeys.LEAVE_GROUP, RequestFactory::populateLeaveGroupRequest,
-            ApiKeys.DESCRIBE_GROUPS, RequestFactory::populateDescribeGroupsRequest
+            ApiKeys.DESCRIBE_GROUPS, RequestFactory::populateDescribeGroupsRequest,
+            ApiKeys.CONSUMER_GROUP_DESCRIBE, RequestFactory::populateConsumeGroupDescribeRequest
     );
 
     private RequestFactory() {
@@ -144,4 +146,8 @@ public class RequestFactory {
         describeGroupsRequestData.setGroups(List.of(MobyNamesGenerator.getRandomName(), MobyNamesGenerator.getRandomName()));
     }
 
+    private static void populateConsumeGroupDescribeRequest(ApiMessage apiMessage) {
+        final ConsumerGroupDescribeRequestData consumerGroupDescribeRequestData = (ConsumerGroupDescribeRequestData) apiMessage;
+        consumerGroupDescribeRequestData.setGroupIds(List.of(MobyNamesGenerator.getRandomName(), MobyNamesGenerator.getRandomName()));
+    }
 }
