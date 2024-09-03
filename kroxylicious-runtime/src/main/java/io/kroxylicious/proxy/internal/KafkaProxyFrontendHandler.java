@@ -125,11 +125,11 @@ public class KafkaProxyFrontendHandler
         CONNECTED,
         /** The outbound connection is active */
         OUTBOUND_ACTIVE,
-        /** The connection to the outbound cluster failed */
-        FAILED,
         /** The outbound is connected but still TLS is still being negotiated */
-        NEGOTIATING_TLS
-    }
+        NEGOTIATING_TLS,
+        /** The connection to the outbound cluster failed */
+        FAILED
+        }
 
     /**
      * The current state.
