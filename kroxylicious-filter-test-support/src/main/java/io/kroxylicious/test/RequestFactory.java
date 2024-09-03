@@ -9,6 +9,7 @@ package io.kroxylicious.test;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -18,6 +19,7 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
+import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DeleteGroupsRequestData;
 import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
@@ -40,24 +42,28 @@ public class RequestFactory {
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.CREATE_TOPICS, ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS,
+    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.DELETE_TOPICS, ApiKeys.DELETE_RECORDS,
             ApiKeys.INIT_PRODUCER_ID, ApiKeys.CREATE_ACLS, ApiKeys.DESCRIBE_ACLS, ApiKeys.DELETE_ACLS, ApiKeys.OFFSET_FOR_LEADER_EPOCH, ApiKeys.ELECT_LEADERS,
             ApiKeys.ADD_PARTITIONS_TO_TXN, ApiKeys.WRITE_TXN_MARKERS, ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS,
             ApiKeys.INCREMENTAL_ALTER_CONFIGS, ApiKeys.ALTER_REPLICA_LOG_DIRS, ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS,
             ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS, ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS,
             ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
-    private static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = Map.of(
-            ApiKeys.PRODUCE, RequestFactory::populateProduceRequest,
-            ApiKeys.LIST_OFFSETS, RequestFactory::populateListOffsetsRequest,
-            ApiKeys.OFFSET_FETCH, RequestFactory::populateOffsetFetchRequest,
-            ApiKeys.METADATA, RequestFactory::populateMetadataRequest,
-            ApiKeys.UPDATE_METADATA, RequestFactory::populateUpdateMetadataRequest,
-            ApiKeys.LEAVE_GROUP, RequestFactory::populateLeaveGroupRequest,
-            ApiKeys.DESCRIBE_GROUPS, RequestFactory::populateDescribeGroupsRequest,
-            ApiKeys.CONSUMER_GROUP_DESCRIBE, RequestFactory::populateConsumeGroupDescribeRequest,
-            ApiKeys.DELETE_GROUPS, RequestFactory::populateDeleteGroupRequest,
-            ApiKeys.OFFSET_COMMIT, RequestFactory::populateOffsetCommitRequest);
+    private static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = new HashMap<>();
+
+    static {
+        messagePopulators.put(ApiKeys.PRODUCE, RequestFactory::populateProduceRequest);
+        messagePopulators.put(ApiKeys.LIST_OFFSETS, RequestFactory::populateListOffsetsRequest);
+        messagePopulators.put(ApiKeys.OFFSET_FETCH, RequestFactory::populateOffsetFetchRequest);
+        messagePopulators.put(ApiKeys.METADATA, RequestFactory::populateMetadataRequest);
+        messagePopulators.put(ApiKeys.UPDATE_METADATA, RequestFactory::populateUpdateMetadataRequest);
+        messagePopulators.put(ApiKeys.LEAVE_GROUP, RequestFactory::populateLeaveGroupRequest);
+        messagePopulators.put(ApiKeys.DESCRIBE_GROUPS, RequestFactory::populateDescribeGroupsRequest);
+        messagePopulators.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, RequestFactory::populateConsumeGroupDescribeRequest);
+        messagePopulators.put(ApiKeys.DELETE_GROUPS, RequestFactory::populateDeleteGroupRequest);
+        messagePopulators.put(ApiKeys.OFFSET_COMMIT, RequestFactory::populateOffsetCommitRequest);
+        messagePopulators.put(ApiKeys.CREATE_TOPICS, RequestFactory::populateCreateTopicsRequest);
+    }
 
     private RequestFactory() {
     }
@@ -170,6 +176,15 @@ public class RequestFactory {
         p1.setPartitionIndex(0);
         t1.setPartitions(List.of(p1));
         offsetCommitRequestData.setTopics(List.of(t1));
+    }
 
+    private static void populateCreateTopicsRequest(ApiMessage apiMessage) {
+        final CreateTopicsRequestData createTopicsRequestData = (CreateTopicsRequestData) apiMessage;
+        final CreateTopicsRequestData.CreatableTopicCollection creatableTopicCollection = new CreateTopicsRequestData.CreatableTopicCollection();
+        final CreateTopicsRequestData.CreatableTopic t1 = new CreateTopicsRequestData.CreatableTopic();
+        t1.setName(MobyNamesGenerator.getRandomName());
+        t1.setNumPartitions(10);
+        creatableTopicCollection.add(t1);
+        createTopicsRequestData.setTopics(creatableTopicCollection);
     }
 }
