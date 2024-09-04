@@ -628,6 +628,7 @@ public class KafkaProxyFrontendHandler
     private Optional<?> onSslHandshakeException(Throwable throwable) {
         Object result;
         final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
+        LOGGER.info("{}: unable to complete TLS negotiation with {}", inboundCtx.channel().id(), outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get());
         if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
             result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
         }
