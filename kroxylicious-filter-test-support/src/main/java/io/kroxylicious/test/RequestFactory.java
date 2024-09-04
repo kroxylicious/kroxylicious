@@ -43,6 +43,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourceType;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -53,12 +54,14 @@ public class RequestFactory {
     private static final short ACKS_ALL = (short) -1;
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
-    private static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN,
+    @VisibleForTesting
+    protected static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN,
             ApiKeys.WRITE_TXN_MARKERS, ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS,
             ApiKeys.ALTER_REPLICA_LOG_DIRS, ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS,
             ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
-    private static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = new EnumMap<>(ApiKeys.class);
+    @VisibleForTesting
+    protected static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = new EnumMap<>(ApiKeys.class);
 
     static {
         messagePopulators.put(ApiKeys.PRODUCE, RequestFactory::populateProduceRequest);
@@ -89,7 +92,12 @@ public class RequestFactory {
     }
 
     public static Stream<ApiMessageVersion> apiMessageFor(Function<ApiKeys, Short> versionFunction, ApiKeys... apiKeys) {
-        return apiMessageFor(versionFunction, EnumSet.copyOf(Arrays.asList(apiKeys)));
+        final EnumSet<ApiKeys> requestedApiKeys = EnumSet.copyOf(Arrays.asList(apiKeys));
+
+        if (SPECIAL_CASES.stream().anyMatch(requestedApiKeys::contains)) {
+            throw new IllegalArgumentException("One or more of " + Arrays.toString(apiKeys) + " are not supported.");
+        }
+        return apiMessageFor(versionFunction, requestedApiKeys);
     }
 
     public static Stream<ApiMessageVersion> apiMessageFor(Function<ApiKeys, Short> versionFunction, Set<ApiKeys> apiKeys) {
