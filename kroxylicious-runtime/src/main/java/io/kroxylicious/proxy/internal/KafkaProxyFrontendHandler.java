@@ -129,7 +129,7 @@ public class KafkaProxyFrontendHandler
         NEGOTIATING_TLS,
         /** The connection to the outbound cluster failed */
         FAILED
-        }
+    }
 
     /**
      * The current state.
