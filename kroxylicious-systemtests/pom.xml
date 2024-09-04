@@ -24,8 +24,8 @@
     </description>
 
     <properties>
-        <!-- remove it when Strimzi new version is released -->
-        <kafka.version>3.7.1</kafka.version>
+        <!-- Override for kafka version - used when Apache Kafka is ahead of the Strimzi release  -->
+        <!-- <kafka.version>3.8.0</kafka.version> -->
     </properties>
 
     <dependencies>
