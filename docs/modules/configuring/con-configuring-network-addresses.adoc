@@ -1,0 +1,171 @@
+[id='con-configuring-network-addresses-{context}']
+= Configuring network addresses
+
+[role="_abstract"]
+Virtual cluster configuration requires a network address configuration provider that manages network communication and provides broker address information to clients.
+
+Kroxylicious has the following built-in providers:
+
+* Broker address provider (`PortPerBrokerClusterNetworkAddressConfigProvider`)
+* Node ID ranges provider (`RangeAwarePortPerNodeClusterNetworkAddressConfigProvider`)
+* SNI routing address provider (`SniRoutingClusterNetworkAddressConfigProvider`)
+
+IMPORTANT: Make sure that the Kafka cluster bootstrap address and generated broker addresses are resolvable and routable by the Kafka client.
+
+== Broker address provider
+
+The per-broker network address configuration provider opens one port for a virtual cluster’s bootstrap address and one port for each broker in the target Kafka cluster. 
+The number of open ports is maintained dynamically. 
+For example, if a broker is removed from the cluster, the port assigned to it is closed.
+
+Kroxylicious automatically opens a port for each virtual cluster's bootstrap and one port per broker of each target cluster.
+If you have two virtual clusters, each targeting a Kafka cluster with three brokers, eight ports are bound in total.
+
+This provider works best with straightforward configurations. 
+Ideally, the target cluster should have sequential, stable broker IDs and a known minimum broker ID, such as 0, 1, 2 for a cluster with three brokers. While it can handle non-sequential broker IDs, this would require exposing ports equal to `maxBrokerId - minBrokerId`, which could be excessive if your cluster contains broker IDs like `0` and `20000`.
+
+The provider supports both cleartext and TLS downstream connections.
+
+.Example broker address configuration
+[source,yaml]
+----
+clusterNetworkAddressConfigProvider:
+  type: PortPerBrokerClusterNetworkAddressConfigProvider
+  config:
+    bootstrapAddress: mycluster.kafka.com:9192 # <1>                
+    brokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com # <2>
+    brokerStartPort: 9193 # <3>                                    
+    numberOfBrokerPorts: 3 # <4>   
+    lowestTargetBrokerId: 1000 # <5>                                 
+    bindAddress: 192.168.0.1 # <6>
+----
+<1> The hostname and port of the bootstrap address used by Kafka clients.
+<2> (Optional) The broker address pattern used to form broker addresses. If not defined, it defaults to the hostname part of the bootstrap address and the port number allocated to the broker. 
+<3> (Optional) The starting number for the broker port range. Defaults to the port of the bootstrap address plus 1.
+<4> (Optional) The maximum number of broker ports that are permitted. Set this value according to the maximum number of brokers allowed by your operational rules. Defaults to 3.
+<5> (Optional) The lowest broker ID in the target cluster. Defaults to 0. This should match the lowest https://kafka.apache.org/documentation/#brokerconfigs_node.id[`node.id`] (or https://kafka.apache.org/documentation/#brokerconfigs_broker.id[`broker.id`]) in the target cluster.
+<6> (Optional) The bind address used when binding the ports. If undefined, all network interfaces are bound.
+
+Each broker's ID must be greater than or equal to `lowestTargetBrokerId` and less than `lowestTargetBrokerId + numberOfBrokerPorts`.
+The current strategy for mapping node IDs to ports is as follows: `nodeId -> brokerStartPort + nodeId - lowestTargetBrokerId`.
+The example configuration maps broker IDs 1000, 1001, and 1002 to ports 9193, 9194, and 9195, respectively. 
+Reconfigure `numberOfBrokerPorts` to accommodate any additional brokers in the cluster.
+
+IMPORTANT: For a configuration with multiple physical clusters, ensure that the `numberOfBrokerPorts` is set to (number of brokers * number of listeners per broker) + number of bootstrap listeners across all clusters. 
+For instance, if there are two physical clusters with 3 nodes each, and each broker has one listener, the configuration requires a value of 8 (comprising 3 ports for broker listeners + 1 port for the bootstrap listener in each cluster).
+
+The example broker address configuration creates the following broker addresses:
+
+[source,shell]
+----
+mybroker-0.mycluster.kafka.com:9193
+mybroker-1.mycluster.kafka.com:9194
+mybroker-2.mycluster.kafka.com:9194
+----
+
+The `brokerAddressPattern` configuration parameter accepts the `$(nodeId)` replacement token, which is optional. 
+If included, `$(nodeId)` is replaced by the broker's https://kafka.apache.org/documentation/#brokerconfigs_node.id[`node.id`] (or https://kafka.apache.org/documentation/#brokerconfigs_broker.id[`broker.id`]) in the target cluster.
+
+For example, with the configuration shown above, if your cluster has three brokers, your Kafka client receives broker addresses like this:
+
+[source]
+----
+0.  mybroker-0.mycluster.kafka.com:9193
+1.  mybroker-1.mycluster.kafka.com:9194
+2.  mybroker-2.mycluster.kafka.com:9195
+----
+
+== Node ID ranges provider
+
+As an alternative to the broker address provider, the node ID ranges provider allows you to model specific ranges of node IDs in the target cluster, enabling efficient port allocation even when broker IDs are non-sequential or widely spaced
+This ensures a deterministic mapping of node IDs to ports while minimizing the number of ports needed.
+
+.Example node ID ranges configuration
+[source, yaml]
+----
+clusterNetworkAddressConfigProvider:
+  type: RangeAwarePortPerNodeClusterNetworkAddressConfigProvider
+  config:
+    bootstrapAddress: mycluster.kafka.com:9192
+    brokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com
+    brokerStartPort: 9193
+    nodeIdRanges: # <1>
+      - name: brokers # <2>
+        range:
+          startInclusive: 0 # <3>
+          endExclusive: 3 # <4>
+----
+<1> The list of Node ID ranges, which must be non-empty.
+<2> The name of the range, which must be unique within the `nodeIdRanges` list.
+<3> The start of the range (inclusive).
+<4> The end of the range (exclusive). It must be greater than `startInclusive`; empty ranges are not allowed.
+
+Node ID ranges must be distinct, meaning a node ID cannot belong to more than one range.
+
+KRaft roles given to cluster nodes can be accommodated in the configuration.
+For example, consider a target cluster using KRaft with the following node IDs and roles:
+
+* nodeId: 0, roles: controller
+* nodeId: 1, roles: controller
+* nodeId: 2, roles: controller
+* nodeId: 1000, roles: broker
+* nodeId: 1001, roles: broker
+* nodeId: 1002, roles: broker
+* nodeId: 99999, roles: broker
+
+This can be modeled as three node ID ranges, as shown in the following example.
+
+.Example node ID ranges configuration with KRaft roles
+[source, yaml]
+----
+    clusterNetworkAddressConfigProvider:
+      type: RangeAwarePortPerNodeClusterNetworkAddressConfigProvider
+      config:
+        bootstrapAddress: mycluster.kafka.com:9192
+        nodeIdRanges:
+          - name: controller
+            range:
+              startInclusive: 0
+              endExclusive: 3
+          - name: brokers
+            range:
+              startInclusive: 1000
+              endExclusive: 1003
+          - name: broker-outlier
+            range:
+              startInclusive: 99999
+              endExclusive: 100000
+----
+
+This configuration results in the following mapping from node ID to port:
+
+* nodeId: 0 -> port 9193
+* nodeId: 1 -> port 9194
+* nodeId: 2 -> port 9195
+* nodeId: 1000 -> port 9196
+* nodeId: 1001 -> port 9197
+* nodeId: 1002 -> port 9198
+* nodeId: 99999 -> port 9199
+
+== SNI routing address provider
+
+The SNI ((Server Name Indication) routing provider opens a single port for all virtual clusters or a port for each. 
+You can open a port for the whole cluster or each broker.   
+The SNI routing provider uses SNI information to determine where to route the traffic, so requires downstream TLS.  
+
+.Example SNI routing address provider configuration
+[source,yaml]
+----
+clusterNetworkAddressConfigProvider:
+  type: SniRoutingClusterNetworkAddressConfigProvider
+  config:
+    bootstrapAddress: mycluster.kafka.com:9192 # <1>                 
+    brokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com  
+    bindAddress: 192.168.0.1
+----
+<1> A single address for all traffic, including bootstrap address and brokers.
+                                      
+In the SNI routing address configuration, the `brokerAddressPattern` specification is mandatory, as it is required to generate routes for each broker. 
+
+NOTE: Single port operation may have cost advantages when using load balancers of public clouds, as it allows
+a single cloud provider load balancer to be shared across all virtual clusters.

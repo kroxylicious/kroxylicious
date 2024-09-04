@@ -1,0 +1,11 @@
+[id='assembly-configuring-proxy-{context}']
+= Configuring proxies
+
+[role="_abstract"]
+Fine-tune your deployment by configuring proxies to include additional features according to your specific requirements.  
+
+include::../modules/configuring/con-configuring-virtual-clusters.adoc[leveloffset=+1]
+include::../modules/configuring/ref-configuring-proxy-example.adoc[leveloffset=+1]
+include::../modules/configuring/con-configuring-client-connections.adoc[leveloffset=+1]
+include::../modules/configuring/con-configuring-cluster-connections.adoc[leveloffset=+1]
+include::../modules/configuring/con-configuring-network-addresses.adoc[leveloffset=+1]

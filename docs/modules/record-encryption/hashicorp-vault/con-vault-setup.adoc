@@ -6,7 +6,9 @@
 = Enable the Transit Engine
 
 The filter integrates with the {hashicorp-vault}/docs/secrets/transit[HashiCorp Vault *Transit
-Engine*].   Vault does not enable the Transit Engine by default.  It must be
+Engine*].
+Vault does not enable the Transit Engine by default.
+It must be
 {hashicorp-vault}/docs/secrets/transit#setup[enabled] before it can be used with the filter.
 
 [#_vault_transit_engine_url]
@@ -90,9 +92,7 @@ EOF
 ----
 
 Create a {hashicorp-vault}/docs/concepts/tokens#periodic-tokens[Periodic] (long-lived) Vault Token
-for the filterfootnote:[The example token create command illustrates the use of `-no-default-policy`
-and `-orphan`. The use of these flags is not functionally important.  You may adapt the
-configuration of the token to suit the standards required by your organization]:
+for the filter:
 
 [source,shell]
 ----
@@ -106,6 +106,10 @@ vault token create -display-name "kroxylicious record encryption" \
 <1> Causes the token to be periodic (with every renewal using the given period).
 <2> Detach the "default" policy from the policy set for this token.  This is done so the token has least-privilege.
 <3> Create the token with no parent. This is done so that expiration of a parent won't expire the token used by the filter.
+
+NOTE: The example token create command illustrates the use of `-no-default-policy`
+and `-orphan`. The use of these flags is not functionally important.  
+You may adapt the configuration of the token to suit the standards required by your organization.
 
 The `token create` command yields the `token`. The `token` value is required later when configuring the vault within the
 filter.

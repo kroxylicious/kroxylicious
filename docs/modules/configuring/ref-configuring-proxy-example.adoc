@@ -1,0 +1,79 @@
+[id='ref-configuring-proxy-example-{context}']
+= Example Kroxylicious configuration
+
+[role="_abstract"]
+Kroxylicious configuration is defined in a `ConfigMap` resource.
+Use the `data` properties of the `ConfigMap` resource to configure the following:
+
+* Virtual clusters that represent the Kafka clusters
+* Network addresses for broker communication in a Kafka cluster
+* Filters to introduce additional functionality to the Kafka deployment
+
+In this example, configuration for the Record Encryption filter is shown.
+
+[id='con-deploying-upstream-tls-{context}']
+.Example Kroxylicious configuration
+[source,yaml]
+----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: proxy-config
+data:
+  config.yaml: |
+    adminHttp: # <1>
+      endpoints:
+        prometheus: {}
+    virtualClusters: # <2>
+      my-cluster-proxy: # <3>
+        targetCluster:
+          bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093 # <4>
+          tls: # <5>
+            trust:
+              storeFile: /opt/proxy/trust/ca.p12
+              storePassword:
+                passwordFile: /opt/proxy/trust/ca.password
+        clusterNetworkAddressConfigProvider: # <6>
+          type: SniRoutingClusterNetworkAddressConfigProvider 
+          Config:
+            bootstrapAddress: mycluster-proxy.kafka:9092
+            brokerAddressPattern: broker$(nodeId).mycluster-proxy.kafka
+        logNetwork: false # <7>
+        logFrames: false
+        tls: # <8>
+          key:
+            storeFile: /opt/proxy/server/key-material/keystore.p12
+            storePassword:
+              passwordFile: /opt/proxy/server/keystore-password/storePassword
+filters: # <9>
+  - type: EnvelopeEncryption # <10>
+    config: # <11>
+      kms: VaultKmsService
+      kmsConfig:
+        vaultTransitEngineUrl: https://vault.vault.svc.cluster.local:8200/v1/transit
+        vaultToken:
+          passwordFile: /opt/proxy/server/token.txt
+        tls: # <12>
+          key:
+            storeFile: /opt/cert/server.p12
+            storePassword:
+              passwordFile: /opt/cert/store.password
+            keyPassword:
+              passwordFile: /opt/cert/key.password
+            storeType: PKCS12    
+      selector: TemplateKekSelector
+      selectorConfig:
+        template: "${topicName}"
+----
+<1> Enables metrics for the proxy.
+<2> Virtual cluster configuration.
+<3> The name of the virtual cluster.
+<4> The bootstrap address of the target physical Kafka Cluster being proxied.
+<5> TLS configuration for the connection to the target cluster.
+<6> The configuration for the cluster network address configuration provider that controls how the virtual cluster is presented to the network. 
+<7> Logging is disabled by default. Enable logging related to network activity (`logNetwork`) and messages (`logFrames`) by setting the logging properties to `true`.
+<8> TLS encryption for securing connections with the clients.
+<9> Filter configuration.
+<10> The type of filter, which is the Record Encryption filter using Vault as the KMS in this example.
+<11> The configuration specific to the type of filter.
+<12> If required, you can also specify the credentials for TLS authentication with the KMS, with key names under which TLS certificates are stored.

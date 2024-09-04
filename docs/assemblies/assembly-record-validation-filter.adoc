@@ -3,7 +3,7 @@
 // assembly-built-in-filters.adoc
 
 [id='assembly-record-validation-filter-{context}']
-= (Preview) Record Validation
+= (Preview) Record Validation filter
 
 [role="_abstract"]
 The Record Validation filter validates records sent by a producer.
