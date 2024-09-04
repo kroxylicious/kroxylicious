@@ -322,13 +322,9 @@ public class KafkaProxyFrontendHandler
             exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, this::onSslHandshakeException);
         });
 
-        // Now we know which filters are to be used we need to update the DecodePredicate
-        // so that the decoder starts decoding the messages that the filters want to intercept
-        dp.setDelegate(DecodePredicate.forFilters(filters));
-
         tcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
-                onConnection();
+                onConnection(filters);
             }
             else {
                 onConnectionFailed(remote, future, inboundChannel);
@@ -359,8 +355,11 @@ public class KafkaProxyFrontendHandler
                 });
     }
 
-    private void onConnection() {
+    private void onConnection(List<FilterAndInvoker> filters) {
         LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
+        // Now we know which filters are to be used we need to update the DecodePredicate
+        // so that the decoder starts decoding the messages that the filters want to intercept
+        dp.setDelegate(DecodePredicate.forFilters(filters));
     }
 
     @VisibleForTesting
