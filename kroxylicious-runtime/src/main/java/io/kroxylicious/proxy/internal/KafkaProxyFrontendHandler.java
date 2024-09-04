@@ -174,6 +174,7 @@ public class KafkaProxyFrontendHandler
     }
 
     public void outboundChannelActive(ChannelHandlerContext ctx) {
+        LOGGER.trace("{}: outboundChannelActive: {}", inboundCtx.channel().id(), ctx.channel().id());
         this.outboundCtx = ctx;
         this.state = State.CONNECTED;
         virtualCluster.getUpstreamSslContext().ifPresentOrElse(this::onUpstreamSslContext, this::outboundChannelUsable);
@@ -593,7 +594,7 @@ public class KafkaProxyFrontendHandler
         if (state != State.CONNECTED && state != State.NEGOTIATING_TLS) {
             throw illegalState(null);
         }
-        LOGGER.trace("{}: outboundChannelActive", inboundCtx.channel().id());
+        LOGGER.trace("{}: outboundChannelUsable: {}", inboundCtx.channel().id(), outboundCtx.channel().id());
         // connection is complete, so first forward the buffered message
         for (Object bufferedMsg : bufferedMsgs) {
             forwardOutbound(outboundCtx, bufferedMsg);
