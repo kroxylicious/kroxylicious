@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -27,15 +28,16 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mockito;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.EmptyByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.DefaultChannelPromise;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
@@ -48,6 +50,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
@@ -74,18 +77,20 @@ class KafkaProxyFrontendHandlerTest {
     public static final String SNI_HOSTNAME = "external.example.com";
     public static final String CLUSTER_HOST = "internal.example.org";
     public static final int CLUSTER_PORT = 9092;
+    public static final String TLS_NEGOTIATION_ERROR = "TLS negotiation error";
     EmbeddedChannel inboundChannel;
     EmbeddedChannel outboundChannel;
 
     int corrId = 0;
     private final AtomicReference<NetFilter.NetFilterContext> connectContext = new AtomicReference<>();
+    private ChannelPromise outboundChannelTcpConnectionFuture;
+    private KafkaProxyExceptionMapper exceptionHandler;
 
     private void writeRequest(short apiVersion, ApiMessage body) {
         var apiKey = ApiKeys.forId(body.apiKey());
 
         int downstreamCorrelationId = corrId++;
 
-        short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         RequestHeaderData header = new RequestHeaderData()
                 .setRequestApiKey(apiKey.id)
                 .setRequestApiVersion(apiVersion)
@@ -99,6 +104,7 @@ class KafkaProxyFrontendHandlerTest {
     public void buildChannel() {
         inboundChannel = new EmbeddedChannel();
         corrId = 0;
+        exceptionHandler = new KafkaProxyExceptionMapper();
     }
 
     @AfterEach
@@ -132,7 +138,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testMessageHandledAfterConnectingBeforeConnected() {
         // Given
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), Mockito.mock(VirtualCluster.class));
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
         givenHandlerIsConnecting(handler, "initial");
         writeInboundApiVersionsRequest("post-connecting");
 
@@ -146,7 +152,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testMessageHandledAfterConnectedBeforeOutboundActive() {
         // Given
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), Mockito.mock(VirtualCluster.class));
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
         givenHandlerIsConnected(handler);
         writeInboundApiVersionsRequest("post-connected");
 
@@ -160,7 +166,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testUnexpectedMessageReceivedBeforeConnected() {
         // Given
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), Mockito.mock(VirtualCluster.class));
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
         givenHandlerIsConnecting(handler, "initial");
 
         // When
@@ -208,7 +214,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testUnexpectedMessageReceivedBeforeOutboundActive() {
         // Given
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), Mockito.mock(VirtualCluster.class));
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
         givenHandlerIsConnected(handler);
 
         // When
@@ -225,7 +231,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, VirtualCluster virtualCluster) {
-        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster) {
+        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, exceptionHandler) {
             @Override
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
@@ -233,7 +239,9 @@ class KafkaProxyFrontendHandlerTest {
                 // trying to re-register the outbound channel => IllegalStateException
                 // So we override this method to short-circuit that
                 outboundChannel = new EmbeddedChannel();
-                return new DefaultChannelPromise(outboundChannel).setSuccess();
+                outboundChannelTcpConnectionFuture = outboundChannel.newPromise();
+                return outboundChannelTcpConnectionFuture.addListener(
+                        future -> this.onUpstreamChannelActive(outboundChannel.pipeline().firstContext().fireChannelActive()));
             }
         };
     }
@@ -354,16 +362,49 @@ class KafkaProxyFrontendHandlerTest {
 
     }
 
-    private void initialiseInboundChannel(KafkaProxyFrontendHandler handler) {
-        inboundChannel.pipeline().addLast(handler);
-        inboundChannel.pipeline().fireChannelActive();
+    @Test
+    void shouldCloseWithMappedResponseChannelOnFailedConnection() {
+        // Given
+        var resp = new OpaqueResponseFrame(Unpooled.EMPTY_BUFFER, 42, 0);
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
+        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(resp));
 
+        // When
+        handler.onUpstreamChannelFailed(new HostPort("wibble", 9092), inboundChannel.newFailedFuture(new SSLHandshakeException(TLS_NEGOTIATION_ERROR)), inboundChannel);
+
+        // Then
+        assertThat(inboundChannel.<OpaqueResponseFrame> readOutbound()).isEqualTo(resp);
+        assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    @Test
+    void shouldCloseResponseChannelOnFailedConnection() {
+        // Given
+        var resp = new OpaqueResponseFrame(Unpooled.EMPTY_BUFFER, 42, 0);
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
+        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(resp));
+
+        // When
+        handler.onUpstreamChannelFailed(new HostPort("wibble", 9092), inboundChannel.newFailedFuture(new RuntimeException(TLS_NEGOTIATION_ERROR)), inboundChannel);
+
+        // Then
+        assertThat(inboundChannel.<ByteBuf> readOutbound()).isNotNull().isExactlyInstanceOf(EmptyByteBuf.class);
+        assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    private void initialiseInboundChannel(KafkaProxyFrontendHandler handler) {
+        final ChannelPipeline pipeline = inboundChannel.pipeline();
+        if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
+            pipeline.addLast(handler);
+        }
         assertEquals(State.START, handler.state());
+
+        pipeline.fireChannelActive();
     }
 
     private void handleConnect(NetFilter filter, KafkaProxyFrontendHandler handler) {
         verify(filter).selectServer(handler);
-        assertEquals(State.CONNECTED, handler.state());
+        assertEquals(State.CONNECTING, handler.state());
         assertFalse(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound not yet active");
 
@@ -372,9 +413,7 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     private void outboundChannelBecomesActive(KafkaProxyFrontendHandler handler) {
-        ChannelHandlerContext outboundContext = outboundChannel.pipeline().context(outboundChannel.pipeline().names().get(0));
-        handler.outboundChannelActive(outboundContext);
-        outboundChannel.pipeline().fireChannelActive();
+        outboundChannelTcpConnectionFuture.setSuccess();
         assertTrue(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound now active");
         assertEquals(State.OUTBOUND_ACTIVE, handler.state());
@@ -406,7 +445,7 @@ class KafkaProxyFrontendHandlerTest {
 
     private void whenConnectedAndOutboundBecomesActive(KafkaProxyFrontendHandler handler) {
         connectionInitiated(connectContext.get());
-        assertEquals(State.CONNECTED, handler.state());
+        assertEquals(State.CONNECTING, handler.state());
         outboundChannelBecomesActive(handler);
         assertEquals(State.OUTBOUND_ACTIVE, handler.state());
     }
@@ -414,7 +453,7 @@ class KafkaProxyFrontendHandlerTest {
     private void givenHandlerIsConnected(KafkaProxyFrontendHandler handler) {
         givenHandlerIsConnecting(handler, "initial");
         connectionInitiated(connectContext.get());
-        assertEquals(State.CONNECTED, handler.state());
+        assertEquals(State.CONNECTING, handler.state());
     }
 
     private void connectionInitiated(NetFilter.NetFilterContext connectContext) {

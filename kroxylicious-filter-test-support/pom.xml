@@ -60,6 +60,11 @@
             <!-- dependency management sets the scope to test, so we have to override it here -->
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>info.schnatterer.moby-names-generator</groupId>
+            <artifactId>moby-names-generator</artifactId>
+        </dependency>
+
 
         <!-- third party dependencies - test -->
         <dependency>
@@ -71,6 +76,10 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-params</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-annotations</artifactId>
         </dependency>
     </dependencies>
     <build>
