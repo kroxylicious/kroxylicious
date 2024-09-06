@@ -32,6 +32,7 @@ import org.mockito.ArgumentCaptor;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.EmptyByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -49,6 +50,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
@@ -239,7 +241,7 @@ class KafkaProxyFrontendHandlerTest {
                 outboundChannel = new EmbeddedChannel();
                 outboundChannelTcpConnectionFuture = outboundChannel.newPromise();
                 return outboundChannelTcpConnectionFuture.addListener(
-                        future -> this.outboundChannelActive(outboundChannel.pipeline().firstContext().fireChannelActive()));
+                        future -> this.onUpstreamChannelActive(outboundChannel.pipeline().firstContext().fireChannelActive()));
             }
         };
     }
@@ -363,25 +365,27 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void shouldCloseWithMappedResponseChannelOnFailedConnection() {
         // Given
+        var resp = new OpaqueResponseFrame(Unpooled.EMPTY_BUFFER, 42, 0);
         KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
-        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(throwable.getMessage()));
+        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(resp));
 
         // When
-        handler.onConnectionFailed(new HostPort("wibble", 9092), inboundChannel.newFailedFuture(new SSLHandshakeException(TLS_NEGOTIATION_ERROR)), inboundChannel);
+        handler.onUpstreamChannelFailed(new HostPort("wibble", 9092), inboundChannel.newFailedFuture(new SSLHandshakeException(TLS_NEGOTIATION_ERROR)), inboundChannel);
 
         // Then
-        assertThat(inboundChannel.<String> readOutbound()).isEqualTo(TLS_NEGOTIATION_ERROR);
+        assertThat(inboundChannel.<OpaqueResponseFrame> readOutbound()).isEqualTo(resp);
         assertThat(inboundChannel.isOpen()).isFalse();
     }
 
     @Test
     void shouldCloseResponseChannelOnFailedConnection() {
         // Given
+        var resp = new OpaqueResponseFrame(Unpooled.EMPTY_BUFFER, 42, 0);
         KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
-        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(throwable.getMessage()));
+        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(resp));
 
         // When
-        handler.onConnectionFailed(new HostPort("wibble", 9092), inboundChannel.newFailedFuture(new RuntimeException(TLS_NEGOTIATION_ERROR)), inboundChannel);
+        handler.onUpstreamChannelFailed(new HostPort("wibble", 9092), inboundChannel.newFailedFuture(new RuntimeException(TLS_NEGOTIATION_ERROR)), inboundChannel);
 
         // Then
         assertThat(inboundChannel.<ByteBuf> readOutbound()).isNotNull().isExactlyInstanceOf(EmptyByteBuf.class);

@@ -50,6 +50,7 @@ import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
@@ -60,6 +61,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter
@@ -173,11 +175,17 @@ public class KafkaProxyFrontendHandler
         return state;
     }
 
-    public void outboundChannelActive(ChannelHandlerContext ctx) {
-        LOGGER.trace("{}: outboundChannelActive: {}", inboundCtx.channel().id(), ctx.channel().id());
-        this.outboundCtx = ctx;
+    /**
+     * Called when the outbound channel to the upstream broker becomes active
+     * @param upstreamCtx
+     */
+    void onUpstreamChannelActive(ChannelHandlerContext upstreamCtx) {
+        LOGGER.trace("{}: outboundChannelActive: {}", inboundCtx.channel().id(), upstreamCtx.channel().id());
+        this.outboundCtx = upstreamCtx;
         this.state = State.CONNECTED;
-        virtualCluster.getUpstreamSslContext().ifPresentOrElse(this::onUpstreamSslContext, this::outboundChannelUsable);
+        virtualCluster.getUpstreamSslContext().ifPresentOrElse(
+                this::startUpstreamTlsNegotiation,
+                this::onUpstreamChannelUsable);
     }
 
     @Override
@@ -324,23 +332,26 @@ public class KafkaProxyFrontendHandler
 
         tcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
-                onConnection(filters);
+                onTcpConnection(filters);
             }
             else {
-                onConnectionFailed(remote, future, inboundChannel);
+                onUpstreamChannelFailed(remote, future, inboundChannel);
             }
         });
     }
 
-    private @NonNull Object buildErrorResponseFrame(DecodedRequestFrame<?> triggerFrame, Throwable error) {
+    private @NonNull ResponseFrame buildErrorResponseFrame(DecodedRequestFrame<?> triggerFrame, Throwable error) {
         var responseData = exceptionHandler.errorResponseMessage(triggerFrame, error);
         final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
         responseHeaderData.setCorrelationId(triggerFrame.correlationId());
         return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
     }
 
+    /**
+     * Called when the channel to the upstream broker is failed.
+     */
     @VisibleForTesting
-    void onConnectionFailed(HostPort remote, Future<?> future, Channel inboundChannel) {
+    void onUpstreamChannelFailed(HostPort remote, Future<?> future, Channel inboundChannel) {
         state = State.FAILED;
         // Close the connection if the connection attempt has failed.
         Throwable failureCause = future.cause();
@@ -351,11 +362,11 @@ public class KafkaProxyFrontendHandler
                             .setCause(LOGGER.isDebugEnabled() ? failureCause : null)
                             .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
                                     remote, failureCause.getMessage());
-                    closeOnFlush(inboundChannel);
+                    closeNoResponse(inboundChannel);
                 });
     }
 
-    private void onConnection(List<FilterAndInvoker> filters) {
+    private void onTcpConnection(List<FilterAndInvoker> filters) {
         LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
         // Now we know which filters are to be used we need to update the DecodePredicate
         // so that the decoder starts decoding the messages that the filters want to intercept
@@ -465,7 +476,7 @@ public class KafkaProxyFrontendHandler
         }
         final Channel outboundChannel = outboundCtx.channel();
         if (outboundChannel != null) {
-            closeOnFlush(outboundChannel);
+            closeNoResponse(outboundChannel);
         }
     }
 
@@ -479,22 +490,23 @@ public class KafkaProxyFrontendHandler
                             + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
                     e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
         }
-        closeOnFlush(ctx.channel());
+        closeNoResponse(ctx.channel());
     }
 
     /**
      * Closes the specified channel after all queued write requests are flushed.
      */
-    void closeOnFlush(Channel ch) {
-        closeWith(ch, Unpooled.EMPTY_BUFFER);
+    void closeNoResponse(Channel ch) {
+        closeWith(ch, null);
     }
 
     /**
      * Closes the specified channel after all queued write requests are flushed.
      */
-    void closeWith(Channel ch, Object response) {
+    void closeWith(Channel ch, @Nullable ResponseFrame response) {
         if (ch.isActive()) {
-            ch.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE);
+            ch.writeAndFlush(response != null ? response : Unpooled.EMPTY_BUFFER)
+                    .addListener(ChannelFutureListener.CLOSE);
         }
     }
 
@@ -589,11 +601,14 @@ public class KafkaProxyFrontendHandler
         return "KafkaProxyFrontendHandler{inbound = " + inboundCtx.channel() + ", state = " + state + "}";
     }
 
-    private void outboundChannelUsable() {
+    /**
+     * Called when the channel to the upstream broker is ready for sending KRPC requests.
+     */
+    private void onUpstreamChannelUsable() {
         if (state != State.CONNECTED && state != State.NEGOTIATING_TLS) {
             throw illegalState(null);
         }
-        LOGGER.trace("{}: outboundChannelUsable: {}", inboundCtx.channel().id(), outboundCtx.channel().id());
+        LOGGER.trace("{}: onUpstreamChannelUsable: {}", inboundCtx.channel().id(), outboundCtx.channel().id());
         // connection is complete, so first forward the buffered message
         for (Object bufferedMsg : bufferedMsgs) {
             forwardOutbound(outboundCtx, bufferedMsg);
@@ -610,24 +625,33 @@ public class KafkaProxyFrontendHandler
         inboundChannel.config().setAutoRead(true);
     }
 
-    private void onUpstreamSslContext(SslContext sslContext) {
+    /**
+     * Called when the upstream channel (to the broker) is active and TLS negotiation is starting.
+     * @param sslContext
+     */
+    private void startUpstreamTlsNegotiation(SslContext sslContext) {
         this.state = State.NEGOTIATING_TLS;
         final HostPort remote = (HostPort) outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get();
         final SslHandler sslHandler = this.outboundCtx.pipeline().get(SslHandler.class);
         sslHandler.handshakeFuture().addListener(handshakeFuture -> {
             if (handshakeFuture.isSuccess()) {
-                this.outboundChannelUsable();
+                this.onUpstreamChannelUsable();
             }
             else {
-                this.onConnectionFailed(remote, handshakeFuture, this.inboundCtx.channel());
+                this.onUpstreamChannelFailed(remote, handshakeFuture, this.inboundCtx.channel());
             }
         });
     }
 
-    private Optional<?> onSslHandshakeException(Throwable throwable) {
-        Object result;
+    private Optional<ResponseFrame> onSslHandshakeException(SSLHandshakeException throwable) {
+        ResponseFrame result;
         final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
-        LOGGER.info("{}: unable to complete TLS negotiation with {}", inboundCtx.channel().id(), outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get());
+        LOGGER.atInfo()
+                .setCause(LOGGER.isDebugEnabled() ? throwable : null)
+                .addArgument(inboundCtx.channel().id())
+                .addArgument(outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get())
+                .addArgument(throwable.getMessage())
+                .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
         if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
             result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
         }

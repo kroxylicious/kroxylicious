@@ -49,7 +49,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.trace("Channel active {}", ctx);
-        this.frontendHandler.outboundChannelActive(ctx);
+        this.frontendHandler.onUpstreamChannelActive(ctx);
         super.channelActive(ctx);
     }
 
@@ -84,19 +84,20 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        frontendHandler.closeOnFlush(inboundCtx.channel());
+        frontendHandler.closeNoResponse(inboundCtx.channel());
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        // If the frontEnd has an exception handler for this exception it's likely to have already dealt with it.
+        // If the frontEnd has an exception handler for this exception
+        // it's likely to have already dealt with it.
         // So only act here if its un-expected by the front end.
         if (exceptionMapper.mapException(cause).isEmpty()) {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
                     .addArgument(cause != null ? cause.getMessage() : "")
                     .log("Netty caught exception from the backend: {}. Increase log level to DEBUG for stacktrace");
-            frontendHandler.closeOnFlush(ctx.channel());
+            frontendHandler.closeNoResponse(ctx.channel());
         }
     }
 }

@@ -14,10 +14,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
+
+import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -52,13 +55,14 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.channelActive(outboundContext);
 
         // Then
-        verify(kafkaProxyFrontendHandler).outboundChannelActive(outboundContext);
+        verify(kafkaProxyFrontendHandler).onUpstreamChannelActive(outboundContext);
     }
 
     @Test
     void shouldNotActIfExceptionRegistered() {
         // Given
-        exceptionMapper.registerExceptionResponse(RuntimeException.class, throwable -> Optional.of("handled"));
+        var resp = new OpaqueResponseFrame(Unpooled.EMPTY_BUFFER, 42, 0);
+        exceptionMapper.registerExceptionResponse(RuntimeException.class, throwable -> Optional.of(resp));
 
         // When
         kafkaProxyBackendHandler.exceptionCaught(outboundContext, new RuntimeException("Kaboom"));
@@ -75,6 +79,6 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.exceptionCaught(outboundContext, new RuntimeException("Kaboom"));
 
         // Then
-        verify(kafkaProxyFrontendHandler).closeOnFlush(outboundChannel);
+        verify(kafkaProxyFrontendHandler).closeNoResponse(outboundChannel);
     }
 }

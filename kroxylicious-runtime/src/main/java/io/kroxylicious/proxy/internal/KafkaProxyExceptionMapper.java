@@ -185,6 +185,7 @@ import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
@@ -196,7 +197,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  */
 public class KafkaProxyExceptionMapper {
 
-    private final ConcurrentMap<Class<? extends Throwable>, Function<Throwable, Optional<?>>> responsesByExceptionType;
+    private final ConcurrentMap<Class<? extends Throwable>, Function<? extends Throwable, Optional<ResponseFrame>>> responsesByExceptionType;
 
     public KafkaProxyExceptionMapper() {
         responsesByExceptionType = new ConcurrentHashMap<>();
@@ -207,46 +208,37 @@ public class KafkaProxyExceptionMapper {
      * @param throwableClass the target class to register
      * @param responseFunction the function to invoke when the throwable is encountered
      */
-    public void registerExceptionResponse(Class<? extends Throwable> throwableClass, Function<Throwable, Optional<?>> responseFunction) {
+    public <E extends Throwable> void registerExceptionResponse(Class<E> throwableClass,
+                                                                Function<E, Optional<ResponseFrame>> responseFunction) {
         responsesByExceptionType.put(throwableClass, responseFunction);
     }
 
     /**
      * Maps a given throwable by applying the function registered for the shallowest cause.
      * @param throwable to have its cause chain searched.
-     * @return an <code>Optional</code> empty if the there was no associated function.
+     * @return empty if the connection should be closed without any response,
+     * otherwise a non-empty (and not null) response to send to the client.
      */
     @SuppressWarnings("java:S1452")
-    public Optional<?> mapException(Throwable throwable) {
+    public Optional<ResponseFrame> mapException(Throwable throwable) {
         var candidate = throwable;
         Set<Throwable> visitedExceptions = Collections.newSetFromMap(new IdentityHashMap<>());
-        while (candidate != null) {
-            visitedExceptions.add(candidate);
-            final var localCandidate = candidate;
+        while (candidate != null
+                && visitedExceptions.add(candidate)) { // Exit the loop when we see an exception we saw already
 
             final Optional<Class<? extends Throwable>> mappedClass = containsMapping(candidate);
             if (mappedClass.isPresent()) {
-                return responsesByExceptionType.get(mappedClass.get()).apply(localCandidate);
+                Function optionalFunction = responsesByExceptionType.get(mappedClass.get());
+                return (Optional<ResponseFrame>) optionalFunction.apply(candidate);
             }
-            else {
-                candidate = nextCause(visitedExceptions, candidate);
-            }
+            candidate = candidate.getCause();
         }
         return Optional.empty();
     }
 
-    private static Throwable nextCause(Set<Throwable> visitedExceptions, Throwable candidate) {
-        if (visitedExceptions.contains(candidate.getCause())) {
-            // As we have seen the cause before break the loop and stop searching
-            return null;
-        }
-        else {
-            return candidate.getCause();
-        }
-    }
-
     private Optional<Class<? extends Throwable>> containsMapping(Throwable localCause) {
-        return responsesByExceptionType.keySet().stream().filter(keyClass -> keyClass.isAssignableFrom(localCause.getClass()))
+        return responsesByExceptionType.keySet().stream()
+                .filter(keyClass -> keyClass.isAssignableFrom(localCause.getClass()))
                 .findFirst();
     }
 
