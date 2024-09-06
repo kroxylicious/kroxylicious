@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -50,6 +51,7 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
@@ -57,6 +59,7 @@ import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.RequestDecoderTest;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.test.RequestFactory;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -390,6 +393,61 @@ class KafkaProxyFrontendHandlerTest {
         // Then
         assertThat(inboundChannel.<ByteBuf> readOutbound()).isNotNull().isExactlyInstanceOf(EmptyByteBuf.class);
         assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    @ParameterizedTest
+    @MethodSource("requests")
+    void shouldTransitionToFailedOnException(Short version, ApiMessage apiMessage) {
+        // Given
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
+        initialiseInboundChannel(handler);
+        final RequestHeaderData header = new RequestHeaderData();
+        final int correlationId = 1234;
+        header.setCorrelationId(correlationId);
+        final ApiKeys apiKey = ApiKeys.forId(apiMessage.apiKey());
+        inboundChannel.writeInbound(new DecodedRequestFrame<>(version, correlationId, true, header, apiMessage));
+
+        // When
+        inboundChannel.pipeline().fireExceptionCaught(new DecoderException("boom"));
+
+        // Then
+        assertThat(handler.state()).isEqualTo(State.FAILED);
+        assertThat(inboundChannel.<DecodedResponseFrame<?>> readOutbound()).satisfies(decodedResponseFrame -> {
+            assertThat(decodedResponseFrame.apiKey()).isEqualTo(apiKey);
+            assertThat(decodedResponseFrame.body()).isNotNull()
+                    .isInstanceOf(apiKey.messageType.newResponse().getClass());
+        });
+        assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    @ParameterizedTest
+    @MethodSource("requests")
+    void shouldTransitionToFailedOnExceptionForFrameOversizedException(Short version, ApiMessage apiMessage) {
+        // Given
+        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
+        initialiseInboundChannel(handler);
+        final RequestHeaderData header = new RequestHeaderData();
+        final int correlationId = 1234;
+        header.setCorrelationId(correlationId);
+        final ApiKeys apiKey = ApiKeys.forId(apiMessage.apiKey());
+        inboundChannel.writeInbound(new DecodedRequestFrame<>(version, correlationId, true, header, apiMessage));
+
+        // When
+        inboundChannel.pipeline().fireExceptionCaught(new DecoderException(new FrameOversizedException(5, 6)));
+
+        // Then
+        assertThat(handler.state()).isEqualTo(State.FAILED);
+        assertThat(inboundChannel.<DecodedResponseFrame<?>> readOutbound()).satisfies(decodedResponseFrame -> {
+            assertThat(decodedResponseFrame.apiKey()).isEqualTo(apiKey);
+            assertThat(decodedResponseFrame.body()).isNotNull()
+                    .isInstanceOf(apiKey.messageType.newResponse().getClass());
+        });
+        assertThat(inboundChannel.isOpen()).isFalse();
+    }
+
+    static Stream<Arguments> requests() {
+        return RequestFactory.apiMessageFor(ApiKeys::latestVersion)
+                .map(apiMessageVersion -> Arguments.of(apiMessageVersion.apiVersion(), apiMessageVersion.apiMessage()));
     }
 
     private void initialiseInboundChannel(KafkaProxyFrontendHandler handler) {

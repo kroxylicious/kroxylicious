@@ -36,7 +36,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
@@ -162,12 +161,7 @@ public class KafkaProxyFrontendHandler
         this.logNetwork = virtualCluster.isLogNetwork();
         this.logFrames = virtualCluster.isLogFrames();
         this.exceptionHandler = exceptionHandler;
-    }
-
-    private IllegalStateException illegalState(String msg) {
-        String name = state.name();
-        state = State.FAILED;
-        return new IllegalStateException((msg == null ? "" : msg + ", ") + "state=" + name);
+        exceptionHandler.registerExceptionResponse(FrameOversizedException.class, this::onSslHandshakeException);
     }
 
     @VisibleForTesting
@@ -482,15 +476,17 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        LOGGER.warn("Netty caught exception from the frontend: {}", cause.getMessage(), cause);
-        if (cause instanceof DecoderException de && de.getCause() instanceof FrameOversizedException e) {
-            var tlsHint = virtualCluster.getDownstreamSslContext().isPresent() ? "" : " or an unexpected TLS handshake";
-            LOGGER.warn(
-                    "Received over-sized frame, max frame size bytes {}, received frame size bytes {} "
-                            + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
-                    e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
-        }
-        closeNoResponse(ctx.channel());
+        this.state = State.FAILED;
+        exceptionHandler.mapException(cause)
+                .ifPresentOrElse(responseFrame -> closeWith(ctx.channel(), responseFrame),
+                        () -> {
+                            LOGGER.warn("Netty caught exception from the frontend: {}", cause.getMessage(), cause);
+                            buildErrorResponseFrame().ifPresentOrElse(
+                                    resp -> closeWith(ctx.channel(), resp),
+                                    () -> closeNoResponse(ctx.channel())
+                            );
+                        });
+
     }
 
     /**
@@ -643,15 +639,35 @@ public class KafkaProxyFrontendHandler
         });
     }
 
+    private IllegalStateException illegalState(String msg) {
+        String name = state.name();
+        state = State.FAILED;
+        return new IllegalStateException((msg == null ? "" : msg + ", ") + "state=" + name);
+    }
+
+    private Optional<ResponseFrame> onSslHandshakeException(FrameOversizedException frameOversizedException) {
+        var tlsHint = virtualCluster.getDownstreamSslContext().isPresent() ? "" : " or an unexpected TLS handshake";
+        LOGGER.warn(
+                "Received over-sized frame, max frame size bytes {}, received frame size bytes {} "
+                        + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
+                frameOversizedException.getMaxFrameSizeBytes(), frameOversizedException.getReceivedFrameSizeBytes(), tlsHint);
+        return buildErrorResponseFrame();
+    }
+
     private Optional<ResponseFrame> onSslHandshakeException(SSLHandshakeException throwable) {
-        ResponseFrame result;
-        final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
         LOGGER.atInfo()
                 .setCause(LOGGER.isDebugEnabled() ? throwable : null)
                 .addArgument(inboundCtx.channel().id())
                 .addArgument(outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get())
                 .addArgument(throwable.getMessage())
                 .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
+        return buildErrorResponseFrame();
+    }
+
+    @NonNull
+    private Optional<ResponseFrame> buildErrorResponseFrame() {
+        ResponseFrame result;
+        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
         if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
             result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
         }
