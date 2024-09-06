@@ -226,19 +226,19 @@ public class KafkaProxyExceptionMapper {
         while (candidate != null
                 && visitedExceptions.add(candidate)) { // Exit the loop when we see an exception we saw already
 
-            final Optional<Class<? extends Throwable>> mappedClass = containsMapping(candidate);
-            if (mappedClass.isPresent()) {
-                Function optionalFunction = responsesByExceptionType.get(mappedClass.get());
-                return (Optional<ResponseFrame>) optionalFunction.apply(candidate);
+            final var mappedFunction = containsMapping(candidate);
+            if (mappedFunction.isPresent()) {
+                return mappedFunction.get().apply(candidate);
             }
             candidate = candidate.getCause();
         }
         return Optional.empty();
     }
 
-    private Optional<Class<? extends Throwable>> containsMapping(Throwable localCause) {
-        return responsesByExceptionType.keySet().stream()
-                .filter(keyClass -> keyClass.isAssignableFrom(localCause.getClass()))
+    private <E extends Throwable> Optional<? extends Function<? super E, Optional<ResponseFrame>>> containsMapping(E localCause) {
+        return responsesByExceptionType.entrySet().stream()
+                .filter(entry -> entry.getKey().isInstance(localCause))
+                .map(entry -> (Function<? super E, Optional<ResponseFrame>>) entry.getValue())
                 .findFirst();
     }
 
