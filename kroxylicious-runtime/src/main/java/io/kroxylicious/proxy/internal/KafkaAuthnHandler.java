@@ -180,21 +180,17 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
 
     @VisibleForTesting
     State lastSeen;
-    private final KafkaProxyExceptionMapper exceptionHandler;
 
     public KafkaAuthnHandler(Channel ch,
-                             Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers,
-                             KafkaProxyExceptionMapper exceptionHandler) {
-        this(ch, State.START, mechanismHandlers, exceptionHandler);
+                             Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers) {
+        this(ch, State.START, mechanismHandlers);
     }
 
     @VisibleForTesting
     KafkaAuthnHandler(Channel ch,
                       State init,
-                      Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers,
-                      KafkaProxyExceptionMapper exceptionHandler) {
+                      Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers) {
         this.lastSeen = init;
-        this.exceptionHandler = exceptionHandler;
         LOG.debug("{}: Initial state {}", ch, lastSeen);
         this.mechanismHandlers = mechanismHandlers.entrySet().stream().collect(Collectors.toMap(
                 e -> e.getKey().mechanismName(), Map.Entry::getValue));
@@ -287,7 +283,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                     ctx.fireChannelRead(frame);
                 }
                 else {
-                    writeFramedResponse(ctx, frame, exceptionHandler.errorResponseMessage(frame, NOT_AUTHENTICATED_EXCEPTION));
+                    writeFramedResponse(ctx, frame, KafkaProxyExceptionMapper.errorResponseMessage(frame, NOT_AUTHENTICATED_EXCEPTION));
                 }
         }
     }

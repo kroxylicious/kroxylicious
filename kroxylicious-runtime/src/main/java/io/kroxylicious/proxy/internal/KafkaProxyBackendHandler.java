@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import javax.net.ssl.SSLHandshakeException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,14 +22,12 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private final KafkaProxyFrontendHandler frontendHandler;
     private final ChannelHandlerContext inboundCtx;
-    private final KafkaProxyExceptionMapper exceptionMapper;
     private ChannelHandlerContext blockedOutboundCtx;
     private boolean unflushedWrites;
 
-    public KafkaProxyBackendHandler(KafkaProxyFrontendHandler frontendHandler, ChannelHandlerContext inboundCtx, KafkaProxyExceptionMapper exceptionMapper) {
+    public KafkaProxyBackendHandler(KafkaProxyFrontendHandler frontendHandler, ChannelHandlerContext inboundCtx) {
         this.frontendHandler = frontendHandler;
         this.inboundCtx = requireNonNull(inboundCtx);
-        this.exceptionMapper = exceptionMapper;
     }
 
     @Override
@@ -84,7 +84,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        frontendHandler.closeNoResponse(inboundCtx.channel());
+        frontendHandler.closeInboundWithNoResponse();
     }
 
     @Override
@@ -92,12 +92,22 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         // If the frontEnd has an exception handler for this exception
         // it's likely to have already dealt with it.
         // So only act here if its un-expected by the front end.
-        if (exceptionMapper.mapException(cause).isEmpty()) {
+        try {
+            throw cause;
+        }
+        catch (SSLHandshakeException e) {
+            // frontendHandler.onSslHandshakeException(e);
+        }
+        catch (Throwable t) {
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? cause : null)
                     .addArgument(cause != null ? cause.getMessage() : "")
                     .log("Netty caught exception from the backend: {}. Increase log level to DEBUG for stacktrace");
-            frontendHandler.closeNoResponse(ctx.channel());
+            // TODO why are we asking the frontendHander to close
+            // but passing it the backend channel???
+        }
+        finally {
+            frontendHandler.closeInboundWithNoResponse();
         }
     }
 }

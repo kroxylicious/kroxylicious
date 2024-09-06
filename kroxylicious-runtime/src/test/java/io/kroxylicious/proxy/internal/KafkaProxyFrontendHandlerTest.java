@@ -15,12 +15,15 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,8 +34,7 @@ import org.mockito.ArgumentCaptor;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.EmptyByteBuf;
-import io.netty.buffer.Unpooled;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -45,12 +47,13 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
+import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.KafkaProxyFrontendHandler.State;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
@@ -67,6 +70,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -87,9 +91,15 @@ class KafkaProxyFrontendHandlerTest {
     private KafkaProxyExceptionMapper exceptionHandler;
 
     private void writeRequest(short apiVersion, ApiMessage body) {
-        var apiKey = ApiKeys.forId(body.apiKey());
-
         int downstreamCorrelationId = corrId++;
+
+        DecodedRequestFrame<ApiMessage> apiMessageDecodedRequestFrame = decodedRequestFrame(apiVersion, body, downstreamCorrelationId);
+        inboundChannel.writeInbound(apiMessageDecodedRequestFrame);
+    }
+
+    @NonNull
+    private DecodedRequestFrame<ApiMessage> decodedRequestFrame(short apiVersion, ApiMessage body, int downstreamCorrelationId) {
+        var apiKey = ApiKeys.forId(body.apiKey());
 
         RequestHeaderData header = new RequestHeaderData()
                 .setRequestApiKey(apiKey.id)
@@ -97,14 +107,15 @@ class KafkaProxyFrontendHandlerTest {
                 .setClientId("client-id")
                 .setCorrelationId(downstreamCorrelationId);
 
-        inboundChannel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
+        DecodedRequestFrame<ApiMessage> apiMessageDecodedRequestFrame = new DecodedRequestFrame<>(apiVersion, corrId, true, header, body);
+        return apiMessageDecodedRequestFrame;
     }
 
     @BeforeEach
     public void buildChannel() {
         inboundChannel = new EmbeddedChannel();
         corrId = 0;
-        exceptionHandler = new KafkaProxyExceptionMapper();
+        outboundChannel = new EmbeddedChannel();
     }
 
     @AfterEach
@@ -231,14 +242,14 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, VirtualCluster virtualCluster) {
-        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, exceptionHandler) {
+        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster) {
             @Override
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
                 // of a handler creating an outgoing connection and ends up
                 // trying to re-register the outbound channel => IllegalStateException
                 // So we override this method to short-circuit that
-                outboundChannel = new EmbeddedChannel();
+
                 outboundChannelTcpConnectionFuture = outboundChannel.newPromise();
                 return outboundChannelTcpConnectionFuture.addListener(
                         future -> this.onUpstreamChannelActive(outboundChannel.pipeline().firstContext().fireChannelActive()));
@@ -363,33 +374,79 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     @Test
-    void shouldCloseWithMappedResponseChannelOnFailedConnection() {
+    void shouldCloseWithNetworkExceptionOnUpstreamSslException() throws Exception {
         // Given
-        var resp = new OpaqueResponseFrame(Unpooled.EMPTY_BUFFER, 42, 0);
-        KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
-        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(resp));
+        HostPort hostPort = new HostPort("wibble", 9092);
+        VirtualCluster virtualCluster = mock(VirtualCluster.class);
+        SslContext c = SslContextBuilder.forClient().build();
+        when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.of(c));
+        KafkaProxyFrontendHandler handler = handler(connectContext::set,
+                new SaslDecodePredicate(false),
+                virtualCluster);
+        outboundChannel.pipeline().addLast(c.newHandler(ByteBufAllocator.DEFAULT));
 
+        ChannelHandlerContext inboundCtx = mock(ChannelHandlerContext.class);
+        doReturn(inboundChannel).when(inboundCtx).channel();
+        handler.channelActive(inboundCtx);
+        handler.initiateConnect(hostPort, List.of());
+        ChannelHandlerContext outboundCtx = mock(ChannelHandlerContext.class);
+        doReturn(outboundChannel.pipeline()).when(outboundCtx).pipeline();
+        doReturn(outboundChannel).when(outboundCtx).channel();
+
+        handler.onUpstreamChannelActive(outboundCtx);
+
+        assertThat(inboundChannel.isOpen())
+                .describedAs("Expect channel open before upstream failure")
+                .isTrue();
+
+        var reqFrame = decodedRequestFrame(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION,
+                new ApiVersionsRequestData().setClientSoftwareName("bob").setClientSoftwareVersion("1.0.0"),
+                1);
+
+        handler.bufferMessage(reqFrame);
         // When
-        handler.onUpstreamChannelFailed(new HostPort("wibble", 9092), inboundChannel.newFailedFuture(new SSLHandshakeException(TLS_NEGOTIATION_ERROR)), inboundChannel);
+        handler.onUpstreamChannelFailed(
+                hostPort,
+                new SSLHandshakeException(TLS_NEGOTIATION_ERROR));
 
         // Then
-        assertThat(inboundChannel.<OpaqueResponseFrame> readOutbound()).isEqualTo(resp);
-        assertThat(inboundChannel.isOpen()).isFalse();
+        assertThat(inboundChannel.<DecodedResponseFrame> readOutbound()).isNotNull()
+                .extracting(DecodedFrame::body)
+                .asInstanceOf(InstanceOfAssertFactories.type(ApiVersionsResponseData.class))
+                .extracting(ApiVersionsResponseData::errorCode)
+                .isEqualTo(Errors.NETWORK_EXCEPTION.code());
+        assertThat(inboundChannel.isOpen())
+                .describedAs("Expect channel closed after upstream failure")
+                .isFalse();
     }
 
     @Test
-    void shouldCloseResponseChannelOnFailedConnection() {
+    void shouldCloseResponseChannelOnFailedConnection() throws Exception {
         // Given
-        var resp = new OpaqueResponseFrame(Unpooled.EMPTY_BUFFER, 42, 0);
+        HostPort wibble = new HostPort("wibble", 9092);
         KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), mock(VirtualCluster.class));
-        exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, throwable -> Optional.of(resp));
 
+        ChannelHandlerContext mockChannelCtx = mock(ChannelHandlerContext.class);
+        doReturn(inboundChannel).when(mockChannelCtx).channel();
+        handler.channelActive(mockChannelCtx);
+        handler.initiateConnect(wibble, List.of());
+
+        outboundChannel.attr(KafkaProxyFrontendHandler.UPSTREAM_PEER_KEY).set(wibble);
+        handler.onUpstreamChannelActive(mockChannelCtx);
+
+        assertThat(inboundChannel.isOpen())
+                .describedAs("Expect channel open before upstream failure")
+                .isTrue();
         // When
-        handler.onUpstreamChannelFailed(new HostPort("wibble", 9092), inboundChannel.newFailedFuture(new RuntimeException(TLS_NEGOTIATION_ERROR)), inboundChannel);
+        handler.onUpstreamChannelFailed(
+                wibble,
+                new RuntimeException("t"));
 
         // Then
-        assertThat(inboundChannel.<ByteBuf> readOutbound()).isNotNull().isExactlyInstanceOf(EmptyByteBuf.class);
-        assertThat(inboundChannel.isOpen()).isFalse();
+        assertThat(inboundChannel.<ByteBuf> readOutbound()).isNotNull();
+        assertThat(inboundChannel.isOpen())
+                .describedAs("Expect channel closed after upstream failure")
+                .isFalse();
     }
 
     private void initialiseInboundChannel(KafkaProxyFrontendHandler handler) {

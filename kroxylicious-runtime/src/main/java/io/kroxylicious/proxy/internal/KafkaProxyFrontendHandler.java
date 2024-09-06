@@ -11,7 +11,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import javax.net.ssl.SSLHandshakeException;
 
@@ -43,7 +42,6 @@ import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.AttributeKey;
-import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -94,7 +92,6 @@ public class KafkaProxyFrontendHandler
 
     private final NetFilter filter;
     private final SaslDecodePredicate dp;
-    private final KafkaProxyExceptionMapper exceptionHandler;
 
     private AuthenticationEvent authentication;
     private String clientSoftwareName;
@@ -154,14 +151,12 @@ public class KafkaProxyFrontendHandler
 
     KafkaProxyFrontendHandler(NetFilter filter,
                               SaslDecodePredicate dp,
-                              VirtualCluster virtualCluster,
-                              KafkaProxyExceptionMapper exceptionHandler) {
+                              VirtualCluster virtualCluster) {
         this.filter = filter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
         this.logNetwork = virtualCluster.isLogNetwork();
         this.logFrames = virtualCluster.isLogFrames();
-        this.exceptionHandler = exceptionHandler;
     }
 
     private IllegalStateException illegalState(String msg) {
@@ -277,7 +272,8 @@ public class KafkaProxyFrontendHandler
         filter.selectServer(this);
     }
 
-    private void bufferMessage(Object msg) {
+    @VisibleForTesting
+    void bufferMessage(Object msg) {
         this.bufferedMsgs.add(msg);
     }
 
@@ -296,7 +292,7 @@ public class KafkaProxyFrontendHandler
 
         // Start the upstream connection attempt.
         Bootstrap b = new Bootstrap();
-        backendHandler = new KafkaProxyBackendHandler(this, inboundCtx, exceptionHandler);
+        backendHandler = new KafkaProxyBackendHandler(this, inboundCtx);
         b.group(inboundChannel.eventLoop())
                 .channel(inboundChannel.getClass())
                 .handler(backendHandler)
@@ -327,7 +323,6 @@ public class KafkaProxyFrontendHandler
         virtualCluster.getUpstreamSslContext().ifPresent(sslContext -> {
             final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
             pipeline.addFirst("ssl", handler);
-            exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, this::onSslHandshakeException);
         });
 
         tcpConnectFuture.addListener(future -> {
@@ -335,13 +330,13 @@ public class KafkaProxyFrontendHandler
                 onTcpConnection(filters);
             }
             else {
-                onUpstreamChannelFailed(remote, future, inboundChannel);
+                onUpstreamChannelFailed(remote, future.cause());
             }
         });
     }
 
     private @NonNull ResponseFrame buildErrorResponseFrame(DecodedRequestFrame<?> triggerFrame, Throwable error) {
-        var responseData = exceptionHandler.errorResponseMessage(triggerFrame, error);
+        var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
         final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
         responseHeaderData.setCorrelationId(triggerFrame.correlationId());
         return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
@@ -351,19 +346,35 @@ public class KafkaProxyFrontendHandler
      * Called when the channel to the upstream broker is failed.
      */
     @VisibleForTesting
-    void onUpstreamChannelFailed(HostPort remote, Future<?> future, Channel inboundChannel) {
+    void onUpstreamChannelFailed(HostPort remote, Throwable upstreamFailure) {
         state = State.FAILED;
         // Close the connection if the connection attempt has failed.
-        Throwable failureCause = future.cause();
-        exceptionHandler.mapException(failureCause).ifPresentOrElse(
-                result -> closeWith(inboundChannel, result),
-                () -> {
-                    LOGGER.atWarn()
-                            .setCause(LOGGER.isDebugEnabled() ? failureCause : null)
-                            .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
-                                    remote, failureCause.getMessage());
-                    closeNoResponse(inboundChannel);
-                });
+        Throwable errorCodeEx = null;
+        if (upstreamFailure instanceof SSLHandshakeException e) {
+            LOGGER.atInfo()
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .addArgument(inboundCtx.channel().id())
+                    .addArgument(outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get())
+                    .addArgument(e.getMessage())
+                    .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
+            errorCodeEx = ERROR_NEGOTIATING_SSL_CONNECTION;
+        }
+        else {
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? upstreamFailure : null)
+                    .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
+                            remote, upstreamFailure.getMessage());
+            errorCodeEx = null;
+        }
+        ResponseFrame errorResponse;
+        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
+        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
+            errorResponse = buildErrorResponseFrame(triggerFrame, errorCodeEx);
+        }
+        else {
+            errorResponse = null;
+        }
+        closeInboundWith(errorResponse);
     }
 
     private void onTcpConnection(List<FilterAndInvoker> filters) {
@@ -476,34 +487,46 @@ public class KafkaProxyFrontendHandler
         }
         final Channel outboundChannel = outboundCtx.channel();
         if (outboundChannel != null) {
-            closeNoResponse(outboundChannel);
+            closeWithNoResponse(outboundChannel);
         }
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         LOGGER.warn("Netty caught exception from the frontend: {}", cause.getMessage(), cause);
-        if (cause instanceof DecoderException de && de.getCause() instanceof FrameOversizedException e) {
+        if (cause instanceof DecoderException de
+                && de.getCause() instanceof FrameOversizedException e) {
             var tlsHint = virtualCluster.getDownstreamSslContext().isPresent() ? "" : " or an unexpected TLS handshake";
             LOGGER.warn(
                     "Received over-sized frame, max frame size bytes {}, received frame size bytes {} "
                             + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
                     e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
         }
-        closeNoResponse(ctx.channel());
+        closeWithNoResponse(ctx.channel());
+    }
+
+    void closeInboundWithNoResponse() {
+        closeWith(inboundCtx.channel(), null);
     }
 
     /**
      * Closes the specified channel after all queued write requests are flushed.
      */
-    void closeNoResponse(Channel ch) {
+    void closeInboundWith(@Nullable ResponseFrame response) {
+        closeWith(inboundCtx.channel(), response);
+    }
+
+    /**
+     * Closes the specified channel after all queued write requests are flushed.
+     */
+    static void closeWithNoResponse(Channel ch) {
         closeWith(ch, null);
     }
 
     /**
      * Closes the specified channel after all queued write requests are flushed.
      */
-    void closeWith(Channel ch, @Nullable ResponseFrame response) {
+    static void closeWith(Channel ch, @Nullable ResponseFrame response) {
         if (ch.isActive()) {
             ch.writeAndFlush(response != null ? response : Unpooled.EMPTY_BUFFER)
                     .addListener(ChannelFutureListener.CLOSE);
@@ -638,27 +661,9 @@ public class KafkaProxyFrontendHandler
                 this.onUpstreamChannelUsable();
             }
             else {
-                this.onUpstreamChannelFailed(remote, handshakeFuture, this.inboundCtx.channel());
+                this.onUpstreamChannelFailed(remote, handshakeFuture.cause());
             }
         });
-    }
-
-    private Optional<ResponseFrame> onSslHandshakeException(SSLHandshakeException throwable) {
-        ResponseFrame result;
-        final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
-        LOGGER.atInfo()
-                .setCause(LOGGER.isDebugEnabled() ? throwable : null)
-                .addArgument(inboundCtx.channel().id())
-                .addArgument(outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get())
-                .addArgument(throwable.getMessage())
-                .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
-        if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-            result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
-        }
-        else {
-            result = null;
-        }
-        return Optional.ofNullable(result);
     }
 
 }
