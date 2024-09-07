@@ -1,0 +1,56 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Kroxylicious Robot Command Dispatcher
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  process-command:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '@kroxylicious-robot')
+    steps:
+      - name: 'Check team membership'
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
+        uses: tspascoal/get-user-teams-membership@v2
+        id: team-membership
+        with:
+          username: ${{ github.actor }}
+          team: admins
+          GITHUB_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+      - name: 'Stop workflow if user is not a team member'
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
+        run: |
+          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use @kroxylicious-robot"
+          exit -1
+      - name: 'Extract command'
+        run: |
+          echo "COMMAND=$(echo "${{ github.event.comment.body }}" | awk '/^@kroxylicious-robot/ {print $2}')" >> $GITHUB_ENV
+          echo "Command is ${COMMAND}"
+    outputs:
+      command: ${{ env.COMMAND }}
+  dispatch-release-or-drop:
+    needs: process-command
+    if: needs.process-command.outputs.command == 'drop' || needs.process-command.outputs.command == 'release'
+    uses: ./.github/workflows/deploy_release.yaml
+    with:
+      next-state: ${{ needs.process-command.outputs.command }}
+      release-pr-issue-number: ${{ github.event.issue.number }}
+    secrets: inherit
+
+

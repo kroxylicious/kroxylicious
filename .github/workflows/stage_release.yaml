@@ -108,6 +108,10 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by transition-github-release-note-state.sh
         run: ./scripts/transition-github-release-note-state.sh -v ${{ github.event.inputs.release-version }} -a
 
+      - name: 'Create git work branch name'
+        run: |
+          echo "WORK_BRANCH=release-work-${{ github.event.inputs.release-version }}-$(openssl rand -hex 12)" >> $GITHUB_ENV
+
       - name: 'Stage Release'
         run: |
           SIGNING_KEY_SHORT_NAME=$(gpg --list-public-keys --keyid-format short --with-colons | awk -F: '/^pub:/ {print $5}' | head -n 1)
@@ -115,6 +119,7 @@ jobs:
                                      -v ${{ github.event.inputs.release-version }} \
                                      -n ${{ github.event.inputs.development-version }} \
                                      -b ${{ github.event.inputs.branch }} \
+                                     -w ${{ env.WORK_BRANCH }} \
                                      ${{ github.event.inputs.dry-run == 'true' && '-d' || '' }} \
                                      ${{ github.event.inputs.skip-tests == 'true' && '-s' || '' }}
         env:
@@ -145,3 +150,26 @@ jobs:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
         run: ./scripts/transition-staging-repository-state.sh -s close
+
+      - name: 'Comment on PR to prompt next phase of the release'
+        if: ${{ github.event.inputs.dry-run == 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
+        run: |
+          gh pr comment ${{ env.WORK_BRANCH }} --body-file - << 'EOF'
+          Hey, that's the ${{ github.event.inputs.release-version }} release prepared and its artefacts successfully staged to Sonatype. This PR contains a commit for ${{ github.event.inputs.release-version }} and a commit for ${{ github.event.inputs.development-version }}
+          which will reopen main for new work.
+          
+          There are a couple of steps to do before the release is completed.
+          
+          * [ ] Let the CI workflow on this PR complete.
+          * [ ] [Kick the tyres](https://github.com/kroxylicious/kroxylicious-junit5-extension/blob/main/RELEASING.md#making-the-release-public)
+            on the Maven artefacts.
+          
+          Once done, comment <code>&commat;kroxylicious-robot release</code> on this PR. This will release the artefacts to Maven Central and merge this PR to main.
+          
+          If things don't look good, abort the release by saying <code>&commat;kroxylicious-robot drop</code>.
+          
+          Thank you,
+          Your friendly Kroxylicious Github Robot.
+          EOF

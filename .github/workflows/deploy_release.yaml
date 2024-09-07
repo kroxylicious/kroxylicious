@@ -19,7 +19,6 @@ name: Deploy Release
 # This workflow is intended to be run after successfully validation of the release
 # staged by stage_release.  It will release (or drop) the staging repository.
 #
-#
 # It requires the following:
 # variables:
 # KROXYLICIOUS_SONATYPE_TOKEN_USERNAME - Sonatype Access User Token Username
@@ -29,19 +28,21 @@ name: Deploy Release
 #
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      release-version:
-        description: 'The release version, e.g. 0.7.0'
+      release-pr-issue-number:
+        description: 'PR number that is performing the release'
+        type: number
         required: true
       next-state:
         description: 'Desired next state for this release'
         required: true
-        type: choice
-        default: drop
-        options:
-          - drop
-          - release
+        type: string
+    secrets:
+      KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD:
+        required: true
+      KROXYLICIOUS_RELEASE_TOKEN:
+        required: true
 
 jobs:
   build:
@@ -51,8 +52,21 @@ jobs:
       - name: 'Check out repository'
         uses: actions/checkout@v4
         with:
-          ref: v${{ github.event.inputs.release-version }}
           token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+          fetch-tags: true
+          fetch-depth: 0
+
+      - name: 'Get the branch associated with the PR'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+            echo "PR_HEAD=$(gh pr view ${{ inputs.release-pr-issue-number}} --json headRefName | jq -r .headRefName)" >> $GITHUB_ENV
+
+      - name: 'Get release tag from the branch of PR'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          echo "RELEASE_VERSION=$(git name-rev --no-undefined --tags --name-only  origin/${PR_HEAD}^ | sed -e 's/^v//')" >> $GITHUB_ENV
 
       - name: 'Cache Maven packages'
         uses: actions/cache@v4
@@ -75,10 +89,26 @@ jobs:
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
-        run: ./scripts/transition-staging-repository-state.sh -s ${{ github.event.inputs.next-state }}
+        run: ./scripts/transition-staging-repository-state.sh -s ${{ inputs.next-state }}
 
       - name: 'Transition release notes to desired state'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by transition-github-release-note-state.sh
-        run: ./scripts/transition-github-release-note-state.sh -s  ${{ github.event.inputs.next-state }} -v ${{ github.event.inputs.release-version }}
+        run: ./scripts/transition-github-release-note-state.sh -s  ${{ inputs.next-state }} -v ${{ env.RELEASE_VERSION }}
 
+      - name: 'Merge PR'
+        if: inputs.next-state == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          # TODO: verify that main hasn't moved
+          echo gh pr merge --delete-branch --rebase ${{ inputs.release-pr-issue-number }}
+
+      - name: 'Drop PR'
+        if: always() && inputs.next-state == 'drop'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh pr close --comment "Release dropped" --delete-branch ${{ inputs.release-pr-issue-number }} 
+
+# Merge the PR or Close the PR
