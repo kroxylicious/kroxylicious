@@ -483,8 +483,7 @@ public class KafkaProxyFrontendHandler
                             LOGGER.warn("Netty caught exception from the frontend: {}", cause.getMessage(), cause);
                             buildErrorResponseFrame().ifPresentOrElse(
                                     resp -> closeWith(ctx.channel(), resp),
-                                    () -> closeNoResponse(ctx.channel())
-                            );
+                                    () -> closeNoResponse(ctx.channel()));
                         });
 
     }
