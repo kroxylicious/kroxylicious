@@ -347,7 +347,30 @@ public class KafkaProxyFrontendHandler
      */
     @VisibleForTesting
     void onUpstreamChannelFailed(HostPort remote, Throwable upstreamFailure) {
-        state = State.FAILED;
+        toFailedFromUpstreamException(remote, upstreamFailure);
+    }
+
+    private void toFailedFromDownstreamException(Throwable downstreamException) {
+        // Close the connection if the connection attempt has failed.
+        Throwable errorCodeEx = null;
+
+        if (downstreamException instanceof DecoderException de
+                && de.getCause() instanceof FrameOversizedException e) {
+            var tlsHint = virtualCluster.getDownstreamSslContext().isPresent() ? "" : " or an unexpected TLS handshake";
+            LOGGER.warn(
+                    "Received over-sized frame, max frame size bytes {}, received frame size bytes {} "
+                            + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
+                    e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
+            errorCodeEx = ERROR_NEGOTIATING_SSL_CONNECTION;
+        }
+        else {
+            LOGGER.warn("Netty caught exception from the frontend: {}", downstreamException.getMessage(), downstreamException);
+            errorCodeEx = ERROR_NEGOTIATING_SSL_CONNECTION;
+        }
+        toFailed(errorCodeEx);
+    }
+
+    private void toFailedFromUpstreamException(HostPort remote, Throwable upstreamFailure) {
         // Close the connection if the connection attempt has failed.
         Throwable errorCodeEx = null;
         if (upstreamFailure instanceof SSLHandshakeException e) {
@@ -366,6 +389,11 @@ public class KafkaProxyFrontendHandler
                             remote, upstreamFailure.getMessage());
             errorCodeEx = null;
         }
+        toFailed(errorCodeEx);
+    }
+
+    private void toFailed(Throwable errorCodeEx) {
+        state = State.FAILED;
         ResponseFrame errorResponse;
         final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
         if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
@@ -494,15 +522,7 @@ public class KafkaProxyFrontendHandler
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         LOGGER.warn("Netty caught exception from the frontend: {}", cause.getMessage(), cause);
-        if (cause instanceof DecoderException de
-                && de.getCause() instanceof FrameOversizedException e) {
-            var tlsHint = virtualCluster.getDownstreamSslContext().isPresent() ? "" : " or an unexpected TLS handshake";
-            LOGGER.warn(
-                    "Received over-sized frame, max frame size bytes {}, received frame size bytes {} "
-                            + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
-                    e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
-        }
-        closeWithNoResponse(ctx.channel());
+        toFailedFromDownstreamException(cause);
     }
 
     void closeInboundWithNoResponse() {
