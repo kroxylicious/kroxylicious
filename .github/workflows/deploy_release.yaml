@@ -105,7 +105,7 @@ jobs:
           echo gh pr merge --delete-branch --rebase ${{ inputs.release-pr-issue-number }}
 
       - name: 'Drop PR'
-        if: always() && inputs.next-state == 'drop'
+        if: inputs.next-state == 'drop'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
