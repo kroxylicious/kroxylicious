@@ -163,6 +163,7 @@ jobs:
           There are a couple of steps to do before the release is completed.
           
           * [ ] Let the CI workflow on this PR complete.
+          * [ ] Review the "[Sonatype] iokroxylicious-nnnn repository report" email for unexpected threats.
           * [ ] [Kick the tyres](https://github.com/kroxylicious/kroxylicious-junit5-extension/blob/main/RELEASING.md#making-the-release-public)
             on the Maven artefacts.
           
