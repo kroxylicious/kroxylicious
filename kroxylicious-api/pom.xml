@@ -140,7 +140,7 @@
             <plugin>
                 <groupId>com.github.siom79.japicmp</groupId>
                 <artifactId>japicmp-maven-plugin</artifactId>
-                <version>0.22.0</version>
+                <version>0.23.0</version>
                 <configuration>
                     <oldVersion>
                         <!-- specify the old version directly so its deterministic -->
