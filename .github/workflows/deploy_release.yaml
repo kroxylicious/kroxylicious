@@ -56,17 +56,36 @@ jobs:
           fetch-tags: true
           fetch-depth: 0
 
-      - name: 'Get the branch associated with the PR'
+      - name: 'Get the branch name associated with the PR'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-            echo "PR_HEAD=$(gh pr view ${{ inputs.release-pr-issue-number}} --json headRefName | jq -r .headRefName)" >> $GITHUB_ENV
+            echo "PR_BRANCH=$(gh pr view ${{ inputs.release-pr-issue-number}} --json headRefName | jq -r .headRefName)" >> $GITHUB_ENV
 
-      - name: 'Get release tag from the branch of PR'
+      - name: 'Get release version from the branch of PR'
+        run: |
+          # This knows the commit that precedes PR_BRANCH will carry the tag.
+          TAG=$(git name-rev --no-undefined --tags --name-only  origin/${PR_BRANCH}^)
+          echo "RELEASE_VERSION=$(echo ${TAG} | sed -e 's/^v//')" >> $GITHUB_ENV
+
+      - name: 'Get heads'
+        run: |
+          # Get main's current head
+          echo "MAIN_HEAD=$(git rev-list -n 1 main)" >> $GITHUB_ENV
+
+          # Get PR's view of where main ought to be.  This is two commits behind PR's head.
+          echo "PR_MAIN_REF=$(git rev-list -n 1 ${PR_BRANCH}^^)" >> $GITHUB_ENV
+
+      - name: 'Check for PR/main divergence'
+        if: inputs.next-state == 'release'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          echo "RELEASE_VERSION=$(git name-rev --no-undefined --tags --name-only  origin/${PR_HEAD}^ | sed -e 's/^v//')" >> $GITHUB_ENV
+          if [[ "${MAIN_HEAD}" != "${PR_MAIN_REF}" ]];
+          then
+            gh pr comment --body "Release PR (expects main ${PR_MAIN_REF}) has diverged from main (${MAIN_HEAD}). You must drop this release and restage the release." ${{ inputs.release-pr-issue-number }}
+            exit 1
+          fi
 
       - name: 'Cache Maven packages'
         uses: actions/cache@v4
@@ -101,8 +120,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          # TODO: verify that main hasn't moved
-          echo gh pr merge --delete-branch --rebase ${{ inputs.release-pr-issue-number }}
+          gh pr merge --delete-branch --rebase ${{ inputs.release-pr-issue-number }}
 
       - name: 'Drop PR'
         if: inputs.next-state == 'drop'
@@ -111,4 +129,3 @@ jobs:
         run: |
           gh pr close --comment "Release dropped" --delete-branch ${{ inputs.release-pr-issue-number }} 
 
-# Merge the PR or Close the PR
