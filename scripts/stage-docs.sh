@@ -119,7 +119,7 @@ echo "Copying release docs from ${KROXYLICIOUS_DOCS_LOCATION} to ${WEBSITE_DOCS_
 mkdir -p "${WEBSITE_DOCS_LOCATION}/"
 cp -R "${KROXYLICIOUS_DOCS_LOCATION}" "${WEBSITE_DOCS_LOCATION}/_files"
 # Remove README.md from copied files
-rm "${WEBSITE_DOCS_LOCATION}/_files/README.md"
+rm -f "${WEBSITE_DOCS_LOCATION}/_files/README.md"
 
 echo "Creating AsciiDoc entrypoint file at ${WEBSITE_DOCS_LOCATION}/index.adoc"
 RELEASE_DOCS_INDEX_TEMPLATE="
