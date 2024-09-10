@@ -57,6 +57,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 ORIGINAL_WORKING_BRANCH=$(git branch --show-current)
+ORIGINAL_WORKING_DIR=$(pwd)
 
 cleanup() {
     if [[ -n ${ORIGINAL_WEBSITE_WORKING_BRANCH} ]]; then
@@ -74,7 +75,7 @@ cleanup() {
         git branch -D "${RELEASE_DOCS_BRANCH}" || true
     fi
 
-    cd ../kroxylicious/
+    cd "${ORIGINAL_WORKING_DIR}"
 
     if [[ -n ${ORIGINAL_WORKING_BRANCH} ]]; then
         git checkout "${ORIGINAL_WORKING_BRANCH}" || true
@@ -90,7 +91,7 @@ RELEASE_TAG="v${RELEASE_VERSION}"
 RELEASE_DOCS_BRANCH="prepare-${RELEASE_TAG}-release-docs-${RELEASE_DATE}"
 
 # Use a `/.` at the end of the source path to avoid the source path being appended to the destination path if the `.../_files/` folder already exists
-KROXYLICIOUS_DOCS_LOCATION="../kroxylicious/docs/."
+KROXYLICIOUS_DOCS_LOCATION="${ORIGINAL_WORKING_DIR}/docs/."
 WEBSITE_DOCS_LOCATION="./docs/${RELEASE_TAG}"
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
@@ -103,8 +104,8 @@ fi
 echo "Checking out tags/${RELEASE_TAG} in  in $(git remote get-url "${REPOSITORY}")"
 git checkout "tags/${RELEASE_TAG}"
 
-# Move up a directory so we don't end up with website files in the main repository
-cd ../
+# Move to temp directory so we don't end up with website files in the main repository
+cd /tmp
 echo "In '$(pwd)', cloning website repository at ${WEBSITE_REPO_URL}"
 git clone "${WEBSITE_REPO_URL}"
 cd ./kroxylicious.github.io/
