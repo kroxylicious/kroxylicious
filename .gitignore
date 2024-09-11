@@ -25,6 +25,7 @@ dependency-reduced-pom.xml
 .idea/**/dictionaries
 .idea/**/shelf
 .idea/kubernetes-settings.xml
+.idea/sonarlint.xml
 
  # AWS User-specific
 .idea/**/aws.xml
