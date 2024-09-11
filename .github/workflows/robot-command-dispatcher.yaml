@@ -21,10 +21,16 @@ on:
     types: [created]
 
 jobs:
+
   process-command:
     runs-on: ubuntu-latest
-    if: ${{ github.event.issue.pull_request }} && contains(github.event.comment.body, '@kroxylicious-robot')
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@kroxylicious-robot') }}
     steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
       - name: 'Check team membership'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
         uses: tspascoal/get-user-teams-membership@v2
@@ -36,22 +42,51 @@ jobs:
 
       - name: 'Stop workflow if user is not a team member'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use @kroxylicious-robot. The user must be a member of https://github.com/orgs/kroxylicious/teams/Developer)"
           exit -1
+
       - name: 'Extract command'
         run: |
-          echo "COMMAND=$(echo "${{ github.event.comment.body }}" | awk '/^@kroxylicious-robot/ {print $2}')" >> $GITHUB_ENV
-          echo "Command is ${COMMAND}"
+          COMMAND=$(echo "${{ github.event.comment.body }}" | awk '/^@kroxylicious-robot/ {print $2}')
+          echo "COMMAND=${COMMAND}" >> $GITHUB_ENV
+          case "${COMMAND}" in
+            release | drop)
+              ;;
+            *)
+              echo "UNRECOGNIZED=true" >> $GITHUB_ENV
+              ;;
+          esac
+
     outputs:
       command: ${{ env.COMMAND }}
+      unrecognized: ${{ env.UNRECOGNIZED }}
+
   dispatch-release-or-drop:
     needs: process-command
-    if: needs.process-command.outputs.command == 'drop' || needs.process-command.outputs.command == 'release'
+    if: ${{ needs.process-command.outputs.command == 'drop' || needs.process-command.outputs.command == 'release' }}
     uses: ./.github/workflows/deploy_release.yaml
     with:
       next-state: ${{ needs.process-command.outputs.command }}
       release-pr-issue-number: ${{ github.event.issue.number }}
     secrets: inherit
+
+  dispatch-help:
+    runs-on: ubuntu-latest
+    needs: process-command
+    if: ${{ needs.process-command.outputs.unrecognized == 'true' }}
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: 'Send help'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh issue comment  ${{ github.event.issue.number }} --body "Sorry, I don't understand the command '${{ needs.process-command.outputs.command }}'."
 
 
