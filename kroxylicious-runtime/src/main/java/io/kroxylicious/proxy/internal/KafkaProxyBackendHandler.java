@@ -84,30 +84,11 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        frontendHandler.closeInboundWithNoResponse();
+        frontendHandler.upstreamChannelInactive(ctx);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        // If the frontEnd has an exception handler for this exception
-        // it's likely to have already dealt with it.
-        // So only act here if its un-expected by the front end.
-        try {
-            throw cause;
-        }
-        catch (SSLHandshakeException e) {
-            // frontendHandler.onSslHandshakeException(e);
-        }
-        catch (Throwable t) {
-            LOGGER.atWarn()
-                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                    .addArgument(cause != null ? cause.getMessage() : "")
-                    .log("Netty caught exception from the backend: {}. Increase log level to DEBUG for stacktrace");
-            // TODO why are we asking the frontendHander to close
-            // but passing it the backend channel???
-        }
-        finally {
-            frontendHandler.closeInboundWithNoResponse();
-        }
+        frontendHandler.upstreamExceptionCaught(ctx, cause);
     }
 }
