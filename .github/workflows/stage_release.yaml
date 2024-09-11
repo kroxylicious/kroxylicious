@@ -157,19 +157,17 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
         run: |
           gh pr comment ${{ env.WORK_BRANCH }} --body-file - << 'EOF'
-          Hey, that's the ${{ github.event.inputs.release-version }} release prepared and its artefacts successfully staged to Sonatype. This PR contains a commit for ${{ github.event.inputs.release-version }} and a commit for ${{ github.event.inputs.development-version }}
-          which will reopen main for new work.
+          Hey, that's the ${{ github.event.inputs.release-version }} release prepared and its artefacts successfully staged to Sonatype. This PR contains a commit for ${{ github.event.inputs.release-version }} and a commit for ${{ github.event.inputs.development-version }} which will reopen main for new work.
           
           There are a couple of steps to do before the release is completed.
           
           * [ ] Let the CI workflow on this PR complete.
           * [ ] Review the "[Sonatype] iokroxylicious-nnnn repository report" email for unexpected threats.
-          * [ ] [Kick the tyres](https://github.com/kroxylicious/kroxylicious-junit5-extension/blob/main/RELEASING.md#making-the-release-public)
-            on the Maven artefacts.
+          * [ ] [Kick the tyres](https://github.com/kroxylicious/kroxylicious-junit5-extension/blob/main/RELEASING.md#making-the-release-public) on the Maven artefacts.
           
-          Once done, comment <code>&commat;kroxylicious-robot release</code> on this PR. This will release the artefacts to Maven Central and merge this PR to main.
+          Once done, comment <code>&commat;kroxylicious-robot promote-release</code> on this PR. This will release the artefacts to Maven Central and merge this PR to main.
           
-          If things don't look good, abort the release by saying <code>&commat;kroxylicious-robot drop</code>.
+          If things don't look good, abort the release by saying <code>&commat;kroxylicious-robot drop-release</code>.
           
           Thank you,
           Your friendly Kroxylicious Github Robot.

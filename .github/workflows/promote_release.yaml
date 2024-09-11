@@ -14,14 +14,21 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-name: Deploy Release
+name: Promote Release
 
-# This workflow is intended to be run after successfully validation of the release
-# staged by stage_release.  It will release (or drop) the staging repository.
+# This workflow is dispatched by robot-command-dispatcher in response to a promote-release
+# (or drop-release command).
+#
+# It will release the staged maven artefacts, and merge the release PR.
 #
 # It requires the following:
+# inputs:
+# release-pr-issue-number - the issue number of release PR
+# command - promote-release or drop-release
+#
 # variables:
 # KROXYLICIOUS_SONATYPE_TOKEN_USERNAME - Sonatype Access User Token Username
+#
 # secrets:
 # KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD - Sonatype Access User Token Password
 # KROXYLICIOUS_RELEASE_TOKEN             - GitHub PAT wih content/createPullRequest permission for Kroxylicious repo.
@@ -34,8 +41,8 @@ on:
         description: 'PR number that is performing the release'
         type: number
         required: true
-      next-state:
-        description: 'Desired next state for this release'
+      command:
+        description: 'Dispatched command'
         required: true
         type: string
     secrets:
@@ -92,7 +99,7 @@ jobs:
           echo "PR_MAIN_REF=$(git rev-list -n 1 ${PR_BRANCH}^^)" >> $GITHUB_ENV
 
       - name: 'Check for PR/main divergence'
-        if: inputs.next-state == 'release'
+        if: inputs.command == 'release'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
@@ -123,22 +130,22 @@ jobs:
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
-        run: ./scripts/transition-staging-repository-state.sh -s ${{ inputs.next-state }}
+        run: ./scripts/transition-staging-repository-state.sh -s ${{ inputs.command == 'promote-release' && 'release' || 'drop' }}
 
       - name: 'Transition release notes to desired state'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by transition-github-release-note-state.sh
-        run: ./scripts/transition-github-release-note-state.sh -s  ${{ inputs.next-state }} -v ${{ env.RELEASE_VERSION }}
+        run: ./scripts/transition-github-release-note-state.sh -s  ${{ inputs.command == 'promote-release' && 'release' || 'drop' }} -v ${{ env.RELEASE_VERSION }}
 
       - name: 'Merge PR'
-        if: inputs.next-state == 'release'
+        if: inputs.command == 'promote-release'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           gh pr merge --delete-branch --rebase ${{ inputs.release-pr-issue-number }}
 
       - name: 'Drop PR'
-        if: inputs.next-state == 'drop'
+        if: inputs.command == 'promote-drop'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |

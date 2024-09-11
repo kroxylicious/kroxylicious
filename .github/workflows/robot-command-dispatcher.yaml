@@ -53,7 +53,7 @@ jobs:
           COMMAND=$(echo "${{ github.event.comment.body }}" | awk '/^@kroxylicious-robot/ {print $2}')
           echo "COMMAND=${COMMAND}" >> $GITHUB_ENV
           case "${COMMAND}" in
-            release | drop)
+            promote-release | drop-release)
               ;;
             *)
               echo "UNRECOGNIZED=true" >> $GITHUB_ENV
@@ -66,10 +66,10 @@ jobs:
 
   dispatch-release-or-drop:
     needs: process-command
-    if: ${{ needs.process-command.outputs.command == 'drop' || needs.process-command.outputs.command == 'release' }}
-    uses: ./.github/workflows/deploy_release.yaml
+    if: ${{ needs.process-command.outputs.command == 'drop-release' || needs.process-command.outputs.command == 'promote-release' }}
+    uses: ./.github/workflows/promote_release.yaml
     with:
-      next-state: ${{ needs.process-command.outputs.command }}
+      command: ${{ needs.process-command.outputs.command }}
       release-pr-issue-number: ${{ github.event.issue.number }}
     secrets: inherit
 
