@@ -151,6 +151,20 @@ jobs:
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
         run: ./scripts/transition-staging-repository-state.sh -s close
 
+      - name: 'Add pending status to block the merge'
+        if: ${{ github.event.inputs.dry-run == 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          WORK_SHA=$(git rev-list -n 1 origin/${WORK_BRANCH})
+          gh api --method POST \
+                 -H "Accept: application/vnd.github+json" \
+                 -H "X-GitHub-Api-Version: 2022-11-28" \
+                 /repos/${{ github.repository }}/statuses/${WORK_SHA} \
+                 -f "state=pending" \
+                 -f "description=Blocked until Sonatype staging repository is released." \
+                 -f "context=sonatype"
+
       - name: 'Comment on PR to prompt next phase of the release'
         if: ${{ github.event.inputs.dry-run == 'false' }}
         env:

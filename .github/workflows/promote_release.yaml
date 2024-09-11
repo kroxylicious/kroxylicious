@@ -126,11 +126,24 @@ jobs:
           server-password: SONATYPE_TOKEN_PASSWORD # env variable for Sonatype password
           overwrite-settings: true
 
-      - name: 'Transition snapshot repository to desired state'
+      - name: 'Transition staging repository to desired state'
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
         run: ./scripts/transition-staging-repository-state.sh -s ${{ inputs.command == 'promote-release' && 'release' || 'drop' }}
+
+      - name: 'Unblock the merge'
+        if: inputs.command == 'promote-release'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh api --method POST \
+                 -H "Accept: application/vnd.github+json" \
+                 -H "X-GitHub-Api-Version: 2022-11-28" \
+                 /repos/${{ github.repository }}/statuses/${PR_MAIN_REF} \
+                 -f "state=success" \
+                 -f "description=Sonatype Release Is Done" \
+                 -f "context=sonatype"
 
       - name: 'Transition release notes to desired state'
         env:
