@@ -56,6 +56,21 @@ jobs:
           fetch-tags: true
           fetch-depth: 0
 
+      - name: 'Check team membership'
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
+        uses: tspascoal/get-user-teams-membership@v2
+        id: team-membership
+        with:
+          username: ${{ github.actor }}
+          team: release-engineers
+          GITHUB_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
+      - name: 'Stop workflow if user is not a release-engineer'
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
+        run: |
+          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
+          exit -1
+
       - name: 'Get the branch name associated with the PR'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}

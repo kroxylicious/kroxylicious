@@ -31,12 +31,13 @@ jobs:
         id: team-membership
         with:
           username: ${{ github.actor }}
-          team: admins
+          team: Developers
           GITHUB_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
       - name: 'Stop workflow if user is not a team member'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         run: |
-          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use @kroxylicious-robot"
+          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use @kroxylicious-robot. The user must be a member of https://github.com/orgs/kroxylicious/teams/Developer)"
           exit -1
       - name: 'Extract command'
         run: |
