@@ -46,6 +46,10 @@ on:
         description: 'The branch from which the release is cut'
         required: false
         default: 'main'
+      website-repository:
+        description: 'The URL of the website repository, e.g. git@github.com:kroxylicious/kroxylicious.github.io.git'
+        required: false
+        default: 'git@github.com:kroxylicious/kroxylicious.github.io.git'
       skip-tests:
         description: 'Whether to skip the tests before pushing the tag'
         type: boolean
@@ -118,6 +122,15 @@ jobs:
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE }}
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
+
+      - name: 'Stage release docs'
+        if: ${{ success() }}
+        run: ./scripts/stage-docs.sh -v ${{ github.event.inputs.release-version }} \
+                                     -u ${{ github.event.inputs.website-repository }} \
+                                     -b ${{ github.event.inputs.branch }} \
+                                     ${{ github.event.inputs.dry-run == 'true' && '-d' || '' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-docs.sh
 
       - name: 'Drop stage repository, if failed'
         if: ${{ failure() && github.event.inputs.dry-run == 'false' }}
