@@ -93,11 +93,9 @@ public class KafkaProxyFrontendHandler
         }
     }
 
-
     static @NonNull ResponseFrame buildErrorResponseFrame(
-            @NonNull DecodedRequestFrame<?> triggerFrame,
-            @NonNull Throwable error
-    ) {
+                                                          @NonNull DecodedRequestFrame<?> triggerFrame,
+                                                          @NonNull Throwable error) {
         var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
         final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
         responseHeaderData.setCorrelationId(triggerFrame.correlationId());
@@ -110,9 +108,8 @@ public class KafkaProxyFrontendHandler
      * @return The response frame
      */
     static ResponseFrame errorResponse(
-            @NonNull ProxyChannelState state,
-            @Nullable Throwable errorCodeEx
-    ) {
+                                       @NonNull ProxyChannelState state,
+                                       @Nullable Throwable errorCodeEx) {
         ResponseFrame errorResponse;
         var bufferedMsgs = state.bufferedMsgs();
         final Object triggerMsg = !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
@@ -136,11 +133,10 @@ public class KafkaProxyFrontendHandler
      * Closes the specified channel after all queued write requests are flushed.
      */
     static void closeWith(
-            @NonNull Channel ch,
-            @Nullable ResponseFrame response
-    ) {
+                          @NonNull Channel ch,
+                          @Nullable ResponseFrame response) {
         // TODO this method is less that ideally type safe,
-        //  because `ch` might not be the client channel
+        // because `ch` might not be the client channel
         if (ch.isActive()) {
             ch.writeAndFlush(response != null ? response : Unpooled.EMPTY_BUFFER)
                     .addListener(ChannelFutureListener.CLOSE);
@@ -169,10 +165,9 @@ public class KafkaProxyFrontendHandler
     private boolean isInboundBlocked = true;
 
     KafkaProxyFrontendHandler(
-            @NonNull NetFilter netFilter,
-            @NonNull SaslDecodePredicate dp,
-            @NonNull VirtualCluster virtualCluster
-    ) {
+                              @NonNull NetFilter netFilter,
+                              @NonNull SaslDecodePredicate dp,
+                              @NonNull VirtualCluster virtualCluster) {
         this.netFilter = netFilter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
@@ -263,8 +258,7 @@ public class KafkaProxyFrontendHandler
      */
     @VisibleForTesting
     void closeServerAndClientChannels(
-            @Nullable ResponseFrame clientResponse
-    ) {
+                                      @Nullable ResponseFrame clientResponse) {
         // Close the server connection
         ChannelHandlerContext channelHandlerContext = state.outboundCtx();
         if (channelHandlerContext != null) {
@@ -279,9 +273,9 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public void userEventTriggered(
-            @NonNull ChannelHandlerContext ctx,
-            @NonNull Object event
-    ) throws Exception {
+                                   @NonNull ChannelHandlerContext ctx,
+                                   @NonNull Object event)
+            throws Exception {
         if (event instanceof SniCompletionEvent sniCompletionEvent) {
             if (sniCompletionEvent.isSuccess()) {
                 this.sniHostname = sniCompletionEvent.hostname();
@@ -323,12 +317,12 @@ public class KafkaProxyFrontendHandler
      * the {@link KafkaProxyBackendHandler#inboundChannelWritabilityChanged(ChannelHandlerContext)}
      * @param inboundCtx The inbound context
      * @throws Exception If something went wrong
-     * @see #upstreamWritabilityChanged(ChannelHandlerContext) 
+     * @see #upstreamWritabilityChanged(ChannelHandlerContext)
      */
     @Override
     public void channelWritabilityChanged(
-            final ChannelHandlerContext inboundCtx
-    ) throws Exception {
+                                          final ChannelHandlerContext inboundCtx)
+            throws Exception {
         super.channelWritabilityChanged(inboundCtx);
         if (inboundCtx.channel().isWritable() && backendHandler != null) {
             backendHandler.inboundChannelWritabilityChanged(inboundCtx);
@@ -339,11 +333,10 @@ public class KafkaProxyFrontendHandler
      * Relieve backpressure on the <em>client</em> connection by turning on auto-read.
      * Called by the {@link KafkaProxyBackendHandler}.
      * @param upstreamCtx The upstream context.
-     * @see #channelWritabilityChanged(ChannelHandlerContext) 
+     * @see #channelWritabilityChanged(ChannelHandlerContext)
      */
     public void upstreamWritabilityChanged(
-            @NonNull ChannelHandlerContext upstreamCtx
-    ) {
+                                           @NonNull ChannelHandlerContext upstreamCtx) {
         if (this.state.outboundCtx() != upstreamCtx) {
             illegalState("Mismatching outbound context");
         }
@@ -365,9 +358,8 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void channelRead(
-            @NonNull ChannelHandlerContext ctx,
-            @NonNull Object msg
-    ) {
+                            @NonNull ChannelHandlerContext ctx,
+                            @NonNull Object msg) {
         if (state instanceof Forwarding) { // post-backend connection
             forwardToServer(ctx, msg);
             return;
@@ -432,9 +424,8 @@ public class KafkaProxyFrontendHandler
     }
 
     private void toSelectingServer(
-            @NonNull SelectingServer selectingServer,
-            @NonNull Object msg
-    ) {
+                                   @NonNull SelectingServer selectingServer,
+                                   @NonNull Object msg) {
         setState(selectingServer);
         selectingServer.bufferMessage(msg);
 
@@ -446,10 +437,9 @@ public class KafkaProxyFrontendHandler
     }
 
     private void maybeToConnecting(
-            @NonNull SelectingServer selectingServer,
-            @NonNull ChannelHandlerContext ctx,
-            @NonNull DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame
-    ) {
+                                   @NonNull SelectingServer selectingServer,
+                                   @NonNull ChannelHandlerContext ctx,
+                                   @NonNull DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
         if (dp.isAuthenticationOffloadEnabled()) {
             // This handler can respond to ApiVersions itself
             writeApiVersionsResponse(ctx, apiVersionsFrame);
@@ -536,7 +526,6 @@ public class KafkaProxyFrontendHandler
     void closeInboundWithNoResponse() {
         closeWith(state.inboundCtx().channel(), null);
     }
-
 
     //////////// NetFilter methods
 
@@ -701,9 +690,8 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void initiateConnect(
-            @NonNull HostPort remote,
-            @NonNull List<FilterAndInvoker> filters
-    ) {
+                                @NonNull HostPort remote,
+                                @NonNull List<FilterAndInvoker> filters) {
         if (state instanceof SelectingServer selectingServerState) {
             setState(selectingServerState.toConnecting());
         }
@@ -777,15 +765,15 @@ public class KafkaProxyFrontendHandler
     }
 
     /** Ulgy hack used for testing */
-    @VisibleForTesting ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
+    @VisibleForTesting
+    ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
         return bootstrap.connect(remoteHost, remotePort);
     }
 
     @VisibleForTesting
     ResponseFrame errorResponseForServerException(
-            @NonNull HostPort remote,
-            @NonNull Throwable serverException
-    ) {
+                                                  @NonNull HostPort remote,
+                                                  @NonNull Throwable serverException) {
 
         ApiException errorCodeEx;
         if (serverException instanceof SSLHandshakeException e) {
@@ -810,14 +798,12 @@ public class KafkaProxyFrontendHandler
         return errorResponse(state, errorCodeEx);
     }
 
-
     ////////////////////////
 
     private void addFiltersToPipeline(
-            List<FilterAndInvoker> filters,
-            ChannelPipeline pipeline,
-            Channel inboundChannel
-    ) {
+                                      List<FilterAndInvoker> filters,
+                                      ChannelPipeline pipeline,
+                                      Channel inboundChannel) {
         for (var protocolFilter : filters) {
             // TODO configurable timeout
             pipeline.addFirst(
@@ -838,8 +824,8 @@ public class KafkaProxyFrontendHandler
      * @param sslContext The SSL context for the server
      */
     private void toNegotiatingTls(
-            @NonNull ChannelHandlerContext upstreamCtx,
-            @NonNull SslContext sslContext) {
+                                  @NonNull ChannelHandlerContext upstreamCtx,
+                                  @NonNull SslContext sslContext) {
         if (state instanceof Connecting connectedState) {
             setState(connectedState.toNegotiatingTls(this, upstreamCtx, sslContext));
         }
@@ -850,8 +836,8 @@ public class KafkaProxyFrontendHandler
 
     @VisibleForTesting
     void onUpstreamSslOutcome(
-            @NonNull ChannelHandlerContext outboundCtx,
-            @NonNull Future<?> handshakeFuture) {
+                              @NonNull ChannelHandlerContext outboundCtx,
+                              @NonNull Future<?> handshakeFuture) {
         if (handshakeFuture.isSuccess()) {
             toForwarding(outboundCtx);
         }
@@ -949,8 +935,7 @@ public class KafkaProxyFrontendHandler
      * @param upstreamCtx
      */
     void onUpstreamChannelActive(
-            @NonNull ChannelHandlerContext upstreamCtx
-    ) {
+                                 @NonNull ChannelHandlerContext upstreamCtx) {
         LOGGER.trace("{}: outboundChannelActive: {}", state.inboundCtx().channel().id(), upstreamCtx.channel().id());
         if (state instanceof Connecting connectingState) {
             Optional<SslContext> upstreamSslContext = virtualCluster.getUpstreamSslContext();
