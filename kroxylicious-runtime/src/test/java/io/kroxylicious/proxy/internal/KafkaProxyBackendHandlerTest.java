@@ -51,13 +51,14 @@ class KafkaProxyBackendHandlerTest {
     }
 
     @Test
-    void shouldCloseInboundChannelOnUnanticipatedException() {
+    void shouldInformFrontendHandlerOnUnanticipatedException() {
         // Given
+        RuntimeException kaboom = new RuntimeException("Kaboom");
 
         // When
-        kafkaProxyBackendHandler.exceptionCaught(outboundContext, new RuntimeException("Kaboom"));
+        kafkaProxyBackendHandler.exceptionCaught(outboundContext, kaboom);
 
         // Then
-        verify(kafkaProxyFrontendHandler).closeInboundWithNoResponse();
+        verify(kafkaProxyFrontendHandler).upstreamExceptionCaught(outboundContext, kaboom);
     }
 }

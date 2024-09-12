@@ -28,9 +28,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.NegotiatingTls;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Start;
 
@@ -272,7 +272,7 @@ sealed interface ProxyChannelState
                                                         ChannelHandlerContext outboundCtx,
                                                         SslContext sslContext) {
             final SslHandler sslHandler = outboundCtx.pipeline().get(SslHandler.class);
-            sslHandler.handshakeFuture().addListener(x -> handler.onUpstreamSslOutcome(outboundCtx, x));
+            sslHandler.handshakeFuture().addListener(handshakeFuture -> handler.onUpstreamSslOutcome(outboundCtx, handshakeFuture));
             return new NegotiatingTls(
                     inboundCtx,
                     haProxyMessage,
@@ -348,11 +348,11 @@ sealed interface ProxyChannelState
      * @param outboundCtx The server context
      */
     record Forwarding(
-                          @NonNull ChannelHandlerContext inboundCtx,
-                          @Nullable HAProxyMessage haProxyMessage,
-                          @Nullable String clientSoftwareName,
-                          @Nullable String clientSoftwareVersion,
-                          @NonNull ChannelHandlerContext outboundCtx)
+                      @NonNull ChannelHandlerContext inboundCtx,
+                      @Nullable HAProxyMessage haProxyMessage,
+                      @Nullable String clientSoftwareName,
+                      @Nullable String clientSoftwareVersion,
+                      @NonNull ChannelHandlerContext outboundCtx)
             implements ProxyChannelState {
         public Forwarding {
             Objects.requireNonNull(inboundCtx);

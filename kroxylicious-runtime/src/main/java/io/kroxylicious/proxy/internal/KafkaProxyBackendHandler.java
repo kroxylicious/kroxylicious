@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import javax.net.ssl.SSLHandshakeException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +31,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
         super.channelWritabilityChanged(ctx);
-        frontendHandler.outboundWritabilityChanged(ctx);
+        frontendHandler.upstreamWritabilityChanged(ctx);
     }
 
     public void inboundChannelWritabilityChanged(ChannelHandlerContext inboundCtx) {
