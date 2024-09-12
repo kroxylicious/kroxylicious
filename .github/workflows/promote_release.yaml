@@ -84,6 +84,15 @@ jobs:
         run: |
             echo "PR_BRANCH=$(gh pr view ${{ inputs.release-pr-issue-number}} --json headRefName | jq -r .headRefName)" >> $GITHUB_ENV
 
+      - name: 'Branch name matches naming conventions'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          if [[ ! "${PR_BRANCH}" =~ ^release-work- ]]; then
+            gh issue comment  ${{ github.event.issue.number }} --body "This PR's branch name (${PR_BRANCH}) is not in the expected form."
+            exit -1
+          fi
+
       - name: 'Get release version from the branch of PR'
         run: |
           # This knows the commit that precedes PR_BRANCH will carry the tag.
