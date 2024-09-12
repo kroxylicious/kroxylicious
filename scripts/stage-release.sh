@@ -92,10 +92,6 @@ cleanup() {
       gh repo set-default ${ORIGINAL_GH_DEFAULT_REPO}
     fi
 
-    if [[ ${RELEASE_TAG} ]]; then
-      git tag --delete "${RELEASE_TAG}" || true
-    fi
-
     # Note that git branch -D echos the sha of the deleted branch to
     # stdout.  This is great for debugging the release process as it
     # lets the developer restore to the state of the tree.

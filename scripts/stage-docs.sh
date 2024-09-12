@@ -56,6 +56,8 @@ fi
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+WEBSITE_URL="https://user:${GH_TOKEN}@${WEBSITE_REPO_URL}"
+
 ORIGINAL_WORKING_BRANCH=$(git branch --show-current)
 ORIGINAL_WORKING_DIR=$(pwd)
 
@@ -108,9 +110,14 @@ git checkout "tags/${RELEASE_TAG}"
 
 # Move to temp directory so we don't end up with website files in the main repository
 cd "${WEBSITE_TMP}"
-echo "In '$(pwd)', cloning website repository at ${WEBSITE_REPO_URL}"
-git clone "${WEBSITE_REPO_URL}"
+echo "In '$(pwd)', cloning website repository at ${WEBSITE_URL}"
+git clone "${WEBSITE_URL}"
 cd kroxylicious.github.io/
+
+# config so we can actually push to the website repo without it blowing up
+git config --unset-all http.https://github.com/.extraheader
+git config user.name "GitHub Actions Bot"
+git config user.email "<>"
 
 ORIGINAL_WEBSITE_WORKING_BRANCH=$(git branch --show-current)
 
