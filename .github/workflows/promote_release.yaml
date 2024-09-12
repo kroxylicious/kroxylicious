@@ -99,13 +99,29 @@ jobs:
           echo "PR_MAIN_REF=$(git rev-list -n 1 ${PR_BRANCH}^^)" >> $GITHUB_ENV
 
       - name: 'Check for PR/main divergence'
-        if: inputs.command == 'release'
+        if: ${{ inputs.command == 'promote-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           if [[ "${MAIN_HEAD}" != "${PR_MAIN_REF}" ]];
           then
             gh pr comment --body "Release PR (expects main ${PR_MAIN_REF}) has diverged from main (${MAIN_HEAD}). You must drop this release and restage the release." ${{ inputs.release-pr-issue-number }}
+            exit 1
+          fi
+
+      - name: 'Check build workflow has completed successfully'
+        if: ${{ inputs.command == 'promote-release' }}
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          STATUS=$(gh api --method POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/${{ github.repository }}/commits/${PR_MAIN_REF}/check-runs \
+              | jq --exit-status -r '.check_runs[] | select(.name=="build") | .status + "/" + .conclusion')
+
+          if [[ ${STATUS} != "completed/success" ]]; then
+            gh pr comment --body "Build workflow has not completed successfully (${STATUS}). Ask me again later." ${{ inputs.release-pr-issue-number }}
             exit 1
           fi
 
@@ -133,7 +149,7 @@ jobs:
         run: ./scripts/transition-staging-repository-state.sh -s ${{ inputs.command == 'promote-release' && 'release' || 'drop' }}
 
       - name: 'Unblock the merge'
-        if: inputs.command == 'promote-release'
+        if: ${{ inputs.command == 'promote-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
@@ -151,14 +167,14 @@ jobs:
         run: ./scripts/transition-github-release-note-state.sh -s  ${{ inputs.command == 'promote-release' && 'release' || 'drop' }} -v ${{ env.RELEASE_VERSION }}
 
       - name: 'Merge PR'
-        if: inputs.command == 'promote-release'
+        if: ${{ inputs.command == 'promote-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           gh pr merge --delete-branch --rebase ${{ inputs.release-pr-issue-number }}
 
       - name: 'Drop PR'
-        if: inputs.command == 'promote-drop'
+        if: ${{ inputs.command == 'drop-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
