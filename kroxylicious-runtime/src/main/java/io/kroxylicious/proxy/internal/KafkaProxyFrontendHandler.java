@@ -64,13 +64,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.NegotiatingTls;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Start;
 
 public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter
@@ -122,27 +122,6 @@ public class KafkaProxyFrontendHandler
         return errorResponse;
     }
 
-    /**
-     * Closes the specified channel after all queued write requests are flushed.
-     */
-    static void closeWithNoResponse(Channel ch) {
-        closeWith(ch, null);
-    }
-
-    /**
-     * Closes the specified channel after all queued write requests are flushed.
-     */
-    static void closeWith(
-                          @NonNull Channel ch,
-                          @Nullable ResponseFrame response) {
-        // TODO this method is less that ideally type safe,
-        // because `ch` might not be the client channel
-        if (ch.isActive()) {
-            ch.writeAndFlush(response != null ? response : Unpooled.EMPTY_BUFFER)
-                    .addListener(ChannelFutureListener.CLOSE);
-        }
-    }
-
     private final boolean logNetwork;
     private final boolean logFrames;
     private final VirtualCluster virtualCluster;
@@ -190,27 +169,27 @@ public class KafkaProxyFrontendHandler
     }
 
     @VisibleForTesting
-    void setState(@NonNull Start state) {
+    void setState(@NonNull ClientActive state) {
         assert (this.state == null) : "" + this.state;
         setState((ProxyChannelState) state);
     }
 
     @VisibleForTesting
     void setState(@NonNull HaProxy state) {
-        assert (this.state instanceof Start) : "" + this.state;
+        assert (this.state instanceof ClientActive) : "" + this.state;
         setState((ProxyChannelState) state);
     }
 
     @VisibleForTesting
     void setState(@NonNull ApiVersions state) {
-        assert (this.state instanceof Start
+        assert (this.state instanceof ClientActive
                 || this.state instanceof HaProxy) : "" + this.state;
         setState((ProxyChannelState) state);
     }
 
     @VisibleForTesting
     void setState(@NonNull SelectingServer state) {
-        assert (this.state instanceof Start
+        assert (this.state instanceof ClientActive
                 || this.state instanceof HaProxy
                 || this.state instanceof ApiVersions) : "" + this.state;
         setState((ProxyChannelState) state);
@@ -260,13 +239,21 @@ public class KafkaProxyFrontendHandler
     void closeServerAndClientChannels(
                                       @Nullable ResponseFrame clientResponse) {
         // Close the server connection
-        ChannelHandlerContext channelHandlerContext = state.outboundCtx();
-        if (channelHandlerContext != null) {
-            closeWith(channelHandlerContext.channel(), null);
+        ChannelHandlerContext outboundCtx = state.outboundCtx();
+        if (outboundCtx != null) {
+            Channel outboundChannel = outboundCtx.channel();
+            if (outboundChannel.isActive()) {
+                outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER)
+                        .addListener(ChannelFutureListener.CLOSE);
+            }
         }
 
         // Close the client connection with any error code
-        closeWith(state.inboundCtx().channel(), clientResponse);
+        Channel inboundChannel = state.inboundCtx().channel();
+        if (inboundChannel.isActive()) {
+            inboundChannel.writeAndFlush(clientResponse != null ? clientResponse : Unpooled.EMPTY_BUFFER)
+                    .addListener(ChannelFutureListener.CLOSE);
+        }
 
         setState(state.toClosed());
     }
@@ -290,7 +277,7 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        setState(new Start(ctx));
+        setState(new ClientActive(ctx));
         LOGGER.trace("{}: channelActive", state.inboundCtx().channel().id());
         // Initially the channel is not auto reading, so read the first batch of requests
         ctx.channel().config().setAutoRead(false);
@@ -301,15 +288,7 @@ public class KafkaProxyFrontendHandler
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         LOGGER.trace("INACTIVE on inbound {}", ctx.channel());
-        if (state != null) {
-            ChannelHandlerContext outboundCtx = state.outboundCtx();
-            if (outboundCtx != null) {
-                final Channel outboundChannel = outboundCtx.channel();
-                if (outboundChannel != null) {
-                    closeWithNoResponse(outboundChannel);
-                }
-            }
-        }
+        closeServerAndClientChannels(null);
     }
 
     /**
@@ -364,21 +343,21 @@ public class KafkaProxyFrontendHandler
             forwardToServer(ctx, msg);
             return;
         }
-        else if (state instanceof Start startState) {
+        else if (state instanceof ClientActive clientActiveState) {
             if (msg instanceof HAProxyMessage haProxyMessage) {
-                setState(startState.toHaProxy(haProxyMessage));
+                setState(clientActiveState.toHaProxy(haProxyMessage));
                 return;
             }
             else if (msg instanceof DecodedRequestFrame
                     && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
                 DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
-                ApiVersions apiVersions = startState.toApiVersions(apiVersionsFrame);
+                ApiVersions apiVersions = clientActiveState.toApiVersions(apiVersionsFrame);
                 setState(apiVersions);
                 maybeToConnecting(apiVersions.toSelectingServer(), ctx, apiVersionsFrame);
                 return;
             }
             else if (msg instanceof RequestFrame) {
-                toSelectingServer(startState.toSelectingServer(), msg);
+                toSelectingServer(clientActiveState.toSelectingServer(), msg);
                 return;
             }
         }
@@ -494,7 +473,6 @@ public class KafkaProxyFrontendHandler
             ctx.channel().config().setAutoRead(false);
             isInboundBlocked = true;
         }
-
     }
 
     /**
@@ -524,7 +502,11 @@ public class KafkaProxyFrontendHandler
     }
 
     void closeInboundWithNoResponse() {
-        closeWith(state.inboundCtx().channel(), null);
+        Channel ch = state.inboundCtx().channel();
+        if (ch.isActive()) {
+            ch.writeAndFlush(Unpooled.EMPTY_BUFFER)
+                    .addListener(ChannelFutureListener.CLOSE);
+        }
     }
 
     //////////// NetFilter methods
@@ -960,7 +942,7 @@ public class KafkaProxyFrontendHandler
      * @param upstreamCtx
      */
     void upstreamChannelInactive(ChannelHandlerContext upstreamCtx) {
-        closeInboundWithNoResponse();
+        closeServerAndClientChannels(null);
     }
 
     /**
@@ -993,7 +975,7 @@ public class KafkaProxyFrontendHandler
             // but passing it the backend channel???
         }
         finally {
-            this.closeInboundWithNoResponse();
+            closeServerAndClientChannels(null);
         }
     }
 }

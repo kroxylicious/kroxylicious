@@ -26,34 +26,51 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.NegotiatingTls;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Start;
 
 /**
- * The state machine for a single client's connection to a server.
- * Each state is represented by a subclass of
- * {@code State} which contains state-specific data.
+ * <p>The state machine for a single client's connection to a server.
+ * Each state is represented by an immutable subclass which contains state-specific data.</p>
  *
- * Using the regular expression metacharacter {@code ?} the possible sequence of transitions looks like this:
  * <pre>
- * {@link Start Start}                              // a client has connected
- * {@link HaProxy HaProxy}?                         // the client has sent an PROXY header
- * {@link ApiVersions ApiVersions}?                 // the client has send an ApiVersions request
- * {@link SelectingServer SelectingServer}          // delegating to {@link io.kroxylicious.proxy.filter.NetFilter}
- * {@link Connecting Connecting}                    // {@link io.kroxylicious.proxy.filter.NetFilter} has been called
- * {@link NegotiatingTls NegotiatingTls}?           // (If TLS configured) we've completed the TLS handshake
- * {@link Forwarding Forwarding}                    // Forwarding all KRPC requests to the server
- * {@link Closed Closed}                            // Closed both connections
+ *   «start»
+ *      │
+ *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelActive(ChannelHandlerContext) channelActive}
+ *     {@link ClientActive ClientActive} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  ╭───┤
+ *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives a PROXY header
+ *  │  {@link HaProxy HaProxy} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  ╰───┤
+ *  ╭───┤
+ *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives an ApiVersions request
+ *  │  {@link ApiVersions ApiVersions} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  ╰───┤
+ *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any other KRPC request
+ *     {@link SelectingServer SelectingServer} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *      │
+ *      ↓ netFiler.{@link NetFilter#selectServer(NetFilter.NetFilterContext) selectServer} calls frontend.{@link KafkaProxyFrontendHandler#initiateConnect(HostPort, List) initiateConnect}
+ *     {@link Connecting Connecting} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  ╭───┤
+ *  ↓   ↓ backend.{@link KafkaProxyBackendHandler#channelActive(ChannelHandlerContext) channelActive} and TLS configured
+ *  │  {@link NegotiatingTls NegotiatingTls} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  ╰───┤
+ *      ↓
+ *     {@link Forwarding Forwarding} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *      │ backend.{@link KafkaProxyBackendHandler#channelInactive(ChannelHandlerContext) channelInactive}
+ *      │ or frontend.{@link KafkaProxyFrontendHandler#channelInactive(ChannelHandlerContext) channelInactive}
+ *      ↓
+ *     {@link Closed Closed} ⇠╌╌╌╌ <b>error</b> ⇠╌╌╌╌
  * </pre>
  */
 @VisibleForTesting
 sealed interface ProxyChannelState
-        permits Start,
+        permits ClientActive,
         HaProxy,
         ApiVersions,
         SelectingServer,
@@ -78,10 +95,10 @@ sealed interface ProxyChannelState
 
     /**
      * The initial state, when a client has connected, but no messages
-     * have been received yey.
+     * have been received yet.
      * @param inboundCtx
      */
-    record Start(ChannelHandlerContext inboundCtx) implements ProxyChannelState {
+    record ClientActive(ChannelHandlerContext inboundCtx) implements ProxyChannelState {
 
         /**
          * Transition to {@link HaProxy}, because a PROXY header has been received

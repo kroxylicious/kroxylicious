@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -45,6 +46,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
@@ -57,6 +59,7 @@ import io.netty.handler.ssl.SslHandler;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -77,7 +80,6 @@ class NewKafkaProxyFrontendHandlerTest {
     public static final int CLUSTER_PORT = 9092;
     public static final HostPort CLUSTER_HOST_PORT = new HostPort(CLUSTER_HOST, CLUSTER_PORT);
 
-    public static final String TLS_NEGOTIATION_ERROR = "TLS negotiation error";
     public static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             "1.1.1.1", "2.2.2.2", 46421, 9092);
     public static final String CLIENT_SOFTWARE_NAME = "my-kafka-lib";
@@ -90,7 +92,6 @@ class NewKafkaProxyFrontendHandlerTest {
     private ChannelPromise outboundChannelTcpConnectionFuture;
 
     int correlectionId = 0;
-    private NetFilter filter;
     private VirtualCluster virtualCluster;
 
     @AfterEach
@@ -175,7 +176,7 @@ class NewKafkaProxyFrontendHandlerTest {
         this.correlectionId = 0;
 
         var dp = new SaslDecodePredicate(saslOffloadConfigured);
-        this.filter = mock(NetFilter.class);
+        NetFilter filter = mock(NetFilter.class);
         doAnswer(filterSelectServerBehaviour).when(filter).selectServer(any());
         virtualCluster = mock(VirtualCluster.class);
         final Optional<SslContext> sslContext;
@@ -198,6 +199,8 @@ class NewKafkaProxyFrontendHandlerTest {
         when(outboundCtx.channel()).thenReturn(outboundChannel);
         when(outboundCtx.pipeline()).thenReturn(outboundChannel.pipeline());
         when(outboundCtx.voidPromise()).thenAnswer(in -> outboundChannel.voidPromise());
+        when(outboundCtx.newFailedFuture(any())).thenAnswer(in -> outboundChannel.newFailedFuture(in.getArgument(0)));
+        when(outboundCtx.newSucceededFuture()).thenAnswer(in -> outboundChannel.newSucceededFuture());
 
     }
 
@@ -210,7 +213,7 @@ class NewKafkaProxyFrontendHandlerTest {
         }
         assertThat(handler.state()).isNull();
         pipeline.fireChannelActive();
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
+        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
     }
 
     private static void netFilterContextAssertions(
@@ -273,11 +276,18 @@ class NewKafkaProxyFrontendHandlerTest {
         };
     }
 
+    private void assertNoClientResponses() {
+        Object actual = inboundChannel.readOutbound();
+        if (actual != null) {
+            var responseAssert = assertThat(actual)
+                    .describedAs("No response sent to client")
+                    .asInstanceOf(InstanceOfAssertFactories.type(ByteBuf.class));
+            responseAssert.extracting(ByteBuf::readableBytes).isEqualTo(0);
+        }
+    }
+
     private void assertClientConnectionClosedWithNoResponse() {
-        var responseAssert = assertThat(inboundChannel.<Object> readOutbound())
-                .describedAs("No response sent to client")
-                .asInstanceOf(InstanceOfAssertFactories.type(ByteBuf.class));
-        responseAssert.extracting(ByteBuf::readableBytes).isEqualTo(0);
+        assertNoClientResponses();
 
         assertThat(inboundChannel.isOpen())
                 .describedAs("Connection to client is closed")
@@ -298,7 +308,10 @@ class NewKafkaProxyFrontendHandlerTest {
         ObjectAssert<T> bodyAssert = responseAssert.extracting(DecodedResponseFrame::body)
                 .describedAs("Response body is a " + expectedResponseBodyClass.getSimpleName())
                 .asInstanceOf(type(expectedResponseBodyClass));
-        if (errorCodeFn != null) {
+        if (errorCodeFn != null ^ expectedErrorCode != null) {
+            throw new IllegalArgumentException("Either both, or neither, should be null");
+        }
+        else if (errorCodeFn != null) {
             bodyAssert.describedAs("Response error code is " + expectedErrorCode)
                     .extracting(errorCodeFn).isEqualTo(expectedErrorCode.code());
         }
@@ -340,6 +353,7 @@ class NewKafkaProxyFrontendHandlerTest {
         var requestAssert = assertThat(outboundChannel.<Object> readOutbound())
                 .describedAs("Request sent to broker")
                 .asInstanceOf(InstanceOfAssertFactories.type(DecodedRequestFrame.class));
+        requestAssert.extracting(DecodedRequestFrame::correlationId).isEqualTo(corrId);
     }
 
     private void assertHandlerInHaProxyState() {
@@ -370,6 +384,7 @@ class NewKafkaProxyFrontendHandlerTest {
                 .map(DecodedRequestFrame::apiKey).isEqualTo(expectedBufferedRequestTypes);
     }
 
+    @SafeVarargs
     static List<Arguments> crossProduct(List<Arguments>... list) {
         if (list.length == 0) {
             return List.of();
@@ -416,6 +431,19 @@ class NewKafkaProxyFrontendHandlerTest {
                 Arguments.of(ApiKeys.METADATA));
     }
 
+    static List<Arguments> serverException() {
+        return List.of(
+                Arguments.of(new SSLException("boom!")),
+                Arguments.of(new SSLHandshakeException("boom!")),
+                Arguments.of(new RuntimeException("boom!")));
+    }
+
+    static List<Arguments> clientException() {
+        return List.of(
+                Arguments.of(new DecoderException(new FrameOversizedException(1, 2))),
+                Arguments.of(new RuntimeException("boom!")));
+    }
+
     static List<Arguments> booleanXboolean() {
         return crossProduct(bool(), bool());
     }
@@ -424,16 +452,42 @@ class NewKafkaProxyFrontendHandlerTest {
         return crossProduct(bool(), bool(), apiKey());
     }
 
-    static List<Arguments> booleanXbooleanXbooleanXapiKey() {
-        return crossProduct(bool(), bool(), bool(), apiKey());
+    static List<Arguments> booleanXbooleanXapiKeyXserverException() {
+        return crossProduct(bool(), bool(), apiKey(), serverException());
     }
 
-    static List<Arguments> booleanXbooleanXboolean() {
-        return crossProduct(bool(), bool(), bool());
+    @NonNull
+    private DecodedRequestFrame<ApiMessage> buildHanderInConnectedState(
+                                                                        boolean sni,
+                                                                        boolean haProxy,
+                                                                        boolean tlsConfigured,
+                                                                        ApiKeys firstMessage) {
+        buildHandler(false, tlsConfigured, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
+
+        hClientConnect(handler);
+        if (sni) {
+            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
+        }
+        // int metadataCorrelationId = correlectionId++;
+        var metadata = decodedRequestFrame(
+                MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
+                new MetadataRequestData(),
+                correlectionId++);
+        handler.state = new ProxyChannelState.Connecting(inboundCtx,
+                haProxy ? HA_PROXY_MESSAGE : null,
+                firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
+                firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null,
+                new ArrayList<>(List.of(metadata)));
+
+        if (tlsConfigured) {
+            SslHandler sslHandler = virtualCluster.getUpstreamSslContext().get().newHandler(ByteBufAllocator.DEFAULT);
+            outboundChannel.pipeline().addFirst(sslHandler);
+        }
+        return metadata;
     }
 
     @Test
-    void transitionToStart() {
+    void toClientActive() {
         // Given
         buildHandler(false, false, selectServerThrows(new AssertionError()));
         assertThat(handler.state()).isNull();
@@ -446,16 +500,65 @@ class NewKafkaProxyFrontendHandlerTest {
         assertThat(inboundChannel.config().isAutoRead()).isFalse();
         assertThat(inboundChannel.isWritable()).isTrue();
 
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
+        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("clientException")
+    void toClientActiveThenException(Throwable clientException) {
+        // Given
+        buildHandler(false, false, selectServerThrows(new AssertionError()));
+        assertThat(handler.state()).isNull();
+        hClientConnect(handler);
+        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+
+        // When
+        handler.exceptionCaught(inboundCtx, clientException);
+
+        // Then
+        inboundChannel.checkException();
+        assertClientConnectionClosedWithNoResponse();
+    }
+
+    @Test
+    void toClientActiveThenUnexpectedMessage() {
+        // Given
+        buildHandler(false, false, selectServerThrows(new AssertionError()));
+        assertThat(handler.state()).isNull();
+        hClientConnect(handler);
+        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+
+        // When
+        inboundChannel.writeInbound("unexpected");
+
+        // Then
+        inboundChannel.checkException();
+        assertClientConnectionClosedWithNoResponse();
+    }
+
+    @Test
+    void toClientActiveThenInactive() {
+        // Given
+        buildHandler(false, false, selectServerThrows(new AssertionError()));
+        assertThat(handler.state()).isNull();
+        hClientConnect(handler);
+        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+
+        // When
+        inboundChannel.close();
+
+        // Then
+        inboundChannel.checkException();
+        assertClientConnectionClosedWithNoResponse();
     }
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void transitionFromStartToHaProxy(boolean sni) {
+    void clientActiveToHaProxy(boolean sni) {
         buildHandler(false, false, selectServerThrows(new AssertionError()));
         // Given
         hClientConnect(handler);
-        handler.state = new ProxyChannelState.Start(this.inboundCtx);
+        handler.state = new ProxyChannelState.ClientActive(this.inboundCtx);
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
@@ -474,18 +577,12 @@ class NewKafkaProxyFrontendHandlerTest {
 
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
-    void transitionFromStartToConnectingWithoutSaslOffload(
-                                                           boolean sni,
-                                                           boolean haProxy,
-                                                           ApiKeys firstMessage) {
+    void clientActiveToConnectingWithoutSaslOffload(
+                                                    boolean sni,
+                                                    boolean haProxy,
+                                                    ApiKeys firstMessage) {
         // Given
-        buildHandler(false, false, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
-
-        hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
-        if (sni) {
-            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
-        }
+        buildHandlerInClientActiveState(false, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS), sni);
 
         if (haProxy) {
             handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
@@ -512,20 +609,24 @@ class NewKafkaProxyFrontendHandlerTest {
         assertHandlerInConnectingState(haProxy, List.of(firstMessage));
     }
 
-    @ParameterizedTest
-    @MethodSource("booleanXboolean")
-    void transitionFromStartToConnectingWithSaslOffload(
-                                                        boolean sni,
-                                                        boolean haProxy) {
-        Assumptions.abort();
-        // Given
-        buildHandler(true, false, selectServerCallsInitiateConnect(sni, haProxy, true));
+    private void buildHandlerInClientActiveState(boolean saslOffloadConfigured, Answer<Void> filterSelectServerBehaviour, boolean sni) {
+        buildHandler(saslOffloadConfigured, false, filterSelectServerBehaviour);
 
         hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
+        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("booleanXboolean")
+    void clientActiveToConnectingWithSaslOffload(
+                                                 boolean sni,
+                                                 boolean haProxy) {
+        Assumptions.abort();
+        // Given
+        buildHandlerInClientActiveState(true, selectServerCallsInitiateConnect(sni, haProxy, true), sni);
 
         if (haProxy) {
             handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
@@ -560,13 +661,7 @@ class NewKafkaProxyFrontendHandlerTest {
                                                                     boolean sni,
                                                                     boolean haProxy) {
         // Given
-        buildHandler(false, false, selectServerDoesNotCallInitiateConnect(sni, haProxy, true));
-
-        hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
-        if (sni) {
-            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
-        }
+        buildHandlerInClientActiveState(false, selectServerDoesNotCallInitiateConnect(sni, haProxy, true), sni);
 
         if (haProxy) {
             handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
@@ -587,13 +682,7 @@ class NewKafkaProxyFrontendHandlerTest {
                                                                  boolean sni,
                                                                  boolean haProxy) {
         // Given
-        buildHandler(true, false, selectServerDoesNotCallInitiateConnect(sni, haProxy, true));
-
-        hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
-        if (sni) {
-            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
-        }
+        buildHandlerInClientActiveState(true, selectServerDoesNotCallInitiateConnect(sni, haProxy, true), sni);
 
         if (haProxy) {
             handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
@@ -617,13 +706,7 @@ class NewKafkaProxyFrontendHandlerTest {
                                                                       boolean sni,
                                                                       boolean haProxy) {
         // Given
-        buildHandler(false, false, selectServerCallsInitiateConnectTwice(sni, haProxy, true));
-
-        hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
-        if (sni) {
-            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
-        }
+        buildHandlerInClientActiveState(false, selectServerCallsInitiateConnectTwice(sni, haProxy, true), sni);
 
         if (haProxy) {
             handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
@@ -643,13 +726,7 @@ class NewKafkaProxyFrontendHandlerTest {
                                                                    boolean sni,
                                                                    boolean haProxy) {
         // Given
-        buildHandler(true, false, selectServerCallsInitiateConnectTwice(sni, haProxy, true));
-
-        hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
-        if (sni) {
-            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
-        }
+        buildHandlerInClientActiveState(true, selectServerCallsInitiateConnectTwice(sni, haProxy, true), sni);
 
         if (haProxy) {
             handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
@@ -674,13 +751,7 @@ class NewKafkaProxyFrontendHandlerTest {
                                                    boolean sni,
                                                    boolean haProxy) {
         // Given
-        buildHandler(false, false, selectServerThrows(new AssertionError()));
-
-        hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
-        if (sni) {
-            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
-        }
+        buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), sni);
 
         if (haProxy) {
             handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
@@ -703,18 +774,12 @@ class NewKafkaProxyFrontendHandlerTest {
 
     @ParameterizedTest
     @MethodSource("booleanXboolean")
-    void filterThrowingIsAnErrorWithSasl(
-                                         boolean sni,
-                                         boolean haProxy) {
+    void filterThrowingIsAnErrorWithSaslOffload(
+                                                boolean sni,
+                                                boolean haProxy) {
         Assumptions.abort();
         // Given
-        buildHandler(true, false, selectServerThrows(new AssertionError()));
-
-        hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
-        if (sni) {
-            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
-        }
+        buildHandlerInClientActiveState(true, selectServerThrows(new AssertionError()), sni);
 
         if (haProxy) {
             handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
@@ -734,64 +799,163 @@ class NewKafkaProxyFrontendHandlerTest {
     }
 
     @ParameterizedTest
-    @MethodSource("booleanXbooleanXbooleanXapiKey")
-    void serverChannelActivationInConnecting(
-                                             boolean sni,
-                                             boolean haProxy,
-                                             boolean tlsConfigured,
-                                             ApiKeys firstMessage) {
+    @MethodSource("booleanXbooleanXapiKey")
+    void plainServerChannelActivationInConnecting(
+                                                  boolean sni,
+                                                  boolean haProxy,
+                                                  ApiKeys firstMessage) {
         // Given
-        buildHandler(false, tlsConfigured, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
-
-        hClientConnect(handler);
-        if (sni) {
-            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
-        }
-        int metadataCorrelationId = correlectionId++;
-        var metadata = decodedRequestFrame(
-                MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
-                new MetadataRequestData(),
-                metadataCorrelationId);
-        handler.state = new ProxyChannelState.Connecting(inboundCtx,
-                haProxy ? HA_PROXY_MESSAGE : null,
-                firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
-                firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null,
-                new ArrayList<>(List.of(metadata)));
-
-        if (tlsConfigured) {
-            SslHandler sslHandler = virtualCluster.getUpstreamSslContext().get().newHandler(ByteBufAllocator.DEFAULT);
-            outboundChannel.pipeline().addFirst(sslHandler);
-        }
+        var metadata = buildHanderInConnectedState(sni, haProxy, false, firstMessage);
 
         // When
         handler.onUpstreamChannelActive(outboundCtx);
 
         // Then
         inboundChannel.checkException();
-        if (tlsConfigured) {
-            var stateAssert = assertThat(handler.state).asInstanceOf(type(ProxyChannelState.NegotiatingTls.class));
-            stateAssert.extracting(ProxyChannelState.NegotiatingTls::outboundCtx).isSameAs(outboundCtx);
-            stateAssert.extracting(ProxyChannelState.NegotiatingTls::bufferedMsgs)
-                    .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
-                    .isEqualTo(List.of(metadata));
-        }
-        else {
-            var stateAssert = assertThat(handler.state).asInstanceOf(type(ProxyChannelState.Forwarding.class));
-            stateAssert.extracting(ProxyChannelState.Forwarding::outboundCtx).isSameAs(outboundCtx);
-            stateAssert.extracting(ProxyChannelState.Forwarding::bufferedMsgs)
-                    .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
-                    .isEmpty();
+        outboundChannel.checkException();
+        var stateAssert = assertThat(handler.state).asInstanceOf(type(ProxyChannelState.Forwarding.class));
+        stateAssert.extracting(ProxyChannelState.Forwarding::outboundCtx).isSameAs(outboundCtx);
+        stateAssert.extracting(ProxyChannelState.Forwarding::bufferedMsgs)
+                .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
+                .isEmpty();
 
-            assertBrokerMetadataResponse(metadataCorrelationId);
+        assertBrokerMetadataResponse(metadata.correlationId());
 
-            // TODO assert that _new_ messages get forwarded
-        }
+        // TODO assert that _new_ messages get forwarded
+
     }
 
-    // TODO need assertions about buffered messages
+    @ParameterizedTest
+    @MethodSource("booleanXbooleanXapiKeyXserverException")
+    void plainServerChannelActivationThenException(
+                                                   boolean sni,
+                                                   boolean haProxy,
+                                                   ApiKeys firstMessage,
+                                                   Throwable serverException) {
+        // Given
+        var metadata = buildHanderInConnectedState(sni, haProxy, false, firstMessage);
 
-    // TODO why don't we stop in ApiVersions any more? What are the consequences of that?
+        // When
+        handler.onUpstreamChannelActive(outboundCtx);
+        handler.upstreamExceptionCaught(outboundCtx, serverException);
 
-    // Buffering (and autoread is off)
+        // Then
+        inboundChannel.checkException();
+        outboundChannel.checkException();
+        assertClientConnectionClosedWithNoResponse();
+    }
+
+    @ParameterizedTest
+    @MethodSource("booleanXbooleanXapiKey")
+    void plainServerChannelActivationThenInactive(
+                                                  boolean sni,
+                                                  boolean haProxy,
+                                                  ApiKeys firstMessage) {
+        // Given
+        var metadata = buildHanderInConnectedState(sni, haProxy, false, firstMessage);
+        handler.onUpstreamChannelActive(outboundCtx);
+
+        // When
+        handler.upstreamChannelInactive(outboundCtx);
+
+        // Then
+        inboundChannel.checkException();
+        outboundChannel.checkException();
+        assertClientConnectionClosedWithNoResponse();
+    }
+
+    @ParameterizedTest
+    @MethodSource("booleanXbooleanXapiKey")
+    void tlsServerChannelActivationInConnecting(
+                                                boolean sni,
+                                                boolean haProxy,
+                                                ApiKeys firstMessage) {
+        // Given
+        var metadata = buildHanderInConnectedState(sni, haProxy, true, firstMessage);
+
+        // When
+        handler.onUpstreamChannelActive(outboundCtx);
+
+        // Then
+        inboundChannel.checkException();
+
+        var stateAssert = assertThat(handler.state).asInstanceOf(type(ProxyChannelState.NegotiatingTls.class));
+        stateAssert.extracting(ProxyChannelState.NegotiatingTls::outboundCtx).isSameAs(outboundCtx);
+        stateAssert.extracting(ProxyChannelState.NegotiatingTls::bufferedMsgs)
+                .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
+                .isEqualTo(List.of(metadata));
+    }
+
+    @ParameterizedTest
+    @MethodSource("bool")
+    void tlsHandshakeFail(boolean withRequest) {
+        // Given
+        buildHandler(false, true, selectServerThrows(new AssertionError()));
+        handler.state = new ProxyChannelState.NegotiatingTls(
+                inboundCtx,
+                null,
+                null,
+                null,
+                outboundCtx,
+                withRequest
+                        ? List.of(decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData(), 42))
+                        : List.of());
+
+        // When
+        handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newFailedFuture(new SSLHandshakeException("boom!")));
+
+        // Then
+        inboundChannel.checkException();
+
+        if (withRequest) {
+            assertClientSaslHandshakeResponse(42, Errors.NETWORK_EXCEPTION);
+        }
+        else {
+            assertClientConnectionClosedWithNoResponse();
+        }
+        assertThat(handler.state())
+                .isInstanceOf(ProxyChannelState.Closed.class);
+        assertThat(inboundChannel.isActive()).isFalse();
+        assertThat(inboundChannel.isOpen()).isFalse();
+        assertThat(outboundChannel.isActive()).isFalse();
+        assertThat(outboundChannel.isOpen()).isFalse();
+    }
+
+    @ParameterizedTest
+    @MethodSource("bool")
+    void tlsHandshakeSuccess(boolean withRequest) {
+        // Given
+        buildHandler(false, true, selectServerThrows(new AssertionError()));
+        handler.state = new ProxyChannelState.NegotiatingTls(
+                inboundCtx,
+                null,
+                null,
+                null,
+                outboundCtx,
+                withRequest
+                        ? List.of(decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData(), 42))
+                        : List.of());
+
+        // When
+        handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newSucceededFuture());
+
+        // Then
+        inboundChannel.checkException();
+
+        if (withRequest) {
+            assertThat(outboundChannel.<Object> readOutbound()).isNotNull();
+        }
+        else {
+            assertThat(outboundChannel.<Object> readOutbound()).isNull();
+        }
+        assertThat(handler.state())
+                .isInstanceOf(ProxyChannelState.Forwarding.class);
+        assertThat(inboundChannel.isActive()).isTrue();
+        assertThat(inboundChannel.isOpen()).isTrue();
+        assertThat(outboundChannel.isActive()).isTrue();
+        assertThat(outboundChannel.isOpen()).isTrue();
+    }
+
+    // TODO backpressure
 
 }

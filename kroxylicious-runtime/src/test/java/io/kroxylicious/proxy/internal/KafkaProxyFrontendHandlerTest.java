@@ -338,7 +338,7 @@ class KafkaProxyFrontendHandlerTest {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
 
-        assertThat(handler.state).isExactlyInstanceOf(ProxyChannelState.Start.class);
+        assertThat(handler.state).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
 
         if (haProxyConfigured) {
             // Simulate the HA proxy handler
@@ -536,7 +536,7 @@ class KafkaProxyFrontendHandlerTest {
         }
         assertThat(handler.state()).isNull();
         pipeline.fireChannelActive();
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
+        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
     }
 
     private void handleConnect(NetFilter filter, KafkaProxyFrontendHandler handler) {
@@ -630,7 +630,7 @@ class KafkaProxyFrontendHandlerTest {
 
         var handler = handler(filter, dp, virtualCluster);
         initialiseInboundChannel(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Start.class);
+        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
 
         // Simulate the SSL handler
         inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
