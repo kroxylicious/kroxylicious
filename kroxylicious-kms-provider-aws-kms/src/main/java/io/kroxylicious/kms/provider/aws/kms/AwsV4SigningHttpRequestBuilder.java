@@ -80,7 +80,12 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
      * @param date request date
      * @return a new request builder
      */
-    public static Builder newBuilder(@NonNull String accessKey, @NonNull String secretKey, @NonNull String region, @NonNull String service, @NonNull Instant date) {
+    public static Builder newBuilder(@NonNull
+    String accessKey, @NonNull
+    String secretKey, @NonNull
+    String region, @NonNull
+    String service, @NonNull
+    Instant date) {
         return new AwsV4SigningHttpRequestBuilder(accessKey, secretKey, region, service, date, HttpRequest.newBuilder());
     }
 
@@ -262,7 +267,8 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         return new CanonicalRequestResult(signedHeaders, canonicalRequestHash);
     }
 
-    private record CanonicalRequestResult(String signedHeaders, String canonicalRequestHash) {}
+    private record CanonicalRequestResult(String signedHeaders, String canonicalRequestHash) {
+    }
 
     @NonNull
     private StringToSignResult computeStringToSign(CanonicalRequestResult canonicalRequestResult, String isoDateTime, String isoDate) {
@@ -276,7 +282,8 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         return new StringToSignResult(credentialScope, stringToSign);
     }
 
-    private record StringToSignResult(String credentialScope, String stringToSign) {}
+    private record StringToSignResult(String credentialScope, String stringToSign) {
+    }
 
     @NonNull
     private String computeAuthorization(CanonicalRequestResult canonicalRequestResult, StringToSignResult stringToSignResult, String isoDate) {
@@ -286,8 +293,14 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         var signHmac = hmac(serviceHmac, AWS_4_REQUEST);
         var signature = HEX_FORMATTER.formatHex(hmac(signHmac, stringToSignResult.stringToSign()));
 
-        return "AWS4-HMAC-SHA256 Credential=" + accessKey + "/" + stringToSignResult.credentialScope() + ", SignedHeaders=" + canonicalRequestResult.signedHeaders()
-                + ", Signature=" + signature;
+        return "AWS4-HMAC-SHA256 Credential="
+               + accessKey
+               + "/"
+               + stringToSignResult.credentialScope()
+               + ", SignedHeaders="
+               + canonicalRequestResult.signedHeaders()
+               + ", Signature="
+               + signature;
     }
 
     /**
@@ -304,18 +317,15 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         boolean defaultPort;
         if (port == -1) {
             defaultPort = true;
-        }
-        else if (uri.getScheme().toLowerCase(Locale.ROOT).equals("https")) {
+        } else if (uri.getScheme().toLowerCase(Locale.ROOT).equals("https")) {
             defaultPort = port == 443;
-        }
-        else {
+        } else {
             defaultPort = port == 80;
         }
 
         if (defaultPort) {
             return host;
-        }
-        else {
+        } else {
             return host + ":" + port;
         }
     }
@@ -370,9 +380,12 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
     @NonNull
     private static Map<String, String> getSingleValuedHeaders(HttpRequest request) {
-        return request.headers().map().entrySet().stream()
-                .filter(AwsV4SigningHttpRequestBuilder::hasSingleValue)
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0)));
+        return request.headers()
+                      .map()
+                      .entrySet()
+                      .stream()
+                      .filter(AwsV4SigningHttpRequestBuilder::hasSingleValue)
+                      .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0)));
     }
 
     private static boolean hasSingleValue(Map.Entry<String, List<String>> e) {

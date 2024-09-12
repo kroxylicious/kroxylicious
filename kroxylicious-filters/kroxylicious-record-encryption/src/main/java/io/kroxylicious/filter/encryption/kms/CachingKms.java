@@ -44,13 +44,20 @@ public class CachingKms<K, E> implements Kms<K, E> {
     private final Cache<String, CompletionStage<K>> notFoundAliasCache;
     private static final Logger LOGGER = LoggerFactory.getLogger(CachingKms.class);
 
-    private CachingKms(@NonNull Kms<K, E> delegate,
-                       long decryptDekCacheMaxSize,
-                       @NonNull Duration decryptDekExpireAfterAccess,
-                       long resolveAliasCacheMaxSize,
-                       @NonNull Duration resolveAliasExpireAfterWrite,
-                       @NonNull Duration resolveAliasRefreshAfterWrite,
-                       @NonNull Duration notFoundAliasExpireAfterWrite) {
+    private CachingKms(
+            @NonNull
+            Kms<K, E> delegate,
+            long decryptDekCacheMaxSize,
+            @NonNull
+            Duration decryptDekExpireAfterAccess,
+            long resolveAliasCacheMaxSize,
+            @NonNull
+            Duration resolveAliasExpireAfterWrite,
+            @NonNull
+            Duration resolveAliasRefreshAfterWrite,
+            @NonNull
+            Duration notFoundAliasExpireAfterWrite
+    ) {
         this.delegate = delegate;
         decryptDekCache = buildDecryptedDekCache(delegate, decryptDekCacheMaxSize, decryptDekExpireAfterAccess);
         resolveAliasCache = buildResolveAliasCache(delegate, resolveAliasCacheMaxSize, resolveAliasExpireAfterWrite, resolveAliasRefreshAfterWrite);
@@ -58,38 +65,54 @@ public class CachingKms<K, E> implements Kms<K, E> {
     }
 
     @NonNull
-    public static <A, B> Kms<A, B> wrap(Kms<A, B> delegate,
-                                        long decryptDekCacheMaxSize,
-                                        Duration decryptDekExpireAfterAccess,
-                                        long resolveAliasCacheMaxSize,
-                                        Duration resolveAliasExpireAfterWrite,
-                                        Duration resolveAliasRefreshAfterWrite,
-                                        Duration notFoundAliasExpireAfterWrite) {
-        return new CachingKms<>(delegate, decryptDekCacheMaxSize, decryptDekExpireAfterAccess, resolveAliasCacheMaxSize, resolveAliasExpireAfterWrite,
-                resolveAliasRefreshAfterWrite, notFoundAliasExpireAfterWrite);
+    public static <A, B> Kms<A, B> wrap(
+            Kms<A, B> delegate,
+            long decryptDekCacheMaxSize,
+            Duration decryptDekExpireAfterAccess,
+            long resolveAliasCacheMaxSize,
+            Duration resolveAliasExpireAfterWrite,
+            Duration resolveAliasRefreshAfterWrite,
+            Duration notFoundAliasExpireAfterWrite
+    ) {
+        return new CachingKms<>(
+                delegate,
+                decryptDekCacheMaxSize,
+                decryptDekExpireAfterAccess,
+                resolveAliasCacheMaxSize,
+                resolveAliasExpireAfterWrite,
+                resolveAliasRefreshAfterWrite,
+                notFoundAliasExpireAfterWrite
+        );
     }
 
     @NonNull
     private static <K, E> AsyncLoadingCache<String, K> buildResolveAliasCache(Kms<K, E> delegate, long maxSize, Duration expireAfterWrite, Duration refreshAfterWrite) {
-        return Caffeine.newBuilder().maximumSize(maxSize).refreshAfterWrite(refreshAfterWrite).expireAfterWrite(expireAfterWrite)
-                .buildAsync((key, executor) -> delegate.resolveAlias(key).toCompletableFuture());
+        return Caffeine.newBuilder()
+                       .maximumSize(maxSize)
+                       .refreshAfterWrite(refreshAfterWrite)
+                       .expireAfterWrite(expireAfterWrite)
+                       .buildAsync((key, executor) -> delegate.resolveAlias(key).toCompletableFuture());
     }
 
     @NonNull
     private static <K, E> AsyncLoadingCache<E, SecretKey> buildDecryptedDekCache(Kms<K, E> delegate, long maxSize, Duration expireAfterAccess) {
-        return Caffeine.newBuilder().maximumSize(maxSize).expireAfterAccess(expireAfterAccess)
-                .buildAsync((key, executor) -> delegate.decryptEdek(key).toCompletableFuture());
+        return Caffeine.newBuilder()
+                       .maximumSize(maxSize)
+                       .expireAfterAccess(expireAfterAccess)
+                       .buildAsync((key, executor) -> delegate.decryptEdek(key).toCompletableFuture());
     }
 
     @NonNull
     @Override
-    public CompletionStage<DekPair<E>> generateDekPair(@NonNull K kekRef) {
+    public CompletionStage<DekPair<E>> generateDekPair(@NonNull
+    K kekRef) {
         return delegate.generateDekPair(kekRef);
     }
 
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull E edek) {
+    public CompletionStage<SecretKey> decryptEdek(@NonNull
+    E edek) {
         return decryptDekCache.get(edek);
     }
 
@@ -101,7 +124,8 @@ public class CachingKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<K> resolveAlias(@NonNull String alias) {
+    public CompletionStage<K> resolveAlias(@NonNull
+    String alias) {
         CompletionStage<K> cachedNotFound = notFoundAliasCache.getIfPresent(alias);
         if (cachedNotFound != null) {
             return cachedNotFound;

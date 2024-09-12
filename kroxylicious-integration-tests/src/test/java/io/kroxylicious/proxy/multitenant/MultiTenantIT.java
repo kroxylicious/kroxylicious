@@ -82,14 +82,21 @@ class MultiTenantIT extends BaseMultiTenantIT {
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var created = createTopics(admin, NEW_TOPIC_1, NEW_TOPIC_2);
 
-            var topicMap = await().atMost(Duration.ofSeconds(5)).until(() -> admin.listTopics().namesToListings().get(),
-                    n -> n.size() == 2);
+            var topicMap = await().atMost(Duration.ofSeconds(5))
+                                  .until(
+                                          () -> admin.listTopics().namesToListings().get(),
+                                          n -> n.size() == 2
+                                  );
 
             assertThat(topicMap).hasSize(2);
-            assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                    allOf(matches(TopicListing::name, TOPIC_1), matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
-            assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                    allOf(matches(TopicListing::name, TOPIC_1), matches(TopicListing::topicId, created.topicId(TOPIC_1).get())));
+            assertThat(topicMap).hasEntrySatisfying(
+                    TOPIC_1,
+                    allOf(matches(TopicListing::name, TOPIC_1), matches(TopicListing::topicId, created.topicId(TOPIC_1).get()))
+            );
+            assertThat(topicMap).hasEntrySatisfying(
+                    TOPIC_1,
+                    allOf(matches(TopicListing::name, TOPIC_1), matches(TopicListing::topicId, created.topicId(TOPIC_1).get()))
+            );
             assertThat(topicMap).hasEntrySatisfying(TOPIC_2, matches(TopicListing::name, TOPIC_2));
 
             // Delete by name
@@ -114,8 +121,10 @@ class MultiTenantIT extends BaseMultiTenantIT {
             await().atMost(Duration.ofSeconds(5)).ignoreExceptions().untilAsserted(() -> {
                 var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
                 var topicMap = describeTopicsResult.allTopicNames().get();
-                assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                        allOf(matches(TopicDescription::name, TOPIC_1), matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
+                assertThat(topicMap).hasEntrySatisfying(
+                        TOPIC_1,
+                        allOf(matches(TopicDescription::name, TOPIC_1), matches(TopicDescription::topicId, created.topicId(TOPIC_1).get()))
+                );
             });
         }
     }
@@ -131,9 +140,9 @@ class MultiTenantIT extends BaseMultiTenantIT {
 
     private KroxyliciousTester buildTester(ConfigurationBuilder config) {
         return KroxyliciousTesters.newBuilder(config)
-                .setTrustStoreLocation(this.certificateGenerator.getTrustStoreLocation())
-                .setTrustStorePassword(this.certificateGenerator.getPassword())
-                .createDefaultKroxyliciousTester();
+                                  .setTrustStoreLocation(this.certificateGenerator.getTrustStoreLocation())
+                                  .setTrustStorePassword(this.certificateGenerator.getPassword())
+                                  .createDefaultKroxyliciousTester();
     }
 
     @Test
@@ -143,8 +152,15 @@ class MultiTenantIT extends BaseMultiTenantIT {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
             produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, Stream.of(new ProducerRecord<>(topicName, MY_KEY, MY_VALUE)), Optional.empty());
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, MY_VALUE))),
-                    false);
+            consumeAndAssert(
+                    tester,
+                    this.clientConfig,
+                    TENANT_1_CLUSTER,
+                    topicName,
+                    groupId,
+                    new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, MY_VALUE))),
+                    false
+            );
         }
     }
 
@@ -154,8 +170,13 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = buildTester(config)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
-            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
-                    Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), new ProducerRecord<>(topicName, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
+            produceAndAssert(
+                    tester,
+                    this.clientConfig,
+                    TENANT_1_CLUSTER,
+                    Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), new ProducerRecord<>(topicName, MY_KEY, "2"), inCaseOfFailure()),
+                    Optional.empty()
+            );
             consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
             consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
         }
@@ -168,8 +189,13 @@ class MultiTenantIT extends BaseMultiTenantIT {
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             var groupId = testInfo.getDisplayName();
             final String topicName = tester.createTopic(TENANT_1_CLUSTER);
-            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
-                    Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), new ProducerRecord<>(topicName, MY_KEY, "2"), inCaseOfFailure()), Optional.empty());
+            produceAndAssert(
+                    tester,
+                    this.clientConfig,
+                    TENANT_1_CLUSTER,
+                    Stream.of(new ProducerRecord<>(topicName, MY_KEY, "1"), new ProducerRecord<>(topicName, MY_KEY, "2"), inCaseOfFailure()),
+                    Optional.empty()
+            );
             consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "1"))), true);
             var rememberedOffsets = admin.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata().get();
             consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, topicName, groupId, new LinkedList<>(List.of(matchesRecord(topicName, MY_KEY, "2"))), true);
@@ -259,9 +285,13 @@ class MultiTenantIT extends BaseMultiTenantIT {
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
             createTopics(admin, NEW_TOPIC_1);
-            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
+            produceAndAssert(
+                    tester,
+                    this.clientConfig,
+                    TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
-                    Optional.of("12345"));
+                    Optional.of("12345")
+            );
         }
     }
 
@@ -273,20 +303,38 @@ class MultiTenantIT extends BaseMultiTenantIT {
             // put some records in an input topic
             var inputTopic = "input";
             var outputTopic = "output";
-            createTopics(admin, new NewTopic(inputTopic, 1, (short) 1),
-                    new NewTopic(outputTopic, 1, (short) 1));
-            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
-                    Stream.of(new ProducerRecord<>(inputTopic, MY_KEY, "1"),
+            createTopics(
+                    admin,
+                    new NewTopic(inputTopic, 1, (short) 1),
+                    new NewTopic(outputTopic, 1, (short) 1)
+            );
+            produceAndAssert(
+                    tester,
+                    this.clientConfig,
+                    TENANT_1_CLUSTER,
+                    Stream.of(
+                            new ProducerRecord<>(inputTopic, MY_KEY, "1"),
                             new ProducerRecord<>(inputTopic, MY_KEY, "2"),
-                            new ProducerRecord<>(inputTopic, MY_KEY, "3")),
-                    Optional.empty());
+                            new ProducerRecord<>(inputTopic, MY_KEY, "3")
+                    ),
+                    Optional.empty()
+            );
 
             // now consume and from input and produce to output, using a transaction.
             var groupId = testInfo.getDisplayName();
-            try (var consumer = getConsumerWithConfig(tester, TENANT_1_CLUSTER, groupId, this.clientConfig,
-                    Map.of(ConsumerConfig.ISOLATION_LEVEL_CONFIG, IsolationLevel.READ_UNCOMMITTED.toString().toLowerCase(Locale.ROOT)));
-                    var producer = getProducerWithConfig(tester, Optional.of(TENANT_1_CLUSTER), clientConfig,
-                            Map.of(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ProducerConfig.TRANSACTIONAL_ID_CONFIG, "12345"))) {
+            try (var consumer = getConsumerWithConfig(
+                    tester,
+                    TENANT_1_CLUSTER,
+                    groupId,
+                    this.clientConfig,
+                    Map.of(ConsumerConfig.ISOLATION_LEVEL_CONFIG, IsolationLevel.READ_UNCOMMITTED.toString().toLowerCase(Locale.ROOT))
+            );
+                    var producer = getProducerWithConfig(
+                            tester,
+                            Optional.of(TENANT_1_CLUSTER),
+                            clientConfig,
+                            Map.of(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ProducerConfig.TRANSACTIONAL_ID_CONFIG, "12345")
+                    )) {
                 producer.initTransactions();
 
                 var topicPartitions = List.of(new TopicPartition(inputTopic, 0));
@@ -303,19 +351,34 @@ class MultiTenantIT extends BaseMultiTenantIT {
                         var send = producer.send(new ProducerRecord<>(outputTopic, 0, key, value));
                         send.get(FUTURE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
-                        producer.sendOffsetsToTransaction(Map.of(new TopicPartition(r.topic(), r.partition()),
-                                new OffsetAndMetadata(r.offset() + 1)), new ConsumerGroupMetadata(groupId));
+                        producer.sendOffsetsToTransaction(
+                                Map.of(
+                                        new TopicPartition(r.topic(), r.partition()),
+                                        new OffsetAndMetadata(r.offset() + 1)
+                                ),
+                                new ConsumerGroupMetadata(groupId)
+                        );
                         producer.commitTransaction();
                     }
                 } while (!"3".equals(value));
             }
 
             // now verify that output contains the expected values.
-            consumeAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER, outputTopic, groupId, new LinkedList<>(
-                    List.of(matchesRecord(outputTopic, MY_KEY, "1"),
-                            matchesRecord(outputTopic, MY_KEY, "2"),
-                            matchesRecord(outputTopic, MY_KEY, "3"))),
-                    true);
+            consumeAndAssert(
+                    tester,
+                    this.clientConfig,
+                    TENANT_1_CLUSTER,
+                    outputTopic,
+                    groupId,
+                    new LinkedList<>(
+                            List.of(
+                                    matchesRecord(outputTopic, MY_KEY, "1"),
+                                    matchesRecord(outputTopic, MY_KEY, "2"),
+                                    matchesRecord(outputTopic, MY_KEY, "3")
+                            )
+                    ),
+                    true
+            );
 
         }
     }
@@ -327,14 +390,20 @@ class MultiTenantIT extends BaseMultiTenantIT {
             try (var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
                 createTopics(admin, NEW_TOPIC_1);
                 var transactionalId = "12345";
-                produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
+                produceAndAssert(
+                        tester,
+                        this.clientConfig,
+                        TENANT_1_CLUSTER,
                         Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
-                        Optional.of(transactionalId));
+                        Optional.of(transactionalId)
+                );
 
                 var describeTransactionsResult = admin.describeTransactions(List.of(transactionalId));
                 var transactionMap = describeTransactionsResult.all().get();
-                assertThat(transactionMap).hasEntrySatisfying(transactionalId,
-                        allOf(matches(TransactionDescription::state, TransactionState.COMPLETE_COMMIT)));
+                assertThat(transactionMap).hasEntrySatisfying(
+                        transactionalId,
+                        allOf(matches(TransactionDescription::state, TransactionState.COMPLETE_COMMIT))
+                );
             }
         }
     }
@@ -347,16 +416,24 @@ class MultiTenantIT extends BaseMultiTenantIT {
                 var adminTenant2 = tester.admin(TENANT_2_CLUSTER, this.clientConfig)) {
             createTopics(adminTenant1, NEW_TOPIC_1);
             var tenant1TransactionId = "12345";
-            produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
+            produceAndAssert(
+                    tester,
+                    this.clientConfig,
+                    TENANT_1_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
-                    Optional.of(tenant1TransactionId));
+                    Optional.of(tenant1TransactionId)
+            );
             verifyTransactionsWithList(adminTenant1, Set.of(tenant1TransactionId));
 
             createTopics(adminTenant2, NEW_TOPIC_2);
             var tenant2TransactionId = "54321";
-            produceAndAssert(tester, this.clientConfig, TENANT_2_CLUSTER,
+            produceAndAssert(
+                    tester,
+                    this.clientConfig,
+                    TENANT_2_CLUSTER,
                     Stream.of(new ProducerRecord<>(TOPIC_2, MY_KEY, "1")),
-                    Optional.of(tenant2TransactionId));
+                    Optional.of(tenant2TransactionId)
+            );
             verifyTransactionsWithList(adminTenant2, Set.of(tenant2TransactionId));
         }
     }
@@ -411,14 +488,19 @@ class MultiTenantIT extends BaseMultiTenantIT {
         return copy;
     }
 
-    private void runConsumerInOrderToCreateGroup(KroxyliciousTester tester, String virtualCluster, String groupId, NewTopic topic, ConsumerStyle consumerStyle,
-                                                 Map<String, Object> clientConfig) {
+    private void runConsumerInOrderToCreateGroup(
+            KroxyliciousTester tester,
+            String virtualCluster,
+            String groupId,
+            NewTopic topic,
+            ConsumerStyle consumerStyle,
+            Map<String, Object> clientConfig
+    ) {
         try (var consumer = getConsumerWithConfig(tester, virtualCluster, groupId, clientConfig, Map.of(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed"))) {
 
             if (consumerStyle == ConsumerStyle.ASSIGN) {
                 consumer.assign(List.of(new TopicPartition(topic.name(), 0)));
-            }
-            else {
+            } else {
                 var listener = new PartitionAssignmentAwaitingRebalanceListener<>(consumer);
                 consumer.subscribe(List.of(topic.name()), listener);
                 listener.awaitAssignment(Duration.ofMinutes(1));
@@ -440,16 +522,19 @@ class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     private void verifyTenant(Admin admin, String... expectedTopics) throws Exception {
-        var topicListMap = await().atMost(Duration.ofSeconds(5)).until(() -> admin.listTopics().namesToListings().get(),
-                m -> m.size() == expectedTopics.length);
+        var topicListMap = await().atMost(Duration.ofSeconds(5))
+                                  .until(
+                                          () -> admin.listTopics().namesToListings().get(),
+                                          m -> m.size() == expectedTopics.length
+                                  );
         Arrays.stream(expectedTopics)
-                .forEach(expectedTopic -> assertThat(topicListMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicListing::name, expectedTopic))));
+              .forEach(expectedTopic -> assertThat(topicListMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicListing::name, expectedTopic))));
 
         var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(Arrays.stream(expectedTopics).toList()));
         var topicDescribeMap = describeTopicsResult.allTopicNames().get();
         assertThat(expectedTopics).hasSize(topicDescribeMap.size());
         Arrays.stream(expectedTopics)
-                .forEach(expectedTopic -> assertThat(topicDescribeMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicDescription::name, expectedTopic))));
+              .forEach(expectedTopic -> assertThat(topicDescribeMap).hasEntrySatisfying(expectedTopic, allOf(matches(TopicDescription::name, expectedTopic))));
     }
 
     private static class PartitionAssignmentAwaitingRebalanceListener<K, V> implements ConsumerRebalanceListener {

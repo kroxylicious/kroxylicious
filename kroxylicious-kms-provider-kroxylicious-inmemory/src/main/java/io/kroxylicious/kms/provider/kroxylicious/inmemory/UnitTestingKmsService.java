@@ -40,24 +40,32 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
     private Map<Config, InMemoryKms> kmsMap = new ConcurrentHashMap<>();
 
     public static UnitTestingKmsService newInstance() {
-        return (UnitTestingKmsService) ServiceLoader.load(KmsService.class).stream()
-                .filter(p -> p.type() == UnitTestingKmsService.class)
-                .findFirst()
-                .map(ServiceLoader.Provider::get)
-                .orElse(null);
+        return (UnitTestingKmsService) ServiceLoader.load(KmsService.class)
+                                                    .stream()
+                                                    .filter(p -> p.type() == UnitTestingKmsService.class)
+                                                    .findFirst()
+                                                    .map(ServiceLoader.Provider::get)
+                                                    .orElse(null);
     }
 
     @SuppressWarnings("java:S6218") // we currently don't need equals/hash to consider key contents
     public record Kek(
-                      @JsonProperty(required = true) String uuid,
-                      @JsonProperty(required = true) byte[] key,
-                      @JsonProperty(required = true) String algorithm,
-                      @JsonProperty(required = true) String alias) {}
+            @JsonProperty(required = true)
+            String uuid,
+            @JsonProperty(required = true)
+            byte[] key,
+            @JsonProperty(required = true)
+            String algorithm,
+            @JsonProperty(required = true)
+            String alias
+    ) {
+    }
 
     public record Config(
-                         int numIvBytes,
-                         int numAuthBits,
-                         List<Kek> existingKeks) {
+            int numIvBytes,
+            int numAuthBits,
+            List<Kek> existingKeks
+    ) {
         public Config {
             if (numIvBytes < 1) {
                 throw new IllegalArgumentException();
@@ -83,11 +91,14 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
         return kmsMap.computeIfAbsent(options, config -> {
             List<Kek> kekDefs = options.existingKeks();
             Map<UUID, DestroyableRawSecretKey> keys = kekDefs.stream()
-                    .collect(toMap(k -> UUID.fromString(k.uuid), k -> DestroyableRawSecretKey.takeCopyOf(k.key, k.algorithm)));
+                                                             .collect(toMap(k -> UUID.fromString(k.uuid), k -> DestroyableRawSecretKey.takeCopyOf(k.key, k.algorithm)));
             Map<String, UUID> aliases = kekDefs.stream().collect(toMap(k -> k.alias, k -> UUID.fromString(k.uuid)));
-            return new InMemoryKms(options.numIvBytes(),
+            return new InMemoryKms(
+                    options.numIvBytes(),
                     options.numAuthBits(),
-                    keys, aliases);
+                    keys,
+                    aliases
+            );
         });
     }
 

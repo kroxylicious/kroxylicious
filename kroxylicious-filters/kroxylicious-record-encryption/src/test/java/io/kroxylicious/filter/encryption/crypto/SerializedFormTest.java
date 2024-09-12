@@ -60,20 +60,22 @@ class SerializedFormTest {
      * parcel_ciphertext
      */
     @NonNull
-    private static String expectedWrapperV2Hex(byte cipherId,
-                                               String edekHex,
-                                               byte aadId,
-                                               String cipherParamsHex,
-                                               RecordBatch batch,
-                                               Set<RecordField> recordFields,
-                                               Parcel parcel) {
+    private static String expectedWrapperV2Hex(
+            byte cipherId,
+            String edekHex,
+            byte aadId,
+            String cipherParamsHex,
+            RecordBatch batch,
+            Set<RecordField> recordFields,
+            Parcel parcel
+    ) {
         return asHex(cipherId) // cipher_id
-                + unsignedVarintAsHex(edekHex.length() / 2) // edek_length
-                + edekHex // edek
-                + asHex(aadId) // aad_id
-                // cipher_parameters_length omitted because constant size
-                + cipherParamsHex // cipher_parameters
-                + parcelHex(parcel, recordFields, batch.iterator().next()); // parcel_ciphertext
+               + unsignedVarintAsHex(edekHex.length() / 2) // edek_length
+               + edekHex // edek
+               + asHex(aadId) // aad_id
+               // cipher_parameters_length omitted because constant size
+               + cipherParamsHex // cipher_parameters
+               + parcelHex(parcel, recordFields, batch.iterator().next()); // parcel_ciphertext
     }
 
     private static String parcelHex(Parcel parcel, Set<RecordField> recordFields, Record record) {
@@ -88,12 +90,14 @@ class SerializedFormTest {
     private static RecordBatch recordBatch(String recordValueHex, Header[] headers) {
         final byte[] recordValueBytes = HexFormat.of().parseHex(recordValueHex);
         RecordBatch batch = RecordTestUtils.singleElementMemoryRecords(
-                headers == null ? RecordBatch.MAGIC_VALUE_V1 : RecordTestUtils.DEFAULT_MAGIC_VALUE,
+                headers
+                                                                       == null ? RecordBatch.MAGIC_VALUE_V1 : RecordTestUtils.DEFAULT_MAGIC_VALUE,
                 RecordTestUtils.DEFAULT_OFFSET,
                 RecordTestUtils.DEFAULT_TIMESTAMP,
                 "hello".getBytes(StandardCharsets.UTF_8),
                 recordValueBytes,
-                headers).firstBatch();
+                headers
+        ).firstBatch();
         return batch;
     }
 
@@ -108,7 +112,8 @@ class SerializedFormTest {
                 Arguments.of(justValue, "cafebabe", emptyHeaders),
                 Arguments.of(valueAndHeaders, "cafebabe", emptyHeaders),
                 Arguments.of(justValue, "cafebabe", nonEmptyHeaders),
-                Arguments.of(valueAndHeaders, "cafebabe", nonEmptyHeaders));
+                Arguments.of(valueAndHeaders, "cafebabe", nonEmptyHeaders)
+        );
     }
 
     @ParameterizedTest
@@ -120,8 +125,7 @@ class SerializedFormTest {
         if (recordFields.contains(RecordField.RECORD_HEADER_VALUES)) {
             if (headers == null) {
                 expectedHeadersHex = varintAsHex(0); // TODO It seems that headers can never be null? but parcel V1 has (dead) code to use NULL_MARKER
-            }
-            else {
+            } else {
                 expectedHeadersHex = varintAsHex(headers.length);
                 for (var header : headers) {
                     expectedHeadersHex += unsignedVarintAsHex(header.key().length());
@@ -130,13 +134,12 @@ class SerializedFormTest {
                     expectedHeadersHex += HexFormat.of().formatHex(header.value());
                 }
             }
-        }
-        else {
+        } else {
             expectedHeadersHex = varintAsHex(ParcelV1.ABSENT_MARKER);
         }
         String expectedParcelHex = varintAsHex(recordValueHex.length() / 2)
-                + recordValueHex
-                + expectedHeadersHex;
+                                   + recordValueHex
+                                   + expectedHeadersHex;
         // when
         String parcelV1Hex = parcelHex(ParcelV1.INSTANCE, recordFields, batch.iterator().next());
         // then
@@ -160,16 +163,18 @@ class SerializedFormTest {
         assertWrapperV2SerializedForm(cipherParamsHex, cipherId, constantParamsSize, recordFields, batch, aadId, edekHex, kekId, parcel, expectedHex);
     }
 
-    private void assertWrapperV2SerializedForm(String cipherParamsHex,
-                                               byte cipherId,
-                                               boolean constantParamsSize,
-                                               EnumSet<RecordField> recordFields,
-                                               RecordBatch batch,
-                                               byte aadId,
-                                               String edekHex,
-                                               byte[] kekId,
-                                               Parcel parcel,
-                                               String expected) {
+    private void assertWrapperV2SerializedForm(
+            String cipherParamsHex,
+            byte cipherId,
+            boolean constantParamsSize,
+            EnumSet<RecordField> recordFields,
+            RecordBatch batch,
+            byte aadId,
+            String edekHex,
+            byte[] kekId,
+            Parcel parcel,
+            String expected
+    ) {
         Record record = batch.iterator().next();
 
         var topicName = "my-topic";
@@ -190,8 +195,10 @@ class SerializedFormTest {
         byte[] edek = dek.edek();
         Serde<byte[]> edekSerde = dm.edekSerde();
 
-        WrapperV2 wrapper = new WrapperV2(new CipherSpecResolver(List.of(cm)),
-                new AadResolver(List.of(aad)));
+        WrapperV2 wrapper = new WrapperV2(
+                new CipherSpecResolver(List.of(cm)),
+                new AadResolver(List.of(aad))
+        );
 
         final int edekLength = edekSerde.sizeOf(edek);
         final var edekBuffer = ByteBuffer.allocate(edekLength);
@@ -202,7 +209,8 @@ class SerializedFormTest {
         // when
         var buffer = ByteBuffer.allocate(100);
 
-        wrapper.writeWrapper(edekSerde,
+        wrapper.writeWrapper(
+                edekSerde,
                 edek,
                 topicName,
                 partitionId,
@@ -212,7 +220,8 @@ class SerializedFormTest {
                 parcel,
                 aad,
                 recordFields,
-                buffer);
+                buffer
+        );
         buffer.flip();
 
         // then
@@ -246,13 +255,16 @@ class SerializedFormTest {
 
         @Override
         public void serialize(
-                              byte[] object,
-                              @NonNull ByteBuffer buffer) {
+                byte[] object,
+                @NonNull
+                ByteBuffer buffer
+        ) {
             buffer.put(object);
         }
 
         @Override
-        public byte[] deserialize(@NonNull ByteBuffer buffer) {
+        public byte[] deserialize(@NonNull
+        ByteBuffer buffer) {
             return buffer.array();
         }
     }
@@ -267,9 +279,10 @@ class SerializedFormTest {
         // a fake AAD so that we can make the serializedId something less common than 0 in the output
         @Override
         public ByteBuffer computeAad(
-                                     String topicName,
-                                     int partitionId,
-                                     RecordBatch batch) {
+                String topicName,
+                int partitionId,
+                RecordBatch batch
+        ) {
             return ByteUtils.EMPTY_BUF;
         }
 

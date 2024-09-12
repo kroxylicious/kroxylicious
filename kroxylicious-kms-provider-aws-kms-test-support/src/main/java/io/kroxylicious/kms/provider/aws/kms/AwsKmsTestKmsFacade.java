@@ -43,8 +43,7 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
                     // https://docs.localstack.cloud/getting-started/installation/#docker
                     // https://github.com/containers/podman/issues/6015
                     return this;
-                }
-                else {
+                } else {
                     return super.withFileSystemBind(hostPath, containerPath);
                 }
             }

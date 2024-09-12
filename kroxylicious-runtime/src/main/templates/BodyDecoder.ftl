@@ -82,8 +82,7 @@ public class BodyDecoder {
                     accessor.readerIndex(prev);
                     if (apiVersion != 0) {
                         yield new ${messageSpec.name}Data(accessor, (short) 0);
-                    }
-                    else {
+                    } else {
                         throw e;
                     }
                 }

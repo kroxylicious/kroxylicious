@@ -25,6 +25,6 @@ class CipherSpecResolverTest {
     @Test
     void persistentIdsShouldBeUnique() {
         assertThat(Arrays.stream(CipherSpec.values()).map(CipherSpecResolver.ALL::fromName).collect(Collectors.toSet()))
-                .hasSize(CipherSpec.values().length);
+                                                                                                                        .hasSize(CipherSpec.values().length);
     }
 }

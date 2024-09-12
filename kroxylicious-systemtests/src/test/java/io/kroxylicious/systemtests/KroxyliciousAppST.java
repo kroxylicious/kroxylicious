@@ -50,8 +50,11 @@ class KroxyliciousAppST extends AbstractST {
      */
     @BeforeAll
     void setupBefore() {
-        assumeTrue(DeploymentUtils.checkLoadBalancerIsWorking(Constants.KAFKA_DEFAULT_NAMESPACE), "Load balancer is not working fine, if you are using"
-                + "minikube please run 'minikube tunnel' before running the tests");
+        assumeTrue(
+                DeploymentUtils.checkLoadBalancerIsWorking(Constants.KAFKA_DEFAULT_NAMESPACE),
+                "Load balancer is not working fine, if you are using"
+                                                                                               + "minikube please run 'minikube tunnel' before running the tests"
+        );
         LOGGER.info("Deploying Kafka in {} namespace", Constants.KAFKA_DEFAULT_NAMESPACE);
         resourceManager.createResourceWithWait(KafkaTemplates.kafkaPersistentWithExternalIp(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3, 3).build());
     }

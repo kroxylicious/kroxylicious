@@ -41,8 +41,12 @@ public class ServiceResource implements ResourceType<Service> {
 
     @Override
     public void delete(Service resource) {
-        serviceClient().inNamespace(resource.getMetadata().getNamespace()).withName(
-                resource.getMetadata().getName()).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
+        serviceClient().inNamespace(resource.getMetadata().getNamespace())
+                       .withName(
+                               resource.getMetadata().getName()
+                       )
+                       .withPropagationPolicy(DeletionPropagation.FOREGROUND)
+                       .delete();
     }
 
     @Override
@@ -52,8 +56,9 @@ public class ServiceResource implements ResourceType<Service> {
 
     @Override
     public boolean waitForReadiness(Service resource) {
-        serviceClient().inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName())
-                .waitUntilReady(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()).toMillis(), TimeUnit.MILLISECONDS);
+        serviceClient().inNamespace(resource.getMetadata().getNamespace())
+                       .withName(resource.getMetadata().getName())
+                       .waitUntilReady(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()).toMillis(), TimeUnit.MILLISECONDS);
         return true;
     }
 

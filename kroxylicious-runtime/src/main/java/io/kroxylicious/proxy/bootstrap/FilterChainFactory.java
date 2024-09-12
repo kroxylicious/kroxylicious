@@ -37,10 +37,12 @@ public class FilterChainFactory implements AutoCloseable {
         private final Object initResult;
         private final AtomicBoolean closed = new AtomicBoolean(false);
 
-        private Wrapper(FilterFactoryContext context,
-                        String instanceName,
-                        FilterFactory<? super Object, ? super Object> filterFactory,
-                        Object config) {
+        private Wrapper(
+                FilterFactoryContext context,
+                String instanceName,
+                FilterFactory<? super Object, ? super Object> filterFactory,
+                Object config
+        ) {
             this.filterFactory = filterFactory;
             this.config = config;
             try {
@@ -72,9 +74,15 @@ public class FilterChainFactory implements AutoCloseable {
 
         @Override
         public String toString() {
-            return "Wrapper[" +
-                    "filterFactory=" + filterFactory + ", " +
-                    "config=" + config + ']';
+            return "Wrapper["
+                   +
+                   "filterFactory="
+                   + filterFactory
+                   + ", "
+                   +
+                   "config="
+                   + config
+                   + ']';
         }
 
     }
@@ -87,8 +95,7 @@ public class FilterChainFactory implements AutoCloseable {
         PluginFactory<FilterFactory<? super Object, ? super Object>> pluginFactory = pfr.pluginFactory(type);
         if (filterDefinitions == null || ((Collection<FilterDefinition>) filterDefinitions).isEmpty()) {
             this.initialized = List.of();
-        }
-        else {
+        } else {
             FilterFactoryContext context = new FilterFactoryContext() {
                 @Override
                 public ScheduledExecutorService eventLoop() {
@@ -101,7 +108,9 @@ public class FilterChainFactory implements AutoCloseable {
                 }
 
                 @Override
-                public <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName) {
+                public <P> @NonNull P pluginInstance(@NonNull
+                Class<P> pluginClass, @NonNull
+                String instanceName) {
                     return pfr.pluginFactory(pluginClass).pluginInstance(instanceName);
                 }
             };
@@ -113,10 +122,15 @@ public class FilterChainFactory implements AutoCloseable {
                     if (fd.config() == null || configType.isInstance(fd.config())) {
                         Wrapper uninitializedFilterFactory = new Wrapper(context, fd.type(), filterFactory, fd.config());
                         this.initialized.add(uninitializedFilterFactory);
-                    }
-                    else {
-                        throw new PluginConfigurationException("accepts config of type " +
-                                configType.getName() + " but provided with config of type " + fd.config().getClass().getName() + "]");
+                    } else {
+                        throw new PluginConfigurationException(
+                                "accepts config of type "
+                                                               +
+                                                               configType.getName()
+                                                               + " but provided with config of type "
+                                                               + fd.config().getClass().getName()
+                                                               + "]"
+                        );
                     }
                 }
             }
@@ -139,8 +153,7 @@ public class FilterChainFactory implements AutoCloseable {
             catch (RuntimeException e) {
                 if (firstThrown == null) {
                     firstThrown = e;
-                }
-                else {
+                } else {
                     firstThrown.addSuppressed(e);
                 }
             }
@@ -157,8 +170,8 @@ public class FilterChainFactory implements AutoCloseable {
      */
     public List<FilterAndInvoker> createFilters(FilterFactoryContext context) {
         return initialized
-                .stream()
-                .flatMap(wrapper -> FilterAndInvoker.build(wrapper.create(context)).stream())
-                .toList();
+                          .stream()
+                          .flatMap(wrapper -> FilterAndInvoker.build(wrapper.create(context)).stream())
+                          .toList();
     }
 }

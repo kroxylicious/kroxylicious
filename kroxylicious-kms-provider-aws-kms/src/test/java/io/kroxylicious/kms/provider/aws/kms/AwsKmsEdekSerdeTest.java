@@ -46,7 +46,8 @@ class AwsKmsEdekSerdeTest {
         return Stream.of(
                 Arguments.of("wrong version", new byte[]{ 1 }),
                 Arguments.of("nokek", new byte[]{ 0, 0 }),
-                Arguments.of("noekekbytes", new byte[]{ 0, 3, 'A', 'B', 'C' }));
+                Arguments.of("noekekbytes", new byte[]{ 0, 3, 'A', 'B', 'C' })
+        );
     }
 
     @ParameterizedTest(name = "{0}")
@@ -54,7 +55,7 @@ class AwsKmsEdekSerdeTest {
     void deserializeErrors(String name, byte[] serializedBytes) {
         var buf = ByteBuffer.wrap(serializedBytes);
         assertThatThrownBy(() -> serde.deserialize(buf))
-                .isInstanceOf(IllegalArgumentException.class);
+                                                        .isInstanceOf(IllegalArgumentException.class);
     }
 
 }

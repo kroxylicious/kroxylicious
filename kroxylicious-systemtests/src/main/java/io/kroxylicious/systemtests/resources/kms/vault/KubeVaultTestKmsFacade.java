@@ -38,8 +38,13 @@ public class KubeVaultTestKmsFacade extends AbstractVaultTestKmsFacade {
         String installedVersion = getVaultVersion();
         String expectedVersion = VaultTestKmsFacade.HASHICORP_VAULT.getVersionPart();
         if (!isCorrectVersionInstalled(installedVersion, expectedVersion)) {
-            throw new KubeClusterException("Vault version installed " + installedVersion + " does not match with the expected: '"
-                    + expectedVersion + "'");
+            throw new KubeClusterException(
+                    "Vault version installed "
+                                           + installedVersion
+                                           + " does not match with the expected: '"
+                                           + expectedVersion
+                                           + "'"
+            );
         }
     }
 

@@ -28,10 +28,11 @@ public class RecordEncryptionUtil {
     public static <T> CompletionStage<List<T>> join(List<? extends CompletionStage<T>> stages) {
         CompletableFuture<T>[] futures = stages.stream().map(CompletionStage::toCompletableFuture).toArray(CompletableFuture[]::new);
         return CompletableFuture.allOf(futures)
-                .thenApply(ignored -> Stream.of(futures).map(CompletableFuture::join).toList());
+                                .thenApply(ignored -> Stream.of(futures).map(CompletableFuture::join).toList());
     }
 
-    public static int totalRecordsInBatches(@NonNull MemoryRecords records) {
+    public static int totalRecordsInBatches(@NonNull
+    MemoryRecords records) {
         int totalRecords = 0;
         for (MutableRecordBatch batch : records.batches()) {
             totalRecords += recordCount(batch);
@@ -39,7 +40,8 @@ public class RecordEncryptionUtil {
         return totalRecords;
     }
 
-    private static int recordCount(@NonNull MutableRecordBatch batch) {
+    private static int recordCount(@NonNull
+    MutableRecordBatch batch) {
         Integer count = batch.countOrNull();
         if (count == null) {
             // for magic <2 count will be null

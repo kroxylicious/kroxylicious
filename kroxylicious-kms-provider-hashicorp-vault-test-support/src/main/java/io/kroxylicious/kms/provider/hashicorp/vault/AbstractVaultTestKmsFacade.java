@@ -132,8 +132,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
             if (exists(alias)) {
                 throw new AlreadyExistsException(alias);
-            }
-            else {
+            } else {
                 create(alias);
             }
         }
@@ -142,8 +141,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         public void deleteKek(String alias) {
             if (exists(alias)) {
                 delete(alias);
-            }
-            else {
+            } else {
                 throw new UnknownAliasException(alias);
             }
 
@@ -155,8 +153,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
             if (exists(alias)) {
                 rotate(alias);
-            }
-            else {
+            } else {
                 throw new UnknownAliasException(alias);
             }
         }
@@ -178,8 +175,10 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
 
         private void delete(String keyId) {
-            var update = createVaultPost((KEYS_PATH + "/config").formatted(encode(keyId, UTF_8)),
-                    HttpRequest.BodyPublishers.ofString(getBody(new UpdateKeyConfigRequest(true))));
+            var update = createVaultPost(
+                    (KEYS_PATH + "/config").formatted(encode(keyId, UTF_8)),
+                    HttpRequest.BodyPublishers.ofString(getBody(new UpdateKeyConfigRequest(true)))
+            );
             sendRequest(keyId, update, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
 
             var delete = createVaultDelete(KEYS_PATH.formatted(encode(keyId, UTF_8)));
@@ -200,29 +199,30 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
     private HttpRequest createVaultGet(String path) {
         return createVaultRequest()
-                .uri(getVaultUrl().resolve(path))
-                .GET()
-                .build();
+                                   .uri(getVaultUrl().resolve(path))
+                                   .GET()
+                                   .build();
     }
 
     private HttpRequest createVaultDelete(String path) {
         return createVaultRequest()
-                .uri(getVaultUrl().resolve(path))
-                .DELETE()
-                .build();
+                                   .uri(getVaultUrl().resolve(path))
+                                   .DELETE()
+                                   .build();
     }
 
     private HttpRequest createVaultPost(String path, HttpRequest.BodyPublisher bodyPublisher) {
         URI resolve = getVaultUrl().resolve(path);
         return createVaultRequest()
-                .uri(resolve)
-                .POST(bodyPublisher).build();
+                                   .uri(resolve)
+                                   .POST(bodyPublisher)
+                                   .build();
     }
 
     private HttpRequest.Builder createVaultRequest() {
         return HttpRequest.newBuilder()
-                .header("X-Vault-Token", VAULT_ROOT_TOKEN)
-                .header("Accept", "application/json");
+                          .header("X-Vault-Token", VAULT_ROOT_TOKEN)
+                          .header("Accept", "application/json");
     }
 
     private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
@@ -230,12 +230,11 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
             HttpResponse<byte[]> response = vaultClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
             if (response.statusCode() == 404) {
                 throw new UnknownAliasException(key);
-            }
-            else if (response.statusCode() != 200) {
+            } else if (response.statusCode() != 200) {
                 throw new IllegalStateException("unexpected response %s for request: %s".formatted(response.statusCode(), request.uri()));
             }
             byte[] body = response
-                    .body();
+                                  .body();
             return decodeJson(valueTypeRef, body);
         }
         catch (IOException e) {

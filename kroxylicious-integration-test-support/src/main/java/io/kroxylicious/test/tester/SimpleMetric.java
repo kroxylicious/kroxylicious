@@ -31,18 +31,21 @@ public record SimpleMetric(String name, Map<String, String> labels, double value
     // note: RE doesn't handle escaping within label values
     @SuppressWarnings("java:S5852") //
     private static final Pattern PROM_TEXT_EXPOSITION_PATTERN = Pattern
-            .compile("^(?<metric>[a-zA-Z_:][a-zA-Z0-9_:]*)(\\{(?<labels>.*)})?[\\t ]*(?<value>[0-9E.]*)[\\t ]*(?<timestamp>\\d+)?$");
+                                                                       .compile(
+                                                                               "^(?<metric>[a-zA-Z_:][a-zA-Z0-9_:]*)(\\{(?<labels>.*)})?[\\t ]*(?<value>[0-9E.]*)[\\t ]*(?<timestamp>\\d+)?$"
+                                                                       );
     private static final Pattern NAME_WITH_QUOTED_VALUE = Pattern.compile("^(?<name>[a-zA-Z_:][a-zA-Z0-9_:]*)=\"(?<value>.*)\"$");
 
-    private record LineMatcher(String line, Matcher matcher) {}
+    private record LineMatcher(String line, Matcher matcher) {
+    }
 
     static List<SimpleMetric> parse(String output) {
         try (var reader = new BufferedReader(new StringReader(output))) {
             return reader.lines()
-                    .filter(line -> !(line.startsWith("#") || line.isEmpty()))
-                    .map(line -> new LineMatcher(line, PROM_TEXT_EXPOSITION_PATTERN.matcher(line)))
-                    .map(SimpleMetric::parseMetric)
-                    .toList();
+                         .filter(line -> !(line.startsWith("#") || line.isEmpty()))
+                         .map(line -> new LineMatcher(line, PROM_TEXT_EXPOSITION_PATTERN.matcher(line)))
+                         .map(SimpleMetric::parseMetric)
+                         .toList();
         }
         catch (IOException e) {
             throw new UncheckedIOException("Failed to parse metrics", e);
@@ -73,8 +76,8 @@ public record SimpleMetric(String name, Map<String, String> labels, double value
         }
         var splitLabels = metricLabels.split(",");
         return Arrays.stream(splitLabels)
-                .map(NAME_WITH_QUOTED_VALUE::matcher)
-                .filter(Matcher::matches)
-                .collect(Collectors.toMap(nv -> nv.group("name"), nv -> nv.group("value")));
+                     .map(NAME_WITH_QUOTED_VALUE::matcher)
+                     .filter(Matcher::matches)
+                     .collect(Collectors.toMap(nv -> nv.group("name"), nv -> nv.group("value")));
     }
 }

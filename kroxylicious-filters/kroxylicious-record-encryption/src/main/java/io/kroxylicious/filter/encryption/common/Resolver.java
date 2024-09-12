@@ -23,7 +23,8 @@ public interface Resolver<E extends Enum<E>, T> {
      * @return the implementation instance.
      */
     @NonNull
-    T fromName(@NonNull E element);
+    T fromName(@NonNull
+    E element);
 
     /**
      * Look up the implementation instance corresponding to the given serialized id,
@@ -40,5 +41,6 @@ public interface Resolver<E extends Enum<E>, T> {
      * @param impl The implementation instance.
      * @return the serialized id.
      */
-    byte toSerializedId(@NonNull T impl);
+    byte toSerializedId(@NonNull
+    T impl);
 }

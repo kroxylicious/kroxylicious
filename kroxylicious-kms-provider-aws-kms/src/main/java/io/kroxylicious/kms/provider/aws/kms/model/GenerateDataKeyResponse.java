@@ -15,9 +15,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
-public record GenerateDataKeyResponse(@JsonProperty(value = "KeyId") @NonNull String keyId,
-                                      @JsonProperty(value = "CiphertextBlob") byte[] ciphertextBlob,
-                                      @JsonProperty(value = "Plaintext") byte[] plaintext) {
+public record GenerateDataKeyResponse(
+        @JsonProperty(value = "KeyId") @NonNull
+        String keyId,
+        @JsonProperty(value = "CiphertextBlob")
+        byte[] ciphertextBlob,
+        @JsonProperty(value = "Plaintext")
+        byte[] plaintext
+) {
 
     public GenerateDataKeyResponse {
         Objects.requireNonNull(keyId);

@@ -31,11 +31,18 @@ public class KafConsumerRecord extends ConsumerRecord {
      * @param offset the offset
      */
     @JsonCreator
-    public KafConsumerRecord(@JsonProperty("headers") List<Map<String, String>> headers,
-                             @JsonProperty("key") String key,
-                             @JsonProperty("payload") String payload,
-                             @JsonProperty("partition") int partition,
-                             @JsonProperty("offset") long offset) {
+    public KafConsumerRecord(
+            @JsonProperty("headers")
+            List<Map<String, String>> headers,
+            @JsonProperty("key")
+            String key,
+            @JsonProperty("payload")
+            String payload,
+            @JsonProperty("partition")
+            int partition,
+            @JsonProperty("offset")
+            long offset
+    ) {
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
             headers.forEach(h -> recordHeaders.put(new String(Base64.getDecoder().decode(h.get("Key"))), new String(Base64.getDecoder().decode(h.get("Value")))));

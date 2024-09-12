@@ -6,12 +6,12 @@
 
 -->
 <#assign
-  dataClass="${messageSpec.name}Data"
-  filterClass="${messageSpec.name}Filter"
-  filterResultClass="${messageSpec.type?lower_case?cap_first}FilterResult"
-  headerClass="${messageSpec.type?lower_case?cap_first}HeaderData"
-  filterInvokerClass="${messageSpec.name}FilterInvoker"
-  msgType=messageSpec.type?lower_case
+dataClass="${messageSpec.name}Data"
+filterClass="${messageSpec.name}Filter"
+filterResultClass="${messageSpec.type?lower_case?cap_first}FilterResult"
+headerClass="${messageSpec.type?lower_case?cap_first}HeaderData"
+filterInvokerClass="${messageSpec.name}FilterInvoker"
+msgType=messageSpec.type?lower_case
 />
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
@@ -48,21 +48,25 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * ${filterClass} to avoid using instanceof/cast, which has a performance issue in
  * the current LTS java (17).
  */
-class ${filterInvokerClass} implements FilterInvoker {
+class ${filterInvokerClass} implements
 
-    private final ${filterClass} filter;
+        FilterInvoker {
 
-    ${filterInvokerClass}(${filterClass} filter) {
-        this.filter = filter;
+            private final ${filterClass} filter ;
+
+        ${filterInvokerClass}(${filterClass} filter) {
+                    this.filter = filter;
     }
 
-    @Override
-    public boolean shouldHandle<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion) {
-        return filter.shouldHandle${messageSpec.name}(apiVersion);
-    }
+            @Override
+                public boolean shouldHandle<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>
+            (ApiKeys apiKey,short apiVersion){
+                return filter.shouldHandle${messageSpec.name}(apiVersion);
+            }
 
-    @Override
-    public CompletionStage<${filterResultClass}> on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>(ApiKeys apiKey, short apiVersion, ${headerClass} header, ApiMessage body, FilterContext filterContext) {
-        return filter.on${messageSpec.name}(apiVersion, header, (${dataClass}) body, filterContext);
-    }
-}
+            @Override
+                public CompletionStage<${filterResultClass}> on<#if messageSpec.type?lower_case == 'response'>Response<#else>Request</#if>
+            (ApiKeys apiKey,short apiVersion, ${headerClass} header, ApiMessage body, FilterContext filterContext){
+                return filter.on${messageSpec.name}(apiVersion, header, (${dataClass})body, filterContext);
+            }
+        }

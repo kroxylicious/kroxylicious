@@ -46,7 +46,8 @@ class VaultEdekSerde implements Serde<VaultEdek> {
     }
 
     @Override
-    public VaultEdek deserialize(@NonNull ByteBuffer buffer) {
+    public VaultEdek deserialize(@NonNull
+    ByteBuffer buffer) {
         Objects.requireNonNull(buffer);
 
         var kekRefLength = toIntExact(readUnsignedVarint(buffer));
@@ -65,12 +66,13 @@ class VaultEdekSerde implements Serde<VaultEdek> {
         Objects.requireNonNull(edek);
         int kekRefLen = utf8Length(edek.kekRef());
         return sizeOfUnsignedVarint(kekRefLen) // varint to store length of kek
-                + kekRefLen // n bytes for the utf-8 encoded kek
-                + edek.edek().length; // n for the bytes of the edek
+               + kekRefLen // n bytes for the utf-8 encoded kek
+               + edek.edek().length; // n for the bytes of the edek
     }
 
     @Override
-    public void serialize(VaultEdek edek, @NonNull ByteBuffer buffer) {
+    public void serialize(VaultEdek edek, @NonNull
+    ByteBuffer buffer) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(buffer);
         var keyRefBuf = edek.kekRef().getBytes(StandardCharsets.UTF_8);

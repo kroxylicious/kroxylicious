@@ -92,7 +92,7 @@ class RecordValidationFilterTest {
     @Test
     void rejectsNullValidator() {
         assertThatThrownBy(() -> new RecordValidationFilter(false, null))
-                .isInstanceOf(IllegalArgumentException.class);
+                                                                         .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -103,23 +103,26 @@ class RecordValidationFilterTest {
         when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(false);
 
         var header = new RequestHeaderData();
-        var request = buildProduceRequestData(new ProduceRequestData.TopicProduceData()
-                .setName(MY_TOPIC)
-                .setPartitionData(List.of(new ProduceRequestData.PartitionProduceData())));
+        var request = buildProduceRequestData(
+                new ProduceRequestData.TopicProduceData()
+                                                         .setName(MY_TOPIC)
+                                                         .setPartitionData(List.of(new ProduceRequestData.PartitionProduceData()))
+        );
 
         when(produceRequestValidator.validateRequest(request)).thenReturn(
-                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult))));
+                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult)))
+        );
 
         // When
         var result = validator.onProduceRequest(HIGHEST_SUPPORTED_VERSION, header, request, context);
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> {
-                    assertThat(rfr.shortCircuitResponse()).isFalse();
-                    assertThat(rfr.message()).isEqualTo(request);
-                });
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(rfr -> {
+                              assertThat(rfr.shortCircuitResponse()).isFalse();
+                              assertThat(rfr.message()).isEqualTo(request);
+                          });
     }
 
     @Test
@@ -132,33 +135,36 @@ class RecordValidationFilterTest {
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
 
         var header = new RequestHeaderData();
-        var request = buildProduceRequestData(new ProduceRequestData.TopicProduceData()
-                .setName(MY_TOPIC)
-                .setPartitionData(List.of(new ProduceRequestData.PartitionProduceData())));
+        var request = buildProduceRequestData(
+                new ProduceRequestData.TopicProduceData()
+                                                         .setName(MY_TOPIC)
+                                                         .setPartitionData(List.of(new ProduceRequestData.PartitionProduceData()))
+        );
         when(produceRequestValidator.validateRequest(request)).thenReturn(
-                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult))));
+                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult)))
+        );
 
         // When
         var result = validator.onProduceRequest(HIGHEST_SUPPORTED_VERSION, header, request, context);
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> {
-                    assertThat(rfr.shortCircuitResponse()).isTrue();
-                    assertThat(rfr.message())
-                            .isInstanceOf(ProduceResponseData.class);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(rfr -> {
+                              assertThat(rfr.shortCircuitResponse()).isTrue();
+                              assertThat(rfr.message())
+                                                       .isInstanceOf(ProduceResponseData.class);
 
-                    var prd = (ProduceResponseData) rfr.message();
-                    assertThat(prd.responses())
-                            .singleElement()
-                            .satisfies(tpr -> {
-                                assertThat(tpr.name()).isEqualTo(MY_TOPIC);
-                                assertThat(tpr.partitionResponses())
-                                        .singleElement()
-                                        .matches(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
-                            });
-                });
+                              var prd = (ProduceResponseData) rfr.message();
+                              assertThat(prd.responses())
+                                                         .singleElement()
+                                                         .satisfies(tpr -> {
+                                                             assertThat(tpr.name()).isEqualTo(MY_TOPIC);
+                                                             assertThat(tpr.partitionResponses())
+                                                                                                 .singleElement()
+                                                                                                 .matches(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
+                                                         });
+                          });
     }
 
     @Test
@@ -175,37 +181,44 @@ class RecordValidationFilterTest {
         final ProduceRequestData.PartitionProduceData partition1 = new ProduceRequestData.PartitionProduceData();
         final ProduceRequestData.PartitionProduceData partition2 = new ProduceRequestData.PartitionProduceData();
         partition2.setIndex(1);
-        var request = buildProduceRequestData(new ProduceRequestData.TopicProduceData()
-                .setName(MY_TOPIC)
-                .setPartitionData(
-                        new ArrayList<>(List.of(
-                                partition1,
-                                partition2))));
+        var request = buildProduceRequestData(
+                new ProduceRequestData.TopicProduceData()
+                                                         .setName(MY_TOPIC)
+                                                         .setPartitionData(
+                                                                 new ArrayList<>(
+                                                                         List.of(
+                                                                                 partition1,
+                                                                                 partition2
+                                                                         )
+                                                                 )
+                                                         )
+        );
         when(produceRequestValidator.validateRequest(request)).thenReturn(
-                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult))));
+                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult)))
+        );
 
         // When
         var result = validator.onProduceRequest(HIGHEST_SUPPORTED_VERSION, header, request, context);
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> {
-                    assertThat(rfr.shortCircuitResponse()).isFalse();
-                    assertThat(rfr.message())
-                            .isInstanceOf(ProduceRequestData.class);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(rfr -> {
+                              assertThat(rfr.shortCircuitResponse()).isFalse();
+                              assertThat(rfr.message())
+                                                       .isInstanceOf(ProduceRequestData.class);
 
-                    var prd = (ProduceRequestData) rfr.message();
-                    assertThat(prd.topicData())
-                            .singleElement()
-                            .satisfies(tpr -> {
-                                assertThat(tpr.name()).isEqualTo(MY_TOPIC);
-                                assertThat(tpr.partitionData())
-                                        .singleElement()
-                                        .extracting(ProduceRequestData.PartitionProduceData::index)
-                                        .isEqualTo(1);
-                            });
-                });
+                              var prd = (ProduceRequestData) rfr.message();
+                              assertThat(prd.topicData())
+                                                         .singleElement()
+                                                         .satisfies(tpr -> {
+                                                             assertThat(tpr.name()).isEqualTo(MY_TOPIC);
+                                                             assertThat(tpr.partitionData())
+                                                                                            .singleElement()
+                                                                                            .extracting(ProduceRequestData.PartitionProduceData::index)
+                                                                                            .isEqualTo(1);
+                                                         });
+                          });
     }
 
     @Test
@@ -222,40 +235,51 @@ class RecordValidationFilterTest {
         final ProduceRequestData.PartitionProduceData partition1 = new ProduceRequestData.PartitionProduceData();
         final ProduceRequestData.PartitionProduceData partition2 = new ProduceRequestData.PartitionProduceData();
         partition2.setIndex(1);
-        var request = buildProduceRequestData(new ProduceRequestData.TopicProduceData()
-                .setName(MY_TOPIC)
-                .setPartitionData(
-                        new ArrayList<>(List.of(
-                                partition1,
-                                partition2))));
+        var request = buildProduceRequestData(
+                new ProduceRequestData.TopicProduceData()
+                                                         .setName(MY_TOPIC)
+                                                         .setPartitionData(
+                                                                 new ArrayList<>(
+                                                                         List.of(
+                                                                                 partition1,
+                                                                                 partition2
+                                                                         )
+                                                                 )
+                                                         )
+        );
         when(produceRequestValidator.validateRequest(request)).thenReturn(
-                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult))));
+                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult)))
+        );
 
         // When
         var result = validator.onProduceRequest(HIGHEST_SUPPORTED_VERSION, header, request, context);
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> {
-                    assertThat(rfr.shortCircuitResponse()).isTrue();
-                    assertThat(rfr.message())
-                            .isInstanceOf(ProduceResponseData.class);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(rfr -> {
+                              assertThat(rfr.shortCircuitResponse()).isTrue();
+                              assertThat(rfr.message())
+                                                       .isInstanceOf(ProduceResponseData.class);
 
-                    var prd = (ProduceResponseData) rfr.message();
-                    assertThat(prd.responses())
-                            .singleElement()
-                            .satisfies(tpr -> {
-                                assertThat(tpr.name()).isEqualTo(MY_TOPIC);
-                                assertThat(tpr.partitionResponses())
-                                        .element(0)
-                                        .matches(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
-                                assertThat(tpr.partitionResponses())
-                                        .element(1)
-                                        .matches(pr -> pr.errorMessage()
-                                                .contentEquals("Invalid record in another topic-partition caused whole ProduceRequest to be invalidated"));
-                            });
-                });
+                              var prd = (ProduceResponseData) rfr.message();
+                              assertThat(prd.responses())
+                                                         .singleElement()
+                                                         .satisfies(tpr -> {
+                                                             assertThat(tpr.name()).isEqualTo(MY_TOPIC);
+                                                             assertThat(tpr.partitionResponses())
+                                                                                                 .element(0)
+                                                                                                 .matches(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
+                                                             assertThat(tpr.partitionResponses())
+                                                                                                 .element(1)
+                                                                                                 .matches(
+                                                                                                         pr -> pr.errorMessage()
+                                                                                                                 .contentEquals(
+                                                                                                                         "Invalid record in another topic-partition caused whole ProduceRequest to be invalidated"
+                                                                                                                 )
+                                                                                                 );
+                                                         });
+                          });
     }
 
     @Test
@@ -268,33 +292,37 @@ class RecordValidationFilterTest {
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
 
         var header = new RequestHeaderData();
-        var request = buildProduceRequestData(Optional.of("testTransactionId"), new ProduceRequestData.TopicProduceData()
-                .setName(MY_TOPIC)
-                .setPartitionData(List.of(new ProduceRequestData.PartitionProduceData())));
+        var request = buildProduceRequestData(
+                Optional.of("testTransactionId"),
+                new ProduceRequestData.TopicProduceData()
+                                                         .setName(MY_TOPIC)
+                                                         .setPartitionData(List.of(new ProduceRequestData.PartitionProduceData()))
+        );
         when(produceRequestValidator.validateRequest(request)).thenReturn(
-                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult))));
+                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult)))
+        );
 
         // When
         var result = validator.onProduceRequest(HIGHEST_SUPPORTED_VERSION, header, request, context);
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> {
-                    assertThat(rfr.shortCircuitResponse()).isTrue();
-                    assertThat(rfr.message())
-                            .isInstanceOf(ProduceResponseData.class);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(rfr -> {
+                              assertThat(rfr.shortCircuitResponse()).isTrue();
+                              assertThat(rfr.message())
+                                                       .isInstanceOf(ProduceResponseData.class);
 
-                    var prd = (ProduceResponseData) rfr.message();
-                    assertThat(prd.responses())
-                            .singleElement()
-                            .satisfies(tpr -> {
-                                assertThat(tpr.name()).isEqualTo(MY_TOPIC);
-                                assertThat(tpr.partitionResponses())
-                                        .singleElement()
-                                        .matches(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
-                            });
-                });
+                              var prd = (ProduceResponseData) rfr.message();
+                              assertThat(prd.responses())
+                                                         .singleElement()
+                                                         .satisfies(tpr -> {
+                                                             assertThat(tpr.name()).isEqualTo(MY_TOPIC);
+                                                             assertThat(tpr.partitionResponses())
+                                                                                                 .singleElement()
+                                                                                                 .matches(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
+                                                         });
+                          });
     }
 
     @Test
@@ -307,33 +335,41 @@ class RecordValidationFilterTest {
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
 
         var header = new RequestHeaderData();
-        var request = buildProduceRequestData(Optional.of("testTransactionId"), new ProduceRequestData.TopicProduceData()
-                .setName(MY_TOPIC)
-                .setPartitionData(List.of(new ProduceRequestData.PartitionProduceData(),
-                        new ProduceRequestData.PartitionProduceData())));
+        var request = buildProduceRequestData(
+                Optional.of("testTransactionId"),
+                new ProduceRequestData.TopicProduceData()
+                                                         .setName(MY_TOPIC)
+                                                         .setPartitionData(
+                                                                 List.of(
+                                                                         new ProduceRequestData.PartitionProduceData(),
+                                                                         new ProduceRequestData.PartitionProduceData()
+                                                                 )
+                                                         )
+        );
         when(produceRequestValidator.validateRequest(request)).thenReturn(
-                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult))));
+                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult)))
+        );
 
         // When
         var result = validator.onProduceRequest(HIGHEST_SUPPORTED_VERSION, header, request, context);
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> {
-                    assertThat(rfr.shortCircuitResponse()).isTrue();
-                    assertThat(rfr.message())
-                            .isInstanceOf(ProduceResponseData.class);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(rfr -> {
+                              assertThat(rfr.shortCircuitResponse()).isTrue();
+                              assertThat(rfr.message())
+                                                       .isInstanceOf(ProduceResponseData.class);
 
-                    var prd = (ProduceResponseData) rfr.message();
-                    assertThat(prd.responses())
-                            .singleElement()
-                            .satisfies(tpr -> {
-                                assertThat(tpr.name()).isEqualTo(MY_TOPIC);
-                                assertThat(tpr.partitionResponses())
-                                        .allMatch(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
-                            });
-                });
+                              var prd = (ProduceResponseData) rfr.message();
+                              assertThat(prd.responses())
+                                                         .singleElement()
+                                                         .satisfies(tpr -> {
+                                                             assertThat(tpr.name()).isEqualTo(MY_TOPIC);
+                                                             assertThat(tpr.partitionResponses())
+                                                                                                 .allMatch(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
+                                                         });
+                          });
     }
 
     private static ProduceRequestData buildProduceRequestData(ProduceRequestData.TopicProduceData... produceData) {

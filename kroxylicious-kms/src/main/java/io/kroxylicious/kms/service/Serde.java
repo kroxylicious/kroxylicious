@@ -28,7 +28,11 @@ public interface Serde<T> {
      * @throws ReadOnlyBufferException If this buffer is read-only.
      * @see #getUnsignedByte(ByteBuffer)
      */
-    static void putUnsignedByte(@NonNull ByteBuffer buffer, int unsignedByte) {
+    static void putUnsignedByte(
+            @NonNull
+            ByteBuffer buffer,
+            int unsignedByte
+    ) {
         buffer.put((byte) (unsignedByte & 0xFF));
 
     }
@@ -48,7 +52,11 @@ public interface Serde<T> {
      * This should never be the case if the {@code buffer} has at least {@link #sizeOf(Object) sizeOf(object)} bytes remaining.
      * @throws ReadOnlyBufferException If this buffer is read-only.
      */
-    void serialize(T object, @NonNull ByteBuffer buffer);
+    void serialize(
+            T object,
+            @NonNull
+            ByteBuffer buffer
+    );
 
     /**
      * Read a single byte from the buffer's {@link ByteBuffer#position() position} and return it as a value in the range 0-255.
@@ -58,7 +66,10 @@ public interface Serde<T> {
      * @throws BufferUnderflowException If the buffer's current position is not smaller than its limit.
      * @see #putUnsignedByte(ByteBuffer, int)
      */
-    static short getUnsignedByte(@NonNull ByteBuffer buffer) {
+    static short getUnsignedByte(
+            @NonNull
+            ByteBuffer buffer
+    ) {
         return (short) (buffer.get() & 0xFF);
     }
 
@@ -68,6 +79,9 @@ public interface Serde<T> {
      * @return The instance, which in general could be null.
      * @throws BufferUnderflowException If the buffer's current position is not smaller than its limit..
      */
-    T deserialize(@NonNull ByteBuffer buffer);
+    T deserialize(
+            @NonNull
+            ByteBuffer buffer
+    );
 
 }

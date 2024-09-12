@@ -52,7 +52,12 @@ public final class DestroyableRawSecretKey implements SecretKey {
      * @param algorithm The key algorithm
      * @return The new key
      */
-    public static @NonNull DestroyableRawSecretKey takeOwnershipOf(@NonNull byte[] bytes, @NonNull String algorithm) {
+    public static @NonNull DestroyableRawSecretKey takeOwnershipOf(
+            @NonNull
+            byte[] bytes,
+            @NonNull
+            String algorithm
+    ) {
         return new DestroyableRawSecretKey(bytes, algorithm);
     }
 
@@ -63,7 +68,12 @@ public final class DestroyableRawSecretKey implements SecretKey {
      * @param algorithm The key algorithm
      * @return The new key
      */
-    public static @NonNull DestroyableRawSecretKey takeCopyOf(@NonNull byte[] bytes, @NonNull String algorithm) {
+    public static @NonNull DestroyableRawSecretKey takeCopyOf(
+            @NonNull
+            byte[] bytes,
+            @NonNull
+            String algorithm
+    ) {
         return new DestroyableRawSecretKey(Objects.requireNonNull(bytes).clone(), algorithm);
     }
 
@@ -72,7 +82,10 @@ public final class DestroyableRawSecretKey implements SecretKey {
      * @param source The key to convert
      * @return The new destroyable key.
      */
-    public static @NonNull DestroyableRawSecretKey toDestroyableKey(@NonNull SecretKey source) {
+    public static @NonNull DestroyableRawSecretKey toDestroyableKey(
+            @NonNull
+            SecretKey source
+    ) {
         checkNotDestroyed(Objects.requireNonNull(source));
         if (source instanceof DestroyableRawSecretKey destroyableRawSecretKey) {
             return destroyableRawSecretKey;

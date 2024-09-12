@@ -6,10 +6,10 @@
 
 originalRecordContents:
   valueBase64: null
-  headers: []
+  headers: [ ]
 deserializedParcelContents:
   valueBase64: null
-  headers: []
+  headers: [ ]
 serializationOptions:
   recordFields:
     - RECORD_VALUE

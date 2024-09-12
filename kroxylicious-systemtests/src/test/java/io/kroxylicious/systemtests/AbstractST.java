@@ -87,8 +87,7 @@ public class AbstractST {
                 strimziOperator.delete();
             }
             NamespaceUtils.deleteNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
-        }
-        else {
+        } else {
             LOGGER.warn("Teardown was skipped because SKIP_TEARDOWN was set to 'true'");
         }
         LOGGER.info(String.join("", Collections.nCopies(76, "#")));

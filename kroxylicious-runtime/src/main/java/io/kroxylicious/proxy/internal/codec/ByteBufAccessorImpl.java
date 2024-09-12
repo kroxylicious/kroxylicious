@@ -30,18 +30,32 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
     }
 
     private static IllegalArgumentException illegalVarintException(int value) {
-        throw new IllegalArgumentException("Varint is too long, the most significant bit in the 5th byte is set, " +
-                "converted value: " + Integer.toHexString(value));
+        throw new IllegalArgumentException(
+                "Varint is too long, the most significant bit in the 5th byte is set, "
+                                           +
+                                           "converted value: "
+                                           + Integer.toHexString(value)
+        );
     }
 
     private static IllegalArgumentException illegalVarlongException(long value) {
-        throw new IllegalArgumentException("Varlong is too long, most significant bit in the 10th byte is set, " +
-                "converted value: " + Long.toHexString(value));
+        throw new IllegalArgumentException(
+                "Varlong is too long, most significant bit in the 10th byte is set, "
+                                           +
+                                           "converted value: "
+                                           + Long.toHexString(value)
+        );
     }
 
     private static IllegalArgumentException illegalReadException(int size, int remaining) {
-        throw new IllegalArgumentException("Error reading byte array of " + size + " byte(s): only " + remaining +
-                " byte(s) available");
+        throw new IllegalArgumentException(
+                "Error reading byte array of "
+                                           + size
+                                           + " byte(s): only "
+                                           + remaining
+                                           +
+                                           " byte(s) available"
+        );
     }
 
     /**

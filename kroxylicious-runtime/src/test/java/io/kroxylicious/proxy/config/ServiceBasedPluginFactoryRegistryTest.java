@@ -54,10 +54,14 @@ class ServiceBasedPluginFactoryRegistryTest {
     @Test
     void shouldReturnPluginInstanceForFQButAmbiguousName() {
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class);
-        assertInstanceOf(io.kroxylicious.proxy.config.ambiguous1.Ambiguous.class,
-                factory.pluginInstance(io.kroxylicious.proxy.config.ambiguous1.Ambiguous.class.getName()));
-        assertInstanceOf(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class,
-                factory.pluginInstance(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getName()));
+        assertInstanceOf(
+                io.kroxylicious.proxy.config.ambiguous1.Ambiguous.class,
+                factory.pluginInstance(io.kroxylicious.proxy.config.ambiguous1.Ambiguous.class.getName())
+        );
+        assertInstanceOf(
+                io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class,
+                factory.pluginInstance(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getName())
+        );
     }
 
     @Test
@@ -73,10 +77,14 @@ class ServiceBasedPluginFactoryRegistryTest {
     @Test
     void shouldKnowConfigType() {
         var factory = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class);
-        assertEquals(Void.class,
-                factory.configType(io.kroxylicious.proxy.config.ambiguous1.Ambiguous.class.getName()));
+        assertEquals(
+                Void.class,
+                factory.configType(io.kroxylicious.proxy.config.ambiguous1.Ambiguous.class.getName())
+        );
 
-        assertEquals(String.class,
-                factory.configType(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getName()));
+        assertEquals(
+                String.class,
+                factory.configType(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getName())
+        );
     }
 }

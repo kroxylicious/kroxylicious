@@ -18,7 +18,8 @@
 
     <artifactId>kroxylicious-integration-tests</artifactId>
     <name>Integration tests</name>
-    <description>Integration tests where the runtime and filters are tested end-to-end with a real Kafka cluster.</description>
+    <description>Integration tests where the runtime and filters are tested end-to-end with a real Kafka cluster.
+    </description>
 
     <properties>
         <java.version>21</java.version>

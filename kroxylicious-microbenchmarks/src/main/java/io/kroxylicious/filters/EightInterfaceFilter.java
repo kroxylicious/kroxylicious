@@ -32,7 +32,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 public class EightInterfaceFilter implements ProduceResponseFilter, ProduceRequestFilter, CreateTopicsRequestFilter, CreateTopicsResponseFilter,
-        DeleteTopicsRequestFilter, DeleteTopicsResponseFilter, DescribeGroupsRequestFilter, DescribeGroupsResponseFilter {
+                                  DeleteTopicsRequestFilter, DeleteTopicsResponseFilter, DescribeGroupsRequestFilter, DescribeGroupsResponseFilter {
 
     @Override
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
@@ -40,49 +40,77 @@ public class EightInterfaceFilter implements ProduceResponseFilter, ProduceReque
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
-                                                                   FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onProduceResponse(
+            short apiVersion,
+            ResponseHeaderData header,
+            ProduceResponseData response,
+            FilterContext context
+    ) {
         return null;
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
-                                                                      FilterContext context) {
-
-        return null;
-    }
-
-    @Override
-    public CompletionStage<ResponseFilterResult> onCreateTopicsResponse(short apiVersion, ResponseHeaderData header, CreateTopicsResponseData response,
-                                                                        FilterContext context) {
-
-        return null;
-    }
-
-    @Override
-    public CompletionStage<RequestFilterResult> onDeleteTopicsRequest(short apiVersion, RequestHeaderData header, DeleteTopicsRequestData request,
-                                                                      FilterContext context) {
+    public CompletionStage<RequestFilterResult> onCreateTopicsRequest(
+            short apiVersion,
+            RequestHeaderData header,
+            CreateTopicsRequestData request,
+            FilterContext context
+    ) {
 
         return null;
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onDeleteTopicsResponse(short apiVersion, ResponseHeaderData header, DeleteTopicsResponseData response,
-                                                                        FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onCreateTopicsResponse(
+            short apiVersion,
+            ResponseHeaderData header,
+            CreateTopicsResponseData response,
+            FilterContext context
+    ) {
 
         return null;
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onDescribeGroupsRequest(short apiVersion, RequestHeaderData header, DescribeGroupsRequestData request,
-                                                                        FilterContext context) {
+    public CompletionStage<RequestFilterResult> onDeleteTopicsRequest(
+            short apiVersion,
+            RequestHeaderData header,
+            DeleteTopicsRequestData request,
+            FilterContext context
+    ) {
 
         return null;
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onDescribeGroupsResponse(short apiVersion, ResponseHeaderData header, DescribeGroupsResponseData response,
-                                                                          FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onDeleteTopicsResponse(
+            short apiVersion,
+            ResponseHeaderData header,
+            DeleteTopicsResponseData response,
+            FilterContext context
+    ) {
+
+        return null;
+    }
+
+    @Override
+    public CompletionStage<RequestFilterResult> onDescribeGroupsRequest(
+            short apiVersion,
+            RequestHeaderData header,
+            DescribeGroupsRequestData request,
+            FilterContext context
+    ) {
+
+        return null;
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onDescribeGroupsResponse(
+            short apiVersion,
+            ResponseHeaderData header,
+            DescribeGroupsResponseData response,
+            FilterContext context
+    ) {
 
         return null;
     }

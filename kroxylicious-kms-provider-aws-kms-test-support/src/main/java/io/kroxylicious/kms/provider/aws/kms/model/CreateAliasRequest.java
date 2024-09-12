@@ -12,8 +12,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public record CreateAliasRequest(@JsonProperty("TargetKeyId") @NonNull String targetKeyId,
-                                 @JsonProperty("AliasName") @NonNull String aliasName) {
+public record CreateAliasRequest(
+        @JsonProperty("TargetKeyId") @NonNull
+        String targetKeyId,
+        @JsonProperty("AliasName") @NonNull
+        String aliasName
+) {
     public CreateAliasRequest {
         Objects.requireNonNull(targetKeyId);
         Objects.requireNonNull(aliasName);

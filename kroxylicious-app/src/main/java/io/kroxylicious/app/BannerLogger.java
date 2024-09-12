@@ -33,8 +33,10 @@ public class BannerLogger {
     private final Level targetLevel;
 
     public BannerLogger() {
-        this(getLogger("io.kroxylicious.proxy.StartupShutdownLogger"),
-                new BannerSupplier(DEFAULT_BANNER_LOCATION));
+        this(
+                getLogger("io.kroxylicious.proxy.StartupShutdownLogger"),
+                new BannerSupplier(DEFAULT_BANNER_LOCATION)
+        );
     }
 
     BannerLogger(Logger targetLogger, Supplier<Stream<String>> bannerReader) {
@@ -83,8 +85,7 @@ public class BannerLogger {
             var resourceStream = getClass().getClassLoader().getResourceAsStream(resourceName);
             if (Objects.isNull(resourceStream)) {
                 return Stream.empty();
-            }
-            else {
+            } else {
                 var bufferedReader = new BufferedReader(new InputStreamReader(resourceStream, Charset.defaultCharset()));
                 return bufferedReader.lines().onClose(() -> {
                     try {

@@ -44,8 +44,7 @@ public record ProduceRequestValidationResult(Map<String, TopicValidationResult> 
         TopicValidationResult topicValidationResult = topicValidationResults.get(topicName);
         if (topicValidationResult == null) {
             return false;
-        }
-        else {
+        } else {
             return topicValidationResult.isAllPartitionsInvalid();
         }
     }
@@ -65,7 +64,11 @@ public record ProduceRequestValidationResult(Map<String, TopicValidationResult> 
         PartitionValidationResult partitionValidationResult = topicValidationResult.getPartitionResult(partitionIndex);
         if (partitionValidationResult == null) {
             throw new IllegalStateException(
-                    "partitionValidationResult should contain a result for all topics in the request, failed topic: " + topicName + ", partition" + partitionIndex);
+                    "partitionValidationResult should contain a result for all topics in the request, failed topic: "
+                                            + topicName
+                                            + ", partition"
+                                            + partitionIndex
+            );
         }
         return partitionValidationResult.allRecordsValid();
     }

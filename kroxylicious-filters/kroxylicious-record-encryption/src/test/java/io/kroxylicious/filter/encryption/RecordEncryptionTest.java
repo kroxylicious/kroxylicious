@@ -108,8 +108,13 @@ class RecordEncryptionTest {
         experimental.put("notFoundAliasExpireAfterWriteSeconds", null);
         experimental.put("encryptionDekRefreshAfterWriteSeconds", null);
         experimental.put("encryptionDekExpireAfterWriteSeconds", null);
-        KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L,
-                experimental).kmsCache();
+        KmsCacheConfig config = new RecordEncryptionConfig(
+                "vault",
+                1L,
+                "selector",
+                1L,
+                experimental
+        ).kmsCache();
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
         assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
         assertThat(config.resolvedAliasCacheSize()).isEqualTo(1000);
@@ -139,7 +144,8 @@ class RecordEncryptionTest {
                 Duration.ofSeconds(5L),
                 Duration.ofSeconds(6L),
                 Duration.ofSeconds(7L),
-                Duration.ofSeconds(8L));
+                Duration.ofSeconds(8L)
+        );
 
         Map<String, Object> experimental = new HashMap<>();
         experimental.put("decryptedDekCacheSize", 1);
@@ -157,7 +163,8 @@ class RecordEncryptionTest {
     @Test
     void testDekManagerConfigOverrides() {
         var dekManagerCacheConfig = new DekManagerConfig(
-                1_000L);
+                1_000L
+        );
 
         Map<String, Object> experimental = new HashMap<>();
         experimental.put("maxEncryptionsPerDek", 1_000L);

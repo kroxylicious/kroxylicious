@@ -52,9 +52,10 @@ public class Kroxylicious {
     private void createRecordEncryptionFilterConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
         LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
         resourceManager
-                .createResourceWithWait(
-                        KroxyliciousConfigMapTemplates.kroxyliciousRecordEncryptionConfig(clusterName, deploymentNamespace, testKmsFacade, experimentalKmsConfig)
-                                .build());
+                       .createResourceWithWait(
+                               KroxyliciousConfigMapTemplates.kroxyliciousRecordEncryptionConfig(clusterName, deploymentNamespace, testKmsFacade, experimentalKmsConfig)
+                                                             .build()
+                       );
     }
 
     private void deployPortPerBrokerPlain(int replicas) {
@@ -91,8 +92,12 @@ public class Kroxylicious {
      * @param replicas the replicas
      * @param testKmsFacade the test kms facade
      */
-    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, int replicas, TestKmsFacade<?, ?, ?> testKmsFacade,
-                                                                   ExperimentalKmsConfig experimentalKmsConfig) {
+    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(
+            String clusterName,
+            int replicas,
+            TestKmsFacade<?, ?, ?> testKmsFacade,
+            ExperimentalKmsConfig experimentalKmsConfig
+    ) {
         createRecordEncryptionFilterConfigMap(clusterName, testKmsFacade, experimentalKmsConfig);
         deployPortPerBrokerPlain(replicas);
     }
@@ -131,7 +136,8 @@ public class Kroxylicious {
     public void scaleReplicasTo(int scaledTo, Duration timeout) {
         LOGGER.info("Scaling number of replicas to {}..", scaledTo);
         kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(Constants.KROXY_DEPLOYMENT_NAME).scale(scaledTo);
-        await().atMost(timeout).pollInterval(Duration.ofSeconds(1))
-                .until(() -> getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME));
+        await().atMost(timeout)
+               .pollInterval(Duration.ofSeconds(1))
+               .until(() -> getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME));
     }
 }

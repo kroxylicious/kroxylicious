@@ -55,10 +55,23 @@ public class RequestFactory {
     // The special cases generally report errors on a per-entry basis rather than globally and thus need to build requests by hand
     // Hopefully they go away one day as we have a sample generator for each type.
     @VisibleForTesting
-    protected static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(ApiKeys.ELECT_LEADERS, ApiKeys.ADD_PARTITIONS_TO_TXN,
-            ApiKeys.WRITE_TXN_MARKERS, ApiKeys.TXN_OFFSET_COMMIT, ApiKeys.DESCRIBE_CONFIGS, ApiKeys.ALTER_CONFIGS, ApiKeys.INCREMENTAL_ALTER_CONFIGS,
-            ApiKeys.ALTER_REPLICA_LOG_DIRS, ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS,
-            ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
+    protected static final EnumSet<ApiKeys> SPECIAL_CASES = EnumSet.of(
+            ApiKeys.ELECT_LEADERS,
+            ApiKeys.ADD_PARTITIONS_TO_TXN,
+            ApiKeys.WRITE_TXN_MARKERS,
+            ApiKeys.TXN_OFFSET_COMMIT,
+            ApiKeys.DESCRIBE_CONFIGS,
+            ApiKeys.ALTER_CONFIGS,
+            ApiKeys.INCREMENTAL_ALTER_CONFIGS,
+            ApiKeys.ALTER_REPLICA_LOG_DIRS,
+            ApiKeys.CREATE_PARTITIONS,
+            ApiKeys.ALTER_CLIENT_QUOTAS,
+            ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS,
+            ApiKeys.ALTER_USER_SCRAM_CREDENTIALS,
+            ApiKeys.DESCRIBE_PRODUCERS,
+            ApiKeys.DESCRIBE_TRANSACTIONS,
+            ApiKeys.DESCRIBE_TOPIC_PARTITIONS
+    );
 
     @VisibleForTesting
     protected static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = new EnumMap<>(ApiKeys.class);
@@ -102,15 +115,16 @@ public class RequestFactory {
 
     public static Stream<ApiMessageVersion> apiMessageFor(Function<ApiKeys, Short> versionFunction, Set<ApiKeys> apiKeys) {
         return Stream.of(apiKeys)
-                .flatMap(Collection::stream)
-                .map(apiKey -> {
-                    final ApiMessage apiMessage = apiMessageForApiKey(apiKey);
-                    final Short apiVersion = versionFunction.apply(apiKey);
-                    return new ApiMessageVersion(apiMessage, apiVersion);
-                });
+                     .flatMap(Collection::stream)
+                     .map(apiKey -> {
+                         final ApiMessage apiMessage = apiMessageForApiKey(apiKey);
+                         final Short apiVersion = versionFunction.apply(apiKey);
+                         return new ApiMessageVersion(apiMessage, apiVersion);
+                     });
     }
 
-    public record ApiMessageVersion(ApiMessage apiMessage, short apiVersion) {}
+    public record ApiMessageVersion(ApiMessage apiMessage, short apiVersion) {
+    }
 
     private static @NonNull ApiMessage apiMessageForApiKey(ApiKeys apiKey) {
         final ApiMessage apiMessage = apiKey.messageType.newRequest();

@@ -63,7 +63,7 @@ region: us-east-1
 service: kms
 headers:
   MyHeader:
-  - "  leading  and  trailing white space stripped "
+    - "  leading  and  trailing white space stripped "
 ---
 testName: signature omits header with no value
 method: GET
@@ -73,7 +73,7 @@ secretAccessKey: secret
 region: us-east-1
 service: kms
 headers:
-  MyHeader: []
+  MyHeader: [ ]
 #---
 #testName: signature handles header with more than one value
 # AWS specification https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-header-based-auth.html does not define

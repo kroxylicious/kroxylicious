@@ -112,17 +112,22 @@ public final class KafkaProxy implements AutoCloseable {
             maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
             this.filterChainFactory = new FilterChainFactory(pfr, config.filters());
-            var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of()));
-            var plainServerBootstrap = buildServerBootstrap(serverEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of()));
+            var tlsServerBootstrap = buildServerBootstrap(
+                    serverEventGroup,
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of())
+            );
+            var plainServerBootstrap = buildServerBootstrap(
+                    serverEventGroup,
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of())
+            );
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
             // TODO: startup/shutdown should return a completionstage
             CompletableFuture.allOf(
-                    virtualClusters.stream().map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new))
-                    .join();
+                    virtualClusters.stream().map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new)
+            )
+                             .join();
 
             // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
             // TODO add a virtual host tag to metrics
@@ -138,10 +143,10 @@ public final class KafkaProxy implements AutoCloseable {
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {
         return new ServerBootstrap().group(virtualHostEventGroup.bossGroup(), virtualHostEventGroup.workerGroup())
-                .channel(virtualHostEventGroup.clazz())
-                .option(ChannelOption.SO_REUSEADDR, true)
-                .childHandler(kafkaProxyInitializer)
-                .childOption(ChannelOption.TCP_NODELAY, true);
+                                    .channel(virtualHostEventGroup.clazz())
+                                    .option(ChannelOption.SO_REUSEADDR, true)
+                                    .childHandler(kafkaProxyInitializer)
+                                    .childOption(ChannelOption.TCP_NODELAY, true);
     }
 
     private EventGroupConfig buildNettyEventGroups(String name, int availableCores, boolean useIoUring) {
@@ -156,18 +161,15 @@ public final class KafkaProxy implements AutoCloseable {
             bossGroup = new IOUringEventLoopGroup(1);
             workerGroup = new IOUringEventLoopGroup(availableCores);
             channelClass = IOUringServerSocketChannel.class;
-        }
-        else if (Epoll.isAvailable()) {
+        } else if (Epoll.isAvailable()) {
             bossGroup = new EpollEventLoopGroup(1);
             workerGroup = new EpollEventLoopGroup(availableCores);
             channelClass = EpollServerSocketChannel.class;
-        }
-        else if (KQueue.isAvailable()) {
+        } else if (KQueue.isAvailable()) {
             bossGroup = new KQueueEventLoopGroup(1);
             workerGroup = new KQueueEventLoopGroup(availableCores);
             channelClass = KQueueServerSocketChannel.class;
-        }
-        else {
+        } else {
             bossGroup = new NioEventLoopGroup(1);
             workerGroup = new NioEventLoopGroup(availableCores);
             channelClass = NioServerSocketChannel.class;
@@ -175,14 +177,16 @@ public final class KafkaProxy implements AutoCloseable {
         return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
     }
 
-    private void maybeStartMetricsListener(EventGroupConfig eventGroupConfig,
-                                           MeterRegistries meterRegistries)
-            throws InterruptedException {
+    private void maybeStartMetricsListener(
+            EventGroupConfig eventGroupConfig,
+            MeterRegistries meterRegistries
+    )
+      throws InterruptedException {
         if (shouldBindAdminEndpoint()) {
             ServerBootstrap metricsBootstrap = new ServerBootstrap().group(eventGroupConfig.bossGroup(), eventGroupConfig.workerGroup())
-                    .option(ChannelOption.SO_REUSEADDR, true)
-                    .channel(eventGroupConfig.clazz())
-                    .childHandler(new AdminHttpInitializer(meterRegistries, adminHttpConfig));
+                                                                    .option(ChannelOption.SO_REUSEADDR, true)
+                                                                    .channel(eventGroupConfig.clazz())
+                                                                    .childHandler(new AdminHttpInitializer(meterRegistries, adminHttpConfig));
             LOGGER.info("Binding metrics endpoint: {}:{}", adminHttpConfig.host(), adminHttpConfig.port());
             metricsChannel = metricsBootstrap.bind(adminHttpConfig.host(), adminHttpConfig.port()).sync().channel();
         }
@@ -190,7 +194,7 @@ public final class KafkaProxy implements AutoCloseable {
 
     private boolean shouldBindAdminEndpoint() {
         return adminHttpConfig != null
-                && adminHttpConfig.endpoints().maybePrometheus().isPresent();
+               && adminHttpConfig.endpoints().maybePrometheus().isPresent();
     }
 
     /**
@@ -231,8 +235,7 @@ public final class KafkaProxy implements AutoCloseable {
                 if (t != null) {
                     if (t instanceof RuntimeException re) {
                         throw re;
-                    }
-                    else {
+                    } else {
                         throw new RuntimeException(t);
                     }
                 }

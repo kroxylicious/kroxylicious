@@ -51,8 +51,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         CorrelationManager.Correlation correlation = this.correlationManager.getBrokerCorrelation(correlationId);
         if (correlation == null) {
             throw new AssertionError("Missing correlation id " + correlationId);
-        }
-        else if (LOGGER.isDebugEnabled()) {
+        } else if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Recovered correlation {} for upstream correlation id {}", ctx, correlation, correlationId);
         }
 

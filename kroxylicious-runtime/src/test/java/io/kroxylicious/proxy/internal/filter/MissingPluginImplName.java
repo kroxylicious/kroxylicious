@@ -19,8 +19,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class MissingPluginImplName implements FilterFactory<MissingPluginImplName.Config, Void> {
 
     record Config(
-                  String id, // This lacks the @PluginImplName annotation
-                  @PluginImplConfig(implNameProperty = "id") Object config) {}
+            String id, // This lacks the @PluginImplName annotation
+            @PluginImplConfig(implNameProperty = "id")
+            Object config
+    ) {
+    }
 
     @Override
     public Void initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {

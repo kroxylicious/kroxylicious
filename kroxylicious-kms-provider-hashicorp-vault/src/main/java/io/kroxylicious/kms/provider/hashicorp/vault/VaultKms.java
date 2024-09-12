@@ -77,8 +77,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
     private URI validateTransitPath(URI vaultTransitEngineUrl) {
         String path = vaultTransitEngineUrl.getPath();
         if (path == null || !LEGAL_API_VERSION_REGEX.matcher(path).matches()) {
-            throw new IllegalArgumentException(("vaultTransitEngineUrl path (%s) must start with v1/ and must specify the complete path to"
-                    + " the transit engine e.g 'v1/transit' or 'v1/mynamespace/transit' if namespaces are in use.").formatted(path));
+            throw new IllegalArgumentException(
+                    ("vaultTransitEngineUrl path (%s) must start with v1/ and must specify the complete path to"
+                     + " the transit engine e.g 'v1/transit' or 'v1/mynamespace/transit' if namespaces are in use.").formatted(path)
+            );
         }
         return vaultTransitEngineUrl;
     }
@@ -95,9 +97,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
             builder.sslContext(sslContext);
         }
         return builder
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .connectTimeout(timeout)
-                .build();
+                      .followRedirects(HttpClient.Redirect.NORMAL)
+                      .connectTimeout(timeout)
+                      .build();
     }
 
     /**
@@ -107,18 +109,25 @@ public class VaultKms implements Kms<String, VaultEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<DekPair<VaultEdek>> generateDekPair(@NonNull String kekRef) {
+    public CompletionStage<DekPair<VaultEdek>> generateDekPair(@NonNull
+    String kekRef) {
 
         var request = createVaultRequest()
-                .uri(vaultTransitEngineUrl.resolve("datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
-                .POST(HttpRequest.BodyPublishers.noBody())
-                .build();
+                                          .uri(vaultTransitEngineUrl.resolve("datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
+                                          .POST(HttpRequest.BodyPublishers.noBody())
+                                          .build();
 
         return sendAsync(kekRef, request, DATA_KEY_DATA_TYPE_REF, UnknownKeyException::new)
-                .thenApply(data -> {
-                    var secretKey = DestroyableRawSecretKey.takeOwnershipOf(data.plaintext(), AES_KEY_ALGO);
-                    return new DekPair<>(new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)), secretKey);
-                });
+                                                                                           .thenApply(data -> {
+                                                                                               var secretKey = DestroyableRawSecretKey.takeOwnershipOf(
+                                                                                                       data.plaintext(),
+                                                                                                       AES_KEY_ALGO
+                                                                                               );
+                                                                                               return new DekPair<>(
+                                                                                                       new VaultEdek(kekRef, data.ciphertext().getBytes(UTF_8)),
+                                                                                                       secretKey
+                                                                                               );
+                                                                                           });
 
     }
 
@@ -129,20 +138,27 @@ public class VaultKms implements Kms<String, VaultEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull VaultEdek edek) {
+    public CompletionStage<SecretKey> decryptEdek(@NonNull
+    VaultEdek edek) {
 
         var body = createDecryptPostBody(edek);
 
         var request = createVaultRequest()
-                .uri(vaultTransitEngineUrl.resolve("decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+                                          .uri(vaultTransitEngineUrl.resolve("decrypt/%s".formatted(encode(edek.kekRef(), UTF_8))))
+                                          .POST(HttpRequest.BodyPublishers.ofString(body))
+                                          .build();
 
         return sendAsync(edek.kekRef(), request, DECRYPT_DATA_TYPE_REF, UnknownKeyException::new)
-                .thenApply(data -> DestroyableRawSecretKey.takeOwnershipOf(data.plaintext(), AES_KEY_ALGO));
+                                                                                                 .thenApply(
+                                                                                                         data -> DestroyableRawSecretKey.takeOwnershipOf(
+                                                                                                                 data.plaintext(),
+                                                                                                                 AES_KEY_ALGO
+                                                                                                         )
+                                                                                                 );
     }
 
-    private String createDecryptPostBody(@NonNull VaultEdek edek) {
+    private String createDecryptPostBody(@NonNull
+    VaultEdek edek) {
         var map = Map.of("ciphertext", new String(edek.edek(), UTF_8));
 
         try {
@@ -160,23 +176,28 @@ public class VaultKms implements Kms<String, VaultEdek> {
      */
     @NonNull
     @Override
-    public CompletableFuture<String> resolveAlias(@NonNull String alias) {
+    public CompletableFuture<String> resolveAlias(@NonNull
+    String alias) {
 
         var request = createVaultRequest()
-                .uri(vaultTransitEngineUrl.resolve("keys/%s".formatted(encode(alias, UTF_8))))
-                .build();
+                                          .uri(vaultTransitEngineUrl.resolve("keys/%s".formatted(encode(alias, UTF_8))))
+                                          .build();
         return sendAsync(alias, request, READ_KEY_DATA_TYPE_REF, UnknownAliasException::new)
-                .thenApply(ReadKeyData::name);
+                                                                                            .thenApply(ReadKeyData::name);
     }
 
-    private <T> CompletableFuture<T> sendAsync(@NonNull String key, HttpRequest request,
-                                               TypeReference<VaultResponse<T>> valueTypeRef,
-                                               Function<String, KmsException> exception) {
+    private <T> CompletableFuture<T> sendAsync(
+            @NonNull
+            String key,
+            HttpRequest request,
+            TypeReference<VaultResponse<T>> valueTypeRef,
+            Function<String, KmsException> exception
+    ) {
         return vaultClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-                .thenApply(response -> checkResponseStatus(key, response, exception))
-                .thenApply(HttpResponse::body)
-                .thenApply(bytes -> decodeJson(valueTypeRef, bytes))
-                .thenApply(VaultResponse::data);
+                          .thenApply(response -> checkResponseStatus(key, response, exception))
+                          .thenApply(HttpResponse::body)
+                          .thenApply(bytes -> decodeJson(valueTypeRef, bytes))
+                          .thenApply(VaultResponse::data);
     }
 
     private static <T> VaultResponse<T> decodeJson(TypeReference<VaultResponse<T>> valueTypeRef, byte[] bytes) {
@@ -191,13 +212,15 @@ public class VaultKms implements Kms<String, VaultEdek> {
     }
 
     @NonNull
-    private static HttpResponse<byte[]> checkResponseStatus(@NonNull String key,
-                                                            HttpResponse<byte[]> response,
-                                                            Function<String, KmsException> notFound) {
+    private static HttpResponse<byte[]> checkResponseStatus(
+            @NonNull
+            String key,
+            HttpResponse<byte[]> response,
+            Function<String, KmsException> notFound
+    ) {
         if (response.statusCode() == 404 || response.statusCode() == 400) {
             throw notFound.apply("key '%s' is not found.".formatted(key));
-        }
-        else if (response.statusCode() != 200) {
+        } else if (response.statusCode() != 200) {
             throw new KmsException("fail to retrieve key '%s', HTTP status code %d.".formatted(key, response.statusCode()));
         }
         return response;
@@ -212,9 +235,9 @@ public class VaultKms implements Kms<String, VaultEdek> {
     @VisibleForTesting
     HttpRequest.Builder createVaultRequest() {
         return HttpRequest.newBuilder()
-                .timeout(timeout)
-                .header("X-Vault-Token", vaultToken)
-                .header("Accept", "application/json");
+                          .timeout(timeout)
+                          .header("X-Vault-Token", vaultToken)
+                          .header("Accept", "application/json");
     }
 
     @VisibleForTesting

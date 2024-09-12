@@ -64,7 +64,8 @@ public class RecordStream<T> {
      * @param records The records
      * @return A stream over those records.
      */
-    public static RecordStream<Void> ofRecords(@NonNull MemoryRecords records) {
+    public static RecordStream<Void> ofRecords(@NonNull
+    MemoryRecords records) {
         Objects.requireNonNull(records);
         return new RecordStream<>(records, (batch, record, idx) -> null);
     }
@@ -75,7 +76,8 @@ public class RecordStream<T> {
      * @param records The records
      * @return A stream over those records.
      */
-    public static RecordStream<Integer> ofRecordsWithIndex(@NonNull MemoryRecords records) {
+    public static RecordStream<Integer> ofRecordsWithIndex(@NonNull
+    MemoryRecords records) {
         Objects.requireNonNull(records);
         return new RecordStream<>(records, (batch, record, idx) -> idx);
     }
@@ -152,15 +154,18 @@ public class RecordStream<T> {
      * @param transform The record transform
      * @return The mapped records
      */
-    public MemoryRecords toMemoryRecords(@NonNull ByteBufferOutputStream buffer,
-                                         @NonNull RecordTransform<T> transform) {
+    public MemoryRecords toMemoryRecords(
+            @NonNull
+            ByteBufferOutputStream buffer,
+            @NonNull
+            RecordTransform<T> transform
+    ) {
         BatchAwareMemoryRecordsBuilder builder = new BatchAwareMemoryRecordsBuilder(buffer);
         int indexInStream = 0;
         for (var batch : records.batches()) {
             if (batch.isControlBatch()) {
                 builder.writeBatch(batch);
-            }
-            else {
+            } else {
                 int indexInBatch = 0;
                 for (var record : batch) {
                     if (indexInBatch == 0) {
@@ -174,7 +179,8 @@ public class RecordStream<T> {
                             transform.transformTimestamp(record),
                             transform.transformKey(record),
                             transform.transformValue(record),
-                            transform.transformHeaders(record));
+                            transform.transformHeaders(record)
+                    );
                     transform.resetAfterTransform(existingState, record);
                     indexInStream++;
                     indexInBatch++;

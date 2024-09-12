@@ -155,8 +155,9 @@ public class KubeClient {
      */
     public List<Pod> listPodsByPrefixInName(String namespaceName, String podNamePrefix) {
         return listPods(namespaceName)
-                .stream().filter(p -> p.getMetadata().getName().startsWith(podNamePrefix))
-                .collect(Collectors.toList());
+                                      .stream()
+                                      .filter(p -> p.getMetadata().getName().startsWith(podNamePrefix))
+                                      .collect(Collectors.toList());
     }
 
     /**
@@ -231,8 +232,10 @@ public class KubeClient {
      * @return true if the deployment is running, false otherwise
      */
     public boolean isDeploymentRunning(String namespaceName, String podName) {
-        return Optional.ofNullable(client.pods().inNamespace(namespaceName).withName(podName).get().getStatus()).map(PodStatus::getPhase)
-                .map(s -> s.equalsIgnoreCase("running")).orElse(false);
+        return Optional.ofNullable(client.pods().inNamespace(namespaceName).withName(podName).get().getStatus())
+                       .map(PodStatus::getPhase)
+                       .map(s -> s.equalsIgnoreCase("running"))
+                       .orElse(false);
     }
 
     /**
@@ -243,8 +246,10 @@ public class KubeClient {
      * @return true if the job is succeeded. false otherwise
      */
     public boolean isPodRunSucceeded(String namespaceName, String podName) {
-        return Optional.ofNullable(client.pods().inNamespace(namespaceName).withName(podName).get().getStatus()).map(PodStatus::getPhase)
-                .map(s -> s.equalsIgnoreCase("succeeded")).orElse(false);
+        return Optional.ofNullable(client.pods().inNamespace(namespaceName).withName(podName).get().getStatus())
+                       .map(PodStatus::getPhase)
+                       .map(s -> s.equalsIgnoreCase("succeeded"))
+                       .orElse(false);
     }
 
     /**

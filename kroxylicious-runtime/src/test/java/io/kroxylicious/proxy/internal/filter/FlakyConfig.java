@@ -15,11 +15,13 @@ public final class FlakyConfig {
     private final Consumer<FlakyConfig> onClose;
     private final Consumer<FlakyConfig> onInitialize;
 
-    public FlakyConfig(String initializeExceptionMsg,
-                       String createExceptionMsg,
-                       String closeExceptionMsg,
-                       Consumer<FlakyConfig> onInitialize,
-                       Consumer<FlakyConfig> closeOrder) {
+    public FlakyConfig(
+            String initializeExceptionMsg,
+            String createExceptionMsg,
+            String closeExceptionMsg,
+            Consumer<FlakyConfig> onInitialize,
+            Consumer<FlakyConfig> closeOrder
+    ) {
         this.initializeExceptionMsg = initializeExceptionMsg;
         this.createExceptionMsg = createExceptionMsg;
         this.closeExceptionMsg = closeExceptionMsg;

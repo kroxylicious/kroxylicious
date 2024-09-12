@@ -36,9 +36,14 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
 
     private final MockServer mockServer;
 
-    MockServerKroxyliciousTester(MockServer mockServer, Function<String, ConfigurationBuilder> configurationForMockBootstrap,
-                                 Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory,
-                                 @Nullable KroxyliciousTesterBuilder.TrustStoreConfiguration trustStoreConfiguration) {
+    MockServerKroxyliciousTester(
+            MockServer mockServer,
+            Function<String, ConfigurationBuilder> configurationForMockBootstrap,
+            Function<Configuration, AutoCloseable> kroxyliciousFactory,
+            ClientFactory clientFactory,
+            @Nullable
+            KroxyliciousTesterBuilder.TrustStoreConfiguration trustStoreConfiguration
+    ) {
         super(configurationForMockBootstrap.apply("localhost:" + mockServer.port()), kroxyliciousFactory, clientFactory, trustStoreConfiguration);
         this.mockServer = mockServer;
     }

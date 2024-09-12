@@ -12,15 +12,15 @@
       errorCode: 0
       throttleTimeMs: 0
       apiKeys:
-      - apiKey: 74
-        minVersion: 0
-        maxVersion: 0
-      - apiKey: 75
-        minVersion: 0
-        maxVersion: 0
-      - apiKey: 76
-        minVersion: 0
-        maxVersion: 0
+        - apiKey: 74
+          minVersion: 0
+          maxVersion: 0
+        - apiKey: 75
+          minVersion: 0
+          maxVersion: 0
+        - apiKey: 76
+          minVersion: 0
+          maxVersion: 0
     diff:
       - op: remove
         path: "/apiKeys/1"

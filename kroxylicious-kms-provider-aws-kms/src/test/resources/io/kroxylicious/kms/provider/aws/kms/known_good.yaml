@@ -119,7 +119,7 @@ secretAccessKey: secret
 region: us-east-1
 service: kms
 headers:
-  MyHeader: []
+  MyHeader: [ ]
 requestTime: 1715950890
 expectedHeaders:
   Host:

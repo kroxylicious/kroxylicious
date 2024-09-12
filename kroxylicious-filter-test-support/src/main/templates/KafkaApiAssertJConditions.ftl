@@ -38,37 +38,38 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.assertj.core.api.Condition;
 import org.assertj.core.description.TextDescription;
 
-public class ${conditionClassName} extends Condition<ApiMessage> {
+public class ${conditionClassName} extends Condition
+
+<ApiMessage> {
 
     private final Predicate<${dataClass}> predicate;
 
-    public ${conditionClassName} (Predicate<${dataClass}> predicate) {
+    public ${conditionClassName} (Predicate <${dataClass}> predicate){
         super(new TextDescription("a ${requestName} matching the predicate"));
-        this.predicate=predicate;
+        this.predicate = predicate;
     }
 
     @Override
-    public boolean matches(ApiMessage apiMessage) {
+    public boolean matches (ApiMessage apiMessage){
         <#if requestName?matches("^(FetchSnapshot|UpdateMetadata|LeaderAndIsr).*$")>
         if (apiMessage instanceof ${dataClass}) {
             ${dataClass} ${apiMessageVarName} = (${dataClass}) apiMessage;
             return predicate.test(${apiMessageVarName});
         <#else>
         if (apiMessage instanceof ${requestName}) {
-            ${requestName} ${apiMessageVarName} = (${requestName}) apiMessage;
+            ${requestName} ${apiMessageVarName} =(${requestName}) apiMessage;
             return predicate.test(${apiMessageVarName}.data());
         }
         else if (apiMessage instanceof ${dataClass}) {
             ${dataClass} ${apiMessageVarName} = (${dataClass}) apiMessage;
             return predicate.test(${apiMessageVarName});
         </#if>
-        }
-        else {
-            return false;
-        }
+    } else {
+        return false;
+    }
     }
 
-    public static ${conditionClassName} ${requestName?uncap_first}Matching(Predicate<${dataClass}> predicate) {
-        return new ${conditionClassName}(predicate);
+    public static ${conditionClassName} ${requestName?uncap_first}Matching(Predicate <${dataClass}> predicate){
+            return new ${conditionClassName}(predicate);
+        }
     }
-}

@@ -53,11 +53,14 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
             Optional<Long> extractedGlobalId = extractGlobalIdFromRecord(buffer, record, isKey);
             if (extractedGlobalId.filter(e -> !e.equals(globalId)).isPresent()) {
                 return CompletableFuture
-                        .completedStage(new Result(false, "Unexpected schema id in record (%d), expecting %d".formatted(extractedGlobalId.get(), globalId)));
+                                        .completedStage(
+                                                new Result(false, "Unexpected schema id in record (%d), expecting %d".formatted(extractedGlobalId.get(), globalId))
+                                        );
             }
 
             JsonValidationResult jsonValidationResult = jsonValidator.validateByArtifactReference(buffer);
-            return jsonValidationResult.success() ? Result.VALID_RESULT_STAGE
+            return jsonValidationResult.success()
+                    ? Result.VALID_RESULT_STAGE
                     : CompletableFuture.completedFuture(new Result(false, jsonValidationResult.toString()));
         }
         catch (RuntimeException ex) {

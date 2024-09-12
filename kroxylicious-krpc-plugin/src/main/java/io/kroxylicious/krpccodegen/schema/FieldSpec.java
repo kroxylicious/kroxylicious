@@ -47,20 +47,64 @@ public final class FieldSpec {
     private final boolean zeroCopy;
 
     @JsonCreator
-    public FieldSpec(@JsonProperty("name") String name,
-                     @JsonProperty("versions") String versions,
-                     @JsonProperty("fields") List<FieldSpec> fields,
-                     @JsonProperty("type") String type,
-                     @JsonProperty("mapKey") boolean mapKey,
-                     @JsonProperty("nullableVersions") String nullableVersions,
-                     @JsonProperty("default") String fieldDefault,
-                     @JsonProperty("ignorable") boolean ignorable,
-                     @JsonProperty("entityType") EntityType entityType,
-                     @JsonProperty("about") String about,
-                     @JsonProperty("taggedVersions") String taggedVersions,
-                     @JsonProperty("flexibleVersions") String flexibleVersions,
-                     @JsonProperty("tag") Integer tag,
-                     @JsonProperty("zeroCopy") boolean zeroCopy) {
+    public FieldSpec(
+            @JsonProperty(
+                "name"
+            )
+            String name,
+            @JsonProperty(
+                "versions"
+            )
+            String versions,
+            @JsonProperty(
+                "fields"
+            )
+            List<FieldSpec> fields,
+            @JsonProperty(
+                "type"
+            )
+            String type,
+            @JsonProperty(
+                "mapKey"
+            )
+            boolean mapKey,
+            @JsonProperty(
+                "nullableVersions"
+            )
+            String nullableVersions,
+            @JsonProperty(
+                "default"
+            )
+            String fieldDefault,
+            @JsonProperty(
+                "ignorable"
+            )
+            boolean ignorable,
+            @JsonProperty(
+                "entityType"
+            )
+            EntityType entityType,
+            @JsonProperty(
+                "about"
+            )
+            String about,
+            @JsonProperty(
+                "taggedVersions"
+            )
+            String taggedVersions,
+            @JsonProperty(
+                "flexibleVersions"
+            )
+            String flexibleVersions,
+            @JsonProperty(
+                "tag"
+            )
+            Integer tag,
+            @JsonProperty(
+                "zeroCopy"
+            )
+            boolean zeroCopy
+    ) {
         this.name = Objects.requireNonNull(name);
         if (!VALID_FIELD_NAMES.matcher(this.name).matches()) {
             throw new RuntimeException("Invalid field name " + this.name);
@@ -69,8 +113,12 @@ public final class FieldSpec {
         // If versions is not set, but taggedVersions is, default to taggedVersions.
         this.versions = Versions.parse(versions, this.taggedVersions.empty() ? null : this.taggedVersions);
         if (this.versions == null) {
-            throw new RuntimeException("You must specify the version of the " +
-                    name + " structure.");
+            throw new RuntimeException(
+                    "You must specify the version of the "
+                                       +
+                                       name
+                                       + " structure."
+            );
         }
         this.fields = Collections.unmodifiableList(fields == null ? Collections.emptyList() : new ArrayList<>(fields));
         this.type = FieldType.parse(Objects.requireNonNull(type));
@@ -95,16 +143,20 @@ public final class FieldSpec {
 
         if (flexibleVersions == null || flexibleVersions.isEmpty()) {
             this.flexibleVersions = Optional.empty();
-        }
-        else {
+        } else {
             this.flexibleVersions = Optional.of(Versions.parse(flexibleVersions, null));
             if (!(this.type.isString() || this.type.isBytes())) {
                 // For now, only allow flexibleVersions overrides for the string and bytes
                 // types. Overrides are only needed to keep compatibility with some old formats,
                 // so there isn't any need to support them for all types.
-                throw new RuntimeException("Invalid flexibleVersions override for " + name +
-                        ".  Only fields of type string or bytes can specify a flexibleVersions " +
-                        "override.");
+                throw new RuntimeException(
+                        "Invalid flexibleVersions override for "
+                                           + name
+                                           +
+                                           ".  Only fields of type string or bytes can specify a flexibleVersions "
+                                           +
+                                           "override."
+                );
             }
         }
         this.tag = Optional.ofNullable(tag);
@@ -115,47 +167,98 @@ public final class FieldSpec {
 
         this.zeroCopy = zeroCopy;
         if (this.zeroCopy && !this.type.isBytes()) {
-            throw new RuntimeException("Invalid zeroCopy value for " + name +
-                    ". Only fields of type bytes can use zeroCopy flag.");
+            throw new RuntimeException(
+                    "Invalid zeroCopy value for "
+                                       + name
+                                       +
+                                       ". Only fields of type bytes can use zeroCopy flag."
+            );
         }
     }
 
     private void checkTagInvariants() {
         if (this.tag.isPresent()) {
             if (this.tag.get() < 0) {
-                throw new RuntimeException("Field " + name + " specifies a tag of " + this.tag.get() +
-                        ".  Tags cannot be negative.");
+                throw new RuntimeException(
+                        "Field "
+                                           + name
+                                           + " specifies a tag of "
+                                           + this.tag.get()
+                                           +
+                                           ".  Tags cannot be negative."
+                );
             }
             if (this.taggedVersions.empty()) {
-                throw new RuntimeException("Field " + name + " specifies a tag of " + this.tag.get() +
-                        ", but has no tagged versions.  If a tag is specified, taggedVersions must " +
-                        "be specified as well.");
+                throw new RuntimeException(
+                        "Field "
+                                           + name
+                                           + " specifies a tag of "
+                                           + this.tag.get()
+                                           +
+                                           ", but has no tagged versions.  If a tag is specified, taggedVersions must "
+                                           +
+                                           "be specified as well."
+                );
             }
             Versions nullableTaggedVersions = this.nullableVersions.intersect(this.taggedVersions);
             if (!(nullableTaggedVersions.empty() || nullableTaggedVersions.equals(this.taggedVersions))) {
-                throw new RuntimeException("Field " + name + " specifies nullableVersions " +
-                        this.nullableVersions + " and taggedVersions " + this.taggedVersions + ".  " +
-                        "Either all tagged versions must be nullable, or none must be.");
+                throw new RuntimeException(
+                        "Field "
+                                           + name
+                                           + " specifies nullableVersions "
+                                           +
+                                           this.nullableVersions
+                                           + " and taggedVersions "
+                                           + this.taggedVersions
+                                           + ".  "
+                                           +
+                                           "Either all tagged versions must be nullable, or none must be."
+                );
             }
             if (this.taggedVersions.highest() < Short.MAX_VALUE) {
-                throw new RuntimeException("Field " + name + " specifies taggedVersions " +
-                        this.taggedVersions + ", which is not open-ended.  taggedVersions must " +
-                        "be either none, or an open-ended range (that ends with a plus sign).");
+                throw new RuntimeException(
+                        "Field "
+                                           + name
+                                           + " specifies taggedVersions "
+                                           +
+                                           this.taggedVersions
+                                           + ", which is not open-ended.  taggedVersions must "
+                                           +
+                                           "be either none, or an open-ended range (that ends with a plus sign)."
+                );
             }
             if (!this.taggedVersions.intersect(this.versions).equals(this.taggedVersions)) {
-                throw new RuntimeException("Field " + name + " specifies taggedVersions " +
-                        this.taggedVersions + ", and versions " + this.versions + ".  " +
-                        "taggedVersions must be a subset of versions.");
+                throw new RuntimeException(
+                        "Field "
+                                           + name
+                                           + " specifies taggedVersions "
+                                           +
+                                           this.taggedVersions
+                                           + ", and versions "
+                                           + this.versions
+                                           + ".  "
+                                           +
+                                           "taggedVersions must be a subset of versions."
+                );
             }
-        }
-        else if (!this.taggedVersions.empty()) {
-            throw new RuntimeException("Field " + name + " does not specify a tag, " +
-                    "but specifies tagged versions of " + this.taggedVersions + ".  " +
-                    "Please specify a tag, or remove the taggedVersions.");
+        } else if (!this.taggedVersions.empty()) {
+            throw new RuntimeException(
+                    "Field "
+                                       + name
+                                       + " does not specify a tag, "
+                                       +
+                                       "but specifies tagged versions of "
+                                       + this.taggedVersions
+                                       + ".  "
+                                       +
+                                       "Please specify a tag, or remove the taggedVersions."
+            );
         }
     }
 
-    @JsonProperty("name")
+    @JsonProperty(
+        "name"
+    )
     public String name() {
         return name;
     }
@@ -164,17 +267,23 @@ public final class FieldSpec {
         return versions;
     }
 
-    @JsonProperty("versions")
+    @JsonProperty(
+        "versions"
+    )
     public String versionsString() {
         return versions.toString();
     }
 
-    @JsonProperty("fields")
+    @JsonProperty(
+        "fields"
+    )
     public List<FieldSpec> fields() {
         return fields;
     }
 
-    @JsonProperty("type")
+    @JsonProperty(
+        "type"
+    )
     public String typeString() {
         return type.toString();
     }
@@ -183,7 +292,9 @@ public final class FieldSpec {
         return type;
     }
 
-    @JsonProperty("mapKey")
+    @JsonProperty(
+        "mapKey"
+    )
     public boolean mapKey() {
         return mapKey;
     }
@@ -192,32 +303,44 @@ public final class FieldSpec {
         return nullableVersions;
     }
 
-    @JsonProperty("nullableVersions")
+    @JsonProperty(
+        "nullableVersions"
+    )
     public String nullableVersionsString() {
         return nullableVersions.toString();
     }
 
-    @JsonProperty("default")
+    @JsonProperty(
+        "default"
+    )
     public String defaultString() {
         return fieldDefault;
     }
 
-    @JsonProperty("ignorable")
+    @JsonProperty(
+        "ignorable"
+    )
     public boolean ignorable() {
         return ignorable;
     }
 
-    @JsonProperty("entityType")
+    @JsonProperty(
+        "entityType"
+    )
     public EntityType entityType() {
         return entityType;
     }
 
-    @JsonProperty("about")
+    @JsonProperty(
+        "about"
+    )
     public String about() {
         return about;
     }
 
-    @JsonProperty("taggedVersions")
+    @JsonProperty(
+        "taggedVersions"
+    )
     public String taggedVersionsString() {
         return taggedVersions.toString();
     }
@@ -226,7 +349,9 @@ public final class FieldSpec {
         return taggedVersions;
     }
 
-    @JsonProperty("flexibleVersions")
+    @JsonProperty(
+        "flexibleVersions"
+    )
     public String flexibleVersionsString() {
         return flexibleVersions.isPresent() ? flexibleVersions.get().toString() : null;
     }
@@ -235,7 +360,9 @@ public final class FieldSpec {
         return flexibleVersions;
     }
 
-    @JsonProperty("tag")
+    @JsonProperty(
+        "tag"
+    )
     public Integer tagInteger() {
         return tag.orElse(null);
     }
@@ -244,16 +371,23 @@ public final class FieldSpec {
         return tag;
     }
 
-    @JsonProperty("zeroCopy")
+    @JsonProperty(
+        "zeroCopy"
+    )
     public boolean zeroCopy() {
         return zeroCopy;
     }
 
     private void validateNullDefault() {
         if (!(nullableVersions().contains(versions))) {
-            throw new RuntimeException("null cannot be the default for field " +
-                    name + ", because not all versions of this field are " +
-                    "nullable.");
+            throw new RuntimeException(
+                    "null cannot be the default for field "
+                                       +
+                                       name
+                                       + ", because not all versions of this field are "
+                                       +
+                                       "nullable."
+            );
         }
     }
 

@@ -11,6 +11,6 @@ kind: Kustomization
 namespace: kroxylicious
 
 resources:
-- self-signed-issuer.yaml
-- server-certificate.yaml
-- kroxy-server-keystore-password.yaml
+  - self-signed-issuer.yaml
+  - server-certificate.yaml
+  - kroxy-server-keystore-password.yaml

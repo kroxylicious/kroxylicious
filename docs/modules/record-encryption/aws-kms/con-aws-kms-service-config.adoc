@@ -7,7 +7,7 @@
 
 For AWS KMS, the KMS configuration looks like this.
 
-[source, yaml]
+[source,yaml]
 ----
 kms: AwsKmsService                                            # <1>
 kmsConfig:
@@ -19,8 +19,11 @@ kmsConfig:
     passwordFile: /opt/aws/secretKey                          # <5>
   region: <region>                                            # <6>
 ----
-<1> Name of the KMS provider. This must be `AwsKmsService`.
-<2> AWS Endpoint URL.  This must include the `https://` scheme part.
+
+<1> Name of the KMS provider.
+This must be `AwsKmsService`.
+<2> AWS Endpoint URL.
+This must include the `https://` scheme part.
 <3> (Optional) TLS trust configuration.
 <4> File containing the AWS Access Key
 <5> File containing the AWS Secret Key

@@ -19,7 +19,7 @@ import io.kroxylicious.proxy.filter.filterresultbuilder.TerminalStage;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends FilterResult>
-        implements FilterResultBuilder<H, R>, CloseOrTerminalStage<R> {
+                                             implements FilterResultBuilder<H, R>, CloseOrTerminalStage<R> {
     private ApiMessage message;
     private ApiMessage header;
     private boolean closeConnection;
@@ -29,7 +29,9 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends Fi
     }
 
     @Override
-    public CloseOrTerminalStage<R> forward(@NonNull H header, @NonNull ApiMessage message) {
+    public CloseOrTerminalStage<R> forward(@NonNull
+    H header, @NonNull
+    ApiMessage message) {
         validateForward(header, message);
         this.header = header;
         this.message = message;

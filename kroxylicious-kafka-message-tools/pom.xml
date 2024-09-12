@@ -17,7 +17,9 @@
     </parent>
 
     <artifactId>kroxylicious-kafka-message-tools</artifactId>
-    <description>Tools for manipulating kafka messages, depends only on kafka-clients, has no dependency on the rest of Kroxylicious</description>
+    <description>Tools for manipulating kafka messages, depends only on kafka-clients, has no dependency on the rest of
+        Kroxylicious
+    </description>
     <dependencies>
         <dependency>
             <groupId>org.apache.kafka</groupId>

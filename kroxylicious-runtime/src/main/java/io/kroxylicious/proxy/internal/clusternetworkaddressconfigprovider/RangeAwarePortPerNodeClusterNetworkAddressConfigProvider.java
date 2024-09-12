@@ -78,9 +78,11 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
         if (!nodeIdToPort.containsKey(nodeId)) {
             throw new IllegalArgumentException(
                     "Cannot generate node address for node id %d as it is not contained in the ranges defined for provider with downstream bootstrap %s"
-                            .formatted(
-                                    nodeId,
-                                    bootstrapAddress));
+                                                                                                                                                        .formatted(
+                                                                                                                                                                nodeId,
+                                                                                                                                                                bootstrapAddress
+                                                                                                                                                        )
+            );
         }
         int port = nodeIdToPort.get(nodeId);
         return new HostPort(BrokerAddressPatternUtils.replaceLiteralNodeId(nodeAddressPattern, nodeId), port);
@@ -93,23 +95,30 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
 
     @Override
     public Map<Integer, HostPort> discoveryAddressMap() {
-        return nodeIdToPort.keySet().stream()
-                .collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
+        return nodeIdToPort.keySet()
+                           .stream()
+                           .collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
     }
 
     /**
      * @param startInclusive the (inclusive) initial value
      * @param endExclusive the exclusive upper bound
      */
-    public record IntRangeSpec(@JsonInclude(JsonInclude.Include.ALWAYS) @JsonProperty(required = true) int startInclusive,
-                               @JsonInclude(JsonInclude.Include.ALWAYS) @JsonProperty(required = true) int endExclusive) {
+    public record IntRangeSpec(
+            @JsonInclude(JsonInclude.Include.ALWAYS) @JsonProperty(required = true)
+            int startInclusive,
+            @JsonInclude(JsonInclude.Include.ALWAYS) @JsonProperty(required = true)
+            int endExclusive
+    ) {
 
         public Range range() {
             return new Range(startInclusive, endExclusive);
         }
     }
 
-    private record NamedRange(@NonNull String name, @NonNull Range range) {
+    private record NamedRange(@NonNull
+    String name, @NonNull
+    Range range) {
         public NamedRange {
             Objects.requireNonNull(name, "name was null");
             Objects.requireNonNull(range, "range was null");
@@ -129,8 +138,12 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
      * @param name the name of this range
      * @param rangeSpec specification of the range
      */
-    public record NamedRangeSpec(@JsonProperty(required = true) String name,
-                                 @JsonProperty(required = true, value = "range") IntRangeSpec rangeSpec) {
+    public record NamedRangeSpec(
+            @JsonProperty(required = true)
+            String name,
+            @JsonProperty(required = true, value = "range")
+            IntRangeSpec rangeSpec
+    ) {
 
         NamedRange range() {
             return new NamedRange(name, tryBuildRange());
@@ -163,10 +176,16 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
         @SuppressWarnings("java:S1068") // included so Jackson can serialize/deserialize this with fidelity
         private final List<NamedRangeSpec> nodeIdRanges;
 
-        public RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
-                                                                              @JsonProperty(required = false) String nodeAddressPattern,
-                                                                              @JsonProperty(required = false) Integer nodeStartPort,
-                                                                              @JsonProperty(required = true) List<NamedRangeSpec> nodeIdRanges) {
+        public RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
+                @JsonProperty(required = true)
+                HostPort bootstrapAddress,
+                @JsonProperty(required = false)
+                String nodeAddressPattern,
+                @JsonProperty(required = false)
+                Integer nodeStartPort,
+                @JsonProperty(required = true)
+                List<NamedRangeSpec> nodeIdRanges
+        ) {
             Objects.requireNonNull(bootstrapAddress, "bootstrapAddress cannot be null");
             if (nodeIdRanges.isEmpty()) {
                 throw new IllegalArgumentException("node id ranges empty");
@@ -197,8 +216,12 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
                         Range range = namedRange.range;
                         var portRange = new Range(range.startInclusive() + this.nodeStartPort, range.endExclusive() + this.nodeStartPort);
                         throw new IllegalArgumentException(
-                                "the port used by the bootstrap address (%d) collides with the node id range: %s mapped to ports %s".formatted(bootstrapAddress.port(),
-                                        namedRange, portRange));
+                                "the port used by the bootstrap address (%d) collides with the node id range: %s mapped to ports %s".formatted(
+                                        bootstrapAddress.port(),
+                                        namedRange,
+                                        portRange
+                                )
+                        );
                     }
                 });
             }
@@ -260,8 +283,10 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
                 }
             }
             if (!collisions.isEmpty()) {
-                throw new IllegalArgumentException("some nodeIdRanges collided (one or more node ids are duplicated in the following ranges): "
-                        + collisions.stream().map(RangeCollision::toString).collect(Collectors.joining(", ")));
+                throw new IllegalArgumentException(
+                        "some nodeIdRanges collided (one or more node ids are duplicated in the following ranges): "
+                                                   + collisions.stream().map(RangeCollision::toString).collect(Collectors.joining(", "))
+                );
             }
         }
     }

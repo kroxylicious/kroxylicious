@@ -49,8 +49,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class ProxyRpcTest {
     private static MockServerKroxyliciousTester mockTester;
 
-    public record Scenario(String name, ResponsePayload givenMockResponse, Request whenSendRequest, Request thenMockReceivesRequest,
-                           ResponsePayload thenResponseReceived) {}
+    public record Scenario(
+            String name,
+            ResponsePayload givenMockResponse,
+            Request whenSendRequest,
+            Request thenMockReceivesRequest,
+            ResponsePayload thenResponseReceived
+    ) {
+    }
 
     /**
      * API_VERSIONS is not proxied, kroxylicious can respond to this itself
@@ -60,8 +66,13 @@ public class ProxyRpcTest {
 
     @BeforeAll
     public static void beforeAll() {
-        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder(FixedClientIdFilterFactory.class.getName()).withConfig("clientId", "fixed").build()));
+        mockTester = mockKafkaKroxyliciousTester(
+                (mockBootstrap) -> proxy(mockBootstrap)
+                                                       .addToFilters(
+                                                               new FilterDefinitionBuilder(FixedClientIdFilterFactory.class.getName()).withConfig("clientId", "fixed")
+                                                                                                                                      .build()
+                                                       )
+        );
     }
 
     @BeforeEach
@@ -91,8 +102,9 @@ public class ProxyRpcTest {
     private static Stream<Scenario> scenarios() {
         Map<ApiAndVersion, ApiMessage> requestSamples = ApiMessageSampleGenerator.createRequestSamples();
         Map<ApiAndVersion, ApiMessage> responseSamples = ApiMessageSampleGenerator.createResponseSamples();
-        return Arrays.stream(ApiKeys.values()).filter(apiKeys -> !SKIPPED_API_KEYS.contains(apiKeys))
-                .flatMap(apiKeys -> toScenario(requestSamples, responseSamples, apiKeys));
+        return Arrays.stream(ApiKeys.values())
+                     .filter(apiKeys -> !SKIPPED_API_KEYS.contains(apiKeys))
+                     .flatMap(apiKeys -> toScenario(requestSamples, responseSamples, apiKeys));
     }
 
     private static final ApiAndVersion v0HeaderVersion = new ApiAndVersion(CONTROLLED_SHUTDOWN, (short) 0);
@@ -108,8 +120,7 @@ public class ProxyRpcTest {
             if (v0HeaderVersion.equals(apiAndVersion)) {
                 // controlled shutdown is the only usage of a version 0 header schema which doesn't have clientId
                 expected = "";
-            }
-            else {
+            } else {
                 expected = "fixed";
             }
             Request expectedAtMock = createRequestDefinition(apiAndVersion, expected, request);

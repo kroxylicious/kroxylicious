@@ -12,8 +12,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public record ScheduleKeyDeletionRequest(@JsonProperty(value = "KeyId") @NonNull String keyId,
-                                         @JsonProperty("PendingWindowInDays") int pendingWindowInDays) {
+public record ScheduleKeyDeletionRequest(
+        @JsonProperty(value = "KeyId") @NonNull
+        String keyId,
+        @JsonProperty("PendingWindowInDays")
+        int pendingWindowInDays
+) {
 
     public ScheduleKeyDeletionRequest {
         Objects.requireNonNull(keyId);

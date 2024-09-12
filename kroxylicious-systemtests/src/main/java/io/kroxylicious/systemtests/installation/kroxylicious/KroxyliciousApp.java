@@ -70,8 +70,7 @@ public class KroxyliciousApp implements Runnable {
             final Optional<Path> startScript = walkStream.filter(Files::isRegularFile).filter(f -> f.endsWith("kroxylicious-start.sh")).findFirst();
             if (startScript.isEmpty()) {
                 throw new IllegalStateException("unable to find kroxylicious-start.sh");
-            }
-            else {
+            } else {
                 return startScript.get();
             }
         }

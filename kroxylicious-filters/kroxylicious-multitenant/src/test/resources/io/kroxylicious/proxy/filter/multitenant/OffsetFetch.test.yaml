@@ -12,7 +12,7 @@
         - groupId: mygroup
           topics:
             - name: foo
-              partitionIndexes: [0]
+              partitionIndexes: [ 0 ]
       requireStable: false
     diff:
       - op: replace

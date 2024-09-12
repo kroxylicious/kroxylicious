@@ -119,8 +119,10 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                 return Map.of();
             }
         },
-        SCRAM_SHA_256("SCRAM-SHA-256",
-                ScramMechanism.SCRAM_SHA_256) {
+        SCRAM_SHA_256(
+                "SCRAM-SHA-256",
+                ScramMechanism.SCRAM_SHA_256
+        ) {
             @Override
             public Map<String, Object> negotiatedProperties(SaslServer saslServer) {
                 Object lifetime = saslServer.getNegotiatedProperty(SaslInternalConfigs.CREDENTIAL_LIFETIME_MS_SASL_NEGOTIATED_PROPERTY_KEY);
@@ -182,22 +184,32 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     State lastSeen;
     private final KafkaProxyExceptionMapper exceptionHandler;
 
-    public KafkaAuthnHandler(Channel ch,
-                             Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers,
-                             KafkaProxyExceptionMapper exceptionHandler) {
+    public KafkaAuthnHandler(
+            Channel ch,
+            Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers,
+            KafkaProxyExceptionMapper exceptionHandler
+    ) {
         this(ch, State.START, mechanismHandlers, exceptionHandler);
     }
 
     @VisibleForTesting
-    KafkaAuthnHandler(Channel ch,
-                      State init,
-                      Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers,
-                      KafkaProxyExceptionMapper exceptionHandler) {
+    KafkaAuthnHandler(
+            Channel ch,
+            State init,
+            Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers,
+            KafkaProxyExceptionMapper exceptionHandler
+    ) {
         this.lastSeen = init;
         this.exceptionHandler = exceptionHandler;
         LOG.debug("{}: Initial state {}", ch, lastSeen);
-        this.mechanismHandlers = mechanismHandlers.entrySet().stream().collect(Collectors.toMap(
-                e -> e.getKey().mechanismName(), Map.Entry::getValue));
+        this.mechanismHandlers = mechanismHandlers.entrySet()
+                                                  .stream()
+                                                  .collect(
+                                                          Collectors.toMap(
+                                                                  e -> e.getKey().mechanismName(),
+                                                                  Map.Entry::getValue
+                                                          )
+                                                  );
         this.enabledMechanisms = List.copyOf(this.mechanismHandlers.keySet());
     }
 
@@ -218,26 +230,26 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
             case SASL_HANDSHAKE_v0:
             case SASL_HANDSHAKE_v1_PLUS:
                 if (previous != State.START
-                        && previous != State.API_VERSIONS) {
+                    && previous != State.API_VERSIONS) {
                     throw illegalTransition(next);
                 }
                 break;
             case UNFRAMED_SASL_AUTHENTICATE:
                 if (previous != State.START
-                        && previous != State.SASL_HANDSHAKE_v0
-                        && previous != State.UNFRAMED_SASL_AUTHENTICATE) {
+                    && previous != State.SASL_HANDSHAKE_v0
+                    && previous != State.UNFRAMED_SASL_AUTHENTICATE) {
                     throw illegalTransition(next);
                 }
                 break;
             case FRAMED_SASL_AUTHENTICATE:
                 if (previous != State.SASL_HANDSHAKE_v1_PLUS
-                        && previous != State.FRAMED_SASL_AUTHENTICATE) {
+                    && previous != State.FRAMED_SASL_AUTHENTICATE) {
                     throw illegalTransition(next);
                 }
                 break;
             case AUTHN_SUCCESS:
                 if (previous != State.FRAMED_SASL_AUTHENTICATE
-                        && previous != State.UNFRAMED_SASL_AUTHENTICATE) {
+                    && previous != State.UNFRAMED_SASL_AUTHENTICATE) {
                     throw illegalTransition(next);
                 }
                 break;
@@ -254,14 +266,11 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof BareSaslRequest) {
             handleBareRequest(ctx, (BareSaslRequest) msg);
-        }
-        else if (msg instanceof DecodedRequestFrame) {
+        } else if (msg instanceof DecodedRequestFrame) {
             handleFramedRequest(ctx, (DecodedRequestFrame<?>) msg);
-        }
-        else if (lastSeen == State.AUTHN_SUCCESS) {
+        } else if (lastSeen == State.AUTHN_SUCCESS) {
             ctx.fireChannelRead(msg);
-        }
-        else {
+        } else {
             throw new IllegalStateException("Unexpected message " + msg.getClass());
         }
     }
@@ -285,8 +294,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
             default:
                 if (lastSeen == State.AUTHN_SUCCESS) {
                     ctx.fireChannelRead(frame);
-                }
-                else {
+                } else {
                     writeFramedResponse(ctx, frame, exceptionHandler.errorResponseMessage(frame, NOT_AUTHENTICATED_EXCEPTION));
                 }
         }
@@ -295,12 +303,11 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     private void handleBareRequest(ChannelHandlerContext ctx, BareSaslRequest msg) throws SaslException {
         // TODO support SASL GSS API
         if (lastSeen == State.SASL_HANDSHAKE_v0
-                || lastSeen == State.UNFRAMED_SASL_AUTHENTICATE) {
+            || lastSeen == State.UNFRAMED_SASL_AUTHENTICATE) {
             doTransition(ctx.channel(), State.UNFRAMED_SASL_AUTHENTICATE);
             // delegate to the SASL code to read the bytes directly
             writeBareResponse(ctx, doEvaluateResponse(ctx, msg.bytes()));
-        }
-        else {
+        } else {
             lastSeen = State.FAILED;
             throw new InvalidRequestException("Bare SASL bytes without GSSAPI support or prior SaslHandshake");
         }
@@ -310,39 +317,40 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         ctx.writeAndFlush(new BareSaslResponse(bytes));
     }
 
-    private void onSaslHandshakeRequest(ChannelHandlerContext ctx,
-                                        DecodedRequestFrame<SaslHandshakeRequestData> data)
-            throws SaslException {
+    private void onSaslHandshakeRequest(
+            ChannelHandlerContext ctx,
+            DecodedRequestFrame<SaslHandshakeRequestData> data
+    )
+      throws SaslException {
         String mechanism = data.body().mechanism();
         Errors error;
         if (lastSeen == State.AUTHN_SUCCESS) {
             error = Errors.ILLEGAL_SASL_STATE;
-        }
-        else if (enabledMechanisms.contains(mechanism)) {
+        } else if (enabledMechanisms.contains(mechanism)) {
             var cbh = mechanismHandlers.get(mechanism);
             // TODO use SNI to supply the correct hostname
             saslServer = Sasl.createSaslServer(mechanism, "kafka", null, null, cbh);
             if (saslServer == null) {
                 throw new IllegalStateException("SASL mechanism had no providers: " + mechanism);
-            }
-            else {
+            } else {
                 error = Errors.NONE;
             }
-        }
-        else {
+        } else {
             error = Errors.UNSUPPORTED_SASL_MECHANISM;
         }
 
         SaslHandshakeResponseData body = new SaslHandshakeResponseData()
-                .setMechanisms(enabledMechanisms)
-                .setErrorCode(error.code());
+                                                                        .setMechanisms(enabledMechanisms)
+                                                                        .setErrorCode(error.code());
         writeFramedResponse(ctx, data, body);
         // Request to read the following request
         ctx.channel().read();
     }
 
-    private void onSaslAuthenticateRequest(ChannelHandlerContext ctx,
-                                           DecodedRequestFrame<SaslAuthenticateRequestData> data) {
+    private void onSaslAuthenticateRequest(
+            ChannelHandlerContext ctx,
+            DecodedRequestFrame<SaslAuthenticateRequestData> data
+    ) {
         byte[] bytes = new byte[0];
         Errors error;
         String errorMessage;
@@ -362,27 +370,34 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
         }
 
         SaslAuthenticateResponseData body = new SaslAuthenticateResponseData()
-                .setErrorCode(error.code())
-                .setErrorMessage(errorMessage)
-                .setAuthBytes(bytes);
+                                                                              .setErrorCode(error.code())
+                                                                              .setErrorMessage(errorMessage)
+                                                                              .setAuthBytes(bytes);
         // TODO add support for session lifetime
         writeFramedResponse(ctx, data, body);
         ctx.channel().read();
     }
 
-    private static void writeFramedResponse(ChannelHandlerContext ctx,
-                                            DecodedRequestFrame<?> data, ApiMessage body) {
+    private static void writeFramedResponse(
+            ChannelHandlerContext ctx,
+            DecodedRequestFrame<?> data,
+            ApiMessage body
+    ) {
         ctx.writeAndFlush(
                 new DecodedResponseFrame<>(
                         data.apiVersion(),
                         data.correlationId(),
                         new ResponseHeaderData().setCorrelationId(data.correlationId()),
-                        body));
+                        body
+                )
+        );
     }
 
-    private byte[] doEvaluateResponse(ChannelHandlerContext ctx,
-                                      byte[] authBytes)
-            throws SaslException {
+    private byte[] doEvaluateResponse(
+            ChannelHandlerContext ctx,
+            byte[] authBytes
+    )
+      throws SaslException {
         final byte[] bytes;
         try {
             bytes = saslServer.evaluateResponse(authBytes);

@@ -20,15 +20,16 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 class PluginAnnotationIntrospector extends JacksonAnnotationIntrospector {
 
     @Override
-    protected <A extends Annotation> A _findAnnotation(Annotated ann,
-                                                       Class<A> annoClass) {
+    protected <A extends Annotation> A _findAnnotation(
+            Annotated ann,
+            Class<A> annoClass
+    ) {
         if (annoClass == JsonTypeIdResolver.class) {
             var pc = _findAnnotation(ann, PluginImplConfig.class);
             if (pc != null) {
                 return (A) synthesizeJsonTypeIdResolver();
             }
-        }
-        else if (annoClass == JsonTypeInfo.class) {
+        } else if (annoClass == JsonTypeInfo.class) {
             var pc = _findAnnotation(ann, PluginImplConfig.class);
             if (pc != null) {
                 return (A) synthesizeJsonTypeInfo(pc);

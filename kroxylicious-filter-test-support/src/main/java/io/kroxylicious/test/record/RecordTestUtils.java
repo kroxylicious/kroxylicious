@@ -96,8 +96,10 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(byte[] value,
-                                Header... headers) {
+    public static Record record(
+            byte[] value,
+            Header... headers
+    ) {
         return record(DEFAULT_MAGIC_VALUE, DEFAULT_OFFSET, DEFAULT_TIMESTAMP, DEFAULT_KEY_BYTES, value, headers);
     }
 
@@ -107,8 +109,10 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(ByteBuffer value,
-                                Header... headers) {
+    public static Record record(
+            ByteBuffer value,
+            Header... headers
+    ) {
         return record(DEFAULT_MAGIC_VALUE, DEFAULT_OFFSET, DEFAULT_TIMESTAMP, DEFAULT_KEY_BUFFER, value, headers);
     }
 
@@ -119,9 +123,11 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(long offset,
-                                ByteBuffer value,
-                                Header... headers) {
+    public static Record record(
+            long offset,
+            ByteBuffer value,
+            Header... headers
+    ) {
         return record(DEFAULT_MAGIC_VALUE, offset, DEFAULT_TIMESTAMP, DEFAULT_KEY_BUFFER, value, headers);
     }
 
@@ -131,8 +137,10 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(String value,
-                                Header... headers) {
+    public static Record record(
+            String value,
+            Header... headers
+    ) {
         return record(DEFAULT_MAGIC_VALUE, DEFAULT_OFFSET, DEFAULT_TIMESTAMP, DEFAULT_KEY_STRING, value, headers);
     }
 
@@ -143,9 +151,11 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(byte[] key,
-                                byte[] value,
-                                Header... headers) {
+    public static Record record(
+            byte[] key,
+            byte[] value,
+            Header... headers
+    ) {
         return record(DEFAULT_MAGIC_VALUE, DEFAULT_OFFSET, DEFAULT_TIMESTAMP, key, value, headers);
     }
 
@@ -156,9 +166,11 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(String key,
-                                String value,
-                                Header... headers) {
+    public static Record record(
+            String key,
+            String value,
+            Header... headers
+    ) {
         return record(DEFAULT_MAGIC_VALUE, DEFAULT_OFFSET, DEFAULT_TIMESTAMP, key, value, headers);
     }
 
@@ -170,10 +182,12 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(long offset,
-                                String key,
-                                String value,
-                                Header... headers) {
+    public static Record record(
+            long offset,
+            String key,
+            String value,
+            Header... headers
+    ) {
         return record(DEFAULT_MAGIC_VALUE, offset, DEFAULT_TIMESTAMP, key, value, headers);
     }
 
@@ -184,9 +198,11 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(ByteBuffer key,
-                                ByteBuffer value,
-                                Header... headers) {
+    public static Record record(
+            ByteBuffer key,
+            ByteBuffer value,
+            Header... headers
+    ) {
         return record(DEFAULT_MAGIC_VALUE, DEFAULT_OFFSET, DEFAULT_TIMESTAMP, key, value, headers);
     }
 
@@ -200,12 +216,14 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(byte magic,
-                                long offset,
-                                long timestamp,
-                                byte[] key,
-                                byte[] value,
-                                Header... headers) {
+    public static Record record(
+            byte magic,
+            long offset,
+            long timestamp,
+            byte[] key,
+            byte[] value,
+            Header... headers
+    ) {
         // This is a bit of a rigmarole, but it ensures that calls to getSizeInBytes()
         // on the returned Record is actually correct
         MemoryRecords mr = singleElementMemoryRecords(magic, offset, timestamp, key, value, headers);
@@ -222,12 +240,14 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(byte magic,
-                                long offset,
-                                long timestamp,
-                                String key,
-                                String value,
-                                Header... headers) {
+    public static Record record(
+            byte magic,
+            long offset,
+            long timestamp,
+            String key,
+            String value,
+            Header... headers
+    ) {
         // This is a bit of a rigmarole, but it ensures that calls to getSizeInBytes()
         // on the returned Record is actually correct
         MemoryRecords mr = singleElementMemoryRecords(magic, offset, timestamp, key, value, headers);
@@ -244,12 +264,14 @@ public class RecordTestUtils {
      * @param headers
      * @return The record
      */
-    public static Record record(byte magic,
-                                long offset,
-                                long timestamp,
-                                ByteBuffer key,
-                                ByteBuffer value,
-                                Header... headers) {
+    public static Record record(
+            byte magic,
+            long offset,
+            long timestamp,
+            ByteBuffer key,
+            ByteBuffer value,
+            Header... headers
+    ) {
         // This is a bit of a rigmarole, but it ensures that calls to getSizeInBytes()
         // on the returned Record is actually correct
         MemoryRecords mr = singleElementMemoryRecords(magic, offset, timestamp, key, value, headers);
@@ -273,9 +295,11 @@ public class RecordTestUtils {
      * The batch will use the current magic. The baseOffset and offset of the record will be 0
      * @see RecordTestUtils#singleElementRecordBatch(long, String, String, Header[])
      */
-    public static MutableRecordBatch singleElementRecordBatch(String key,
-                                                              String value,
-                                                              Header... headers) {
+    public static MutableRecordBatch singleElementRecordBatch(
+            String key,
+            String value,
+            Header... headers
+    ) {
         return singleElementRecordBatch(DEFAULT_OFFSET, key, value, headers);
     }
 
@@ -289,13 +313,17 @@ public class RecordTestUtils {
      * @return The record batch
      */
     public static MutableRecordBatch singleElementRecordBatch(long offset, String key, String value, Header[] headers) {
-        return singleElementMemoryRecords(DEFAULT_MAGIC_VALUE,
+        return singleElementMemoryRecords(
+                DEFAULT_MAGIC_VALUE,
                 offset,
                 DEFAULT_TIMESTAMP,
                 key,
                 value,
-                headers)
-                .batches().iterator().next();
+                headers
+        )
+         .batches()
+         .iterator()
+         .next();
     }
 
     /**
@@ -306,22 +334,39 @@ public class RecordTestUtils {
      * @param compression
      * @return The record batch
      */
-    public static MutableRecordBatch singleElementRecordBatch(byte magic,
-                                                              long baseOffset,
-                                                              Compression compression,
-                                                              TimestampType timestampType,
-                                                              long logAppendTime,
-                                                              long producerId,
-                                                              short producerEpoch,
-                                                              int baseSequence,
-                                                              boolean isTransactional,
-                                                              boolean isControlBatch,
-                                                              int partitionLeaderEpoch,
-                                                              byte[] key,
-                                                              byte[] value,
-                                                              Header... headers) {
-        MemoryRecords records = memoryRecordsWithoutCopy(magic, baseOffset, compression, timestampType, logAppendTime, producerId, producerEpoch, baseSequence,
-                isTransactional, isControlBatch, partitionLeaderEpoch, 0L, key, value, headers);
+    public static MutableRecordBatch singleElementRecordBatch(
+            byte magic,
+            long baseOffset,
+            Compression compression,
+            TimestampType timestampType,
+            long logAppendTime,
+            long producerId,
+            short producerEpoch,
+            int baseSequence,
+            boolean isTransactional,
+            boolean isControlBatch,
+            int partitionLeaderEpoch,
+            byte[] key,
+            byte[] value,
+            Header... headers
+    ) {
+        MemoryRecords records = memoryRecordsWithoutCopy(
+                magic,
+                baseOffset,
+                compression,
+                timestampType,
+                logAppendTime,
+                producerId,
+                producerEpoch,
+                baseSequence,
+                isTransactional,
+                isControlBatch,
+                partitionLeaderEpoch,
+                0L,
+                key,
+                value,
+                headers
+        );
         return records.batches().iterator().next();
     }
 
@@ -345,12 +390,14 @@ public class RecordTestUtils {
      * @return The record
      */
     public static MemoryRecords singleElementMemoryRecords(String key, String value, Header... headers) {
-        return singleElementMemoryRecords(DEFAULT_MAGIC_VALUE,
+        return singleElementMemoryRecords(
+                DEFAULT_MAGIC_VALUE,
                 DEFAULT_OFFSET,
                 DEFAULT_TIMESTAMP,
                 key,
                 value,
-                headers);
+                headers
+        );
     }
 
     /**
@@ -362,12 +409,14 @@ public class RecordTestUtils {
      * @return The record
      */
     public static MemoryRecords singleElementMemoryRecords(byte[] key, byte[] value, Header... headers) {
-        return singleElementMemoryRecords(DEFAULT_MAGIC_VALUE,
+        return singleElementMemoryRecords(
+                DEFAULT_MAGIC_VALUE,
                 DEFAULT_OFFSET,
                 DEFAULT_TIMESTAMP,
                 key,
                 value,
-                headers);
+                headers
+        );
     }
 
     /**
@@ -442,23 +491,36 @@ public class RecordTestUtils {
         }
     }
 
-    private static MemoryRecords memoryRecordsWithoutCopy(byte magic,
-                                                          long baseOffset,
-                                                          Compression compression,
-                                                          TimestampType timestampType,
-                                                          long logAppendTime,
-                                                          long producerId,
-                                                          short producerEpoch,
-                                                          int baseSequence,
-                                                          boolean isTransactional,
-                                                          boolean isControlBatch,
-                                                          int partitionLeaderEpoch,
-                                                          long timestamp,
-                                                          byte[] key,
-                                                          byte[] value,
-                                                          Header... headers) {
-        try (MemoryRecordsBuilder memoryRecordsBuilder = memoryRecordsBuilder(magic, baseOffset, compression, timestampType, logAppendTime, producerId, producerEpoch,
-                baseSequence, isTransactional, isControlBatch, partitionLeaderEpoch)) {
+    private static MemoryRecords memoryRecordsWithoutCopy(
+            byte magic,
+            long baseOffset,
+            Compression compression,
+            TimestampType timestampType,
+            long logAppendTime,
+            long producerId,
+            short producerEpoch,
+            int baseSequence,
+            boolean isTransactional,
+            boolean isControlBatch,
+            int partitionLeaderEpoch,
+            long timestamp,
+            byte[] key,
+            byte[] value,
+            Header... headers
+    ) {
+        try (MemoryRecordsBuilder memoryRecordsBuilder = memoryRecordsBuilder(
+                magic,
+                baseOffset,
+                compression,
+                timestampType,
+                logAppendTime,
+                producerId,
+                producerEpoch,
+                baseSequence,
+                isTransactional,
+                isControlBatch,
+                partitionLeaderEpoch
+        )) {
             memoryRecordsBuilder.appendWithOffset(baseOffset, timestamp, key, value, headers);
             return memoryRecordsBuilder.build();
         }
@@ -470,7 +532,8 @@ public class RecordTestUtils {
      * @param records
      * @return The MemoryRecords
      */
-    public static MemoryRecords memoryRecords(@NonNull List<Record> records) {
+    public static MemoryRecords memoryRecords(@NonNull
+    List<Record> records) {
         try (MemoryRecordsBuilder memoryRecordsBuilder = defaultMemoryRecordsBuilder(DEFAULT_MAGIC_VALUE)) {
             records.forEach(record -> memoryRecordsBuilder.appendWithOffset(record.offset(), record));
             return memoryRecordsBuilder.build();
@@ -530,22 +593,35 @@ public class RecordTestUtils {
 
     @NonNull
     private static MemoryRecordsBuilder memoryRecordsBuilder(byte magic, long baseOffset) {
-        return memoryRecordsBuilder(magic, baseOffset, Compression.NONE, TimestampType.CREATE_TIME, 0L,
-                magic > RecordBatch.MAGIC_VALUE_V1 ? 0L : RecordBatch.NO_PRODUCER_ID, (short) 0, 0, false, false, 0);
+        return memoryRecordsBuilder(
+                magic,
+                baseOffset,
+                Compression.NONE,
+                TimestampType.CREATE_TIME,
+                0L,
+                magic > RecordBatch.MAGIC_VALUE_V1 ? 0L : RecordBatch.NO_PRODUCER_ID,
+                (short) 0,
+                0,
+                false,
+                false,
+                0
+        );
     }
 
     @NonNull
-    private static MemoryRecordsBuilder memoryRecordsBuilder(byte magic,
-                                                             long baseOffset,
-                                                             Compression compression,
-                                                             TimestampType timestampType,
-                                                             long logAppendTime,
-                                                             long producerId,
-                                                             short producerEpoch,
-                                                             int baseSequence,
-                                                             boolean isTransactional,
-                                                             boolean isControlBatch,
-                                                             int partitionLeaderEpoch) {
+    private static MemoryRecordsBuilder memoryRecordsBuilder(
+            byte magic,
+            long baseOffset,
+            Compression compression,
+            TimestampType timestampType,
+            long logAppendTime,
+            long producerId,
+            short producerEpoch,
+            int baseSequence,
+            boolean isTransactional,
+            boolean isControlBatch,
+            int partitionLeaderEpoch
+    ) {
         return new MemoryRecordsBuilder(
                 ByteBuffer.allocate(1024),
                 magic,
@@ -559,7 +635,8 @@ public class RecordTestUtils {
                 isTransactional,
                 isControlBatch,
                 partitionLeaderEpoch,
-                0);
+                0
+        );
     }
 
     /**
@@ -569,8 +646,21 @@ public class RecordTestUtils {
      * @return batch
      */
     public static MutableRecordBatch abortTransactionControlBatch(int baseOffset) {
-        try (MemoryRecordsBuilder builder = new MemoryRecordsBuilder(ByteBuffer.allocate(1000), RecordBatch.CURRENT_MAGIC_VALUE, Compression.NONE,
-                TimestampType.CREATE_TIME, baseOffset, 1L, 1L, (short) 1, 1, true, true, 1, 1)) {
+        try (MemoryRecordsBuilder builder = new MemoryRecordsBuilder(
+                ByteBuffer.allocate(1000),
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                Compression.NONE,
+                TimestampType.CREATE_TIME,
+                baseOffset,
+                1L,
+                1L,
+                (short) 1,
+                1,
+                true,
+                true,
+                1,
+                1
+        )) {
             builder.appendEndTxnMarker(1l, new EndTransactionMarker(ControlRecordType.ABORT, 1));
             MemoryRecords controlBatchRecords = builder.build();
             return controlBatchRecords.batchIterator().next();

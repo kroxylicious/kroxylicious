@@ -72,8 +72,9 @@ public class DeploymentUtils {
     public static void waitForDeploymentReady(String namespaceName, String deploymentName) {
         LOGGER.info("Waiting for Deployment: {}/{} to be ready", namespaceName, deploymentName);
 
-        await().atMost(READINESS_TIMEOUT).pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS)
-                .until(() -> kubeClient(namespaceName).isDeploymentReady(namespaceName, deploymentName));
+        await().atMost(READINESS_TIMEOUT)
+               .pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS)
+               .until(() -> kubeClient(namespaceName).isDeploymentReady(namespaceName, deploymentName));
 
         LOGGER.info("Deployment: {}/{} is ready", namespaceName, deploymentName);
     }
@@ -85,17 +86,17 @@ public class DeploymentUtils {
      */
     public static void waitForDeploymentDeletion(String namespaceName, String name) {
         LOGGER.debug("Waiting for Deployment: {}/{} deletion", namespaceName, name);
-        await().atMost(DELETION_TIMEOUT).pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_DELETION)
-                .until(() -> {
-                    if (kubeClient(namespaceName).getDeployment(namespaceName, name) == null) {
-                        return true;
-                    }
-                    else {
-                        LOGGER.warn("Deployment: {}/{} is not deleted yet! Triggering force delete by cmd client!", namespaceName, name);
-                        cmdKubeClient(namespaceName).deleteByName(Constants.DEPLOYMENT, name);
-                        return false;
-                    }
-                });
+        await().atMost(DELETION_TIMEOUT)
+               .pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_DELETION)
+               .until(() -> {
+                   if (kubeClient(namespaceName).getDeployment(namespaceName, name) == null) {
+                       return true;
+                   } else {
+                       LOGGER.warn("Deployment: {}/{} is not deleted yet! Triggering force delete by cmd client!", namespaceName, name);
+                       cmdKubeClient(namespaceName).deleteByName(Constants.DEPLOYMENT, name);
+                       return false;
+                   }
+               });
         LOGGER.debug("Deployment: {}/{} was deleted", namespaceName, name);
     }
 
@@ -112,7 +113,8 @@ public class DeploymentUtils {
                 URI.create(url).toURL(),
                 deploymentFile,
                 5000,
-                10000);
+                10000
+        );
         deploymentFile.deleteOnExit();
 
         return new FileInputStream(deploymentFile);
@@ -126,27 +128,29 @@ public class DeploymentUtils {
      */
     public static boolean checkLoadBalancerIsWorking(String namespace) {
         Service service = new ServiceBuilder()
-                .withKind(Constants.SERVICE_KIND)
-                .withNewMetadata()
-                .withName(TEST_LOAD_BALANCER_NAME)
-                .withNamespace(namespace)
-                .addToLabels("app", "loadbalancer")
-                .endMetadata()
-                .withNewSpec()
-                .addNewPort()
-                .withPort(8080)
-                .endPort()
-                .withSelector(Collections.singletonMap("app", "loadbalancer"))
-                .withType(Constants.LOAD_BALANCER_TYPE)
-                .endSpec()
-                .build();
+                                              .withKind(Constants.SERVICE_KIND)
+                                              .withNewMetadata()
+                                              .withName(TEST_LOAD_BALANCER_NAME)
+                                              .withNamespace(namespace)
+                                              .addToLabels("app", "loadbalancer")
+                                              .endMetadata()
+                                              .withNewSpec()
+                                              .addNewPort()
+                                              .withPort(8080)
+                                              .endPort()
+                                              .withSelector(Collections.singletonMap("app", "loadbalancer"))
+                                              .withType(Constants.LOAD_BALANCER_TYPE)
+                                              .endSpec()
+                                              .build();
         kubeClient().getClient().services().inNamespace(namespace).resource(service).create();
         boolean isWorking;
         try {
             LOGGER.debug("Waiting for the ingress IP to be available...");
             await().atMost(Duration.ofSeconds(10))
-                    .until(() -> !kubeClient().getService(namespace, TEST_LOAD_BALANCER_NAME).getStatus().getLoadBalancer().getIngress().isEmpty()
-                            && kubeClient().getService(namespace, TEST_LOAD_BALANCER_NAME).getStatus().getLoadBalancer().getIngress().get(0).getIp() != null);
+                   .until(
+                           () -> !kubeClient().getService(namespace, TEST_LOAD_BALANCER_NAME).getStatus().getLoadBalancer().getIngress().isEmpty()
+                                 && kubeClient().getService(namespace, TEST_LOAD_BALANCER_NAME).getStatus().getLoadBalancer().getIngress().get(0).getIp() != null
+                   );
             isWorking = true;
         }
         catch (Exception e) {
@@ -169,18 +173,22 @@ public class DeploymentUtils {
         LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, podName);
         waitForLeavingPendingPhase(namespaceName, podName);
         await().alias("await pod to be running or succeeded")
-                .atMost(timeout)
-                .pollInterval(Duration.ofMillis(500))
-                .until(() -> kubeClient().getPod(namespaceName, podName) != null
-                        && kubeClient().isDeploymentRunning(namespaceName, podName));
+               .atMost(timeout)
+               .pollInterval(Duration.ofMillis(500))
+               .until(
+                       () -> kubeClient().getPod(namespaceName, podName) != null
+                             && kubeClient().isDeploymentRunning(namespaceName, podName)
+               );
     }
 
     private static void waitForLeavingPendingPhase(String namespaceName, String podName) {
         await().alias("await pod to leave pending phase")
-                .atMost(Duration.ofMinutes(1))
-                .pollInterval(Duration.ofMillis(200))
-                .until(() -> Optional.ofNullable(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
-                        s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent());
+               .atMost(Duration.ofMinutes(1))
+               .pollInterval(Duration.ofMillis(200))
+               .until(
+                       () -> Optional.ofNullable(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
+                       s -> s.filter(Predicate.not(DeploymentUtils::isPendingPhase)).isPresent()
+               );
     }
 
     /**
@@ -197,11 +205,13 @@ public class DeploymentUtils {
         var pollInterval = 200;
 
         var terminalPhase = await().alias("await pod to reach terminal phase")
-                .atMost(timeout)
-                .pollInterval(Duration.ofMillis(pollInterval))
-                .conditionEvaluationListener(new TimeoutLoggingEvaluationListener(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)))
-                .until(() -> Optional.of(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
-                        p -> p.map(DeploymentUtils::hasReachedTerminalPhase).orElse(false));
+                                   .atMost(timeout)
+                                   .pollInterval(Duration.ofMillis(pollInterval))
+                                   .conditionEvaluationListener(new TimeoutLoggingEvaluationListener(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)))
+                                   .until(
+                                           () -> Optional.of(kubeClient().getPod(namespaceName, podName)).map(Pod::getStatus).map(PodStatus::getPhase),
+                                           p -> p.map(DeploymentUtils::hasReachedTerminalPhase).orElse(false)
+                                   );
 
         if (!isSucceededPhase(terminalPhase.orElseThrow())) {
             LOGGER.atError().setMessage("Run failed! Error: {}").addArgument(() -> kubeClient().logsInSpecificNamespace(namespaceName, podName)).log();
@@ -254,19 +264,37 @@ public class DeploymentUtils {
      */
     public static void collectClusterInfo(String namespace, String testClassName, String testMethodName) {
         String formattedDate = DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss")
-                .withZone(ZoneOffset.UTC)
-                .format(Instant.now());
-        List<String> executableCommand = List.of(cmdKubeClient(namespace).toString(), "cluster-info", "dump",
-                "--namespaces", String.join(",", namespace, Constants.KAFKA_DEFAULT_NAMESPACE),
-                "--output-directory", Environment.CLUSTER_DUMP_DIR + "/" + testClassName.replace(".", "_") + "_" +
-                        testMethodName + "_cluster_dump_" + formattedDate);
+                                                .withZone(ZoneOffset.UTC)
+                                                .format(Instant.now());
+        List<String> executableCommand = List.of(
+                cmdKubeClient(namespace).toString(),
+                "cluster-info",
+                "dump",
+                "--namespaces",
+                String.join(",", namespace, Constants.KAFKA_DEFAULT_NAMESPACE),
+                "--output-directory",
+                Environment.CLUSTER_DUMP_DIR
+                                      + "/"
+                                      + testClassName.replace(".", "_")
+                                      + "_"
+                                      +
+                                      testMethodName
+                                      + "_cluster_dump_"
+                                      + formattedDate
+        );
         ExecResult result = Exec.exec(null, executableCommand, Duration.ofSeconds(20), true, false, null);
         if (result.isSuccess()) {
             LOGGER.atInfo().log(result.out());
-        }
-        else {
-            throw new KubeClusterException("Unable to collect cluster info from namespaces '" + namespace + "' and '" + Constants.KAFKA_DEFAULT_NAMESPACE +
-                    "': " + result.err());
+        } else {
+            throw new KubeClusterException(
+                    "Unable to collect cluster info from namespaces '"
+                                           + namespace
+                                           + "' and '"
+                                           + Constants.KAFKA_DEFAULT_NAMESPACE
+                                           +
+                                           "': "
+                                           + result.err()
+            );
         }
     }
 
@@ -291,16 +319,23 @@ public class DeploymentUtils {
      */
     public static String getNodePortServiceAddress(String namespace, String serviceName) {
         var nodes = kubeClient().getClient().nodes().list().getItems();
-        var nodeAddresses = nodes.stream().findFirst()
-                .map(Node::getStatus)
-                .map(NodeStatus::getAddresses)
-                .stream().findFirst()
-                .orElseThrow(() -> new KubeClusterException("Unable to get IP of the first node from " + nodes));
-        var nodeIP = nodeAddresses.stream().map(NodeAddress::getAddress).findFirst()
-                .orElseThrow(() -> new KubeClusterException("Unable to get address of the first node address from " + nodeAddresses));
+        var nodeAddresses = nodes.stream()
+                                 .findFirst()
+                                 .map(Node::getStatus)
+                                 .map(NodeStatus::getAddresses)
+                                 .stream()
+                                 .findFirst()
+                                 .orElseThrow(() -> new KubeClusterException("Unable to get IP of the first node from " + nodes));
+        var nodeIP = nodeAddresses.stream()
+                                  .map(NodeAddress::getAddress)
+                                  .findFirst()
+                                  .orElseThrow(() -> new KubeClusterException("Unable to get address of the first node address from " + nodeAddresses));
         var spec = kubeClient().getService(namespace, serviceName).getSpec();
-        int port = spec.getPorts().stream().map(ServicePort::getNodePort).findFirst()
-                .orElseThrow(() -> new KubeClusterException("Unable to get the service port of " + serviceName));
+        int port = spec.getPorts()
+                       .stream()
+                       .map(ServicePort::getNodePort)
+                       .findFirst()
+                       .orElseThrow(() -> new KubeClusterException("Unable to get the service port of " + serviceName));
         String address = nodeIP + ":" + port;
         LOGGER.debug("Deduced nodeport address for service: {} as: {}", serviceName, address);
         return address;

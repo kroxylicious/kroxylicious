@@ -19,7 +19,8 @@ record CreateTokenResponse(Auth auth) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Auth(@JsonProperty("client_token") String clientToken) {
+    record Auth(@JsonProperty("client_token")
+    String clientToken) {
         Auth {
             Objects.requireNonNull(clientToken);
         }

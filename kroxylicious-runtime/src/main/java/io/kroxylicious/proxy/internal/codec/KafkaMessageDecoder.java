@@ -44,15 +44,18 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 // TODO handle too-large frames
                 if (readable >= frameSize) { // We can read the whole frame
                     var idx = in.readerIndex();
-                    out.add(decodeHeaderAndBody(ctx,
-                            in.readSlice(frameSize), // Prevent decodeHeaderAndBody() from reading beyond the frame
-                            frameSize));
+                    out.add(
+                            decodeHeaderAndBody(
+                                    ctx,
+                                    in.readSlice(frameSize), // Prevent decodeHeaderAndBody() from reading beyond the frame
+                                    frameSize
+                            )
+                    );
                     log().trace("{}: readable: {}, having read {}", ctx, in.readableBytes(), in.readerIndex() - idx);
                     if (in.readerIndex() - idx != frameSize) {
                         throw new RuntimeException("decodeHeaderAndBody did not read all of the buffer " + in);
                     }
-                }
-                else {
+                } else {
                     in.readerIndex(sof);
                     break;
                 }

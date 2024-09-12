@@ -58,13 +58,23 @@ class BannerLoggerTest {
     @Test
     void shouldNotAppendLicenseHeader() {
         // Given
-        bannerStream = Stream.of("Copyright Kroxylicious Authors.",
-                "Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0", "banner_text");
-        final BannerLogger.BannerSupplier bannerSupplier = new BannerLogger.BannerSupplier(() -> bannerStream, () -> Stream.of("====", "Copyright Kroxylicious Authors.",
-                "Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0"));
+        bannerStream = Stream.of(
+                "Copyright Kroxylicious Authors.",
+                "Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0",
+                "banner_text"
+        );
+        final BannerLogger.BannerSupplier bannerSupplier = new BannerLogger.BannerSupplier(
+                () -> bannerStream,
+                () -> Stream.of(
+                        "====",
+                        "Copyright Kroxylicious Authors.",
+                        "Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0"
+                )
+        );
         List<String> actualLines = new ArrayList<>();
         doAnswer(invocationOnMock -> actualLines.add(invocationOnMock.getArgument(0, String.class)))
-                .when(loggingEventBuilder).log(anyString());
+                                                                                                    .when(loggingEventBuilder)
+                                                                                                    .log(anyString());
 
         bannerLogger = new BannerLogger(testLogger, bannerSupplier);
 

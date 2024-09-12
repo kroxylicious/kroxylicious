@@ -93,9 +93,9 @@ public final class KafkaClient implements AutoCloseable {
         DecodedRequestFrame<?> decodedRequestFrame = toApiRequest(request);
 
         return ensureChannel(correlationManager, kafkaClientHandler)
-                .thenApply(KafkaClient::checkChannelOpen)
-                .thenCompose(u -> kafkaClientHandler.sendRequest(decodedRequestFrame))
-                .thenApply(KafkaClient::toResponse);
+                                                                    .thenApply(KafkaClient::checkChannelOpen)
+                                                                    .thenCompose(u -> kafkaClientHandler.sendRequest(decodedRequestFrame))
+                                                                    .thenApply(KafkaClient::toResponse);
 
     }
 
@@ -117,17 +117,17 @@ public final class KafkaClient implements AutoCloseable {
         if (connected.compareAndSet(null, candidate)) {
             Bootstrap b = new Bootstrap();
             b.group(bossGroup)
-                    .channel(eventGroupConfig.clientChannelClass())
-                    .option(ChannelOption.TCP_NODELAY, true)
-                    .handler(new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        public void initChannel(SocketChannel ch) {
-                            ChannelPipeline p = ch.pipeline();
-                            p.addLast(new KafkaRequestEncoder(correlationManager));
-                            p.addLast(new KafkaResponseDecoder(correlationManager));
-                            p.addLast(kafkaClientHandler);
-                        }
-                    });
+             .channel(eventGroupConfig.clientChannelClass())
+             .option(ChannelOption.TCP_NODELAY, true)
+             .handler(new ChannelInitializer<SocketChannel>() {
+                 @Override
+                 public void initChannel(SocketChannel ch) {
+                     ChannelPipeline p = ch.pipeline();
+                     p.addLast(new KafkaRequestEncoder(correlationManager));
+                     p.addLast(new KafkaResponseDecoder(correlationManager));
+                     p.addLast(kafkaClientHandler);
+                 }
+             });
 
             ChannelFuture connect = b.connect(host, port);
             connect.addListeners((ChannelFutureListener) channelFuture -> candidate.complete(channelFuture.channel()));
@@ -135,8 +135,7 @@ public final class KafkaClient implements AutoCloseable {
                 correlationManager.onChannelClose();
             });
             return candidate;
-        }
-        else {
+        } else {
             return connected.get();
         }
     }
@@ -145,8 +144,7 @@ public final class KafkaClient implements AutoCloseable {
         CompletableFuture<Channel> channelCompletableFuture = connected.get();
         if (channelCompletableFuture == null) {
             return false;
-        }
-        else {
+        } else {
             Channel now = channelCompletableFuture.getNow(null);
             return now != null && now.isOpen();
         }

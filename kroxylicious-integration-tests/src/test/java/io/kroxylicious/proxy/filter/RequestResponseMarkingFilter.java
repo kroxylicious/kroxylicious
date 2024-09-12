@@ -52,31 +52,39 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, FilterContext context) {
         if (!constructionContext.filterDispatchExecutor().isInFilterDispatchThread()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("onRequest method was not invoked by dispatch thread! "
-                    + "The framework is breaking a threading guarantee"));
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException(
+                            "onRequest method was not invoked by dispatch thread! "
+                                              + "The framework is breaking a threading guarantee"
+                    )
+            );
         }
         if (!(direction.contains(RequestResponseMarkingFilterFactory.Direction.REQUEST) && keysToMark.contains(apiKey))) {
             return context.forwardRequest(header, body);
         }
 
         return forwardingStyle.apply(new ForwardingContext(context, constructionContext, body))
-                .thenApply(request -> applyTaggedField(request, RequestResponseMarkingFilterFactory.Direction.REQUEST, name))
-                .thenCompose(taggedRequest -> context.forwardRequest(header, taggedRequest));
+                              .thenApply(request -> applyTaggedField(request, RequestResponseMarkingFilterFactory.Direction.REQUEST, name))
+                              .thenCompose(taggedRequest -> context.forwardRequest(header, taggedRequest));
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
         if (!constructionContext.filterDispatchExecutor().isInFilterDispatchThread()) {
-            return CompletableFuture.failedFuture(new IllegalStateException("onResponse was not invoked by dispatch thread! "
-                    + "The framework is breaking a threading guarantee"));
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException(
+                            "onResponse was not invoked by dispatch thread! "
+                                              + "The framework is breaking a threading guarantee"
+                    )
+            );
         }
         if (!(direction.contains(RequestResponseMarkingFilterFactory.Direction.RESPONSE) && keysToMark.contains(apiKey))) {
             return context.forwardResponse(header, response);
         }
 
         return forwardingStyle.apply(new ForwardingContext(context, constructionContext, response))
-                .thenApply(request -> applyTaggedField(request, RequestResponseMarkingFilterFactory.Direction.RESPONSE, name))
-                .thenCompose(taggedRequest -> context.forwardResponse(header, taggedRequest));
+                              .thenApply(request -> applyTaggedField(request, RequestResponseMarkingFilterFactory.Direction.RESPONSE, name))
+                              .thenCompose(taggedRequest -> context.forwardResponse(header, taggedRequest));
     }
 
     private ApiMessage applyTaggedField(ApiMessage body, RequestResponseMarkingFilterFactory.Direction direction, String name) {
@@ -85,20 +93,32 @@ public class RequestResponseMarkingFilter implements RequestFilter, ResponseFilt
     }
 
     private RawTaggedField createTaggedField(String type, String name) {
-        return new RawTaggedField(FILTER_NAME_TAG,
-                (this.getClass().getSimpleName() + "-" + name + "-" + type).getBytes(UTF_8));
+        return new RawTaggedField(
+                FILTER_NAME_TAG,
+                (this.getClass().getSimpleName() + "-" + name + "-" + type).getBytes(UTF_8)
+        );
     }
 
     /**
      * @param forwardingStyle
      * If true, forward will occur after an asynchronous request is made and a response received from the broker. */
-    public record RequestResponseMarkingFilterConfig(String name, Set<ApiKeys> keysToMark, Set<RequestResponseMarkingFilterFactory.Direction> direction,
-                                                     ForwardingStyle forwardingStyle) {
+    public record RequestResponseMarkingFilterConfig(
+            String name,
+            Set<ApiKeys> keysToMark,
+            Set<RequestResponseMarkingFilterFactory.Direction> direction,
+            ForwardingStyle forwardingStyle
+    ) {
         @JsonCreator
-        public RequestResponseMarkingFilterConfig(@JsonProperty(value = "name", required = true) String name,
-                                                  @JsonProperty(value = "keysToMark", required = true) Set<ApiKeys> keysToMark,
-                                                  @JsonProperty(value = "direction") Set<RequestResponseMarkingFilterFactory.Direction> direction,
-                                                  @JsonProperty(value = "forwardingStyle") ForwardingStyle forwardingStyle) {
+        public RequestResponseMarkingFilterConfig(
+                @JsonProperty(value = "name", required = true)
+                String name,
+                @JsonProperty(value = "keysToMark", required = true)
+                Set<ApiKeys> keysToMark,
+                @JsonProperty(value = "direction")
+                Set<RequestResponseMarkingFilterFactory.Direction> direction,
+                @JsonProperty(value = "forwardingStyle")
+                ForwardingStyle forwardingStyle
+        ) {
             this.name = name;
             this.keysToMark = keysToMark;
             this.direction = direction == null || direction.isEmpty()

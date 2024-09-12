@@ -58,7 +58,8 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable
+    String messageKey, int numOfMessages) {
         LOGGER.atInfo().log("Producing messages using Strimzi Test Client");
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
         Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey).build();
@@ -72,14 +73,14 @@ public class StrimziTestClient implements KafkaClient {
         String log;
         try {
             log = await().alias("Consumer waiting to receive messages")
-                    .ignoreException(KubernetesClientException.class)
-                    .atMost(timeout)
-                    .until(() -> {
-                        if (kubeClient().getClient().pods().inNamespace(namespace).withName(podName).get() != null) {
-                            return kubeClient().logsInSpecificNamespace(namespace, podName);
-                        }
-                        return null;
-                    }, m -> m != null && m.contains("Sending message:"));
+                         .ignoreException(KubernetesClientException.class)
+                         .atMost(timeout)
+                         .until(() -> {
+                             if (kubeClient().getClient().pods().inNamespace(namespace).withName(podName).get() != null) {
+                                 return kubeClient().logsInSpecificNamespace(namespace, podName);
+                             }
+                             return null;
+                         }, m -> m != null && m.contains("Sending message:"));
         }
         catch (ConditionTimeoutException e) {
             log = kubeClient().logsInSpecificNamespace(namespace, podName);
@@ -107,23 +108,22 @@ public class StrimziTestClient implements KafkaClient {
 
     private List<ConsumerRecord> getConsumerRecords(Stream<String> logRecords) {
         return logRecords.filter(Predicate.not(String::isBlank))
-                .map(x -> ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, x))
-                .filter(Objects::nonNull)
-                .map(ConsumerRecord.class::cast)
-                .toList();
+                         .map(x -> ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, x))
+                         .filter(Objects::nonNull)
+                         .map(ConsumerRecord.class::cast)
+                         .toList();
     }
 
     private Stream<String> extractRecordLinesFromLog(String log) {
         return Stream.of(log.split("\n"))
-                .filter(l -> l.contains(RECEIVED_MESSAGE_MARKER))
-                .map(line -> {
-                    final String[] split = line.split(RECEIVED_MESSAGE_MARKER, 2); // Limit is 1 based so a limit of 2 means use the seek at most 1 times
-                    if (split.length > 1) {
-                        return split[1];
-                    }
-                    else {
-                        return "";
-                    }
-                });
+                     .filter(l -> l.contains(RECEIVED_MESSAGE_MARKER))
+                     .map(line -> {
+                         final String[] split = line.split(RECEIVED_MESSAGE_MARKER, 2); // Limit is 1 based so a limit of 2 means use the seek at most 1 times
+                         if (split.length > 1) {
+                             return split[1];
+                         } else {
+                             return "";
+                         }
+                     });
     }
 }

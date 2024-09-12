@@ -9,13 +9,13 @@
   request:
     payload:
       transactions:
-      - transactionalId: "12345"
-        producerId: 0
-        producerEpoch: 1
-        verifyOnly: false
-        topics:
-          - name: foo
-            partitions: [0]
+        - transactionalId: "12345"
+          producerId: 0
+          producerEpoch: 1
+          verifyOnly: false
+          topics:
+            - name: foo
+              partitions: [ 0 ]
     diff:
       - op: replace
         path: "/transactions/0/transactionalId"

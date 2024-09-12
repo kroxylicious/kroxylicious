@@ -23,22 +23,34 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param message associated error message
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record ErrorResponse(@JsonProperty(value = "__type") @NonNull String type,
-                            @JsonProperty(value = "message") String message) {
+public record ErrorResponse(
+        @JsonProperty(value = "__type") @NonNull
+        String type,
+        @JsonProperty(value = "message")
+        String message
+) {
     public ErrorResponse {
         Objects.requireNonNull(type);
     }
 
     public boolean isNotFound() {
-        return (type().equalsIgnoreCase("NotFoundException") ||
+        return (type().equalsIgnoreCase("NotFoundException")
+                ||
                 (type().equalsIgnoreCase("KMSInvalidStateException") && String.valueOf(message()).toLowerCase(Locale.ROOT).contains("is pending deletion")));
     }
 
     @Override
     public String toString() {
-        return "ErrorResponse{" +
-                "type='" + type + '\'' +
-                ", message='" + message + '\'' +
-                '}';
+        return "ErrorResponse{"
+               +
+               "type='"
+               + type
+               + '\''
+               +
+               ", message='"
+               + message
+               + '\''
+               +
+               '}';
     }
 }

@@ -66,8 +66,12 @@ public final class StructRegistry {
         // Register common structures.
         for (StructSpec struct : message.commonStructs()) {
             if (!firstIsCapitalized(struct.name())) {
-                throw new RuntimeException("Can't process structure " + struct.name() +
-                        ": the first letter of structure names must be capitalized.");
+                throw new RuntimeException(
+                        "Can't process structure "
+                                           + struct.name()
+                                           +
+                                           ": the first letter of structure names must be capitalized."
+                );
             }
             if (structs.containsKey(struct.name())) {
                 throw new RuntimeException("Common struct " + struct.name() + " was specified twice.");
@@ -79,15 +83,16 @@ public final class StructRegistry {
         addStructSpecs(message.validVersions(), message.fields());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings(
+        "unchecked"
+    )
     private void addStructSpecs(Versions parentVersions, List<FieldSpec> fields) {
         for (FieldSpec field : fields) {
             String typeName = null;
             if (field.type().isStructArray()) {
                 FieldType.ArrayType arrayType = (FieldType.ArrayType) field.type();
                 typeName = arrayType.elementName();
-            }
-            else if (field.type().isStruct()) {
+            } else if (field.type().isStruct()) {
                 FieldType.StructType structType = (FieldType.StructType) field.type();
                 typeName = structType.typeName();
             }
@@ -96,20 +101,28 @@ public final class StructRegistry {
                     // If we're using a common structure, we can't specify its fields.
                     // The fields should be specified in the commonStructs area.
                     if (!field.fields().isEmpty()) {
-                        throw new RuntimeException("Can't re-specify the common struct " +
-                                typeName + " as an inline struct.");
+                        throw new RuntimeException(
+                                "Can't re-specify the common struct "
+                                                   +
+                                                   typeName
+                                                   + " as an inline struct."
+                        );
                     }
-                }
-                else if (structs.containsKey(typeName)) {
+                } else if (structs.containsKey(typeName)) {
                     // Inline structures should only appear once.
-                    throw new RuntimeException("Struct " + typeName +
-                            " was specified twice.");
-                }
-                else {
+                    throw new RuntimeException(
+                            "Struct "
+                                               + typeName
+                                               +
+                                               " was specified twice."
+                    );
+                } else {
                     // Synthesize a StructSpec object out of the fields.
-                    StructSpec spec = new StructSpec(typeName,
+                    StructSpec spec = new StructSpec(
+                            typeName,
                             field.versions().toString(),
-                            field.fields());
+                            field.fields()
+                    );
                     structs.put(typeName, new StructInfo(spec, parentVersions));
                 }
 
@@ -121,25 +134,32 @@ public final class StructRegistry {
     /**
      * Locate the struct corresponding to a field.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings(
+        "unchecked"
+    )
     public StructSpec findStruct(FieldSpec field) {
         String structFieldName;
         if (field.type().isArray()) {
             FieldType.ArrayType arrayType = (FieldType.ArrayType) field.type();
             structFieldName = arrayType.elementName();
-        }
-        else if (field.type().isStruct()) {
+        } else if (field.type().isStruct()) {
             FieldType.StructType structType = (FieldType.StructType) field.type();
             structFieldName = structType.typeName();
-        }
-        else {
-            throw new RuntimeException("Field " + field.name() +
-                    " cannot be treated as a structure.");
+        } else {
+            throw new RuntimeException(
+                    "Field "
+                                       + field.name()
+                                       +
+                                       " cannot be treated as a structure."
+            );
         }
         StructInfo structInfo = structs.get(structFieldName);
         if (structInfo == null) {
-            throw new RuntimeException("Unable to locate a specification for the structure " +
-                    structFieldName);
+            throw new RuntimeException(
+                    "Unable to locate a specification for the structure "
+                                       +
+                                       structFieldName
+            );
         }
         return structInfo.spec;
     }
@@ -147,7 +167,9 @@ public final class StructRegistry {
     /**
      * Return true if the field is a struct array with keys.
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings(
+        "unchecked"
+    )
     public boolean isStructArrayWithKeys(FieldSpec field) {
         if (!field.type().isArray()) {
             return false;
@@ -158,8 +180,11 @@ public final class StructRegistry {
         }
         StructInfo structInfo = structs.get(arrayType.elementName());
         if (structInfo == null) {
-            throw new RuntimeException("Unable to locate a specification for the structure " +
-                    arrayType.elementName());
+            throw new RuntimeException(
+                    "Unable to locate a specification for the structure "
+                                       +
+                                       arrayType.elementName()
+            );
         }
         return structInfo.spec.hasKeys();
     }

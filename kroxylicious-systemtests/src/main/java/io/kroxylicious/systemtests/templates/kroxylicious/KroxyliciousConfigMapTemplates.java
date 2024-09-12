@@ -24,8 +24,8 @@ import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
  */
 public final class KroxyliciousConfigMapTemplates {
     private static final YAMLFactory FACTORY = YAMLFactory.builder()
-            .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-            .build();
+                                                          .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+                                                          .build();
     private static final ObjectMapper YAML_OBJECT_MAPPER = new ObjectMapper(FACTORY);
 
     private KroxyliciousConfigMapTemplates() {
@@ -33,12 +33,12 @@ public final class KroxyliciousConfigMapTemplates {
 
     private static ConfigMapBuilder baseKroxyliciousConfig(String namespaceName) {
         return new ConfigMapBuilder()
-                .withApiVersion("v1")
-                .withKind(Constants.CONFIG_MAP_KIND)
-                .editMetadata()
-                .withName(Constants.KROXY_CONFIG_NAME)
-                .withNamespace(namespaceName)
-                .endMetadata();
+                                     .withApiVersion("v1")
+                                     .withKind(Constants.CONFIG_MAP_KIND)
+                                     .editMetadata()
+                                     .withName(Constants.KROXY_CONFIG_NAME)
+                                     .withNamespace(namespaceName)
+                                     .endMetadata();
     }
 
     /**
@@ -50,7 +50,7 @@ public final class KroxyliciousConfigMapTemplates {
      */
     public static ConfigMapBuilder defaultKroxyliciousConfig(String clusterName, String namespaceName) {
         return baseKroxyliciousConfig(namespaceName)
-                .addToData("config.yaml", getDefaultKroxyliciousConfigMap(clusterName));
+                                                    .addToData("config.yaml", getDefaultKroxyliciousConfigMap(clusterName));
     }
 
     /**
@@ -61,10 +61,14 @@ public final class KroxyliciousConfigMapTemplates {
      * @param testKmsFacade the test kms facade
      * @return the config map builder
      */
-    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(String clusterName, String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade,
-                                                                      ExperimentalKmsConfig experimentalKmsConfig) {
+    public static ConfigMapBuilder kroxyliciousRecordEncryptionConfig(
+            String clusterName,
+            String namespaceName,
+            TestKmsFacade<?, ?, ?> testKmsFacade,
+            ExperimentalKmsConfig experimentalKmsConfig
+    ) {
         return baseKroxyliciousConfig(namespaceName)
-                .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, testKmsFacade, experimentalKmsConfig));
+                                                    .addToData("config.yaml", getRecordEncryptionConfigMap(clusterName, testKmsFacade, experimentalKmsConfig));
     }
 
     private static String buildEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
@@ -79,8 +83,11 @@ public final class KroxyliciousConfigMapTemplates {
                       template: "KEK_${topicName}"
                     experimental:
                       %s
-                """.formatted(testKmsFacade.getKmsServiceClass().getSimpleName(), getNestedYaml(testKmsFacade.getKmsServiceConfig(), 6),
-                getNestedYaml(experimentalKmsConfig, 6));
+                """.formatted(
+                testKmsFacade.getKmsServiceClass().getSimpleName(),
+                getNestedYaml(testKmsFacade.getKmsServiceConfig(), 6),
+                getNestedYaml(experimentalKmsConfig, 6)
+        );
     }
 
     private static String getNestedYaml(Object config, int indent) {
@@ -116,7 +123,7 @@ public final class KroxyliciousConfigMapTemplates {
                 filters:
                 %s
                 """
-                .formatted(Constants.KROXY_SERVICE_NAME, clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, configYaml);
+                   .formatted(Constants.KROXY_SERVICE_NAME, clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, configYaml);
     }
 
     private static String getDefaultKroxyliciousConfigMap(String clusterName) {
@@ -136,7 +143,7 @@ public final class KroxyliciousConfigMapTemplates {
                     logNetwork: false
                     logFrames: false
                 """
-                .formatted(clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, Constants.KROXY_SERVICE_NAME);
+                   .formatted(clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, Constants.KROXY_SERVICE_NAME);
     }
 
     /**
@@ -161,6 +168,6 @@ public final class KroxyliciousConfigMapTemplates {
                     logNetwork: false
                     logFrames: false
                 """
-                .formatted(clusterExternalIP);
+                   .formatted(clusterExternalIP);
     }
 }

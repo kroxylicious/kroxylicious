@@ -10,7 +10,7 @@ adminHttp:
   host: kroxy
   port: 9093
   endpoints:
-    prometheus: {}
+    prometheus: { }
 virtualClusters:
   demo:
     targetCluster:

@@ -57,8 +57,8 @@ import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModul
  * It reduces resource consumption on the cluster when a client sends too many invalid SASL requests.
  */
 public class OauthBearerValidationFilter
-        implements SaslHandshakeRequestFilter, SaslAuthenticateRequestFilter,
-        SaslAuthenticateResponseFilter {
+                                         implements SaslHandshakeRequestFilter, SaslAuthenticateRequestFilter,
+                                         SaslAuthenticateResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OauthBearerValidationFilter.class);
 
@@ -80,81 +80,100 @@ public class OauthBearerValidationFilter
      * Init the SaslServer for downstream SASL
      */
     @Override
-    public CompletionStage<RequestFilterResult> onSaslHandshakeRequest(short apiVersion, RequestHeaderData header, SaslHandshakeRequestData request,
-                                                                       FilterContext context) {
+    public CompletionStage<RequestFilterResult> onSaslHandshakeRequest(
+            short apiVersion,
+            RequestHeaderData header,
+            SaslHandshakeRequestData request,
+            FilterContext context
+    ) {
         // in any case, handshake if SASL server is initiated is a protocol violation
         if (this.saslServer != null) {
             LOGGER.debug("SASL error : Handshake request with a not null SASL server");
             return context.requestFilterResultBuilder()
-                    .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(ILLEGAL_SASL_STATE.code()))
-                    .withCloseConnection()
-                    .completed();
+                          .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(ILLEGAL_SASL_STATE.code()))
+                          .withCloseConnection()
+                          .completed();
         }
         try {
             if (OAUTHBEARER_MECHANISM.equals(request.mechanism()) && this.validateAuthentication) {
                 this.saslServer = Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, this.oauthHandler);
-            }
-            else {
+            } else {
                 this.validateAuthentication = false;
             }
         }
         catch (SaslException e) {
             LOGGER.debug("SASL error : {}", e.getMessage(), e);
             return context.requestFilterResultBuilder()
-                    .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(UNKNOWN_SERVER_ERROR.code()))
-                    .withCloseConnection()
-                    .completed();
+                          .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(UNKNOWN_SERVER_ERROR.code()))
+                          .withCloseConnection()
+                          .completed();
         }
         return context.forwardRequest(header, request);
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onSaslAuthenticateRequest(short apiVersion, RequestHeaderData header,
-                                                                          SaslAuthenticateRequestData request, FilterContext context) {
+    public CompletionStage<RequestFilterResult> onSaslAuthenticateRequest(
+            short apiVersion,
+            RequestHeaderData header,
+            SaslAuthenticateRequestData request,
+            FilterContext context
+    ) {
         if (!validateAuthentication) {
             // client is already authenticated or is not using OAUTHBEARER mechanism, we can forward the request to cluster
             return context.forwardRequest(header, request);
-        }
-        else {
+        } else {
             var server = saslServer;
             if (server == null) {
                 SaslAuthenticateResponseData failedResponse = new SaslAuthenticateResponseData()
-                        .setErrorCode(ILLEGAL_SASL_STATE.code())
-                        .setErrorMessage("Unexpected SASL request")
-                        .setAuthBytes(request.authBytes());
+                                                                                                .setErrorCode(ILLEGAL_SASL_STATE.code())
+                                                                                                .setErrorMessage("Unexpected SASL request")
+                                                                                                .setAuthBytes(request.authBytes());
                 LOGGER.debug("SASL invalid state");
                 return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
             }
             this.saslServer = null;
 
             return authenticate(server, request.authBytes())
-                    .thenCompose(bytes -> context.forwardRequest(header, request))
-                    .exceptionallyCompose(e -> {
-                        if (e.getCause() instanceof SaslAuthenticationException) {
-                            SaslAuthenticateResponseData failedResponse = new SaslAuthenticateResponseData()
-                                    .setErrorCode(SASL_AUTHENTICATION_FAILED.code())
-                                    .setErrorMessage(e.getMessage())
-                                    .setAuthBytes(request.authBytes());
-                            LOGGER.debug("SASL Authentication failed : {}", e.getMessage(), e);
-                            return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
-                        }
-                        else {
-                            LOGGER.debug("SASL error : {}", e.getMessage(), e);
-                            return context.requestFilterResultBuilder()
-                                    .shortCircuitResponse(
-                                            new SaslAuthenticateResponseData()
-                                                    .setErrorCode(UNKNOWN_SERVER_ERROR.code())
-                                                    .setAuthBytes(request.authBytes()))
-                                    .withCloseConnection()
-                                    .completed();
-                        }
-                    });
+                                                            .thenCompose(bytes -> context.forwardRequest(header, request))
+                                                            .exceptionallyCompose(e -> {
+                                                                if (e.getCause() instanceof SaslAuthenticationException) {
+                                                                    SaslAuthenticateResponseData failedResponse = new SaslAuthenticateResponseData()
+                                                                                                                                                    .setErrorCode(
+                                                                                                                                                            SASL_AUTHENTICATION_FAILED.code()
+                                                                                                                                                    )
+                                                                                                                                                    .setErrorMessage(
+                                                                                                                                                            e.getMessage()
+                                                                                                                                                    )
+                                                                                                                                                    .setAuthBytes(
+                                                                                                                                                            request.authBytes()
+                                                                                                                                                    );
+                                                                    LOGGER.debug("SASL Authentication failed : {}", e.getMessage(), e);
+                                                                    return context.requestFilterResultBuilder()
+                                                                                  .shortCircuitResponse(failedResponse)
+                                                                                  .withCloseConnection()
+                                                                                  .completed();
+                                                                } else {
+                                                                    LOGGER.debug("SASL error : {}", e.getMessage(), e);
+                                                                    return context.requestFilterResultBuilder()
+                                                                                  .shortCircuitResponse(
+                                                                                          new SaslAuthenticateResponseData()
+                                                                                                                            .setErrorCode(UNKNOWN_SERVER_ERROR.code())
+                                                                                                                            .setAuthBytes(request.authBytes())
+                                                                                  )
+                                                                                  .withCloseConnection()
+                                                                                  .completed();
+                                                                }
+                                                            });
         }
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onSaslAuthenticateResponse(short apiVersion, ResponseHeaderData header,
-                                                                            SaslAuthenticateResponseData response, FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onSaslAuthenticateResponse(
+            short apiVersion,
+            ResponseHeaderData header,
+            SaslAuthenticateResponseData response,
+            FilterContext context
+    ) {
         if (response.errorCode() == NONE.code()) {
             this.validateAuthentication = false;
         }
@@ -178,14 +197,13 @@ public class OauthBearerValidationFilter
                 return CompletableFuture.failedStage(e);
             }
         }, delay)
-                .whenComplete((bytes, e) -> {
-                    if (e != null) {
-                        rateLimiter.get(rateLimiterKey).incrementAndGet();
-                    }
-                    else {
-                        rateLimiter.invalidate(rateLimiterKey);
-                    }
-                });
+                 .whenComplete((bytes, e) -> {
+                     if (e != null) {
+                         rateLimiter.get(rateLimiterKey).incrementAndGet();
+                     } else {
+                         rateLimiter.invalidate(rateLimiterKey);
+                     }
+                 });
     }
 
     private byte[] doAuthenticate(SaslServer server, byte[] authBytes) throws SaslException {
@@ -212,8 +230,7 @@ public class OauthBearerValidationFilter
             operation.get().whenComplete((a, throwable) -> {
                 if (throwable != null) {
                     future.completeExceptionally(throwable);
-                }
-                else {
+                } else {
                     future.complete(a);
                 }
             });

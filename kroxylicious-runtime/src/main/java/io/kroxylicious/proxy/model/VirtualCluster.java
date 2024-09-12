@@ -48,12 +48,14 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualCluster.class);
 
-    public VirtualCluster(String clusterName,
-                          TargetCluster targetCluster,
-                          ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
-                          Optional<Tls> tls,
-                          boolean logNetwork,
-                          boolean logFrames) {
+    public VirtualCluster(
+            String clusterName,
+            TargetCluster targetCluster,
+            ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
+            Optional<Tls> tls,
+            boolean logNetwork,
+            boolean logFrames
+    ) {
         this.clusterName = clusterName;
         this.tls = tls;
         this.targetCluster = targetCluster;
@@ -71,16 +73,25 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     }
 
     @SuppressWarnings("java:S1874") // the classes are deprecated because we don't want them in the API module
-    private static void logVirtualClusterSummary(String clusterName, TargetCluster targetCluster,
-                                                 ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
-                                                 Optional<Tls> tls) {
+    private static void logVirtualClusterSummary(
+            String clusterName,
+            TargetCluster targetCluster,
+            ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
+            Optional<Tls> tls
+    ) {
         try {
             var downstreamTls = tls.map(tls1 -> " (TLS)").orElse("");
             HostPort downstreamBootstrap = clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
             var upstreamTls = targetCluster.tls().map(tls1 -> " (TLS)").orElse("");
             HostPort upstreamHostPort = targetCluster.bootstrapServersList().get(0);
-            LOGGER.info("Virtual Cluster: {}, Downstream {}{} => Upstream {}{}",
-                    clusterName, downstreamBootstrap, downstreamTls, upstreamHostPort, upstreamTls);
+            LOGGER.info(
+                    "Virtual Cluster: {}, Downstream {}{} => Upstream {}{}",
+                    clusterName,
+                    downstreamBootstrap,
+                    downstreamTls,
+                    upstreamHostPort,
+                    upstreamTls
+            );
         }
         catch (Exception e) {
             LOGGER.warn("Failed to log summary for Virtual Cluster: {}", clusterName, e);
@@ -117,16 +128,34 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     @Override
     public String toString() {
-        return "VirtualCluster{" +
-                "clusterName='" + clusterName + '\'' +
-                ", targetCluster=" + targetCluster +
-                ", tls=" + tls +
-                ", logNetwork=" + logNetwork +
-                ", logFrames=" + logFrames +
-                ", clusterNetworkAddressConfigProvider=" + clusterNetworkAddressConfigProvider +
-                ", upstreamSslContext=" + upstreamSslContext +
-                ", downstreamSslContext=" + downstreamSslContext +
-                '}';
+        return "VirtualCluster{"
+               +
+               "clusterName='"
+               + clusterName
+               + '\''
+               +
+               ", targetCluster="
+               + targetCluster
+               +
+               ", tls="
+               + tls
+               +
+               ", logNetwork="
+               + logNetwork
+               +
+               ", logFrames="
+               + logFrames
+               +
+               ", clusterNetworkAddressConfigProvider="
+               + clusterNetworkAddressConfigProvider
+               +
+               ", upstreamSslContext="
+               + upstreamSslContext
+               +
+               ", downstreamSslContext="
+               + downstreamSslContext
+               +
+               '}';
     }
 
     @Override
@@ -191,8 +220,10 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private Optional<SslContext> buildUpstreamSslContext() {
         return targetCluster.tls().map(targetClusterTls -> {
             try {
-                var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
-                        .orElse(SslContextBuilder.forClient());
+                var sslContextBuilder = Optional.ofNullable(targetClusterTls.key())
+                                                .map(NettyKeyProvider::new)
+                                                .map(NettyKeyProvider::forClient)
+                                                .orElse(SslContextBuilder.forClient());
 
                 final TrustProvider trustProvider = Optional.ofNullable(targetClusterTls.trust()).orElse(PlatformTrustProvider.INSTANCE);
                 var withTrust = new NettyTrustProvider(trustProvider).apply(sslContextBuilder);
@@ -206,11 +237,15 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     }
 
     private static void validatePortUsage(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider) {
-        var conflicts = clusterNetworkAddressConfigProvider.getExclusivePorts().stream().filter(p -> clusterNetworkAddressConfigProvider.getSharedPorts().contains(p))
-                .collect(Collectors.toSet());
+        var conflicts = clusterNetworkAddressConfigProvider.getExclusivePorts()
+                                                           .stream()
+                                                           .filter(p -> clusterNetworkAddressConfigProvider.getSharedPorts().contains(p))
+                                                           .collect(Collectors.toSet());
         if (!conflicts.isEmpty()) {
             throw new IllegalStateException(
-                    "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: " + conflicts);
+                    "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: "
+                                            + conflicts
+            );
         }
     }
 

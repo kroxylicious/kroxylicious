@@ -14,7 +14,7 @@
     <module name="TreeWalker">
         <module name="ImportControl">
             <property name="file" value="${project.basedir}/etc/module-layering.xml"/>
-            <property name="path" value="src/main/java" />
+            <property name="path" value="src/main/java"/>
         </module>
     </module>
 </module>

@@ -55,9 +55,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
 
-    public KafkaProxyInitializer(FilterChainFactory filterChainFactory, PluginFactoryRegistry pfr, boolean tls,
-                                 VirtualClusterBindingResolver virtualClusterBindingResolver, EndpointReconciler endpointReconciler,
-                                 boolean haproxyProtocol, Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
+    public KafkaProxyInitializer(
+            FilterChainFactory filterChainFactory,
+            PluginFactoryRegistry pfr,
+            boolean tls,
+            VirtualClusterBindingResolver virtualClusterBindingResolver,
+            EndpointReconciler endpointReconciler,
+            boolean haproxyProtocol,
+            Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers
+    ) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
@@ -75,12 +81,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         ChannelPipeline pipeline = ch.pipeline();
 
         int targetPort = ch.localAddress().getPort();
-        var bindingAddress = ch.parent().localAddress().getAddress().isAnyLocalAddress() ? Optional.<String> empty()
+        var bindingAddress = ch.parent().localAddress().getAddress().isAnyLocalAddress()
+                ? Optional.<String> empty()
                 : Optional.of(ch.localAddress().getAddress().getHostAddress());
         if (tls) {
             initTlsChannel(ch, pipeline, bindingAddress, targetPort);
-        }
-        else {
+        } else {
             initPlainChannel(ch, pipeline, bindingAddress, targetPort);
         }
     }
@@ -91,23 +97,23 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
                 virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), null)
-                        .handle((binding, t) -> {
-                            if (t != null) {
-                                ctx.fireExceptionCaught(t);
-                                return null;
-                            }
-                            try {
-                                KafkaProxyInitializer.this.addHandlers(ch, binding);
-                                ctx.fireChannelActive();
-                            }
-                            catch (Throwable t1) {
-                                ctx.fireExceptionCaught(t1);
-                            }
-                            finally {
-                                pipeline.remove(this);
-                            }
-                            return null;
-                        });
+                                             .handle((binding, t) -> {
+                                                 if (t != null) {
+                                                     ctx.fireExceptionCaught(t);
+                                                     return null;
+                                                 }
+                                                 try {
+                                                     KafkaProxyInitializer.this.addHandlers(ch, binding);
+                                                     ctx.fireChannelActive();
+                                                 }
+                                                 catch (Throwable t1) {
+                                                     ctx.fireExceptionCaught(t1);
+                                                 }
+                                                 finally {
+                                                     pipeline.remove(this);
+                                                 }
+                                                 return null;
+                                             });
             }
         });
     }
@@ -129,8 +135,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                         var sslContext = virtualCluster.getDownstreamSslContext();
                         if (sslContext.isEmpty()) {
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(virtualCluster)));
-                        }
-                        else {
+                        } else {
                             KafkaProxyInitializer.this.addHandlers(ch, binding);
                             promise.setSuccess(sslContext.get());
                         }
@@ -208,8 +213,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         private final FilterChainFactory filterChainFactory;
         private final EndpointReconciler endpointReconciler;
 
-        InitalizerNetFilter(SaslDecodePredicate decodePredicate, ApiVersionsServiceImpl apiVersionService, SocketChannel ch,
-                            VirtualClusterBinding binding, PluginFactoryRegistry pfr, FilterChainFactory filterChainFactory, EndpointReconciler endpointReconciler) {
+        InitalizerNetFilter(
+                SaslDecodePredicate decodePredicate,
+                ApiVersionsServiceImpl apiVersionService,
+                SocketChannel ch,
+                VirtualClusterBinding binding,
+                PluginFactoryRegistry pfr,
+                FilterChainFactory filterChainFactory,
+                EndpointReconciler endpointReconciler
+        ) {
             this.decodePredicate = decodePredicate;
             this.apiVersionService = apiVersionService;
             this.ch = ch;
@@ -222,7 +234,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         @Override
         public void selectServer(NetFilter.NetFilterContext context) {
-            List<FilterAndInvoker> apiVersionFilters = decodePredicate.isAuthenticationOffloadEnabled() ? List.of()
+            List<FilterAndInvoker> apiVersionFilters = decodePredicate.isAuthenticationOffloadEnabled()
+                    ? List.of()
                     : FilterAndInvoker.build(new ApiVersionsIntersectFilter(apiVersionService));
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);

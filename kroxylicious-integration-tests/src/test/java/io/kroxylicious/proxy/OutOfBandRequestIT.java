@@ -85,7 +85,7 @@ public class OutOfBandRequestIT {
 
     private static FilterDefinition outOfBandSender(ApiKeys apiKeyToSend, int tagToCollect) {
         return new FilterDefinitionBuilder(OutOfBandSendFilterFactory.class.getName()).withConfig(Map.of("apiKeyToSend", apiKeyToSend, "tagToCollect", tagToCollect))
-                .build();
+                                                                                      .build();
     }
 
     private static FilterDefinition addAddUnknownTaggedFieldToMessagesWithApiKey(String name, ApiKeys apiKeys) {
@@ -95,18 +95,23 @@ public class OutOfBandRequestIT {
     private static void andMessageFromOutOfBandRequestToMockHadTagAddedByUpstreamFilterOnly(MockServerKroxyliciousTester tester) {
         Request request = tester.getOnlyRequestForApiKey(CREATE_TOPICS);
         String tags = unknownTaggedFieldsToStrings(request.message(), FILTER_NAME_TAG)
-                .collect(Collectors.joining(","));
+                                                                                      .collect(Collectors.joining(","));
         assertEquals(RequestResponseMarkingFilter.class.getSimpleName() + "-upstreamOfOutOfBandFilter-request", tags);
     }
 
     private static void thenResponseContainsTagsAugmentedInByUpstreamFilterOnly(DescribeClusterResponseData responseData) {
-        assertEquals("filterNameTaggedFieldsFromOutOfBandResponse: " + RequestResponseMarkingFilter.class.getSimpleName()
-                + "-upstreamOfOutOfBandFilter-response", responseData.errorMessage());
+        assertEquals(
+                "filterNameTaggedFieldsFromOutOfBandResponse: "
+                     + RequestResponseMarkingFilter.class.getSimpleName()
+                     + "-upstreamOfOutOfBandFilter-response",
+                responseData.errorMessage()
+        );
     }
 
     private static DescribeClusterResponseData whenDescribeCluster(KafkaClient client) {
         Response response = client.getSync(
-                new Request(DESCRIBE_CLUSTER, DESCRIBE_CLUSTER.latestVersion(), "client", new DescribeClusterRequestData()));
+                new Request(DESCRIBE_CLUSTER, DESCRIBE_CLUSTER.latestVersion(), "client", new DescribeClusterRequestData())
+        );
         return (DescribeClusterResponseData) response.payload().message();
     }
 

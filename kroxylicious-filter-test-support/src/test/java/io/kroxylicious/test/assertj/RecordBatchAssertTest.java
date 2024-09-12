@@ -172,14 +172,29 @@ class RecordBatchAssertTest {
     @Test
     void testRecordBatchHasMetadataMatching() {
         RecordBatch batch = RecordTestUtils.singleElementRecordBatch("KEY", "VALUE");
-        RecordBatch batchSameMetadata = RecordTestUtils.singleElementRecordBatch("KEY", "VALUE",
-                new RecordHeader("HEADER", "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
-        RecordBatch batchDifferentMetadata = singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, Compression.gzip().build(), TimestampType.CREATE_TIME, 1L, 1L,
-                (short) 1, 1, false,
-                false, 1,
+        RecordBatch batchSameMetadata = RecordTestUtils.singleElementRecordBatch(
+                "KEY",
+                "VALUE",
+                new RecordHeader("HEADER", "HEADER_VALUE".getBytes(StandardCharsets.UTF_8))
+        );
+        RecordBatch batchDifferentMetadata = singleElementRecordBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                1L,
+                Compression.gzip().build(),
+                TimestampType.CREATE_TIME,
+                1L,
+                1L,
+                (short) 1,
+                1,
+                false,
+                false,
+                1,
                 "KEY".getBytes(
-                        StandardCharsets.UTF_8),
-                "VALUE".getBytes(StandardCharsets.UTF_8), new RecordHeader[]{});
+                        StandardCharsets.UTF_8
+                ),
+                "VALUE".getBytes(StandardCharsets.UTF_8),
+                new RecordHeader[]{}
+        );
         RecordBatchAssert batchAssert = KafkaAssertions.assertThat(batch);
         batchAssert.hasMetadataMatching(batch);
         batchAssert.hasMetadataMatching(batchSameMetadata);
@@ -201,7 +216,7 @@ class RecordBatchAssertTest {
         RecordBatch batch = RecordTestUtils.singleElementRecordBatch("KEY", "VALUE");
         RecordBatch emptyByCompaction = RecordTestUtils.recordBatchWithAllRecordsRemoved(1L);
         RecordBatch multipleRecordsBatch = RecordTestUtils.memoryRecords(List.of(RecordTestUtils.record(0L, "KEY", "a"), RecordTestUtils.record(1L, "KEY2", "b")))
-                .firstBatch();
+                                                          .firstBatch();
         KafkaAssertions.assertThat(batch).firstRecord().hasKeyEqualTo("KEY");
         KafkaAssertions.assertThat(multipleRecordsBatch).firstRecord().hasKeyEqualTo("KEY");
         throwsAssertionErrorContaining(() -> KafkaAssertions.assertThat(emptyByCompaction).firstRecord(), "[record batch]");
@@ -213,7 +228,7 @@ class RecordBatchAssertTest {
         RecordBatch batch = RecordTestUtils.singleElementRecordBatch("KEY", "VALUE");
         RecordBatch emptyByCompaction = RecordTestUtils.recordBatchWithAllRecordsRemoved(1L);
         RecordBatch multipleRecordsBatch = RecordTestUtils.memoryRecords(List.of(RecordTestUtils.record(0L, "KEY", "a"), RecordTestUtils.record(1L, "KEY2", "b")))
-                .firstBatch();
+                                                          .firstBatch();
         KafkaAssertions.assertThat(batch).lastRecord().hasKeyEqualTo("KEY");
         KafkaAssertions.assertThat(multipleRecordsBatch).lastRecord().hasKeyEqualTo("KEY2");
         throwsAssertionErrorContaining(() -> KafkaAssertions.assertThat(emptyByCompaction).lastRecord(), "[record batch]");
@@ -225,7 +240,7 @@ class RecordBatchAssertTest {
         RecordBatch batch = RecordTestUtils.singleElementRecordBatch("KEY", "VALUE");
         RecordBatch emptyByCompaction = RecordTestUtils.recordBatchWithAllRecordsRemoved(1L);
         RecordBatch multipleRecordsBatch = RecordTestUtils.memoryRecords(List.of(RecordTestUtils.record(0L, "KEY", "a"), RecordTestUtils.record(1L, "KEY", "b")))
-                .firstBatch();
+                                                          .firstBatch();
         for (RecordAssert record : KafkaAssertions.assertThat(batch).records()) {
             record.hasKeyEqualTo("KEY");
         }

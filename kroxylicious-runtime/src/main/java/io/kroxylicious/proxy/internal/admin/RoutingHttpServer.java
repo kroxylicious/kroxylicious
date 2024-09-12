@@ -64,8 +64,7 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
                 if (!req.protocolVersion().isKeepAliveDefault()) {
                     response.headers().set(CONNECTION, KEEP_ALIVE);
                 }
-            }
-            else {
+            } else {
                 // Tell the client we're going to close the connection.
                 response.headers().set(CONNECTION, CLOSE);
             }
@@ -87,8 +86,7 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
                 LOGGER.error("exception while invoking endpoint for route {}", req.uri(), e);
                 return responseWithStatus(req, INTERNAL_SERVER_ERROR);
             }
-        }
-        else {
+        } else {
             return responseWithStatus(req, NOT_FOUND);
         }
     }
@@ -98,8 +96,11 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
     }
 
     public static FullHttpResponse responseWithBody(HttpRequest req, HttpResponseStatus status, String content) {
-        FullHttpResponse response = new DefaultFullHttpResponse(req.protocolVersion(), status,
-                Unpooled.wrappedBuffer(content.getBytes(StandardCharsets.UTF_8)));
+        FullHttpResponse response = new DefaultFullHttpResponse(
+                req.protocolVersion(),
+                status,
+                Unpooled.wrappedBuffer(content.getBytes(StandardCharsets.UTF_8))
+        );
         response.headers()
                 .set(CONTENT_TYPE, TEXT_PLAIN)
                 .setInt(CONTENT_LENGTH, response.content().readableBytes());

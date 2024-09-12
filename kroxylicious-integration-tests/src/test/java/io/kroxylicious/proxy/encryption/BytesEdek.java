@@ -36,9 +36,12 @@ public record BytesEdek(byte[] edek) {
 
     @Override
     public String toString() {
-        return "BytesEdek{" +
-                "edek=" + Base64.getEncoder().encodeToString(edek) +
-                '}';
+        return "BytesEdek{"
+               +
+               "edek="
+               + Base64.getEncoder().encodeToString(edek)
+               +
+               '}';
     }
 
     static Serde<BytesEdek> getSerde() {
@@ -49,12 +52,14 @@ public record BytesEdek(byte[] edek) {
             }
 
             @Override
-            public void serialize(BytesEdek object, @NonNull ByteBuffer buffer) {
+            public void serialize(BytesEdek object, @NonNull
+            ByteBuffer buffer) {
                 throw new UnsupportedOperationException("serialize not supported");
             }
 
             @Override
-            public BytesEdek deserialize(@NonNull ByteBuffer buffer) {
+            public BytesEdek deserialize(@NonNull
+            ByteBuffer buffer) {
                 byte[] bytes = new byte[buffer.remaining()];
                 buffer.get(bytes);
                 return new BytesEdek(bytes);

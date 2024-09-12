@@ -24,8 +24,12 @@ interface Action {
 
     static Action respond(ApiMessage message) {
         return (ctx, frame) -> {
-            DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(frame.apiVersion(),
-                    frame.correlationId(), new ResponseHeaderData().setCorrelationId(frame.correlationId()), message);
+            DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(
+                    frame.apiVersion(),
+                    frame.correlationId(),
+                    new ResponseHeaderData().setCorrelationId(frame.correlationId()),
+                    message
+            );
             ctx.write(responseFrame);
         };
     }

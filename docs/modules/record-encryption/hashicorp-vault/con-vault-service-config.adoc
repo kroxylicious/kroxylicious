@@ -5,10 +5,10 @@
 [id='con-vault-service-config-{context}']
 = Configuring the HashiCorp Vault KMS
 
-For HashiCorp Vault, the KMS configuration looks like this.  Use the Vault Token and Vault Transit Engine URL values that
-you gathered above.
+For HashiCorp Vault, the KMS configuration looks like this.
+Use the Vault Token and Vault Transit Engine URL values that you gathered above.
 
-[source, yaml]
+[source,yaml]
 ----
 kms: VaultKmsService                                          # <1>
 kmsConfig:
@@ -18,7 +18,9 @@ kmsConfig:
     passwordFile: /opt/vault/token
 
 ----
-<1> Name of the KMS provider. This must be `VaultKmsService`.
+
+<1> Name of the KMS provider.
+This must be `VaultKmsService`.
 <2> link:setup.adoc#_vault_transit_engine_url[Vault Transit Engine URL] including the protocol part, i.e. `https:` or `http:`
 <3> (Optional) TLS trust configuration.
 <4> File containing the Vault Token

@@ -454,11 +454,13 @@ public class ArrayFilterInvoker implements FilterInvoker {
      * @return
      */
     @Override
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
-                                                          short apiVersion,
-                                                          RequestHeaderData header,
-                                                          ApiMessage body,
-                                                          FilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(
+            ApiKeys apiKey,
+            short apiVersion,
+            RequestHeaderData header,
+            ApiMessage body,
+            FilterContext filterContext
+    ) {
         FilterInvoker invoker = requestInvokers[apiKey.id];
         return invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
     }
@@ -474,11 +476,13 @@ public class ArrayFilterInvoker implements FilterInvoker {
      * @return
      */
     @Override
-    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
-                                                            short apiVersion,
-                                                            ResponseHeaderData header,
-                                                            ApiMessage body,
-                                                            FilterContext filterContext) {
+    public CompletionStage<ResponseFilterResult> onResponse(
+            ApiKeys apiKey,
+            short apiVersion,
+            ResponseHeaderData header,
+            ApiMessage body,
+            FilterContext filterContext
+    ) {
         FilterInvoker invoker = responseInvokers[apiKey.id];
         return invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
     }

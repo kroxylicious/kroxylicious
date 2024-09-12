@@ -38,8 +38,12 @@ public class ConfigMapResource implements ResourceType<ConfigMap> {
 
     @Override
     public void delete(ConfigMap resource) {
-        configClient().inNamespace(resource.getMetadata().getNamespace()).withName(
-                resource.getMetadata().getName()).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
+        configClient().inNamespace(resource.getMetadata().getNamespace())
+                      .withName(
+                              resource.getMetadata().getName()
+                      )
+                      .withPropagationPolicy(DeletionPropagation.FOREGROUND)
+                      .delete();
     }
 
     @Override

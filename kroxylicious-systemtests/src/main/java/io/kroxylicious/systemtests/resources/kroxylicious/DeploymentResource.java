@@ -41,8 +41,12 @@ public class DeploymentResource implements ResourceType<Deployment> {
 
     @Override
     public void delete(Deployment resource) {
-        deploymentClient().inNamespace(resource.getMetadata().getNamespace()).withName(
-                resource.getMetadata().getName()).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
+        deploymentClient().inNamespace(resource.getMetadata().getNamespace())
+                          .withName(
+                                  resource.getMetadata().getName()
+                          )
+                          .withPropagationPolicy(DeletionPropagation.FOREGROUND)
+                          .delete();
     }
 
     @Override
@@ -52,8 +56,9 @@ public class DeploymentResource implements ResourceType<Deployment> {
 
     @Override
     public boolean waitForReadiness(Deployment resource) {
-        deploymentClient().inNamespace(resource.getMetadata().getNamespace()).withName(resource.getMetadata().getName())
-                .waitUntilReady(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()).toMillis(), TimeUnit.MILLISECONDS);
+        deploymentClient().inNamespace(resource.getMetadata().getNamespace())
+                          .withName(resource.getMetadata().getName())
+                          .waitUntilReady(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()).toMillis(), TimeUnit.MILLISECONDS);
         return true;
     }
 

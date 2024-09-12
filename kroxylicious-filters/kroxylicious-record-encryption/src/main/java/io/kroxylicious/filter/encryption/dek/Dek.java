@@ -74,7 +74,10 @@ public final class Dek<E> {
     final AtomicCryptorUsageCounter outstandingCryptors;
     private final CipherManager cipherManager;
 
-    Dek(@NonNull E edek, @NonNull DestroyableRawSecretKey key, @NonNull CipherManager cipherManager, long maxEncryptions) {
+    Dek(@NonNull
+    E edek, @NonNull
+    DestroyableRawSecretKey key, @NonNull
+    CipherManager cipherManager, long maxEncryptions) {
         /* protected access because instantion only allowed via a DekManager */
         Objects.requireNonNull(edek);
         if (Objects.requireNonNull(key).isDestroyed()) {
@@ -218,11 +221,11 @@ public final class Dek<E> {
          * @throws BufferTooSmallException If the buffer returned by the {@code paramAllocator}
          * had too few bytes remaining for the parameters to be written completely.
          */
-        public ByteBuffer generateParameters(@NonNull EncryptAllocator paramAllocator) {
+        public ByteBuffer generateParameters(@NonNull
+        EncryptAllocator paramAllocator) {
             if (numEncryptions <= 0) {
                 throw new DekUsageException("The Encryptor has no more operations allowed");
-            }
-            else {
+            } else {
                 --numEncryptions;
                 try {
                     AlgorithmParameterSpec params = paramSupplier.get();
@@ -264,9 +267,14 @@ public final class Dek<E> {
          * @throws BufferTooSmallException If the buffer returned by the {@code ciphertextAllocator}
          * had too few bytes remaining for the ciphertext to be written completely.
          */
-        public ByteBuffer encrypt(@NonNull ByteBuffer plaintext,
-                                  @Nullable ByteBuffer aad,
-                                  @NonNull EncryptAllocator ciphertextAllocator) {
+        public ByteBuffer encrypt(
+                @NonNull
+                ByteBuffer plaintext,
+                @Nullable
+                ByteBuffer aad,
+                @NonNull
+                EncryptAllocator ciphertextAllocator
+        ) {
             if (!haveParameters) {
                 throw new IllegalStateException("Expecting a prior call to generateParameters()");
             }
@@ -331,10 +339,16 @@ public final class Dek<E> {
          * @param parameterBuffer The buffer containing the cipher parameters.
          * @param plaintext The plaintext.
          */
-        public void decrypt(@NonNull ByteBuffer ciphertext,
-                            @Nullable ByteBuffer aad,
-                            @NonNull ByteBuffer parameterBuffer,
-                            @NonNull ByteBuffer plaintext) {
+        public void decrypt(
+                @NonNull
+                ByteBuffer ciphertext,
+                @Nullable
+                ByteBuffer aad,
+                @NonNull
+                ByteBuffer parameterBuffer,
+                @NonNull
+                ByteBuffer plaintext
+        ) {
             try {
                 var parameterSpec = cipherManager.readParameters(parameterBuffer);
                 cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);

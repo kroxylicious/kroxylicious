@@ -23,7 +23,10 @@ class FilterTest {
     @Test
     void detectsMissingConfig() {
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
-                .hasMessage(RequiresConfigFactory.class.getSimpleName() + " requires configuration, but config object is null");
+                                                                .hasMessage(
+                                                                        RequiresConfigFactory.class.getSimpleName()
+                                                                            + " requires configuration, but config object is null"
+                                                                );
     }
 
     @Test

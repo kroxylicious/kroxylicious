@@ -30,8 +30,11 @@ class ContributionManagerTest {
 
     @BeforeEach
     void setUp() {
-        contributingContributors = List.of(new StringContributor("v1"),
-                new LongContributor(3), new IntContributor());
+        contributingContributors = List.of(
+                new StringContributor("v1"),
+                new LongContributor(3),
+                new IntContributor()
+        );
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
@@ -93,8 +96,10 @@ class ContributionManagerTest {
         final ContributionManager contributionManager = new ContributionManager(clazz -> contributingContributors);
 
         // When
-        final ContributionManager.ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(StringContributor.class,
-                "String");
+        final ContributionManager.ConfigurationDefinition configurationDefinition = contributionManager.getDefinition(
+                StringContributor.class,
+                "String"
+        );
 
         // Then
         assertThat(configurationDefinition).hasFieldOrProperty("configurationType").extracting("configurationType").isEqualTo(StringConfig.class);

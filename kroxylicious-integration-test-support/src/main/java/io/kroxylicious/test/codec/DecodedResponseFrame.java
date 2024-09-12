@@ -13,8 +13,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * @param <B> the decoded ApiMessage type
  */
 public class DecodedResponseFrame<B extends ApiMessage>
-        extends DecodedFrame<ResponseHeaderData, B>
-        implements Frame {
+                                 extends DecodedFrame<ResponseHeaderData, B>
+                                 implements Frame {
 
     /**
      * Create a decoded response frame

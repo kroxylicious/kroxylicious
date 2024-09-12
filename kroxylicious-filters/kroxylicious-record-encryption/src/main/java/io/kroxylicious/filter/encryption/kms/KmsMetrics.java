@@ -17,13 +17,16 @@ public interface KmsMetrics {
 
     void countGenerateDekPairAttempt();
 
-    void countGenerateDekPairOutcome(@NonNull OperationOutcome outcome);
+    void countGenerateDekPairOutcome(@NonNull
+    OperationOutcome outcome);
 
     void countDecryptEdekAttempt();
 
-    void countDecryptEdekOutcome(@NonNull OperationOutcome outcome);
+    void countDecryptEdekOutcome(@NonNull
+    OperationOutcome outcome);
 
     void countResolveAliasAttempt();
 
-    void countResolveAliasOutcome(@NonNull OperationOutcome outcome);
+    void countResolveAliasOutcome(@NonNull
+    OperationOutcome outcome);
 }

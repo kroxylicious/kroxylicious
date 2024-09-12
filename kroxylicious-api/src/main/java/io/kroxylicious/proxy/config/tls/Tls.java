@@ -17,8 +17,10 @@ import java.util.Locale;
  *
  * TODO ability to restrict by TLS protocol and cipher suite.
  */
-public record Tls(KeyProvider key,
-                  TrustProvider trust) {
+public record Tls(
+        KeyProvider key,
+        TrustProvider trust
+) {
 
     public static final String PEM = "PEM";
 

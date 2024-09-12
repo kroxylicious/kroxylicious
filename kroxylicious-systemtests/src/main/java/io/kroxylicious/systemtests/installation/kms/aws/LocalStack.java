@@ -95,10 +95,15 @@ public class LocalStack implements AwsKmsClient {
         LOGGER.info("Deploy AWS in {} namespace", deploymentNamespace);
         NamespaceUtils.createNamespaceWithWait(deploymentNamespace);
         ResourceManager.helmClient().addRepository(LOCALSTACK_HELM_REPOSITORY_NAME, LOCALSTACK_HELM_REPOSITORY_URL);
-        ResourceManager.helmClient().namespace(deploymentNamespace).install(LOCALSTACK_HELM_CHART_NAME, LOCALSTACK_SERVICE_NAME,
-                Optional.of(Environment.AWS_LOCALSTACK_CHART_VERSION),
-                Optional.of(Path.of(TestUtils.getResourcesURI("helm_localstack_overrides.yaml"))),
-                Optional.empty());
+        ResourceManager.helmClient()
+                       .namespace(deploymentNamespace)
+                       .install(
+                               LOCALSTACK_HELM_CHART_NAME,
+                               LOCALSTACK_SERVICE_NAME,
+                               Optional.of(Environment.AWS_LOCALSTACK_CHART_VERSION),
+                               Optional.of(Path.of(TestUtils.getResourcesURI("helm_localstack_overrides.yaml"))),
+                               Optional.empty()
+                       );
     }
 
     @Override

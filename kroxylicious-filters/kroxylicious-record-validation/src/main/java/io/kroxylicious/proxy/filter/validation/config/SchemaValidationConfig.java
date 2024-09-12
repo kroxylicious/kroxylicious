@@ -21,8 +21,12 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioGloba
      * @param apicurioRegistryUrl Apicurio Registry instance url
      */
     @JsonCreator
-    public SchemaValidationConfig(@JsonProperty(value = "apicurioRegistryUrl", required = true) URL apicurioRegistryUrl,
-                                  @JsonProperty(value = "apicurioGlobalId", required = true) long apicurioGlobalId) {
+    public SchemaValidationConfig(
+            @JsonProperty(value = "apicurioRegistryUrl", required = true)
+            URL apicurioRegistryUrl,
+            @JsonProperty(value = "apicurioGlobalId", required = true)
+            long apicurioGlobalId
+    ) {
         this.apicurioGlobalId = apicurioGlobalId;
         this.apicurioRegistryUrl = apicurioRegistryUrl;
     }
@@ -45,10 +49,16 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioGloba
 
     @Override
     public String toString() {
-        return "SchemaValidationConfig{" +
-                "apicurioGlobalId=" + apicurioGlobalId +
-                ", apicurioRegistryUrl='" + apicurioRegistryUrl + '\'' +
-                '}';
+        return "SchemaValidationConfig{"
+               +
+               "apicurioGlobalId="
+               + apicurioGlobalId
+               +
+               ", apicurioRegistryUrl='"
+               + apicurioRegistryUrl
+               + '\''
+               +
+               '}';
     }
 
 }

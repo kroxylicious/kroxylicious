@@ -16,9 +16,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class UnknownTaggedFields {
 
     public static Stream<String> unknownTaggedFieldsToStrings(Message message, int tag) {
-        return message.unknownTaggedFields().stream()
-                .filter(t -> t.tag() == tag)
-                .map(RawTaggedField::data)
-                .map(b -> new String(b, UTF_8));
+        return message.unknownTaggedFields()
+                      .stream()
+                      .filter(t -> t.tag() == tag)
+                      .map(RawTaggedField::data)
+                      .map(b -> new String(b, UTF_8));
     }
 }

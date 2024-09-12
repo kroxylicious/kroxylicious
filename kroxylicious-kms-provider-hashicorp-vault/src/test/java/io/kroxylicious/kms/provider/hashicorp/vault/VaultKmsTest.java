@@ -47,8 +47,9 @@ class VaultKmsTest {
     @Test
     void resolveWithUnknownKeyReusesConnection() {
         assertReusesConnectionsOn404(vaultKms -> {
-            assertThat(vaultKms.resolveAlias("alias")).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-                    .withCauseInstanceOf(UnknownAliasException.class);
+            assertThat(vaultKms.resolveAlias("alias")).failsWithin(Duration.ofSeconds(5))
+                                                      .withThrowableThat()
+                                                      .withCauseInstanceOf(UnknownAliasException.class);
         });
     }
 
@@ -78,16 +79,17 @@ class VaultKmsTest {
                 """;
         withMockVaultWithSingleResponse(response, vaultKms -> {
             assertThat(vaultKms.resolveAlias("alias"))
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .isEqualTo("resolved");
+                                                      .succeedsWithin(Duration.ofSeconds(5))
+                                                      .isEqualTo("resolved");
         });
     }
 
     @Test
     void generatedDekPairWithUnknownKeyReusesConnection() {
         assertReusesConnectionsOn404(vaultKms -> {
-            assertThat(vaultKms.generateDekPair("alias")).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-                    .withCauseInstanceOf(UnknownKeyException.class);
+            assertThat(vaultKms.generateDekPair("alias")).failsWithin(Duration.ofSeconds(5))
+                                                         .withThrowableThat()
+                                                         .withCauseInstanceOf(UnknownKeyException.class);
         });
     }
 
@@ -106,16 +108,27 @@ class VaultKmsTest {
                 """.formatted(plaintext, ciphertext);
         withMockVaultWithSingleResponse(response, vaultKms -> {
             assertThat(vaultKms.generateDekPair("alias")).succeedsWithin(Duration.ofSeconds(5))
-                    .matches(dekPair -> Objects.equals(dekPair.edek(), new VaultEdek("alias", ciphertext.getBytes(StandardCharsets.UTF_8))))
-                    .matches(dekPair -> SecretKeyUtils.same((DestroyableRawSecretKey) dekPair.dek(), DestroyableRawSecretKey.takeCopyOf(decoded, "AES")));
+                                                         .matches(
+                                                                 dekPair -> Objects.equals(
+                                                                         dekPair.edek(),
+                                                                         new VaultEdek("alias", ciphertext.getBytes(StandardCharsets.UTF_8))
+                                                                 )
+                                                         )
+                                                         .matches(
+                                                                 dekPair -> SecretKeyUtils.same(
+                                                                         (DestroyableRawSecretKey) dekPair.dek(),
+                                                                         DestroyableRawSecretKey.takeCopyOf(decoded, "AES")
+                                                                 )
+                                                         );
         });
     }
 
     @Test
     void decryptEdekWithUnknownKeyReusesConnection() {
         assertReusesConnectionsOn404(vaultKms -> {
-            assertThat(vaultKms.decryptEdek(new VaultEdek("unknown", new byte[]{ 1 }))).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-                    .withCauseInstanceOf(UnknownKeyException.class);
+            assertThat(vaultKms.decryptEdek(new VaultEdek("unknown", new byte[]{ 1 }))).failsWithin(Duration.ofSeconds(5))
+                                                                                       .withThrowableThat()
+                                                                                       .withCauseInstanceOf(UnknownKeyException.class);
         });
     }
 
@@ -134,8 +147,16 @@ class VaultKmsTest {
                 """.formatted(plaintext);
         withMockVaultWithSingleResponse(response, vaultKms -> {
             assertThat(vaultKms.decryptEdek(new VaultEdek("kek", edekBytes))).succeedsWithin(Duration.ofSeconds(5))
-                    .isInstanceOf(DestroyableRawSecretKey.class)
-                    .matches(key -> SecretKeyUtils.same((DestroyableRawSecretKey) key, DestroyableRawSecretKey.takeCopyOf(plaintextBytes, "AES")));
+                                                                             .isInstanceOf(DestroyableRawSecretKey.class)
+                                                                             .matches(
+                                                                                     key -> SecretKeyUtils.same(
+                                                                                             (DestroyableRawSecretKey) key,
+                                                                                             DestroyableRawSecretKey.takeCopyOf(
+                                                                                                     plaintextBytes,
+                                                                                                     "AES"
+                                                                                             )
+                                                                                     )
+                                                                             );
         });
     }
 
@@ -165,7 +186,8 @@ class VaultKmsTest {
                 Arguments.of("trailing slash", uri.resolve("v1/transit/"), "/v1/transit/"),
                 Arguments.of("single namespace", uri.resolve("v1/ns1/transit"), "/v1/ns1/transit/"),
                 Arguments.of("many namespaces", uri.resolve("v1/ns1/ns2/transit"), "/v1/ns1/ns2/transit/"),
-                Arguments.of("non standard engine name", uri.resolve("v1/mytransit"), "/v1/mytransit/"));
+                Arguments.of("non standard engine name", uri.resolve("v1/mytransit"), "/v1/mytransit/")
+        );
     }
 
     @ParameterizedTest(name = "{0}")
@@ -173,8 +195,8 @@ class VaultKmsTest {
     void acceptsVaultTransitEnginePaths(String name, URI uri, String expected) {
         var kms = new VaultKms(uri, "token", Duration.ofMillis(500), null);
         assertThat(kms.getVaultTransitEngineUri())
-                .extracting(URI::getPath)
-                .isEqualTo(expected);
+                                                  .extracting(URI::getPath)
+                                                  .isEqualTo(expected);
 
     }
 
@@ -185,14 +207,15 @@ class VaultKmsTest {
                 Arguments.of("missing path", uri.resolve("/")),
                 Arguments.of("unrecognized API version", uri.resolve("v999/transit")),
                 Arguments.of("missing engine", uri.resolve("v1")),
-                Arguments.of("empty engine", uri.resolve("v1/")));
+                Arguments.of("empty engine", uri.resolve("v1/"))
+        );
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("unacceptableVaultTransitEnginePaths")
     void detectsUnacceptableVaultTransitEnginePaths(String name, URI uri) {
         assertThatThrownBy(() -> new VaultKms(uri, "token", Duration.ZERO, null))
-                .isInstanceOf(IllegalArgumentException.class);
+                                                                                 .isInstanceOf(IllegalArgumentException.class);
 
     }
 

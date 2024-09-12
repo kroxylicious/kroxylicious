@@ -30,8 +30,8 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
     @Override
     public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(ExtensionContext context) {
         return TestKmsFacadeFactory.getTestKmsFacadeFactories()
-                .map(TestKmsFacadeFactory::build)
-                .map(TemplateInvocationContext::new);
+                                   .map(TestKmsFacadeFactory::build)
+                                   .map(TemplateInvocationContext::new);
     }
 
     private record TemplateInvocationContext(TestKmsFacade<?, ?, ?> kmsFacade) implements TestTemplateInvocationContext {
@@ -45,8 +45,10 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
         public List<Extension> getAdditionalExtensions() {
             if (!kmsFacade.isAvailable()) {
                 return List.of(
-                        (ExecutionCondition) extensionContext -> kmsFacade.isAvailable() ? ConditionEvaluationResult.enabled(null)
-                                : ConditionEvaluationResult.disabled(null));
+                        (ExecutionCondition) extensionContext -> kmsFacade.isAvailable()
+                                ? ConditionEvaluationResult.enabled(null)
+                                : ConditionEvaluationResult.disabled(null)
+                );
             }
 
             return List.of(
@@ -57,7 +59,8 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
                             return kmsFacade;
                         }
                     },
-                    (AfterEachCallback) extensionContext -> kmsFacade.stop());
+                    (AfterEachCallback) extensionContext -> kmsFacade.stop()
+            );
         }
     }
 }

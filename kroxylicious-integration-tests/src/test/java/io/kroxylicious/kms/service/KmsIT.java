@@ -49,8 +49,8 @@ class KmsIT<C, K, E> {
         manager.generateKek(alias);
         var resolved = kms.resolveAlias(alias);
         assertThat(resolved)
-                .succeedsWithin(Duration.ofSeconds(5))
-                .isNotNull();
+                            .succeedsWithin(Duration.ofSeconds(5))
+                            .isNotNull();
     }
 
     @TestTemplate
@@ -58,9 +58,9 @@ class KmsIT<C, K, E> {
         var alias = "unknown";
         var resolved = kms.resolveAlias(alias);
         assertThat(resolved)
-                .failsWithin(Duration.ofSeconds(5))
-                .withThrowableThat()
-                .withCauseInstanceOf(UnknownAliasException.class);
+                            .failsWithin(Duration.ofSeconds(5))
+                            .withThrowableThat()
+                            .withCauseInstanceOf(UnknownAliasException.class);
     }
 
     @TestTemplate
@@ -70,8 +70,8 @@ class KmsIT<C, K, E> {
 
         var decryptedDekStage = kms.decryptEdek(pair.edek());
         assertThat(decryptedDekStage)
-                .succeedsWithin(Duration.ofSeconds(5))
-                .matches(sk -> SecretKeyUtils.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
+                                     .succeedsWithin(Duration.ofSeconds(5))
+                                     .matches(sk -> SecretKeyUtils.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
     }
 
     @TestTemplate
@@ -80,9 +80,9 @@ class KmsIT<C, K, E> {
 
         var pairStage = kms.generateDekPair(resolvedKekId);
         assertThat(pairStage)
-                .failsWithin(Duration.ofSeconds(5))
-                .withThrowableThat()
-                .withCauseInstanceOf(UnknownKeyException.class);
+                             .failsWithin(Duration.ofSeconds(5))
+                             .withThrowableThat()
+                             .withCauseInstanceOf(UnknownKeyException.class);
     }
 
     @TestTemplate
@@ -96,8 +96,8 @@ class KmsIT<C, K, E> {
 
         var decryptedDekStage = kms.decryptEdek(pair.edek());
         assertThat(decryptedDekStage)
-                .succeedsWithin(Duration.ofSeconds(5))
-                .matches(sk -> SecretKeyUtils.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
+                                     .succeedsWithin(Duration.ofSeconds(5))
+                                     .matches(sk -> SecretKeyUtils.same((DestroyableRawSecretKey) sk, (DestroyableRawSecretKey) pair.dek()));
     }
 
     @TestTemplate
@@ -111,9 +111,9 @@ class KmsIT<C, K, E> {
 
         var secretKeyStage = kms.decryptEdek(dek.edek());
         assertThat(secretKeyStage)
-                .failsWithin(Duration.ofSeconds(5))
-                .withThrowableThat()
-                .withCauseInstanceOf(UnknownKeyException.class);
+                                  .failsWithin(Duration.ofSeconds(5))
+                                  .withThrowableThat()
+                                  .withCauseInstanceOf(UnknownKeyException.class);
     }
 
     @TestTemplate

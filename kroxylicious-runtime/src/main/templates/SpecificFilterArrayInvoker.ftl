@@ -52,7 +52,8 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
         Map<Integer, FilterInvoker> responseInvokers = new HashMap<>();
         <#list messageSpecs as messageSpec>
         if (filter instanceof ${messageSpec.name}Filter) {
-            ${messageSpec.type?lower_case}Invokers.put(${messageSpec.apiKey.get()}, new ${messageSpec.name}FilterInvoker((${messageSpec.name}Filter) filter));
+                ${messageSpec.type?lower_case}Invokers.put(${messageSpec.apiKey.get()}, new ${messageSpec.name}FilterInvoker(
+                    (${messageSpec.name}Filter) filter));
         }
         </#list>
         this.requestInvokers = createFrom(requestInvokers);
@@ -69,18 +70,19 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      */
     @Override
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
-    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
-                                                          short apiVersion,
-                                                          RequestHeaderData header,
-                                                          ApiMessage body,
-                                                          FilterContext filterContext) {
+    public CompletionStage<RequestFilterResult> onRequest(
+            ApiKeys apiKey,
+            short apiVersion,
+            RequestHeaderData header,
+            ApiMessage body,
+            FilterContext filterContext) {
         // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
         // See the InvokerDispatchBenchmark micro benchmark for a comparison
         return switch (apiKey) {
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'request'>
             case ${retrieveApiKey(messageSpec)} ->
-                requestInvokers[apiKey.id].onRequest(apiKey, apiVersion, header, body, filterContext);
+                    requestInvokers[apiKey.id].onRequest(apiKey, apiVersion, header, body, filterContext);
     </#if>
 </#list>
             default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
@@ -98,11 +100,12 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
      */
     @Override
     @SuppressWarnings("SwitchStatementWithTooFewBranches")
-    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
-                                                            short apiVersion,
-                                                            ResponseHeaderData header,
-                                                            ApiMessage body,
-                                                            FilterContext filterContext) {
+    public CompletionStage<ResponseFilterResult> onResponse(
+            ApiKeys apiKey,
+            short apiVersion,
+            ResponseHeaderData header,
+            ApiMessage body,
+            FilterContext filterContext) {
         // We wrap the array lookup in a switch based on the API Key as it supports JIT optimisations around method dispatch.
         // See the InvokerDispatchBenchmark micro benchmark for a comparison
         return switch (apiKey) {
@@ -141,8 +144,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
         return switch (apiKey) {
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(messageSpec)} ->
-                    requestInvokers[apiKey.id].shouldHandleRequest(apiKey, apiVersion);
+            case ${retrieveApiKey(messageSpec)} -> requestInvokers[apiKey.id].shouldHandleRequest(apiKey, apiVersion);
     </#if>
 </#list>
             default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
@@ -174,8 +176,7 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
             // See the InvokerDispatchBenchmark micro benchmark for a comparison
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'response'>
-            case ${retrieveApiKey(messageSpec)} ->
-                    responseInvokers[apiKey.id].shouldHandleResponse(apiKey, apiVersion);
+            case ${retrieveApiKey(messageSpec)} -> responseInvokers[apiKey.id].shouldHandleResponse(apiKey, apiVersion);
     </#if>
 </#list>
             default -> throw new IllegalStateException("Unsupported RPC " + apiKey);
@@ -195,7 +196,9 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
 
     private static FilterInvoker[] createHandleNothing() {
         FilterInvoker[] filterInvokers = emptyInvokerArraySizedForMessageTypes();
-        Arrays.stream(ApiMessageType.values()).mapToInt(ApiMessageType::apiKey).forEach(value -> filterInvokers[value] = FilterInvokers.handleNothingInvoker());
+        Arrays.stream(ApiMessageType.values())
+              .mapToInt(ApiMessageType::apiKey)
+              .forEach(value -> filterInvokers[value] = FilterInvokers.handleNothingInvoker());
         return filterInvokers;
     }
 
@@ -204,7 +207,11 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
             return HANDLE_NOTHING;
         }
         FilterInvoker[] filterInvokers = emptyInvokerArraySizedForMessageTypes();
-        Arrays.stream(ApiMessageType.values()).mapToInt(ApiMessageType::apiKey).forEach(value -> filterInvokers[value] = filterInvokersByApiMessageId.getOrDefault(value, FilterInvokers.handleNothingInvoker()));
+        Arrays.stream(ApiMessageType.values())
+              .mapToInt(ApiMessageType::apiKey)
+              .forEach(value -> filterInvokers[value] = filterInvokersByApiMessageId.getOrDefault(
+                      value,
+                      FilterInvokers.handleNothingInvoker()));
         return filterInvokers;
     }
 

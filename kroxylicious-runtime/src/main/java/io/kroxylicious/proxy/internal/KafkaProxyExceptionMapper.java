@@ -208,8 +208,10 @@ public class KafkaProxyExceptionMapper {
      * @param throwableClass the target class to register
      * @param responseFunction the function to invoke when the throwable is encountered
      */
-    public <E extends Throwable> void registerExceptionResponse(Class<E> throwableClass,
-                                                                Function<E, Optional<ResponseFrame>> responseFunction) {
+    public <E extends Throwable> void registerExceptionResponse(
+            Class<E> throwableClass,
+            Function<E, Optional<ResponseFrame>> responseFunction
+    ) {
         responsesByExceptionType.put(throwableClass, responseFunction);
     }
 
@@ -224,7 +226,7 @@ public class KafkaProxyExceptionMapper {
         var candidate = throwable;
         Set<Throwable> visitedExceptions = Collections.newSetFromMap(new IdentityHashMap<>());
         while (candidate != null
-                && visitedExceptions.add(candidate)) { // Exit the loop when we see an exception we saw already
+               && visitedExceptions.add(candidate)) { // Exit the loop when we see an exception we saw already
 
             final var mappedFunction = containsMapping(candidate);
             if (mappedFunction.isPresent()) {
@@ -236,10 +238,11 @@ public class KafkaProxyExceptionMapper {
     }
 
     private <E extends Throwable> Optional<? extends Function<? super E, Optional<ResponseFrame>>> containsMapping(E localCause) {
-        return responsesByExceptionType.entrySet().stream()
-                .filter(entry -> entry.getKey().isInstance(localCause))
-                .map(entry -> (Function<? super E, Optional<ResponseFrame>>) entry.getValue())
-                .findFirst();
+        return responsesByExceptionType.entrySet()
+                                       .stream()
+                                       .filter(entry -> entry.getKey().isInstance(localCause))
+                                       .map(entry -> (Function<? super E, Optional<ResponseFrame>>) entry.getValue())
+                                       .findFirst();
     }
 
     public ApiMessage errorResponseMessage(DecodedRequestFrame<?> frame, Throwable error) {
@@ -272,16 +275,17 @@ public class KafkaProxyExceptionMapper {
             case LIST_OFFSETS:
                 ListOffsetsRequestData listOffsetsRequestData = (ListOffsetsRequestData) reqBody;
                 if (listOffsetsRequestData.replicaId() == ListOffsetsRequest.CONSUMER_REPLICA_ID) {
-                    req = ListOffsetsRequest.Builder.forConsumer(true,
+                    req = ListOffsetsRequest.Builder.forConsumer(
+                            true,
                             IsolationLevel.forId(listOffsetsRequestData.isolationLevel()),
-                            true)
-                            .setTargetTimes(listOffsetsRequestData.topics())
-                            .build(apiVersion);
-                }
-                else {
+                            true
+                    )
+                                                    .setTargetTimes(listOffsetsRequestData.topics())
+                                                    .build(apiVersion);
+                } else {
                     req = ListOffsetsRequest.Builder.forReplica(apiVersion, listOffsetsRequestData.replicaId())
-                            .setTargetTimes(listOffsetsRequestData.topics())
-                            .build(apiVersion);
+                                                    .setTargetTimes(listOffsetsRequestData.topics())
+                                                    .build(apiVersion);
                 }
                 break;
             case METADATA:
@@ -294,52 +298,70 @@ public class KafkaProxyExceptionMapper {
                 OffsetFetchRequestData offsetFetchRequestData = (OffsetFetchRequestData) reqBody;
                 if (offsetFetchRequestData.groups() != null && !offsetFetchRequestData.groups().isEmpty()) {
                     req = new OffsetFetchRequest.Builder(
-                            offsetFetchRequestData.groups().stream().collect(Collectors.toMap(
-                                    OffsetFetchRequestData.OffsetFetchRequestGroup::groupId,
-                                    x -> x.topics().stream().flatMap(
-                                            t -> t.partitionIndexes().stream().map(
-                                                    p -> new TopicPartition(t.name(), p)))
-                                            .toList())),
-                            true, false)
-                            .build(apiVersion);
-                }
-                else if (offsetFetchRequestData.topics() != null && !offsetFetchRequestData.topics().isEmpty()) {
+                            offsetFetchRequestData.groups()
+                                                  .stream()
+                                                  .collect(
+                                                          Collectors.toMap(
+                                                                  OffsetFetchRequestData.OffsetFetchRequestGroup::groupId,
+                                                                  x -> x.topics()
+                                                                        .stream()
+                                                                        .flatMap(
+                                                                                t -> t.partitionIndexes()
+                                                                                      .stream()
+                                                                                      .map(
+                                                                                              p -> new TopicPartition(t.name(), p)
+                                                                                      )
+                                                                        )
+                                                                        .toList()
+                                                          )
+                                                  ),
+                            true,
+                            false
+                    )
+                     .build(apiVersion);
+                } else if (offsetFetchRequestData.topics() != null && !offsetFetchRequestData.topics().isEmpty()) {
                     req = new OffsetFetchRequest.Builder(
                             offsetFetchRequestData.groupId(),
                             offsetFetchRequestData.requireStable(),
-                            offsetFetchRequestData.topics().stream().flatMap(
-                                    x -> x.partitionIndexes().stream().map(
-                                            p -> new TopicPartition(x.name(), p)))
-                                    .toList(),
-                            false)
-                            .build(apiVersion);
-                }
-                else {
+                            offsetFetchRequestData.topics()
+                                                  .stream()
+                                                  .flatMap(
+                                                          x -> x.partitionIndexes()
+                                                                .stream()
+                                                                .map(
+                                                                        p -> new TopicPartition(x.name(), p)
+                                                                )
+                                                  )
+                                                  .toList(),
+                            false
+                    )
+                     .build(apiVersion);
+                } else {
                     throw new IllegalStateException();
                 }
                 break;
             case FIND_COORDINATOR:
                 req = new FindCoordinatorRequest.Builder((FindCoordinatorRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                              .build(apiVersion);
                 break;
             case JOIN_GROUP:
                 req = new JoinGroupRequest((JoinGroupRequestData) reqBody, apiVersion);
                 break;
             case HEARTBEAT:
                 req = new HeartbeatRequest.Builder((HeartbeatRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                  .build(apiVersion);
                 break;
             case LEAVE_GROUP:
                 LeaveGroupRequestData data = (LeaveGroupRequestData) reqBody;
                 req = new LeaveGroupRequest.Builder(data.groupId(), data.members())
-                        .build(apiVersion);
+                                                                                   .build(apiVersion);
                 break;
             case SYNC_GROUP:
                 req = new SyncGroupRequest((SyncGroupRequestData) reqBody, apiVersion);
                 break;
             case DESCRIBE_GROUPS:
                 req = new DescribeGroupsRequest.Builder((DescribeGroupsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                            .build(apiVersion);
                 break;
             case LIST_GROUPS:
                 req = new ListGroupsRequest((ListGroupsRequestData) reqBody, apiVersion);
@@ -352,15 +374,15 @@ public class KafkaProxyExceptionMapper {
                 break;
             case DELETE_TOPICS:
                 req = new DeleteTopicsRequest.Builder((DeleteTopicsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                        .build(apiVersion);
                 break;
             case DELETE_RECORDS:
                 req = new DeleteRecordsRequest.Builder((DeleteRecordsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                          .build(apiVersion);
                 break;
             case INIT_PRODUCER_ID:
                 req = new InitProducerIdRequest.Builder((InitProducerIdRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                            .build(apiVersion);
                 break;
             case OFFSET_FOR_LEADER_EPOCH:
                 req = new OffsetsForLeaderEpochRequest((OffsetForLeaderEpochRequestData) reqBody, apiVersion);
@@ -373,32 +395,37 @@ public class KafkaProxyExceptionMapper {
                 break;
             case END_TXN:
                 req = new EndTxnRequest.Builder((EndTxnRequestData) reqBody)
-                        .build(apiVersion);
+                                                                            .build(apiVersion);
                 break;
             case WRITE_TXN_MARKERS:
                 req = new WriteTxnMarkersRequest.Builder((WriteTxnMarkersRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                              .build(apiVersion);
                 break;
             case TXN_OFFSET_COMMIT:
                 req = new TxnOffsetCommitRequest((TxnOffsetCommitRequestData) reqBody, apiVersion);
                 break;
             case DESCRIBE_ACLS:
                 DescribeAclsRequestData d = (DescribeAclsRequestData) reqBody;
-                req = new DescribeAclsRequest.Builder(new AclBindingFilter(
-                        new ResourcePatternFilter(
-                                ResourceType.fromCode(d.resourceTypeFilter()),
-                                d.resourceNameFilter(),
-                                PatternType.fromCode(d.patternTypeFilter())),
-                        new AccessControlEntryFilter(
-                                d.principalFilter(),
-                                d.hostFilter(),
-                                AclOperation.fromCode(d.operation()),
-                                AclPermissionType.fromCode(d.permissionType()))))
-                        .build(apiVersion);
+                req = new DescribeAclsRequest.Builder(
+                        new AclBindingFilter(
+                                new ResourcePatternFilter(
+                                        ResourceType.fromCode(d.resourceTypeFilter()),
+                                        d.resourceNameFilter(),
+                                        PatternType.fromCode(d.patternTypeFilter())
+                                ),
+                                new AccessControlEntryFilter(
+                                        d.principalFilter(),
+                                        d.hostFilter(),
+                                        AclOperation.fromCode(d.operation()),
+                                        AclPermissionType.fromCode(d.permissionType())
+                                )
+                        )
+                )
+                 .build(apiVersion);
                 break;
             case CREATE_ACLS:
                 req = new CreateAclsRequest.Builder((CreateAclsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                    .build(apiVersion);
                 break;
             case DELETE_ACLS:
                 req = new DeleteAclsRequest.Builder((DeleteAclsRequestData) reqBody).build(apiVersion);
@@ -417,25 +444,26 @@ public class KafkaProxyExceptionMapper {
                 break;
             case CREATE_PARTITIONS:
                 req = new CreatePartitionsRequest.Builder((CreatePartitionsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                .build(apiVersion);
                 break;
             case CREATE_DELEGATION_TOKEN:
                 req = new CreateDelegationTokenRequest.Builder((CreateDelegationTokenRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                          .build(apiVersion);
                 break;
             case RENEW_DELEGATION_TOKEN:
                 req = new RenewDelegationTokenRequest.Builder((RenewDelegationTokenRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                        .build(apiVersion);
                 break;
             case EXPIRE_DELEGATION_TOKEN:
                 req = new ExpireDelegationTokenRequest.Builder((ExpireDelegationTokenRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                          .build(apiVersion);
                 break;
             case DESCRIBE_DELEGATION_TOKEN:
                 DescribeDelegationTokenRequestData tokenRequestData = (DescribeDelegationTokenRequestData) reqBody;
                 req = new DescribeDelegationTokenRequest.Builder(
-                        tokenRequestData.owners().stream().map(o -> new KafkaPrincipal(o.principalType(), o.principalName())).toList())
-                        .build(apiVersion);
+                        tokenRequestData.owners().stream().map(o -> new KafkaPrincipal(o.principalType(), o.principalName())).toList()
+                )
+                 .build(apiVersion);
                 break;
             case DELETE_GROUPS:
                 req = new DeleteGroupsRequest((DeleteGroupsRequestData) reqBody, apiVersion);
@@ -444,23 +472,30 @@ public class KafkaProxyExceptionMapper {
                 ElectLeadersRequestData electLeaders = (ElectLeadersRequestData) reqBody;
                 req = new ElectLeadersRequest.Builder(
                         ElectionType.valueOf(electLeaders.electionType()),
-                        electLeaders.topicPartitions().stream().flatMap(
-                                t -> t.partitions().stream().map(
-                                        p -> new TopicPartition(t.topic(), p)))
-                                .toList(),
-                        electLeaders.timeoutMs())
-                        .build(apiVersion);
+                        electLeaders.topicPartitions()
+                                    .stream()
+                                    .flatMap(
+                                            t -> t.partitions()
+                                                  .stream()
+                                                  .map(
+                                                          p -> new TopicPartition(t.topic(), p)
+                                                  )
+                                    )
+                                    .toList(),
+                        electLeaders.timeoutMs()
+                )
+                 .build(apiVersion);
                 break;
             case INCREMENTAL_ALTER_CONFIGS:
                 req = new IncrementalAlterConfigsRequest((IncrementalAlterConfigsRequestData) reqBody, apiVersion);
                 break;
             case ALTER_PARTITION_REASSIGNMENTS:
                 req = new AlterPartitionReassignmentsRequest.Builder((AlterPartitionReassignmentsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                                      .build(apiVersion);
                 break;
             case LIST_PARTITION_REASSIGNMENTS:
                 req = new ListPartitionReassignmentsRequest.Builder((ListPartitionReassignmentsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                                    .build(apiVersion);
                 break;
             case OFFSET_DELETE:
                 req = new OffsetDeleteRequest((OffsetDeleteRequestData) reqBody, apiVersion);
@@ -473,11 +508,11 @@ public class KafkaProxyExceptionMapper {
                 break;
             case DESCRIBE_USER_SCRAM_CREDENTIALS:
                 req = new DescribeUserScramCredentialsRequest.Builder((DescribeUserScramCredentialsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                                        .build(apiVersion);
                 break;
             case ALTER_USER_SCRAM_CREDENTIALS:
                 req = new AlterUserScramCredentialsRequest.Builder((AlterUserScramCredentialsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                                  .build(apiVersion);
                 break;
             case DESCRIBE_QUORUM:
                 req = new DescribeQuorumRequest.Builder((DescribeQuorumRequestData) reqBody).build(apiVersion);
@@ -493,30 +528,30 @@ public class KafkaProxyExceptionMapper {
                 break;
             case DESCRIBE_PRODUCERS:
                 req = new DescribeProducersRequest.Builder((DescribeProducersRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                  .build(apiVersion);
                 break;
             case DESCRIBE_TRANSACTIONS:
                 req = new DescribeTransactionsRequest.Builder((DescribeTransactionsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                        .build(apiVersion);
                 break;
             case LIST_TRANSACTIONS:
                 req = new ListTransactionsRequest.Builder((ListTransactionsRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                .build(apiVersion);
                 break;
             case ALLOCATE_PRODUCER_IDS:
                 req = new AllocateProducerIdsRequest((AllocateProducerIdsRequestData) reqBody, apiVersion);
                 break;
             case VOTE:
                 req = new VoteRequest.Builder((VoteRequestData) reqBody)
-                        .build(apiVersion);
+                                                                        .build(apiVersion);
                 break;
             case BEGIN_QUORUM_EPOCH:
                 req = new BeginQuorumEpochRequest.Builder((BeginQuorumEpochRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                                .build(apiVersion);
                 break;
             case END_QUORUM_EPOCH:
                 req = new EndQuorumEpochRequest.Builder((EndQuorumEpochRequestData) reqBody)
-                        .build(apiVersion);
+                                                                                            .build(apiVersion);
                 break;
             case ENVELOPE:
                 req = new EnvelopeRequest((EnvelopeRequestData) reqBody, apiVersion);
@@ -526,36 +561,51 @@ public class KafkaProxyExceptionMapper {
                 break;
             case LEADER_AND_ISR:
                 LeaderAndIsrRequestData lisr = (LeaderAndIsrRequestData) reqBody;
-                req = new LeaderAndIsrRequest.Builder(apiVersion, lisr.controllerId(),
-                        lisr.controllerEpoch(), lisr.brokerEpoch(),
+                req = new LeaderAndIsrRequest.Builder(
+                        apiVersion,
+                        lisr.controllerId(),
+                        lisr.controllerEpoch(),
+                        lisr.brokerEpoch(),
                         lisr.ungroupedPartitionStates(),
-                        lisr.topicStates().stream().collect(Collectors.toMap(
-                                LeaderAndIsrRequestData.LeaderAndIsrTopicState::topicName,
-                                LeaderAndIsrRequestData.LeaderAndIsrTopicState::topicId)),
-                        lisr.liveLeaders().stream().map(
-                                x -> new Node(
-                                        x.brokerId(),
-                                        x.hostName(),
-                                        x.port()))
-                                .toList())
-                        .build(apiVersion);
+                        lisr.topicStates()
+                            .stream()
+                            .collect(
+                                    Collectors.toMap(
+                                            LeaderAndIsrRequestData.LeaderAndIsrTopicState::topicName,
+                                            LeaderAndIsrRequestData.LeaderAndIsrTopicState::topicId
+                                    )
+                            ),
+                        lisr.liveLeaders()
+                            .stream()
+                            .map(
+                                    x -> new Node(
+                                            x.brokerId(),
+                                            x.hostName(),
+                                            x.port()
+                                    )
+                            )
+                            .toList()
+                )
+                 .build(apiVersion);
                 break;
             case STOP_REPLICA:
                 StopReplicaRequestData stopReplica = (StopReplicaRequestData) reqBody;
-                req = new StopReplicaRequest.Builder(apiVersion,
+                req = new StopReplicaRequest.Builder(
+                        apiVersion,
                         stopReplica.controllerId(),
                         stopReplica.controllerEpoch(),
                         stopReplica.brokerEpoch(),
                         stopReplica.deletePartitions(),
-                        stopReplica.topicStates())
-                        .build(apiVersion);
+                        stopReplica.topicStates()
+                )
+                 .build(apiVersion);
                 break;
             case UPDATE_METADATA:
                 req = new UpdateMetadataRequest((UpdateMetadataRequestData) reqBody, apiVersion);
                 break;
             case CONTROLLED_SHUTDOWN:
                 req = new ControlledShutdownRequest.Builder((ControlledShutdownRequestData) reqBody, apiVersion)
-                        .build(apiVersion);
+                                                                                                                .build(apiVersion);
                 break;
             case BROKER_REGISTRATION:
                 req = new BrokerRegistrationRequest((BrokerRegistrationRequestData) reqBody, apiVersion);

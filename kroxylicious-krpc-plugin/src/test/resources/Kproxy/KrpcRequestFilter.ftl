@@ -6,12 +6,12 @@
 
 -->
 ====
-    Copyright Kroxylicious Authors.
+        Copyright Kroxylicious Authors.
 
-    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
-====
+        Licensed under the Apache Software License version2.0,available at http://www.apache.org/licenses/LICENSE-2.0
+        ====
 
-package ${outputPackage};
+        package ${outputPackage};
 
 <#list messageSpecs as messageSpec>
 import org.apache.kafka.common.message.${messageSpec.name}Data;
@@ -61,13 +61,16 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
      * @param filterContext The filter context.
      * @return The state of the filter.
      */
-    public default KrpcFilterState apply(DecodedRequestFrame<?> decodedFrame,
-                                         KrpcFilterContext filterContext) {
+    public default KrpcFilterState apply(
+            DecodedRequestFrame<?> decodedFrame,
+            KrpcFilterContext filterContext) {
         KrpcFilterState state;
         switch (decodedFrame.apiKey()) {
 <#list messageSpecs as messageSpec>
             case ${retrieveApiKey(messageSpec)}:
-                state = ((${messageSpec.name}Filter) this).on${messageSpec.name}((${messageSpec.name}Data) decodedFrame.body(), filterContext);
+                state = ((${messageSpec.name}Filter) this).on${messageSpec.name}(
+                        (${messageSpec.name}Data) decodedFrame.body(),
+                        filterContext);
                 break;
 </#list>
             default:

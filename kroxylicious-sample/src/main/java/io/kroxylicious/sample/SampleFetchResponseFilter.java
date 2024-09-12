@@ -42,10 +42,10 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
     public SampleFetchResponseFilter(SampleFilterConfig config) {
         this.config = config;
         this.timer = Timer
-                .builder("sample_fetch_response_filter_transform")
-                .description("Time taken for the SampleFetchResponseFilter to transform the produce data.")
-                .tag("filter", "SampleFetchResponseFilter")
-                .register(Metrics.globalRegistry);
+                          .builder("sample_fetch_response_filter_transform")
+                          .description("Time taken for the SampleFetchResponseFilter to transform the produce data.")
+                          .tag("filter", "SampleFetchResponseFilter")
+                          .register(Metrics.globalRegistry);
     }
 
     /**

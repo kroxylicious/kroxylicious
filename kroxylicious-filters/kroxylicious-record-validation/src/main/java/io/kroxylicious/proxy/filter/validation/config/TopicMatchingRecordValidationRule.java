@@ -26,9 +26,14 @@ public class TopicMatchingRecordValidationRule extends RecordValidationRule {
      * @param valueRule optional validation to apply to Record's value
      */
     @JsonCreator
-    public TopicMatchingRecordValidationRule(@JsonProperty(value = "topicNames") Set<String> topicNames,
-                                             @JsonProperty(value = "keyRule") BytebufValidation keyRule,
-                                             @JsonProperty(value = "valueRule") BytebufValidation valueRule) {
+    public TopicMatchingRecordValidationRule(
+            @JsonProperty(value = "topicNames")
+            Set<String> topicNames,
+            @JsonProperty(value = "keyRule")
+            BytebufValidation keyRule,
+            @JsonProperty(value = "valueRule")
+            BytebufValidation valueRule
+    ) {
         super(keyRule, valueRule);
         this.topicNames = topicNames == null ? Set.of() : topicNames;
     }
@@ -63,10 +68,17 @@ public class TopicMatchingRecordValidationRule extends RecordValidationRule {
 
     @Override
     public String toString() {
-        return "TopicMatchingRecordValidationRule{" +
-                "topicNames=" + topicNames +
-                ", keyRule=" + keyRule +
-                ", valueRule=" + valueRule +
-                '}';
+        return "TopicMatchingRecordValidationRule{"
+               +
+               "topicNames="
+               + topicNames
+               +
+               ", keyRule="
+               + keyRule
+               +
+               ", valueRule="
+               + valueRule
+               +
+               '}';
     }
 }

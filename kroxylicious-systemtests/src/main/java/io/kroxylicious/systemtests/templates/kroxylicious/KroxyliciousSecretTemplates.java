@@ -42,12 +42,12 @@ public class KroxyliciousSecretTemplates {
                 try {
                     String encoded = Base64.getEncoder().encodeToString(Files.readAllBytes(configPath));
                     return new SecretBuilder()
-                            .withNewMetadata()
-                            .withName("regcred")
-                            .withNamespace(namespace)
-                            .endMetadata()
-                            .withType("kubernetes.io/dockerconfigjson")
-                            .addToData(".dockerconfigjson", encoded);
+                                              .withNewMetadata()
+                                              .withName("regcred")
+                                              .withNamespace(namespace)
+                                              .endMetadata()
+                                              .withType("kubernetes.io/dockerconfigjson")
+                                              .addToData(".dockerconfigjson", encoded);
                 }
                 catch (IOException e) {
                     throw new UncheckedIOException("Failed to create secret for file " + configPath, e);

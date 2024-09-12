@@ -34,8 +34,8 @@
   version: 1
   request:
     payload:
-      topicNames: [foo]
-      topics: []
+      topicNames: [ foo ]
+      topics: [ ]
       timeoutMs: 0
       validateOnly: false
     diff:

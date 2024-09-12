@@ -78,19 +78,25 @@ public abstract class FilterHarness {
 
         final TargetCluster targetCluster = mock(TargetCluster.class);
         when(targetCluster.bootstrapServersList()).thenReturn(TARGET_CLUSTER_BOOTSTRAP);
-        var testVirtualCluster = new VirtualCluster("TestVirtualCluster", targetCluster, mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(),
-                false, false);
+        var testVirtualCluster = new VirtualCluster(
+                "TestVirtualCluster",
+                targetCluster,
+                mock(ClusterNetworkAddressConfigProvider.class),
+                Optional.empty(),
+                false,
+                false
+        );
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());
 
         var filterHandlers = Arrays.stream(filters)
-                .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addFirst, (d1, d2) -> {
-                    d2.addAll(d1);
-                    return d2;
-                })) // reverses order
-                .stream()
-                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f)), timeoutMs, null, testVirtualCluster, inboundChannel))
-                .map(ChannelHandler.class::cast);
+                                   .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addFirst, (d1, d2) -> {
+                                       d2.addAll(d1);
+                                       return d2;
+                                   })) // reverses order
+                                   .stream()
+                                   .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f)), timeoutMs, null, testVirtualCluster, inboundChannel))
+                                   .map(ChannelHandler.class::cast);
         var handlers = Stream.concat(channelProcessors, filterHandlers);
 
         channel = new EmbeddedChannel(handlers.toArray(ChannelHandler[]::new));
@@ -188,20 +194,18 @@ public abstract class FilterHarness {
             Object outbound = channel.readOutbound();
             if (inbound != null && outbound != null) {
                 fail("Unexpected inbound and outbound messages: inbound: " + inbound + ", outbound: " + outbound);
-            }
-            else if (inbound != null) {
+            } else if (inbound != null) {
                 fail("Unexpected inbound message: inbound: " + inbound);
-            }
-            else if (outbound != null) {
+            } else if (outbound != null) {
                 fail("Unexpected outbound message: outbound: " + outbound);
-            }
-            else {
+            } else {
                 fail("Logically this is impossible");
             }
         }
     }
 
-    public record Correlation(Filter recipient, CompletableFuture<?> promise) {}
+    public record Correlation(Filter recipient, CompletableFuture<?> promise) {
+    }
 
     /**
      * Tracks outstanding internal requests by associating the correlation id with the recipient/promise tuple.

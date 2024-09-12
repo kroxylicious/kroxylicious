@@ -18,8 +18,8 @@ import io.kroxylicious.test.client.SequencedResponse;
  * @param <B> type of api message in decoded frame
  */
 public class DecodedRequestFrame<B extends ApiMessage>
-        extends DecodedFrame<RequestHeaderData, B>
-        implements Frame {
+                                extends DecodedFrame<RequestHeaderData, B>
+                                implements Frame {
 
     private final CompletableFuture<SequencedResponse> responseFuture = new CompletableFuture<>();
 
@@ -30,10 +30,12 @@ public class DecodedRequestFrame<B extends ApiMessage>
      * @param header header
      * @param body body
      */
-    public DecodedRequestFrame(short apiVersion,
-                               int correlationId,
-                               RequestHeaderData header,
-                               B body) {
+    public DecodedRequestFrame(
+            short apiVersion,
+            int correlationId,
+            RequestHeaderData header,
+            B body
+    ) {
         super(apiVersion, correlationId, header, body);
     }
 

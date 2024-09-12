@@ -92,10 +92,12 @@ class CachingKmsTest {
         Kms<Long, Long> kms = mock(Kms.class);
         Mockito.when(kms.resolveAlias(any())).thenReturn(CompletableFuture.failedFuture(new UnknownAliasException("fail!")));
         Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8), Duration.ofSeconds(30));
-        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownAliasException.class);
-        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownAliasException.class);
+        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS)
+                                             .withThrowableOfType(ExecutionException.class)
+                                             .withCauseInstanceOf(UnknownAliasException.class);
+        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS)
+                                             .withThrowableOfType(ExecutionException.class)
+                                             .withCauseInstanceOf(UnknownAliasException.class);
         verify(kms, times(1)).resolveAlias("a");
     }
 
@@ -104,11 +106,13 @@ class CachingKmsTest {
         Kms<Long, Long> kms = mock(Kms.class);
         Mockito.when(kms.resolveAlias(any())).thenReturn(CompletableFuture.failedFuture(new UnknownAliasException("fail!")));
         var caching = (CachingKms<Long, Long>) CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8), Duration.ZERO);
-        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownAliasException.class);
+        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS)
+                                             .withThrowableOfType(ExecutionException.class)
+                                             .withCauseInstanceOf(UnknownAliasException.class);
         caching.notFoundAliasCacheCleanUp();
-        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownAliasException.class);
+        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS)
+                                             .withThrowableOfType(ExecutionException.class)
+                                             .withCauseInstanceOf(UnknownAliasException.class);
         verify(kms, times(2)).resolveAlias("a");
     }
 
@@ -117,10 +121,12 @@ class CachingKmsTest {
         Kms<Long, Long> kms = mock(Kms.class);
         Mockito.when(kms.resolveAlias(any())).thenReturn(CompletableFuture.failedFuture(new CompletionException(new UnknownAliasException("fail!"))));
         Kms<Long, Long> caching = CachingKms.wrap(kms, 1L, Duration.ZERO, 1L, Duration.ofHours(1), Duration.ofMinutes(8), Duration.ofSeconds(30));
-        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownAliasException.class);
-        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS).withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownAliasException.class);
+        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS)
+                                             .withThrowableOfType(ExecutionException.class)
+                                             .withCauseInstanceOf(UnknownAliasException.class);
+        assertThat(caching.resolveAlias("a")).failsWithin(5, TimeUnit.SECONDS)
+                                             .withThrowableOfType(ExecutionException.class)
+                                             .withCauseInstanceOf(UnknownAliasException.class);
         verify(kms, times(1)).resolveAlias("a");
     }
 

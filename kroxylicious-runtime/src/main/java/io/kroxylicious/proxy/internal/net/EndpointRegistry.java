@@ -128,8 +128,11 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
 
     }
 
-    private record VirtualClusterRecord(CompletionStage<Endpoint> registrationStage, AtomicReference<ReconciliationRecord> reconciliationRecord,
-                                        AtomicReference<CompletionStage<Void>> deregistrationStage) {
+    private record VirtualClusterRecord(
+            CompletionStage<Endpoint> registrationStage,
+            AtomicReference<ReconciliationRecord> reconciliationRecord,
+            AtomicReference<CompletionStage<Void>> deregistrationStage
+    ) {
         private VirtualClusterRecord {
             Objects.requireNonNull(registrationStage);
             Objects.requireNonNull(reconciliationRecord);
@@ -188,34 +191,45 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
 
         var key = Endpoint.createEndpoint(virtualCluster.getBindAddress(), virtualCluster.getClusterBootstrapAddress().port(), virtualCluster.isUseTls());
         var upstreamBootstrap = virtualCluster.targetCluster().bootstrapServersList().get(0);
-        var bootstrapEndpointFuture = registerBinding(key,
+        var bootstrapEndpointFuture = registerBinding(
+                key,
                 virtualCluster.getClusterBootstrapAddress().host(),
-                new VirtualClusterBootstrapBinding(virtualCluster, upstreamBootstrap)).toCompletableFuture();
+                new VirtualClusterBootstrapBinding(virtualCluster, upstreamBootstrap)
+        ).toCompletableFuture();
 
         vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
 
         // bind any discovery binding to the bootstrap address
-        var discoveryAddressesMapStage = allOfStage(Optional.ofNullable(virtualCluster.discoveryAddressMap()).orElse(Map.of())
-                .entrySet()
-                .stream()
-                .sorted(Map.Entry.comparingByKey()) // ordering not functionality important, but simplifies the unit testing
-                .map(e -> {
-                    var nodeId = e.getKey();
-                    var bhp = e.getValue();
-                    return registerBinding(new Endpoint(virtualCluster.getBindAddress(), bhp.port(), virtualCluster.isUseTls()), bhp.host(),
-                            new VirtualClusterBrokerBinding(virtualCluster, upstreamBootstrap, nodeId, true));
-                }));
+        var discoveryAddressesMapStage = allOfStage(
+                Optional.ofNullable(virtualCluster.discoveryAddressMap())
+                        .orElse(Map.of())
+                        .entrySet()
+                        .stream()
+                        .sorted(Map.Entry.comparingByKey()) // ordering not functionality important, but simplifies the unit testing
+                        .map(e -> {
+                            var nodeId = e.getKey();
+                            var bhp = e.getValue();
+                            return registerBinding(
+                                    new Endpoint(
+                                            virtualCluster.getBindAddress(),
+                                            bhp.port(),
+                                            virtualCluster.isUseTls()
+                                    ),
+                                    bhp.host(),
+                                    new VirtualClusterBrokerBinding(virtualCluster, upstreamBootstrap, nodeId, true)
+                            );
+                        })
+        );
 
         bootstrapEndpointFuture.thenCombine(discoveryAddressesMapStage, (bef, bps) -> bef)
-                .whenComplete((u, t) -> {
-                    var future = vcr.registrationStage.toCompletableFuture();
-                    if (t != null) {
-                        rollbackRelatedBindings(virtualCluster, t, future);
-                    }
-                    else {
-                        handleSuccessfulBinding(bootstrapEndpointFuture, future);
-                    }
-                });
+                               .whenComplete((u, t) -> {
+                                   var future = vcr.registrationStage.toCompletableFuture();
+                                   if (t != null) {
+                                       rollbackRelatedBindings(virtualCluster, t, future);
+                                   } else {
+                                       handleSuccessfulBinding(bootstrapEndpointFuture, future);
+                                   }
+                               });
 
         return vcr.registrationStage();
     }
@@ -242,14 +256,18 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
     private void rollbackRelatedBindings(VirtualCluster virtualCluster, Throwable originalFailure, CompletableFuture<Endpoint> future) {
         LOGGER.warn("Registration error", originalFailure);
         deregisterBinding(virtualCluster, vcb -> vcb.virtualCluster().equals(virtualCluster))
-                .handle((result, throwable) -> {
-                    if (throwable != null) {
-                        LOGGER.warn("Secondary error occurred whilst handling a previous registration error: {}", originalFailure.getMessage(), throwable);
-                    }
-                    registeredVirtualClusters.remove(virtualCluster);
-                    future.completeExceptionally(originalFailure);
-                    return null;
-                });
+                                                                                             .handle((result, throwable) -> {
+                                                                                                 if (throwable != null) {
+                                                                                                     LOGGER.warn(
+                                                                                                             "Secondary error occurred whilst handling a previous registration error: {}",
+                                                                                                             originalFailure.getMessage(),
+                                                                                                             throwable
+                                                                                                     );
+                                                                                                 }
+                                                                                                 registeredVirtualClusters.remove(virtualCluster);
+                                                                                                 future.completeExceptionally(originalFailure);
+                                                                                                 return null;
+                                                                                             });
     }
 
     /**
@@ -276,8 +294,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
             vcr.deregistrationStage().get().whenComplete((u, t) -> {
                 if (t != null) {
                     deregisterFuture.completeExceptionally(t);
-                }
-                else {
+                } else {
                     deregisterFuture.complete(u);
                 }
             });
@@ -285,17 +302,18 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         }
 
         vcr.registrationStage()
-                .thenCompose(u -> deregisterBinding(virtualCluster, binding -> binding.virtualCluster().equals(virtualCluster))
-                        .handle((unused1, t) -> {
-                            registeredVirtualClusters.remove(virtualCluster);
-                            if (t != null) {
-                                deregisterFuture.completeExceptionally(t);
-                            }
-                            else {
-                                deregisterFuture.complete(null);
-                            }
-                            return null;
-                        }));
+           .thenCompose(
+                   u -> deregisterBinding(virtualCluster, binding -> binding.virtualCluster().equals(virtualCluster))
+                                                                                                                     .handle((unused1, t) -> {
+                                                                                                                         registeredVirtualClusters.remove(virtualCluster);
+                                                                                                                         if (t != null) {
+                                                                                                                             deregisterFuture.completeExceptionally(t);
+                                                                                                                         } else {
+                                                                                                                             deregisterFuture.complete(null);
+                                                                                                                         }
+                                                                                                                         return null;
+                                                                                                                     })
+           );
         return deregisterFuture;
     }
 
@@ -315,8 +333,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         if (vcr == null) {
             // cluster not currently registered
             return CompletableFuture.failedStage(new IllegalStateException("virtual cluster %s not registered or is being deregistered".formatted(virtualCluster)));
-        }
-        else if (vcr.deregistrationStage().get() != null) {
+        } else if (vcr.deregistrationStage().get() != null) {
             // cluster in process of being deregistered, ignore the reconciliation request
             return CompletableFuture.completedStage(null);
         }
@@ -332,8 +349,7 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         if (rec.upstreamNodeMap().equals(upstreamNodes)) {
             // set of nodeIds already reconciled or reconciliation of those nodes ids is already in progress.
             return rec.reconciliationStage();
-        }
-        else {
+        } else {
             // set of nodeIds differ
             return rec.reconciliationStage().thenCompose(u -> {
                 ReconciliationRecord updated;
@@ -342,12 +358,10 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                     // reconcile - work out which bindings are to be registered and which are to be removed.
                     doReconcile(virtualCluster, upstreamNodes, cand.reconciliationStage().toCompletableFuture(), vcr);
                     return cand.reconciliationStage();
-                }
-                else if ((updated = vcr.reconciliationRecord().get()).upstreamNodeMap().equals(upstreamNodes)) {
+                } else if ((updated = vcr.reconciliationRecord().get()).upstreamNodeMap().equals(upstreamNodes)) {
                     // another thread has since reconciled/started to reconcile the same set of nodes
                     return updated.reconciliationStage();
-                }
-                else {
+                } else {
                     // another thread has since reconciled to a different set of nodes.
                     return reconcile(virtualCluster, upstreamNodes);
                 }
@@ -364,61 +378,77 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         var creations = constructPossibleBindingsToCreate(virtualCluster, upstreamNodes);
 
         // first assemble the stream of de-registrations (and by side effect: update creations)
-        var deregs = allOfStage(listeningChannels.values().stream()
-                .filter(lcr -> lcr.unbindingStage.get() == null)
-                .map(lcr -> lcr.bindingStage()
-                        .thenCompose((acceptorChannel -> {
-                            var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
-                            if (bindings == null || bindings.get() == null) {
-                                // nothing to do for this channel
-                                return CompletableFuture.completedStage(null);
-                            }
-                            var bindingMap = bindings.get();
+        var deregs = allOfStage(
+                listeningChannels.values()
+                                 .stream()
+                                 .filter(lcr -> lcr.unbindingStage.get() == null)
+                                 .map(
+                                         lcr -> lcr.bindingStage()
+                                                   .thenCompose((acceptorChannel -> {
+                                                       var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
+                                                       if (bindings == null || bindings.get() == null) {
+                                                           // nothing to do for this channel
+                                                           return CompletableFuture.completedStage(null);
+                                                       }
+                                                       var bindingMap = bindings.get();
 
-                            return allOfStage(bindingMap.values().stream()
-                                    .filter(vcb -> vcb.virtualCluster().equals(virtualCluster))
-                                    .filter(VirtualClusterBrokerBinding.class::isInstance)
-                                    .map(VirtualClusterBrokerBinding.class::cast)
-                                    .peek(creations::remove) // side effect
-                                    .filter(vcbb -> !allBrokerIds.contains(vcbb.nodeId()))
-                                    .map(vcbb -> deregisterBinding(virtualCluster, vcbb::equals)));
-                        }))));
+                                                       return allOfStage(
+                                                               bindingMap.values()
+                                                                         .stream()
+                                                                         .filter(vcb -> vcb.virtualCluster().equals(virtualCluster))
+                                                                         .filter(VirtualClusterBrokerBinding.class::isInstance)
+                                                                         .map(VirtualClusterBrokerBinding.class::cast)
+                                                                         .peek(creations::remove) // side effect
+                                                                         .filter(vcbb -> !allBrokerIds.contains(vcbb.nodeId()))
+                                                                         .map(vcbb -> deregisterBinding(virtualCluster, vcbb::equals))
+                                                       );
+                                                   }))
+                                 )
+        );
 
         // chain any binding registrations and organise for the reconciliations entry to complete
-        deregs.thenCompose(u1 -> allOfStage(creations.stream()
-                .map(vcbb -> {
-                    var brokerAddress = virtualCluster.getBrokerAddress(vcbb.nodeId());
-                    var endpoint = Endpoint.createEndpoint(bindingAddress, brokerAddress.port(), virtualCluster.isUseTls());
-                    return registerBinding(endpoint, brokerAddress.host(), vcbb);
-                })))
-                .whenComplete((u2, t) -> {
-                    if (t != null) {
-                        // if the reconciliation fails, we want to retry the next time a caller reconciles the same set of brokers.
-                        vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
-                        future.completeExceptionally(t);
+        deregs.thenCompose(
+                u1 -> allOfStage(
+                        creations.stream()
+                                 .map(vcbb -> {
+                                     var brokerAddress = virtualCluster.getBrokerAddress(vcbb.nodeId());
+                                     var endpoint = Endpoint.createEndpoint(bindingAddress, brokerAddress.port(), virtualCluster.isUseTls());
+                                     return registerBinding(endpoint, brokerAddress.host(), vcbb);
+                                 })
+                )
+        )
+              .whenComplete((u2, t) -> {
+                  if (t != null) {
+                      // if the reconciliation fails, we want to retry the next time a caller reconciles the same set of brokers.
+                      vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
+                      future.completeExceptionally(t);
 
-                    }
-                    else {
-                        future.complete(null);
-                    }
-                });
+                  } else {
+                      future.complete(null);
+                  }
+              });
     }
 
-    private Set<VirtualClusterBrokerBinding> constructPossibleBindingsToCreate(VirtualCluster virtualCluster,
-                                                                               Map<Integer, HostPort> upstreamNodes) {
+    private Set<VirtualClusterBrokerBinding> constructPossibleBindingsToCreate(
+            VirtualCluster virtualCluster,
+            Map<Integer, HostPort> upstreamNodes
+    ) {
         var upstreamBootstrap = virtualCluster.targetCluster().bootstrapServersList().get(0);
         var discoveryBrokerIds = Optional.ofNullable(virtualCluster.discoveryAddressMap()).orElse(Map.of());
         // create possible set of bindings to create
         var creations = upstreamNodes.entrySet()
-                .stream()
-                .map(e -> new VirtualClusterBrokerBinding(virtualCluster, e.getValue(), e.getKey(), false))
-                .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
+                                     .stream()
+                                     .map(e -> new VirtualClusterBrokerBinding(virtualCluster, e.getValue(), e.getKey(), false))
+                                     .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
         // add bindings corresponding to any pre-bindings. There are marked as restricted and point to bootstrap.
-        creations.addAll(discoveryBrokerIds
-                .keySet()
-                .stream()
-                .filter(Predicate.not(upstreamNodes::containsKey))
-                .map(nodeId -> new VirtualClusterBrokerBinding(virtualCluster, upstreamBootstrap, nodeId, true)).toList());
+        creations.addAll(
+                discoveryBrokerIds
+                                  .keySet()
+                                  .stream()
+                                  .filter(Predicate.not(upstreamNodes::containsKey))
+                                  .map(nodeId -> new VirtualClusterBrokerBinding(virtualCluster, upstreamBootstrap, nodeId, true))
+                                  .toList()
+        );
         return creations;
     }
 
@@ -445,14 +475,15 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 listeningChannels.remove(key);
                 if (t instanceof RuntimeException re) {
                     throw re;
-                }
-                else {
+                } else {
                     throw new RuntimeException(t);
                 }
             }));
 
             bindingOperationProcessor
-                    .enqueueNetworkBindingEvent(new NetworkBindRequest(future, Endpoint.createEndpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls())));
+                                     .enqueueNetworkBindingEvent(
+                                             new NetworkBindRequest(future, Endpoint.createEndpoint(key.bindingAddress(), key.port(), virtualCluster.isUseTls()))
+                                     );
             return r;
         });
 
@@ -472,15 +503,20 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                 // knows to tear down the acceptorChannel when the map becomes empty.
                 var existing = bindingMap.putIfAbsent(bindingKey, virtualClusterBinding);
 
-                if (existing instanceof VirtualClusterBrokerBinding existingVcbb && virtualClusterBinding instanceof VirtualClusterBrokerBinding vcbb
-                        && existingVcbb.refersToSameVirtualClusterAndNode(vcbb)) {
+                if (existing instanceof VirtualClusterBrokerBinding existingVcbb
+                    && virtualClusterBinding instanceof VirtualClusterBrokerBinding vcbb
+                    && existingVcbb.refersToSameVirtualClusterAndNode(vcbb)) {
                     // special case to support update of the upstream target
                     bindingMap.put(bindingKey, virtualClusterBinding);
-                }
-                else if (existing != null) {
+                } else if (existing != null) {
                     throw new EndpointBindingException(
-                            "Endpoint %s cannot be bound with key %s binding %s, that key is already bound to %s".formatted(key, bindingKey, virtualClusterBinding,
-                                    existing));
+                            "Endpoint %s cannot be bound with key %s binding %s, that key is already bound to %s".formatted(
+                                    key,
+                                    bindingKey,
+                                    virtualClusterBinding,
+                                    existing
+                            )
+                    );
                 }
 
                 return key;
@@ -493,34 +529,39 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         Objects.requireNonNull(predicate, "predicate cannot be null");
 
         // Search the listening channels for bindings matching the predicate. We could cache more information on the vcr to optimise.
-        var unbindStages = listeningChannels.entrySet().stream()
-                .map(e -> {
-                    var endpoint = e.getKey();
-                    var lcr = e.getValue();
-                    return lcr.bindingStage().thenCompose(acceptorChannel -> {
-                        synchronized (lcr) {
-                            var bindingMap = acceptorChannel.attr(EndpointRegistry.CHANNEL_BINDINGS).get();
-                            var allEntries = bindingMap.entrySet();
-                            var toRemove = allEntries.stream().filter(be -> predicate.test(be.getValue())).collect(Collectors.toSet());
-                            // If our removal leaves the channel without bindings, trigger its unbinding
-                            if (allEntries.removeAll(toRemove) && bindingMap.isEmpty()) {
-                                var unbindFuture = new CompletableFuture<Void>();
-                                var afterUnbind = unbindFuture.whenComplete((u, t) -> listeningChannels.remove(endpoint));
-                                if (lcr.unbindingStage().compareAndSet(null, afterUnbind)) {
-                                    bindingOperationProcessor
-                                            .enqueueNetworkBindingEvent(new NetworkUnbindRequest(virtualCluster.isUseTls(), acceptorChannel, unbindFuture));
-                                    return afterUnbind;
-                                }
-                                else {
-                                    return lcr.unbindingStage().get();
-                                }
-                            }
-                            else {
-                                return CompletableFuture.completedStage(null);
-                            }
-                        }
-                    });
-                });
+        var unbindStages = listeningChannels.entrySet()
+                                            .stream()
+                                            .map(e -> {
+                                                var endpoint = e.getKey();
+                                                var lcr = e.getValue();
+                                                return lcr.bindingStage().thenCompose(acceptorChannel -> {
+                                                    synchronized (lcr) {
+                                                        var bindingMap = acceptorChannel.attr(EndpointRegistry.CHANNEL_BINDINGS).get();
+                                                        var allEntries = bindingMap.entrySet();
+                                                        var toRemove = allEntries.stream().filter(be -> predicate.test(be.getValue())).collect(Collectors.toSet());
+                                                        // If our removal leaves the channel without bindings, trigger its unbinding
+                                                        if (allEntries.removeAll(toRemove) && bindingMap.isEmpty()) {
+                                                            var unbindFuture = new CompletableFuture<Void>();
+                                                            var afterUnbind = unbindFuture.whenComplete((u, t) -> listeningChannels.remove(endpoint));
+                                                            if (lcr.unbindingStage().compareAndSet(null, afterUnbind)) {
+                                                                bindingOperationProcessor
+                                                                                         .enqueueNetworkBindingEvent(
+                                                                                                 new NetworkUnbindRequest(
+                                                                                                         virtualCluster.isUseTls(),
+                                                                                                         acceptorChannel,
+                                                                                                         unbindFuture
+                                                                                                 )
+                                                                                         );
+                                                                return afterUnbind;
+                                                            } else {
+                                                                return lcr.unbindingStage().get();
+                                                            }
+                                                        } else {
+                                                            return CompletableFuture.completedStage(null);
+                                                        }
+                                                    }
+                                                });
+                                            });
 
         return allOfStage(unbindStages);
     }
@@ -553,11 +594,13 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
                     Map<VirtualClusterBootstrapBinding, Integer> bootstrapToBrokerId = findBootstrapBindings(endpoint, sniHostname, bindings);
                     var size = bootstrapToBrokerId.size();
                     if (size > 1) {
-                        throw new EndpointResolutionException("Failed to generate an unbound broker binding from SNI " +
-                                "as it matches the broker address pattern of more than one virtual cluster",
-                                buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname));
-                    }
-                    else if (size == 1) {
+                        throw new EndpointResolutionException(
+                                "Failed to generate an unbound broker binding from SNI "
+                                                              +
+                                                              "as it matches the broker address pattern of more than one virtual cluster",
+                                buildEndpointResolutionException(NO_CHANNEL_BINDINGS_MESSAGE, endpoint, sniHostname)
+                        );
+                    } else if (size == 1) {
                         return buildBootstrapBinding(bootstrapToBrokerId);
                     }
                 }
@@ -574,35 +617,40 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
         return new VirtualClusterBrokerBinding(bootstrapBinding.virtualCluster(), bootstrapBinding.upstreamTarget(), nodeId, true);
     }
 
-    private HashMap<VirtualClusterBootstrapBinding, Integer> findBootstrapBindings(Endpoint endpoint,
-                                                                                   String sniHostname,
-                                                                                   Attribute<Map<RoutingKey, VirtualClusterBinding>> bindings) {
+    private HashMap<VirtualClusterBootstrapBinding, Integer> findBootstrapBindings(
+            Endpoint endpoint,
+            String sniHostname,
+            Attribute<Map<RoutingKey, VirtualClusterBinding>> bindings
+    ) {
         var allBindingsForPort = bindings.get().values();
         var brokerAddress = new HostPort(sniHostname, endpoint.port());
         var allBootstrapBindings = getAllBootstrapBindings(allBindingsForPort);
         return allBootstrapBindings.stream()
-                .collect(HashMap::new, (m, b) -> {
-                    var nodeId = b.virtualCluster().getBrokerIdFromBrokerAddress(brokerAddress);
-                    if (nodeId != null) {
-                        m.put(b, nodeId);
-                    }
-                }, HashMap::putAll);
+                                   .collect(HashMap::new, (m, b) -> {
+                                       var nodeId = b.virtualCluster().getBrokerIdFromBrokerAddress(brokerAddress);
+                                       if (nodeId != null) {
+                                           m.put(b, nodeId);
+                                       }
+                                   }, HashMap::putAll);
     }
 
     private List<VirtualClusterBootstrapBinding> getAllBootstrapBindings(Collection<VirtualClusterBinding> allBindingsForPort) {
         return allBindingsForPort.stream()
-                .filter(VirtualClusterBootstrapBinding.class::isInstance)
-                .map(VirtualClusterBootstrapBinding.class::cast)
-                .toList();
+                                 .filter(VirtualClusterBootstrapBinding.class::isInstance)
+                                 .map(VirtualClusterBootstrapBinding.class::cast)
+                                 .toList();
     }
 
     private EndpointResolutionException buildEndpointResolutionException(String prefix, Endpoint endpoint, String sniHostname) {
         return new EndpointResolutionException(
-                ("%s binding address: %s, port: %d, sniHostname: %s, tls: %b").formatted(prefix,
+                ("%s binding address: %s, port: %d, sniHostname: %s, tls: %b").formatted(
+                        prefix,
                         endpoint.bindingAddress().orElse("<any>"),
                         endpoint.port(),
                         sniHostname == null ? "<none>" : sniHostname,
-                        endpoint.tls()));
+                        endpoint.tls()
+                )
+        );
     }
 
     /**

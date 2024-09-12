@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * (the "License"); you may not use this file except in compliance with
  * the License. You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -47,16 +47,19 @@ class KrpcGeneratorTest {
     private static final String TEST_CLASSES_DIR = "test-classes";
 
     @Test
-    void testHelloWorld(@TempDir File tempDir) throws Exception {
+    void testHelloWorld(
+            @TempDir
+            File tempDir
+    ) throws Exception {
         KrpcGenerator gen = KrpcGenerator.single()
-                .withMessageSpecDir(getMessageSpecDir())
-                .withMessageSpecFilter("*.json")
-                .withTemplateDir(getTemplateDir())
-                .withTemplateNames(List.of("hello-world/example.ftl"))
-                .withOutputPackage("com.foo")
-                .withOutputDir(tempDir)
-                .withOutputFilePattern("${messageSpecName}.txt")
-                .build();
+                                         .withMessageSpecDir(getMessageSpecDir())
+                                         .withMessageSpecFilter("*.json")
+                                         .withTemplateDir(getTemplateDir())
+                                         .withTemplateNames(List.of("hello-world/example.ftl"))
+                                         .withOutputPackage("com.foo")
+                                         .withOutputDir(tempDir)
+                                         .withOutputFilePattern("${messageSpecName}.txt")
+                                         .build();
 
         gen.generate();
 
@@ -65,16 +68,19 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    void testKrpcData(@TempDir File tempDir) throws Exception {
+    void testKrpcData(
+            @TempDir
+            File tempDir
+    ) throws Exception {
         KrpcGenerator gen = KrpcGenerator.single()
-                .withMessageSpecDir(getMessageSpecDir())
-                .withMessageSpecFilter("*.json")
-                .withTemplateDir(getTemplateDir())
-                .withTemplateNames(List.of("Data/example.ftl"))
-                .withOutputPackage("com.foo")
-                .withOutputDir(tempDir)
-                .withOutputFilePattern("${messageSpecName}.java")
-                .build();
+                                         .withMessageSpecDir(getMessageSpecDir())
+                                         .withMessageSpecFilter("*.json")
+                                         .withTemplateDir(getTemplateDir())
+                                         .withTemplateNames(List.of("Data/example.ftl"))
+                                         .withOutputPackage("com.foo")
+                                         .withOutputDir(tempDir)
+                                         .withOutputFilePattern("${messageSpecName}.java")
+                                         .build();
 
         gen.generate();
 
@@ -83,16 +89,19 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    void testKproxyFilter(@TempDir File tempDir) throws Exception {
+    void testKproxyFilter(
+            @TempDir
+            File tempDir
+    ) throws Exception {
         KrpcGenerator gen = KrpcGenerator.single()
-                .withMessageSpecDir(getMessageSpecDir())
-                .withMessageSpecFilter("*.json")
-                .withTemplateDir(getTemplateDir())
-                .withTemplateNames(List.of("Kproxy/Filter.ftl"))
-                .withOutputPackage("com.foo")
-                .withOutputDir(tempDir)
-                .withOutputFilePattern("${messageSpecName}Filter.java")
-                .build();
+                                         .withMessageSpecDir(getMessageSpecDir())
+                                         .withMessageSpecFilter("*.json")
+                                         .withTemplateDir(getTemplateDir())
+                                         .withTemplateNames(List.of("Kproxy/Filter.ftl"))
+                                         .withOutputPackage("com.foo")
+                                         .withOutputDir(tempDir)
+                                         .withOutputFilePattern("${messageSpecName}Filter.java")
+                                         .build();
 
         gen.generate();
 
@@ -101,16 +110,19 @@ class KrpcGeneratorTest {
     }
 
     @Test
-    void testKproxyRequestFilter(@TempDir File tempDir) throws Exception {
+    void testKproxyRequestFilter(
+            @TempDir
+            File tempDir
+    ) throws Exception {
         KrpcGenerator gen = KrpcGenerator.multi()
-                .withMessageSpecDir(getMessageSpecDir())
-                .withMessageSpecFilter("*{Request}.json")
-                .withTemplateDir(getTemplateDir())
-                .withTemplateNames(List.of("Kproxy/KrpcRequestFilter.ftl"))
-                .withOutputPackage("com.foo")
-                .withOutputDir(tempDir)
-                .withOutputFilePattern("${templateName}.java")
-                .build();
+                                         .withMessageSpecDir(getMessageSpecDir())
+                                         .withMessageSpecFilter("*{Request}.json")
+                                         .withTemplateDir(getTemplateDir())
+                                         .withTemplateNames(List.of("Kproxy/KrpcRequestFilter.ftl"))
+                                         .withOutputPackage("com.foo")
+                                         .withOutputDir(tempDir)
+                                         .withOutputFilePattern("${templateName}.java")
+                                         .build();
 
         gen.generate();
 
@@ -119,15 +131,25 @@ class KrpcGeneratorTest {
     }
 
     @ParameterizedTest
-    @CsvSource({ "AddPartitionsToTxnRequest.json,yes,no", "FetchRequest.json,no,no" })
-    void testLatestVersionUnstable(String messageSpec, String expectField, String expectValue, @TempDir File tempDir) throws Exception {
+    @CsvSource(
+        { "AddPartitionsToTxnRequest.json,yes,no", "FetchRequest.json,no,no" }
+    )
+    void testLatestVersionUnstable(
+            String messageSpec,
+            String expectField,
+            String expectValue,
+            @TempDir
+            File tempDir
+    ) throws Exception {
         testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}", expectField);
         testSingleGeneration(tempDir, messageSpec, "${messageSpec.latestVersionUnstable.orElse(false)?string('yes', 'no')}", expectValue);
     }
 
     private void assertFileHasExpectedContents(File file, String expectedFile) throws IOException {
         String expected = Resources.asCharSource(
-                Objects.requireNonNull(getClass().getClassLoader().getResource(expectedFile)), UTF_8).read();
+                Objects.requireNonNull(getClass().getClassLoader().getResource(expectedFile)),
+                UTF_8
+        ).read();
         assertThat(file).content().isEqualTo(expected);
     }
 
@@ -136,14 +158,14 @@ class KrpcGeneratorTest {
         String outputFile = "output.txt";
         Files.asCharSink(new File(tempDir, templateFile), UTF_8).write(template);
         KrpcGenerator gen = KrpcGenerator.single()
-                .withMessageSpecDir(getMessageSpecDir())
-                .withMessageSpecFilter(messageSpec)
-                .withTemplateDir(tempDir)
-                .withTemplateNames(List.of(templateFile))
-                .withOutputPackage("com.foo")
-                .withOutputDir(tempDir)
-                .withOutputFilePattern(outputFile)
-                .build();
+                                         .withMessageSpecDir(getMessageSpecDir())
+                                         .withMessageSpecFilter(messageSpec)
+                                         .withTemplateDir(tempDir)
+                                         .withTemplateNames(List.of(templateFile))
+                                         .withOutputPackage("com.foo")
+                                         .withOutputDir(tempDir)
+                                         .withOutputFilePattern(outputFile)
+                                         .build();
         gen.generate();
         File file = join(tempDir, "com", "foo", outputFile);
         assertThat(file).hasContent(expectedContents);

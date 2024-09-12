@@ -61,12 +61,17 @@ public class ConsumerRecord {
             return false;
         }
         ConsumerRecord that = (ConsumerRecord) o;
-        return Objects.equals(topic, that.topic) &&
-                Objects.equals(key, that.key) &&
-                Objects.equals(value, that.value) &&
-                partition == that.partition &&
-                offset == that.offset &&
-                Objects.deepEquals(recordHeaders, that.recordHeaders);
+        return Objects.equals(topic, that.topic)
+               &&
+               Objects.equals(key, that.key)
+               &&
+               Objects.equals(value, that.value)
+               &&
+               partition == that.partition
+               &&
+               offset == that.offset
+               &&
+               Objects.deepEquals(recordHeaders, that.recordHeaders);
     }
 
     @Override
@@ -94,12 +99,24 @@ public class ConsumerRecord {
 
     @Override
     public String toString() {
-        return "ConsumerRecord(topic: " + this.topic +
-                ", key: " + this.key +
-                ", value: " + this.value +
-                ", partition: " + this.partition +
-                ", offset: " + this.offset +
-                ", headers: " + this.recordHeaders +
-                ")";
+        return "ConsumerRecord(topic: "
+               + this.topic
+               +
+               ", key: "
+               + this.key
+               +
+               ", value: "
+               + this.value
+               +
+               ", partition: "
+               + this.partition
+               +
+               ", offset: "
+               + this.offset
+               +
+               ", headers: "
+               + this.recordHeaders
+               +
+               ")";
     }
 }

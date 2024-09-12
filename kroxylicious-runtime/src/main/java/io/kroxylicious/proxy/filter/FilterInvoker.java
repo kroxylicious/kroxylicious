@@ -90,8 +90,13 @@ public interface FilterInvoker {
      * @param filterContext contains methods to continue the filter chain and other contextual data
      * @return a {@link CompletionStage<RequestFilterResult>}, that when complete, will yield the request to forward.
      */
-    default CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, short apiVersion, RequestHeaderData header, ApiMessage body,
-                                                           FilterContext filterContext) {
+    default CompletionStage<RequestFilterResult> onRequest(
+            ApiKeys apiKey,
+            short apiVersion,
+            RequestHeaderData header,
+            ApiMessage body,
+            FilterContext filterContext
+    ) {
         return filterContext.requestFilterResultBuilder().forward(header, body).completed();
     }
 
@@ -116,8 +121,13 @@ public interface FilterInvoker {
      * @param filterContext contains methods to continue the filter chain and other contextual data
      * @return a {@link CompletionStage<ResponseFilterResult>}, that when complete, will yield the response to forward.
      */
-    default CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, short apiVersion, ResponseHeaderData header, ApiMessage body,
-                                                             FilterContext filterContext) {
+    default CompletionStage<ResponseFilterResult> onResponse(
+            ApiKeys apiKey,
+            short apiVersion,
+            ResponseHeaderData header,
+            ApiMessage body,
+            FilterContext filterContext
+    ) {
         return filterContext.responseFilterResultBuilder().forward(header, body).completed();
     }
 

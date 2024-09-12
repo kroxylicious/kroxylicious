@@ -26,7 +26,8 @@ class InMemoryEdekSerde implements Serde<InMemoryEdek> {
     }
 
     @Override
-    public InMemoryEdek deserialize(@NonNull ByteBuffer buffer) {
+    public InMemoryEdek deserialize(@NonNull
+    ByteBuffer buffer) {
         short numAuthBits = Serde.getUnsignedByte(buffer);
         var ivLength = Serde.getUnsignedByte(buffer);
         var iv = new byte[ivLength];
@@ -41,14 +42,15 @@ class InMemoryEdekSerde implements Serde<InMemoryEdek> {
     @Override
     public int sizeOf(InMemoryEdek inMemoryEdek) {
         return Byte.BYTES // Auth tag: NIST.SP.800-38D §5.2.1.2 suggests max tag length is 128
-                + Byte.BYTES // IV length: NIST.SP.800-38D §8.2 certainly doesn't _limit_ IV to 96 bits
-                + uuidSerde.sizeOf(inMemoryEdek.kekRef())
-                + inMemoryEdek.iv().length
-                + inMemoryEdek.edek().length;
+               + Byte.BYTES // IV length: NIST.SP.800-38D §8.2 certainly doesn't _limit_ IV to 96 bits
+               + uuidSerde.sizeOf(inMemoryEdek.kekRef())
+               + inMemoryEdek.iv().length
+               + inMemoryEdek.edek().length;
     }
 
     @Override
-    public void serialize(InMemoryEdek inMemoryEdek, @NonNull ByteBuffer buffer) {
+    public void serialize(InMemoryEdek inMemoryEdek, @NonNull
+    ByteBuffer buffer) {
         Serde.putUnsignedByte(buffer, inMemoryEdek.numAuthBits());
         Serde.putUnsignedByte(buffer, inMemoryEdek.iv().length);
         buffer.put(inMemoryEdek.iv());

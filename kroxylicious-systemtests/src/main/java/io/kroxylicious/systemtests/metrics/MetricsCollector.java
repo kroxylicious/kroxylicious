@@ -216,10 +216,10 @@ public class MetricsCollector {
      */
     protected MetricsCollector.Builder updateBuilder(MetricsCollector.Builder builder) {
         return builder
-                .withNamespaceName(getNamespaceName())
-                .withComponentName(getComponentName())
-                .withComponentType(getComponentType())
-                .withScraperPodName(getScraperPodName());
+                      .withNamespaceName(getNamespaceName())
+                      .withComponentName(getComponentName())
+                      .withComponentType(getComponentType())
+                      .withScraperPodName(getScraperPodName());
     }
 
     /**
@@ -288,19 +288,20 @@ public class MetricsCollector {
         List<Double> values = collectSpecificMetric(pattern);
 
         if (values.isEmpty()) {
-            await().atMost(Constants.GLOBAL_STATUS_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL_MEDIUM)
-                    .until(() -> {
-                        this.collectMetricsFromPods();
-                        LOGGER.debug("matching {} against Collected data: \n{}", pattern, collectedData);
-                        List<Double> vals = this.collectSpecificMetric(pattern);
+            await().atMost(Constants.GLOBAL_STATUS_TIMEOUT)
+                   .pollInterval(Constants.GLOBAL_POLL_INTERVAL_MEDIUM)
+                   .until(() -> {
+                       this.collectMetricsFromPods();
+                       LOGGER.debug("matching {} against Collected data: \n{}", pattern, collectedData);
+                       List<Double> vals = this.collectSpecificMetric(pattern);
 
-                        if (!vals.isEmpty()) {
-                            values.addAll(vals);
-                            return true;
-                        }
+                       if (!vals.isEmpty()) {
+                           values.addAll(vals);
+                           return true;
+                       }
 
-                        return false;
-                    });
+                       return false;
+                   });
         }
 
         return values;
@@ -311,21 +312,35 @@ public class MetricsCollector {
      * @return collected metrics
      */
     private String collectMetrics(String metricsPodIp, String podName) {
-        List<String> executableCommand = Arrays.asList(cmdKubeClient(namespaceName).toString(), "exec", scraperPodName,
-                "-n", namespaceName,
-                "--", "curl", metricsPodIp + ":" + metricsPort + metricsPath);
+        List<String> executableCommand = Arrays.asList(
+                cmdKubeClient(namespaceName).toString(),
+                "exec",
+                scraperPodName,
+                "-n",
+                namespaceName,
+                "--",
+                "curl",
+                metricsPodIp + ":" + metricsPort + metricsPath
+        );
 
         LOGGER.debug("Executing command:{} for scrape the metrics", executableCommand);
 
         ExecResult result = Exec.exec(null, executableCommand, Duration.ofSeconds(20), true, false, null);
 
-        Message message = LOGGER.getMessageFactory().newMessage("Metrics collection for Pod: {}/{}({}) from Pod: {}/{} finished with return code: {}", namespaceName,
-                podName, metricsPodIp, namespaceName, scraperPodName, result.returnCode());
+        Message message = LOGGER.getMessageFactory()
+                                .newMessage(
+                                        "Metrics collection for Pod: {}/{}({}) from Pod: {}/{} finished with return code: {}",
+                                        namespaceName,
+                                        podName,
+                                        metricsPodIp,
+                                        namespaceName,
+                                        scraperPodName,
+                                        result.returnCode()
+                                );
 
         if (!result.isSuccess()) {
             LOGGER.warn(message);
-        }
-        else {
+        } else {
             LOGGER.info(message);
         }
 
@@ -336,9 +351,12 @@ public class MetricsCollector {
      * Collect metrics from all Pods with specific selector with wait
      */
     public void collectMetricsFromPods() {
-        collectedData = await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
-                .until(this::collectMetricsFromPodsWithoutWait,
-                        collected -> !(collected.isEmpty() || collected.entrySet().stream().anyMatch(e -> e.getValue().isEmpty())));
+        collectedData = await().atMost(Constants.GLOBAL_TIMEOUT)
+                               .pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                               .until(
+                                       this::collectMetricsFromPodsWithoutWait,
+                                       collected -> !(collected.isEmpty() || collected.entrySet().stream().anyMatch(e -> e.getValue().isEmpty()))
+                               );
     }
 
     /**

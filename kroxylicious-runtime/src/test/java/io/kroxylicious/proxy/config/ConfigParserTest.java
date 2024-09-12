@@ -56,9 +56,10 @@ class ConfigParserTest {
     private final ConfigParser configParser = new ConfigParser();
 
     public static Stream<Arguments> yamlDeserializeSerializeFidelity() {
-        return Stream.of(Arguments.of("Top level flags", """
-                useIoUring: true
-                """),
+        return Stream.of(
+                Arguments.of("Top level flags", """
+                        useIoUring: true
+                        """),
                 Arguments.of("Virtual cluster (PortPerBroker)", """
                         virtualClusters:
                           demo1:
@@ -170,7 +171,8 @@ class ConfigParserTest {
                           port: 9093
                           endpoints:
                             prometheus: {}
-                        """));
+                        """)
+        );
     }
 
     @ParameterizedTest(name = "{0}")
@@ -277,11 +279,11 @@ class ConfigParserTest {
                         brokerAddressPattern: localhost
                         brokerStartPort: 10193
                 """))
-                // Then
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
-                .cause()
-                .hasMessageStartingWith("Duplicate field 'demo1'");
+                     // Then
+                     .isInstanceOf(IllegalArgumentException.class)
+                     .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
+                     .cause()
+                     .hasMessageStartingWith("Duplicate field 'demo1'");
 
     }
 
@@ -293,7 +295,7 @@ class ConfigParserTest {
                 - type: NestedPluginConfigFactory
                   config:
                     examplePlugin: ExamplePluginInstance
-                      """);
+                """);
         assertThat(config.filters()).hasSize(1);
 
         FilterDefinition fd = config.filters().get(0);
@@ -317,15 +319,17 @@ class ConfigParserTest {
                   config:
                     examplePlugin: NotAKnownPlugin
 
-                      """));
+                """));
         var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
         var upie = assertInstanceOf(UnknownPluginInstanceException.class, vie.getCause());
-        assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ExamplePluginFactory plugin instance for "
-                + "name 'NotAKnownPlugin'. "
-                + "Known plugin instances are [ExamplePluginInstance, io.kroxylicious.proxy.internal.filter.ExamplePluginInstance]. "
-                + "Plugins must be loadable by java.util.ServiceLoader and annotated with "
-                + "@Plugin.",
-                upie.getMessage());
+        assertEquals(
+                "Unknown io.kroxylicious.proxy.internal.filter.ExamplePluginFactory plugin instance for "
+                     + "name 'NotAKnownPlugin'. "
+                     + "Known plugin instances are [ExamplePluginInstance, io.kroxylicious.proxy.internal.filter.ExamplePluginInstance]. "
+                     + "Plugins must be loadable by java.util.ServiceLoader and annotated with "
+                     + "@Plugin.",
+                upie.getMessage()
+        );
     }
 
     @ParameterizedTest(name = "{0}")
@@ -349,46 +353,58 @@ class ConfigParserTest {
     }
 
     public static Stream<Arguments> shouldWorkWithDifferentConfigCreators() {
-        return Stream.of(Arguments.of("constructor injection",
-                """
-                        filters:
-                        - type: ConstructorInjection
-                          config:
-                            str: hello, world
-                              """,
-                ConstructorInjectionConfig.class),
-                Arguments.of("factory method",
+        return Stream.of(
+                Arguments.of(
+                        "constructor injection",
+                        """
+                                filters:
+                                - type: ConstructorInjection
+                                  config:
+                                    str: hello, world
+                                """,
+                        ConstructorInjectionConfig.class
+                ),
+                Arguments.of(
+                        "factory method",
                         """
                                 filters:
                                 - type: FactoryMethod
                                   config:
                                     str: hello, world
-                                      """,
-                        FactoryMethodConfig.class),
-                Arguments.of("field injection",
+                                """,
+                        FactoryMethodConfig.class
+                ),
+                Arguments.of(
+                        "field injection",
                         """
                                 filters:
                                 - type: FieldInjection
                                   config:
                                     str: hello, world
-                                      """,
-                        FieldInjectionConfig.class),
-                Arguments.of("record",
+                                """,
+                        FieldInjectionConfig.class
+                ),
+                Arguments.of(
+                        "record",
                         """
                                 filters:
                                 - type: Record
                                   config:
                                     str: hello, world
-                                      """,
-                        RecordConfig.class),
-                Arguments.of("setter injection",
+                                """,
+                        RecordConfig.class
+                ),
+                Arguments.of(
+                        "setter injection",
                         """
                                 filters:
                                 - type: SetterInjection
                                   config:
                                     str: hello, world
-                                      """,
-                        SetterInjectionConfig.class));
+                                """,
+                        SetterInjectionConfig.class
+                )
+        );
     }
 
     @Test
@@ -415,7 +431,8 @@ class ConfigParserTest {
         var pde = assertInstanceOf(PluginDiscoveryException.class, vie.getCause());
         assertEquals(
                 "Couldn't find @PluginImplName on member referred to by @PluginImplConfig on [parameter #1, annotations: {interface io.kroxylicious.proxy.plugin.PluginImplConfig=@io.kroxylicious.proxy.plugin.PluginImplConfig(implNameProperty=\"id\")}]",
-                pde.getMessage());
+                pde.getMessage()
+        );
     }
 
     @Test
@@ -441,14 +458,14 @@ class ConfigParserTest {
 
         // Then
         assertThat(virtualCluster)
-                .extracting(VirtualCluster::tls)
-                .extracting(Optional::get)
-                .extracting(Tls::key)
-                .isInstanceOf(KeyStore.class)
-                .asInstanceOf(InstanceOfAssertFactories.type(KeyStore.class))
-                .extracting(KeyStore::storePasswordProvider)
-                .extracting(PasswordProvider::getProvidedPassword)
-                .isEqualTo(password);
+                                  .extracting(VirtualCluster::tls)
+                                  .extracting(Optional::get)
+                                  .extracting(Tls::key)
+                                  .isInstanceOf(KeyStore.class)
+                                  .asInstanceOf(InstanceOfAssertFactories.type(KeyStore.class))
+                                  .extracting(KeyStore::storePasswordProvider)
+                                  .extracting(PasswordProvider::getProvidedPassword)
+                                  .isEqualTo(password);
     }
 
 }

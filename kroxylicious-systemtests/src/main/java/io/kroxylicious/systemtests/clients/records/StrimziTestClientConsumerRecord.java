@@ -31,12 +31,20 @@ public class StrimziTestClientConsumerRecord extends ConsumerRecord {
      * @param offset the offset
      */
     @JsonCreator
-    public StrimziTestClientConsumerRecord(@JsonProperty("headers") List<Entry<String, String>> headers,
-                                           @JsonProperty("topic") String topic,
-                                           @JsonProperty("key") String key,
-                                           @JsonProperty("payload") String payload,
-                                           @JsonProperty("partition") int partition,
-                                           @JsonProperty("offset") long offset) {
+    public StrimziTestClientConsumerRecord(
+            @JsonProperty("headers")
+            List<Entry<String, String>> headers,
+            @JsonProperty("topic")
+            String topic,
+            @JsonProperty("key")
+            String key,
+            @JsonProperty("payload")
+            String payload,
+            @JsonProperty("partition")
+            int partition,
+            @JsonProperty("offset")
+            long offset
+    ) {
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
             headers.forEach(h -> recordHeaders.put(h.getKey(), h.getValue()));

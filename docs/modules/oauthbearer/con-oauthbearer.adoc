@@ -11,7 +11,7 @@ OauthBearerValidation filter enables a validation on the JWT token received from
 If the token is not validated, then the request is short-circuited.
 It reduces resource consumption on the cluster when a client sends too many invalid SASL requests.
 
-[a2s, format="svg"]
+[a2s,format="svg"]
 ....
 .----------------------------------------------------------------------------------------.
 |                                                                                        |
@@ -74,7 +74,7 @@ There are two steps to using the filter.
 
 === Configuring the filter within Kroxylicious.
 
-[source, yaml]
+[source,yaml]
 ----
 filters:
   - type: OauthBearerValidation
@@ -97,7 +97,9 @@ filters:
 <4> The (optional) value in milliseconds for the maximum wait between attempts to retrieve the JWKS (JSON Web Key Set) from the external authentication provider.
 <5> This (optional) setting can provide a different name to use for the scope included in the JWT payload's claims.
 <6> This (optional) setting can provide a different name to use for the subject included in the JWT payload's claims.
-<7> The (optional) maximum value in milliseconds to limit the client sending authenticate request. Setting 0 will never limit the client. Otherwise, an exponential delay is added to each authenticate request until the authenticateBackOffMaxMs has been reached.
+<7> The (optional) maximum value in milliseconds to limit the client sending authenticate request.
+Setting 0 will never limit the client.
+Otherwise, an exponential delay is added to each authenticate request until the authenticateBackOffMaxMs has been reached.
 <8> The (optional) maximum number of failed tokens kept in cache.
 <9> The (optional) comma-delimited setting for the broker to use to verify that the JWT was issued for one of the expected audiences.
 <10> The (optional) setting for the broker to use to verify that the JWT was created by the expected issuer.

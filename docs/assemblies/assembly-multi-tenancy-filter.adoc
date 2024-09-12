@@ -9,7 +9,7 @@
 Kroxylicious’s Multi-tenancy filter presents a single Kafka cluster to tenants as if it were multiple clusters.
 Operations are isolated to a single tenant by prefixing resources with an identifier.
 
-NOTE: This filter is currently in incubation and available as a preview. 
+NOTE: This filter is currently in incubation and available as a preview.
 We would not recommend using it in a production environment.
 
 The Multi-tenancy filter works by intercepting all Kafka RPCs (remote procedure calls) that reference resources, such as topic names and consumer group names:
@@ -21,8 +21,8 @@ Kafka RPCs that list resources are filtered so that only resources belonging to 
 
 To set up the filter, configure it in Kroxylicious.
 
-IMPORTANT: While the Multi-tenancy filter isolates operations on resources, it does not isolate user identities across tenants. 
-User authentication and ACLs (Access Control Lists) are shared across all tenants, meaning that identity is not scoped to individual tenants. 
+IMPORTANT: While the Multi-tenancy filter isolates operations on resources, it does not isolate user identities across tenants.
+User authentication and ACLs (Access Control Lists) are shared across all tenants, meaning that identity is not scoped to individual tenants.
 For more information on open issues related to this filter, see {github-issues}.
 
 NOTE: For more information on Kafka's support for multi-tenancy, see the {ApacheKafkaSite}.

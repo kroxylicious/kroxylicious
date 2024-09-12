@@ -50,19 +50,23 @@ public class CorrelationManager {
      * @param promise
      * @param decodeResponse          Whether the response should be decoded.
      */
-    public int putBrokerRequest(short apiKey,
-                                short apiVersion,
-                                int downstreamCorrelationId,
-                                boolean hasResponse,
-                                Filter recipient,
-                                CompletableFuture<?> promise,
-                                boolean decodeResponse) {
+    public int putBrokerRequest(
+            short apiKey,
+            short apiVersion,
+            int downstreamCorrelationId,
+            boolean hasResponse,
+            Filter recipient,
+            CompletableFuture<?> promise,
+            boolean decodeResponse
+    ) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
         LOGGER.trace("Allocated upstream id {} for downstream id {}", upstreamCorrelationId, downstreamCorrelationId);
         if (hasResponse) {
-            Correlation existing = this.brokerRequests.put(upstreamCorrelationId,
-                    new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise));
+            Correlation existing = this.brokerRequests.put(
+                    upstreamCorrelationId,
+                    new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise)
+            );
             if (existing != null) {
                 LOGGER.error("Duplicate upstream correlation id {}", upstreamCorrelationId);
             }
@@ -93,12 +97,14 @@ public class CorrelationManager {
         private final Filter recipient;
         private final CompletableFuture<?> promise;
 
-        private Correlation(short apiKey,
-                            short apiVersion,
-                            int downstreamCorrelationId,
-                            boolean decodeResponse,
-                            Filter recipient,
-                            CompletableFuture<?> promise) {
+        private Correlation(
+                short apiKey,
+                short apiVersion,
+                int downstreamCorrelationId,
+                boolean decodeResponse,
+                Filter recipient,
+                CompletableFuture<?> promise
+        ) {
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
             this.downstreamCorrelationId = downstreamCorrelationId;
@@ -113,14 +119,27 @@ public class CorrelationManager {
 
         @Override
         public String toString() {
-            return "Correlation(" +
-                    "apiKey=" + ApiKeys.forId(apiKey) +
-                    ", apiVersion=" + apiVersion +
-                    ", downstreamCorrelationId=" + downstreamCorrelationId +
-                    ", decodeResponse=" + decodeResponse +
-                    ", recipient=" + recipient +
-                    ", promise=" + promise +
-                    ')';
+            return "Correlation("
+                   +
+                   "apiKey="
+                   + ApiKeys.forId(apiKey)
+                   +
+                   ", apiVersion="
+                   + apiVersion
+                   +
+                   ", downstreamCorrelationId="
+                   + downstreamCorrelationId
+                   +
+                   ", decodeResponse="
+                   + decodeResponse
+                   +
+                   ", recipient="
+                   + recipient
+                   +
+                   ", promise="
+                   + promise
+                   +
+                   ')';
         }
 
         @Override
@@ -132,8 +151,10 @@ public class CorrelationManager {
                 return false;
             }
             Correlation that = (Correlation) o;
-            return apiKey == that.apiKey && apiVersion == that.apiVersion && downstreamCorrelationId == that.downstreamCorrelationId
-                    && decodeResponse == that.decodeResponse;
+            return apiKey == that.apiKey
+                   && apiVersion == that.apiVersion
+                   && downstreamCorrelationId == that.downstreamCorrelationId
+                   && decodeResponse == that.decodeResponse;
         }
 
         @Override

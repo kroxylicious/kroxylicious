@@ -12,7 +12,7 @@ But there are numerous practical reasons that can prevent this, for example:
 
 * Organizations having very niche requirements which are unsuitable for implementation directly in Apache Kafka.
 * Functionality which requires changes to Kafka's public API and which the Apache Kafka project is unwilling to implement.
-  This is the case for https://lists.apache.org/thread/x1p119hkpoy01vq9ck3d0ql67jtvm875[broker interceptors], for example.
+This is the case for https://lists.apache.org/thread/x1p119hkpoy01vq9ck3d0ql67jtvm875[broker interceptors], for example.
 * Experimental functionality which might end up being implemented in Apache Kafka eventually.
 For example using Kroxylicious it's easier to experiment with alternative transport protocols, such as Quic, or operating system APIs, such as io_uring, because there is already support for this in Netty, the networking framework on which Kroxylicious is built.
 
@@ -26,7 +26,7 @@ First let's define the concepts in the landscape surrounding Kroxylicious.
 . _Upstream_ refers to the area between Kroxylicious and a Kafka Cluster.
 
 .Kroxylicious landscape
-[a2s, format="svg"]
+[a2s,format="svg"]
 ....
 .---------------------------------------------------------------------------.
 |                                  :                                        |
@@ -61,23 +61,23 @@ Now let's define some concepts used within Kroxylicious itself.
 
 === Virtual cluster
 
-The _Virtual Cluster_ is the downstream representation of a Kafka Cluster.  At the conceptual level, a Kafka Client
-connects to a Virtual Cluster.  Kroxylicious proxies all communications made to the Virtual Cluster through to a
-(physical) Kafka Cluster, passing it through the _Filter Chain_.
+The _Virtual Cluster_ is the downstream representation of a Kafka Cluster.
+At the conceptual level, a Kafka Client connects to a Virtual Cluster.
+Kroxylicious proxies all communications made to the Virtual Cluster through to a (physical) Kafka Cluster, passing it through the _Filter Chain_.
 
-So far, this explanation has elided the detail of Kafka Brokers.  Let's talk about that now.
+So far, this explanation has elided the detail of Kafka Brokers.
+Let's talk about that now.
 
-The Virtual Cluster automatically exposes a bootstrap endpoint for the Virtual Cluster.  This is what the Kafka Client
-must specify as the https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[bootstrap.servers] property
-in the client configuration.
+The Virtual Cluster automatically exposes a bootstrap endpoint for the Virtual Cluster.
+This is what the Kafka Client must specify as the https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[bootstrap.servers] property in the client configuration.
 
-In addition to the bootstrap endpoint, Kroxylicious automatically exposes broker endpoints.  There is one broker endpoint
-for each broker of the physical cluster.  When the Client connects to a broker endpoint, Kroxylicious proxies all
-communications to the corresponding broker of the (physical) Kafka Cluster.
+In addition to the bootstrap endpoint, Kroxylicious automatically exposes broker endpoints.
+There is one broker endpoint for each broker of the physical cluster.
+When the Client connects to a broker endpoint, Kroxylicious proxies all communications to the corresponding broker of the (physical) Kafka Cluster.
 
-Kroxylicious automatically intercepts all the Kafka RPC responses that contain a broker address.  It rewrites the address
-so that it refers to the corresponding broker endpoint of the Virtual Cluster.  This means when the Kafka Client
-goes to connect to, say broker 0, it does so through the Virtual Cluster.
+Kroxylicious automatically intercepts all the Kafka RPC responses that contain a broker address.
+It rewrites the address so that it refers to the corresponding broker endpoint of the Virtual Cluster.
+This means when the Kafka Client goes to connect to, say broker 0, it does so through the Virtual Cluster.
 
 === Target cluster
 
@@ -86,12 +86,12 @@ The _Target Cluster_ is the definition of physical Kafka Cluster within the Krox
 A _Virtual Cluster_ has exactly one _Target Cluster_.
 
 There can be a _one-to-one_ relationship between Virtual Clusters and Target Clusters.
-The other possibility is _many-to-one_, where many Virtual Clusters point to the same Target Cluster.  The
-many-to-one pattern is exploited by filters such as the xref:available-filters.adoc#_multi_tenancy[Multi-tenancy]
+The other possibility is _many-to-one_, where many Virtual Clusters point to the same Target Cluster.
+The many-to-one pattern is exploited by filters such as the xref:available-filters.adoc#_multi_tenancy[Multi-tenancy]
 filter.
 
 .One-to-One relationship between Virtual Cluster and Target Cluster
-[a2s, format="svg"]
+[a2s,format="svg"]
 ....
 .-------------------------------------------------------------------------------------.
 |                                                                                     |
@@ -113,7 +113,7 @@ filter.
 ....
 
 .Many-to-one between Virtual Cluster and Target Cluster
-[a2s, format="svg"]
+[a2s,format="svg"]
 ....
 .-------------------------------------------------------------------------------------.
 |                                                                                     |
@@ -142,29 +142,25 @@ filter.
 [0,0]: {"fill":"#99d","a2s:delref":1}
 ....
 
-A one-to-many pattern, where one Virtual Cluster points to many Target Clusters (providing amalgamation),
-is not a supported use-case.
+A one-to-many pattern, where one Virtual Cluster points to many Target Clusters (providing amalgamation), is not a supported use-case.
 
 === Filter chain
 
 A _Filter Chain_ consists of an *ordered list* of pluggable _protocol filters_.
 
 A  _protocol filter_ implements some logic for intercepting, inspecting and/or manipulating Kafka protocol messages.
-Kafka protocol requests (such as `Produce` requests) pass sequentially through each of the protocol filters in the
-chain, beginning with the 1st filter in the chain and then following with the subsequent filters, before being
-forwarded to the broker.
+Kafka protocol requests (such as `Produce` requests) pass sequentially through each of the protocol filters in the chain, beginning with the 1st filter in the chain and then following with the subsequent filters, before being forwarded to the broker.
 
-When the broker returns a response (such as a `Produce` response) the protocol filters in the chain are invoked in the
-reverse order (that is, beginning with the nth filter in the chain, then the n-1th and so on) with each having the
-opportunity to inspect and/or manipulating the response. Eventually a response is returned to the client.
+When the broker returns a response (such as a `Produce` response) the protocol filters in the chain are invoked in the reverse order (that is, beginning with the nth filter in the chain, then the n-1th and so on) with each having the opportunity to inspect and/or manipulating the response.
+Eventually a response is returned to the client.
 
-The description above describes only the basic capabilities of the protocol filter. Richer features of filters
-are described later.
+The description above describes only the basic capabilities of the protocol filter.
+Richer features of filters are described later.
 
 // TODO document additional filter behaviours https://github.com/kroxylicious/kroxylicious/issues/420
 
 .Illustration of a request and response being manipulated by filters in a chain
-[a2s, format="svg"]
+[a2s,format="svg"]
 ....
 .----------------------------------------------------------------------------------------------------------------------.
 |                                                                                                                      |
@@ -190,13 +186,12 @@ are described later.
 [0,0]: {"fill":"#99d","a2s:delref":1}
 ....
 
-As mentioned above, Kroxylicious takes the responsibility to rewrite the Kafka RPC responses that carry broker address
-information so that they reflect the broker addresses exposed by the Virtual Cluster. These are the
+As mentioned above, Kroxylicious takes the responsibility to rewrite the Kafka RPC responses that carry broker address information so that they reflect the broker addresses exposed by the Virtual Cluster.
+These are the
 https://kafka.apache.org/protocol.html#The_Messages_Metadata[`Metadata`],
 https://kafka.apache.org/protocol.html#The_Messages_DescribeCluster[`DescribeCluster`] and
-https://kafka.apache.org/protocol.html#The_Messages_FindCoordinator[`FindCoordinator`] responses. This processing is
-entirely transparent to the work of the protocol filters.  _Filter authors_ are free to write their own filters that
-intercept these responses too.
+https://kafka.apache.org/protocol.html#The_Messages_FindCoordinator[`FindCoordinator`] responses.
+This processing is entirely transparent to the work of the protocol filters.  _Filter authors_ are free to write their own filters that intercept these responses too.
 
 === Filter composition
 
@@ -246,7 +241,7 @@ _Transparent_ multi-tenancy means each tenant has the illusion of having their o
 // TODO we probably don't need the level of detail below, just summarize
 // and provide the detail in the deploying section
 
-We can further classify deployment topologies in how many proxy instances are used. 
+We can further classify deployment topologies in how many proxy instances are used.
 For example:
 
 * Single proxy instance (sidecar)

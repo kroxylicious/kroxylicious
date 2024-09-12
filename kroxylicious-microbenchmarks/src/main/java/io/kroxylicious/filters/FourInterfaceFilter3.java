@@ -35,8 +35,12 @@ public class FourInterfaceFilter3 implements ProduceResponseFilter, ProduceReque
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
-                                                                   FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onProduceResponse(
+            short apiVersion,
+            ResponseHeaderData header,
+            ProduceResponseData response,
+            FilterContext context
+    ) {
         Blackhole.consumeCPU(CONSUME_TOKENS);
         return null;
     }

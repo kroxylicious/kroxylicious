@@ -105,8 +105,11 @@ public class ResourceManager {
         for (T resource : resources) {
             ResourceType<T> type = findResourceType(resource);
 
-            LOGGER.info("Creating/Updating {} {}",
-                    resource.getKind(), resource.getMetadata().getName());
+            LOGGER.info(
+                    "Creating/Updating {} {}",
+                    resource.getKind(),
+                    resource.getMetadata().getName()
+            );
 
             assert type != null;
             type.create(resource);
@@ -119,8 +122,14 @@ public class ResourceManager {
                     continue;
                 }
                 if (!waitResourceCondition(resource, ResourceCondition.readiness(type))) {
-                    throw new RuntimeException(String.format("Timed out waiting for %s %s/%s to be ready", resource.getKind(), resource.getMetadata().getNamespace(),
-                            resource.getMetadata().getName()));
+                    throw new RuntimeException(
+                            String.format(
+                                    "Timed out waiting for %s %s/%s to be ready",
+                                    resource.getKind(),
+                                    resource.getMetadata().getNamespace(),
+                                    resource.getMetadata().getName()
+                            )
+                    );
                 }
             }
         }
@@ -142,14 +151,19 @@ public class ResourceManager {
                 continue;
             }
 
-            LOGGER.info("Deleting of {} {}/{}",
-                    resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+            LOGGER.info(
+                    "Deleting of {} {}/{}",
+                    resource.getKind(),
+                    resource.getMetadata().getNamespace(),
+                    resource.getMetadata().getName()
+            );
 
             try {
                 type.delete(resource);
                 if (!waitResourceCondition(resource, ResourceCondition.deletion())) {
                     throw new RuntimeException(
-                            String.format("Timed out deleting %s %s/%s", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
+                            String.format("Timed out deleting %s %s/%s", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName())
+                    );
                 }
             }
             catch (Exception e) {
@@ -176,15 +190,16 @@ public class ResourceManager {
         boolean[] resourceReady = new boolean[1];
 
         LOGGER.debug("Resource condition: {} to be fulfilled for resource {}: {}", condition.getConditionName(), resource.getKind(), resource.getMetadata().getName());
-        await().atMost(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind())).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
-                .until(() -> {
-                    T res = type.get(resource.getMetadata().getNamespace(), resource.getMetadata().getName());
-                    resourceReady[0] = condition.getPredicate().test(res);
-                    if (!resourceReady[0]) {
-                        type.delete(res);
-                    }
-                    return resourceReady[0];
-                });
+        await().atMost(ResourceOperation.getTimeoutForResourceReadiness(resource.getKind()))
+               .pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+               .until(() -> {
+                   T res = type.get(resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+                   resourceReady[0] = condition.getPredicate().test(res);
+                   if (!resourceReady[0]) {
+                       type.delete(res);
+                   }
+                   return resourceReady[0];
+               });
 
         return resourceReady[0];
     }
@@ -207,10 +222,19 @@ public class ResourceManager {
      * @param resourceTimeout the resource timeout
      * @return returns CR
      */
-    public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, T resource,
-                                                                                                                  Duration resourceTimeout) {
-        return waitForResourceStatusReady(operation, resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName(),
-                ConditionStatus.TRUE, resourceTimeout);
+    public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(
+            MixedOperation<T, ?, ?> operation,
+            T resource,
+            Duration resourceTimeout
+    ) {
+        return waitForResourceStatusReady(
+                operation,
+                resource.getKind(),
+                resource.getMetadata().getNamespace(),
+                resource.getMetadata().getName(),
+                ConditionStatus.TRUE,
+                resourceTimeout
+        );
     }
 
     /**
@@ -224,9 +248,13 @@ public class ResourceManager {
      * @param resourceTimeout the resource timeout
      * @return the boolean
      */
-    public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, String kind,
-                                                                                                                  String namespace, String name,
-                                                                                                                  Duration resourceTimeout) {
+    public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(
+            MixedOperation<T, ?, ?> operation,
+            String kind,
+            String namespace,
+            String name,
+            Duration resourceTimeout
+    ) {
         return waitForResourceStatusReady(operation, kind, namespace, name, ConditionStatus.TRUE, resourceTimeout);
     }
 
@@ -242,23 +270,29 @@ public class ResourceManager {
      * @param resourceTimeout the resource timeout
      * @return the boolean
      */
-    public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, String kind,
-                                                                                                                  String namespace, String name,
-                                                                                                                  ConditionStatus conditionStatus,
-                                                                                                                  Duration resourceTimeout) {
+    public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(
+            MixedOperation<T, ?, ?> operation,
+            String kind,
+            String namespace,
+            String name,
+            ConditionStatus conditionStatus,
+            Duration resourceTimeout
+    ) {
         LOGGER.info("Waiting for {}: {}/{} will have desired state 'Ready'", kind, namespace, name);
-        await().atMost(resourceTimeout).pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS)
-                .until(() -> {
-                    final Status status = operation.inNamespace(namespace)
-                            .withName(name)
-                            .get()
-                            .getStatus();
-                    if (status != null) {
-                        return status.getConditions().stream()
-                                .anyMatch(condition -> condition.getType().equals("Ready") && condition.getStatus().toUpperCase().equals(conditionStatus.toString()));
-                    }
-                    return false;
-                });
+        await().atMost(resourceTimeout)
+               .pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS)
+               .until(() -> {
+                   final Status status = operation.inNamespace(namespace)
+                                                  .withName(name)
+                                                  .get()
+                                                  .getStatus();
+                   if (status != null) {
+                       return status.getConditions()
+                                    .stream()
+                                    .anyMatch(condition -> condition.getType().equals("Ready") && condition.getStatus().toUpperCase().equals(conditionStatus.toString()));
+                   }
+                   return false;
+               });
 
         LOGGER.info("{}: {}/{} is in desired state 'Ready'", kind, namespace, name);
         return true;

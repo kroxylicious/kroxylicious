@@ -14,8 +14,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record KeyMetadata(@JsonProperty("KeyId") @NonNull String keyId,
-                          @JsonProperty("Arn") @NonNull String arn) {
+public record KeyMetadata(
+        @JsonProperty("KeyId") @NonNull
+        String keyId,
+        @JsonProperty("Arn") @NonNull
+        String arn
+) {
     public KeyMetadata {
         Objects.requireNonNull(keyId);
         Objects.requireNonNull(arn);

@@ -40,15 +40,17 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class IntegrationTestingKmsService implements KmsService<IntegrationTestingKmsService.Config, UUID, InMemoryEdek> {
 
     public static IntegrationTestingKmsService newInstance() {
-        return (IntegrationTestingKmsService) ServiceLoader.load(KmsService.class).stream()
-                .filter(p -> p.type() == IntegrationTestingKmsService.class)
-                .findFirst()
-                .map(ServiceLoader.Provider::get)
-                .orElse(null);
+        return (IntegrationTestingKmsService) ServiceLoader.load(KmsService.class)
+                                                           .stream()
+                                                           .filter(p -> p.type() == IntegrationTestingKmsService.class)
+                                                           .findFirst()
+                                                           .map(ServiceLoader.Provider::get)
+                                                           .orElse(null);
     }
 
     public record Config(
-                         String name) {
+            String name
+    ) {
         public Config {
             if (name == null || name.isEmpty()) {
                 throw new IllegalArgumentException();

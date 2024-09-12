@@ -29,11 +29,16 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 
 public record Config(
-                     @JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @JsonProperty(required = true) PasswordProvider accessKey,
-                     @JsonProperty(required = true) PasswordProvider secretKey,
-                     @JsonProperty(required = true) String region,
-                     Tls tls) {
+        @JsonProperty(value = "endpointUrl", required = true)
+        URI endpointUrl,
+        @JsonProperty(required = true)
+        PasswordProvider accessKey,
+        @JsonProperty(required = true)
+        PasswordProvider secretKey,
+        @JsonProperty(required = true)
+        String region,
+        Tls tls
+) {
     public Config {
         Objects.requireNonNull(endpointUrl);
         Objects.requireNonNull(region);
@@ -46,8 +51,7 @@ public record Config(
         try {
             if (tls == null) {
                 return SSLContext.getDefault();
-            }
-            else {
+            } else {
                 return new JdkTls(tls).sslContext();
             }
         }

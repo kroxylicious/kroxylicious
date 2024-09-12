@@ -22,8 +22,9 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 public record EventGroupConfig(
-                               Class<? extends SocketChannel> clientChannelClass,
-                               Class<? extends ServerSocketChannel> serverChannelClass) {
+        Class<? extends SocketChannel> clientChannelClass,
+        Class<? extends ServerSocketChannel> serverChannelClass
+) {
 
     public static EventGroupConfig create() {
         final Class<? extends SocketChannel> clientChannelClass;
@@ -32,12 +33,10 @@ public record EventGroupConfig(
         if (Epoll.isAvailable()) {
             clientChannelClass = EpollSocketChannel.class;
             serverChannelClass = EpollServerSocketChannel.class;
-        }
-        else if (KQueue.isAvailable()) {
+        } else if (KQueue.isAvailable()) {
             clientChannelClass = KQueueSocketChannel.class;
             serverChannelClass = KQueueServerSocketChannel.class;
-        }
-        else {
+        } else {
             clientChannelClass = NioSocketChannel.class;
             serverChannelClass = NioServerSocketChannel.class;
         }
@@ -47,11 +46,9 @@ public record EventGroupConfig(
     private static EventLoopGroup newGroup(int nThreads) {
         if (Epoll.isAvailable()) {
             return new EpollEventLoopGroup(nThreads);
-        }
-        else if (KQueue.isAvailable()) {
+        } else if (KQueue.isAvailable()) {
             return new KQueueEventLoopGroup(nThreads);
-        }
-        else {
+        } else {
             return new NioEventLoopGroup(nThreads);
         }
     }

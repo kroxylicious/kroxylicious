@@ -16,7 +16,8 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 @Plugin(configType = UpperCasing.Config.class)
 public class UpperCasing implements ByteBufferTransformationFactory<UpperCasing.Config> {
-    public record Config(String charset) {}
+    public record Config(String charset) {
+    }
 
     @Override
     public void validateConfiguration(Config config) throws PluginConfigurationException {

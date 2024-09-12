@@ -24,17 +24,16 @@ You can find them {github}/tree/main/kroxylicious-sample[here] for a hands-on in
 == API docs
 
 Custom filters are built by implementing interfaces supplied by the
-{github}/tree/main/api/kroxylicious-api[kroxylicious-api^] module
-(https://mvnrepository.com/artifact/io.kroxylicious/kroxylicious-api[io.kroxylicious:kroxylicious-api] on
-maven central). You can view the javadoc {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html[here^].
+{github}/tree/main/api/kroxylicious-api[kroxylicious-api^] module (https://mvnrepository.com/artifact/io.kroxylicious/kroxylicious-api[io.kroxylicious:kroxylicious-api] on maven central).
+You can view the javadoc {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html[here^].
 
 == Dependencies
 
 How filter classes are loaded is not currently defined by the filter contract.
-In other words, filters might be loaded using a classloader-per-filter model,
-or using a single class loader.
+In other words, filters might be loaded using a classloader-per-filter model, or using a single class loader.
 This doesn't really make a difference to filter authors except where they want to make use of libraries as dependencies.
-Because those dependencies might be loaded by the same classloader as the dependencies of other filters there is the possibility of collision. Filter A and Filter B might both want to use Library C, and they might want to use different versions of Library C.
+Because those dependencies might be loaded by the same classloader as the dependencies of other filters there is the possibility of collision.
+Filter A and Filter B might both want to use Library C, and they might want to use different versions of Library C.
 
 For common things like logging and metric facade APIs it is recommended to use the facade APIs which are also used by the proxy core.
 
@@ -45,26 +44,27 @@ For common things like logging and metric facade APIs it is recommended to use t
 
 == Protocol filters
 
-A protocol filter is a `public` top-level, concrete class with a particular public constructor and which implements
-one or more protocol filter interfaces. You can implement two distinct types of Custom Protocol Filter:
+A protocol filter is a `public` top-level, concrete class with a particular public constructor and which implements one or more protocol filter interfaces.
+You can implement two distinct types of Custom Protocol Filter:
 
 - <<Specific Message Protocol Filters>>
 - <<Request/Response Protocol Filters>>
 
 Note that these types are mutually exclusive, for example a Filter is not allowed to implement both `RequestFilter` and
-`MetadataRequestFilter`. This is to prevent ambiguity. If we received a `MetadataRequest`, would it be dispatched to
-the `onMetadataRequest(..)` method of `MetadataRequestFilter` or the `onRequest` method of `RequestFilter`, or both?
+`MetadataRequestFilter`.
+This is to prevent ambiguity.
+If we received a `MetadataRequest`, would it be dispatched to the `onMetadataRequest(..)` method of `MetadataRequestFilter` or the `onRequest` method of `RequestFilter`, or both?
 Instead, we disallow these combinations, throwing an exception at runtime if your Filter implements incompatible interfaces.
 
 === Specific Message Protocol Filters
 
-A filter may wish to intercept specific types of Kafka messages. For example, intercept all Produce Requests, or
-intercept all Fetch Responses. To support this case Kroxylicious provides an interfaces for all request types and
-response types supported by Kafka (at the version of Kafka Kroxylicious depends on). A filter implementation can
-implement any combination of these interfaces.
+A filter may wish to intercept specific types of Kafka messages.
+For example, intercept all Produce Requests, or intercept all Fetch Responses.
+To support this case Kroxylicious provides an interfaces for all request types and response types supported by Kafka (at the version of Kafka Kroxylicious depends on).
+A filter implementation can implement any combination of these interfaces.
 
-There is no requirement that a Filter handles both the request and response halves of an RPC. A Filter can choose to
-intercept only the request, or only the response, or both the request and response.
+There is no requirement that a Filter handles both the request and response halves of an RPC.
+A Filter can choose to intercept only the request, or only the response, or both the request and response.
 
 ==== Examples
 
@@ -131,13 +131,14 @@ public class FetchRequestClientIdFilter implements FetchRequestFilter, FetchResp
     }
 }
 ----
+
 Specific Message Filter interfaces are mutually exclusive with <<Request/Response Protocol Filters, Request/Response>>.
 Kroxylicious will reject invalid combinations of interfaces.
 
 === Request/Response Protocol Filters
 
-A filter may wish to intercept every message being sent from the Client to the Cluster or from the Cluster
-to the Client. To do this your custom filter will implement:
+A filter may wish to intercept every message being sent from the Client to the Cluster or from the Cluster to the Client.
+To do this your custom filter will implement:
 
 - {api-javadoc}/io/kroxylicious/proxy/filter/RequestFilter.html[RequestFilter^]
 to intercept all requests.
@@ -170,31 +171,31 @@ Kroxylicious will reject invalid combinations of interfaces.
 === The Filter Result
 
 As seen above, filter methods (`onXyz[Request|Response]`) must return a `CompletionStage<FilterResult>` object.
-It is the job of `FilterResult` to convey what message is to forwarded to the next filter in the chain (or broker
-/client if at the chain's beginning or end).  It is also used to carry instructions such as indicating that the
-connection must be closed, or a message dropped.
+It is the job of `FilterResult` to convey what message is to forwarded to the next filter in the chain (or broker /client if at the chain's beginning or end).
+It is also used to carry instructions such as indicating that the connection must be closed, or a message dropped.
 
-If the filter returns a `CompletionStage` that is already completed normally, Kroxylicious will immediately perform
-the action described by the `FilterResult`.
+If the filter returns a `CompletionStage` that is already completed normally, Kroxylicious will immediately perform the action described by the `FilterResult`.
 
-The filter may return a `CompletionStage` that is not yet completed. When this happens, Kroxylicious will pause
-reading from the downstream (the Client writes will eventually block), and it begins to queue up in-flight
-requests/responses arriving at the filter.  This is done so that message order is maintained.  Once the
-`CompletionStage` completes, the action described  by the `FilterResult` is performed, reading from the downstream
-resumes and any queued up requests/responses are processed.
+The filter may return a `CompletionStage` that is not yet completed.
+When this happens, Kroxylicious will pause reading from the downstream (the Client writes will eventually block), and it begins to queue up in-flight requests/responses arriving at the filter.
+This is done so that message order is maintained.
+Once the
+`CompletionStage` completes, the action described by the `FilterResult` is performed, reading from the downstream resumes and any queued up requests/responses are processed.
 
-IMPORTANT: The pausing of reads from the downstream is a relatively costly operation.  To maintain optimal performance
-filter implementations should minimise the occasions on which an incomplete `CompletionStage` is returned.
+IMPORTANT: The pausing of reads from the downstream is a relatively costly operation.
+To maintain optimal performance filter implementations should minimise the occasions on which an incomplete `CompletionStage` is returned.
 
-If the `CompletionStage` completes exceptionally, the connection is closed.  This also applies if the
+If the `CompletionStage` completes exceptionally, the connection is closed.
+This also applies if the
 `CompletionStage` does not complete within a timeout (20000 milliseconds).
 
 ==== Creating a Filter Result
+
 The `FilterContext` is the factory for the `FilterResult` objects.
 
 There are two convenience methods{empty}footnote:[The `context.forward*()` methods behave exactly as the builder form
 `.forward(header, message).complete()`] that simply allow a filter to forward a result to the next filter.
-We've already seen  these in action above.
+We've already seen these in action above.
 
 * `context.forwardRequest(header, request)` used by result filter to forward a request.
 * `context.forwardResponse(header, response)` used by result filter to forward a request.
@@ -209,8 +210,8 @@ Filter result builders allow you to:
 3. signal that a message is to be dropped (i.e. not forwarded): `.drop()`.
 4. for requests only, send a short-circuit response: `.shortCircuitResponse(header, response)`
 
-The builder lets you combine legal behaviours together.  For instance, to close the connection after forwarding
-a response to a client, a response filter could use:
+The builder lets you combine legal behaviours together.
+For instance, to close the connection after forwarding a response to a client, a response filter could use:
 
 [source,yaml]
 ----
@@ -220,14 +221,14 @@ return context.responseFilterResultBuilder()
         .complete();
 ----
 
-The builders yield either a completed `CompletionStage<FilterResult>` which can be returned directly from the
-filter method, or bare `FilterResult`.  The latter exists to support asynchronous programming styles allowing you
-to use your own Futures.
+The builders yield either a completed `CompletionStage<FilterResult>` which can be returned directly from the filter method, or bare `FilterResult`.
+The latter exists to support asynchronous programming styles allowing you to use your own Futures.
 
-IMPORTANT: The `drop` behaviour can be legally used in very specific circumstances.  The Kafka Protocol is,
-for the most part, strictly request/response with responses expected in the order the request were sent.  The client
-will fail if the contract isn't upheld.  The exception is `Produce` where `acks=0`.  Filters may drop these requests without
-introducing a protocol error.
+IMPORTANT: The `drop` behaviour can be legally used in very specific circumstances.
+The Kafka Protocol is, for the most part, strictly request/response with responses expected in the order the request were sent.
+The client will fail if the contract isn't upheld.
+The exception is `Produce` where `acks=0`.
+Filters may drop these requests without introducing a protocol error.
 
 === The protocol filter lifecycle
 
@@ -239,8 +240,7 @@ It exists while the client remains connected.
 === Handling state
 
 The simplest way of managing per-client state is to use member fields.
-The proxy guarantees that all methods of a given filter instance will always be invoked on the same thread (also true of
-the CompletionStage completion in the case of <<Sending asynchronous requests to the Cluster>>).
+The proxy guarantees that all methods of a given filter instance will always be invoked on the same thread (also true of the CompletionStage completion in the case of <<Sending asynchronous requests to the Cluster>>).
 Therefore, there is no need to use synchronization when accessing such fields.
 
 See the {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html#implementing.threadSafety[`io.kroxylicious.proxy.filter`^]
@@ -257,7 +257,8 @@ Kroxylicious Protocol Filters support several patterns:
 
 ==== Intercepting Requests and Responses
 
-This is a common pattern, we want to inspect or modify a message. For example:
+This is a common pattern, we want to inspect or modify a message.
+For example:
 
 [source,java]
 ----
@@ -272,20 +273,22 @@ public class SampleFetchResponseFilter implements FetchResponseFilter {
     }
 }
 ----
-<1> We mutate the response object. For example, you could alter the records that have been fetched.
+
+<1> We mutate the response object.
+For example, you could alter the records that have been fetched.
 <2> We forward the response, sending it towards the client, invoking Filters downstream of this one.
 
-NOTE: We can only forward the response and header objects passed into the `onFetchResponse`. New instances are not
-supported.
+NOTE: We can only forward the response and header objects passed into the `onFetchResponse`.
+New instances are not supported.
 
 ==== Sending Response messages from a Request Filter towards the Client (Short-circuit responses)
 
-In some cases we may wish to not forward a request from the client to the Cluster. Instead, we want to intercept that
-request and generate a response message in a Kroxylicious Protocol Filter and send it towards the client.  This is called
-a short-circuit response.
+In some cases we may wish to not forward a request from the client to the Cluster.
+Instead, we want to intercept that request and generate a response message in a Kroxylicious Protocol Filter and send it towards the client.
+This is called a short-circuit response.
 
 .Illustration of responding without proxying
-[a2s, format="svg"]
+[a2s,format="svg"]
 ....
 .----------------------------------------------------------------------------------------------------------------------.
 |                                                                                                                      |
@@ -332,7 +335,9 @@ public class CreateTopicRejectFilter implements CreateTopicsRequestFilter {
     }
 }
 ----
-<1> Create a new instance of the corresponding response data and populate it. Note you may need to use the `apiVersion`
+
+<1> Create a new instance of the corresponding response data and populate it.
+Note you may need to use the `apiVersion`
 to check which fields can be set at this request's API version.
 <2> We generate a short-circuit response that will send it towards the client, invoking Filters downstream of this one.
 
@@ -340,9 +345,8 @@ This will respond to all Create Topic requests with an error response without fo
 
 ===== Closing the connections
 
-There is a useful variation on the pattern above, where the filter needs, in addition to sending an error
-response, also to cause the connection to close.  This is useful in use-cases where the filter wishes to disallow
-certain client behaviours.
+There is a useful variation on the pattern above, where the filter needs, in addition to sending an error response, also to cause the connection to close.
+This is useful in use-cases where the filter wishes to disallow certain client behaviours.
 
 [source,java]
 ----
@@ -364,24 +368,24 @@ public class DisallowAlterConfigs implements AlterConfigsRequestFilter {
     }
 }
 ----
-<1> We enable the close connection option on the builder.  This will cause Kroxylicious to close the connection
-after the response is sent to the client.
+
+<1> We enable the close connection option on the builder.
+This will cause Kroxylicious to close the connection after the response is sent to the client.
 
 ==== Sending asynchronous requests to the Cluster
 
-Filters can make additional asynchronous requests to the Cluster.  This is useful if the Filter needs additional
-information from the Cluster in order to know how to mutate the filtered request/response.
+Filters can make additional asynchronous requests to the Cluster.
+This is useful if the Filter needs additional information from the Cluster in order to know how to mutate the filtered request/response.
 
 The Filter can make use of {java-17-javadoc}/java.base/java/util/concurrent/CompletionStage.html[CompletionStage^]
 chaining features ([`#thenApply()` etc.) to organise for actions to be done once the asynchronous request completes.
-For example, it could chain an action that mutates the filtered request/response using the asynchronous response, and
-finally, chain an action to forward the request/response to the next filter.
+For example, it could chain an action that mutates the filtered request/response using the asynchronous response, and finally, chain an action to forward the request/response to the next filter.
 
-The asynchronous request/response will be intercepted by Filters upstream of this Filter.  Filters downstream of this
-Filter (and the Client) do not see the asynchronous response.
+The asynchronous request/response will be intercepted by Filters upstream of this Filter.
+Filters downstream of this Filter (and the Client) do not see the asynchronous response.
 
-Let's take a look at an example. We'll send an asynchronous request towards the Cluster for topic metadata while
-handling a FetchRequest and use the response to mutate the FetchRequest before passing it to the next filter in the chain.
+Let's take a look at an example.
+We'll send an asynchronous request towards the Cluster for topic metadata while handling a FetchRequest and use the response to mutate the FetchRequest before passing it to the next filter in the chain.
 
 [source,java]
 ----
@@ -404,36 +408,42 @@ public class FetchFilter implements FetchRequestFilter {
     }
 }
 ----
-<1> We construct a header object for the asynchronous request.  It is important to specify the API version of the request
-that is to be used.  The version chosen must be a version known to the Kafka Client used by Kroxylicious
-and must be an API version supported by the Target Cluster.
-<2> We construct a new request object. When constructing the request object, care needs to be taken to ensure the request is populated with the structure which matches the API version you have chosen.  Refer to the {kafka-protocol}[Kafka Protocol Guide] for more details.
+
+<1> We construct a header object for the asynchronous request.
+It is important to specify the API version of the request that is to be used.
+The version chosen must be a version known to the Kafka Client used by Kroxylicious and must be an API version supported by the Target Cluster.
+<2> We construct a new request object.
+When constructing the request object, care needs to be taken to ensure the request is populated with the structure which matches the API version you have chosen.
+Refer to the {kafka-protocol}[Kafka Protocol Guide] for more details.
 <3> We asynchronously send the request towards the Cluster and obtain a CompletionStage which will contain the response.
 <4> We use a computation stage to mutate the filtered fetch request using the response from the request sent at <3>.
 <5> We use another computation stage to forward the mutated request.
 
-As you have read above, we need to know the API version we want our request to be encoded at. Your filter can discover
-what versions of an API the Kafka Cluster supports.  To do this use the
+As you have read above, we need to know the API version we want our request to be encoded at.
+Your filter can discover what versions of an API the Kafka Cluster supports.
+To do this use the
 {api-javadoc}/io/kroxylicious/proxy/ApiVersionsService.html[ApiVersionsService^] available from the `FilterContext`
 to determine programmatically what versions of an API are support and then write code to make a suitable `request`
 object.
 
-NOTE: Kroxylicious provides the guarantee that computation stages chained using the _default execution methods_ are
-executed on the same thread as the rest of the Filter work, so we can safely mutate Filter members without synchronising.
+NOTE: Kroxylicious provides the guarantee that computation stages chained using the _default execution methods_ are executed on the same thread as the rest of the Filter work, so we can safely mutate Filter members without synchronising.
 See the {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html#implementing.threadSafety[`io.kroxylicious.proxy.filter`^]
 package javadoc for more information on thread-safety.
 
 ==== Filtering specific API Versions
 
-> Kafka has a "bidirectional" client compatibility policy. In other words, new clients can talk to old servers, and old clients can talk to new servers. This allows users to upgrade either clients or servers without experiencing any downtime.
->
-> Since the Kafka protocol has changed over time, clients and servers need to agree on the schema of the message that they are sending over the wire. This is done through API versioning.
->
-> Before each request is sent, the client sends the API key and the API version. These two 16-bit numbers, when taken together, uniquely identify the schema of the message to follow.
+> Kafka has a "bidirectional" client compatibility policy.
+In other words, new clients can talk to old servers, and old clients can talk to new servers.
+This allows users to upgrade either clients or servers without experiencing any downtime.
+> > Since the Kafka protocol has changed over time, clients and servers need to agree on the schema of the message that they are sending over the wire.
+This is done through API versioning.
+> > Before each request is sent, the client sends the API key and the API version.
+These two 16-bit numbers, when taken together, uniquely identify the schema of the message to follow.
 > -- https://kafka.apache.org/protocol.html#protocol_compatibility
 
-You may wish to restrict your Filter to only apply to specific versions of an API. For example, "intercept all FetchRequest
-messages greater than api version 7". To do this you can override a method named `shouldHandleXyz[Request|Response]` on your filter like:
+You may wish to restrict your Filter to only apply to specific versions of an API.
+For example, "intercept all FetchRequest messages greater than api version 7".
+To do this you can override a method named `shouldHandleXyz[Request|Response]` on your filter like:
 
 [source,java]
 ----
@@ -456,14 +466,17 @@ public class FetchFilter implements FetchRequestFilter {
 ----
 
 === Filter Construction and Configuration
+
 For Kroxylicious to instantiate and configure your custom filter we use Java's {java-17-javadoc}/java.base/java/util/ServiceLoader.html[ServiceLoader^] API.
 Each Custom Filter should provide a corresponding {api-javadoc}/io/kroxylicious/proxy/filter/FilterFactory.html[FilterFactory^]
-implementation that can create an instance of your custom Filter. The factory can optionally declare a configuration class that Kroxylicious will
-populate (using Jackson) when loading your custom Filter. The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterFactory`
+implementation that can create an instance of your custom Filter.
+The factory can optionally declare a configuration class that Kroxylicious will populate (using Jackson) when loading your custom Filter.
+The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterFactory`
 file containing the classnames of each filter factory implementation into the JAR file.
 
 For example in the kroxylicious-samples we have the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/config/SampleFilterConfig.java[SampleFilterConfig] class.
-This is used in the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilter.java[SampleFetchResponseFilter]). The configuration is routed to the Filter instance via the 
+This is used in the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilter.java[SampleFetchResponseFilter]).
+The configuration is routed to the Filter instance via the
 {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilterFactory.java[SampleFetchResponseFilterFactory].
 
 Then, when we configure a filter in Kroxylicious configuration like:
@@ -476,12 +489,14 @@ filters:
     findValue: a
     replacementValue: b
 ----
+
 Kroxylicious will deserialize the `config` object into a `SampleFilterConfig` and use it to construct a
 `SampleFetchResponseFilter` passing the `SampleFilterConfig` instance as a constructor argument.
 
 == Packaging filters
 
-Filters are packaged as standard `.jar` files. A typical Custom Filter jar contains:
+Filters are packaged as standard `.jar` files.
+A typical Custom Filter jar contains:
 
 1. Filter implementation classes
 2. A FilterFactory implementation per Filter and service metadata (see <<Filter Construction and Configuration>>)

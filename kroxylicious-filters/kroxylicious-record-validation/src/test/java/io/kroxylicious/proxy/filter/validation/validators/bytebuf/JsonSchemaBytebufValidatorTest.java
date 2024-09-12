@@ -73,21 +73,28 @@ public class JsonSchemaBytebufValidatorTest {
     public static void initMockRegistry() {
         registryServer = new WireMockServer(
                 wireMockConfig()
-                        .dynamicPort());
+                                .dynamicPort()
+        );
 
         registryServer.start();
 
         registryServer.stubFor(
                 get(urlEqualTo("/apis/registry/v2/ids/globalIds/1?dereference=false"))
-                        .willReturn(WireMock.aResponse()
-                                .withHeader("Content-Type", "application/json")
-                                .withBody(JSON_SCHEMA)));
+                                                                                      .willReturn(
+                                                                                              WireMock.aResponse()
+                                                                                                      .withHeader("Content-Type", "application/json")
+                                                                                                      .withBody(JSON_SCHEMA)
+                                                                                      )
+        );
 
         registryServer.stubFor(
                 get(urlEqualTo("/apis/registry/v2/ids/globalIds/1/references"))
-                        .willReturn(WireMock.aResponse()
-                                .withHeader("Content-Type", "application/json")
-                                .withBody("[]")));
+                                                                               .willReturn(
+                                                                                       WireMock.aResponse()
+                                                                                               .withHeader("Content-Type", "application/json")
+                                                                                               .withBody("[]")
+                                                                               )
+        );
 
         apicurioConfig = Map.of("apicurio.registry.url", registryServer.baseUrl());
     }
@@ -104,8 +111,8 @@ public class JsonSchemaBytebufValidatorTest {
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -115,8 +122,8 @@ public class JsonSchemaBytebufValidatorTest {
         var future = validator.validate(record.value(), record, false);
 
         assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(false, Result::valid);
     }
 
     @Test
@@ -125,8 +132,8 @@ public class JsonSchemaBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(false, Result::valid);
     }
 
     @Test
@@ -136,8 +143,8 @@ public class JsonSchemaBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -147,8 +154,8 @@ public class JsonSchemaBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -158,8 +165,8 @@ public class JsonSchemaBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
     }
 
     @Test
@@ -169,8 +176,8 @@ public class JsonSchemaBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
         assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
     }
 
     @Test
@@ -180,8 +187,8 @@ public class JsonSchemaBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.key(), record, true);
         assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -191,8 +198,8 @@ public class JsonSchemaBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.key(), record, true);
         assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
     }
 
     private byte[] toByteArray(long globalId) {

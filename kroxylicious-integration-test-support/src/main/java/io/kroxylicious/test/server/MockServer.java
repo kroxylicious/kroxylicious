@@ -112,17 +112,17 @@ public final class MockServer implements AutoCloseable {
         serverHandler = new MockHandler(response == null ? null : response.message());
         ServerBootstrap b = new ServerBootstrap();
         b.group(bossGroup, workerGroup)
-                .channel(eventGroupConfig.serverChannelClass())
-                .option(ChannelOption.SO_BACKLOG, 100)
-                .childHandler(new ChannelInitializer<SocketChannel>() {
-                    @Override
-                    public void initChannel(SocketChannel ch) {
-                        ChannelPipeline p = ch.pipeline();
-                        p.addLast(new KafkaRequestDecoder());
-                        p.addLast(new KafkaResponseEncoder());
-                        p.addLast(serverHandler);
-                    }
-                });
+         .channel(eventGroupConfig.serverChannelClass())
+         .option(ChannelOption.SO_BACKLOG, 100)
+         .childHandler(new ChannelInitializer<SocketChannel>() {
+             @Override
+             public void initChannel(SocketChannel ch) {
+                 ChannelPipeline p = ch.pipeline();
+                 p.addLast(new KafkaRequestDecoder());
+                 p.addLast(new KafkaResponseEncoder());
+                 p.addLast(serverHandler);
+             }
+         });
 
         // Start the server.
         ChannelFuture f;

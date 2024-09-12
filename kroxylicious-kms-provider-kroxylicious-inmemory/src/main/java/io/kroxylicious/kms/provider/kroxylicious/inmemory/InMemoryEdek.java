@@ -11,17 +11,18 @@ import java.util.Objects;
 import java.util.UUID;
 
 public record InMemoryEdek(
-                           int numAuthBits,
-                           byte[] iv,
-                           UUID kekRef,
-                           byte[] edek) {
+        int numAuthBits,
+        byte[] iv,
+        UUID kekRef,
+        byte[] edek
+) {
 
     public InMemoryEdek {
         if (numAuthBits != 128
-                && numAuthBits != 120
-                && numAuthBits != 112
-                && numAuthBits != 104
-                && numAuthBits != 96) {
+            && numAuthBits != 120
+            && numAuthBits != 112
+            && numAuthBits != 104
+            && numAuthBits != 96) {
             // Per NIST.SP.800-138D §5.2.1.2
             throw new IllegalArgumentException("numAuthBits must be one of 128, 120, 112, 104, or 96");
         }
@@ -62,10 +63,17 @@ public record InMemoryEdek(
      */
     @Override
     public String toString() {
-        return "InMemoryEdek{" +
-                "numAuthBits=" + numAuthBits +
-                ", iv=" + Arrays.toString(iv) +
-                ", edek=" + Arrays.toString(edek) +
-                '}';
+        return "InMemoryEdek{"
+               +
+               "numAuthBits="
+               + numAuthBits
+               +
+               ", iv="
+               + Arrays.toString(iv)
+               +
+               ", edek="
+               + Arrays.toString(edek)
+               +
+               '}';
     }
 }

@@ -29,7 +29,9 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @Test
     void valid() {
         new SniRoutingClusterNetworkAddressConfigProviderConfig(
-                parse("good:1235"), "broker$(nodeId)-good");
+                parse("good:1235"),
+                "broker$(nodeId)-good"
+        );
 
     }
 
@@ -37,8 +39,10 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @ValueSource(strings = { "nonodetoken", "recursive$(nodeId$(nodeId))", "capitalisedrejected$(NODEID)", "noportalloweed$(nodeId):1234" })
     @NullAndEmptySource
     void invalidBrokerAddressPattern(String input) {
-        assertThrows(IllegalArgumentException.class,
-                () -> new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("good:1235"), input));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("good:1235"), input)
+        );
     }
 
     @ParameterizedTest
@@ -51,8 +55,11 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @Test
     void getBrokerAddress() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("boot.kafka:1234"),
-                        "broker-$(nodeId).kafka"));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(
+                        parse("boot.kafka:1234"),
+                        "broker-$(nodeId).kafka"
+                )
+        );
         assertThat(provider.getBrokerAddress(0)).isEqualTo(HostPort.parse("broker-0.kafka:1234"));
     }
 
@@ -65,23 +72,32 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
                 Arguments.of("host mismatch", "broker-0.another:1234", null),
                 Arguments.of("RE anchoring", "0.kafka:1234", null),
                 Arguments.of("RE anchoring", "start.broker-0.kafka.end:1234", null),
-                Arguments.of("RE metacharacters in brokerAddressPattern escaped", "broker-0xkafka:1234", null));
+                Arguments.of("RE metacharacters in brokerAddressPattern escaped", "broker-0xkafka:1234", null)
+        );
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    void getBrokerIdFromBrokerAddress(String name, @ConvertWith(HostPortConverter.class) HostPort address, Integer expected) {
+    void getBrokerIdFromBrokerAddress(String name, @ConvertWith(HostPortConverter.class)
+    HostPort address, Integer expected) {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("boot.kafka:1234"),
-                        "broker-$(nodeId).kafka"));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(
+                        parse("boot.kafka:1234"),
+                        "broker-$(nodeId).kafka"
+                )
+        );
 
         assertThat(provider.getBrokerIdFromBrokerAddress(address)).isEqualTo(expected);
     }
 
     @Test
     void badNodeId() {
-        assertThrows(IllegalArgumentException.class, () -> new SniRoutingClusterNetworkAddressConfigProvider(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("boot.kafka:1234"), "broker-$(nodeId).kafka"))
-                .getBrokerAddress(-1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SniRoutingClusterNetworkAddressConfigProvider(
+                        new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("boot.kafka:1234"), "broker-$(nodeId).kafka")
+                )
+                 .getBrokerAddress(-1)
+        );
     }
 }

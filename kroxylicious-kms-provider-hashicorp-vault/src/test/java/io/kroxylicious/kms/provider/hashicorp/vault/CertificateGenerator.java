@@ -110,10 +110,11 @@ public class CertificateGenerator {
                     validFrom,
                     validTo,
                     new X500Name("CN=localhost"),
-                    subPubKeyInfo);
+                    subPubKeyInfo
+            );
             var signer = new JcaContentSignerBuilder("SHA256WithRSA")
-                    .setProvider(new BouncyCastleProvider())
-                    .build(pair.getPrivate());
+                                                                     .setProvider(new BouncyCastleProvider())
+                                                                     .build(pair.getPrivate());
             X509CertificateHolder holder = certBuilder.build(signer);
             JcaX509CertificateConverter converter = new JcaX509CertificateConverter();
             return converter.getCertificate(holder);
@@ -147,22 +148,41 @@ public class CertificateGenerator {
         }
     }
 
-    public record TrustStore(@NonNull Path path, @NonNull String type, @Nullable String password, @Nullable Path passwordFile) {
+    public record TrustStore(@NonNull
+    Path path, @NonNull
+    String type, @Nullable
+    String password, @Nullable
+    Path passwordFile) {
 
     }
 
-    public record KeyStore(@NonNull Path path, @NonNull String type, @Nullable String storePassword, @Nullable Path storePasswordFile, @Nullable String keyPassword,
-                           @Nullable Path keyPasswordFile) {
+    public record KeyStore(
+            @NonNull
+            Path path,
+            @NonNull
+            String type,
+            @Nullable
+            String storePassword,
+            @Nullable
+            Path storePasswordFile,
+            @Nullable
+            String keyPassword,
+            @Nullable
+            Path keyPasswordFile
+    ) {
 
     }
 
-    public record Keys(KeyPair serverKey,
-                       Path privateKeyPem,
-                       Path selfSignedCertificatePem,
-                       TrustStore pkcs12ClientTruststore,
-                       TrustStore jksClientTruststore,
-                       TrustStore pkcs12NoPasswordClientTruststore,
-                       KeyStore jksServerKeystore) {}
+    public record Keys(
+            KeyPair serverKey,
+            Path privateKeyPem,
+            Path selfSignedCertificatePem,
+            TrustStore pkcs12ClientTruststore,
+            TrustStore jksClientTruststore,
+            TrustStore pkcs12NoPasswordClientTruststore,
+            KeyStore jksServerKeystore
+    ) {
+    }
 
     public static Keys generate() {
         String password = "changeit";

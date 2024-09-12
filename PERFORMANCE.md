@@ -10,8 +10,8 @@ and `kafka-consumer-perf-test.sh` to get simple throughput and latency numbers f
 The script uses Docker Compose to orchestrate the tests with Apache Kafka, Kroxylicious and HashiCorp Vault
 running within containers.
 
-Five scenarios are tested, including a baseline for Apache Kafka alone.  That lets you understand the cost of
-adding Kroxylicious in terms of throughput and latency.    The tests currently use a Kafka Cluster with a single
+Five scenarios are tested, including a baseline for Apache Kafka alone. That lets you understand the cost of
+adding Kroxylicious in terms of throughput and latency. The tests currently use a Kafka Cluster with a single
 broker.
 
 The tested scenarios are:
@@ -22,7 +22,7 @@ The tested scenarios are:
 * Kroxylicious + Kafka - envelope encryption with encrypted topic
 * Kroxylicious + Kafka - envelope encryption without encrypted topic
 
-## Prerequisites 
+## Prerequisites
 
 - [JDK](https://openjdk.org/projects/jdk/17/) (version 17 and above) - JDK
 - [`mvn`](https://maven.apache.org/index.html) (version 3.5 and above) - Maven CLI
@@ -80,13 +80,15 @@ The script understands the following environment variables.
 # Jenkins pipeline for performance
 
 When a PR is created and the performance tests are needed, if you are a member of
-[Developers](https://github.com/orgs/kroxylicious/teams/developers), you may add the following comment into the PR to trigger the run.
+[Developers](https://github.com/orgs/kroxylicious/teams/developers), you may add the following comment into the PR to
+trigger the run.
 
 ```
 @strimzi-ci run perf
 ```
 
-It will launch the `kroxylicious-performance-tests-pr` build, that will insert a comment with a summary into the PR comparing the results with the previous execution.
+It will launch the `kroxylicious-performance-tests-pr` build, that will insert a comment with a summary into the PR
+comparing the results with the previous execution.
 
 In case a manual execution needs to be done, this job is ready for that `kroxylicious-performance-tests`, where
 some parameters can be configurable (NUMBER_OF_MESSAGES, MESSAGE_SIZE, PRODUCER_PROPERTIES)

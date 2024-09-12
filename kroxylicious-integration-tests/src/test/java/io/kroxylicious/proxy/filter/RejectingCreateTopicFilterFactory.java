@@ -12,11 +12,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 @Plugin(configType = RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig.class)
 public class RejectingCreateTopicFilterFactory
-        implements FilterFactory<RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig, RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig> {
+                                               implements
+                                               FilterFactory<RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig, RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig> {
 
     @Override
-    public RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig initialize(FilterFactoryContext context,
-                                                                                  RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig config) {
+    public RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig initialize(
+            FilterFactoryContext context,
+            RejectingCreateTopicFilter.RejectingCreateTopicFilterConfig config
+    ) {
         // null configuration is allowed, by default null config is invalid
         return config;
     }

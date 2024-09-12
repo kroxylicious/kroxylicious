@@ -48,8 +48,7 @@ public class EagerMetadataLearner implements RequestFilter {
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage body, FilterContext context) {
         if (KAFKA_PRELUDE.contains(apiKey)) {
             return context.requestFilterResultBuilder().forward(header, body).completed();
-        }
-        else {
+        } else {
             // Send an out-of-band Metadata request. The response will be intercepted by the in-built BrokerAddressFilter.
             // By the time control returns to the handler, the upstream addresses will have been reconciled.
             var requestHeader = determineMetadataRequestHeader(header);
@@ -58,22 +57,21 @@ public class EagerMetadataLearner implements RequestFilter {
 
             var future = new CompletableFuture<RequestFilterResult>();
             var unused = context.<MetadataResponseData> sendRequest(requestHeader, request)
-                    .thenAccept(metadataResponse -> {
-                        // closing the connection is important. This client connection is connected to bootstrap (it could
-                        // be any broker or maybe not something else). we must close the connection to force the client to
-                        // connect again.
-                        var builder = context.requestFilterResultBuilder();
-                        if (useClientRequest) {
-                            // The client's request matched our out-of-band message, so we may as well return the
-                            // response.
-                            future.complete(builder.shortCircuitResponse(metadataResponse).withCloseConnection().build());
-                        }
-                        else {
-                            future.complete(builder.withCloseConnection().build());
+                                .thenAccept(metadataResponse -> {
+                                    // closing the connection is important. This client connection is connected to bootstrap (it could
+                                    // be any broker or maybe not something else). we must close the connection to force the client to
+                                    // connect again.
+                                    var builder = context.requestFilterResultBuilder();
+                                    if (useClientRequest) {
+                                        // The client's request matched our out-of-band message, so we may as well return the
+                                        // response.
+                                        future.complete(builder.shortCircuitResponse(metadataResponse).withCloseConnection().build());
+                                    } else {
+                                        future.complete(builder.withCloseConnection().build());
 
-                        }
-                        LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", context.channelDescriptor());
-                    });
+                                    }
+                                    LOGGER.info("Closing upstream bootstrap connection {} now that endpoint reconciliation is complete.", context.channelDescriptor());
+                                });
             return future;
         }
     }
@@ -81,8 +79,7 @@ public class EagerMetadataLearner implements RequestFilter {
     private RequestHeaderData determineMetadataRequestHeader(RequestHeaderData header) {
         if (header.requestApiKey() == ApiKeys.METADATA.id) {
             return header;
-        }
-        else {
+        } else {
             // TODO: use a version appearing the intersection calculated by ApiVersionFilter.
             return new RequestHeaderData().setRequestApiVersion(MetadataRequestData.LOWEST_SUPPORTED_VERSION);
         }

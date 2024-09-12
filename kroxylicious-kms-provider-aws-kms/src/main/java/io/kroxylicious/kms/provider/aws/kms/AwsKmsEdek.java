@@ -15,8 +15,10 @@ import java.util.Objects;
  * @param kekRef - kek reference.
  * @param edek - edek bytes
  */
-record AwsKmsEdek(String kekRef,
-                  byte[] edek) {
+record AwsKmsEdek(
+        String kekRef,
+        byte[] edek
+) {
     AwsKmsEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
@@ -62,9 +64,14 @@ record AwsKmsEdek(String kekRef,
      */
     @Override
     public String toString() {
-        return "AwsKmsEdek{" +
-                "keyRef=" + kekRef +
-                ", edek=" + Arrays.toString(edek) +
-                '}';
+        return "AwsKmsEdek{"
+               +
+               "keyRef="
+               + kekRef
+               +
+               ", edek="
+               + Arrays.toString(edek)
+               +
+               '}';
     }
 }

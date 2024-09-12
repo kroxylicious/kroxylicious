@@ -29,8 +29,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(false, Result::valid);
     }
 
     @Test
@@ -39,8 +39,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -50,11 +50,11 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(r -> {
-                    assertThat(r.valid()).isFalse();
-                    assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
-                });
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(r -> {
+                              assertThat(r.valid()).isFalse();
+                              assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
+                          });
     }
 
     @Test
@@ -64,11 +64,11 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(r -> {
-                    assertThat(r.valid()).isFalse();
-                    assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
-                });
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(r -> {
+                              assertThat(r.valid()).isFalse();
+                              assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
+                          });
     }
 
     @Test
@@ -78,11 +78,11 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(r -> {
-                    assertThat(r.valid()).isFalse();
-                    assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
-                });
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(r -> {
+                              assertThat(r.valid()).isFalse();
+                              assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
+                          });
     }
 
     @Test
@@ -92,8 +92,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -103,8 +103,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -114,8 +114,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -125,11 +125,11 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(r -> {
-                    assertThat(r.valid()).isFalse();
-                    assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
-                });
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(r -> {
+                              assertThat(r.valid()).isFalse();
+                              assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
+                          });
     }
 
     @Test
@@ -139,11 +139,11 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(r -> {
-                    assertThat(r.valid()).isFalse();
-                    assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
-                });
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .satisfies(r -> {
+                              assertThat(r.valid()).isFalse();
+                              assertThat(r.errorMessage()).contains("value was not syntactically correct JSON: Duplicate field");
+                          });
     }
 
     @Test
@@ -153,8 +153,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -164,8 +164,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -175,8 +175,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -186,8 +186,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -197,8 +197,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(false, Result::valid);
     }
 
     @Test
@@ -208,8 +208,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(false);
         var result1 = validator.validate(record.value(), record, false);
         assertThat(result1)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
+                           .succeedsWithin(Duration.ofSeconds(1))
+                           .returns(false, Result::valid);
     }
 
     @Test
@@ -218,8 +218,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.value(), record, false);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -228,8 +228,8 @@ class JsonSyntaxBytebufValidatorTest {
         BytebufValidator validator = BytebufValidators.jsonSyntaxValidator(true);
         var result = validator.validate(record.key(), record, true);
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test

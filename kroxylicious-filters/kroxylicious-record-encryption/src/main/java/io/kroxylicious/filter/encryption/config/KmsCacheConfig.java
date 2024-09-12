@@ -12,14 +12,15 @@ import java.util.function.Function;
 import static java.util.Objects.requireNonNullElse;
 
 public record KmsCacheConfig(
-                             Integer decryptedDekCacheSize,
-                             Duration decryptedDekExpireAfterAccessDuration,
-                             Integer resolvedAliasCacheSize,
-                             Duration resolvedAliasExpireAfterWriteDuration,
-                             Duration resolvedAliasRefreshAfterWriteDuration,
-                             Duration notFoundAliasExpireAfterWriteDuration,
-                             Duration encryptionDekCacheRefreshAfterWriteDuration,
-                             Duration encryptionDekCacheExpireAfterWriteDuration) {
+        Integer decryptedDekCacheSize,
+        Duration decryptedDekExpireAfterAccessDuration,
+        Integer resolvedAliasCacheSize,
+        Duration resolvedAliasExpireAfterWriteDuration,
+        Duration resolvedAliasRefreshAfterWriteDuration,
+        Duration notFoundAliasExpireAfterWriteDuration,
+        Duration encryptionDekCacheRefreshAfterWriteDuration,
+        Duration encryptionDekCacheExpireAfterWriteDuration
+) {
 
     public KmsCacheConfig {
         decryptedDekCacheSize = requireNonNullElse(decryptedDekCacheSize, 1000);
@@ -32,23 +33,28 @@ public record KmsCacheConfig(
         encryptionDekCacheExpireAfterWriteDuration = requireNonNullElse(encryptionDekCacheExpireAfterWriteDuration, Duration.ofHours(2));
     }
 
-    @SuppressWarnings("java:S1905") // Sonar's warning about this is incorrect, the cast is required.
-    KmsCacheConfig(Integer decryptedDekCacheSize,
-                   Long decryptedDekExpireAfterAccessSeconds,
-                   Integer resolvedAliasCacheSize,
-                   Long resolvedAliasExpireAfterWriteSeconds,
-                   Long resolvedAliasRefreshAfterWriteSeconds,
-                   Long notFoundAliasExpireAfterWriteSeconds,
-                   Long decryptedDekRefreshAfterWriteSeconds,
-                   Long decryptedDekExpireAfterWriteSeconds) {
-        this(mapNotNull(decryptedDekCacheSize, Function.identity()),
+    @SuppressWarnings("java:S1905")
+    // Sonar's warning about this is incorrect, the cast is required.
+    KmsCacheConfig(
+            Integer decryptedDekCacheSize,
+            Long decryptedDekExpireAfterAccessSeconds,
+            Integer resolvedAliasCacheSize,
+            Long resolvedAliasExpireAfterWriteSeconds,
+            Long resolvedAliasRefreshAfterWriteSeconds,
+            Long notFoundAliasExpireAfterWriteSeconds,
+            Long decryptedDekRefreshAfterWriteSeconds,
+            Long decryptedDekExpireAfterWriteSeconds
+    ) {
+        this(
+                mapNotNull(decryptedDekCacheSize, Function.identity()),
                 (Duration) mapNotNull(decryptedDekExpireAfterAccessSeconds, Duration::ofSeconds),
                 mapNotNull(resolvedAliasCacheSize, Function.identity()),
                 mapNotNull(resolvedAliasExpireAfterWriteSeconds, Duration::ofSeconds),
                 mapNotNull(resolvedAliasRefreshAfterWriteSeconds, Duration::ofSeconds),
                 mapNotNull(notFoundAliasExpireAfterWriteSeconds, Duration::ofSeconds),
                 mapNotNull(decryptedDekRefreshAfterWriteSeconds, Duration::ofSeconds),
-                mapNotNull(decryptedDekExpireAfterWriteSeconds, Duration::ofSeconds));
+                mapNotNull(decryptedDekExpireAfterWriteSeconds, Duration::ofSeconds)
+        );
     }
 
     static <T, Y> Y mapNotNull(T t, Function<T, Y> function) {

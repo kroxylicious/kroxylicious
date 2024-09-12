@@ -31,7 +31,8 @@ class NettyTrustProviderTest {
                 Arguments.of("JKS", TlsTestConstants.JKS, "client.jks", TlsTestConstants.STOREPASS),
                 Arguments.of("PKCS12", TlsTestConstants.PKCS_12, "server.p12", TlsTestConstants.STOREPASS),
                 Arguments.of("Certificate PEM passed as keyStore (KIP-651)", TlsTestConstants.PEM, "server.crt", TlsTestConstants.STOREPASS),
-                Arguments.of("JKS store password from file", TlsTestConstants.JKS, "client.jks", TlsTestConstants.KEYSTORE_FILE_PASSWORD));
+                Arguments.of("JKS store password from file", TlsTestConstants.JKS, "client.jks", TlsTestConstants.KEYSTORE_FILE_PASSWORD)
+        );
     }
 
     @ParameterizedTest(name = "{0}")
@@ -49,16 +50,16 @@ class NettyTrustProviderTest {
     void trustStoreIncorrectPassword() {
         var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.BADPASS, null));
         assertThatCode(() -> trustStore.apply(sslContextBuilder))
-                .hasMessageContaining("Error building SSLContext")
-                .hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+                                                                 .hasMessageContaining("Error building SSLContext")
+                                                                 .hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }
 
     @Test
     void trustStoreNotFound() {
         var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.NOT_EXIST, TlsTestConstants.STOREPASS, null));
         assertThatCode(() -> trustStore.apply(sslContextBuilder))
-                .hasMessageContaining("Error building SSLContext")
-                .hasRootCauseInstanceOf(FileNotFoundException.class);
+                                                                 .hasMessageContaining("Error building SSLContext")
+                                                                 .hasRootCauseInstanceOf(FileNotFoundException.class);
     }
 
     @Test

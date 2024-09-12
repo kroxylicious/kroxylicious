@@ -125,7 +125,8 @@
                         </goals>
                         <phase>generate-sources</phase>
                         <configuration>
-                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message
+                            </messageSpecDirectory>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>Kproxy/Filter.ftl</templateNames>
@@ -155,9 +156,12 @@
                         <accessModifier>public</accessModifier>
                         <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
                         <breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
-                        <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
+                        <breakBuildBasedOnSemanticVersioningForMajorVersionZero>
+                            ${ApiCompatability.EnforceForMajorVersionZero}
+                        </breakBuildBasedOnSemanticVersioningForMajorVersionZero>
                         <excludes>
-                            <exclude>io.kroxylicious.proxy.config.secret.FilePasswordFilePath</exclude>  <!-- used purely in config files and the name still exists (as a JSON alias) -->
+                            <exclude>io.kroxylicious.proxy.config.secret.FilePasswordFilePath
+                            </exclude>  <!-- used purely in config files and the name still exists (as a JSON alias) -->
                         </excludes>
                         <!-- see documentation -->
                     </parameter>

@@ -163,8 +163,10 @@ class KroxyliciousTestersTest {
             withConsumer(() -> tester.consumer(Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
             withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
             withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
-            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()),
-                    KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+            withConsumer(
+                    () -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()),
+                    KroxyliciousTestersTest::assertOneRecordConsumedFrom
+            );
         }
     }
 
@@ -266,7 +268,7 @@ class KroxyliciousTestersTest {
             tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), mockResponse));
 
             var response = kafkaClient
-                    .getSync(new Request(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), "client", new DescribeAclsRequestData()));
+                                      .getSync(new Request(ApiKeys.DESCRIBE_ACLS, ApiKeys.DESCRIBE_ACLS.latestVersion(), "client", new DescribeAclsRequestData()));
             assertThat(response.payload().message()).isEqualTo(mockResponse);
             assertThat(kafkaClient.isOpen()).isTrue();
         }
@@ -291,8 +293,17 @@ class KroxyliciousTestersTest {
     void testIllegalToAskForDefaultClientsWhenVirtualClustersAmbiguous(KafkaCluster cluster) {
         String clusterBootstrapServers = cluster.getBootstrapServers();
         ConfigurationBuilder builder = new ConfigurationBuilder();
-        ConfigurationBuilder proxy = addVirtualCluster(clusterBootstrapServers, addVirtualCluster(clusterBootstrapServers, builder, "foo",
-                "localhost:9192"), "bar", "localhost:9296");
+        ConfigurationBuilder proxy = addVirtualCluster(
+                clusterBootstrapServers,
+                addVirtualCluster(
+                        clusterBootstrapServers,
+                        builder,
+                        "foo",
+                        "localhost:9192"
+                ),
+                "bar",
+                "localhost:9296"
+        );
         try (var tester = kroxyliciousTester(proxy)) {
             assertThrows(AmbiguousVirtualClusterException.class, tester::simpleTestClient);
             assertThrows(AmbiguousVirtualClusterException.class, tester::consumer);
@@ -306,17 +317,27 @@ class KroxyliciousTestersTest {
         }
     }
 
-    private static ConfigurationBuilder addVirtualCluster(String clusterBootstrapServers, ConfigurationBuilder builder, String clusterName,
-                                                          String defaultProxyBootstrap) {
-        return builder.addToVirtualClusters(clusterName, new VirtualClusterBuilder()
-                .withNewTargetCluster()
-                .withBootstrapServers(clusterBootstrapServers)
-                .endTargetCluster()
-                .withClusterNetworkAddressConfigProvider(
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                .withConfig("bootstrapAddress", defaultProxyBootstrap)
-                                .build())
-                .build());
+    private static ConfigurationBuilder addVirtualCluster(
+            String clusterBootstrapServers,
+            ConfigurationBuilder builder,
+            String clusterName,
+            String defaultProxyBootstrap
+    ) {
+        return builder.addToVirtualClusters(
+                clusterName,
+                new VirtualClusterBuilder()
+                                           .withNewTargetCluster()
+                                           .withBootstrapServers(clusterBootstrapServers)
+                                           .endTargetCluster()
+                                           .withClusterNetworkAddressConfigProvider(
+                                                   new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                           PortPerBrokerClusterNetworkAddressConfigProvider.class.getName()
+                                                   )
+                                                    .withConfig("bootstrapAddress", defaultProxyBootstrap)
+                                                    .build()
+                                           )
+                                           .build()
+        );
     }
 
     private static void assertCanSendRequestsAndReceiveMockResponses(MockServerKroxyliciousTester tester, Supplier<KafkaClient> kafkaClientSupplier) {

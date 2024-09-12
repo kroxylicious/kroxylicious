@@ -38,14 +38,14 @@ services:
       - "8200"
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: token
-      VAULT_TOKEN:  token
+      VAULT_TOKEN: token
       VAULT_FORMAT: json
       VAULT_DEV_LISTEN_ADDRESS: "[::]:8200"
       VAULT_ADDR: http://localhost:8200 # TODO - shouldn't need this
     networks:
       - perf_network
     healthcheck:
-      test:  wget --no-verbose --tries=1 --spider http://localhost:8200/v1/sys/health
+      test: wget --no-verbose --tries=1 --spider http://localhost:8200/v1/sys/health
       interval: 5s
       retries: 5
       timeout: 10s

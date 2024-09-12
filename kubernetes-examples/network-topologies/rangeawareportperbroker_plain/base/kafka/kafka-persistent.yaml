@@ -37,7 +37,7 @@ metadata:
   labels:
     strimzi.io/cluster: my-cluster
   annotations:
-    strimzi.io/next-node-ids: [0-4]
+    strimzi.io/next-node-ids: [ 0-4 ]
 spec:
   replicas: 2
   roles:

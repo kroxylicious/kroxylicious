@@ -30,7 +30,11 @@ import picocli.CommandLine.Spec;
 /**
  * Kroxylicious application entrypoint
  */
-@Command(name = "kroxylicious", mixinStandardHelpOptions = true, versionProvider = Kroxylicious.VersionProvider.class, description = "A customizable wire protocol proxy for Apache Kafka")
+@Command(
+        name = "kroxylicious",
+        mixinStandardHelpOptions = true,
+        versionProvider = Kroxylicious.VersionProvider.class,
+        description = "A customizable wire protocol proxy for Apache Kafka")
 public class Kroxylicious implements Callable<Integer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
@@ -82,13 +86,13 @@ public class Kroxylicious implements Callable<Integer> {
             LOGGER.info("{}", version);
         }
         LOGGER.atInfo()
-                .setMessage("Platform: Java {}({}) running on {} {}/{}")
-                .addArgument(Runtime::version)
-                .addArgument(() -> System.getProperty("java.vendor"))
-                .addArgument(() -> System.getProperty("os.name"))
-                .addArgument(() -> System.getProperty("os.version"))
-                .addArgument(() -> System.getProperty("os.arch"))
-                .log();
+              .setMessage("Platform: Java {}({}) running on {} {}/{}")
+              .addArgument(Runtime::version)
+              .addArgument(() -> System.getProperty("java.vendor"))
+              .addArgument(() -> System.getProperty("os.name"))
+              .addArgument(() -> System.getProperty("os.version"))
+              .addArgument(() -> System.getProperty("os.arch"))
+              .log();
     }
 
     /**

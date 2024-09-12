@@ -36,7 +36,7 @@ public class CertManager {
      */
     public CertManager() throws IOException {
         deployment = kubeClient().getClient()
-                .load(DeploymentUtils.getDeploymentFileFromURL(Constants.CERT_MANAGER_URL));
+                                 .load(DeploymentUtils.getDeploymentFileFromURL(Constants.CERT_MANAGER_URL));
     }
 
     private boolean isDeployed() {

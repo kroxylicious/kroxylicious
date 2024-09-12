@@ -34,10 +34,20 @@ class ProduceRequestValidationIT extends RecordValidationBaseIT {
     @Test
     void validJsonProduceAcceptedUsingDeprecatedFactoryName(KafkaCluster cluster, Topic topic) {
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(SIMPLE_NAME).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
-                                Map.of("syntacticallyCorrectJson", Map.of()))))
-                        .build());
+                                   .addToFilters(
+                                           new FilterDefinitionBuilder(SIMPLE_NAME).withConfig(
+                                                   "rules",
+                                                   List.of(
+                                                           Map.of(
+                                                                   "topicNames",
+                                                                   List.of(topic.name()),
+                                                                   "valueRule",
+                                                                   Map.of("syntacticallyCorrectJson", Map.of())
+                                                           )
+                                                   )
+                                           )
+                                                                                   .build()
+                                   );
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -46,9 +56,9 @@ class ProduceRequestValidationIT extends RecordValidationBaseIT {
 
             var records = consumeAll(tester, topic);
             assertThat(records)
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
+                               .singleElement()
+                               .extracting(ConsumerRecord::value)
+                               .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
 
         }
     }
@@ -56,10 +66,20 @@ class ProduceRequestValidationIT extends RecordValidationBaseIT {
     @Test
     void invalidJsonProduceRejected(KafkaCluster cluster, Topic topic) {
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(SIMPLE_NAME).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
-                                Map.of("syntacticallyCorrectJson", Map.of()))))
-                        .build());
+                                   .addToFilters(
+                                           new FilterDefinitionBuilder(SIMPLE_NAME).withConfig(
+                                                   "rules",
+                                                   List.of(
+                                                           Map.of(
+                                                                   "topicNames",
+                                                                   List.of(topic.name()),
+                                                                   "valueRule",
+                                                                   Map.of("syntacticallyCorrectJson", Map.of())
+                                                           )
+                                                   )
+                                           )
+                                                                                   .build()
+                                   );
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));

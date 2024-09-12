@@ -109,8 +109,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
 
             if (exists(alias)) {
                 throw new AlreadyExistsException(alias);
-            }
-            else {
+            } else {
                 create(alias);
             }
         }
@@ -121,8 +120,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
 
             if (!exists(alias)) {
                 throw new UnknownAliasException(alias);
-            }
-            else {
+            } else {
                 rotate(alias);
             }
         }
@@ -131,8 +129,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         public void deleteKek(String alias) {
             if (!exists(alias)) {
                 throw new UnknownAliasException(alias);
-            }
-            else {
+            } else {
                 delete(alias);
             }
         }
@@ -208,11 +205,11 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             var body = getBody(request).getBytes(UTF_8);
 
             return AwsV4SigningHttpRequestBuilder.newBuilder(getAccessKey(), getSecretKey(), getRegion(), "kms", Instant.now())
-                    .uri(getAwsUrl())
-                    .header(AwsKms.CONTENT_TYPE_HEADER, AwsKms.APPLICATION_X_AMZ_JSON_1_1)
-                    .header(AwsKms.X_AMZ_TARGET_HEADER, target)
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(body))
-                    .build();
+                                                 .uri(getAwsUrl())
+                                                 .header(AwsKms.CONTENT_TYPE_HEADER, AwsKms.APPLICATION_X_AMZ_JSON_1_1)
+                                                 .header(AwsKms.X_AMZ_TARGET_HEADER, target)
+                                                 .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                                                 .build();
         }
 
         private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {

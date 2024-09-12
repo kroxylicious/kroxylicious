@@ -62,7 +62,8 @@ class RecordEncryptionST extends AbstractST {
 
         resourceManager.createResourceWithWait(
                 KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
-                kafka);
+                kafka
+        );
     }
 
     @BeforeEach
@@ -109,17 +110,24 @@ class RecordEncryptionST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.info("Then the messages are consumed");
-        List<ConsumerRecord> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
-                Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(
+                namespace,
+                topicName,
+                clusterName,
+                Constants.KAFKA_DEFAULT_NAMESPACE,
+                numberOfMessages,
+                Duration.ofMinutes(2)
+        );
         LOGGER.info("Received: {}", resultEncrypted);
 
         assertAll(
                 () -> assertThat(resultEncrypted.stream())
-                        .withFailMessage("expected header has not been received!")
-                        .allMatch(r -> r.getRecordHeaders().containsKey("kroxylicious.io/encryption")),
+                                                          .withFailMessage("expected header has not been received!")
+                                                          .allMatch(r -> r.getRecordHeaders().containsKey("kroxylicious.io/encryption")),
                 () -> assertThat(resultEncrypted.stream())
-                        .withFailMessage("Encrypted message still includes the original one!")
-                        .allMatch(r -> !r.getValue().contains(MESSAGE)));
+                                                          .withFailMessage("Encrypted message still includes the original one!")
+                                                          .allMatch(r -> !r.getValue().contains(MESSAGE))
+        );
     }
 
     @TestTemplate
@@ -145,9 +153,9 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("Received: {}", result);
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     @SuppressWarnings("java:S2925")
@@ -173,8 +181,14 @@ class RecordEncryptionST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.info("Then the messages are consumed");
-        List<ConsumerRecord> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
-                Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord> resultEncrypted = KroxyliciousSteps.consumeMessageFromKafkaCluster(
+                namespace,
+                topicName,
+                clusterName,
+                Constants.KAFKA_DEFAULT_NAMESPACE,
+                numberOfMessages,
+                Duration.ofMinutes(2)
+        );
         LOGGER.info("Received: {}", resultEncrypted);
 
         assertKekVersionWithinParcel(resultEncrypted, ":v1:", testKekManager);
@@ -193,8 +207,14 @@ class RecordEncryptionST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.info("Then the messages are consumed");
-        List<ConsumerRecord> resultEncryptedRotatedKek = KroxyliciousSteps.consumeMessageFromKafkaCluster(namespace, topicName, clusterName,
-                Constants.KAFKA_DEFAULT_NAMESPACE, numberOfMessages, Duration.ofMinutes(2));
+        List<ConsumerRecord> resultEncryptedRotatedKek = KroxyliciousSteps.consumeMessageFromKafkaCluster(
+                namespace,
+                topicName,
+                clusterName,
+                Constants.KAFKA_DEFAULT_NAMESPACE,
+                numberOfMessages,
+                Duration.ofMinutes(2)
+        );
         LOGGER.info("Received: {}", resultEncryptedRotatedKek);
 
         List<ConsumerRecord> finalEncryptedResults = new ArrayList<>(resultEncryptedRotatedKek);
@@ -204,16 +224,16 @@ class RecordEncryptionST extends AbstractST {
 
     private void assertKekVersionWithinParcel(List<ConsumerRecord> consumerRecords, String expectedValue, TestKekManager testKekManager) {
         assertThat(consumerRecords)
-                .withFailMessage("expected messages not received! Consumer records is empty")
-                .isNotEmpty();
+                                   .withFailMessage("expected messages not received! Consumer records is empty")
+                                   .isNotEmpty();
 
         assertThat(testKekManager.getClass().getSimpleName().toLowerCase())
-                .withFailMessage("Another KMS different from Vault is not currently supported!")
-                .contains("vault");
+                                                                           .withFailMessage("Another KMS different from Vault is not currently supported!")
+                                                                           .contains("vault");
 
         assertThat(consumerRecords.stream())
-                .withFailMessage(expectedValue + " is not contained in the ciphertext blob!")
-                .allMatch(r -> r.getValue().contains(expectedValue));
+                                            .withFailMessage(expectedValue + " is not contained in the ciphertext blob!")
+                                            .allMatch(r -> r.getValue().contains(expectedValue));
     }
 
     @SuppressWarnings("java:S2925")
@@ -244,9 +264,9 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("Received: {}", result);
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
 
         LOGGER.info("When KEK is rotated");
         testKekManager.rotateKek("KEK_" + topicName);
@@ -266,7 +286,7 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("Received: {}", resultRotatedKek);
 
         assertThat(resultRotatedKek).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                                    .extracting(ConsumerRecord::getValue)
+                                    .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 }

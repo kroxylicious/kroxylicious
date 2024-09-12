@@ -40,7 +40,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * KMS operations which are outside the scope of Kroxylicious itself (such as key provisioning).
  */
 public class InMemoryKms implements
-        Kms<UUID, InMemoryEdek> {
+                         Kms<UUID, InMemoryEdek> {
 
     private static final String AES_WRAP_ALGO = "AES_256/GCM/NoPadding";
     public static final String AES_KEY_ALGO = "AES";
@@ -52,10 +52,12 @@ public class InMemoryKms implements
     private final Map<String, UUID> aliases;
     private final List<DekPair<InMemoryEdek>> edeksGenerated = new CopyOnWriteArrayList<>();
 
-    InMemoryKms(int numIvBytes,
-                int numAuthBits,
-                Map<UUID, DestroyableRawSecretKey> keys,
-                Map<String, UUID> aliases) {
+    InMemoryKms(
+            int numIvBytes,
+            int numAuthBits,
+            Map<UUID, DestroyableRawSecretKey> keys,
+            Map<String, UUID> aliases
+    ) {
         this.keys = new ConcurrentHashMap<>(keys);
         this.aliases = new ConcurrentHashMap<>(aliases);
         this.secureRandom = new SecureRandom();
@@ -118,7 +120,8 @@ public class InMemoryKms implements
 
     @NonNull
     @Override
-    public CompletableFuture<DekPair<InMemoryEdek>> generateDekPair(@NonNull UUID kekRef) {
+    public CompletableFuture<DekPair<InMemoryEdek>> generateDekPair(@NonNull
+    UUID kekRef) {
         try {
             var dek = DestroyableRawSecretKey.toDestroyableKey(this.aes.generateKey());
             var edek = wrap(kekRef, () -> dek);
@@ -163,7 +166,8 @@ public class InMemoryKms implements
 
     @NonNull
     @Override
-    public CompletableFuture<SecretKey> decryptEdek(@NonNull InMemoryEdek edek) {
+    public CompletableFuture<SecretKey> decryptEdek(@NonNull
+    InMemoryEdek edek) {
         try {
             var kek = lookupKey(edek.kekRef());
             Cipher aesCipher = aesGcm();
@@ -176,7 +180,8 @@ public class InMemoryKms implements
         }
     }
 
-    private static DestroyableRawSecretKey unwrap(@NonNull InMemoryEdek edek, Cipher aesCipher) {
+    private static DestroyableRawSecretKey unwrap(@NonNull
+    InMemoryEdek edek, Cipher aesCipher) {
         try {
             return DestroyableRawSecretKey.toDestroyableKey((SecretKey) aesCipher.unwrap(edek.edek(), AES_KEY_ALGO, Cipher.SECRET_KEY));
         }
@@ -185,7 +190,8 @@ public class InMemoryKms implements
         }
     }
 
-    private static void initializeforUnwrap(Cipher aesCipher, @NonNull InMemoryEdek edek, SecretKey kek) {
+    private static void initializeforUnwrap(Cipher aesCipher, @NonNull
+    InMemoryEdek edek, SecretKey kek) {
         var spec = new GCMParameterSpec(edek.numAuthBits(), edek.iv());
         try {
             aesCipher.init(Cipher.UNWRAP_MODE, kek, spec);
@@ -206,7 +212,8 @@ public class InMemoryKms implements
 
     @NonNull
     @Override
-    public CompletableFuture<UUID> resolveAlias(@NonNull String alias) {
+    public CompletableFuture<UUID> resolveAlias(@NonNull
+    String alias) {
         UUID uuid = aliases.get(alias);
         if (uuid == null) {
             return CompletableFuture.failedFuture(new UnknownAliasException(alias));

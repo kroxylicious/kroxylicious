@@ -22,9 +22,10 @@ public class AadNone implements Aad {
 
     @Override
     public ByteBuffer computeAad(
-                                 String topicName,
-                                 int partitionId,
-                                 RecordBatch batch) {
+            String topicName,
+            int partitionId,
+            RecordBatch batch
+    ) {
         return ByteUtils.EMPTY_BUF;
     }
 

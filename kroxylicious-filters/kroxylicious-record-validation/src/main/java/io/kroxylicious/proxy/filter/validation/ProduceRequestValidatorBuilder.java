@@ -59,9 +59,15 @@ class ProduceRequestValidatorBuilder {
     private static BytebufValidator toValidator(BytebufValidation valueRule) {
         var validators = new ArrayList<BytebufValidator>();
         valueRule.getSyntacticallyCorrectJsonConfig().ifPresent(config -> validators.add(BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique())));
-        valueRule.getSchemaValidationConfig().ifPresent(
-                config -> validators.add(BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
-                        config.apicurioGlobalId())));
+        valueRule.getSchemaValidationConfig()
+                 .ifPresent(
+                         config -> validators.add(
+                                 BytebufValidators.jsonSchemaValidator(
+                                         Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
+                                         config.apicurioGlobalId()
+                                 )
+                         )
+                 );
 
         return BytebufValidators.chainOf(validators);
     }

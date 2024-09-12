@@ -65,13 +65,16 @@ class VaultKmsTlsIT {
     static List<Arguments> tlsConfigurations() {
         return List.of(
                 Arguments.of("pkcs12Tls", (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreInlinePassword(keys.pkcs12ClientTruststore()), uri)),
-                Arguments.of("pkcs12NoPasswordTlsService",
-                        (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreNoPassword(keys.pkcs12NoPasswordClientTruststore()), uri)),
+                Arguments.of(
+                        "pkcs12NoPasswordTlsService",
+                        (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreNoPassword(keys.pkcs12NoPasswordClientTruststore()), uri)
+                ),
                 Arguments.of("filePasswordTls", (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreFilePassword(keys.pkcs12ClientTruststore()), uri)),
                 Arguments.of("jksTls", (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreInlinePassword(keys.jksClientTruststore()), uri)),
                 Arguments.of("defaultStoreTypeTls", (KmsCreator) (uri) -> getTlsVaultKms(defaultStoreTypeTls(keys.jksClientTruststore()), uri)),
                 Arguments.of("tlsInsecure", (KmsCreator) (uri) -> getTlsVaultKms(insecureTls(), uri)),
-                Arguments.of("pkcs12Tls", (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreInlinePassword(keys.pkcs12ClientTruststore()), uri)));
+                Arguments.of("pkcs12Tls", (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreInlinePassword(keys.pkcs12ClientTruststore()), uri))
+        );
     }
 
     @Test
@@ -82,10 +85,11 @@ class VaultKmsTlsIT {
         VaultKms service = new VaultKmsService().buildKms(tlsConfig);
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)
-                .failsWithin(Duration.ofSeconds(5))
-                .withThrowableThat().havingCause()
-                .isInstanceOf(SSLHandshakeException.class)
-                .withMessageContaining("unable to find valid certification path to requested target");
+                            .failsWithin(Duration.ofSeconds(5))
+                            .withThrowableThat()
+                            .havingCause()
+                            .isInstanceOf(SSLHandshakeException.class)
+                            .withMessageContaining("unable to find valid certification path to requested target");
     }
 
     @Test
@@ -97,10 +101,11 @@ class VaultKmsTlsIT {
         VaultKms service = getTlsVaultKms(tlsForTrustStoreFilePassword(keys.pkcs12ClientTruststore()), testVault.getEndpoint());
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)
-                .failsWithin(Duration.ofSeconds(5))
-                .withThrowableThat().havingCause()
-                .isInstanceOf(SSLHandshakeException.class)
-                .withMessageContaining("Received fatal alert: certificate_required");
+                            .failsWithin(Duration.ofSeconds(5))
+                            .withThrowableThat()
+                            .havingCause()
+                            .isInstanceOf(SSLHandshakeException.class)
+                            .withMessageContaining("Received fatal alert: certificate_required");
         testVault.close();
     }
 
@@ -113,13 +118,16 @@ class VaultKmsTlsIT {
         CertificateGenerator.TrustStore trustStore = keys.pkcs12ClientTruststore();
         CertificateGenerator.KeyStore keyStore = clientKeys.jksServerKeystore();
         VaultKms service = getTlsVaultKms(
-                new Tls(new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), new InlinePassword(keyStore.keyPassword()), "JKS"),
-                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type())),
-                testVault.getEndpoint());
+                new Tls(
+                        new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), new InlinePassword(keyStore.keyPassword()), "JKS"),
+                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type())
+                ),
+                testVault.getEndpoint()
+        );
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)
-                .succeedsWithin(Duration.ofSeconds(5))
-                .isEqualTo(keyName);
+                            .succeedsWithin(Duration.ofSeconds(5))
+                            .isEqualTo(keyName);
         testVault.close();
     }
 
@@ -131,8 +139,8 @@ class VaultKmsTlsIT {
         createKek(keyName);
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)
-                .succeedsWithin(Duration.ofSeconds(5))
-                .isEqualTo(keyName);
+                            .succeedsWithin(Duration.ofSeconds(5))
+                            .isEqualTo(keyName);
     }
 
     private ReadKeyData createKek(String keyId) {

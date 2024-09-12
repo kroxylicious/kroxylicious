@@ -53,15 +53,30 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
             for (ProduceRequestData.PartitionProduceData partitionData : topicData.partitionData()) {
                 MemoryRecords records = (MemoryRecords) partitionData.records();
                 var stream = ctx.createByteBufferOutputStream(records.sizeInBytes());
-                try (var newRecords = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, Compression.NONE, TimestampType.CREATE_TIME, 0,
-                        System.currentTimeMillis(), RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
+                try (var newRecords = new MemoryRecordsBuilder(
+                        stream,
+                        RecordBatch.CURRENT_MAGIC_VALUE,
+                        Compression.NONE,
+                        TimestampType.CREATE_TIME,
+                        0,
+                        System.currentTimeMillis(),
+                        RecordBatch.NO_PRODUCER_ID,
+                        RecordBatch.NO_PRODUCER_EPOCH,
+                        RecordBatch.NO_SEQUENCE,
+                        false,
+                        false,
                         RecordBatch.NO_PARTITION_LEADER_EPOCH,
-                        stream.remaining())) {
+                        stream.remaining()
+                )) {
 
                     for (MutableRecordBatch batch : records.batches()) {
                         for (Record batchRecord : batch) {
-                            newRecords.appendWithOffset(batchRecord.offset(), batchRecord.timestamp(), batchRecord.key(),
-                                    valueTransformation.transform(topicData.name(), batchRecord.value()));
+                            newRecords.appendWithOffset(
+                                    batchRecord.offset(),
+                                    batchRecord.timestamp(),
+                                    batchRecord.key(),
+                                    valueTransformation.transform(topicData.name(), batchRecord.value())
+                            );
                         }
                     }
 

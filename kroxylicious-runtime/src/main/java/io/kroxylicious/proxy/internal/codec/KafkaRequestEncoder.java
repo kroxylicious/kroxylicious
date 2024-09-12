@@ -46,25 +46,38 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
         boolean hasResponse = frame.hasResponse();
         boolean decodeResponse = frame.decodeResponse();
         int downstreamCorrelationId = frame.correlationId();
-        int upstreamCorrelationId = correlationManager.putBrokerRequest(apiKey,
+        int upstreamCorrelationId = correlationManager.putBrokerRequest(
+                apiKey,
                 apiVersion,
                 downstreamCorrelationId,
                 hasResponse,
                 frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).recipient() : null,
-                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null, decodeResponse);
+                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null,
+                decodeResponse
+        );
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: {} downstream correlation id {} assigned upstream correlation id: {}",
-                    ctx, ApiKeys.forId(apiKey), downstreamCorrelationId, upstreamCorrelationId);
+            LOGGER.debug(
+                    "{}: {} downstream correlation id {} assigned upstream correlation id: {}",
+                    ctx,
+                    ApiKeys.forId(apiKey),
+                    downstreamCorrelationId,
+                    upstreamCorrelationId
+            );
         }
         out.readerIndex(ri);
         out.writerIndex(wi);
 
-        if (decodeResponse &&
-                !hasResponse) {
-            log().warn("{}: Not honouring decode of acks=0 PRODUCE response, because there will be none. " +
-                    "This is a bug in your filter.", ctx);
+        if (decodeResponse
+            &&
+            !hasResponse) {
+            log().warn(
+                    "{}: Not honouring decode of acks=0 PRODUCE response, because there will be none. "
+                       +
+                       "This is a bug in your filter.",
+                    ctx
+            );
         }
     }
 

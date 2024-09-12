@@ -55,11 +55,15 @@ import static org.mockito.Mockito.verify;
 class BrokerAddressFilterTest {
 
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
-            String.format("%s/.*\\.yaml", BrokerAddressFilterTest.class.getPackageName().replace(".", "/")));
+            String.format("%s/.*\\.yaml", BrokerAddressFilterTest.class.getPackageName().replace(".", "/"))
+    );
 
     private static List<ClassPath.ResourceInfo> getTestResources() throws IOException {
-        var resources = ClassPath.from(BrokerAddressFilterTest.class.getClassLoader()).getResources().stream()
-                .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches()).toList();
+        var resources = ClassPath.from(BrokerAddressFilterTest.class.getClassLoader())
+                                 .getResources()
+                                 .stream()
+                                 .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches())
+                                 .toList();
 
         // https://youtrack.jetbrains.com/issue/IDEA-315462: we've seen issues in IDEA in IntelliJ Workspace Model API mode where test resources
         // don't get added to the Junit runner classpath. You can work around by not using that mode, or by adding src/test/resources to the
@@ -97,8 +101,9 @@ class BrokerAddressFilterTest {
     }
 
     private static Stream<Arguments> responses(Predicate<RequestResponseTestDef> requestResponseTestDefPredicate) throws Exception {
-        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(requestResponseTestDefPredicate)
-                .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.response()));
+        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources())
+                                     .filter(requestResponseTestDefPredicate)
+                                     .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.response()));
     }
 
     @BeforeEach
@@ -109,22 +114,32 @@ class BrokerAddressFilterTest {
 
         var nodeMap = Map.of(0, HostPort.parse("upstream:9199"));
         lenient().when(endpointReconciler.reconcile(Mockito.eq(virtualCluster), Mockito.eq(nodeMap)))
-                .thenReturn(CompletableFuture.completedStage(null));
+                 .thenReturn(CompletableFuture.completedStage(null));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "nodeInfoCarryingResponses")
-    void nodeInfoCarryingResponsesTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header,
-                                              ApiMessageTestDef responseTestDef)
-            throws Exception {
+    void nodeInfoCarryingResponsesTransformed(
+            @SuppressWarnings("unused")
+            String testName,
+            ApiMessageType apiMessageType,
+            RequestHeaderData header,
+            ApiMessageTestDef responseTestDef
+    )
+      throws Exception {
         filterResponseAndVerify(apiMessageType, header, responseTestDef);
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "completeClusterInfoCarryingResponses")
-    void reconcileCachesUpstreamAddress(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header,
-                                        ApiMessageTestDef responseTestDef)
-            throws Exception {
+    void reconcileCachesUpstreamAddress(
+            @SuppressWarnings("unused")
+            String testName,
+            ApiMessageType apiMessageType,
+            RequestHeaderData header,
+            ApiMessageTestDef responseTestDef
+    )
+      throws Exception {
 
         filterResponseAndVerify(apiMessageType, header, responseTestDef);
         verify(endpointReconciler, times(1)).reconcile(Mockito.eq(virtualCluster), Mockito.anyMap());
@@ -151,6 +166,6 @@ class BrokerAddressFilterTest {
     private void configureContextResponseStubbing() {
         lenient().when(context.responseFilterResultBuilder()).thenReturn(new ResponseFilterResultBuilderImpl());
         lenient().when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture()))
-                .thenAnswer((x) -> new ResponseFilterResultBuilderImpl().forward(responseHeaderDataCaptor.getValue(), apiMessageCaptor.getValue()).completed());
+                 .thenAnswer((x) -> new ResponseFilterResultBuilderImpl().forward(responseHeaderDataCaptor.getValue(), apiMessageCaptor.getValue()).completed());
     }
 }

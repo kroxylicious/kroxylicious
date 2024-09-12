@@ -110,14 +110,14 @@ class IntegrationTestingKmsServiceTest {
 
         // then
         assertThat(gen1).failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownKeyException.class)
-                .withMessage("io.kroxylicious.kms.service.UnknownKeyException");
+                        .withThrowableOfType(ExecutionException.class)
+                        .withCauseInstanceOf(UnknownKeyException.class)
+                        .withMessage("io.kroxylicious.kms.service.UnknownKeyException");
 
         assertThat(gen2).failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownKeyException.class)
-                .withMessage("io.kroxylicious.kms.service.UnknownKeyException");
+                        .withThrowableOfType(ExecutionException.class)
+                        .withCauseInstanceOf(UnknownKeyException.class)
+                        .withMessage("io.kroxylicious.kms.service.UnknownKeyException");
 
         IntegrationTestingKmsService.delete(kms1Id);
         IntegrationTestingKmsService.delete(kms2Id);
@@ -139,8 +139,10 @@ class IntegrationTestingKmsServiceTest {
         var decryptedDek = kms.decryptEdek(pair.edek()).join();
 
         // then
-        assertTrue(SecretKeyUtils.same((DestroyableRawSecretKey) pair.dek(), (DestroyableRawSecretKey) decryptedDek),
-                "Expect the decrypted DEK to equal the originally generated DEK");
+        assertTrue(
+                SecretKeyUtils.same((DestroyableRawSecretKey) pair.dek(), (DestroyableRawSecretKey) decryptedDek),
+                "Expect the decrypted DEK to equal the originally generated DEK"
+        );
 
         IntegrationTestingKmsService.delete(kmsId);
     }
@@ -174,9 +176,9 @@ class IntegrationTestingKmsServiceTest {
 
         var lookup = kms.resolveAlias("bob");
         assertThat(lookup).failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownAliasException.class)
-                .withMessage("io.kroxylicious.kms.service.UnknownAliasException: bob");
+                          .withThrowableOfType(ExecutionException.class)
+                          .withCauseInstanceOf(UnknownAliasException.class)
+                          .withMessage("io.kroxylicious.kms.service.UnknownAliasException: bob");
 
         kms.createAlias(kek, "bob");
         var gotFromAlias = kms.resolveAlias("bob").join();
@@ -185,9 +187,9 @@ class IntegrationTestingKmsServiceTest {
         kms.deleteAlias("bob");
         lookup = kms.resolveAlias("bob");
         assertThat(lookup).failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownAliasException.class)
-                .withMessage("io.kroxylicious.kms.service.UnknownAliasException: bob");
+                          .withThrowableOfType(ExecutionException.class)
+                          .withCauseInstanceOf(UnknownAliasException.class)
+                          .withMessage("io.kroxylicious.kms.service.UnknownAliasException: bob");
 
         IntegrationTestingKmsService.delete(kmsId);
     }
@@ -198,7 +200,7 @@ class IntegrationTestingKmsServiceTest {
         var kms = service.buildKms(new IntegrationTestingKmsService.Config(kmsId));
 
         assertThatThrownBy(() -> kms.deleteAlias("bob"))
-                .isInstanceOf(UnknownAliasException.class);
+                                                        .isInstanceOf(UnknownAliasException.class);
 
         IntegrationTestingKmsService.delete(kmsId);
     }
@@ -211,7 +213,7 @@ class IntegrationTestingKmsServiceTest {
 
         kms.deleteKey(kek);
         assertThatThrownBy(() -> kms.deleteKey(kek))
-                .isInstanceOf(UnknownKeyException.class);
+                                                    .isInstanceOf(UnknownKeyException.class);
 
         IntegrationTestingKmsService.delete(kmsId);
     }
@@ -224,8 +226,8 @@ class IntegrationTestingKmsServiceTest {
         kms.createAlias(kek, "bob");
 
         assertThatThrownBy(() -> kms.deleteKey(kek))
-                .isInstanceOf(KmsException.class)
-                .hasMessageContaining("referenced by an alias");
+                                                    .isInstanceOf(KmsException.class)
+                                                    .hasMessageContaining("referenced by an alias");
 
         IntegrationTestingKmsService.delete(kmsId);
     }

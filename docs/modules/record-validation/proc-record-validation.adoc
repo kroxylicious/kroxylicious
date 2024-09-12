@@ -10,14 +10,12 @@ This procedure describes how to set up the Record Validation filter.
 Provide the filter configuration and rules that the filter uses to check against Kafka record keys and values.
 
 .Prerequisites
-
 * An instance of Kroxylicious.
 For information on deploying Kroxylicious, see the link:{github}[samples and examples^].
 * A config map for Kroxylicious that includes the configuration for creating a virtual cluster.
 * Apicurio Registry (if wanting to use Schema validation).
 
 .Procedure
-
 . Configure a `RecordValidation` type filter.
 
 [source,yaml]
@@ -39,28 +37,28 @@ filters:
             <rule definition>                                          # <3>
         forwardPartialRequests: false                                  # <5>
 ----
+
 <1> List of topic names to which the validation rules will be applied.
 <2> Validation rules that are applied to the record's key.
 <3> Validation rules that are applied to the record's value.
 <4> (Optional) Default rule that is applied to any topics for which there is no explict rule defined.
 <5> If `false`, any record failing validation will cause the entire produce request to be rejected.
-    If `true`, only partitions within the request where all records validated successfully will be forwarded to the
-    broker. The response the client will receive will be a mixed response with response returned from the broker
-    for the partitions whose records passed validation and error responses for the partitions that failed validation.
-    If the client is using transactions, this setting is *ignored*. Any failing record validation will
-    cause the entire produce request to be rejected.
+If `true`, only partitions within the request where all records validated successfully will be forwarded to the broker.
+The response the client will receive will be a mixed response with response returned from the broker for the partitions whose records passed validation and error responses for the partitions that failed validation.
+If the client is using transactions, this setting is *ignored*.
+Any failing record validation will cause the entire produce request to be rejected.
 
 Replace the token `<rule definition>`  in the YAML configuration with either a Schema Validation rule or a JSON Syntax Validation rule depending on your requirements.
 
 .Example Schema Validation Rule Definition
-
 The Schema Validation rule validates that the key or value matches a schema identified by its global ID within an Apicurio Schema Registry.
 
-If the key or value does not adhere to the schema, the record will be rejected.  
+If the key or value does not adhere to the schema, the record will be rejected.
 
-Additionally, if the kafka producer has embedded a global ID within the record it will be validated against the global ID defined by the rule. If they do not match, the record will be rejected.  See the 
-{apicurio-docs}/getting-started/assembly-using-kafka-client-serdes.html#_consumer_schema_configuration[Apicurio documentation^] for details
-on how the global ID could be embedded into the record. 
+Additionally, if the kafka producer has embedded a global ID within the record it will be validated against the global ID defined by the rule.
+If they do not match, the record will be rejected.
+See the
+{apicurio-docs}/getting-started/assembly-using-kafka-client-serdes.html#_consumer_schema_configuration[Apicurio documentation^] for details on how the global ID could be embedded into the record.
 The filter supports extracting ID's from either the Apicurio `globalId` record header or from the initial bytes of the serialized content itself.
 
 [source,yaml]
@@ -71,15 +69,17 @@ schemaValidationConfig:
 allowNulls: true                                                 # <3>
 allowEmpty: true                                                 # <4>
 ----
+
 <1> Apicurio registry global ID identifying the schema that will be enforced.
 <2> Apicurio Registry endpoint.
-<3> if `true`, the validator allows keys and or values to be `null`. The default is `false`.
-<4> if `true`, the validator allows keys and or values to be empty. The default is `false`.
+<3> if `true`, the validator allows keys and or values to be `null`.
+The default is `false`.
+<4> if `true`, the validator allows keys and or values to be empty.
+The default is `false`.
 
 NOTE: Schema validation mode currently has the capability to enforce only JSON schemas (https://github.com/kroxylicious/kroxylicious/issues/1431[issue])
 
 .Example JSON Syntax Validation Rule Definition
-
 The JSON Syntax Validation rule validates that the key or value contains only syntactically correct JSON.
 
 [source,yaml]
@@ -89,6 +89,10 @@ syntacticallyCorrectJson:
 allowNulls: true                                                 # <2>
 allowEmpty: true                                                 # <3>
 ----
-<1> If `true`, the validator enforces that objects keys must be unique. The default is `false`.
-<2> if `true`, the validator allows keys and or values to be `null`. The default is `false`.
-<3> if `true`, the validator allows keys and or values to be empty. The default is `false`.
+
+<1> If `true`, the validator enforces that objects keys must be unique.
+The default is `false`.
+<2> if `true`, the validator allows keys and or values to be `null`.
+The default is `false`.
+<3> if `true`, the validator allows keys and or values to be empty.
+The default is `false`.

@@ -7,7 +7,7 @@
 ---
 adminHttp:
   endpoints:
-    prometheus: {}
+    prometheus: { }
 virtualClusters:
   demo:
     targetCluster:

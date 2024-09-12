@@ -1,48 +1,135 @@
 {
-  "components" : [ {
-    "name" : "io.kroxylicious.proxy",
-    "contains" : [ "io.kroxylicious.proxy" ],
-    "reads" : [ "io.kroxylicious.proxy.filter", "io.kroxylicious.proxy.internal", "io.kroxylicious.proxy.internal.filter", "io.netty.*", "org.apache.logging.log4j" ]
-  }, {
-    "name" : "io.kroxylicious.proxy.example.*",
-    "contains" : [ "io.kroxylicious.proxy.example*" ],
-    "reads" : [ "io.kroxylicious.proxy.filter", "java.util", "org.apache.kafka.*" ]
-  }, {
-    "name" : "io.kroxylicious.proxy.filter",
-    "contains" : [ "io.kroxylicious.proxy.filter" ],
-    "reads" : [ "io.kroxylicious.proxy.frame", "io.netty.*", "org.apache.kafka.*" ]
-  }, {
-    "name" : "io.kroxylicious.proxy.frame",
-    "contains" : [ "io.kroxylicious.proxy.frame" ],
-    "reads" : [ "io.kroxylicious.proxy.tag", "io.netty.*", "java.nio", "java.util", "org.apache.kafka.*", "org.apache.logging.log4j" ]
-  }, {
-    "name" : "io.kroxylicious.proxy.internal",
-    "contains" : [ "io.kroxylicious.proxy.internal" ],
-    "reads" : [ "io.kroxylicious.proxy.filter", "io.kroxylicious.proxy.frame", "io.kroxylicious.proxy.internal.codec", "io.netty.*", "java.net", "java.util", "org.apache.kafka.*", "org.apache.logging.log4j" ]
-  }, {
-    "name" : "io.kroxylicious.proxy.internal.codec",
-    "contains" : [ "io.kroxylicious.proxy.internal.codec" ],
-    "reads" : [ "io.kroxylicious.proxy.filter", "io.kroxylicious.proxy.frame", "io.kroxylicious.proxy.tag", "io.netty.*", "java.nio", "java.util", "org.apache.kafka.*", "org.apache.logging.log4j" ]
-  }, {
-    "name" : "io.kroxylicious.proxy.internal.filter",
-    "contains" : [ "io.kroxylicious.proxy.internal.filter" ],
-    "reads" : [ "io.kroxylicious.proxy.filter", "io.kroxylicious.proxy.internal.util", "java.nio", "java.util", "java.util.function", "org.apache.kafka.*", "org.apache.logging.log4j" ]
-  }, {
-    "name" : "io.kroxylicious.proxy.internal.util",
-    "contains" : [ "io.kroxylicious.proxy.internal.util" ],
-    "reads" : [ "io.netty.*", "java.nio", "org.apache.kafka.*" ]
-  }, {
-    "name" : "io.kroxylicious.proxy.tag",
-    "contains" : [ "io.kroxylicious.proxy.tag" ],
-    "reads" : [ "java.lang.annotation" ]
-  }, {
-    "name" : "io.netty.*",
-    "contains" : [ "io.netty*" ]
-  }, {
-    "name" : "org.apache.kafka.*",
-    "contains" : [ "org.apache.kafka*" ]
-  } ],
-  "whitelisted" : [
+  "components": [
+    {
+      "name": "io.kroxylicious.proxy",
+      "contains": [
+        "io.kroxylicious.proxy"
+      ],
+      "reads": [
+        "io.kroxylicious.proxy.filter",
+        "io.kroxylicious.proxy.internal",
+        "io.kroxylicious.proxy.internal.filter",
+        "io.netty.*",
+        "org.apache.logging.log4j"
+      ]
+    },
+    {
+      "name": "io.kroxylicious.proxy.example.*",
+      "contains": [
+        "io.kroxylicious.proxy.example*"
+      ],
+      "reads": [
+        "io.kroxylicious.proxy.filter",
+        "java.util",
+        "org.apache.kafka.*"
+      ]
+    },
+    {
+      "name": "io.kroxylicious.proxy.filter",
+      "contains": [
+        "io.kroxylicious.proxy.filter"
+      ],
+      "reads": [
+        "io.kroxylicious.proxy.frame",
+        "io.netty.*",
+        "org.apache.kafka.*"
+      ]
+    },
+    {
+      "name": "io.kroxylicious.proxy.frame",
+      "contains": [
+        "io.kroxylicious.proxy.frame"
+      ],
+      "reads": [
+        "io.kroxylicious.proxy.tag",
+        "io.netty.*",
+        "java.nio",
+        "java.util",
+        "org.apache.kafka.*",
+        "org.apache.logging.log4j"
+      ]
+    },
+    {
+      "name": "io.kroxylicious.proxy.internal",
+      "contains": [
+        "io.kroxylicious.proxy.internal"
+      ],
+      "reads": [
+        "io.kroxylicious.proxy.filter",
+        "io.kroxylicious.proxy.frame",
+        "io.kroxylicious.proxy.internal.codec",
+        "io.netty.*",
+        "java.net",
+        "java.util",
+        "org.apache.kafka.*",
+        "org.apache.logging.log4j"
+      ]
+    },
+    {
+      "name": "io.kroxylicious.proxy.internal.codec",
+      "contains": [
+        "io.kroxylicious.proxy.internal.codec"
+      ],
+      "reads": [
+        "io.kroxylicious.proxy.filter",
+        "io.kroxylicious.proxy.frame",
+        "io.kroxylicious.proxy.tag",
+        "io.netty.*",
+        "java.nio",
+        "java.util",
+        "org.apache.kafka.*",
+        "org.apache.logging.log4j"
+      ]
+    },
+    {
+      "name": "io.kroxylicious.proxy.internal.filter",
+      "contains": [
+        "io.kroxylicious.proxy.internal.filter"
+      ],
+      "reads": [
+        "io.kroxylicious.proxy.filter",
+        "io.kroxylicious.proxy.internal.util",
+        "java.nio",
+        "java.util",
+        "java.util.function",
+        "org.apache.kafka.*",
+        "org.apache.logging.log4j"
+      ]
+    },
+    {
+      "name": "io.kroxylicious.proxy.internal.util",
+      "contains": [
+        "io.kroxylicious.proxy.internal.util"
+      ],
+      "reads": [
+        "io.netty.*",
+        "java.nio",
+        "org.apache.kafka.*"
+      ]
+    },
+    {
+      "name": "io.kroxylicious.proxy.tag",
+      "contains": [
+        "io.kroxylicious.proxy.tag"
+      ],
+      "reads": [
+        "java.lang.annotation"
+      ]
+    },
+    {
+      "name": "io.netty.*",
+      "contains": [
+        "io.netty*"
+      ]
+    },
+    {
+      "name": "org.apache.kafka.*",
+      "contains": [
+        "org.apache.kafka*"
+      ]
+    }
+  ],
+  "whitelisted": [
     "java.*",
     "org.slf4j"
   ]

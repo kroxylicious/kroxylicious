@@ -18,8 +18,12 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 public class OneInterfaceFilter implements ProduceResponseFilter {
 
     @Override
-    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
-                                                                   FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onProduceResponse(
+            short apiVersion,
+            ResponseHeaderData header,
+            ProduceResponseData response,
+            FilterContext context
+    ) {
         return null;
     }
 }

@@ -6,4 +6,5 @@
 
 package io.kroxylicious.filter.encryption.config;
 
-public record TemplateConfig(String template) {}
+public record TemplateConfig(String template) {
+}

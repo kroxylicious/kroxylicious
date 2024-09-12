@@ -38,9 +38,12 @@ public class CorrelationManager {
      * @param correlationId  The request's correlation id.
      * @param responseFuture The future to complete with the response
      */
-    public void putBrokerRequest(short apiKey,
-                                 short apiVersion,
-                                 int correlationId, CompletableFuture<SequencedResponse> responseFuture) {
+    public void putBrokerRequest(
+            short apiKey,
+            short apiVersion,
+            int correlationId,
+            CompletableFuture<SequencedResponse> responseFuture
+    ) {
         Correlation existing = this.brokerRequests.put(correlationId, new Correlation(apiKey, apiVersion, responseFuture));
         if (existing != null) {
             LOGGER.error("Duplicate upstream correlation id {}", correlationId);
@@ -70,16 +73,23 @@ public class CorrelationManager {
      * A record for which responses should be decoded, together with their
      * API key and version.
      */
-    public record Correlation(short apiKey,
-                              short apiVersion,
-                              CompletableFuture<SequencedResponse> responseFuture) {
+    public record Correlation(
+            short apiKey,
+            short apiVersion,
+            CompletableFuture<SequencedResponse> responseFuture
+    ) {
 
         @Override
         public String toString() {
-            return "Correlation(" +
-                    "apiKey=" + ApiKeys.forId(apiKey) +
-                    ", apiVersion=" + apiVersion +
-                    ')';
+            return "Correlation("
+                   +
+                   "apiKey="
+                   + ApiKeys.forId(apiKey)
+                   +
+                   ", apiVersion="
+                   + apiVersion
+                   +
+                   ')';
         }
 
         @Override

@@ -102,9 +102,9 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
             builder.sslContext(sslContext);
         }
         return builder
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .connectTimeout(timeout)
-                .build();
+                      .followRedirects(HttpClient.Redirect.NORMAL)
+                      .connectTimeout(timeout)
+                      .build();
     }
 
     /**
@@ -114,14 +114,21 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<DekPair<AwsKmsEdek>> generateDekPair(@NonNull String kekRef) {
+    public CompletionStage<DekPair<AwsKmsEdek>> generateDekPair(@NonNull
+    String kekRef) {
         final GenerateDataKeyRequest generateRequest = new GenerateDataKeyRequest(kekRef, "AES_256");
         var request = createRequest(generateRequest, TRENT_SERVICE_GENERATE_DATA_KEY);
         return sendAsync(kekRef, request, GENERATE_DATA_KEY_RESPONSE_TYPE_REF, UnknownKeyException::new)
-                .thenApply(response -> {
-                    var key = DestroyableRawSecretKey.takeOwnershipOf(response.plaintext(), AES_KEY_ALGO);
-                    return new DekPair<>(new AwsKmsEdek(kekRef, response.ciphertextBlob()), key);
-                });
+                                                                                                        .thenApply(response -> {
+                                                                                                            var key = DestroyableRawSecretKey.takeOwnershipOf(
+                                                                                                                    response.plaintext(),
+                                                                                                                    AES_KEY_ALGO
+                                                                                                            );
+                                                                                                            return new DekPair<>(
+                                                                                                                    new AwsKmsEdek(kekRef, response.ciphertextBlob()),
+                                                                                                                    key
+                                                                                                            );
+                                                                                                        });
     }
 
     /**
@@ -131,11 +138,17 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull AwsKmsEdek edek) {
+    public CompletionStage<SecretKey> decryptEdek(@NonNull
+    AwsKmsEdek edek) {
         final DecryptRequest decryptRequest = new DecryptRequest(edek.kekRef(), edek.edek());
         var request = createRequest(decryptRequest, TRENT_SERVICE_DECRYPT);
         return sendAsync(edek.kekRef(), request, DECRYPT_RESPONSE_TYPE_REF, UnknownKeyException::new)
-                .thenApply(response -> DestroyableRawSecretKey.takeOwnershipOf(response.plaintext(), AES_KEY_ALGO));
+                                                                                                     .thenApply(
+                                                                                                             response -> DestroyableRawSecretKey.takeOwnershipOf(
+                                                                                                                     response.plaintext(),
+                                                                                                                     AES_KEY_ALGO
+                                                                                                             )
+                                                                                                     );
     }
 
     /**
@@ -145,21 +158,26 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     @NonNull
     @Override
-    public CompletableFuture<String> resolveAlias(@NonNull String alias) {
+    public CompletableFuture<String> resolveAlias(@NonNull
+    String alias) {
         final DescribeKeyRequest resolveRequest = new DescribeKeyRequest(ALIAS_PREFIX + alias);
         var request = createRequest(resolveRequest, TRENT_SERVICE_DESCRIBE_KEY);
         return sendAsync(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF, UnknownAliasException::new)
-                .thenApply(DescribeKeyResponse::keyMetadata)
-                .thenApply(KeyMetadata::keyId);
+                                                                                                    .thenApply(DescribeKeyResponse::keyMetadata)
+                                                                                                    .thenApply(KeyMetadata::keyId);
     }
 
-    private <T> CompletableFuture<T> sendAsync(@NonNull String key, HttpRequest request,
-                                               TypeReference<T> valueTypeRef,
-                                               Function<String, KmsException> exception) {
+    private <T> CompletableFuture<T> sendAsync(
+            @NonNull
+            String key,
+            HttpRequest request,
+            TypeReference<T> valueTypeRef,
+            Function<String, KmsException> exception
+    ) {
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-                .thenApply(response -> checkResponseStatus(key, response, exception))
-                .thenApply(HttpResponse::body)
-                .thenApply(bytes -> decodeJson(valueTypeRef, bytes));
+                     .thenApply(response -> checkResponseStatus(key, response, exception))
+                     .thenApply(HttpResponse::body)
+                     .thenApply(bytes -> decodeJson(valueTypeRef, bytes));
     }
 
     private static <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
@@ -172,9 +190,14 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
     }
 
     @NonNull
-    private static HttpResponse<byte[]> checkResponseStatus(@NonNull String key,
-                                                            @NonNull HttpResponse<byte[]> response,
-                                                            @NonNull Function<String, KmsException> notFound) {
+    private static HttpResponse<byte[]> checkResponseStatus(
+            @NonNull
+            String key,
+            @NonNull
+            HttpResponse<byte[]> response,
+            @NonNull
+            Function<String, KmsException> notFound
+    ) {
         var statusCode = response.statusCode();
         // AWS API states that only the 200 response is currently used.
         // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
@@ -213,11 +236,11 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
         var body = getBody(request).getBytes(UTF_8);
 
         return AwsV4SigningHttpRequestBuilder.newBuilder(accessKey, secretKey, region, "kms", Instant.now())
-                .uri(getAwsUrl())
-                .header(CONTENT_TYPE_HEADER, APPLICATION_X_AMZ_JSON_1_1)
-                .header(X_AMZ_TARGET_HEADER, target)
-                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
-                .build();
+                                             .uri(getAwsUrl())
+                                             .header(CONTENT_TYPE_HEADER, APPLICATION_X_AMZ_JSON_1_1)
+                                             .header(X_AMZ_TARGET_HEADER, target)
+                                             .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                                             .build();
     }
 
     private String getBody(Object obj) {

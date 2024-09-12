@@ -20,10 +20,14 @@ public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
     private final double multiplier;
     private final Random random;
 
-    public ExponentialJitterBackoffStrategy(@NonNull Duration initialDelay,
-                                            @NonNull Duration maximumDelay,
-                                            double multiplier,
-                                            Random random) {
+    public ExponentialJitterBackoffStrategy(
+            @NonNull
+            Duration initialDelay,
+            @NonNull
+            Duration maximumDelay,
+            double multiplier,
+            Random random
+    ) {
         if (multiplier <= 1.0d) {
             throw new IllegalArgumentException("multiplier must be greater than one");
         }

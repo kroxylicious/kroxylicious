@@ -74,11 +74,13 @@ class AwsV4SigningHttpRequestBuilderTest {
         var server = httpServer(testDef.url.getPort(), requestHeaderCatching);
         var client = HttpClient.newHttpClient();
         try {
-            var builder = AwsV4SigningHttpRequestBuilder.newBuilder(testDef.accessKeyId(),
+            var builder = AwsV4SigningHttpRequestBuilder.newBuilder(
+                    testDef.accessKeyId(),
                     testDef.secretAccessKey(),
                     testDef.region(),
                     testDef.service(),
-                    testDef.requestTime());
+                    testDef.requestTime()
+            );
             testDef.apply(builder);
             var request = builder.build();
 
@@ -86,7 +88,7 @@ class AwsV4SigningHttpRequestBuilderTest {
             var actualHeaders = requestHeaderCatching.getHeaders();
 
             assertThat(actualHeaders)
-                    .containsAllEntriesOf(testDef.expectedHeaders());
+                                     .containsAllEntriesOf(testDef.expectedHeaders());
         }
         finally {
             server.stop(0);
@@ -98,8 +100,8 @@ class AwsV4SigningHttpRequestBuilderTest {
         var original = createBuilder(TEST_URI);
         var copy = original.copy();
         assertThat(copy)
-                .isNotEqualTo(original)
-                .isInstanceOf(original.getClass());
+                        .isNotEqualTo(original)
+                        .isInstanceOf(original.getClass());
 
         var req = copy.build();
         assertThat(req.uri()).isEqualTo(TEST_URI);
@@ -136,8 +138,8 @@ class AwsV4SigningHttpRequestBuilderTest {
     void headers() {
         var req = createBuilder(TEST_URI).headers("foo", "bar", "coo", "car").build();
         assertThat(req.headers().map())
-                .containsEntry("foo", List.of("bar"))
-                .containsEntry("coo", List.of("car"));
+                                       .containsEntry("foo", List.of("bar"))
+                                       .containsEntry("coo", List.of("car"));
     }
 
     @ParameterizedTest
@@ -176,7 +178,8 @@ class AwsV4SigningHttpRequestBuilderTest {
                 Arguments.of("https implicit port", URI.create("https://localhost/foo"), "localhost"),
                 Arguments.of("https explicit default port", URI.create("https://localhost:443/foo"), "localhost"),
                 Arguments.of("http non standard port", URI.create("http://localhost:8080/foo"), "localhost:8080"),
-                Arguments.of("https non standard port", URI.create("http://localhost:8443/foo"), "localhost:8443"));
+                Arguments.of("https non standard port", URI.create("http://localhost:8443/foo"), "localhost:8443")
+        );
     }
 
     @ParameterizedTest(name = "{0}")
@@ -195,8 +198,19 @@ class AwsV4SigningHttpRequestBuilderTest {
         return builder;
     }
 
-    record TestDef(String testName, Instant requestTime, URI url, String method, String accessKeyId, String secretAccessKey, String region, String service,
-                   String data, Map<String, List<String>> headers, Map<String, List<String>> expectedHeaders) {
+    record TestDef(
+            String testName,
+            Instant requestTime,
+            URI url,
+            String method,
+            String accessKeyId,
+            String secretAccessKey,
+            String region,
+            String service,
+            String data,
+            Map<String, List<String>> headers,
+            Map<String, List<String>> expectedHeaders
+    ) {
         public void apply(HttpRequest.Builder builder) {
             builder.uri(url());
             if (headers != null) {

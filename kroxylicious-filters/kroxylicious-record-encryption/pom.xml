@@ -39,8 +39,8 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kafka-message-tools</artifactId>
         </dependency>
-        
-	    <dependency>
+
+        <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms</artifactId>
         </dependency>

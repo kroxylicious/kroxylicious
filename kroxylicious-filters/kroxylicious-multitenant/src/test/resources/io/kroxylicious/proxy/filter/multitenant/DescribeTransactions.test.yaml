@@ -8,7 +8,7 @@
   version: 0
   request:
     payload:
-      transactionalIds: ["12345"]
+      transactionalIds: [ "12345" ]
     diff:
       - op: replace
         path: "/transactionalIds/0"
@@ -26,7 +26,7 @@
           producerEpoch: 0
           topics:
             - topic: tenant1-foo
-              partitions: [0]
+              partitions: [ 0 ]
     diff:
       - op: replace
         path: "/transactionStates/0/transactionalId"

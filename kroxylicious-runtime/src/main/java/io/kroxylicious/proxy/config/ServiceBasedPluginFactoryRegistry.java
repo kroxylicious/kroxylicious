@@ -31,8 +31,12 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServiceBasedPluginFactoryRegistry.class);
 
-    public record ProviderAndConfigType(@NonNull ServiceLoader.Provider<?> provider,
-                                        @NonNull Class<?> config) {
+    public record ProviderAndConfigType(
+            @NonNull
+            ServiceLoader.Provider<?> provider,
+            @NonNull
+            Class<?> config
+    ) {
         public ProviderAndConfigType {
             Objects.requireNonNull(provider);
             Objects.requireNonNull(config);
@@ -42,10 +46,13 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
     private final Map<Class<?>, Map<String, ProviderAndConfigType>> pluginInterfaceToNameToProvider = new ConcurrentHashMap<>();
 
     @NonNull
-    Map<String, ProviderAndConfigType> load(@NonNull Class<?> pluginInterface) {
+    Map<String, ProviderAndConfigType> load(@NonNull
+    Class<?> pluginInterface) {
         Objects.requireNonNull(pluginInterface);
-        return pluginInterfaceToNameToProvider.computeIfAbsent(pluginInterface,
-                i -> loadProviders(pluginInterface));
+        return pluginInterfaceToNameToProvider.computeIfAbsent(
+                pluginInterface,
+                i -> loadProviders(pluginInterface)
+        );
     }
 
     private static Map<String, ProviderAndConfigType> loadProviders(Class<?> pluginInterface) {
@@ -56,8 +63,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             Plugin annotation = providerType.getAnnotation(Plugin.class);
             if (annotation == null) {
                 LOGGER.warn("Failed to find a @PluginConfigType on provider {} of service {}", providerType, pluginInterface);
-            }
-            else {
+            } else {
                 ProviderAndConfigType providerAndConfigType = new ProviderAndConfigType(provider, annotation.configType());
                 Stream.of(providerType.getName(), providerType.getSimpleName()).forEach(name2 -> nameToProviders.compute(name2, (k2, v) -> {
                     if (v == null) {
@@ -68,29 +74,41 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 }));
             }
         });
-        var bySingleton = nameToProviders.entrySet().stream().collect(
-                Collectors.partitioningBy(e -> e.getValue().size() == 1));
+        var bySingleton = nameToProviders.entrySet()
+                                         .stream()
+                                         .collect(
+                                                 Collectors.partitioningBy(e -> e.getValue().size() == 1)
+                                         );
         if (LOGGER.isWarnEnabled()) {
             for (Map.Entry<String, Set<ProviderAndConfigType>> ambiguousInstanceNameToProviders : bySingleton.get(false)) {
-                LOGGER.warn("'{}' would be an ambiguous reference to a {} provider. "
-                        + "It could refer to any of {}"
-                        + " so to avoid ambiguous behaviour those fully qualified names must be used",
+                LOGGER.warn(
+                        "'{}' would be an ambiguous reference to a {} provider. "
+                            + "It could refer to any of {}"
+                            + " so to avoid ambiguous behaviour those fully qualified names must be used",
                         ambiguousInstanceNameToProviders.getKey(),
                         pluginInterface.getSimpleName(),
-                        ambiguousInstanceNameToProviders.getValue().stream().map(p -> p.provider().type().getName()).collect(Collectors.joining(", ")));
+                        ambiguousInstanceNameToProviders.getValue().stream().map(p -> p.provider().type().getName()).collect(Collectors.joining(", "))
+                );
             }
         }
-        return bySingleton.get(true).stream().collect(Collectors.toMap(
-                Map.Entry::getKey,
-                e -> e.getValue().iterator().next()));
+        return bySingleton.get(true)
+                          .stream()
+                          .collect(
+                                  Collectors.toMap(
+                                          Map.Entry::getKey,
+                                          e -> e.getValue().iterator().next()
+                                  )
+                          );
     }
 
     @Override
-    public <P> @NonNull PluginFactory<P> pluginFactory(@NonNull Class<P> pluginClass) {
+    public <P> @NonNull PluginFactory<P> pluginFactory(@NonNull
+    Class<P> pluginClass) {
         var nameToProvider = load(pluginClass);
         return new PluginFactory<>() {
             @Override
-            public @NonNull P pluginInstance(@NonNull String instanceName) {
+            public @NonNull P pluginInstance(@NonNull
+            String instanceName) {
                 if (Objects.requireNonNull(instanceName).isEmpty()) {
                     throw new IllegalArgumentException();
                 }
@@ -98,9 +116,11 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                 if (provider != null) {
                     Class<?> type = provider.provider().type();
                     if (type.isAnnotationPresent(Deprecated.class)) {
-                        LOGGER.warn("{} plugin with id {} is deprecated",
+                        LOGGER.warn(
+                                "{} plugin with id {} is deprecated",
                                 pluginClass.getName(),
-                                instanceName);
+                                instanceName
+                        );
                     }
                     return pluginClass.cast(provider.provider().get());
                 }
@@ -108,14 +128,25 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             }
 
             private UnknownPluginInstanceException unknownPluginInstanceException(String name) {
-                return new UnknownPluginInstanceException("Unknown " + pluginClass.getName() + " plugin instance for name '" + name + "'. "
-                        + "Known plugin instances are " + nameToProvider.keySet() + ". "
-                        + "Plugins must be loadable by java.util.ServiceLoader and annotated with @" + Plugin.class.getSimpleName() + ".");
+                return new UnknownPluginInstanceException(
+                        "Unknown "
+                                                          + pluginClass.getName()
+                                                          + " plugin instance for name '"
+                                                          + name
+                                                          + "'. "
+                                                          + "Known plugin instances are "
+                                                          + nameToProvider.keySet()
+                                                          + ". "
+                                                          + "Plugins must be loadable by java.util.ServiceLoader and annotated with @"
+                                                          + Plugin.class.getSimpleName()
+                                                          + "."
+                );
             }
 
             @NonNull
             @Override
-            public Class<?> configType(@NonNull String instanceName) {
+            public Class<?> configType(@NonNull
+            String instanceName) {
                 var providerAndConfigType = nameToProvider.get(instanceName);
                 if (providerAndConfigType != null) {
                     return providerAndConfigType.config();

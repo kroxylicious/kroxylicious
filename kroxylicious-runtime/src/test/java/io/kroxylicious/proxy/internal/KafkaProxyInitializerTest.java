@@ -104,24 +104,28 @@ class KafkaProxyInitializerTest {
 
     private VirtualCluster buildVirtualCluster(boolean logNetwork, boolean logFrames) {
         final Optional<Tls> tls = Optional.empty();
-        return new VirtualCluster("testCluster",
+        return new VirtualCluster(
+                "testCluster",
                 new TargetCluster("localhost:9090", tls),
                 mock(ClusterNetworkAddressConfigProvider.class),
                 tls,
                 logNetwork,
-                logFrames);
+                logFrames
+        );
     }
 
     @Test
     void shouldInitialisePlainChannel() {
         // Given
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+        kafkaProxyInitializer = new KafkaProxyInitializer(
+                filterChainFactory,
                 pfr,
                 false,
                 (endpoint, sniHostname) -> bindingStage,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                Map.of());
+                Map.of()
+        );
         // When
         kafkaProxyInitializer.initChannel(channel);
 
@@ -135,13 +139,15 @@ class KafkaProxyInitializerTest {
         // Given
         final VirtualClusterBindingResolver virtualClusterBindingResolver = mock(VirtualClusterBindingResolver.class);
         when(virtualClusterBindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+        kafkaProxyInitializer = new KafkaProxyInitializer(
+                filterChainFactory,
                 pfr,
                 false,
                 virtualClusterBindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                Map.of());
+                Map.of()
+        );
         when(channelPipeline.addLast(plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
         kafkaProxyInitializer.initChannel(channel);
@@ -159,13 +165,15 @@ class KafkaProxyInitializerTest {
         // Given
         final VirtualClusterBindingResolver virtualClusterBindingResolver = mock(VirtualClusterBindingResolver.class);
         when(virtualClusterBindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+        kafkaProxyInitializer = new KafkaProxyInitializer(
+                filterChainFactory,
                 pfr,
                 false,
                 virtualClusterBindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                Map.of());
+                Map.of()
+        );
         when(channelPipeline.addLast(plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
         kafkaProxyInitializer.initChannel(channel);
@@ -183,14 +191,16 @@ class KafkaProxyInitializerTest {
     void shouldAddCommonHandlersOnBindingComplete(boolean tls) {
         // Given
         when(vcb.virtualCluster())
-                .thenReturn(virtualCluster);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+                                  .thenReturn(virtualCluster);
+        kafkaProxyInitializer = new KafkaProxyInitializer(
+                filterChainFactory,
                 pfr,
                 tls,
                 (endpoint, sniHostname) -> bindingStage,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                Map.of());
+                Map.of()
+        );
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
@@ -209,13 +219,15 @@ class KafkaProxyInitializerTest {
         // Given
         virtualCluster = buildVirtualCluster(false, true);
         when(vcb.virtualCluster()).thenReturn(virtualCluster);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+        kafkaProxyInitializer = new KafkaProxyInitializer(
+                filterChainFactory,
                 pfr,
                 tls,
                 (endpoint, sniHostname) -> bindingStage,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                Map.of());
+                Map.of()
+        );
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
@@ -230,13 +242,15 @@ class KafkaProxyInitializerTest {
         // Given
         virtualCluster = buildVirtualCluster(true, false);
         when(vcb.virtualCluster()).thenReturn(virtualCluster);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+        kafkaProxyInitializer = new KafkaProxyInitializer(
+                filterChainFactory,
                 pfr,
                 tls,
                 (endpoint, sniHostname) -> bindingStage,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                Map.of());
+                Map.of()
+        );
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
@@ -252,13 +266,15 @@ class KafkaProxyInitializerTest {
         virtualCluster = buildVirtualCluster(true, false);
         when(vcb.virtualCluster()).thenReturn(virtualCluster);
         final AuthenticateCallbackHandler plainHandler = mock(AuthenticateCallbackHandler.class);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+        kafkaProxyInitializer = new KafkaProxyInitializer(
+                filterChainFactory,
                 pfr,
                 tls,
                 (endpoint, sniHostname) -> bindingStage,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                Map.of(KafkaAuthnHandler.SaslMechanism.PLAIN, plainHandler));
+                Map.of(KafkaAuthnHandler.SaslMechanism.PLAIN, plainHandler)
+        );
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
@@ -273,13 +289,15 @@ class KafkaProxyInitializerTest {
         // Given
         virtualCluster = buildVirtualCluster(true, false);
         when(vcb.virtualCluster()).thenReturn(virtualCluster);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+        kafkaProxyInitializer = new KafkaProxyInitializer(
+                filterChainFactory,
                 pfr,
                 tls,
                 (endpoint, sniHostname) -> bindingStage,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                Map.of());
+                Map.of()
+        );
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
@@ -293,8 +311,15 @@ class KafkaProxyInitializerTest {
         // Given
         final FilterChainFactory fcf = mock(FilterChainFactory.class);
         when(vcb.upstreamTarget()).thenReturn(new HostPort("upstream.broker.kafka", 9090));
-        final KafkaProxyInitializer.InitalizerNetFilter initalizerNetFilter = new KafkaProxyInitializer.InitalizerNetFilter(mock(SaslDecodePredicate.class),
-                mock(ApiVersionsServiceImpl.class), channel, vcb, pfr, fcf, (virtualCluster1, upstreamNodes) -> null);
+        final KafkaProxyInitializer.InitalizerNetFilter initalizerNetFilter = new KafkaProxyInitializer.InitalizerNetFilter(
+                mock(SaslDecodePredicate.class),
+                mock(ApiVersionsServiceImpl.class),
+                channel,
+                vcb,
+                pfr,
+                fcf,
+                (virtualCluster1, upstreamNodes) -> null
+        );
         final NetFilter.NetFilterContext netFilterContext = mock(NetFilter.NetFilterContext.class);
 
         // When
@@ -307,13 +332,15 @@ class KafkaProxyInitializerTest {
     @Test
     void shouldInitialiseTlsChannel() {
         // Given
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+        kafkaProxyInitializer = new KafkaProxyInitializer(
+                filterChainFactory,
                 pfr,
                 true,
                 (endpoint, sniHostname) -> bindingStage,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                Map.of());
+                Map.of()
+        );
 
         // When
         kafkaProxyInitializer.initChannel(channel);

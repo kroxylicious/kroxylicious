@@ -6,4 +6,5 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-public record RecordConfig(String str) {}
+public record RecordConfig(String str) {
+}

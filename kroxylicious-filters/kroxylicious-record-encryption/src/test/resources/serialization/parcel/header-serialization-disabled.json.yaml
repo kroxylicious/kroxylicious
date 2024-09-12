@@ -11,7 +11,7 @@ originalRecordContents:
       valueBase64: dGhlcmUK
 deserializedParcelContents:
   valueBase64: aGkgLW4K
-  headers: []
+  headers: [ ]
 serializationOptions:
   recordFields:
     - RECORD_VALUE

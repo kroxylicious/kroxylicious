@@ -51,12 +51,16 @@ class MetricsST extends AbstractST {
     @Test
     void kroxyliciousMetricsBeforeSendingMessages() {
         LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
-        assertAll("Checking the presence of the metrics",
+        assertAll(
+                "Checking the presence of the metrics",
                 () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 1),
-                () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_decoded_messages_total", 1));
-        assertAll("Checking the value of the metrics",
+                () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_decoded_messages_total", 1)
+        );
+        assertAll(
+                "Checking the value of the metrics",
                 () -> assertMetricValue(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 0),
-                () -> assertMetricValue(kroxyliciousCollector, "kroxylicious_inbound_downstream_decoded_messages_total", 0));
+                () -> assertMetricValue(kroxyliciousCollector, "kroxylicious_inbound_downstream_decoded_messages_total", 0)
+        );
     }
 
     @Test
@@ -76,7 +80,8 @@ class MetricsST extends AbstractST {
         assertAll(
                 () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 1),
                 () -> assertMetricValueHigherThan(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 0),
-                () -> assertMetricValueHigherThan(kroxyliciousCollector, "kroxylicious_inbound_downstream_decoded_messages_total", 0));
+                () -> assertMetricValueHigherThan(kroxyliciousCollector, "kroxylicious_inbound_downstream_decoded_messages_total", 0)
+        );
     }
 
     @Test
@@ -96,7 +101,8 @@ class MetricsST extends AbstractST {
         assertAll(
                 () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_payload_size_bytes_count", 1),
                 () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_payload_size_bytes_sum", 1),
-                () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_payload_size_bytes_max", 1));
+                () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_payload_size_bytes_max", 1)
+        );
 
     }
 
@@ -113,7 +119,8 @@ class MetricsST extends AbstractST {
 
         resourceManager.createResourceWithWait(
                 KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
-                kafka);
+                kafka
+        );
     }
 
     @SuppressWarnings("java:S2925")
@@ -123,8 +130,10 @@ class MetricsST extends AbstractST {
         resourceManager.createResourceWithWait(ScraperTemplates.scraperPod(namespace, scraperName).build());
         cluster.setNamespace(namespace);
 
-        LOGGER.atInfo().setMessage("Sleeping for {} seconds to give operators and operands some time to stable the metrics values before collecting")
-                .addArgument(Constants.RECONCILIATION_INTERVAL.toSeconds()).log();
+        LOGGER.atInfo()
+              .setMessage("Sleeping for {} seconds to give operators and operands some time to stable the metrics values before collecting")
+              .addArgument(Constants.RECONCILIATION_INTERVAL.toSeconds())
+              .log();
         Thread.sleep(Constants.RECONCILIATION_INTERVAL.toMillis());
 
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
@@ -133,11 +142,11 @@ class MetricsST extends AbstractST {
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
         bootstrap = kroxylicious.getBootstrap();
         kroxyliciousCollector = new MetricsCollector.Builder()
-                .withScraperPodName(scraperPodName)
-                .withNamespaceName(namespace)
-                .withComponentType(ComponentType.KROXYLICIOUS)
-                .withComponentName(Constants.KROXY_DEPLOYMENT_NAME)
-                .build();
+                                                              .withScraperPodName(scraperPodName)
+                                                              .withNamespaceName(namespace)
+                                                              .withComponentType(ComponentType.KROXYLICIOUS)
+                                                              .withComponentName(Constants.KROXY_DEPLOYMENT_NAME)
+                                                              .build();
         kroxyliciousCollector.collectMetricsFromPods();
     }
 }

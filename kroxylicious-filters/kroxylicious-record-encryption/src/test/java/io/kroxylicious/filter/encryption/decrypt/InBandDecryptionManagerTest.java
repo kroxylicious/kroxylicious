@@ -110,24 +110,24 @@ class InBandDecryptionManagerTest {
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record);
         assertThat(doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, encrypted))
-                .isCompleted();
+                                                                                                                                                     .isCompleted();
         assertThat(encrypted.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(RecordTestUtils::recordValueAsBytes)
-                .isNotEqualTo(value);
+                                        .toIterable()
+                                        .singleElement()
+                                        .extracting(RecordTestUtils::recordValueAsBytes)
+                                        .isNotEqualTo(value);
 
         List<Record> decrypted = new ArrayList<>();
         String topic = "foo";
         int partition = 1;
         assertThat(doDecrypt(decryptionManager, topic, partition, encrypted, decrypted))
-                .isCompleted();
+                                                                                        .isCompleted();
 
         assertThat(decrypted.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(RecordTestUtils::recordValueAsBytes)
-                .isEqualTo(value);
+                                        .toIterable()
+                                        .singleElement()
+                                        .extracting(RecordTestUtils::recordValueAsBytes)
+                                        .isEqualTo(value);
     }
 
     @Test
@@ -137,18 +137,41 @@ class InBandDecryptionManagerTest {
         EncryptionScheme<UUID> scheme = createScheme(kms);
         var encryptionManager = createEncryptionManager(kms, 500_000);
 
-        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, Compression.gzip().build(),
-                TimestampType.CREATE_TIME, 2L,
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                1L,
+                Compression.gzip().build(),
+                TimestampType.CREATE_TIME,
+                2L,
                 3L,
-                (short) 4, 5, false, false, 1, ARBITRARY_KEY.getBytes(
-                        StandardCharsets.UTF_8),
-                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8));
+                (short) 4,
+                5,
+                false,
+                false,
+                1,
+                ARBITRARY_KEY.getBytes(
+                        StandardCharsets.UTF_8
+                ),
+                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8)
+        );
 
-        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, Compression.NONE,
-                TimestampType.LOG_APPEND_TIME, 9L, 10L,
-                (short) 11, 12, false, false, 2, ARBITRARY_KEY_2.getBytes(
-                        StandardCharsets.UTF_8),
-                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8));
+        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                2L,
+                Compression.NONE,
+                TimestampType.LOG_APPEND_TIME,
+                9L,
+                10L,
+                (short) 11,
+                12,
+                false,
+                false,
+                2,
+                ARBITRARY_KEY_2.getBytes(
+                        StandardCharsets.UTF_8
+                ),
+                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8)
+        );
         MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, secondBatch);
 
         // when
@@ -169,18 +192,41 @@ class InBandDecryptionManagerTest {
         var encryptionManager = createEncryptionManager(kms, 500_000);
         var decryptionManager = createDecryptionManager(kms);
 
-        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 1L, Compression.gzip().build(),
-                TimestampType.CREATE_TIME, 2L,
+        MutableRecordBatch firstBatch = RecordTestUtils.singleElementRecordBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                1L,
+                Compression.gzip().build(),
+                TimestampType.CREATE_TIME,
+                2L,
                 3L,
-                (short) 4, 5, false, false, 1, ARBITRARY_KEY.getBytes(
-                        StandardCharsets.UTF_8),
-                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8));
+                (short) 4,
+                5,
+                false,
+                false,
+                1,
+                ARBITRARY_KEY.getBytes(
+                        StandardCharsets.UTF_8
+                ),
+                ARBITRARY_VALUE.getBytes(StandardCharsets.UTF_8)
+        );
 
-        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(RecordBatch.CURRENT_MAGIC_VALUE, 2L, Compression.NONE,
-                TimestampType.LOG_APPEND_TIME, 9L, 10L,
-                (short) 11, 12, false, false, 2, ARBITRARY_KEY_2.getBytes(
-                        StandardCharsets.UTF_8),
-                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8));
+        MutableRecordBatch secondBatch = RecordTestUtils.singleElementRecordBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                2L,
+                Compression.NONE,
+                TimestampType.LOG_APPEND_TIME,
+                9L,
+                10L,
+                (short) 11,
+                12,
+                false,
+                false,
+                2,
+                ARBITRARY_KEY_2.getBytes(
+                        StandardCharsets.UTF_8
+                ),
+                ARBITRARY_VALUE_2.getBytes(StandardCharsets.UTF_8)
+        );
         MemoryRecords records = RecordTestUtils.memoryRecords(firstBatch, secondBatch);
         MemoryRecords encrypted = assertImmediateSuccessAndGet(encrypt(encryptionManager, scheme, records));
 
@@ -286,26 +332,31 @@ class InBandDecryptionManagerTest {
 
     @NonNull
     private static CompletionStage<Void> doDecrypt(
-                                                   InBandDecryptionManager<UUID, InMemoryEdek> decryptionManager, String topic, int partition, List<Record> encrypted,
-                                                   List<Record> decrypted) {
+            InBandDecryptionManager<UUID, InMemoryEdek> decryptionManager,
+            String topic,
+            int partition,
+            List<Record> encrypted,
+            List<Record> decrypted
+    ) {
         return decryptionManager.decrypt(topic, partition, RecordTestUtils.memoryRecords(encrypted), ByteBufferOutputStream::new)
-                .thenAccept(records -> records.records().forEach(decrypted::add));
+                                .thenAccept(records -> records.records().forEach(decrypted::add));
     }
 
     @NonNull
     private static CompletionStage<Void> doEncrypt(
-                                                   InBandEncryptionManager<UUID, InMemoryEdek> encryptionManager,
-                                                   String topic,
-                                                   int partition,
-                                                   EncryptionScheme<UUID> scheme,
-                                                   List<Record> initial,
-                                                   List<Record> encrypted) {
+            InBandEncryptionManager<UUID, InMemoryEdek> encryptionManager,
+            String topic,
+            int partition,
+            EncryptionScheme<UUID> scheme,
+            List<Record> initial,
+            List<Record> encrypted
+    ) {
         MemoryRecords records = RecordTestUtils.memoryRecords(initial);
         return encryptionManager.encrypt(topic, partition, scheme, records, ByteBufferOutputStream::new)
-                .thenApply(memoryRecords -> {
-                    memoryRecords.records().forEach(encrypted::add);
-                    return null;
-                });
+                                .thenApply(memoryRecords -> {
+                                    memoryRecords.records().forEach(encrypted::add);
+                                    return null;
+                                });
     }
 
     @Test
@@ -322,7 +373,7 @@ class InBandDecryptionManagerTest {
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record);
         assertThat(doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, encrypted))
-                .isCompleted();
+                                                                                                                                                     .isCompleted();
         record.value().rewind();
         assertEquals(1, encrypted.size());
         assertNotEquals(initial, encrypted);
@@ -345,9 +396,11 @@ class InBandDecryptionManagerTest {
         assertThat(doDecrypt(decryptionManager, "foo", 1, List.of(record), received)).isCompleted();
 
         assertThat(received).hasSize(1);
-        assertThat(received.stream()
-                .map(RecordTestUtils::recordValueAsBytes))
-                .containsExactly(recBytes);
+        assertThat(
+                received.stream()
+                        .map(RecordTestUtils::recordValueAsBytes)
+        )
+         .containsExactly(recBytes);
     }
 
     static List<MemoryRecords> decryptSupportsEmptyRecordBatches() {
@@ -360,7 +413,8 @@ class InBandDecryptionManagerTest {
         InMemoryKms kms = getInMemoryKms();
         var decryptionManager = createDecryptionManager(kms);
         assertThat(decryptionManager.decrypt("foo", 1, records, ByteBufferOutputStream::new))
-                .succeedsWithin(Duration.ZERO).isSameAs(records);
+                                                                                             .succeedsWithin(Duration.ZERO)
+                                                                                             .isSameAs(records);
     }
 
     // we do not want to break compaction tombstoning by creating a parcel for the null value case
@@ -376,7 +430,7 @@ class InBandDecryptionManagerTest {
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record);
         assertThat(doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, encrypted))
-                .isCompleted();
+                                                                                                                                                     .isCompleted();
         assertEquals(1, encrypted.size());
         assertFalse(encrypted.get(0).hasValue());
     }
@@ -398,8 +452,15 @@ class InBandDecryptionManagerTest {
         List<Record> initial = List.of(record);
         String expectedMessage = "encrypting headers prohibited when original record value null, we must preserve the null for tombstoning";
         assertThat(doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_HEADER_VALUES)), initial, encrypted))
-                .failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-                .withMessageContaining(expectedMessage);
+                                                                                                                                                             .failsWithin(
+                                                                                                                                                                     Duration.ofSeconds(
+                                                                                                                                                                             5
+                                                                                                                                                                     )
+                                                                                                                                                             )
+                                                                                                                                                             .withThrowableThat()
+                                                                                                                                                             .withMessageContaining(
+                                                                                                                                                                     expectedMessage
+                                                                                                                                                             );
     }
 
     @Test
@@ -412,7 +473,7 @@ class InBandDecryptionManagerTest {
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of();
         assertThat(doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial, encrypted))
-                .isCompleted();
+                                                                                                                                                     .isCompleted();
 
         assertEquals(0, encrypted.size());
     }
@@ -440,11 +501,17 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record, record2);
-        CompletionStage<Void> encrypt = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt = doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted);
-        assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-                .withMessageMatching(".*failed to reserve an EDEK to encrypt 2 records for topic topic partition 1 after [0-9]+ attempts");
+                encrypted
+        );
+        assertThat(encrypt).failsWithin(Duration.ofSeconds(5))
+                           .withThrowableThat()
+                           .withMessageMatching(".*failed to reserve an EDEK to encrypt 2 records for topic topic partition 1 after [0-9]+ attempts");
     }
 
     @Test
@@ -462,9 +529,14 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record, record2);
-        CompletionStage<Void> encrypt = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt = doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted);
+                encrypted
+        );
         assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageContaining("failed to create that DEK");
     }
 
@@ -485,9 +557,14 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record, record2);
-        CompletionStage<Void> encrypt = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt = doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted);
+                encrypted
+        );
         assertThat(encrypt).succeedsWithin(Duration.ofSeconds(5));
 
         List<Record> decrypted = new ArrayList<>();
@@ -511,18 +588,28 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record, record2);
-        CompletionStage<Void> encrypt = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt = doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted);
+                encrypted
+        );
         assertThat(encrypt).failsWithin(Duration.ofSeconds(5)).withThrowableThat().withMessageContaining("failed to create that DEK");
 
         // given KMS is no longer generating failed futures
         when(spyKms.generateDekPair(kekId)).thenCallRealMethod();
 
         // when
-        CompletionStage<Void> encrypt2 = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        CompletionStage<Void> encrypt2 = doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted);
+                encrypted
+        );
 
         // then
         assertThat(encrypt2).succeedsWithin(Duration.ofSeconds(5));
@@ -545,11 +632,16 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record, record2);
-        doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted)
-                .toCompletableFuture()
-                .get(10, TimeUnit.SECONDS);
+                encrypted
+        )
+         .toCompletableFuture()
+         .get(10, TimeUnit.SECONDS);
         record.value().rewind();
         record2.value().rewind();
         assertEquals(2, encrypted.size());
@@ -558,7 +650,7 @@ class InBandDecryptionManagerTest {
 
         List<Record> decrypted = new ArrayList<>();
         doDecrypt(decryptionManager, "foo", 1, encrypted, decrypted).toCompletableFuture()
-                .get(10, TimeUnit.SECONDS);
+                                                                    .get(10, TimeUnit.SECONDS);
 
         assertEquals(initial, decrypted);
     }
@@ -578,17 +670,27 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record, record2);
-        doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted).toCompletableFuture().get(10, TimeUnit.SECONDS);
+                encrypted
+        ).toCompletableFuture().get(10, TimeUnit.SECONDS);
         record.value().rewind();
         record2.value().rewind();
 
         // at this point we have encrypted 2 records with the manager set to maximum 2 encryptions per dek
 
-        doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted).toCompletableFuture().get(10, TimeUnit.SECONDS);
+                encrypted
+        ).toCompletableFuture().get(10, TimeUnit.SECONDS);
 
         record.value().rewind();
         record2.value().rewind();
@@ -616,19 +718,29 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record, record2);
-        doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted)
-                .toCompletableFuture()
-                .get(10, TimeUnit.SECONDS);
+                encrypted
+        )
+         .toCompletableFuture()
+         .get(10, TimeUnit.SECONDS);
         record.value().rewind();
         record2.value().rewind();
 
         // at this point we have encrypted 2 records with the manager set to maximum 3 encryptions per dek, so we need a new dek to encrypt 2 more records
 
-        doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted).toCompletableFuture().get(10, TimeUnit.SECONDS);
+                encrypted
+        ).toCompletableFuture().get(10, TimeUnit.SECONDS);
 
         record.value().rewind();
         record2.value().rewind();
@@ -655,19 +767,29 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record, record2);
-        doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted)
-                .toCompletableFuture()
-                .get(10, TimeUnit.SECONDS);
+                encrypted
+        )
+         .toCompletableFuture()
+         .get(10, TimeUnit.SECONDS);
         record.value().rewind();
         record2.value().rewind();
 
         // at this point we have encrypted 2 records with the manager set to maximum 4 encryptions per dek, so we do not need a new dek to encrypt 2 more records
 
-        doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 initial,
-                encrypted).toCompletableFuture().get(10, TimeUnit.SECONDS);
+                encrypted
+        ).toCompletableFuture().get(10, TimeUnit.SECONDS);
 
         record.value().rewind();
         record2.value().rewind();
@@ -692,10 +814,17 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record);
-        assertThat(doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES)),
-                initial,
-                encrypted))
-                .isCompleted();
+        assertThat(
+                doEncrypt(
+                        encryptionManager,
+                        "topic",
+                        1,
+                        new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES)),
+                        initial,
+                        encrypted
+                )
+        )
+         .isCompleted();
         value.rewind();
 
         assertEquals(1, encrypted.size());
@@ -703,7 +832,7 @@ class InBandDecryptionManagerTest {
 
         List<Record> decrypted = new ArrayList<>();
         assertThat(doDecrypt(decryptionManager, "topicFoo", 1, encrypted, decrypted))
-                .isCompleted();
+                                                                                     .isCompleted();
 
         assertEquals(List.of(RecordTestUtils.record(value, new RecordHeader("headerFoo", new byte[]{ 4, 5, 6 }))), decrypted);
     }
@@ -730,9 +859,14 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         List<Record> initial = List.of(record, record2, record3);
-        doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES)),
+        doEncrypt(
+                encryptionManager,
+                "topic",
+                1,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES)),
                 initial,
-                encrypted).toCompletableFuture().get(10, TimeUnit.SECONDS);
+                encrypted
+        ).toCompletableFuture().get(10, TimeUnit.SECONDS);
         value.rewind();
         value2.rewind();
         value3.rewind();
@@ -742,9 +876,14 @@ class InBandDecryptionManagerTest {
         List<Record> decrypted = new ArrayList<>();
         assertThat(doDecrypt(decryptionManager, "foo", 1, encrypted, decrypted)).isCompleted();
 
-        assertEquals(List.of(RecordTestUtils.record(0L, value, new RecordHeader("foo", new byte[]{ 4, 5, 6 })),
-                RecordTestUtils.record(1L, value2, new RecordHeader("foo", new byte[]{ 10, 11, 12 })),
-                RecordTestUtils.record(4L, value3, new RecordHeader("foo", new byte[]{ 16, 17, 18 }))), decrypted);
+        assertEquals(
+                List.of(
+                        RecordTestUtils.record(0L, value, new RecordHeader("foo", new byte[]{ 4, 5, 6 })),
+                        RecordTestUtils.record(1L, value2, new RecordHeader("foo", new byte[]{ 10, 11, 12 })),
+                        RecordTestUtils.record(4L, value3, new RecordHeader("foo", new byte[]{ 16, 17, 18 }))
+                ),
+                decrypted
+        );
     }
 
     @Test
@@ -761,26 +900,26 @@ class InBandDecryptionManagerTest {
 
         List<Record> encrypted = new ArrayList<>();
         assertThat(doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), List.of(record), encrypted))
-                .isCompleted();
+                                                                                                                                                             .isCompleted();
         assertThat(encrypted.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(Record::headers)
-                .asInstanceOf(InstanceOfAssertFactories.array(Header[].class))
-                .hasSize(2) /* additional header is the kroxylicious.io/encryption header */
-                .contains(header);
+                                        .toIterable()
+                                        .singleElement()
+                                        .extracting(Record::headers)
+                                        .asInstanceOf(InstanceOfAssertFactories.array(Header[].class))
+                                        .hasSize(2) /* additional header is the kroxylicious.io/encryption header */
+                                        .contains(header);
 
         List<Record> decrypted = new ArrayList<>();
         assertThat(doDecrypt(decryptionManager, "foo", 1, encrypted, decrypted))
-                .isCompleted();
+                                                                                .isCompleted();
 
         assertThat(decrypted.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(Record::headers)
-                .asInstanceOf(InstanceOfAssertFactories.array(Header[].class))
-                .hasSize(1)
-                .containsExactly(header);
+                                        .toIterable()
+                                        .singleElement()
+                                        .extracting(Record::headers)
+                                        .asInstanceOf(InstanceOfAssertFactories.array(Header[].class))
+                                        .hasSize(1)
+                                        .containsExactly(header);
     }
 
     @ParameterizedTest
@@ -804,12 +943,24 @@ class InBandDecryptionManagerTest {
         var rec2 = RecordTestUtils.record(offsetB, ByteBuffer.wrap(rec2Bytes));
 
         List<Record> encrypted = new ArrayList<>();
-        var encryptStage = doEncrypt(encryptionManager, topic, partition, new EncryptionScheme<>(kekId1, EnumSet.of(RecordField.RECORD_VALUE)),
+        var encryptStage = doEncrypt(
+                encryptionManager,
+                topic,
+                partition,
+                new EncryptionScheme<>(kekId1, EnumSet.of(RecordField.RECORD_VALUE)),
                 List.of(rec1),
-                encrypted)
-                .thenApply(u -> doEncrypt(encryptionManager, topic, partition, new EncryptionScheme<>(kekId2, EnumSet.of(RecordField.RECORD_VALUE)),
-                        List.of(rec2),
-                        encrypted));
+                encrypted
+        )
+         .thenApply(
+                 u -> doEncrypt(
+                         encryptionManager,
+                         topic,
+                         partition,
+                         new EncryptionScheme<>(kekId2, EnumSet.of(RecordField.RECORD_VALUE)),
+                         List.of(rec2),
+                         encrypted
+                 )
+         );
         assertThat(encryptStage).isCompleted();
         assertThat(encrypted).hasSize(2);
         assertThat(kms.numDeksGenerated()).isEqualTo(2);
@@ -824,10 +975,9 @@ class InBandDecryptionManagerTest {
             var underlying = kms.decryptEdek(edek);
             if (Objects.equals(argument.getValue(), lastEdek)) {
                 CompletableFuture.delayedExecutor(25, TimeUnit.MILLISECONDS)
-                        .execute(() -> trigger.complete(null));
+                                 .execute(() -> trigger.complete(null));
                 return underlying;
-            }
-            else {
+            } else {
                 return underlying.thenCombine(trigger, (sk, other) -> sk);
             }
         }).when(spyKms).decryptEdek(argument.capture());
@@ -836,13 +986,13 @@ class InBandDecryptionManagerTest {
         var decryptStage = doDecrypt(decryptionManager, topic, partition, encrypted, decrypted);
         assertThat(decryptStage).succeedsWithin(Duration.ofSeconds(1));
         assertThat(decrypted.iterator())
-                .toIterable()
-                .extracting(RecordTestUtils::recordValueAsBytes)
-                .containsExactly(rec1Bytes, rec2Bytes);
+                                        .toIterable()
+                                        .extracting(RecordTestUtils::recordValueAsBytes)
+                                        .containsExactly(rec1Bytes, rec2Bytes);
         assertThat(decrypted.iterator())
-                .toIterable()
-                .extracting(Record::offset)
-                .containsExactly(offsetA, offsetB);
+                                        .toIterable()
+                                        .extracting(Record::offset)
+                                        .containsExactly(offsetA, offsetB);
     }
 
     @Test
@@ -865,9 +1015,14 @@ class InBandDecryptionManagerTest {
 
         // rec1 and rec3 will be encrypted.
         List<Record> encrypted = new ArrayList<>();
-        var encryptStage = doEncrypt(encryptionManager, topic, partition, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+        var encryptStage = doEncrypt(
+                encryptionManager,
+                topic,
+                partition,
+                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                 List.of(rec1, rec3),
-                encrypted);
+                encrypted
+        );
         assertThat(encryptStage).isCompleted();
         assertThat(encrypted).hasSize(2);
 
@@ -879,9 +1034,9 @@ class InBandDecryptionManagerTest {
         var decryptStage = doDecrypt(decryptionManager, topic, partition, decryptInput, received);
         assertThat(decryptStage).succeedsWithin(Duration.ofSeconds(1));
         assertThat(received.iterator())
-                .toIterable()
-                .extracting(RecordTestUtils::recordValueAsBytes)
-                .containsExactly(rec1Bytes, rec2Bytes, rec3Bytes);
+                                       .toIterable()
+                                       .extracting(RecordTestUtils::recordValueAsBytes)
+                                       .containsExactly(rec1Bytes, rec2Bytes, rec3Bytes);
     }
 
     @Test
@@ -891,11 +1046,13 @@ class InBandDecryptionManagerTest {
         var kek1 = kms.generateKey();
         var kek2 = kms.generateKey();
 
-        var encryptionManager = createEncryptionManager(kms,
+        var encryptionManager = createEncryptionManager(
+                kms,
                 50_000,
                 1024 * 1024,
                 8 * 1024 * 1024,
-                1);
+                1
+        );
 
         var value = new byte[]{ 1, 2, 3 };
         Record record = RecordTestUtils.record(value);
@@ -923,11 +1080,13 @@ class InBandDecryptionManagerTest {
         InMemoryKms kms = getInMemoryKms();
         var kek1 = kms.generateKey();
 
-        var encryptionManager = createEncryptionManager(kms,
+        var encryptionManager = createEncryptionManager(
+                kms,
                 50_000,
                 10,
                 10,
-                1);
+                1
+        );
 
         var value = new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
         Record record = RecordTestUtils.record(value);
@@ -938,12 +1097,12 @@ class InBandDecryptionManagerTest {
 
         // When
         assertThat(doEncrypt(encryptionManager, "topic", 1, scheme1, initial, encrypted))
-                .failsWithin(1, TimeUnit.NANOSECONDS)
-                .withThrowableThat()
-                .isExactlyInstanceOf(ExecutionException.class)
-                .havingCause()
-                .isExactlyInstanceOf(EncryptionException.class)
-                .withMessage("Record buffer cannot grow greater than 10 bytes");
+                                                                                         .failsWithin(1, TimeUnit.NANOSECONDS)
+                                                                                         .withThrowableThat()
+                                                                                         .isExactlyInstanceOf(ExecutionException.class)
+                                                                                         .havingCause()
+                                                                                         .isExactlyInstanceOf(EncryptionException.class)
+                                                                                         .withMessage("Record buffer cannot grow greater than 10 bytes");
     }
 
     @Test
@@ -952,11 +1111,13 @@ class InBandDecryptionManagerTest {
         InMemoryKms kms = getInMemoryKms();
         var kek1 = kms.generateKey();
 
-        var encryptionManager = createEncryptionManager(kms,
+        var encryptionManager = createEncryptionManager(
+                kms,
                 50_000,
                 10,
                 1000,
-                1);
+                1
+        );
 
         var value = new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
         Record record = RecordTestUtils.record(value);
@@ -967,7 +1128,7 @@ class InBandDecryptionManagerTest {
 
         // When
         assertThat(doEncrypt(encryptionManager, "topic", 1, scheme1, initial, encrypted))
-                .succeedsWithin(1, TimeUnit.NANOSECONDS);
+                                                                                         .succeedsWithin(1, TimeUnit.NANOSECONDS);
     }
 
     public TestingDek getSerializedGeneratedEdek(InMemoryKms kms, int i) {
@@ -992,16 +1153,16 @@ class InBandDecryptionManagerTest {
     @NonNull
     private static List<TestingDek> extractEdeks(List<Record> encrypted) {
         return encrypted.stream()
-                .filter(testingRecord -> Stream.of(testingRecord.headers()).anyMatch(header -> header.key().equals(EncryptionHeader.ENCRYPTION_HEADER_NAME)))
-                .map(testingRecord -> {
-                    ByteBuffer wrapper = testingRecord.value();
-                    CipherSpecResolver.ALL.fromSerializedId(wrapper.get());
-                    var edekLength = ByteUtils.readUnsignedVarint(wrapper);
-                    byte[] edekBytes = new byte[edekLength];
-                    wrapper.get(edekBytes);
-                    return new TestingDek(edekBytes);
-                })
-                .toList();
+                        .filter(testingRecord -> Stream.of(testingRecord.headers()).anyMatch(header -> header.key().equals(EncryptionHeader.ENCRYPTION_HEADER_NAME)))
+                        .map(testingRecord -> {
+                            ByteBuffer wrapper = testingRecord.value();
+                            CipherSpecResolver.ALL.fromSerializedId(wrapper.get());
+                            var edekLength = ByteUtils.readUnsignedVarint(wrapper);
+                            byte[] edekBytes = new byte[edekLength];
+                            wrapper.get(edekBytes);
+                            return new TestingDek(edekBytes);
+                        })
+                        .toList();
     }
 
     @NonNull
@@ -1009,36 +1170,44 @@ class InBandDecryptionManagerTest {
 
         DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, 1);
         var dekCache = new DecryptionDekCache<>(dekManager, directExecutor(), DecryptionDekCache.NO_MAX_CACHE_SIZE);
-        return new InBandDecryptionManager<>(EncryptionResolver.ALL,
+        return new InBandDecryptionManager<>(
+                EncryptionResolver.ALL,
                 dekManager,
                 dekCache,
-                new FilterThreadExecutor(directExecutor()));
+                new FilterThreadExecutor(directExecutor())
+        );
     }
 
     @NonNull
     private static InBandEncryptionManager<UUID, InMemoryEdek> createEncryptionManager(InMemoryKms kms, int maxEncryptionsPerDek) {
-        return createEncryptionManager(kms,
+        return createEncryptionManager(
+                kms,
                 maxEncryptionsPerDek,
                 1024 * 1024,
                 8 * 1024 * 1024,
-                EncryptionDekCache.NO_MAX_CACHE_SIZE);
+                EncryptionDekCache.NO_MAX_CACHE_SIZE
+        );
     }
 
     @NonNull
-    private static InBandEncryptionManager<UUID, InMemoryEdek> createEncryptionManager(InMemoryKms kms,
-                                                                                       int maxEncryptionsPerDek,
-                                                                                       int recordBufferInitialBytes,
-                                                                                       int recordBufferMaxBytes,
-                                                                                       int maxCacheSize) {
+    private static InBandEncryptionManager<UUID, InMemoryEdek> createEncryptionManager(
+            InMemoryKms kms,
+            int maxEncryptionsPerDek,
+            int recordBufferInitialBytes,
+            int recordBufferMaxBytes,
+            int maxCacheSize
+    ) {
 
         DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, maxEncryptionsPerDek);
         var cache = new EncryptionDekCache<>(dekManager, directExecutor(), maxCacheSize, Duration.ofHours(1), Duration.ofHours(1));
-        return new InBandEncryptionManager<>(Encryption.V2,
+        return new InBandEncryptionManager<>(
+                Encryption.V2,
                 dekManager.edekSerde(),
                 recordBufferInitialBytes,
                 recordBufferMaxBytes,
                 cache,
-                new FilterThreadExecutor(directExecutor()));
+                new FilterThreadExecutor(directExecutor())
+        );
     }
 
     @NonNull

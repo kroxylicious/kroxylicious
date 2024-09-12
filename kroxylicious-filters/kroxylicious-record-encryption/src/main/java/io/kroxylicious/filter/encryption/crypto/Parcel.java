@@ -24,15 +24,29 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * What gets included depends on the {@link RecordField}s.
  */
 public interface Parcel extends PersistedIdentifiable<ParcelVersion> {
-    int sizeOfParcel(@NonNull Set<RecordField> recordFields,
-                     @NonNull Record kafkaRecord);
+    int sizeOfParcel(
+            @NonNull
+            Set<RecordField> recordFields,
+            @NonNull
+            Record kafkaRecord
+    );
 
-    void writeParcel(@NonNull Set<RecordField> recordFields,
-                     @NonNull Record kafkaRecord,
-                     @NonNull ByteBuffer parcel);
+    void writeParcel(
+            @NonNull
+            Set<RecordField> recordFields,
+            @NonNull
+            Record kafkaRecord,
+            @NonNull
+            ByteBuffer parcel
+    );
 
-    void readParcel(@NonNull ByteBuffer parcel,
-                    @NonNull Record encryptedRecord,
-                    @NonNull BiConsumer<ByteBuffer, Header[]> consumer);
+    void readParcel(
+            @NonNull
+            ByteBuffer parcel,
+            @NonNull
+            Record encryptedRecord,
+            @NonNull
+            BiConsumer<ByteBuffer, Header[]> consumer
+    );
 
 }

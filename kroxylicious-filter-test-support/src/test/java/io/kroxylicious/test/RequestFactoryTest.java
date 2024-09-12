@@ -36,12 +36,14 @@ class RequestFactoryTest {
         final Map<ApiKeys, ApiMessage> allMessages = apiMessages.collect(
                 Collectors.toMap(
                         apiMessageVersion -> ApiKeys.forId(apiMessageVersion.apiMessage().apiKey()),
-                        RequestFactory.ApiMessageVersion::apiMessage));
+                        RequestFactory.ApiMessageVersion::apiMessage
+                )
+        );
         assertThat(allMessages).hasSameSizeAs(expectedKeys)
-                .allSatisfy((apiKeys, apiMessage) -> {
-                    assertThat(apiKeys).isNotIn(RequestFactory.SPECIAL_CASES);
-                    assertThat(apiMessages).isNotNull();
-                });
+                               .allSatisfy((apiKeys, apiMessage) -> {
+                                   assertThat(apiKeys).isNotIn(RequestFactory.SPECIAL_CASES);
+                                   assertThat(apiMessages).isNotNull();
+                               });
     }
 
     @Test
@@ -55,7 +57,9 @@ class RequestFactoryTest {
         final Map<ApiKeys, ApiMessage> allMessages = apiMessages.collect(
                 Collectors.toMap(
                         apiMessageVersion -> ApiKeys.forId(apiMessageVersion.apiMessage().apiKey()),
-                        RequestFactory.ApiMessageVersion::apiMessage));
+                        RequestFactory.ApiMessageVersion::apiMessage
+                )
+        );
         assertThat(allMessages).hasSize(1).hasValueSatisfying(ApiMessageCondition.forApiKey(ApiKeys.PRODUCE));
     }
 

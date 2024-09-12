@@ -26,8 +26,8 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     public HeaderAssert hasKeyEqualTo(String expected) {
         isNotNull();
         Assertions.assertThat(actual.key())
-                .describedAs("header key")
-                .isEqualTo(expected);
+                  .describedAs("header key")
+                  .isEqualTo(expected);
         return this;
     }
 
@@ -49,7 +49,7 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     private AbstractByteArrayAssert<?> valueAssert() {
         isNotNull();
         AbstractByteArrayAssert<?> headerValue = Assertions.assertThat(actual.value())
-                .describedAs("header value");
+                                                           .describedAs("header value");
         return headerValue;
     }
 

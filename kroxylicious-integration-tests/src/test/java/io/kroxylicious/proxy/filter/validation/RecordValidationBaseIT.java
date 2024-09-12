@@ -27,16 +27,16 @@ public abstract class RecordValidationBaseIT extends BaseIT {
 
     public void assertThatFutureSucceeds(Future<RecordMetadata> future) {
         assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(5))
-                .isNotNull();
+                          .succeedsWithin(Duration.ofSeconds(5))
+                          .isNotNull();
     }
 
     public void assertThatFutureFails(Future<RecordMetadata> rejected, Class<? extends Throwable> expectedCause, String expectedMessage) {
         assertThat(rejected)
-                .failsWithin(Duration.ofSeconds(5))
-                .withThrowableThat()
-                .withCauseInstanceOf(expectedCause)
-                .withMessageContaining(expectedMessage);
+                            .failsWithin(Duration.ofSeconds(5))
+                            .withThrowableThat()
+                            .withCauseInstanceOf(expectedCause)
+                            .withMessageContaining(expectedMessage);
     }
 
     public ConsumerRecords<String, String> consumeAll(KroxyliciousTester tester, Topic topic) {

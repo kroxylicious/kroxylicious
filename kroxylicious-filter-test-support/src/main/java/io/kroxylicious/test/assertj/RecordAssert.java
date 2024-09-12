@@ -42,7 +42,7 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     private AbstractLongAssert<?> offsetAssert() {
         isNotNull();
         return Assertions.assertThat(actual.offset())
-                .describedAs("record offset");
+                         .describedAs("record offset");
     }
 
     public RecordAssert hasTimestampEqualTo(long expect) {
@@ -55,20 +55,22 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     private AbstractLongAssert<?> timestampAssert() {
         isNotNull();
         return Assertions.assertThat(actual.timestamp())
-                .describedAs("record timestamp");
+                         .describedAs("record timestamp");
     }
 
     private AbstractObjectAssert<?, String> keyStrAssert() {
         isNotNull();
-        return Assertions.assertThat(actual).extracting(RecordTestUtils::recordKeyAsString)
-                .describedAs(RECORD_KEY_DESCRIPTION);
+        return Assertions.assertThat(actual)
+                         .extracting(RecordTestUtils::recordKeyAsString)
+                         .describedAs(RECORD_KEY_DESCRIPTION);
     }
 
     public RecordAssert hasKeyEqualTo(String expect) {
         isNotNull();
-        Assertions.assertThat(actual).extracting(RecordTestUtils::recordKeyAsString)
-                .describedAs(RECORD_KEY_DESCRIPTION)
-                .isEqualTo(expect);
+        Assertions.assertThat(actual)
+                  .extracting(RecordTestUtils::recordKeyAsString)
+                  .describedAs(RECORD_KEY_DESCRIPTION)
+                  .isEqualTo(expect);
         return this;
     }
 
@@ -81,13 +83,13 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
     private AbstractStringAssert<?> valueStrAssert() {
         isNotNull();
         return Assertions.assertThat(RecordTestUtils.recordValueAsString(actual))
-                .describedAs(RECORD_VALUE_DESCRIPTION);
+                         .describedAs(RECORD_VALUE_DESCRIPTION);
     }
 
     private AbstractByteArrayAssert<?> valueBytesAssert() {
         isNotNull();
         return Assertions.assertThat(RecordTestUtils.recordValueAsBytes(actual))
-                .describedAs(RECORD_VALUE_DESCRIPTION);
+                         .describedAs(RECORD_VALUE_DESCRIPTION);
     }
 
     public RecordAssert hasValueEqualTo(String expect) {
@@ -116,16 +118,17 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
 
     public RecordAssert hasNullValue() {
         isNotNull();
-        Assertions.assertThat(actual).extracting(RecordTestUtils::recordValueAsString)
-                .describedAs(RECORD_VALUE_DESCRIPTION)
-                .isNull();
+        Assertions.assertThat(actual)
+                  .extracting(RecordTestUtils::recordValueAsString)
+                  .describedAs(RECORD_VALUE_DESCRIPTION)
+                  .isNull();
         return this;
     }
 
     public ObjectArrayAssert<Header> headersAssert() {
         isNotNull();
         return Assertions.assertThat(actual.headers())
-                .describedAs("record headers");
+                         .describedAs("record headers");
     }
 
     public RecordAssert hasEmptyHeaders() {
@@ -138,7 +141,7 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
         isNotNull();
         headersAssert().singleElement();
         return HeaderAssert.assertThat(actual.headers()[0])
-                .describedAs("record header");
+                           .describedAs("record header");
     }
 
     public RecordAssert hasHeadersSize(int expect) {
@@ -157,13 +160,13 @@ public class RecordAssert extends AbstractAssert<RecordAssert, Record> {
         isNotNull();
         headersAssert().isNotEmpty();
         return HeaderAssert.assertThat(actual.headers()[0])
-                .describedAs("first record header");
+                           .describedAs("first record header");
     }
 
     public HeaderAssert lastHeader() {
         isNotNull();
         headersAssert().isNotEmpty();
         return HeaderAssert.assertThat(actual.headers()[actual.headers().length - 1])
-                .describedAs("last record header");
+                           .describedAs("last record header");
     }
 }

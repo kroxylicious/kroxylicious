@@ -56,12 +56,25 @@ class ResilienceIT extends BaseIT {
     }
 
     private static void testConsumerCanSurviveKroxyliciousRestart(ConfigurationBuilder builder, Topic randomTopic)
-            throws Exception {
-        var producerConfig = new HashMap<String, Object>(Map.of(CLIENT_ID_CONFIG, "producer",
-                DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
-        var consumerConfig = new HashMap<String, Object>(Map.of(CLIENT_ID_CONFIG, "consumer",
-                ConsumerConfig.GROUP_ID_CONFIG, "mygroup",
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+                                                                                                                   throws Exception {
+        var producerConfig = new HashMap<String, Object>(
+                Map.of(
+                        CLIENT_ID_CONFIG,
+                        "producer",
+                        DELIVERY_TIMEOUT_MS_CONFIG,
+                        3_600_000
+                )
+        );
+        var consumerConfig = new HashMap<String, Object>(
+                Map.of(
+                        CLIENT_ID_CONFIG,
+                        "consumer",
+                        ConsumerConfig.GROUP_ID_CONFIG,
+                        "mygroup",
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                        "earliest"
+                )
+        );
 
         Consumer<String, String> consumer;
         try (var tester = kroxyliciousTester(builder);
@@ -88,14 +101,30 @@ class ResilienceIT extends BaseIT {
 
     private void testProducerCanSurviveARestart(ConfigurationBuilder builder, Topic randomTopic) throws Exception {
 
-        var producerConfig = new HashMap<String, Object>(Map.of(CLIENT_ID_CONFIG, "producer",
-                DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000,
-                RECONNECT_BACKOFF_MS_CONFIG, 5,
-                RECONNECT_BACKOFF_MAX_MS_CONFIG, 100,
-                RETRY_BACKOFF_MS_CONFIG, 0));
-        var consumerConfig = new HashMap<String, Object>(Map.of(CLIENT_ID_CONFIG, "consumer",
-                ConsumerConfig.GROUP_ID_CONFIG, "mygroup",
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+        var producerConfig = new HashMap<String, Object>(
+                Map.of(
+                        CLIENT_ID_CONFIG,
+                        "producer",
+                        DELIVERY_TIMEOUT_MS_CONFIG,
+                        3_600_000,
+                        RECONNECT_BACKOFF_MS_CONFIG,
+                        5,
+                        RECONNECT_BACKOFF_MAX_MS_CONFIG,
+                        100,
+                        RETRY_BACKOFF_MS_CONFIG,
+                        0
+                )
+        );
+        var consumerConfig = new HashMap<String, Object>(
+                Map.of(
+                        CLIENT_ID_CONFIG,
+                        "consumer",
+                        ConsumerConfig.GROUP_ID_CONFIG,
+                        "mygroup",
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                        "earliest"
+                )
+        );
 
         Producer<String, String> producer = null;
         Consumer<String, String> consumer = null;

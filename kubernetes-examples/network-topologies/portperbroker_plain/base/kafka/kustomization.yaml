@@ -11,5 +11,5 @@ kind: Kustomization
 namespace: kafka
 
 resources:
-- kafka-persistent.yaml
+  - kafka-persistent.yaml
 

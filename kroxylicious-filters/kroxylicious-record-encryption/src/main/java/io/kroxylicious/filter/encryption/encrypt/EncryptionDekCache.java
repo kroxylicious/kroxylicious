@@ -40,7 +40,8 @@ public class EncryptionDekCache<K, E> {
     public static final int NO_MAX_CACHE_SIZE = -1;
     private CipherSpecResolver cipherSpecResolver;
 
-    private record CacheKey<K>(K kek, CipherSpec cipherSpec) {}
+    private record CacheKey<K>(K kek, CipherSpec cipherSpec) {
+    }
 
     private static <K> CacheKey<K> cacheKey(EncryptionScheme<K> encryptionScheme) {
         return new CacheKey<>(encryptionScheme.kekId(), CipherSpec.AES_256_GCM_128);
@@ -50,11 +51,17 @@ public class EncryptionDekCache<K, E> {
 
     private final AsyncLoadingCache<CacheKey<K>, Dek<E>> dekCache;
 
-    public EncryptionDekCache(@NonNull DekManager<K, E> dekManager,
-                              @Nullable Executor dekCacheExecutor,
-                              int dekCacheMaxItems,
-                              @NonNull Duration refreshAfterWrite,
-                              @NonNull Duration expireAfterWrite) {
+    public EncryptionDekCache(
+            @NonNull
+            DekManager<K, E> dekManager,
+            @Nullable
+            Executor dekCacheExecutor,
+            int dekCacheMaxItems,
+            @NonNull
+            Duration refreshAfterWrite,
+            @NonNull
+            Duration expireAfterWrite
+    ) {
         Objects.requireNonNull(refreshAfterWrite, "refreshAfterWrite is null");
         Objects.requireNonNull(expireAfterWrite, "expireAfterWrite is null");
         this.dekManager = Objects.requireNonNull(dekManager);
@@ -70,34 +77,42 @@ public class EncryptionDekCache<K, E> {
         cache = cache.expireAfterWrite(expireAfterWrite);
 
         this.dekCache = cache
-                .removalListener(this::afterCacheEviction)
-                .buildAsync(this::requestGenerateDek);
+                             .removalListener(this::afterCacheEviction)
+                             .buildAsync(this::requestGenerateDek);
     }
 
     /**
      * Invoked by Caffeine when a DEK needs to be loaded.
      * This method is executed on the {@code dekCacheExecutor} passed to the constructor.
      */
-    private CompletableFuture<Dek<E>> requestGenerateDek(@NonNull CacheKey<K> cacheKey,
-                                                         @NonNull Executor executor) {
+    private CompletableFuture<Dek<E>> requestGenerateDek(
+            @NonNull
+            CacheKey<K> cacheKey,
+            @NonNull
+            Executor executor
+    ) {
         return dekManager.generateDek(cacheKey.kek(), cipherSpecResolver.fromName(cacheKey.cipherSpec()))
-                .thenApply(dek -> {
-                    if (LOGGER.isTraceEnabled()) {
-                        LOGGER.trace("Adding DEK to cache: {}", dek);
-                    }
-                    dek.destroyForDecrypt();
-                    return dek;
-                })
-                .toCompletableFuture();
+                         .thenApply(dek -> {
+                             if (LOGGER.isTraceEnabled()) {
+                                 LOGGER.trace("Adding DEK to cache: {}", dek);
+                             }
+                             dek.destroyForDecrypt();
+                             return dek;
+                         })
+                         .toCompletableFuture();
     }
 
     /**
      * Invoked by Caffeine after a DEK is evicted from the cache.
      * This method is executed on the {@code dekCacheExecutor} passed to the constructor.
      */
-    private void afterCacheEviction(@Nullable CacheKey<K> cacheKey,
-                                    @Nullable Dek<E> dek,
-                                    RemovalCause removalCause) {
+    private void afterCacheEviction(
+            @Nullable
+            CacheKey<K> cacheKey,
+            @Nullable
+            Dek<E> dek,
+            RemovalCause removalCause
+    ) {
         if (dek != null) {
             dek.destroyForEncrypt();
             if (LOGGER.isTraceEnabled()) {
@@ -114,8 +129,12 @@ public class EncryptionDekCache<K, E> {
      * @param filterThreadExecutor The filter thread executor.
      * @return A stage that completes on the filter thread with the DEK.
      */
-    public @NonNull CompletionStage<Dek<E>> get(@NonNull EncryptionScheme<K> encryptionScheme,
-                                                @NonNull FilterThreadExecutor filterThreadExecutor) {
+    public @NonNull CompletionStage<Dek<E>> get(
+            @NonNull
+            EncryptionScheme<K> encryptionScheme,
+            @NonNull
+            FilterThreadExecutor filterThreadExecutor
+    ) {
         return filterThreadExecutor.completingOnFilterThread(dekCache.get(cacheKey(encryptionScheme)));
     }
 
@@ -125,7 +144,8 @@ public class EncryptionDekCache<K, E> {
      * of being loaded.
      * @param encryptionScheme The KEK for the DEK to discard.
      */
-    public void invalidate(@NonNull EncryptionScheme<K> encryptionScheme) {
+    public void invalidate(@NonNull
+    EncryptionScheme<K> encryptionScheme) {
         dekCache.synchronous().invalidate(cacheKey(encryptionScheme));
     }
 }

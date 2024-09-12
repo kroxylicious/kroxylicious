@@ -5,14 +5,14 @@
 [id='con-vault-key-creation-{context}']
 = Creating HashiCorp Vault keys
 
-As the administrator, use either the HashiCorp UI or CLI to create AES-256 symmetric keys following your
-key naming convention. The key type must be `aes256-gcm96`, which is Vault's default key type.
+As the administrator, use either the HashiCorp UI or CLI to create AES-256 symmetric keys following your key naming convention.
+The key type must be `aes256-gcm96`, which is Vault's default key type.
 
 TIP: It is recommended to use a key rotation policy.
 
 If using the Vault CLI, the command will look like:
 
-[source, shell]
+[source,shell]
 ----
 vault write -f transit/keys/KEK_trades type=aes256-gcm96 auto_rotate_period=90d
 ----

@@ -73,8 +73,9 @@ public class NullCipherManager implements CipherManager {
 
     @Override
     public void writeParameters(
-                                ByteBuffer parametersBuffer,
-                                AlgorithmParameterSpec params) {
+            ByteBuffer parametersBuffer,
+            AlgorithmParameterSpec params
+    ) {
         parametersBuffer.put(nullParameters.bytes());
     }
 

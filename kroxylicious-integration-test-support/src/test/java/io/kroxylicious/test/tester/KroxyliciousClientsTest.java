@@ -42,7 +42,8 @@ class KroxyliciousClientsTest {
 
     @BeforeEach
     void setUp() {
-        kroxyliciousClients = new KroxyliciousClients(Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"),
+        kroxyliciousClients = new KroxyliciousClients(
+                Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"),
                 new KroxyliciousClients.ClientFactory() {
                     @Override
                     public Admin newAdmin(Map<String, Object> clientConfiguration) {
@@ -51,8 +52,11 @@ class KroxyliciousClientsTest {
                     }
 
                     @Override
-                    public <K, V> Consumer<K, V> newConsumer(Map<String, Object> clientConfiguration, Deserializer<K> keyDeserializer,
-                                                             Deserializer<V> valueDeserializer) {
+                    public <K, V> Consumer<K, V> newConsumer(
+                            Map<String, Object> clientConfiguration,
+                            Deserializer<K> keyDeserializer,
+                            Deserializer<V> valueDeserializer
+                    ) {
                         assertThat(clientConfiguration).contains(Map.entry(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"));
                         return new MockConsumer<>(OffsetResetStrategy.LATEST);
                     }
@@ -62,7 +66,8 @@ class KroxyliciousClientsTest {
                         assertThat(clientConfiguration).contains(Map.entry(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, "kroxylicious.example.com:9091"));
                         return new MockProducer<>();
                     }
-                });
+                }
+        );
     }
 
     @ParameterizedTest
@@ -124,8 +129,8 @@ class KroxyliciousClientsTest {
 
         // Then
         assertThatThrownBy(() -> producer.send(record))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("MockProducer is already closed.");
+                                                       .isInstanceOf(IllegalStateException.class)
+                                                       .hasMessage("MockProducer is already closed.");
     }
 
     @ParameterizedTest
@@ -139,8 +144,8 @@ class KroxyliciousClientsTest {
 
         // Then
         assertThatThrownBy(() -> consumer.poll(Duration.ZERO))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("This consumer has already been closed.");
+                                                              .isInstanceOf(IllegalStateException.class)
+                                                              .hasMessage("This consumer has already been closed.");
     }
 
     @Test
@@ -155,8 +160,8 @@ class KroxyliciousClientsTest {
         // Then
         for (Producer<String, String> producer : clients) {
             assertThatThrownBy(() -> producer.send(record))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessage("MockProducer is already closed.");
+                                                           .isInstanceOf(IllegalStateException.class)
+                                                           .hasMessage("MockProducer is already closed.");
         }
     }
 
@@ -171,8 +176,8 @@ class KroxyliciousClientsTest {
         // Then
         for (Consumer<String, String> consumer : clients) {
             assertThatThrownBy(() -> consumer.poll(Duration.ZERO))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessage("This consumer has already been closed.");
+                                                                  .isInstanceOf(IllegalStateException.class)
+                                                                  .hasMessage("This consumer has already been closed.");
         }
     }
 
@@ -191,16 +196,30 @@ class KroxyliciousClientsTest {
     }
 
     public Stream<Arguments> producers() {
-        return Stream.of(Arguments.of((Supplier<Producer<String, String>>) () -> kroxyliciousClients.producer(),
-                (Supplier<Producer<String, String>>) () -> kroxyliciousClients.producer(Map.of("configKey", "configValue")),
-                (Supplier<Producer<String, String>>) () -> kroxyliciousClients.producer(Serdes.String(), Serdes.String(),
-                        Map.of("configKey", "configValue"))));
+        return Stream.of(
+                Arguments.of(
+                        (Supplier<Producer<String, String>>) () -> kroxyliciousClients.producer(),
+                        (Supplier<Producer<String, String>>) () -> kroxyliciousClients.producer(Map.of("configKey", "configValue")),
+                        (Supplier<Producer<String, String>>) () -> kroxyliciousClients.producer(
+                                Serdes.String(),
+                                Serdes.String(),
+                                Map.of("configKey", "configValue")
+                        )
+                )
+        );
     }
 
     public Stream<Arguments> consumers() {
-        return Stream.of(Arguments.of((Supplier<Consumer<String, String>>) () -> kroxyliciousClients.consumer(),
-                (Supplier<Consumer<String, String>>) () -> kroxyliciousClients.consumer(Map.of("configKey", "configValue")),
-                (Supplier<Consumer<String, String>>) () -> kroxyliciousClients.consumer(Serdes.String(), Serdes.String(),
-                        Map.of("configKey", "configValue"))));
+        return Stream.of(
+                Arguments.of(
+                        (Supplier<Consumer<String, String>>) () -> kroxyliciousClients.consumer(),
+                        (Supplier<Consumer<String, String>>) () -> kroxyliciousClients.consumer(Map.of("configKey", "configValue")),
+                        (Supplier<Consumer<String, String>>) () -> kroxyliciousClients.consumer(
+                                Serdes.String(),
+                                Serdes.String(),
+                                Map.of("configKey", "configValue")
+                        )
+                )
+        );
     }
 }

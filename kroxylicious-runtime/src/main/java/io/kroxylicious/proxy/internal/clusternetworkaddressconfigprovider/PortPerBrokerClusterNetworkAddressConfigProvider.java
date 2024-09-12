@@ -52,11 +52,18 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider extends RangeAware
         private final int lowestTargetBrokerId;
         private final int numberOfBrokerPorts;
 
-        public PortPerBrokerClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
-                                                                      @JsonProperty(required = false) String brokerAddressPattern,
-                                                                      @JsonProperty(required = false) Integer brokerStartPort,
-                                                                      @JsonProperty(required = false, defaultValue = "0") Integer lowestTargetBrokerId,
-                                                                      @JsonProperty(required = false, defaultValue = "3") Integer numberOfBrokerPorts) {
+        public PortPerBrokerClusterNetworkAddressConfigProviderConfig(
+                @JsonProperty(required = true)
+                HostPort bootstrapAddress,
+                @JsonProperty(required = false)
+                String brokerAddressPattern,
+                @JsonProperty(required = false)
+                Integer brokerStartPort,
+                @JsonProperty(required = false, defaultValue = "0")
+                Integer lowestTargetBrokerId,
+                @JsonProperty(required = false, defaultValue = "3")
+                Integer numberOfBrokerPorts
+        ) {
             Objects.requireNonNull(bootstrapAddress, "bootstrapAddress cannot be null");
             this.bootstrapAddress = bootstrapAddress;
             this.brokerAddressPattern = brokerAddressPattern != null ? brokerAddressPattern : bootstrapAddress.host();
@@ -70,10 +77,12 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider extends RangeAware
             if (this.numberOfBrokerPorts < 1) {
                 throw new IllegalArgumentException("numberOfBrokerPorts cannot be less than 1");
             }
-            rangeAwareConfig = new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(this.bootstrapAddress,
+            rangeAwareConfig = new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
+                    this.bootstrapAddress,
                     this.brokerAddressPattern,
                     this.brokerStartPort,
-                    List.of(new NamedRangeSpec("brokers", new IntRangeSpec(this.lowestTargetBrokerId, this.lowestTargetBrokerId + this.numberOfBrokerPorts))));
+                    List.of(new NamedRangeSpec("brokers", new IntRangeSpec(this.lowestTargetBrokerId, this.lowestTargetBrokerId + this.numberOfBrokerPorts)))
+            );
         }
 
         public HostPort getBootstrapAddress() {

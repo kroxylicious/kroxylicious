@@ -20,22 +20,22 @@ class AwsKmsEdekTest {
         var edekBytesDiffer = new AwsKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 4 });
 
         assertThat(edek1)
-                .isEqualTo(edek1)
-                .isNotEqualTo(new Object())
-                .isNotEqualTo(null);
+                         .isEqualTo(edek1)
+                         .isNotEqualTo(new Object())
+                         .isNotEqualTo(null);
 
         assertThat(edek1)
-                .isEqualTo(edek2)
-                .hasSameHashCodeAs(edek2);
+                         .isEqualTo(edek2)
+                         .hasSameHashCodeAs(edek2);
         assertThat(edek2).isEqualTo(edek1);
 
         assertThat(edek1)
-                .isNotEqualTo(keyRefDiffer)
-                .doesNotHaveSameHashCodeAs(keyRefDiffer);
+                         .isNotEqualTo(keyRefDiffer)
+                         .doesNotHaveSameHashCodeAs(keyRefDiffer);
 
         assertThat(edek1)
-                .isNotEqualTo(edekBytesDiffer)
-                .doesNotHaveSameHashCodeAs(edekBytesDiffer);
+                         .isNotEqualTo(edekBytesDiffer)
+                         .doesNotHaveSameHashCodeAs(edekBytesDiffer);
     }
 
     @Test

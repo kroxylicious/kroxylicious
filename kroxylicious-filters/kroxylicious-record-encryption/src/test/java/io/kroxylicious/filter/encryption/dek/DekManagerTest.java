@@ -83,9 +83,11 @@ class DekManagerTest {
         InMemoryEdek edek;
         try (Dek<InMemoryEdek>.Encryptor encryptor = dek.encryptor(1)) {
             encryptor.generateParameters(size -> params[0] = ByteBuffer.allocate(size));
-            encryptor.encrypt(plaintext,
+            encryptor.encrypt(
+                    plaintext,
                     aad,
-                    size -> ciphertext[0] = ByteBuffer.allocate(size));
+                    size -> ciphertext[0] = ByteBuffer.allocate(size)
+            );
             edek = encryptor.edek();
         }
         var edekBuffer = ByteBuffer.allocate(1024);
@@ -109,10 +111,10 @@ class DekManagerTest {
         DekManager<ByteBuffer, ByteBuffer> manager = new DekManager<>(fixedDekKmsService, new FixedDekKmsService.Config(), 10000);
         CompletionStage<Dek<ByteBuffer>> dekCompletionStage = manager.generateDek(fixedDekKmsService.getKekId(), Aes.AES_256_GCM_128);
         assertThat(dekCompletionStage).failsWithin(10, TimeUnit.SECONDS)
-                .withThrowableOfType(ExecutionException.class)
-                .havingCause()
-                .isExactlyInstanceOf(EncryptionConfigurationException.class)
-                .withMessage("KMS returned 128-bit DEK but AES_256_GCM_128 requires keys of 256 bits");
+                                      .withThrowableOfType(ExecutionException.class)
+                                      .havingCause()
+                                      .isExactlyInstanceOf(EncryptionConfigurationException.class)
+                                      .withMessage("KMS returned 128-bit DEK but AES_256_GCM_128 requires keys of 256 bits");
 
     }
 

@@ -14,7 +14,7 @@ spec:
     app: kroxylicious
   type: LoadBalancer
   ports:
-  - name: port-9092
-    protocol: TCP
-    port: 9092
-    targetPort: 9092
+    - name: port-9092
+      protocol: TCP
+      port: 9092
+      targetPort: 9092

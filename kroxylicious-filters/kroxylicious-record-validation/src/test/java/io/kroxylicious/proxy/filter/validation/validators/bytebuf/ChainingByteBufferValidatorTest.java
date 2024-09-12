@@ -61,8 +61,8 @@ class ChainingByteBufferValidatorTest {
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -78,8 +78,8 @@ class ChainingByteBufferValidatorTest {
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
     }
 
     @Test
@@ -111,8 +111,8 @@ class ChainingByteBufferValidatorTest {
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(false, Result::valid);
 
         verify(validator1, times(1)).validate(any(ByteBuffer.class), any(Record.class), anyBoolean());
         verifyNoInteractions(validator2);
@@ -131,8 +131,8 @@ class ChainingByteBufferValidatorTest {
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(false, Result::valid);
 
     }
 
@@ -146,8 +146,8 @@ class ChainingByteBufferValidatorTest {
 
         // Then
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
 
     }
 
@@ -163,8 +163,8 @@ class ChainingByteBufferValidatorTest {
 
         // Then
         assertThat(byteBufferCaptor.getAllValues())
-                .singleElement()
-                .returns(true, ByteBuffer::isReadOnly);
+                                                   .singleElement()
+                                                   .returns(true, ByteBuffer::isReadOnly);
 
         verify(validator1, times(1)).validate(any(ByteBuffer.class), any(Record.class), anyBoolean());
     }

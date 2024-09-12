@@ -42,10 +42,14 @@ class SampleFilterIT {
     // Configure filters here
     private static final String FIND_CONFIG_FIELD = "findValue";
     private static final String REPLACE_CONFIG_FIELD = "replacementValue";
-    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SampleProduceRequestFilterFactory.class.getName(),
-            Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar"));
-    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SampleFetchResponseFilterFactory.class.getName(),
-            Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz"));
+    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(
+            SampleProduceRequestFilterFactory.class.getName(),
+            Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar")
+    );
+    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(
+            SampleFetchResponseFilterFactory.class.getName(),
+            Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz")
+    );
 
     // Configure test input/expected values here
     private static final String NO_TRANSFORM_VALUE = "sample";
@@ -75,8 +79,8 @@ class SampleFilterIT {
     void sampleProduceRequestFilterWillTransform() {
         test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
         test.produceMessage(PRE_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
+            .consumeSingleRecord()
+            .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
     }
 
     /**
@@ -86,8 +90,8 @@ class SampleFilterIT {
     void sampleProduceRequestFilterWontTransform() {
         test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
         test.produceMessage(NO_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(NO_TRANSFORM_VALUE);
+            .consumeSingleRecord()
+            .assertConsumerRecordEquals(NO_TRANSFORM_VALUE);
     }
 
     /**
@@ -97,10 +101,10 @@ class SampleFilterIT {
     void sampleProduceRequestFilterWontDropSecondMessage() {
         test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
         test.produceMessage(NO_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .produceMessage(PRE_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
+            .consumeSingleRecord()
+            .produceMessage(PRE_TRANSFORM_VALUE)
+            .consumeSingleRecord()
+            .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
     }
 
     /**
@@ -110,8 +114,8 @@ class SampleFilterIT {
     void sampleFetchResponseFilterWillTransform() {
         test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
         test.produceMessage(PRE_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(FETCH_TRANSFORM_VALUE);
+            .consumeSingleRecord()
+            .assertConsumerRecordEquals(FETCH_TRANSFORM_VALUE);
     }
 
     /**
@@ -121,8 +125,8 @@ class SampleFilterIT {
     void sampleFetchResponseFilterWontTransform() {
         test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
         test.produceMessage(NO_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(NO_TRANSFORM_VALUE);
+            .consumeSingleRecord()
+            .assertConsumerRecordEquals(NO_TRANSFORM_VALUE);
     }
 
     /**
@@ -132,10 +136,10 @@ class SampleFilterIT {
     void sampleFetchResponseFilterWontDropSecondMessage() {
         test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
         test.produceMessage(NO_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .produceMessage(PRE_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(FETCH_TRANSFORM_VALUE);
+            .consumeSingleRecord()
+            .produceMessage(PRE_TRANSFORM_VALUE)
+            .consumeSingleRecord()
+            .assertConsumerRecordEquals(FETCH_TRANSFORM_VALUE);
     }
 
     /**
@@ -158,8 +162,11 @@ class SampleFilterIT {
             }
             tester = kroxyliciousTester(builder);
             producer = tester.producer();
-            consumer = tester.consumer(Serdes.String(), Serdes.ByteArray(),
-                    Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-0", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+            consumer = tester.consumer(
+                    Serdes.String(),
+                    Serdes.ByteArray(),
+                    Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-0", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+            );
         }
 
         /**
@@ -214,5 +221,6 @@ class SampleFilterIT {
 
     }
 
-    private record TestFilter(String name, Map<String, Object> config) {}
+    private record TestFilter(String name, Map<String, Object> config) {
+    }
 }

@@ -46,5 +46,7 @@ public interface FilterFactoryContext {
      * @param <P> The plugin manager type
      * @throws UnknownPluginInstanceException
      */
-    <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName);
+    <P> @NonNull P pluginInstance(@NonNull
+    Class<P> pluginClass, @NonNull
+    String instanceName);
 }

@@ -74,8 +74,13 @@ public class Vault {
             ExecResult execResult = cmdKubeClient(deploymentNamespace).execInPod(VAULT_POD_NAME, true, command);
 
             if (!execResult.isSuccess()) {
-                throw new KubeClusterException("Failed to run Vault: %s, exit code: %d, stderr: %s".formatted(String.join(" ", command),
-                        execResult.returnCode(), execResult.err()));
+                throw new KubeClusterException(
+                        "Failed to run Vault: %s, exit code: %d, stderr: %s".formatted(
+                                String.join(" ", command),
+                                execResult.returnCode(),
+                                execResult.err()
+                        )
+                );
             }
             // version returned with format: Vault v1.15.2 (blah blah), build blah
             version = execResult.out().trim().split("\\s+")[1].replace("v", "");
@@ -101,11 +106,22 @@ public class Vault {
 
         NamespaceUtils.createNamespaceWithWait(deploymentNamespace);
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
-        ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
-                Optional.of(Environment.VAULT_CHART_VERSION),
-                Optional.of(Path.of(TestUtils.getResourcesURI("helm_vault_overrides.yaml"))),
-                Optional.of(Map.of("server.dev.devRootToken", vaultRootToken,
-                        "global.openshift", String.valueOf(openshiftCluster))));
+        ResourceManager.helmClient()
+                       .namespace(deploymentNamespace)
+                       .install(
+                               VAULT_HELM_CHART_NAME,
+                               VAULT_SERVICE_NAME,
+                               Optional.of(Environment.VAULT_CHART_VERSION),
+                               Optional.of(Path.of(TestUtils.getResourcesURI("helm_vault_overrides.yaml"))),
+                               Optional.of(
+                                       Map.of(
+                                               "server.dev.devRootToken",
+                                               vaultRootToken,
+                                               "global.openshift",
+                                               String.valueOf(openshiftCluster)
+                                       )
+                               )
+                       );
     }
 
     /**

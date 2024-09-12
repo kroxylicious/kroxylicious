@@ -50,15 +50,32 @@ class MultiTenantTransformationFilterTest {
         var request = createProduceRequest(TEST_TOPIC);
         // When
         multiTenantTransformationFilter.onProduceRequest(
-                ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), request, filterContext);
+                ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(),
+                request,
+                filterContext
+        );
 
         // Then
-        verify(filterContext).forwardRequest(any(RequestHeaderData.class), assertArg(
-                apiMessage -> assertThat(apiMessage)
-                        .is(forApiKey(ApiKeys.PRODUCE))
-                        .is(produceRequestMatching(produceRequestData -> produceRequestData.topicData()
-                                .stream()
-                                .allMatch(topicProduceData -> topicProduceData.name().equals("vc1-testTopic"))))));
+        verify(filterContext).forwardRequest(
+                any(RequestHeaderData.class),
+                assertArg(
+                        apiMessage -> assertThat(apiMessage)
+                                                            .is(forApiKey(ApiKeys.PRODUCE))
+                                                            .is(
+                                                                    produceRequestMatching(
+                                                                            produceRequestData -> produceRequestData.topicData()
+                                                                                                                    .stream()
+                                                                                                                    .allMatch(
+                                                                                                                            topicProduceData -> topicProduceData.name()
+                                                                                                                                                                .equals(
+                                                                                                                                                                        "vc1-testTopic"
+                                                                                                                                                                )
+                                                                                                                    )
+                                                                    )
+                                                            )
+                )
+        );
 
     }
 
@@ -73,15 +90,32 @@ class MultiTenantTransformationFilterTest {
         var request = createProduceRequest(TEST_TOPIC);
         // When
         multiTenantTransformationFilter.onProduceRequest(
-                ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), request, filterContext);
+                ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(),
+                request,
+                filterContext
+        );
 
         // Then
-        verify(filterContext).forwardRequest(any(RequestHeaderData.class), assertArg(
-                apiMessage -> assertThat(apiMessage)
-                        .is(forApiKey(ApiKeys.PRODUCE))
-                        .is(produceRequestMatching(produceRequestData -> produceRequestData.topicData()
-                                .stream()
-                                .allMatch(topicProduceData -> topicProduceData.name().equals(expectedServerTopicName))))));
+        verify(filterContext).forwardRequest(
+                any(RequestHeaderData.class),
+                assertArg(
+                        apiMessage -> assertThat(apiMessage)
+                                                            .is(forApiKey(ApiKeys.PRODUCE))
+                                                            .is(
+                                                                    produceRequestMatching(
+                                                                            produceRequestData -> produceRequestData.topicData()
+                                                                                                                    .stream()
+                                                                                                                    .allMatch(
+                                                                                                                            topicProduceData -> topicProduceData.name()
+                                                                                                                                                                .equals(
+                                                                                                                                                                        expectedServerTopicName
+                                                                                                                                                                )
+                                                                                                                    )
+                                                                    )
+                                                            )
+                )
+        );
     }
 
     @ParameterizedTest
@@ -95,15 +129,32 @@ class MultiTenantTransformationFilterTest {
         var response = createFetchResponseData(serverTopic);
         // When
         multiTenantTransformationFilter.onFetchResponse(
-                FetchResponseData.HIGHEST_SUPPORTED_VERSION, new ResponseHeaderData(), response, filterContext);
+                FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(),
+                response,
+                filterContext
+        );
 
         // Then
-        verify(filterContext).forwardResponse(any(ResponseHeaderData.class), assertArg(
-                apiMessage -> assertThat(apiMessage)
-                        .is(forApiKey(ApiKeys.FETCH))
-                        .is(FetchResponseDataCondition.fetchResponseMatching(fetchResponseData -> fetchResponseData.responses()
-                                .stream()
-                                .allMatch(topicFetchData -> topicFetchData.topic().equals(TEST_TOPIC))))));
+        verify(filterContext).forwardResponse(
+                any(ResponseHeaderData.class),
+                assertArg(
+                        apiMessage -> assertThat(apiMessage)
+                                                            .is(forApiKey(ApiKeys.FETCH))
+                                                            .is(
+                                                                    FetchResponseDataCondition.fetchResponseMatching(
+                                                                            fetchResponseData -> fetchResponseData.responses()
+                                                                                                                  .stream()
+                                                                                                                  .allMatch(
+                                                                                                                          topicFetchData -> topicFetchData.topic()
+                                                                                                                                                          .equals(
+                                                                                                                                                                  TEST_TOPIC
+                                                                                                                                                          )
+                                                                                                                  )
+                                                                    )
+                                                            )
+                )
+        );
     }
 
     @Test
@@ -116,7 +167,11 @@ class MultiTenantTransformationFilterTest {
         // When
         assertThatThrownBy(() -> {
             multiTenantTransformationFilter.onProduceRequest(
-                    ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, request, filterContext);
+                    ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                    header,
+                    request,
+                    filterContext
+            );
         }).isInstanceOf(IllegalStateException.class);
     }
 
@@ -130,7 +185,11 @@ class MultiTenantTransformationFilterTest {
         // When
         assertThatThrownBy(() -> {
             multiTenantTransformationFilter.onProduceRequest(
-                    ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, request, filterContext);
+                    ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                    header,
+                    request,
+                    filterContext
+            );
         }).isInstanceOf(IllegalStateException.class);
     }
 

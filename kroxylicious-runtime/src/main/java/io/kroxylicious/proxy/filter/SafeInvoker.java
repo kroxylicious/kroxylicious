@@ -34,14 +34,19 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
                 CompletionStage<RequestFilterResult> stage = invoker.onRequest(apiKey, apiVersion, header, body, filterContext);
                 if (stage == null) {
                     if (logger.isWarnEnabled()) {
-                        logger.warn("invoker onRequest returned null for apiKey {}, apiVersion {}, channel: {}," +
-                                " Filters should always return a CompletionStage", apiKey, apiVersion, filterContext.channelDescriptor());
+                        logger.warn(
+                                "invoker onRequest returned null for apiKey {}, apiVersion {}, channel: {},"
+                                    +
+                                    " Filters should always return a CompletionStage",
+                                apiKey,
+                                apiVersion,
+                                filterContext.channelDescriptor()
+                        );
                     }
                     return CompletableFuture.failedFuture(new IllegalStateException("invoker onRequest returned null for apiKey " + apiKey));
                 }
                 return stage;
-            }
-            else {
+            } else {
                 return filterContext.forwardRequest(header, body);
             }
         }
@@ -57,14 +62,19 @@ record SafeInvoker(FilterInvoker invoker) implements FilterInvoker {
                 CompletionStage<ResponseFilterResult> stage = invoker.onResponse(apiKey, apiVersion, header, body, filterContext);
                 if (stage == null) {
                     if (logger.isWarnEnabled()) {
-                        logger.warn("invoker onResponse returned null for apiKey {}, apiVersion {}, channel: {}," +
-                                " Filters should always return a CompletionStage", apiKey, apiVersion, filterContext.channelDescriptor());
+                        logger.warn(
+                                "invoker onResponse returned null for apiKey {}, apiVersion {}, channel: {},"
+                                    +
+                                    " Filters should always return a CompletionStage",
+                                apiKey,
+                                apiVersion,
+                                filterContext.channelDescriptor()
+                        );
                     }
                     return CompletableFuture.failedFuture(new IllegalStateException("invoker onResponse returned null for apiKey " + apiKey));
                 }
                 return stage;
-            }
-            else {
+            } else {
                 return filterContext.forwardResponse(header, body);
             }
         }

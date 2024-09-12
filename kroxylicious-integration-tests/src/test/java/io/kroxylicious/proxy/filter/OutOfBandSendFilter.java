@@ -42,16 +42,24 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
 
     public record OutOfBandSendFilterConfig(ApiKeys apiKeyToSend, int tagIdToCollect) {
         @JsonCreator
-        public OutOfBandSendFilterConfig(@JsonProperty(value = "apiKeyToSend", required = true) ApiKeys apiKeyToSend,
-                                         @JsonProperty(value = "tagToCollect", required = true) int tagIdToCollect) {
+        public OutOfBandSendFilterConfig(
+                @JsonProperty(value = "apiKeyToSend", required = true)
+                ApiKeys apiKeyToSend,
+                @JsonProperty(value = "tagToCollect", required = true)
+                int tagIdToCollect
+        ) {
             this.apiKeyToSend = apiKeyToSend;
             this.tagIdToCollect = tagIdToCollect;
         }
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onDescribeClusterRequest(short apiVersion, RequestHeaderData header, DescribeClusterRequestData request,
-                                                                         FilterContext context) {
+    public CompletionStage<RequestFilterResult> onDescribeClusterRequest(
+            short apiVersion,
+            RequestHeaderData header,
+            DescribeClusterRequestData request,
+            FilterContext context
+    ) {
         ApiKeys apiKeyToSend = config.apiKeyToSend();
         ApiMessage message = createApiMessage(apiKeyToSend);
         return context.sendRequest(new RequestHeaderData().setRequestApiVersion(message.highestSupportedVersion()), message).thenCompose(apiMessage -> {
@@ -61,8 +69,12 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onDescribeClusterResponse(short apiVersion, ResponseHeaderData header, DescribeClusterResponseData response,
-                                                                           FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onDescribeClusterResponse(
+            short apiVersion,
+            ResponseHeaderData header,
+            DescribeClusterResponseData response,
+            FilterContext context
+    ) {
         response.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code())
                 .setErrorMessage("filterNameTaggedFieldsFromOutOfBandResponse: " + values);
         return context.forwardResponse(header, response);
@@ -72,8 +84,7 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         ApiMessage message;
         if (Objects.requireNonNull(apiKeyToSend) == ApiKeys.CREATE_TOPICS) {
             message = new CreateTopicsRequestData();
-        }
-        else {
+        } else {
             throw new IllegalArgumentException("apiKey " + apiKeyToSend + " not supported yet");
         }
         return message;

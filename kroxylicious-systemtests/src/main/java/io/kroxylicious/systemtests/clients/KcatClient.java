@@ -57,24 +57,39 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable
+    String messageKey, int numOfMessages) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
         StringBuilder msg = new StringBuilder();
         for (int i = 0; i < numOfMessages; i++) {
             recordKey.ifPresent(k -> msg.append(k).append(":"));
             msg.append(message)
-                    .append(" - ")
-                    .append(i)
-                    .append("\n");
+               .append(" - ")
+               .append(i)
+               .append("\n");
         }
 
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kcat").addArgument(topicName).log();
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kcat-" + TestUtils.getRandomPodNameSuffix();
-        List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
-                "-n", deployNamespace, name,
-                "--image=" + Constants.KCAT_CLIENT_IMAGE,
-                "--", "-b", bootstrap, "-l", "-t", topicName, "-P"));
+        List<String> executableCommand = new ArrayList<>(
+                List.of(
+                        cmdKubeClient(deployNamespace).toString(),
+                        "run",
+                        "-i",
+                        "-n",
+                        deployNamespace,
+                        name,
+                        "--image=" + Constants.KCAT_CLIENT_IMAGE,
+                        "--",
+                        "-b",
+                        bootstrap,
+                        "-l",
+                        "-t",
+                        topicName,
+                        "-P"
+                )
+        );
         recordKey.ifPresent(ignored -> executableCommand.add("-K :"));
 
         KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.KCAT.name().toLowerCase());
@@ -104,7 +119,10 @@ public class KcatClient implements KafkaClient {
     }
 
     private List<ConsumerRecord> getConsumerRecords(List<String> logRecords) {
-        return logRecords.stream().map(x -> ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, x))
-                .filter(Objects::nonNull).map(ConsumerRecord.class::cast).toList();
+        return logRecords.stream()
+                         .map(x -> ConsumerRecord.parseFromJsonString(VALUE_TYPE_REF, x))
+                         .filter(Objects::nonNull)
+                         .map(ConsumerRecord.class::cast)
+                         .toList();
     }
 }

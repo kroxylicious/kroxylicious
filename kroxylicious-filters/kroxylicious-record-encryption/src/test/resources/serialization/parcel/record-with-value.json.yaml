@@ -6,10 +6,10 @@
 
 originalRecordContents:
   valueBase64: aGkgLW4K
-  headers: []
+  headers: [ ]
 deserializedParcelContents:
   valueBase64: aGkgLW4K
-  headers: []
+  headers: [ ]
 serializationOptions:
   recordFields:
     - RECORD_VALUE

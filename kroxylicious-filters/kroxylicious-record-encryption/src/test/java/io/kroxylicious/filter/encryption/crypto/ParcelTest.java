@@ -46,18 +46,38 @@ class ParcelTest {
         return Stream.of(
                 Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), RecordTestUtils.record((ByteBuffer) null)),
                 Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }))), // no headers
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
-                        new RecordHeader("foo", null))), // header with null value
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
-                        new RecordHeader("foo", new byte[]{ 4, 5, 6 }))), // header with non-null value
+                Arguments.of(
+                        EnumSet.of(RecordField.RECORD_VALUE),
+                        RecordTestUtils.record(
+                                ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
+                                new RecordHeader("foo", null)
+                        )
+                ), // header with null value
+                Arguments.of(
+                        EnumSet.of(RecordField.RECORD_VALUE),
+                        RecordTestUtils.record(
+                                ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
+                                new RecordHeader("foo", new byte[]{ 4, 5, 6 })
+                        )
+                ), // header with non-null value
 
                 Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), RecordTestUtils.record((ByteBuffer) null)),
                 Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }))),
                 // no headers
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
-                        new RecordHeader("foo", null))), // header with null value
-                Arguments.of(EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES), RecordTestUtils.record(ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
-                        new RecordHeader("foo", new byte[]{ 4, 5, 6 }))) // header with non-null value
+                Arguments.of(
+                        EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES),
+                        RecordTestUtils.record(
+                                ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
+                                new RecordHeader("foo", null)
+                        )
+                ), // header with null value
+                Arguments.of(
+                        EnumSet.of(RecordField.RECORD_VALUE, RecordField.RECORD_HEADER_VALUES),
+                        RecordTestUtils.record(
+                                ByteBuffer.wrap(new byte[]{ 1, 2, 3 }),
+                                new RecordHeader("foo", new byte[]{ 4, 5, 6 })
+                        )
+                ) // header with non-null value
         );
     }
 
@@ -79,22 +99,33 @@ class ParcelTest {
         assertThat(buffer.remaining()).isZero();
     }
 
-    private record Header(@JsonProperty(required = true) ByteBuffer keyBase64, ByteBuffer valueBase64) {}
+    private record Header(@JsonProperty(required = true)
+    ByteBuffer keyBase64, ByteBuffer valueBase64) {
+    }
 
-    private record ParcelContents(ByteBuffer valueBase64, @JsonProperty(required = true) List<ParcelTest.Header> headers) {
+    private record ParcelContents(ByteBuffer valueBase64, @JsonProperty(required = true)
+    List<ParcelTest.Header> headers) {
         org.apache.kafka.common.header.Header[] kafkaHeaders() {
             return this.headers.stream().map(header -> new RecordHeader(header.keyBase64(), header.valueBase64())).toArray(org.apache.kafka.common.header.Header[]::new);
         }
     }
 
-    private record Exemplar(ByteBuffer serializedBase64) {}
+    private record Exemplar(ByteBuffer serializedBase64) {
+    }
 
-    private record SerializationOptions(@JsonProperty(required = true) Set<RecordField> recordFields) {}
+    private record SerializationOptions(@JsonProperty(required = true)
+    Set<RecordField> recordFields) {
+    }
 
-    private record ParcelSerializationExemplar(@JsonProperty(required = true) ParcelContents originalRecordContents,
-                                               @JsonProperty(required = true) ParcelContents deserializedParcelContents,
-                                               @JsonProperty(required = true) SerializationOptions serializationOptions,
-                                               Map<ParcelVersion, Exemplar> exemplars) {
+    private record ParcelSerializationExemplar(
+            @JsonProperty(required = true)
+            ParcelContents originalRecordContents,
+            @JsonProperty(required = true)
+            ParcelContents deserializedParcelContents,
+            @JsonProperty(required = true)
+            SerializationOptions serializationOptions,
+            Map<ParcelVersion, Exemplar> exemplars
+    ) {
 
     }
 
@@ -109,8 +140,14 @@ class ParcelTest {
         }
     }
 
-    private record NamedExemplar(ParcelContents originalRecordContents, ParcelContents deserializedParcelContents, ParcelVersion version, Exemplar exemplar, String name,
-                                 SerializationOptions options) {
+    private record NamedExemplar(
+            ParcelContents originalRecordContents,
+            ParcelContents deserializedParcelContents,
+            ParcelVersion version,
+            Exemplar exemplar,
+            String name,
+            SerializationOptions options
+    ) {
 
         public ByteBuffer serialized() {
             return exemplar.serializedBase64();
@@ -126,20 +163,25 @@ class ParcelTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 
     private static Stream<Arguments> exemplarStream() throws IOException {
-        return ClassPath.from(ParcelTest.class.getClassLoader()).getResources().stream()
-                .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches())
-                .map(resourceInfo -> {
-                    try {
-                        ParcelSerializationExemplar parcelSerializationExemplar = MAPPER.reader()
-                                .readValue(resourceInfo.asByteSource().openStream(), ParcelSerializationExemplar.class);
-                        return new NamedExemplars(parcelSerializationExemplar, resourceInfo.getResourceName());
-                    }
-                    catch (IOException e) {
-                        throw new UncheckedIOException(e);
-                    }
-                })
-                .flatMap(NamedExemplars::flatten)
-                .map(exemplar -> Arguments.of(exemplar.name + " - " + exemplar.version, exemplar));
+        return ClassPath.from(ParcelTest.class.getClassLoader())
+                        .getResources()
+                        .stream()
+                        .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches())
+                        .map(resourceInfo -> {
+                            try {
+                                ParcelSerializationExemplar parcelSerializationExemplar = MAPPER.reader()
+                                                                                                .readValue(
+                                                                                                        resourceInfo.asByteSource().openStream(),
+                                                                                                        ParcelSerializationExemplar.class
+                                                                                                );
+                                return new NamedExemplars(parcelSerializationExemplar, resourceInfo.getResourceName());
+                            }
+                            catch (IOException e) {
+                                throw new UncheckedIOException(e);
+                            }
+                        })
+                        .flatMap(NamedExemplars::flatten)
+                        .map(exemplar -> Arguments.of(exemplar.name + " - " + exemplar.version, exemplar));
     }
 
     @ParameterizedTest(name = "{0}")

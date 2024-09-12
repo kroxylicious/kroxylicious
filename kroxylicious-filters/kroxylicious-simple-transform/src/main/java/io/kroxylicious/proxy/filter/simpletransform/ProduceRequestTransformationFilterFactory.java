@@ -20,16 +20,22 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 @Plugin(configType = ProduceRequestTransformationFilterFactory.Config.class)
 public class ProduceRequestTransformationFilterFactory
-        implements FilterFactory<Config, Config> {
+                                                       implements FilterFactory<Config, Config> {
     public record Config(
-                         @PluginImplName(ByteBufferTransformationFactory.class) @JsonProperty(required = true) String transformation,
-                         @PluginImplConfig(implNameProperty = "transformation") Object transformationConfig) {}
+            @PluginImplName(ByteBufferTransformationFactory.class) @JsonProperty(required = true)
+            String transformation,
+            @PluginImplConfig(implNameProperty = "transformation")
+            Object transformationConfig
+    ) {
+    }
 
     @NonNull
     @Override
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public ProduceRequestTransformationFilter createFilter(FilterFactoryContext context,
-                                                           Config configuration) {
+    public ProduceRequestTransformationFilter createFilter(
+            FilterFactoryContext context,
+            Config configuration
+    ) {
         ByteBufferTransformationFactory factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         return new ProduceRequestTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }

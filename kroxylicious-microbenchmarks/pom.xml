@@ -130,7 +130,8 @@
                         <id>analyze</id>
                         <configuration>
                             <ignoredDependencies>
-                                <ignoredUnusedDeclaredDependency>org.openjdk.jmh:jmh-generator-annprocess</ignoredUnusedDeclaredDependency>
+                                <ignoredUnusedDeclaredDependency>org.openjdk.jmh:jmh-generator-annprocess
+                                </ignoredUnusedDeclaredDependency>
                             </ignoredDependencies>
 
                         </configuration>

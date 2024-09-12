@@ -48,8 +48,11 @@ public class NettyKeyProvider {
             @Override
             public SslContextBuilder visit(KeyPair keyPair) {
                 try {
-                    return a.keyManager(new File(keyPair.certificateFile()), new File(keyPair.privateKeyFile()),
-                            Optional.ofNullable(keyPair.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
+                    return a.keyManager(
+                            new File(keyPair.certificateFile()),
+                            new File(keyPair.privateKeyFile()),
+                            Optional.ofNullable(keyPair.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null)
+                    );
                 }
                 catch (Exception e) {
                     throw new SslContextBuildException("Error building SSLContext for KeyPair: " + keyPair, e);
@@ -62,10 +65,12 @@ public class NettyKeyProvider {
                     var keyStoreFile = new File(keyStore.storeFile());
 
                     if (keyStore.isPemType()) {
-                        return a.keyManager(keyStoreFile, keyStoreFile,
-                                Optional.ofNullable(keyStore.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
-                    }
-                    else {
+                        return a.keyManager(
+                                keyStoreFile,
+                                keyStoreFile,
+                                Optional.ofNullable(keyStore.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null)
+                        );
+                    } else {
                         return b.keyManager(keyManagerFactory(keyStore));
                     }
                 }
@@ -82,8 +87,10 @@ public class NettyKeyProvider {
             var keyStore = java.security.KeyStore.getInstance(store.getType());
             keyStore.load(is, password);
             var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            keyManagerFactory.init(keyStore,
-                    Optional.ofNullable(store.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(password));
+            keyManagerFactory.init(
+                    keyStore,
+                    Optional.ofNullable(store.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray).orElse(password)
+            );
             return keyManagerFactory;
         }
         catch (GeneralSecurityException | IOException e) {

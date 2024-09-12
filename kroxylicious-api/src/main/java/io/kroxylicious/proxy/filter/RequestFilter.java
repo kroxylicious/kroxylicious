@@ -51,8 +51,10 @@ public interface RequestFilter extends Filter {
      * @see io.kroxylicious.proxy.filter Creating Filter Result objects
      * @see io.kroxylicious.proxy.filter Thread Safety
      */
-    CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
-                                                   RequestHeaderData header,
-                                                   ApiMessage request,
-                                                   FilterContext context);
+    CompletionStage<RequestFilterResult> onRequest(
+            ApiKeys apiKey,
+            RequestHeaderData header,
+            ApiMessage request,
+            FilterContext context
+    );
 }

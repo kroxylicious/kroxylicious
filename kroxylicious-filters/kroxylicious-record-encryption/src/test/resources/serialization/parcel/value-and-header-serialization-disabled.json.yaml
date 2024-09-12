@@ -11,9 +11,9 @@ originalRecordContents:
       valueBase64: dGhlcmUK
 deserializedParcelContents:
   valueBase64: null
-  headers: []
+  headers: [ ]
 serializationOptions:
-  recordFields: []
+  recordFields: [ ]
 exemplars:
   V1:
     serializedBase64: AwM=

@@ -32,7 +32,8 @@ public final class DecryptState<E> {
     private Dek<E>.Decryptor decryptor;
 
     public DecryptState(
-                        Encryption encryptionUsed) {
+            Encryption encryptionUsed
+    ) {
         this.encryptionUsed = encryptionUsed;
         this.decryptor = null;
     }
@@ -64,8 +65,9 @@ public final class DecryptState<E> {
             return false;
         }
         var that = (DecryptState) obj;
-        return Objects.equals(this.encryptionUsed, that.encryptionUsed) &&
-                Objects.equals(this.decryptor, that.decryptor);
+        return Objects.equals(this.encryptionUsed, that.encryptionUsed)
+               &&
+               Objects.equals(this.decryptor, that.decryptor);
     }
 
     @Override
@@ -75,9 +77,15 @@ public final class DecryptState<E> {
 
     @Override
     public String toString() {
-        return "DecryptState[" +
-                "decryptionVersion=" + encryptionUsed + ", " +
-                "decryptor=" + decryptor + ']';
+        return "DecryptState["
+               +
+               "decryptionVersion="
+               + encryptionUsed
+               + ", "
+               +
+               "decryptor="
+               + decryptor
+               + ']';
     }
 
 }

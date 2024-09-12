@@ -20,9 +20,10 @@ import io.kroxylicious.filter.encryption.crypto.AadNone;
  * @param <K> The type of KEK identifier.
  */
 public record EncryptionScheme<K>(
-                                  K kekId,
-                                  Set<RecordField> recordFields,
-                                  Aad aadSpec) {
+        K kekId,
+        Set<RecordField> recordFields,
+        Aad aadSpec
+) {
 
     public EncryptionScheme {
         Objects.requireNonNull(kekId);
@@ -33,8 +34,9 @@ public record EncryptionScheme<K>(
     }
 
     public EncryptionScheme(
-                            K kekId,
-                            Set<RecordField> recordFields) {
+            K kekId,
+            Set<RecordField> recordFields
+    ) {
         this(kekId, recordFields, AadNone.INSTANCE);
     }
 

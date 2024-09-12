@@ -32,8 +32,8 @@ class RangeTest {
     @Test
     void endBeforeStartIllegal() {
         assertThatThrownBy(() -> new Range(1, 1))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("end of range: 1 (exclusive) is before start of range: 1 (inclusive)");
+                                                 .isInstanceOf(IllegalArgumentException.class)
+                                                 .hasMessage("end of range: 1 (exclusive) is before start of range: 1 (inclusive)");
     }
 
     static Stream<Arguments> isEndBeforeStartOf() {
@@ -44,7 +44,8 @@ class RangeTest {
                 arguments(new Range(3, 5), new Range(2, 4), false),
                 arguments(new Range(0, 2), new Range(1, 2), false),
                 arguments(new Range(0, 3), new Range(1, 2), false),
-                arguments(new Range(0, 4), new Range(1, 2), false));
+                arguments(new Range(0, 4), new Range(1, 2), false)
+        );
     }
 
     @ParameterizedTest
@@ -61,7 +62,8 @@ class RangeTest {
                 arguments(new Range(3, 5), new Range(2, 4), false),
                 arguments(new Range(0, 2), new Range(1, 2), false),
                 arguments(new Range(0, 3), new Range(1, 2), false),
-                arguments(new Range(0, 4), new Range(1, 2), false));
+                arguments(new Range(0, 4), new Range(1, 2), false)
+        );
     }
 
     @ParameterizedTest
@@ -76,6 +78,7 @@ class RangeTest {
                 arguments(new Range(3, 5), new Range(3, 5), new Range(3, 5)),
                 arguments(new Range(0, 2), new Range(1, 2), new Range(1, 2)),
                 arguments(new Range(0, 3), new Range(1, 2), new Range(1, 2)),
-                arguments(new Range(0, 4), new Range(1, 2), new Range(1, 2)));
+                arguments(new Range(0, 4), new Range(1, 2), new Range(1, 2))
+        );
     }
 }

@@ -67,9 +67,9 @@ class KroxyliciousST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -100,9 +100,9 @@ class KroxyliciousST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -134,9 +134,9 @@ class KroxyliciousST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     @Test
@@ -178,9 +178,9 @@ class KroxyliciousST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -199,6 +199,7 @@ class KroxyliciousST extends AbstractST {
 
         resourceManager.createResourceWithWait(
                 KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
-                kafka);
+                kafka
+        );
     }
 }

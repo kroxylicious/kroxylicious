@@ -89,8 +89,7 @@ public record JdkTls(Tls tls) {
                     keyManagers = getKeyManagers(tls.key());
                 }
                 return getSslContext(trustManagers, keyManagers);
-            }
-            else {
+            } else {
                 return SSLContext.getDefault();
             }
         }
@@ -177,8 +176,7 @@ public record JdkTls(Tls tls) {
             public TrustManager[] visit(InsecureTls insecureTls) {
                 if (insecureTls.insecure()) {
                     return INSECURE_TRUST_MANAGERS;
-                }
-                else {
+                } else {
                     return getDefaultTrustManagers();
                 }
             }

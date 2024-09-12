@@ -71,12 +71,10 @@ public interface KubeCluster {
             logger.debug("kubectl is installed");
             if (cluster.isClusterUp()) {
                 logger.debug("Cluster is running");
-            }
-            else {
+            } else {
                 throw new NoClusterException("Cluster is not running");
             }
-        }
-        else {
+        } else {
             throw new NoClusterException("Unable to find a cluster");
         }
 

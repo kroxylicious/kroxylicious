@@ -137,8 +137,12 @@ class RecordAssertTest {
         String headerKeyA = "HEADER_KEY_A";
         Record singleHeader = record("KEY", "VALUE", new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
         String headerKeyB = "HEADER_KEY_B";
-        Record multHeader = record("KEY", "VALUE", new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)),
-                new RecordHeader(headerKeyB, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
+        Record multHeader = record(
+                "KEY",
+                "VALUE",
+                new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)),
+                new RecordHeader(headerKeyB, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8))
+        );
         Record emptyHeaders = record("KEY", (String) null);
         RecordAssert singleHeaderAssert = KafkaAssertions.assertThat(singleHeader);
         RecordAssert multiHeaderAssert = KafkaAssertions.assertThat(multHeader);
@@ -160,8 +164,12 @@ class RecordAssertTest {
         String headerKeyA = "HEADER_KEY_A";
         Record singleHeader = record("KEY", "VALUE", new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
         String headerKeyB = "HEADER_KEY_B";
-        Record multiHeader = record("KEY", "VALUE", new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)),
-                new RecordHeader(headerKeyB, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
+        Record multiHeader = record(
+                "KEY",
+                "VALUE",
+                new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)),
+                new RecordHeader(headerKeyB, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8))
+        );
         Record emptyHeaders = record("KEY", (String) null);
         RecordAssert singleHeaderAssert = KafkaAssertions.assertThat(singleHeader);
         RecordAssert multiHeaderAssert = KafkaAssertions.assertThat(multiHeader);
@@ -178,8 +186,12 @@ class RecordAssertTest {
         String headerKeyA = "HEADER_KEY_A";
         Record singleHeader = record("KEY", "VALUE", new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
         String headerKeyB = "HEADER_KEY_B";
-        Record multiHeader = record("KEY", "VALUE", new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)),
-                new RecordHeader(headerKeyB, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
+        Record multiHeader = record(
+                "KEY",
+                "VALUE",
+                new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)),
+                new RecordHeader(headerKeyB, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8))
+        );
         Record emptyHeaders = record("KEY", (String) null);
         RecordAssert singleHeaderAssert = KafkaAssertions.assertThat(singleHeader);
         RecordAssert multiHeaderAssert = KafkaAssertions.assertThat(multiHeader);
@@ -196,8 +208,12 @@ class RecordAssertTest {
         String headerKeyA = "HEADER_KEY_A";
         Record singleHeader = record("KEY", "VALUE", new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
         String headerKeyB = "HEADER_KEY_B";
-        Record multiHeader = record("KEY", "VALUE", new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)),
-                new RecordHeader(headerKeyB, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
+        Record multiHeader = record(
+                "KEY",
+                "VALUE",
+                new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)),
+                new RecordHeader(headerKeyB, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8))
+        );
         Record emptyHeaders = record("KEY", (String) null);
         RecordAssert singleHeaderAssert = KafkaAssertions.assertThat(singleHeader);
         RecordAssert multiHeaderAssert = KafkaAssertions.assertThat(multiHeader);
@@ -214,8 +230,12 @@ class RecordAssertTest {
         String headerKeyA = "HEADER_KEY_A";
         Record singleHeader = record("KEY", "VALUE", new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
         String headerKeyB = "HEADER_KEY_B";
-        Record multiHeader = record("KEY", "VALUE", new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)),
-                new RecordHeader(headerKeyB, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)));
+        Record multiHeader = record(
+                "KEY",
+                "VALUE",
+                new RecordHeader(headerKeyA, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8)),
+                new RecordHeader(headerKeyB, "HEADER_VALUE".getBytes(StandardCharsets.UTF_8))
+        );
         Record emptyHeaders = record("KEY", (String) null);
         RecordAssert singleHeaderAssert = KafkaAssertions.assertThat(singleHeader);
         RecordAssert multiHeaderAssert = KafkaAssertions.assertThat(multiHeader);

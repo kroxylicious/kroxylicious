@@ -56,9 +56,11 @@ class RecordEncryptionUtilTest {
     }
 
     private static MemoryRecords makeRecord(int batchOffset) {
-        return makeRecords(LongStream.range(0, RecordEncryptionUtilTest.RECORD_COUNT),
+        return makeRecords(
+                LongStream.range(0, RecordEncryptionUtilTest.RECORD_COUNT),
                 u -> RecordTestUtils.record(ByteBuffer.wrap(RecordEncryptionUtilTest.HELLO_PLAIN_WORLD), new RecordHeader("myKey", "myValue".getBytes())),
-                batchOffset);
+                batchOffset
+        );
     }
 
     private static MemoryRecords makeRecords(LongStream offsets, Function<Long, Record> messageFunc, int batchOffset) {
@@ -76,7 +78,8 @@ class RecordEncryptionUtilTest {
     }
 
     private static void newBatch(BatchAwareMemoryRecordsBuilder recordsBuilder) {
-        recordsBuilder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        recordsBuilder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0L,
@@ -87,7 +90,8 @@ class RecordEncryptionUtilTest {
                 false,
                 false,
                 RecordBatch.NO_PARTITION_LEADER_EPOCH,
-                RecordBatch.NO_TIMESTAMP);
+                RecordBatch.NO_TIMESTAMP
+        );
     }
 
     @NonNull

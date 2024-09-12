@@ -40,11 +40,13 @@ public final class Versions {
             return NONE;
         }
         if (trimmedInput.endsWith("+")) {
-            return new Versions(Short.parseShort(
-                    trimmedInput.substring(0, trimmedInput.length() - 1)),
-                    Short.MAX_VALUE);
-        }
-        else {
+            return new Versions(
+                    Short.parseShort(
+                            trimmedInput.substring(0, trimmedInput.length() - 1)
+                    ),
+                    Short.MAX_VALUE
+            );
+        } else {
             int dashIndex = trimmedInput.indexOf("-");
             if (dashIndex < 0) {
                 short version = Short.parseShort(trimmedInput);
@@ -52,7 +54,8 @@ public final class Versions {
             }
             return new Versions(
                     Short.parseShort(trimmedInput.substring(0, dashIndex)),
-                    Short.parseShort(trimmedInput.substring(dashIndex + 1)));
+                    Short.parseShort(trimmedInput.substring(dashIndex + 1))
+            );
         }
     }
 
@@ -69,8 +72,13 @@ public final class Versions {
 
     public Versions(short lowest, short highest) {
         if ((lowest < 0) || (highest < 0)) {
-            throw new RuntimeException("Invalid version range " +
-                    lowest + " to " + highest);
+            throw new RuntimeException(
+                    "Invalid version range "
+                                       +
+                                       lowest
+                                       + " to "
+                                       + highest
+            );
         }
         this.lowest = lowest;
         this.highest = highest;
@@ -92,14 +100,11 @@ public final class Versions {
     public String toString() {
         if (empty()) {
             return NONE_STRING;
-        }
-        else if (lowest == highest) {
+        } else if (lowest == highest) {
             return String.valueOf(lowest);
-        }
-        else if (highest == Short.MAX_VALUE) {
+        } else if (highest == Short.MAX_VALUE) {
             return String.format("%d+", lowest);
-        }
-        else {
+        } else {
             return String.format("%d-%d", lowest, highest);
         }
     }
@@ -137,12 +142,10 @@ public final class Versions {
             if (other.highest >= highest) {
                 // Case 1: other is a superset of this. Trim everything.
                 return Versions.NONE;
-            }
-            else if (other.highest < lowest) {
+            } else if (other.highest < lowest) {
                 // Case 2: other is a disjoint version range that is lower than this. Trim nothing.
                 return this;
-            }
-            else {
+            } else {
                 // Case 3: trim some values from the beginning of this range.
                 //
                 // Note: it is safe to assume that other.highest() + 1 will not overflow.
@@ -150,23 +153,19 @@ public final class Versions {
                 // other.highest() < highest could not be true.
                 return new Versions((short) (other.highest() + 1), highest);
             }
-        }
-        else if (other.highest >= highest) {
+        } else if (other.highest >= highest) {
             int newHighest = other.lowest - 1;
             if (newHighest < 0) {
                 // Case 4: other was NONE. Trim nothing.
                 return this;
-            }
-            else if (newHighest < highest) {
+            } else if (newHighest < highest) {
                 // Case 5: trim some values from the end of this range.
                 return new Versions(lowest, (short) newHighest);
-            }
-            else {
+            } else {
                 // Case 6: other is a disjoint range that is higher than this. Trim nothing.
                 return this;
             }
-        }
-        else {
+        } else {
             // Case 7: the difference between this and other would be two ranges, not one.
             return null;
         }
@@ -193,8 +192,9 @@ public final class Versions {
         if (!(other instanceof Versions otherVersions)) {
             return false;
         }
-        return lowest == otherVersions.lowest &&
-                highest == otherVersions.highest;
+        return lowest == otherVersions.lowest
+               &&
+               highest == otherVersions.highest;
     }
 
     public Collection<Integer> range() {

@@ -88,18 +88,24 @@ class FetchResponseTransformationFilterFactoryFilterTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        filter = new FetchResponseTransformationFilter(new UpperCasing.Transformation(
-                new UpperCasing.Config("UTF-8")));
+        filter = new FetchResponseTransformationFilter(
+                new UpperCasing.Transformation(
+                        new UpperCasing.Config("UTF-8")
+                )
+        );
 
         when(context.forwardResponse(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(responseFilterResult));
+                invocation -> CompletableFuture.completedStage(responseFilterResult)
+        );
         when(context.responseFilterResultBuilder()).thenReturn(responseFilterResultBuilder);
 
         when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataCaptor.getValue());
 
         when(responseFilterResultBuilder.forward(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture()))
-                .thenReturn((CloseOrTerminalStage<ResponseFilterResult>) responseFilterResultBuilder);
+                                                                                                                 .thenReturn(
+                                                                                                                         (CloseOrTerminalStage<ResponseFilterResult>) responseFilterResultBuilder
+                                                                                                                 );
         when(((CloseOrTerminalStage<ResponseFilterResult>) responseFilterResultBuilder).completed()).thenReturn(CompletableFuture.completedStage(responseFilterResult));
 
         when(context.createByteBufferOutputStream(bufferInitialCapacity.capture())).thenAnswer(
@@ -107,18 +113,24 @@ class FetchResponseTransformationFilterFactoryFilterTest {
                     Object[] args = invocation.getArguments();
                     Integer size = (Integer) args[0];
                     return new ByteBufferOutputStream(size);
-                });
+                }
+        );
     }
 
     @Test
     void testFactory() {
         FetchResponseTransformationFilterFactory factory = new FetchResponseTransformationFilterFactory();
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
-                .hasMessage(FetchResponseTransformationFilterFactory.class.getSimpleName() + " requires configuration, but config object is null");
+                                                                .hasMessage(
+                                                                        FetchResponseTransformationFilterFactory.class.getSimpleName()
+                                                                            + " requires configuration, but config object is null"
+                                                                );
         FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
         doReturn(new UpperCasing()).when(constructContext).pluginInstance(any(), any());
-        FetchResponseTransformationFilterFactory.Config config = new FetchResponseTransformationFilterFactory.Config(UpperCasing.class.getName(),
-                new UpperCasing.Config("UTF-8"));
+        FetchResponseTransformationFilterFactory.Config config = new FetchResponseTransformationFilterFactory.Config(
+                UpperCasing.class.getName(),
+                new UpperCasing.Config("UTF-8")
+        );
         assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
 
@@ -134,13 +146,13 @@ class FetchResponseTransformationFilterFactoryFilterTest {
         var filteredResponse = (FetchResponseData) stage.toCompletableFuture().get().message();
         var filteredRecords = responseToRecordStream(filteredResponse).toList();
         assertThat(filteredRecords)
-                .withFailMessage("unexpected number of records in the filter response")
-                .hasSize(1);
+                                   .withFailMessage("unexpected number of records in the filter response")
+                                   .hasSize(1);
 
         var filteredRecord = filteredRecords.get(0);
         assertThat(decodeUtf8Value(filteredRecord))
-                .withFailMessage("expected record value to have been transformed")
-                .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                                                   .withFailMessage("expected record value to have been transformed")
+                                                   .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
     }
 
     @Test
@@ -153,7 +165,7 @@ class FetchResponseTransformationFilterFactoryFilterTest {
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
 
         when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
-                .thenReturn(CompletableFuture.completedStage(metadataResponse));
+                                                                                               .thenReturn(CompletableFuture.completedStage(metadataResponse));
 
         var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
         assertThat(stage).isCompleted();
@@ -162,22 +174,22 @@ class FetchResponseTransformationFilterFactoryFilterTest {
 
         // verify that the response now has the topic name
         assertThat(filteredResponse.responses())
-                .withFailMessage("expected same number of topics in the response")
-                .hasSameSizeAs(fetchResponse.responses())
-                .withFailMessage("expected topic response to have been augmented with topic name")
-                .anyMatch(ftr -> Objects.equals(ftr.topic(), TOPIC_NAME))
-                .withFailMessage("expected topic response to still have the topic id")
-                .anyMatch(ftr -> Objects.equals(ftr.topicId(), TOPIC_ID));
+                                                .withFailMessage("expected same number of topics in the response")
+                                                .hasSameSizeAs(fetchResponse.responses())
+                                                .withFailMessage("expected topic response to have been augmented with topic name")
+                                                .anyMatch(ftr -> Objects.equals(ftr.topic(), TOPIC_NAME))
+                                                .withFailMessage("expected topic response to still have the topic id")
+                                                .anyMatch(ftr -> Objects.equals(ftr.topicId(), TOPIC_ID));
 
         var filteredRecords = responseToRecordStream(filteredResponse).toList();
         assertThat(filteredRecords)
-                .withFailMessage("unexpected number of records in the filter response")
-                .hasSize(1);
+                                   .withFailMessage("unexpected number of records in the filter response")
+                                   .hasSize(1);
 
         var filteredRecord = filteredRecords.get(0);
         assertThat(decodeUtf8Value(filteredRecord))
-                .withFailMessage("expected record value to have been transformed")
-                .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                                                   .withFailMessage("expected record value to have been transformed")
+                                                   .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
     }
 
     @Test
@@ -191,24 +203,28 @@ class FetchResponseTransformationFilterFactoryFilterTest {
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
 
         when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
-                .thenReturn(CompletableFuture.failedStage(new IllegalStateException("out-of-band request exception")));
+                                                                                               .thenReturn(
+                                                                                                       CompletableFuture.failedStage(
+                                                                                                               new IllegalStateException("out-of-band request exception")
+                                                                                                       )
+                                                                                               );
 
         var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
         assertThat(stage)
-                .withFailMessage("out-of-band request exception")
-                .isCompletedExceptionally();
+                         .withFailMessage("out-of-band request exception")
+                         .isCompletedExceptionally();
     }
 
     private Stream<Record> responseToRecordStream(FetchResponseData filteredResponse) {
         return Stream.of(filteredResponse.responses())
-                .flatMap(Collection::stream)
-                .map(FetchableTopicResponse::partitions)
-                .flatMap(Collection::stream)
-                .map(PartitionData::records)
-                .map(Records.class::cast)
-                .map(Records::records)
-                .map(Iterable::spliterator)
-                .flatMap(si -> StreamSupport.stream(si, false));
+                     .flatMap(Collection::stream)
+                     .map(FetchableTopicResponse::partitions)
+                     .flatMap(Collection::stream)
+                     .map(PartitionData::records)
+                     .map(Records.class::cast)
+                     .map(Records::records)
+                     .map(Iterable::spliterator)
+                     .flatMap(si -> StreamSupport.stream(si, false));
     }
 
     @NonNull
@@ -222,8 +238,14 @@ class FetchResponseTransformationFilterFactoryFilterTest {
 
     private static MemoryRecords buildOneRecord(String key, String value) {
         ByteBuffer buffer = ByteBuffer.allocate(1024);
-        try (MemoryRecordsBuilder builder = MemoryRecords.builder(buffer, RecordBatch.CURRENT_MAGIC_VALUE,
-                Compression.NONE, TimestampType.CREATE_TIME, 0L, System.currentTimeMillis())) {
+        try (MemoryRecordsBuilder builder = MemoryRecords.builder(
+                buffer,
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                Compression.NONE,
+                TimestampType.CREATE_TIME,
+                0L,
+                System.currentTimeMillis()
+        )) {
             builder.append(0L, key.getBytes(), value.getBytes());
             return builder.build();
         }

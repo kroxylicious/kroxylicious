@@ -23,7 +23,7 @@ public class PrometheusMetricsEndpoint implements Function<HttpRequest, HttpResp
 
     public PrometheusMetricsEndpoint(MeterRegistries registries) {
         this.registry = registries.maybePrometheusMeterRegistry()
-                .orElseThrow(() -> new IllegalStateException("Attempting to configure a prometheus endpoint but no Prometheus registry available"));
+                                  .orElseThrow(() -> new IllegalStateException("Attempting to configure a prometheus endpoint but no Prometheus registry available"));
     }
 
     @Override

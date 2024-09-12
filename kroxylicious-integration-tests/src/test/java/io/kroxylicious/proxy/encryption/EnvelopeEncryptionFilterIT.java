@@ -55,20 +55,20 @@ class EnvelopeEncryptionFilterIT {
             consumer.subscribe(List.of(topic.name()));
             var records = consumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator())
-                    .toIterable()
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(HELLO_WORLD);
+                                          .toIterable()
+                                          .singleElement()
+                                          .extracting(ConsumerRecord::value)
+                                          .isEqualTo(HELLO_WORLD);
         }
     }
 
     @SuppressWarnings("removal")
     private FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
         return new FilterDefinitionBuilder(EnvelopeEncryption.class.getSimpleName())
-                .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
-                .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
-                .withConfig("selector", TemplateKekSelector.class.getSimpleName())
-                .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
-                .build();
+                                                                                    .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
+                                                                                    .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
+                                                                                    .withConfig("selector", TemplateKekSelector.class.getSimpleName())
+                                                                                    .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
+                                                                                    .build();
     }
 }

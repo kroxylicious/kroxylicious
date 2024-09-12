@@ -256,14 +256,15 @@ class DefaultKroxyliciousTesterTest {
             // When
             // Then
             assertThatThrownBy(tester::close)
-                    .cause()
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessage(EXCEPTION_MESSAGE);
+                                             .cause()
+                                             .isInstanceOf(IllegalStateException.class)
+                                             .hasMessage(EXCEPTION_MESSAGE);
         }
     }
 
     @Test
-    void shouldConfigureConsumerForTls(@TempDir Path certsDirectory) throws IOException {
+    void shouldConfigureConsumerForTls(@TempDir
+    Path certsDirectory) throws IOException {
         // Given
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
         final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
@@ -282,7 +283,8 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @Test
-    void shouldConfigureProducerForTls(@TempDir Path certsDirectory) throws IOException {
+    void shouldConfigureProducerForTls(@TempDir
+    Path certsDirectory) throws IOException {
         // Given
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
         final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
@@ -298,7 +300,8 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @Test
-    void shouldConfigureAdminForTls(@TempDir Path certsDirectory) throws IOException {
+    void shouldConfigureAdminForTls(@TempDir
+    Path certsDirectory) throws IOException {
         // Given
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
         final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
@@ -414,10 +417,10 @@ class DefaultKroxyliciousTesterTest {
 
             // When
             assertThatThrownBy(() -> tester.createTopic(DEFAULT_CLUSTER))
-                    // Then
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessage("Failed to create topics on " + DEFAULT_CLUSTER)
-                    .hasCauseInstanceOf(KafkaException.class);
+                                                                         // Then
+                                                                         .isInstanceOf(IllegalStateException.class)
+                                                                         .hasMessage("Failed to create topics on " + DEFAULT_CLUSTER)
+                                                                         .hasCauseInstanceOf(KafkaException.class);
         }
     }
 
@@ -435,9 +438,9 @@ class DefaultKroxyliciousTesterTest {
 
             // When
             assertThatThrownBy(() -> tester.createTopic(DEFAULT_CLUSTER))
-                    // Then
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessage("Timed out creating topics on " + DEFAULT_CLUSTER);
+                                                                         // Then
+                                                                         .isInstanceOf(IllegalStateException.class)
+                                                                         .hasMessage("Timed out creating topics on " + DEFAULT_CLUSTER);
         }
     }
 
@@ -458,10 +461,10 @@ class DefaultKroxyliciousTesterTest {
 
             // When
             assertThatThrownBy(() -> tester.deleteTopics(VIRTUAL_CLUSTER_A))
-                    // Then
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessage("Failed to delete topics on " + VIRTUAL_CLUSTER_A)
-                    .hasCauseInstanceOf(KafkaException.class);
+                                                                            // Then
+                                                                            .isInstanceOf(IllegalStateException.class)
+                                                                            .hasMessage("Failed to delete topics on " + VIRTUAL_CLUSTER_A)
+                                                                            .hasCauseInstanceOf(KafkaException.class);
         }
     }
 
@@ -482,9 +485,9 @@ class DefaultKroxyliciousTesterTest {
 
             // When
             assertThatThrownBy(() -> tester.deleteTopics(VIRTUAL_CLUSTER_A))
-                    // Then
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessage("Timed out deleting topics on " + VIRTUAL_CLUSTER_A);
+                                                                            // Then
+                                                                            .isInstanceOf(IllegalStateException.class)
+                                                                            .hasMessage("Timed out deleting topics on " + VIRTUAL_CLUSTER_A);
         }
     }
 
@@ -492,25 +495,25 @@ class DefaultKroxyliciousTesterTest {
     void shouldFailIfAdminHttpNotConfigured() {
         try (var tester = buildDefaultTester()) {
             assertThatThrownBy(tester::getAdminHttpClient)
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("admin http interface not configured");
+                                                          .isInstanceOf(IllegalStateException.class)
+                                                          .hasMessageContaining("admin http interface not configured");
         }
     }
 
     @Test
     void shouldExposeMetrics() {
         var proxy = proxy(backingCluster).withNewAdminHttp()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endAdminHttp();
+                                         .withNewEndpoints()
+                                         .withNewPrometheus()
+                                         .endPrometheus()
+                                         .endEndpoints()
+                                         .endAdminHttp();
         var testerBuilder = new KroxyliciousTesterBuilder()
-                .setConfigurationBuilder(proxy)
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy);
+                                                           .setConfigurationBuilder(proxy)
+                                                           .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy);
 
         try (var tester = (KroxyliciousTester) testerBuilder
-                .createDefaultKroxyliciousTester()) {
+                                                            .createDefaultKroxyliciousTester()) {
             var adminHttpClient = tester.getAdminHttpClient();
             assertThat(adminHttpClient).isNotNull();
             var metrics = adminHttpClient.scrapeMetrics();
@@ -528,18 +531,19 @@ class DefaultKroxyliciousTesterTest {
     @NonNull
     private static Consumer<Map<String, Object>> assertSslConfiguration(String trustStorePath) {
         return actual -> assertThat(actual)
-                .contains(
-                        Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
-                        Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath))
-                .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+                                           .contains(
+                                                   Map.entry(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name()),
+                                                   Map.entry(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trustStorePath)
+                                           )
+                                           .containsKey(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
     }
 
     @NonNull
     private KroxyliciousTester buildDefaultTester() {
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(proxy(backingCluster))
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
-                .setClientFactory(clientFactory)
-                .createDefaultKroxyliciousTester();
+                                              .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
+                                              .setClientFactory(clientFactory)
+                                              .createDefaultKroxyliciousTester();
     }
 
     @NonNull
@@ -547,25 +551,31 @@ class DefaultKroxyliciousTesterTest {
         generateSecurityCert(keytoolCertificateGenerator);
         final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
         var vcb = new VirtualClusterBuilder()
-                .withNewTargetCluster()
-                .withBootstrapServers(backingCluster)
-                .endTargetCluster()
-                .withNewTls()
-                .withNewKeyStoreKey()
-                .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())
-                .withNewInlinePasswordStoreProvider(keytoolCertificateGenerator.getPassword())
-                .endKeyStoreKey()
-                .endTls()
-                .withClusterNetworkAddressConfigProvider(
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP).build());
+                                             .withNewTargetCluster()
+                                             .withBootstrapServers(backingCluster)
+                                             .endTargetCluster()
+                                             .withNewTls()
+                                             .withNewKeyStoreKey()
+                                             .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())
+                                             .withNewInlinePasswordStoreProvider(keytoolCertificateGenerator.getPassword())
+                                             .endKeyStoreKey()
+                                             .endTls()
+                                             .withClusterNetworkAddressConfigProvider(
+                                                     new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                             PortPerBrokerClusterNetworkAddressConfigProvider.class.getName()
+                                                     )
+                                                      .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP)
+                                                      .build()
+                                             );
         configurationBuilder
-                .addToVirtualClusters(TLS_CLUSTER, vcb.build());
+                            .addToVirtualClusters(TLS_CLUSTER, vcb.build());
 
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
-                .setTrustStoreLocation(keytoolCertificateGenerator.getTrustStoreLocation())
-                .setTrustStorePassword(keytoolCertificateGenerator.getPassword())
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
+                                              .setTrustStoreLocation(keytoolCertificateGenerator.getTrustStoreLocation())
+                                              .setTrustStorePassword(keytoolCertificateGenerator.getPassword())
+                                              .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
+                                              .setClientFactory(clientFactory)
+                                              .createDefaultKroxyliciousTester();
     }
 
     private static void generateSecurityCert(KeytoolCertificateGenerator keytoolCertificateGenerator) {
@@ -579,8 +589,10 @@ class DefaultKroxyliciousTesterTest {
 
     private KroxyliciousTester buildTester() {
         return new KroxyliciousTesterBuilder()
-                .setConfigurationBuilder(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C))
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
+                                              .setConfigurationBuilder(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C))
+                                              .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
+                                              .setClientFactory(clientFactory)
+                                              .createDefaultKroxyliciousTester();
     }
 
     public static <T> T argThat(Consumer<T> assertions) {

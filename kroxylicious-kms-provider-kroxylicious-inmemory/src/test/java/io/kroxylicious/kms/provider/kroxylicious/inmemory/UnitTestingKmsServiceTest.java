@@ -85,14 +85,14 @@ class UnitTestingKmsServiceTest {
 
         // then
         assertThat(gen1).failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownKeyException.class)
-                .withMessage("io.kroxylicious.kms.service.UnknownKeyException");
+                        .withThrowableOfType(ExecutionException.class)
+                        .withCauseInstanceOf(UnknownKeyException.class)
+                        .withMessage("io.kroxylicious.kms.service.UnknownKeyException");
 
         assertThat(gen2).failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownKeyException.class)
-                .withMessage("io.kroxylicious.kms.service.UnknownKeyException");
+                        .withThrowableOfType(ExecutionException.class)
+                        .withCauseInstanceOf(UnknownKeyException.class)
+                        .withMessage("io.kroxylicious.kms.service.UnknownKeyException");
     }
 
     @Test
@@ -110,8 +110,10 @@ class UnitTestingKmsServiceTest {
         var decryptedDek = kms.decryptEdek(pair.edek()).join();
 
         // then
-        assertTrue(SecretKeyUtils.same((DestroyableRawSecretKey) pair.dek(), (DestroyableRawSecretKey) decryptedDek),
-                "Expect the decrypted DEK to equal the originally generated DEK");
+        assertTrue(
+                SecretKeyUtils.same((DestroyableRawSecretKey) pair.dek(), (DestroyableRawSecretKey) decryptedDek),
+                "Expect the decrypted DEK to equal the originally generated DEK"
+        );
     }
 
     @Test
@@ -139,9 +141,9 @@ class UnitTestingKmsServiceTest {
 
         var lookup = kms.resolveAlias("bob");
         assertThat(lookup).failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownAliasException.class)
-                .withMessage("io.kroxylicious.kms.service.UnknownAliasException: bob");
+                          .withThrowableOfType(ExecutionException.class)
+                          .withCauseInstanceOf(UnknownAliasException.class)
+                          .withMessage("io.kroxylicious.kms.service.UnknownAliasException: bob");
 
         kms.createAlias(kek, "bob");
         var gotFromAlias = kms.resolveAlias("bob").join();
@@ -150,9 +152,9 @@ class UnitTestingKmsServiceTest {
         kms.deleteAlias("bob");
         lookup = kms.resolveAlias("bob");
         assertThat(lookup).failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnknownAliasException.class)
-                .withMessage("io.kroxylicious.kms.service.UnknownAliasException: bob");
+                          .withThrowableOfType(ExecutionException.class)
+                          .withCauseInstanceOf(UnknownAliasException.class)
+                          .withMessage("io.kroxylicious.kms.service.UnknownAliasException: bob");
     }
 
 }

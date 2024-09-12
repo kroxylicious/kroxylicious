@@ -65,8 +65,7 @@ public class KafkaUtils {
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         if (result.isSuccess()) {
             LOGGER.atInfo().setMessage("{} client produce log: {}").addArgument(clientName).addArgument(log).log();
-        }
-        else {
+        } else {
             LOGGER.atError().setMessage("error producing messages with {}: {}").addArgument(clientName).addArgument(log).log();
             throw new KubeClusterException("error producing messages with " + clientName + ": " + log);
         }
@@ -95,8 +94,11 @@ public class KafkaUtils {
      * @return the pod name by label
      */
     public static String getPodNameByLabel(String deployNamespace, String labelKey, String labelValue, Duration timeout) {
-        List<Pod> pods = await().atMost(timeout).until(() -> kubeClient().listPods(deployNamespace, labelKey, labelValue),
-                p -> !p.isEmpty());
+        List<Pod> pods = await().atMost(timeout)
+                                .until(
+                                        () -> kubeClient().listPods(deployNamespace, labelKey, labelValue),
+                                        p -> !p.isEmpty()
+                                );
         return pods.get(pods.size() - 1).getMetadata().getName();
     }
 
@@ -132,8 +134,7 @@ public class KafkaUtils {
         final Pod pod = kubeClient().getPod(deployNamespace, podName);
         if (pod != null) {
             return pod.getMetadata().getUid();
-        }
-        else {
+        } else {
             return "";
         }
     }

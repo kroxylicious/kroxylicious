@@ -26,9 +26,15 @@ public record VirtualClusterBootstrapBinding(VirtualCluster virtualCluster, Host
 
     @Override
     public String toString() {
-        return "VirtualClusterBrokerBinding[" +
-                "virtualCluster=" + this.virtualCluster() + ", " +
-                "upstreamTarget=" + this.upstreamTarget() + ']';
+        return "VirtualClusterBrokerBinding["
+               +
+               "virtualCluster="
+               + this.virtualCluster()
+               + ", "
+               +
+               "upstreamTarget="
+               + this.upstreamTarget()
+               + ']';
     }
 
 }

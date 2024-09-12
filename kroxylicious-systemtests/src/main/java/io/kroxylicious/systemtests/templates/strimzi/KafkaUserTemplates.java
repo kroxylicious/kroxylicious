@@ -25,10 +25,10 @@ public class KafkaUserTemplates {
      */
     public static KafkaUserBuilder defaultUser(String namespaceName, String clusterName, String name) {
         return new KafkaUserBuilder()
-                .withNewMetadata()
-                .withName(name)
-                .withNamespace(namespaceName)
-                .addToLabels(Constants.STRIMZI_CLUSTER_LABEL, clusterName)
-                .endMetadata();
+                                     .withNewMetadata()
+                                     .withName(name)
+                                     .withNamespace(namespaceName)
+                                     .addToLabels(Constants.STRIMZI_CLUSTER_LABEL, clusterName)
+                                     .endMetadata();
     }
 }

@@ -52,7 +52,8 @@
                                         <include>io.kroxylicious:kroxylicious-api</include>
                                         <include>io.kroxylicious:kroxylicious-filter-test-support</include>
                                         <include>io.kroxylicious:kroxylicious-kms</include>
-                                        <include>io.kroxylicious:kroxylicious-kms-provider-kroxylicious-inmemory</include>
+                                        <include>io.kroxylicious:kroxylicious-kms-provider-kroxylicious-inmemory
+                                        </include>
                                         <include>io.kroxylicious:kroxylicious-unit-test-support</include>
                                         <include>io.kroxylicious:kroxylicious-integration-test-support</include>
                                         <include>io.kroxylicious:kroxylicious-kafka-message-tools</include>

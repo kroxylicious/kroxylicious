@@ -56,36 +56,46 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData fetchResponse,
-                                                                 FilterContext context) {
-        List<MetadataRequestData.MetadataRequestTopic> requestTopics = fetchResponse.responses().stream()
-                .filter(t -> t.topic().isEmpty())
-                .map(fetchableTopicResponse -> {
-                    Uuid uuid = fetchableTopicResponse.topicId();
-                    return new MetadataRequestData.MetadataRequestTopic().setName(null).setTopicId(uuid);
-                })
-                .distinct()
-                .toList();
+    public CompletionStage<ResponseFilterResult> onFetchResponse(
+            short apiVersion,
+            ResponseHeaderData header,
+            FetchResponseData fetchResponse,
+            FilterContext context
+    ) {
+        List<MetadataRequestData.MetadataRequestTopic> requestTopics = fetchResponse.responses()
+                                                                                    .stream()
+                                                                                    .filter(t -> t.topic().isEmpty())
+                                                                                    .map(fetchableTopicResponse -> {
+                                                                                        Uuid uuid = fetchableTopicResponse.topicId();
+                                                                                        return new MetadataRequestData.MetadataRequestTopic().setName(null)
+                                                                                                                                             .setTopicId(uuid);
+                                                                                    })
+                                                                                    .distinct()
+                                                                                    .toList();
         if (!requestTopics.isEmpty()) {
             LOGGER.debug("Fetch response contains {} unknown topic ids, lookup via Metadata request: {}", requestTopics.size(), requestTopics);
             var metadataHeader = new RequestHeaderData().setRequestApiVersion(METADATA_API_VER_WITH_TOPIC_ID_SUPPORT);
             var metadataRequest = new MetadataRequestData().setTopics(requestTopics);
             return context.<MetadataResponseData> sendRequest(metadataHeader, metadataRequest)
-                    .thenCompose(metadataResponse -> {
-                        Map<Uuid, String> uidToName = metadataResponse.topics().stream()
-                                .collect(Collectors.toMap(MetadataResponseData.MetadataResponseTopic::topicId,
-                                        MetadataResponseData.MetadataResponseTopic::name));
-                        LOGGER.debug("Metadata response yields {}, updating original Fetch response", uidToName);
-                        for (var fetchableTopicResponse : fetchResponse.responses()) {
-                            fetchableTopicResponse.setTopic(uidToName.get(fetchableTopicResponse.topicId()));
-                        }
-                        applyTransformation(context, fetchResponse);
-                        LOGGER.debug("Forwarding original Fetch response");
+                          .thenCompose(metadataResponse -> {
+                              Map<Uuid, String> uidToName = metadataResponse.topics()
+                                                                            .stream()
+                                                                            .collect(
+                                                                                    Collectors.toMap(
+                                                                                            MetadataResponseData.MetadataResponseTopic::topicId,
+                                                                                            MetadataResponseData.MetadataResponseTopic::name
+                                                                                    )
+                                                                            );
+                              LOGGER.debug("Metadata response yields {}, updating original Fetch response", uidToName);
+                              for (var fetchableTopicResponse : fetchResponse.responses()) {
+                                  fetchableTopicResponse.setTopic(uidToName.get(fetchableTopicResponse.topicId()));
+                              }
+                              applyTransformation(context, fetchResponse);
+                              LOGGER.debug("Forwarding original Fetch response");
 
-                        return context.responseFilterResultBuilder().forward(header, fetchResponse).completed();
-                    });
-        }
-        else {
+                              return context.responseFilterResultBuilder().forward(header, fetchResponse).completed();
+                          });
+        } else {
             applyTransformation(context, fetchResponse);
             return context.forwardResponse(header, fetchResponse);
         }
@@ -96,15 +106,30 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
             for (FetchResponseData.PartitionData partitionData : topicData.partitions()) {
                 var records = (MemoryRecords) partitionData.records();
                 var stream = context.createByteBufferOutputStream(records.sizeInBytes());
-                try (var newRecords = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, Compression.NONE, TimestampType.CREATE_TIME, 0,
-                        System.currentTimeMillis(), RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
+                try (var newRecords = new MemoryRecordsBuilder(
+                        stream,
+                        RecordBatch.CURRENT_MAGIC_VALUE,
+                        Compression.NONE,
+                        TimestampType.CREATE_TIME,
+                        0,
+                        System.currentTimeMillis(),
+                        RecordBatch.NO_PRODUCER_ID,
+                        RecordBatch.NO_PRODUCER_EPOCH,
+                        RecordBatch.NO_SEQUENCE,
+                        false,
+                        false,
                         RecordBatch.NO_PARTITION_LEADER_EPOCH,
-                        stream.remaining())) {
+                        stream.remaining()
+                )) {
 
                     for (MutableRecordBatch batch : records.batches()) {
                         for (Record batchRecord : batch) {
-                            newRecords.appendWithOffset(batchRecord.offset(), batchRecord.timestamp(), batchRecord.key(),
-                                    valueTransformation.transform(topicData.topic(), batchRecord.value()));
+                            newRecords.appendWithOffset(
+                                    batchRecord.offset(),
+                                    batchRecord.timestamp(),
+                                    batchRecord.key(),
+                                    valueTransformation.transform(topicData.topic(), batchRecord.value())
+                            );
                         }
                     }
 

@@ -29,45 +29,118 @@ class RecordEncryptionConfigTest {
                 Arguments.of("decryptedDekCacheSize", 2, 2, (Function<KmsCacheConfig, Integer>) KmsCacheConfig::decryptedDekCacheSize),
                 Arguments.of("decryptedDekCacheSize", "3", 3, (Function<KmsCacheConfig, Integer>) KmsCacheConfig::decryptedDekCacheSize),
                 Arguments.of("decryptedDekCacheSize", null, 1000, (Function<KmsCacheConfig, Integer>) KmsCacheConfig::decryptedDekCacheSize),
-                Arguments.of("decryptedDekExpireAfterAccessSeconds", 4L, Duration.ofSeconds(4),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::decryptedDekExpireAfterAccessDuration),
-                Arguments.of("decryptedDekExpireAfterAccessSeconds", "5", Duration.ofSeconds(5),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::decryptedDekExpireAfterAccessDuration),
-                Arguments.of("decryptedDekExpireAfterAccessSeconds", null, Duration.ofHours(1),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::decryptedDekExpireAfterAccessDuration),
+                Arguments.of(
+                        "decryptedDekExpireAfterAccessSeconds",
+                        4L,
+                        Duration.ofSeconds(4),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::decryptedDekExpireAfterAccessDuration
+                ),
+                Arguments.of(
+                        "decryptedDekExpireAfterAccessSeconds",
+                        "5",
+                        Duration.ofSeconds(5),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::decryptedDekExpireAfterAccessDuration
+                ),
+                Arguments.of(
+                        "decryptedDekExpireAfterAccessSeconds",
+                        null,
+                        Duration.ofHours(1),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::decryptedDekExpireAfterAccessDuration
+                ),
                 Arguments.of("resolvedAliasCacheSize", 2, 2, (Function<KmsCacheConfig, Integer>) KmsCacheConfig::resolvedAliasCacheSize),
                 Arguments.of("resolvedAliasCacheSize", 3, 3, (Function<KmsCacheConfig, Integer>) KmsCacheConfig::resolvedAliasCacheSize),
                 Arguments.of("resolvedAliasCacheSize", null, 1000, (Function<KmsCacheConfig, Integer>) KmsCacheConfig::resolvedAliasCacheSize),
-                Arguments.of("resolvedAliasExpireAfterWriteSeconds", 4L, Duration.ofSeconds(4),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasExpireAfterWriteDuration),
-                Arguments.of("resolvedAliasExpireAfterWriteSeconds", "5", Duration.ofSeconds(5),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasExpireAfterWriteDuration),
-                Arguments.of("resolvedAliasExpireAfterWriteSeconds", null, Duration.ofMinutes(10),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasExpireAfterWriteDuration),
-                Arguments.of("resolvedAliasRefreshAfterWriteSeconds", 4L, Duration.ofSeconds(4),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasRefreshAfterWriteDuration),
-                Arguments.of("resolvedAliasRefreshAfterWriteSeconds", "5", Duration.ofSeconds(5),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasRefreshAfterWriteDuration),
-                Arguments.of("resolvedAliasRefreshAfterWriteSeconds", null, Duration.ofMinutes(8),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasRefreshAfterWriteDuration),
-                Arguments.of("notFoundAliasExpireAfterWriteSeconds", 4L, Duration.ofSeconds(4),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::notFoundAliasExpireAfterWriteDuration),
-                Arguments.of("notFoundAliasExpireAfterWriteSeconds", "5", Duration.ofSeconds(5),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::notFoundAliasExpireAfterWriteDuration),
-                Arguments.of("notFoundAliasExpireAfterWriteSeconds", null, Duration.ofSeconds(30),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::notFoundAliasExpireAfterWriteDuration),
-                Arguments.of("encryptionDekRefreshAfterWriteSeconds", 4L, Duration.ofSeconds(4),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheRefreshAfterWriteDuration),
-                Arguments.of("encryptionDekRefreshAfterWriteSeconds", "5", Duration.ofSeconds(5),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheRefreshAfterWriteDuration),
-                Arguments.of("encryptionDekRefreshAfterWriteSeconds", null, Duration.ofHours(1),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheRefreshAfterWriteDuration),
-                Arguments.of("encryptionDekExpireAfterWriteSeconds", 4L, Duration.ofSeconds(4),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheExpireAfterWriteDuration),
-                Arguments.of("encryptionDekExpireAfterWriteSeconds", "5", Duration.ofSeconds(5),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheExpireAfterWriteDuration),
-                Arguments.of("encryptionDekExpireAfterWriteSeconds", null, Duration.ofHours(2),
-                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheExpireAfterWriteDuration));
+                Arguments.of(
+                        "resolvedAliasExpireAfterWriteSeconds",
+                        4L,
+                        Duration.ofSeconds(4),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasExpireAfterWriteDuration
+                ),
+                Arguments.of(
+                        "resolvedAliasExpireAfterWriteSeconds",
+                        "5",
+                        Duration.ofSeconds(5),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasExpireAfterWriteDuration
+                ),
+                Arguments.of(
+                        "resolvedAliasExpireAfterWriteSeconds",
+                        null,
+                        Duration.ofMinutes(10),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasExpireAfterWriteDuration
+                ),
+                Arguments.of(
+                        "resolvedAliasRefreshAfterWriteSeconds",
+                        4L,
+                        Duration.ofSeconds(4),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasRefreshAfterWriteDuration
+                ),
+                Arguments.of(
+                        "resolvedAliasRefreshAfterWriteSeconds",
+                        "5",
+                        Duration.ofSeconds(5),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasRefreshAfterWriteDuration
+                ),
+                Arguments.of(
+                        "resolvedAliasRefreshAfterWriteSeconds",
+                        null,
+                        Duration.ofMinutes(8),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::resolvedAliasRefreshAfterWriteDuration
+                ),
+                Arguments.of(
+                        "notFoundAliasExpireAfterWriteSeconds",
+                        4L,
+                        Duration.ofSeconds(4),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::notFoundAliasExpireAfterWriteDuration
+                ),
+                Arguments.of(
+                        "notFoundAliasExpireAfterWriteSeconds",
+                        "5",
+                        Duration.ofSeconds(5),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::notFoundAliasExpireAfterWriteDuration
+                ),
+                Arguments.of(
+                        "notFoundAliasExpireAfterWriteSeconds",
+                        null,
+                        Duration.ofSeconds(30),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::notFoundAliasExpireAfterWriteDuration
+                ),
+                Arguments.of(
+                        "encryptionDekRefreshAfterWriteSeconds",
+                        4L,
+                        Duration.ofSeconds(4),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheRefreshAfterWriteDuration
+                ),
+                Arguments.of(
+                        "encryptionDekRefreshAfterWriteSeconds",
+                        "5",
+                        Duration.ofSeconds(5),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheRefreshAfterWriteDuration
+                ),
+                Arguments.of(
+                        "encryptionDekRefreshAfterWriteSeconds",
+                        null,
+                        Duration.ofHours(1),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheRefreshAfterWriteDuration
+                ),
+                Arguments.of(
+                        "encryptionDekExpireAfterWriteSeconds",
+                        4L,
+                        Duration.ofSeconds(4),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheExpireAfterWriteDuration
+                ),
+                Arguments.of(
+                        "encryptionDekExpireAfterWriteSeconds",
+                        "5",
+                        Duration.ofSeconds(5),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheExpireAfterWriteDuration
+                ),
+                Arguments.of(
+                        "encryptionDekExpireAfterWriteSeconds",
+                        null,
+                        Duration.ofHours(2),
+                        (Function<KmsCacheConfig, Duration>) KmsCacheConfig::encryptionDekCacheExpireAfterWriteDuration
+                )
+        );
     }
 
     @ParameterizedTest(name = "{0} - {1}")
@@ -93,7 +166,8 @@ class RecordEncryptionConfigTest {
                 Arguments.of("encryptionDekRefreshAfterWriteSeconds", List.of()),
                 Arguments.of("encryptionDekRefreshAfterWriteSeconds", "banana"),
                 Arguments.of("encryptionDekExpireAfterWriteSeconds", List.of()),
-                Arguments.of("encryptionDekExpireAfterWriteSeconds", "banana"));
+                Arguments.of("encryptionDekExpireAfterWriteSeconds", "banana")
+        );
     }
 
     @ParameterizedTest(name = "{0} - {1}")

@@ -30,31 +30,51 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     /**
      * Gives access to the Maven project information.
      */
-    @Parameter(defaultValue = "${project}", required = true, readonly = true)
+    @Parameter(
+            defaultValue = "${project}",
+            required = true,
+            readonly = true
+    )
     private MavenProject project;
 
-    @Parameter(required = true)
+    @Parameter(
+            required = true
+    )
     private File messageSpecDirectory;
 
-    @Parameter(defaultValue = "*.json")
+    @Parameter(
+            defaultValue = "*.json"
+    )
     private String messageSpecFilter;
 
-    @Parameter(required = true)
+    @Parameter(
+            required = true
+    )
     private File templateDirectory;
 
-    @Parameter(required = true)
+    @Parameter(
+            required = true
+    )
     private String templateNames;
 
-    @Parameter(required = true)
+    @Parameter(
+            required = true
+    )
     private String outputPackage;
 
-    @Parameter(defaultValue = "${messageSpecName}.java")
+    @Parameter(
+            defaultValue = "${messageSpecName}.java"
+    )
     private String outputFilePattern;
 
-    @Parameter(defaultValue = "compile")
+    @Parameter(
+            defaultValue = "compile"
+    )
     private String addToProjectSourceRoots;
 
-    @Parameter(defaultValue = "${project.build.directory}${file.separator}generated-sources${file.separator}/krpc")
+    @Parameter(
+            defaultValue = "${project.build.directory}${file.separator}generated-sources${file.separator}/krpc"
+    )
     private File outputDirectory;
 
     @Component
@@ -68,19 +88,19 @@ abstract class AbstractKrpcGeneratorMojo extends AbstractMojo {
     public void execute() throws MojoExecutionException, MojoFailureException {
         if (buildContext == null || !buildContext.isIncremental()) {
             List<String> templates = Stream.of(templateNames.split(","))
-                    .map(String::trim)
-                    .collect(Collectors.toList());
+                                           .map(String::trim)
+                                           .collect(Collectors.toList());
 
             KrpcGenerator gen = builder()
-                    .withLogger(new MavenLogger(KrpcGenerator.class.getName(), getLog()))
-                    .withMessageSpecDir(messageSpecDirectory)
-                    .withMessageSpecFilter(messageSpecFilter)
-                    .withTemplateDir(templateDirectory)
-                    .withTemplateNames(templates)
-                    .withOutputPackage(outputPackage)
-                    .withOutputDir(outputDirectory)
-                    .withOutputFilePattern(outputFilePattern)
-                    .build();
+                                         .withLogger(new MavenLogger(KrpcGenerator.class.getName(), getLog()))
+                                         .withMessageSpecDir(messageSpecDirectory)
+                                         .withMessageSpecFilter(messageSpecFilter)
+                                         .withTemplateDir(templateDirectory)
+                                         .withTemplateNames(templates)
+                                         .withOutputPackage(outputPackage)
+                                         .withOutputDir(outputDirectory)
+                                         .withOutputFilePattern(outputFilePattern)
+                                         .build();
 
             try {
                 gen.generate();

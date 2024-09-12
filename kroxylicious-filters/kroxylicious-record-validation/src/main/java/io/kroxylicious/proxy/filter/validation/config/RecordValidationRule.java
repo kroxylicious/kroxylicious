@@ -34,8 +34,12 @@ public class RecordValidationRule {
      * @param valueRule optional validation to apply to Record's value
      */
     @JsonCreator
-    public RecordValidationRule(@JsonProperty(value = "keyRule") BytebufValidation keyRule,
-                                @JsonProperty(value = "valueRule") BytebufValidation valueRule) {
+    public RecordValidationRule(
+            @JsonProperty(value = "keyRule")
+            BytebufValidation keyRule,
+            @JsonProperty(value = "valueRule")
+            BytebufValidation valueRule
+    ) {
         this.keyRule = keyRule;
         this.valueRule = valueRule;
     }
@@ -75,9 +79,14 @@ public class RecordValidationRule {
 
     @Override
     public String toString() {
-        return "RecordValidationRule{" +
-                "keyRule=" + keyRule +
-                ", valueRule=" + valueRule +
-                '}';
+        return "RecordValidationRule{"
+               +
+               "keyRule="
+               + keyRule
+               +
+               ", valueRule="
+               + valueRule
+               +
+               '}';
     }
 }

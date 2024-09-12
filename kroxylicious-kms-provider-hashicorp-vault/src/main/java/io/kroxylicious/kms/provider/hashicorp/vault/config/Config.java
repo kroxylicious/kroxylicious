@@ -25,9 +25,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param vaultToken the password provider that will provide the Vault token.
  */
 public record Config(
-                     @JsonProperty(value = "vaultTransitEngineUrl", required = true) URI vaultTransitEngineUrl,
-                     @JsonProperty(required = true) PasswordProvider vaultToken,
-                     Tls tls) {
+        @JsonProperty(value = "vaultTransitEngineUrl", required = true)
+        URI vaultTransitEngineUrl,
+        @JsonProperty(required = true)
+        PasswordProvider vaultToken,
+        Tls tls
+) {
     public Config {
         Objects.requireNonNull(vaultTransitEngineUrl);
         Objects.requireNonNull(vaultToken);
@@ -38,8 +41,7 @@ public record Config(
         try {
             if (tls == null) {
                 return SSLContext.getDefault();
-            }
-            else {
+            } else {
                 return new JdkTls(tls).sslContext();
             }
         }

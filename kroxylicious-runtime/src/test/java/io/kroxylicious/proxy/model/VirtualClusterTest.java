@@ -25,21 +25,38 @@ class VirtualClusterTest {
     @Test
     void shouldBuildSslContext() {
         // Given
-        final KeyPair keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"),
+        final KeyPair keyPair = new KeyPair(
+                TlsTestConstants.getResourceLocationOnFilesystem("server.key"),
                 TlsTestConstants.getResourceLocationOnFilesystem("server.crt"),
-                null);
-        final Optional<Tls> tls = Optional.of(new Tls(keyPair,
-                new InsecureTls(false)));
+                null
+        );
+        final Optional<Tls> tls = Optional.of(
+                new Tls(
+                        keyPair,
+                        new InsecureTls(false)
+                )
+        );
         final PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),
-                "localhost", 19092, 0, 1);
+                "localhost",
+                19092,
+                0,
+                1
+        );
         final PortPerBrokerClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider(
-                clusterNetworkAddressConfigProviderConfig);
+                clusterNetworkAddressConfigProviderConfig
+        );
 
         // When
 
-        final VirtualCluster virtualCluster = new VirtualCluster("wibble", new TargetCluster("bootstrap:9092", tls), clusterNetworkAddressConfigProvider, tls, false,
-                false);
+        final VirtualCluster virtualCluster = new VirtualCluster(
+                "wibble",
+                new TargetCluster("bootstrap:9092", tls),
+                clusterNetworkAddressConfigProvider,
+                tls,
+                false,
+                false
+        );
 
         // Then
         assertThat(virtualCluster).isNotNull().extracting("upstreamSslContext").isNotNull();

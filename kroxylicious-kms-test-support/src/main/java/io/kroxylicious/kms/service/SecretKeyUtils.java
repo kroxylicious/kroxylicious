@@ -22,13 +22,18 @@ public class SecretKeyUtils {
      * @param thatKey The other key
      * @return true if they keys have the same algorithm and key material.
      */
-    public static boolean same(@NonNull DestroyableRawSecretKey thisKey, @NonNull DestroyableRawSecretKey thatKey) {
+    public static boolean same(
+            @NonNull
+            DestroyableRawSecretKey thisKey,
+            @NonNull
+            DestroyableRawSecretKey thatKey
+    ) {
         if (thisKey == thatKey) {
             return true;
         }
         DestroyableRawSecretKey.checkNotDestroyed(Objects.requireNonNull(thisKey));
         DestroyableRawSecretKey.checkNotDestroyed(Objects.requireNonNull(thatKey));
         return thisKey.getAlgorithm().equals(thatKey.getAlgorithm())
-                && MessageDigest.isEqual(thisKey.getEncoded(), thatKey.getEncoded()); // note: constant time impl
+               && MessageDigest.isEqual(thisKey.getEncoded(), thatKey.getEncoded()); // note: constant time impl
     }
 }

@@ -15,7 +15,9 @@ import com.github.benmanes.caffeine.cache.LoadingCache;
 import io.kroxylicious.proxy.filter.oauthbearer.sasl.BackoffStrategy;
 
 public record SharedOauthBearerValidationContext(
-                                                 OauthBearerValidation.Config config,
-                                                 BackoffStrategy backoffStrategy,
-                                                 LoadingCache<String, AtomicInteger> rateLimiter,
-                                                 OAuthBearerValidatorCallbackHandler oauthHandler) {}
+        OauthBearerValidation.Config config,
+        BackoffStrategy backoffStrategy,
+        LoadingCache<String, AtomicInteger> rateLimiter,
+        OAuthBearerValidatorCallbackHandler oauthHandler
+) {
+}

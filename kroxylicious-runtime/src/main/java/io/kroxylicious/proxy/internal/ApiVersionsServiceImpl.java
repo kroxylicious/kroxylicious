@@ -30,8 +30,7 @@ public class ApiVersionsServiceImpl {
             if (ApiKeys.hasId(apiId)) {
                 ApiKeys apiKey = ApiKeys.forId(apiId);
                 intersectApiVersion(channel, key, apiKey);
-            }
-            else {
+            } else {
                 unknownApis.add(key);
             }
         }
@@ -48,23 +47,23 @@ public class ApiVersionsServiceImpl {
     private static void intersectApiVersion(String channel, ApiVersionsResponseData.ApiVersion key, ApiKeys apiKey) {
         short mutualMin = (short) Math.max(
                 key.minVersion(),
-                apiKey.messageType.lowestSupportedVersion());
+                apiKey.messageType.lowestSupportedVersion()
+        );
         if (mutualMin != key.minVersion()) {
             LOGGER.trace("{}: {} min version changed to {} (was: {})", channel, apiKey, mutualMin, key.maxVersion());
             key.setMinVersion(mutualMin);
-        }
-        else {
+        } else {
             LOGGER.trace("{}: {} min version unchanged (is: {})", channel, apiKey, mutualMin);
         }
 
         short mutualMax = (short) Math.min(
                 key.maxVersion(),
-                apiKey.messageType.highestSupportedVersion(true));
+                apiKey.messageType.highestSupportedVersion(true)
+        );
         if (mutualMax != key.maxVersion()) {
             LOGGER.trace("{}: {} max version changed to {} (was: {})", channel, apiKey, mutualMin, key.maxVersion());
             key.setMaxVersion(mutualMax);
-        }
-        else {
+        } else {
             LOGGER.trace("{}: {} max version unchanged (is: {})", channel, apiKey, mutualMin);
         }
     }

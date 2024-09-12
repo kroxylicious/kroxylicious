@@ -47,7 +47,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  * @param <K> The type of KEK reference
  */
 public class RecordEncryptionFilter<K>
-        implements ProduceRequestFilter, FetchResponseFilter {
+                                   implements ProduceRequestFilter, FetchResponseFilter {
     private static final Logger log = getLogger(RecordEncryptionFilter.class);
     private final TopicNameBasedKekSelector<K> kekSelector;
 
@@ -55,10 +55,13 @@ public class RecordEncryptionFilter<K>
     private final DecryptionManager decryptionManager;
     private final FilterThreadExecutor filterThreadExecutor;
 
-    RecordEncryptionFilter(EncryptionManager<K> encryptionManager,
-                           DecryptionManager decryptionManager,
-                           TopicNameBasedKekSelector<K> kekSelector,
-                           @NonNull FilterThreadExecutor filterThreadExecutor) {
+    RecordEncryptionFilter(
+            EncryptionManager<K> encryptionManager,
+            DecryptionManager decryptionManager,
+            TopicNameBasedKekSelector<K> kekSelector,
+            @NonNull
+            FilterThreadExecutor filterThreadExecutor
+    ) {
         this.kekSelector = kekSelector;
         this.encryptionManager = encryptionManager;
         this.decryptionManager = decryptionManager;
@@ -66,59 +69,65 @@ public class RecordEncryptionFilter<K>
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion,
-                                                                 RequestHeaderData header,
-                                                                 ProduceRequestData request,
-                                                                 FilterContext context) {
+    public CompletionStage<RequestFilterResult> onProduceRequest(
+            short apiVersion,
+            RequestHeaderData header,
+            ProduceRequestData request,
+            FilterContext context
+    ) {
         return maybeEncodeProduce(request, context)
-                .thenCompose(yy -> context.forwardRequest(header, request));
+                                                   .thenCompose(yy -> context.forwardRequest(header, request));
     }
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
         var topicNameToData = request.topicData().stream().collect(Collectors.toMap(TopicProduceData::name, Function.identity()));
         CompletionStage<Map<String, K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet()));
         return keks // figure out what keks we need
-                .thenCompose(kekMap -> {
-                    var futures = kekMap.entrySet().stream().flatMap(e -> {
-                        String topicName = e.getKey();
-                        var kekId = e.getValue();
-                        TopicProduceData tpd = topicNameToData.get(topicName);
-                        return tpd.partitionData().stream().map(ppd -> {
-                            // handle case where this topic is to be left unencrypted
-                            if (kekId == null) {
-                                return CompletableFuture.completedStage(ppd);
-                            }
-                            MemoryRecords records = (MemoryRecords) ppd.records();
-                            return encryptionManager.encrypt(
-                                    topicName,
-                                    ppd.index(),
-                                    new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
-                                    records,
-                                    context::createByteBufferOutputStream)
-                                    .thenApply(ppd::setRecords);
-                        });
-                    }).toList();
-                    return RecordEncryptionUtil.join(futures).thenApply(x -> request);
-                }).exceptionallyCompose(throwable -> {
-                    log.atWarn().setMessage("failed to encrypt records, cause message: {}")
-                            .addArgument(throwable.getMessage())
-                            .setCause(log.isDebugEnabled() ? throwable : null)
-                            .log();
-                    return CompletableFuture.failedStage(throwable);
-                });
+                   .thenCompose(kekMap -> {
+                       var futures = kekMap.entrySet().stream().flatMap(e -> {
+                           String topicName = e.getKey();
+                           var kekId = e.getValue();
+                           TopicProduceData tpd = topicNameToData.get(topicName);
+                           return tpd.partitionData().stream().map(ppd -> {
+                               // handle case where this topic is to be left unencrypted
+                               if (kekId == null) {
+                                   return CompletableFuture.completedStage(ppd);
+                               }
+                               MemoryRecords records = (MemoryRecords) ppd.records();
+                               return encryptionManager.encrypt(
+                                       topicName,
+                                       ppd.index(),
+                                       new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                                       records,
+                                       context::createByteBufferOutputStream
+                               )
+                                                       .thenApply(ppd::setRecords);
+                           });
+                       }).toList();
+                       return RecordEncryptionUtil.join(futures).thenApply(x -> request);
+                   })
+                   .exceptionallyCompose(throwable -> {
+                       log.atWarn()
+                          .setMessage("failed to encrypt records, cause message: {}")
+                          .addArgument(throwable.getMessage())
+                          .setCause(log.isDebugEnabled() ? throwable : null)
+                          .log();
+                       return CompletableFuture.failedStage(throwable);
+                   });
     }
 
     @Override
     public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, FilterContext context) {
         return maybeDecodeFetch(response.responses(), context)
-                .thenCompose(responses -> context.forwardResponse(header, response.setResponses(responses)))
-                .exceptionallyCompose(throwable -> {
-                    log.atWarn().setMessage("failed to decrypt records, cause message: {}")
-                            .addArgument(throwable.getMessage())
-                            .setCause(log.isDebugEnabled() ? throwable : null)
-                            .log();
-                    return CompletableFuture.failedStage(throwable);
-                });
+                                                              .thenCompose(responses -> context.forwardResponse(header, response.setResponses(responses)))
+                                                              .exceptionallyCompose(throwable -> {
+                                                                  log.atWarn()
+                                                                     .setMessage("failed to decrypt records, cause message: {}")
+                                                                     .addArgument(throwable.getMessage())
+                                                                     .setCause(log.isDebugEnabled() ? throwable : null)
+                                                                     .log();
+                                                                  return CompletableFuture.failedStage(throwable);
+                                                              });
     }
 
     private CompletionStage<List<FetchableTopicResponse>> maybeDecodeFetch(List<FetchableTopicResponse> topics, FilterContext context) {
@@ -132,9 +141,11 @@ public class RecordEncryptionFilter<K>
         return RecordEncryptionUtil.join(result);
     }
 
-    private CompletionStage<List<PartitionData>> maybeDecodePartitions(String topicName,
-                                                                       List<PartitionData> partitions,
-                                                                       FilterContext context) {
+    private CompletionStage<List<PartitionData>> maybeDecodePartitions(
+            String topicName,
+            List<PartitionData> partitions,
+            FilterContext context
+    ) {
         List<CompletionStage<PartitionData>> result = new ArrayList<>(partitions.size());
         for (PartitionData partitionData : partitions) {
             if (!(partitionData.records() instanceof MemoryRecords)) {
@@ -145,16 +156,19 @@ public class RecordEncryptionFilter<K>
         return RecordEncryptionUtil.join(result);
     }
 
-    private CompletionStage<PartitionData> maybeDecodeRecords(String topicName,
-                                                              PartitionData fpr,
-                                                              MemoryRecords memoryRecords,
-                                                              FilterContext context) {
+    private CompletionStage<PartitionData> maybeDecodeRecords(
+            String topicName,
+            PartitionData fpr,
+            MemoryRecords memoryRecords,
+            FilterContext context
+    ) {
         return decryptionManager.decrypt(
                 topicName,
                 fpr.partitionIndex(),
                 memoryRecords,
-                context::createByteBufferOutputStream)
-                .thenApply(fpr::setRecords);
+                context::createByteBufferOutputStream
+        )
+                                .thenApply(fpr::setRecords);
     }
 
 }

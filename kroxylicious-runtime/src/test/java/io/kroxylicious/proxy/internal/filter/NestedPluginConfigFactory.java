@@ -39,7 +39,12 @@ public class NestedPluginConfigFactory implements FilterFactory<NestedPluginConf
         return null;
     }
 
-    public record NestedPluginConfig(@PluginImplName(ExamplePluginFactory.class) @JsonProperty(required = true) String examplePlugin,
-                                     @PluginImplConfig(implNameProperty = "examplePlugin") Object examplePluginConfig) {}
+    public record NestedPluginConfig(
+            @PluginImplName(ExamplePluginFactory.class) @JsonProperty(required = true)
+            String examplePlugin,
+            @PluginImplConfig(implNameProperty = "examplePlugin")
+            Object examplePluginConfig
+    ) {
+    }
 
 }

@@ -13,7 +13,7 @@
       transactionTimeoutMs: 30000
       producerId: 0
       producerEpoch: 0
-    diff: []
+    diff: [ ]
   disabled: false
 - apiMessageType: INIT_PRODUCER_ID
   version: 4

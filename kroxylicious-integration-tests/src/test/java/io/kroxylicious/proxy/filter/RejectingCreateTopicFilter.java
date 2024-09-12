@@ -35,27 +35,31 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     }
 
     @Override
-    public CompletionStage<RequestFilterResult> onCreateTopicsRequest(short apiVersion, RequestHeaderData header, CreateTopicsRequestData request,
-                                                                      FilterContext context) {
+    public CompletionStage<RequestFilterResult> onCreateTopicsRequest(
+            short apiVersion,
+            RequestHeaderData header,
+            CreateTopicsRequestData request,
+            FilterContext context
+    ) {
         return forwardingStyle.apply(new ForwardingContext(context, constructionContext, request))
-                .thenCompose((u) -> {
-                    CreateTopicsResponseData response = new CreateTopicsResponseData();
-                    CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection();
-                    allocateByteBufToTestKroxyliciousReleasesIt(context);
-                    request.topics().forEach(creatableTopic -> {
-                        CreateTopicsResponseData.CreatableTopicResult result = new CreateTopicsResponseData.CreatableTopicResult();
-                        result.setErrorCode(Errors.INVALID_TOPIC_EXCEPTION.code()).setErrorMessage(ERROR_MESSAGE);
-                        result.setName(creatableTopic.name());
-                        topics.add(result);
-                    });
-                    response.setTopics(topics);
+                              .thenCompose((u) -> {
+                                  CreateTopicsResponseData response = new CreateTopicsResponseData();
+                                  CreateTopicsResponseData.CreatableTopicResultCollection topics = new CreateTopicsResponseData.CreatableTopicResultCollection();
+                                  allocateByteBufToTestKroxyliciousReleasesIt(context);
+                                  request.topics().forEach(creatableTopic -> {
+                                      CreateTopicsResponseData.CreatableTopicResult result = new CreateTopicsResponseData.CreatableTopicResult();
+                                      result.setErrorCode(Errors.INVALID_TOPIC_EXCEPTION.code()).setErrorMessage(ERROR_MESSAGE);
+                                      result.setName(creatableTopic.name());
+                                      topics.add(result);
+                                  });
+                                  response.setTopics(topics);
 
-                    var builder = context.requestFilterResultBuilder().shortCircuitResponse(response);
-                    if (withCloseConnection) {
-                        builder.withCloseConnection();
-                    }
-                    return builder.completed();
-                });
+                                  var builder = context.requestFilterResultBuilder().shortCircuitResponse(response);
+                                  if (withCloseConnection) {
+                                      builder.withCloseConnection();
+                                  }
+                                  return builder.completed();
+                              });
     }
 
     private static void allocateByteBufToTestKroxyliciousReleasesIt(FilterContext context) {
@@ -68,8 +72,12 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     public record RejectingCreateTopicFilterConfig(boolean withCloseConnection, ForwardingStyle forwardingStyle) {
 
         @JsonCreator
-        public RejectingCreateTopicFilterConfig(@JsonProperty(value = "withCloseConnection") boolean withCloseConnection,
-                                                @JsonProperty(value = "forwardingStyle") ForwardingStyle forwardingStyle) {
+        public RejectingCreateTopicFilterConfig(
+                @JsonProperty(value = "withCloseConnection")
+                boolean withCloseConnection,
+                @JsonProperty(value = "forwardingStyle")
+                ForwardingStyle forwardingStyle
+        ) {
             this.withCloseConnection = withCloseConnection;
             this.forwardingStyle = forwardingStyle == null ? ForwardingStyle.SYNCHRONOUS : forwardingStyle;
         }

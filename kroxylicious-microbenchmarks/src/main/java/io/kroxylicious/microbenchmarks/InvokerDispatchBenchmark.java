@@ -103,8 +103,14 @@ public class InvokerDispatchBenchmark {
                     invokerType.invokerWith(new FourInterfaceFilter2()),
                     invokerType.invokerWith(new FourInterfaceFilter3())
             };
-            final Map<ApiKeys, ApiMessage> messages = Map.of(ApiKeys.PRODUCE, new ProduceRequestData(), ApiKeys.API_VERSIONS, new ApiVersionsRequestData(), ApiKeys.FETCH,
-                    new FetchRequestData());
+            final Map<ApiKeys, ApiMessage> messages = Map.of(
+                    ApiKeys.PRODUCE,
+                    new ProduceRequestData(),
+                    ApiKeys.API_VERSIONS,
+                    new ApiVersionsRequestData(),
+                    ApiKeys.FETCH,
+                    new FetchRequestData()
+            );
             apiMessages = messages.entrySet().toArray(new Map.Entry[0]); // Avoids iterator.next showing up in the benchmarks
             requestHeaders = new RequestHeaderData();
             filterContext = new StubFilterContext();
@@ -144,8 +150,12 @@ public class InvokerDispatchBenchmark {
         }
     }
 
-    private static void invokeHandleRequest(FilterInvoker[] filters, Map.Entry<ApiKeys, ApiMessage>[] apiMessages, RequestHeaderData requestHeaders,
-                                            FilterContext filterContext) {
+    private static void invokeHandleRequest(
+            FilterInvoker[] filters,
+            Map.Entry<ApiKeys, ApiMessage>[] apiMessages,
+            RequestHeaderData requestHeaders,
+            FilterContext filterContext
+    ) {
         for (Map.Entry<ApiKeys, ApiMessage> entry : apiMessages) {
             final ApiKeys apiKey = entry.getKey();
             final short apiVersion = apiKey.latestVersion();

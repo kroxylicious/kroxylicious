@@ -19,13 +19,15 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
     private final CompletableFuture<?> promise;
     private final Filter recipient;
 
-    public InternalRequestFrame(short apiVersion,
-                                int correlationId,
-                                boolean decodeResponse,
-                                Filter recipient,
-                                CompletableFuture<?> promise,
-                                RequestHeaderData header,
-                                B body) {
+    public InternalRequestFrame(
+            short apiVersion,
+            int correlationId,
+            boolean decodeResponse,
+            Filter recipient,
+            CompletableFuture<?> promise,
+            RequestHeaderData header,
+            B body
+    ) {
         super(apiVersion, correlationId, decodeResponse, header, body);
         this.promise = promise;
         this.recipient = Objects.requireNonNull(recipient);

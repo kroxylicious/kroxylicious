@@ -6,13 +6,14 @@
 = Operating proxies
 
 [role="_abstract"]
-When operating proxies, introduce custom logging configurations with `log4j2` and set root log levels. 
-Set up an admin HTTP endpoint for Prometheus metrics scraping and integrate Micrometer for enhanced observability. 
+When operating proxies, introduce custom logging configurations with `log4j2` and set root log levels.
+Set up an admin HTTP endpoint for Prometheus metrics scraping and integrate Micrometer for enhanced observability.
 Configure common tags and standard binders for JVM and system metrics to ensure comprehensive monitoring and efficient proxy operation.
 
 == Logging
 
-The Kroxylicious {github-releases}[binary distribution^] bundles https://logging.apache.org/log4j/2.x[log4j2] as a logging backend. To customize the logging configuration users can:
+The Kroxylicious {github-releases}[binary distribution^] bundles https://logging.apache.org/log4j/2.x[log4j2] as a logging backend.
+To customize the logging configuration users can:
 
 === Use an Alternative Log4j configuration file
 
@@ -38,12 +39,13 @@ to configure the root log level (note this will be very verbose at DEBUG/TRACE)
 
 == Monitoring and observability
 
-Kroxylicious uses micrometer as a facade for gathering metrics. A Prometheus backend is the only supported implementation so far.
+Kroxylicious uses micrometer as a facade for gathering metrics.
+A Prometheus backend is the only supported implementation so far.
 
 === Admin HTTP Endpoint
 
-Kroxylicious offers a configurable, insecure, HTTP endpoint for administration purposes. It can
-offer:
+Kroxylicious offers a configurable, insecure, HTTP endpoint for administration purposes.
+It can offer:
 
 - Prometheus scrape endpoint at `/metrics`
 
@@ -55,8 +57,9 @@ adminHttp:
   endpoints:
     prometheus: {}
 ----
-Defaults to binding to `0.0.0.0:9190`. If no endpoints are configured the admin http server
-is not created.
+
+Defaults to binding to `0.0.0.0:9190`.
+If no endpoints are configured the admin http server is not created.
 
 #### complete configuration example
 
@@ -69,9 +72,10 @@ adminHttp:
     prometheus: {}  # <3>
 ----
 
-<1> Bind address for the server specified using either a hostname or interface address. If omitted, it will bind to all interfaces
-    (i.e. `0.0.0.0`).
-<2> Port number to be bound. If omitted port `9190` will be bound.
+<1> Bind address for the server specified using either a hostname or interface address.
+If omitted, it will bind to all interfaces (i.e. `0.0.0.0`).
+<2> Port number to be bound.
+If omitted port `9190` will be bound.
 <3> Enables the prometheus endpoint.
 
 === Micrometer Metrics
@@ -97,13 +101,13 @@ micrometer:
       binderNames:
       - "JvmGcMetrics" # <2>
 ----
+
 This configuration:
 
 <1> configures a common tag on the global micrometer registry of `zone: euc-1a` to add to all metrics (becomes a label in prometheus)
 <2> registers a JvmGcMetrics binder with the global registry (shipped with micrometer)
 
-Prometheus is connected to the micrometer global registry so Filters can record metrics against
-it, and they will be available as part of the Prometheus scrape data.
+Prometheus is connected to the micrometer global registry so Filters can record metrics against it, and they will be available as part of the Prometheus scrape data.
 
 If you executed `curl localhost:9999/metrics` you should see metrics like:
 
@@ -113,8 +117,8 @@ jvm_gc_memory_allocated_bytes_total{zone="euc-1a",} 0.0
 
 ==== Common Tags
 
-We can add common tags that will be added to all metrics. These will be available as labels
-from the Prometheus scrape.
+We can add common tags that will be added to all metrics.
+These will be available as labels from the Prometheus scrape.
 
 To configure common tags use configuration:
 
@@ -133,13 +137,11 @@ Micrometer has a concept of MeterBinder:
 
 > Binders register one or more metrics to provide information about the state of some aspect of the application or its container.
 
-By registering some standard binders shipped with micrometer you can expose metrics
-about the JVM and system which can observe JVM memory usage, garbage collection
-and other behaviour.
+By registering some standard binders shipped with micrometer you can expose metrics about the JVM and system which can observe JVM memory usage, garbage collection and other behaviour.
 
 To configure multiple binders you can use configuration like:
 
-[source, yaml]
+[source,yaml]
 ----
 micrometer:
   - type: "StandardBindersHook"
@@ -169,6 +171,6 @@ And those named binders will be bound to the global meter registry
 #### Micrometer Usage from Filters
 
 Filters can use the static methods of https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.10.5/io/micrometer/core/instrument/Metrics.html[Metrics]
-to register metrics with the global registry. Or use `Metrics.globalRegistry` to
-get a reference to the global registry. Metrics registered this way will be
-automatically available through the prometheus scrape endpoint.
+to register metrics with the global registry.
+Or use `Metrics.globalRegistry` to get a reference to the global registry.
+Metrics registered this way will be automatically available through the prometheus scrape endpoint.

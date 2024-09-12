@@ -33,9 +33,9 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
     @Override
     public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(ExtensionContext context) {
         return TestKmsFacadeFactory.getTestKmsFacadeFactories()
-                .filter(x -> x.getClass().getName().contains("systemtests"))
-                .map(TestKmsFacadeFactory::build)
-                .map(TestKubeKmsFacadeInvocationContextProvider.TemplateInvocationContext::new);
+                                   .filter(x -> x.getClass().getName().contains("systemtests"))
+                                   .map(TestKmsFacadeFactory::build)
+                                   .map(TestKubeKmsFacadeInvocationContextProvider.TemplateInvocationContext::new);
     }
 
     private record TemplateInvocationContext(TestKmsFacade<?, ?, ?> kmsFacade) implements TestTemplateInvocationContext {
@@ -49,8 +49,10 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
         public List<Extension> getAdditionalExtensions() {
             if (!kmsFacade.isAvailable()) {
                 return List.of(
-                        (ExecutionCondition) extensionContext -> kmsFacade.isAvailable() ? ConditionEvaluationResult.enabled(null)
-                                : ConditionEvaluationResult.disabled(null));
+                        (ExecutionCondition) extensionContext -> kmsFacade.isAvailable()
+                                ? ConditionEvaluationResult.enabled(null)
+                                : ConditionEvaluationResult.disabled(null)
+                );
             }
 
             return List.of(
@@ -61,7 +63,8 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                             return kmsFacade;
                         }
                     },
-                    (AfterEachCallback) extensionContext -> kmsFacade.stop());
+                    (AfterEachCallback) extensionContext -> kmsFacade.stop()
+            );
         }
     }
 }

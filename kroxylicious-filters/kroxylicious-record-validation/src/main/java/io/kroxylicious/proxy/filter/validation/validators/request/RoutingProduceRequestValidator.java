@@ -57,12 +57,17 @@ public class RoutingProduceRequestValidator implements ProduceRequestValidator {
 
     @Override
     public CompletionStage<ProduceRequestValidationResult> validateRequest(ProduceRequestData request) {
-        CompletableFuture<TopicValidationResult>[] results = request.topicData().stream()
-                .map(topicProduceData -> getTopicValidator(topicProduceData).validateTopicData(topicProduceData).toCompletableFuture())
-                .toArray(CompletableFuture[]::new);
+        CompletableFuture<TopicValidationResult>[] results = request.topicData()
+                                                                    .stream()
+                                                                    .map(
+                                                                            topicProduceData -> getTopicValidator(topicProduceData).validateTopicData(topicProduceData)
+                                                                                                                                   .toCompletableFuture()
+                                                                    )
+                                                                    .toArray(CompletableFuture[]::new);
         return CompletableFuture.allOf(results).thenApply(unused -> {
-            Map<String, TopicValidationResult> result = Arrays.stream(results).map(CompletableFuture::join)
-                    .collect(Collectors.toMap(TopicValidationResult::topicName, r -> r));
+            Map<String, TopicValidationResult> result = Arrays.stream(results)
+                                                              .map(CompletableFuture::join)
+                                                              .collect(Collectors.toMap(TopicValidationResult::topicName, r -> r));
             return new ProduceRequestValidationResult(result);
         });
     }

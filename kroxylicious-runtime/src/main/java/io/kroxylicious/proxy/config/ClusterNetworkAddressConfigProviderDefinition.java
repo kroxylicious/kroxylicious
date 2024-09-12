@@ -12,8 +12,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-public record ClusterNetworkAddressConfigProviderDefinition(@JsonProperty(required = true) String type,
-                                                            @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(ClusterNetworkAddressConfigProviderTypeIdResolver.class) Object config) {
+public record ClusterNetworkAddressConfigProviderDefinition(
+        @JsonProperty(required = true)
+        String type,
+        @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(
+            ClusterNetworkAddressConfigProviderTypeIdResolver.class)
+        Object config
+) {
 
     @JsonCreator
     public ClusterNetworkAddressConfigProviderDefinition {

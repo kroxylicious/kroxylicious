@@ -108,17 +108,23 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     public static void init() throws IOException {
         // An Apicurio Registry instance is required for this test to work, so we start one using a Generic Container
         DockerImageName dockerImageName = DockerImageName.parse("quay.io/apicurio/apicurio-registry-mem")
-                .withTag("2.5.11.Final");
+                                                         .withTag("2.5.11.Final");
 
         Consumer<CreateContainerCmd> cmd = e -> e.withPortBindings(
-                new PortBinding(Ports.Binding.bindPort(APICURIO_REGISTRY_PORT), new ExposedPort(APICURIO_REGISTRY_PORT)));
+                new PortBinding(Ports.Binding.bindPort(APICURIO_REGISTRY_PORT), new ExposedPort(APICURIO_REGISTRY_PORT))
+        );
 
         registryContainer = new GenericContainer<>(dockerImageName)
-                .withEnv(Map.of(
-                        "QUARKUS_HTTP_PORT", String.valueOf(APICURIO_REGISTRY_PORT),
-                        "REGISTRY_APIS_V2_DATE_FORMAT", "yyyy-MM-dd'T'HH:mm:ss'Z'"))
-                .withExposedPorts(APICURIO_REGISTRY_PORT)
-                .withCreateContainerCmdModifier(cmd);
+                                                                   .withEnv(
+                                                                           Map.of(
+                                                                                   "QUARKUS_HTTP_PORT",
+                                                                                   String.valueOf(APICURIO_REGISTRY_PORT),
+                                                                                   "REGISTRY_APIS_V2_DATE_FORMAT",
+                                                                                   "yyyy-MM-dd'T'HH:mm:ss'Z'"
+                                                                           )
+                                                                   )
+                                                                   .withExposedPorts(APICURIO_REGISTRY_PORT)
+                                                                   .withCreateContainerCmdModifier(cmd);
 
         registryContainer.start();
         registryContainer.waitingFor(Wait.forLogMessage(".*Installed features:*", 1));
@@ -177,7 +183,8 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         }
     }
 
-    record PersonBean(String firstName, String lastName, int age) {}
+    record PersonBean(String firstName, String lastName, int age) {
+    }
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
@@ -255,43 +262,82 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         }
     }
 
-    private static <T, S, U> void assertSingleRecordInTopicHasProperty(ConsumerRecords<T, S> records, Topic topic,
-                                                                       ThrowingExtractor<ConsumerRecord<T, S>, U, RuntimeException> property, U expected) {
+    private static <T, S, U> void assertSingleRecordInTopicHasProperty(
+            ConsumerRecords<T, S> records,
+            Topic topic,
+            ThrowingExtractor<ConsumerRecord<T, S>, U, RuntimeException> property,
+            U expected
+    ) {
         assertThat(records.records(topic.name()))
-                .hasSize(1)
-                .map(property)
-                .containsExactly(expected);
+                                                 .hasSize(1)
+                                                 .map(property)
+                                                 .containsExactly(expected);
     }
 
     private static @NonNull JsonSchemaSerde<Object> createJsonSchemaConsumerSerde(boolean isKey) {
         var consumerKeySerde = new JsonSchemaSerde<>();
-        consumerKeySerde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL), isKey);
+        consumerKeySerde.configure(
+                Map.of(
+                        SerdeConfig.REGISTRY_URL,
+                        APICURIO_REGISTRY_URL
+                ),
+                isKey
+        );
         return consumerKeySerde;
     }
 
     private static @NonNull JsonSchemaSerde<PersonBean> createJsonSchemaProducerSerde(boolean schemaIdInHeader, boolean isKey) {
         var producerKeySerde = new JsonSchemaSerde<PersonBean>();
-        producerKeySerde.configure(Map.of(
-                SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
-                SerdeConfig.EXPLICIT_ARTIFACT_ID, FIRST_ARTIFACT_ID,
-                SerdeConfig.ENABLE_HEADERS, schemaIdInHeader), isKey);
+        producerKeySerde.configure(
+                Map.of(
+                        SerdeConfig.REGISTRY_URL,
+                        APICURIO_REGISTRY_URL,
+                        SerdeConfig.EXPLICIT_ARTIFACT_ID,
+                        FIRST_ARTIFACT_ID,
+                        SerdeConfig.ENABLE_HEADERS,
+                        schemaIdInHeader
+                ),
+                isKey
+        );
         return producerKeySerde;
     }
 
     private static ConfigurationBuilder createGlobalIdRecordValidationConfig(KafkaCluster cluster, Topic topic, String ruleType, long globalId) {
         return proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", globalId)))))
-                        .build());
+                             .addToFilters(
+                                     new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig(
+                                             "rules",
+                                             List.of(
+                                                     Map.of(
+                                                             "topicNames",
+                                                             List.of(topic.name()),
+                                                             ruleType,
+                                                             Map.of(
+                                                                     "schemaValidationConfig",
+                                                                     Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", globalId)
+                                                             )
+                                                     )
+                                             )
+                                     )
+                                                                                                  .build()
+                             );
     }
 
-    private static <T, S> org.apache.kafka.clients.consumer.Consumer<T, S> consumeFromEarliestOffsets(KroxyliciousTester tester, Serde<T> keySerde,
-                                                                                                      Serde<S> valueSerde) {
-        return tester.consumer(keySerde, valueSerde, Map.of(
-                GROUP_ID_CONFIG, "my-group-id",
-                AUTO_OFFSET_RESET_CONFIG, "earliest"));
+    private static <T, S> org.apache.kafka.clients.consumer.Consumer<T, S> consumeFromEarliestOffsets(
+            KroxyliciousTester tester,
+            Serde<T> keySerde,
+            Serde<S> valueSerde
+    ) {
+        return tester.consumer(
+                keySerde,
+                valueSerde,
+                Map.of(
+                        GROUP_ID_CONFIG,
+                        "my-group-id",
+                        AUTO_OFFSET_RESET_CONFIG,
+                        "earliest"
+                )
+        );
     }
 
     @AfterAll

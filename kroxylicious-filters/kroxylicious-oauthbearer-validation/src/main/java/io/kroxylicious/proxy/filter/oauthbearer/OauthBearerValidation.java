@@ -65,13 +65,18 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
         oauthHandler.configure(
                 createSaslConfigMap(configWithDefaults),
                 OAUTHBEARER_MECHANISM,
-                createDefaultJaasConfig());
+                createDefaultJaasConfig()
+        );
         LoadingCache<String, AtomicInteger> rateLimiter = Caffeine.newBuilder()
-                .expireAfterWrite(configWithDefaults.authenticateBackOffMaxMs(), TimeUnit.MILLISECONDS)
-                .maximumSize(configWithDefaults.authenticateCacheMaxSize())
-                .build(key -> new AtomicInteger(0));
-        ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
-                ThreadLocalRandom.current());
+                                                                  .expireAfterWrite(configWithDefaults.authenticateBackOffMaxMs(), TimeUnit.MILLISECONDS)
+                                                                  .maximumSize(configWithDefaults.authenticateCacheMaxSize())
+                                                                  .build(key -> new AtomicInteger(0));
+        ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(
+                Duration.ofMillis(500),
+                Duration.ofSeconds(5),
+                2d,
+                ThreadLocalRandom.current()
+        );
         return new SharedOauthBearerValidationContext(configWithDefaults, backoffStrategy, rateLimiter, oauthHandler);
     }
 
@@ -87,30 +92,51 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
     }
 
     public record Config(
-                         @JsonProperty(required = true) URI jwksEndpointUrl,
-                         @JsonProperty Long jwksEndpointRefreshMs,
-                         @JsonProperty Long jwksEndpointRetryBackoffMs,
-                         @JsonProperty Long jwksEndpointRetryBackoffMaxMs,
-                         @JsonProperty String scopeClaimName,
-                         @JsonProperty String subClaimName,
-                         @JsonProperty Long authenticateBackOffMaxMs,
-                         @JsonProperty Long authenticateCacheMaxSize,
-                         @JsonProperty String expectedAudience,
-                         @JsonProperty String expectedIssuer) {}
+            @JsonProperty(required = true)
+            URI jwksEndpointUrl,
+            @JsonProperty
+            Long jwksEndpointRefreshMs,
+            @JsonProperty
+            Long jwksEndpointRetryBackoffMs,
+            @JsonProperty
+            Long jwksEndpointRetryBackoffMaxMs,
+            @JsonProperty
+            String scopeClaimName,
+            @JsonProperty
+            String subClaimName,
+            @JsonProperty
+            Long authenticateBackOffMaxMs,
+            @JsonProperty
+            Long authenticateCacheMaxSize,
+            @JsonProperty
+            String expectedAudience,
+            @JsonProperty
+            String expectedIssuer
+    ) {
+    }
 
     private Map<String, ?> createSaslConfigMap(Config config) {
-        Map<String, Object> saslConfig = new HashMap<>(Map.of(
-                SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_URL, config.jwksEndpointUrl().toString(),
-                SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS, config.jwksEndpointRefreshMs(),
-                SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS, config.jwksEndpointRetryBackoffMs(),
-                SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS, config.jwksEndpointRetryBackoffMaxMs(),
-                SaslConfigs.SASL_OAUTHBEARER_SCOPE_CLAIM_NAME, config.scopeClaimName(),
-                SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME, config.subClaimName()));
+        Map<String, Object> saslConfig = new HashMap<>(
+                Map.of(
+                        SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_URL,
+                        config.jwksEndpointUrl().toString(),
+                        SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS,
+                        config.jwksEndpointRefreshMs(),
+                        SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS,
+                        config.jwksEndpointRetryBackoffMs(),
+                        SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS,
+                        config.jwksEndpointRetryBackoffMaxMs(),
+                        SaslConfigs.SASL_OAUTHBEARER_SCOPE_CLAIM_NAME,
+                        config.scopeClaimName(),
+                        SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME,
+                        config.subClaimName()
+                )
+        );
         if (config.expectedAudience() != null) {
             List<String> audience = Arrays.stream(config.expectedAudience().split(","))
-                    .map(String::trim)
-                    .filter(element -> !element.isEmpty())
-                    .toList();
+                                          .map(String::trim)
+                                          .filter(element -> !element.isEmpty())
+                                          .toList();
             saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_EXPECTED_AUDIENCE, audience);
         }
         if (config.expectedIssuer() != null) {
@@ -134,7 +160,8 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
                 defaultIfNullOrNegative(config.authenticateBackOffMaxMs(), 60000L),
                 defaultIfNullOrNonPositive(config.authenticateCacheMaxSize(), 1000L),
                 defaultIfNullOrEmpty(config.expectedAudience(), null),
-                defaultIfNullOrEmpty(config.expectedIssuer(), null));
+                defaultIfNullOrEmpty(config.expectedIssuer(), null)
+        );
     }
 
     private Long defaultIfNullOrNegative(Long value, Long defaultValue) {

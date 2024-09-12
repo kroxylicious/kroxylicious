@@ -17,8 +17,12 @@ import io.kroxylicious.proxy.service.HostPort;
 /**
  * Represents the target (upstream) kafka cluster.
  */
-public record TargetCluster(@JsonProperty(value = "bootstrap_servers", required = true) String bootstrapServers,
-                            @JsonProperty(value = "tls") Optional<Tls> tls) {
+public record TargetCluster(
+        @JsonProperty(value = "bootstrap_servers", required = true)
+        String bootstrapServers,
+        @JsonProperty(value = "tls")
+        Optional<Tls> tls
+) {
 
     /**
      * A list of host/port pairs to use for establishing the initial connection to the target (upstream) Kafka cluster.

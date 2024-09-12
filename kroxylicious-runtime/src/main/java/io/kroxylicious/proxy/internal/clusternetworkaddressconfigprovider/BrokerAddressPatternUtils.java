@@ -35,9 +35,11 @@ final class BrokerAddressPatternUtils {
 
     }
 
-    static void validateStringContainsOnlyExpectedTokens(String stringWithPossibleTokens,
-                                                         Set<String> allowedTokens,
-                                                         Consumer<String> disallowedTokenConsumer) {
+    static void validateStringContainsOnlyExpectedTokens(
+            String stringWithPossibleTokens,
+            Set<String> allowedTokens,
+            Consumer<String> disallowedTokenConsumer
+    ) {
         Objects.requireNonNull(stringWithPossibleTokens);
         Objects.requireNonNull(allowedTokens);
         Objects.requireNonNull(disallowedTokenConsumer);
@@ -46,9 +48,11 @@ final class BrokerAddressPatternUtils {
         tokens.forEach(disallowedTokenConsumer);
     }
 
-    static void validateStringContainsRequiredTokens(String stringWithTokens,
-                                                     Set<String> requiredTokens,
-                                                     Consumer<String> requiredTokenAbsentConsumer) {
+    static void validateStringContainsRequiredTokens(
+            String stringWithTokens,
+            Set<String> requiredTokens,
+            Consumer<String> requiredTokenAbsentConsumer
+    ) {
         Objects.requireNonNull(stringWithTokens);
         Objects.requireNonNull(requiredTokens);
         Objects.requireNonNull(requiredTokenAbsentConsumer);

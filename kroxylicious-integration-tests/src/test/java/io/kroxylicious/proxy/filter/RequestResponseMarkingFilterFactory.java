@@ -13,18 +13,23 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 @Plugin(configType = RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig.class)
 public class RequestResponseMarkingFilterFactory
-        implements FilterFactory<RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig, RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig> {
+                                                 implements
+                                                 FilterFactory<RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig, RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig> {
 
     @Override
-    public RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig initialize(FilterFactoryContext context,
-                                                                                      RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig config) {
+    public RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig initialize(
+            FilterFactoryContext context,
+            RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig config
+    ) {
         return Plugins.requireConfig(this, config);
     }
 
     @NonNull
     @Override
-    public RequestResponseMarkingFilter createFilter(FilterFactoryContext context,
-                                                     RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig configuration) {
+    public RequestResponseMarkingFilter createFilter(
+            FilterFactoryContext context,
+            RequestResponseMarkingFilter.RequestResponseMarkingFilterConfig configuration
+    ) {
         return new RequestResponseMarkingFilter(context, configuration);
     }
 

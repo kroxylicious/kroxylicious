@@ -26,8 +26,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 public class KafkaApiMessageConverter {
 
-    public record Converter(BiFunction<JsonNode, Short, ApiMessage> reader,
-                            BiFunction<ApiMessage, Short, JsonNode> writer) {
+    public record Converter(
+            BiFunction<JsonNode, Short, ApiMessage> reader,
+            BiFunction<ApiMessage, Short, JsonNode> writer) {
     }
 
     private static final Map<ApiMessageType, Converter> requestConverters;
@@ -41,12 +42,12 @@ public class KafkaApiMessageConverter {
     <#if messageSpec.type?lower_case == 'request'>
         reqc.put(ApiMessageType.${retrieveApiKey(messageSpec)}, new Converter(
                     ${messageSpec.name}DataJsonConverter::read,
-                (o, ver) -> ${messageSpec.name}DataJsonConverter.write(((${messageSpec.name}Data) o), ver)));
+                    (o, ver) -> ${messageSpec.name}DataJsonConverter.write(((${messageSpec.name}Data) o), ver)));
     </#if>
     <#if messageSpec.type?lower_case == 'response'>
         resc.put(ApiMessageType.${retrieveApiKey(messageSpec)}, new Converter(
                     ${messageSpec.name}DataJsonConverter::read,
-                (o, ver) -> ${messageSpec.name}DataJsonConverter.write(((${messageSpec.name}Data) o), ver)));
+                    (o, ver) -> ${messageSpec.name}DataJsonConverter.write(((${messageSpec.name}Data) o), ver)));
     </#if>
 </#list>
         requestConverters = Collections.unmodifiableMap(reqc);

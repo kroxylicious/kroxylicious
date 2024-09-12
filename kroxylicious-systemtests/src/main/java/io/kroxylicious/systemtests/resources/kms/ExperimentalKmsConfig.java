@@ -9,9 +9,14 @@ package io.kroxylicious.systemtests.resources.kms;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record ExperimentalKmsConfig(
-                                    @JsonProperty Long resolvedAliasExpireAfterWriteSeconds,
-                                    @JsonProperty Long resolvedAliasRefreshAfterWriteSeconds,
-                                    @JsonProperty Long encryptionDekRefreshAfterWriteSeconds,
-                                    @JsonProperty Long encryptionDekExpireAfterWriteSeconds) {
+        @JsonProperty
+        Long resolvedAliasExpireAfterWriteSeconds,
+        @JsonProperty
+        Long resolvedAliasRefreshAfterWriteSeconds,
+        @JsonProperty
+        Long encryptionDekRefreshAfterWriteSeconds,
+        @JsonProperty
+        Long encryptionDekExpireAfterWriteSeconds
+) {
 
 }

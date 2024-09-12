@@ -41,7 +41,8 @@ public class ResponseOrderer extends ChannelDuplexHandler {
     Map<Integer, QueuedResponse> queuedResponses = new HashMap<>();
     private static final Logger logger = LoggerFactory.getLogger(ResponseOrderer.class);
 
-    record QueuedResponse(Object msg, ChannelPromise promise) {}
+    record QueuedResponse(Object msg, ChannelPromise promise) {
+    }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -49,8 +50,7 @@ public class ResponseOrderer extends ChannelDuplexHandler {
             if (requestFrame.hasResponse()) {
                 inflightCorrelationIds.addLast(requestFrame.correlationId());
             }
-        }
-        else if (msg instanceof Frame frame) {
+        } else if (msg instanceof Frame frame) {
             inflightCorrelationIds.addLast(frame.correlationId());
         }
         super.channelRead(ctx, msg);
@@ -63,17 +63,14 @@ public class ResponseOrderer extends ChannelDuplexHandler {
             if (oldestCorrelationId == null) {
                 logger.warn("Handling a Frame {}, but we have no inflight correlation ids, continuing to write", msg);
                 super.write(ctx, msg, promise);
-            }
-            else if (oldestCorrelationId == responseFrame.correlationId()) {
+            } else if (oldestCorrelationId == responseFrame.correlationId()) {
                 inflightCorrelationIds.removeFirst();
                 super.write(ctx, msg, promise);
                 drainQueue(ctx);
-            }
-            else {
+            } else {
                 queuedResponses.put(responseFrame.correlationId(), new QueuedResponse(msg, promise));
             }
-        }
-        else {
+        } else {
             super.write(ctx, msg, promise);
         }
     }

@@ -9,6 +9,9 @@ package io.kroxylicious.test;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
-public record ResponsePayload(ApiKeys apiKeys,
-                              short apiVersion,
-                              ApiMessage message) {}
+public record ResponsePayload(
+        ApiKeys apiKeys,
+        short apiVersion,
+        ApiMessage message
+) {
+}

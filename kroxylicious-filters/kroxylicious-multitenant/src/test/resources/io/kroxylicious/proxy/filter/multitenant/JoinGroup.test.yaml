@@ -14,7 +14,7 @@
       memberId: mymemberid
       groupInstanceId: mygroupinstanceid
       protocolType: consumer
-      protocols: []
+      protocols: [ ]
       reason: reason
     diff:
       - op: replace

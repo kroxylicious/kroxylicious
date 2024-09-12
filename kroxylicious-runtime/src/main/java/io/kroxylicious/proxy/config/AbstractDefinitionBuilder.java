@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public abstract class AbstractDefinitionBuilder<D> {
     protected static final ObjectMapper mapper;
+
     static {
         mapper = ConfigParser.createObjectMapper();
     }

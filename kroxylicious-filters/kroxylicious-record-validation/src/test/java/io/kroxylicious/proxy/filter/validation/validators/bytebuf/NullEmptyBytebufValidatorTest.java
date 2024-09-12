@@ -43,8 +43,8 @@ class NullEmptyBytebufValidatorTest {
         var result = validator.validate(record.key(), record, true);
 
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
 
         verifyNoInteractions(mockValidator);
     }
@@ -58,8 +58,8 @@ class NullEmptyBytebufValidatorTest {
         var result = validator.validate(record.key(), record, true);
 
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(false, Result::valid);
 
         verifyNoInteractions(mockValidator);
     }
@@ -73,8 +73,8 @@ class NullEmptyBytebufValidatorTest {
         var result = validator.validate(record.key(), record, true);
 
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
 
         verifyNoInteractions(mockValidator);
     }
@@ -87,8 +87,8 @@ class NullEmptyBytebufValidatorTest {
         var result = validator.validate(record.key(), record, true);
 
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(false, Result::valid);
 
         verifyNoInteractions(mockValidator);
     }
@@ -102,8 +102,8 @@ class NullEmptyBytebufValidatorTest {
         var result = validator.validate(record.value(), record, false);
 
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
 
         verifyNoInteractions(mockValidator);
     }
@@ -119,8 +119,8 @@ class NullEmptyBytebufValidatorTest {
         var result = validator.validate(record.key(), record, true);
 
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(true, Result::valid);
 
         verify(mockValidator, times(1)).validate(any(ByteBuffer.class), any(Record.class), anyBoolean());
     }
@@ -136,9 +136,9 @@ class NullEmptyBytebufValidatorTest {
         var result = validator.validate(record.key(), record, true);
 
         assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, Result::valid)
-                .returns("FAIL", Result::errorMessage);
+                          .succeedsWithin(Duration.ofSeconds(1))
+                          .returns(false, Result::valid)
+                          .returns("FAIL", Result::errorMessage);
 
         verify(mockValidator, times(1)).validate(any(ByteBuffer.class), any(Record.class), anyBoolean());
     }
@@ -152,8 +152,7 @@ class NullEmptyBytebufValidatorTest {
             when(mock.hasKey()).thenReturn(hasField);
             when(mock.keySize()).thenReturn(fieldSize);
             when(mock.key()).thenReturn(fieldBuf);
-        }
-        else {
+        } else {
             when(mock.hasValue()).thenReturn(hasField);
             when(mock.valueSize()).thenReturn(fieldSize);
             when(mock.value()).thenReturn(fieldBuf);

@@ -72,19 +72,29 @@ class OauthBearerValidationIT {
     private static final URI TOKEN_ENDPOINT_URL = OAUTH_ENDPOINT_URL.resolve("default/token");
     private static final String EXPECTED_AUDIENCE = "default";
     private static final String BAD_TOKEN = "eyJraWQiOiJkZWZhdWx0IiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ."
-            + "eyJzdWIiOiJjbGllbnRJZElnbm9yZSIsImF1ZCI6ImRlZmF1bHQiLCJuYmYiOjE3MjA3MjIyOTAsImF6cCI6ImNsaWVudElkSWdub3JlIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDoyODA4OS9kZWZhdWx0IiwiZXhwIjoxNzIwNzI1ODkwLCJpYXQiOjE3MjA3MjIyOTAsImp0aSI6IjE0MGZjMmFhLWRjZmQtNDE1Mi05MWJmLWQyMDZiM2M1MzAxZiIsInRpZCI6ImRlZmF1bHQifQ."
-            + "I4LUI4Lp6XwUzD-UN2LDRfiNPCvhHDQJVH_LCE4gkuY5UxrRMJ8H3C9408zmjGPRChWmKU4aRIy8rtSPbfRmDLenoM91dr1mDy8B01TZohEOACnAxBSvsN73-cNUUvaRzZmMeUkGbmgEtGhqZ2d3MELe7bm0fEyuNRyM9fv-AahGm551hchMe3bzeYjbcBKuatKYoiHuPTX_HuNF4AAwI_vz_lYzHliKDmPRJwpsaMUaCtsfUKbSzpRPe6X2FWWkkgOLtCD-W14sp3r8z2KrHryH_ILz2MtPvIlvmkJE8U0CRaVyQ-6L2sL-iUdXoUGTHmV384X2R-cy5gKFhN3Ibg"; // notsecret
+                                            + "eyJzdWIiOiJjbGllbnRJZElnbm9yZSIsImF1ZCI6ImRlZmF1bHQiLCJuYmYiOjE3MjA3MjIyOTAsImF6cCI6ImNsaWVudElkSWdub3JlIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDoyODA4OS9kZWZhdWx0IiwiZXhwIjoxNzIwNzI1ODkwLCJpYXQiOjE3MjA3MjIyOTAsImp0aSI6IjE0MGZjMmFhLWRjZmQtNDE1Mi05MWJmLWQyMDZiM2M1MzAxZiIsInRpZCI6ImRlZmF1bHQifQ."
+                                            + "I4LUI4Lp6XwUzD-UN2LDRfiNPCvhHDQJVH_LCE4gkuY5UxrRMJ8H3C9408zmjGPRChWmKU4aRIy8rtSPbfRmDLenoM91dr1mDy8B01TZohEOACnAxBSvsN73-cNUUvaRzZmMeUkGbmgEtGhqZ2d3MELe7bm0fEyuNRyM9fv-AahGm551hchMe3bzeYjbcBKuatKYoiHuPTX_HuNF4AAwI_vz_lYzHliKDmPRJwpsaMUaCtsfUKbSzpRPe6X2FWWkkgOLtCD-W14sp3r8z2KrHryH_ILz2MtPvIlvmkJE8U0CRaVyQ-6L2sL-iUdXoUGTHmV384X2R-cy5gKFhN3Ibg"; // notsecret
     private static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC = "kroxylicious_payload_size_bytes_count";
     private static final Predicate<SimpleMetric> UPSTREAM_SASL_HANDSHAKE_LABELS_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
-            && m.labels().entrySet().containsAll(
-                    Map.of("ApiKey", "SASL_HANDSHAKE", "flowing", "upstream").entrySet());
+                                                                                                 && m.labels()
+                                                                                                     .entrySet()
+                                                                                                     .containsAll(
+                                                                                                             Map.of("ApiKey", "SASL_HANDSHAKE", "flowing", "upstream")
+                                                                                                                .entrySet()
+                                                                                                     );
     private static final Predicate<SimpleMetric> DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
-            && m.labels().entrySet().containsAll(
-                    Map.of("ApiKey", "SASL_AUTHENTICATE", "flowing", "downstream").entrySet());
+                                                                                               && m.labels()
+                                                                                                   .entrySet()
+                                                                                                   .containsAll(
+                                                                                                           Map.of("ApiKey", "SASL_AUTHENTICATE", "flowing", "downstream")
+                                                                                                              .entrySet()
+                                                                                                   );
     @SaslMechanism(value = OAuthBearerLoginModule.OAUTHBEARER_MECHANISM)
     @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.jwks.endpoint.url", value = JWKS_ENDPOINT_URL)
     @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.expected.audience", value = EXPECTED_AUDIENCE)
-    @BrokerConfig(name = "listener.name.external.oauthbearer.sasl.server.callback.handler.class", value = "org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler")
+    @BrokerConfig(
+            name = "listener.name.external.oauthbearer.sasl.server.callback.handler.class",
+            value = "org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler")
     KafkaCluster cluster;
     private static OauthServerContainer oauthServer;
 
@@ -135,21 +145,26 @@ class OauthBearerValidationIT {
             var saslAuthenticationResponsesComingDown = findFirstMetricMatching(allMetrics, DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE);
 
             assertThat(saslHandshakeRequestsGoingUpCount)
-                    .isPresent()
-                    .get(DOUBLE)
-                    .withFailMessage("Expecting proxy to have seen at least two handshake requests (one for metadata, one for broker) from downstream")
-                    .isGreaterThanOrEqualTo(2);
+                                                         .isPresent()
+                                                         .get(DOUBLE)
+                                                         .withFailMessage(
+                                                                 "Expecting proxy to have seen at least two handshake requests (one for metadata, one for broker) from downstream"
+                                                         )
+                                                         .isGreaterThanOrEqualTo(2);
 
             assertThat(saslAuthenticationResponsesComingDown)
-                    .isPresent()
-                    .get(DOUBLE)
-                    .withFailMessage("Expecting proxy to have seen at the same number of authentication responses from the broker as were handshake requests")
-                    .isEqualTo(saslHandshakeRequestsGoingUpCount.get());
+                                                             .isPresent()
+                                                             .get(DOUBLE)
+                                                             .withFailMessage(
+                                                                     "Expecting proxy to have seen at the same number of authentication responses from the broker as were handshake requests"
+                                                             )
+                                                             .isEqualTo(saslHandshakeRequestsGoingUpCount.get());
         }
     }
 
     @Test
-    void authWithBadToken(@TempDir Path tempdir) throws Exception {
+    void authWithBadToken(@TempDir
+    Path tempdir) throws Exception {
         var badTokenFile = Files.createTempFile(tempdir, "badtoken", "b64");
         Files.writeString(badTokenFile, BAD_TOKEN);
         var config = getClientConfig(badTokenFile.toUri());
@@ -158,8 +173,8 @@ class OauthBearerValidationIT {
                 var admin = tester.admin(config);
                 var ahc = tester.getAdminHttpClient()) {
             assertThatThrownBy(() -> performClusterOperation(admin))
-                    .isInstanceOf(SaslAuthenticationException.class)
-                    .hasMessageContaining("invalid_token");
+                                                                    .isInstanceOf(SaslAuthenticationException.class)
+                                                                    .hasMessageContaining("invalid_token");
 
             var allMetrics = ahc.scrapeMetrics();
 
@@ -167,10 +182,10 @@ class OauthBearerValidationIT {
             var saslAuthenticationResponsesComingDown = findFirstMetricMatching(allMetrics, DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE);
 
             assertThat(saslHandshakeRequestsGoingUpCount)
-                    .isPresent()
-                    .get(DOUBLE)
-                    .withFailMessage("Expecting proxy to have seen at least one handshake requests from downstream")
-                    .isPositive();
+                                                         .isPresent()
+                                                         .get(DOUBLE)
+                                                         .withFailMessage("Expecting proxy to have seen at least one handshake requests from downstream")
+                                                         .isPositive();
 
             assertThat(saslAuthenticationResponsesComingDown).isNotPresent();
         }
@@ -179,24 +194,31 @@ class OauthBearerValidationIT {
 
     private Optional<Double> findFirstMetricMatching(List<SimpleMetric> all, Predicate<SimpleMetric> predicate) {
         return all.stream()
-                .filter(predicate)
-                .findFirst()
-                .map(SimpleMetric::value);
+                  .filter(predicate)
+                  .findFirst()
+                  .map(SimpleMetric::value);
     }
 
     private ConfigurationBuilder getConfiguredProxyBuilder() {
         return proxy(cluster)
-                .withNewAdminHttp()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endAdminHttp()
-                .addToFilters(new FilterDefinitionBuilder(
-                        OauthBearerValidation.class.getName())
-                        .withConfig("jwksEndpointUrl", JWKS_ENDPOINT_URL,
-                                "expectedAudience", EXPECTED_AUDIENCE)
-                        .build());
+                             .withNewAdminHttp()
+                             .withNewEndpoints()
+                             .withNewPrometheus()
+                             .endPrometheus()
+                             .endEndpoints()
+                             .endAdminHttp()
+                             .addToFilters(
+                                     new FilterDefinitionBuilder(
+                                             OauthBearerValidation.class.getName()
+                                     )
+                                      .withConfig(
+                                              "jwksEndpointUrl",
+                                              JWKS_ENDPOINT_URL,
+                                              "expectedAudience",
+                                              EXPECTED_AUDIENCE
+                                      )
+                                      .build()
+                             );
     }
 
     @NonNull
@@ -206,8 +228,10 @@ class OauthBearerValidationIT {
         oauthClientConfig.put(SaslConfigs.SASL_MECHANISM, OAuthBearerLoginModule.OAUTHBEARER_MECHANISM);
         oauthClientConfig.put(SaslConfigs.SASL_OAUTHBEARER_TOKEN_ENDPOINT_URL, tokenEndpointUrl.toString());
         oauthClientConfig.put(SaslConfigs.SASL_LOGIN_CALLBACK_HANDLER_CLASS, OAuthBearerLoginCallbackHandler.class.getCanonicalName());
-        oauthClientConfig.put(SaslConfigs.SASL_JAAS_CONFIG,
-                "%s required clientId=\"clientIdIgnore\" clientSecret=\"clientSecretIgnore\";".formatted(OAuthBearerLoginModule.class.getName()));
+        oauthClientConfig.put(
+                SaslConfigs.SASL_JAAS_CONFIG,
+                "%s required clientId=\"clientIdIgnore\" clientSecret=\"clientSecretIgnore\";".formatted(OAuthBearerLoginModule.class.getName())
+        );
         return oauthClientConfig;
     }
 
@@ -227,8 +251,7 @@ class OauthBearerValidationIT {
         catch (ExecutionException e) {
             if (e.getCause() instanceof RuntimeException re) {
                 throw re;
-            }
-            else {
+            } else {
                 throw new RuntimeException(e.getCause());
             }
         }

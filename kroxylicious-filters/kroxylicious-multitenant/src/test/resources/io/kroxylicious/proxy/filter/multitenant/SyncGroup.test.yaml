@@ -14,7 +14,7 @@
       groupInstanceId: mygroupinstanceid
       protocolType: consumer
       protocolName: protocolname
-      assignments: []
+      assignments: [ ]
     diff:
       - op: replace
         path: "/groupId"

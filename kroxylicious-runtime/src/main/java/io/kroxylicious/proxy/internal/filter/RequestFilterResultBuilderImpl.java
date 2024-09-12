@@ -18,7 +18,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<RequestHeaderData, RequestFilterResult>
-        implements RequestFilterResultBuilder {
+                                            implements RequestFilterResultBuilder {
 
     private static final String REQUEST_DATA_NAME_SUFFIX = "RequestData";
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
@@ -34,7 +34,9 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable ResponseHeaderData header, @NonNull ApiMessage message) {
+    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable
+    ResponseHeaderData header, @NonNull
+    ApiMessage message) {
         validateShortCircuitResponse(message);
         this.shortCircuitHeader = header;
         this.shortCircuitResponse = message;
@@ -42,7 +44,8 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull ApiMessage message) {
+    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull
+    ApiMessage message) {
         validateShortCircuitResponse(message);
         this.shortCircuitResponse = message;
         return this;

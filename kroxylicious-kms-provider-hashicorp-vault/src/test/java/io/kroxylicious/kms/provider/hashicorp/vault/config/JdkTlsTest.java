@@ -59,9 +59,11 @@ class JdkTlsTest {
             assertThat(trustManager).isInstanceOfSatisfying(X509TrustManager.class, x509TrustManager -> {
                 assertThat(x509TrustManager.getAcceptedIssuers()).isNotNull().isNotEmpty();
                 assertThatThrownBy(() -> x509TrustManager.checkClientTrusted(new X509Certificate[]{ SELF_SIGNED_X_509_CERTIFICATE }, "any")).isInstanceOf(
-                        CertificateException.class);
+                        CertificateException.class
+                );
                 assertThatThrownBy(() -> x509TrustManager.checkServerTrusted(new X509Certificate[]{ SELF_SIGNED_X_509_CERTIFICATE }, "any")).isInstanceOf(
-                        CertificateException.class);
+                        CertificateException.class
+                );
             });
         }
     }
@@ -116,8 +118,10 @@ class JdkTlsTest {
         CertificateGenerator.TrustStore trustStore = keys.jksClientTruststore();
         String badPassword = UUID.randomUUID().toString();
         TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(badPassword), null);
-        assertThatThrownBy(() -> JdkTls.getTrustManagers(store)).isInstanceOf(SslConfigurationException.class).cause().isInstanceOf(IOException.class)
-                .hasMessageContaining("Keystore was tampered with, or password was incorrect");
+        assertThatThrownBy(() -> JdkTls.getTrustManagers(store)).isInstanceOf(SslConfigurationException.class)
+                                                                .cause()
+                                                                .isInstanceOf(IOException.class)
+                                                                .hasMessageContaining("Keystore was tampered with, or password was incorrect");
     }
 
     @Test
@@ -133,8 +137,12 @@ class JdkTlsTest {
     void testKeyStore() {
         CertificateGenerator.Keys keys = CertificateGenerator.generate();
         CertificateGenerator.KeyStore keyStore = keys.jksServerKeystore();
-        KeyStore store = new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), new InlinePassword(keyStore.keyPassword()),
-                keyStore.type());
+        KeyStore store = new KeyStore(
+                keyStore.path().toString(),
+                new InlinePassword(keyStore.storePassword()),
+                new InlinePassword(keyStore.keyPassword()),
+                keyStore.type()
+        );
         KeyManager[] trustManagers = JdkTls.getKeyManagers(store);
         assertThat(trustManagers).isNotEmpty();
     }
@@ -145,8 +153,12 @@ class JdkTlsTest {
         X509Certificate x509Certificate = generateSelfSignedX509Certificate(pair);
         String password = "password";
         CertificateGenerator.KeyStore keyStore = createJksKeystore(pair, x509Certificate, password, password);
-        KeyStore store = new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), null,
-                keyStore.type());
+        KeyStore store = new KeyStore(
+                keyStore.path().toString(),
+                new InlinePassword(keyStore.storePassword()),
+                null,
+                keyStore.type()
+        );
         KeyManager[] trustManagers = JdkTls.getKeyManagers(store);
         assertThat(trustManagers).isNotEmpty();
     }
@@ -173,8 +185,10 @@ class JdkTlsTest {
         CertificateGenerator.TrustStore trustStore = keys.pkcs12ClientTruststore();
         String badPassword = UUID.randomUUID().toString();
         TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(badPassword), null);
-        assertThatThrownBy(() -> JdkTls.getTrustManagers(store)).isInstanceOf(SslConfigurationException.class).cause().isInstanceOf(IOException.class)
-                .hasMessageContaining("keystore password was incorrect");
+        assertThatThrownBy(() -> JdkTls.getTrustManagers(store)).isInstanceOf(SslConfigurationException.class)
+                                                                .cause()
+                                                                .isInstanceOf(IOException.class)
+                                                                .hasMessageContaining("keystore password was incorrect");
     }
 
 }

@@ -14,7 +14,7 @@ import io.kroxylicious.proxy.service.Context;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class SniRoutingContributor
-        implements ClusterNetworkAddressConfigProviderContributor<SniRoutingClusterNetworkAddressConfigProviderConfig> {
+                                   implements ClusterNetworkAddressConfigProviderContributor<SniRoutingClusterNetworkAddressConfigProviderConfig> {
 
     @NonNull
     @Override

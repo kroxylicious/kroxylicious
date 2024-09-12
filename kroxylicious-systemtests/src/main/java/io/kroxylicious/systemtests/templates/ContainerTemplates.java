@@ -37,8 +37,8 @@ public class ContainerTemplates {
             snapshotImagesPulledOnce.add(image);
         }
         return new ContainerBuilder()
-                .withName(containerName)
-                .withImage(image)
-                .withImagePullPolicy(imagePullPolicy);
+                                     .withName(containerName)
+                                     .withImage(image)
+                                     .withImagePullPolicy(imagePullPolicy);
     }
 }

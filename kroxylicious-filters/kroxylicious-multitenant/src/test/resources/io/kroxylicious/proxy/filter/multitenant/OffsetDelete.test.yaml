@@ -11,7 +11,7 @@
       groupId: mygroup
       topics:
         - name: foo
-          partitions: []
+          partitions: [ ]
     diff:
       - op: replace
         path: "/groupId"

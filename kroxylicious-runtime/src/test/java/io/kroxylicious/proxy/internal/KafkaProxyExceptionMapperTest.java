@@ -127,22 +127,22 @@ class KafkaProxyExceptionMapperTest {
 
         // Then
         assertThat(response)
-                .hasApiKey(request.apiKey())
-                .hasErrorCount(Errors.BROKER_NOT_AVAILABLE, 1);
+                            .hasApiKey(request.apiKey())
+                            .hasErrorCount(Errors.BROKER_NOT_AVAILABLE, 1);
     }
 
     public static Stream<Arguments> decodedFrameSourceLatestVersion() {
         return RequestFactory
-                .apiMessageFor(ApiKeys::latestVersion)
-                .map(KafkaProxyExceptionMapperTest::toDecodedFrame)
-                .map(Arguments::of);
+                             .apiMessageFor(ApiKeys::latestVersion)
+                             .map(KafkaProxyExceptionMapperTest::toDecodedFrame)
+                             .map(Arguments::of);
     }
 
     public static Stream<Arguments> decodedFrameSourceOldestVersion() {
         return RequestFactory
-                .apiMessageFor(ApiKeys::oldestVersion)
-                .map(KafkaProxyExceptionMapperTest::toDecodedFrame)
-                .map(Arguments::of);
+                             .apiMessageFor(ApiKeys::oldestVersion)
+                             .map(KafkaProxyExceptionMapperTest::toDecodedFrame)
+                             .map(Arguments::of);
     }
 
     private static Named<DecodedRequestFrame<ApiMessage>> toDecodedFrame(RequestFactory.ApiMessageVersion apiMessageAndVersion) {

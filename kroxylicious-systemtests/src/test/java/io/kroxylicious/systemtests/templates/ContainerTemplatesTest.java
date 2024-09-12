@@ -34,7 +34,8 @@ class ContainerTemplatesTest {
     }
 
     static Stream<String> imageContainingTagIsPulledOnce() {
-        return Stream.of("latest",
+        return Stream.of(
+                "latest",
                 "LATEST",
                 "a-latest",
                 "latest-b",
@@ -43,7 +44,8 @@ class ContainerTemplatesTest {
                 "SNAPSHOT",
                 "a-snapshot",
                 "snapshot-b",
-                "a-snapshot-b");
+                "a-snapshot-b"
+        );
     }
 
     private static @NonNull String randomImageWithTag(String tag) {

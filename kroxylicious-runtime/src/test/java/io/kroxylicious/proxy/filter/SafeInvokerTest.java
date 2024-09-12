@@ -58,8 +58,10 @@ class SafeInvokerTest {
         CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(API_VERSIONS, (short) 1, header, message, filterContext);
 
         // then
-        assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat()
-                .isInstanceOf(ExecutionException.class).withCause(exception);
+        assertThat(stage).failsWithin(Duration.ZERO)
+                         .withThrowableThat()
+                         .isInstanceOf(ExecutionException.class)
+                         .withCause(exception);
         verify(invoker).shouldHandleRequest(API_VERSIONS, (short) 1);
     }
 
@@ -79,8 +81,10 @@ class SafeInvokerTest {
         CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(API_VERSIONS, (short) 1, header, message, filterContext);
 
         // then
-        assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat()
-                .isInstanceOf(ExecutionException.class).withCause(exception);
+        assertThat(stage).failsWithin(Duration.ZERO)
+                         .withThrowableThat()
+                         .isInstanceOf(ExecutionException.class)
+                         .withCause(exception);
     }
 
     @Test
@@ -107,8 +111,13 @@ class SafeInvokerTest {
         when(filterContext.forwardRequest(header, message)).thenReturn(forwardStage);
 
         // when
-        CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(API_VERSIONS, (short) 1, header, message,
-                filterContext);
+        CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(
+                API_VERSIONS,
+                (short) 1,
+                header,
+                message,
+                filterContext
+        );
 
         // then
         assertThat(stage).isSameAs(forwardStage);
@@ -125,8 +134,13 @@ class SafeInvokerTest {
         when(invoker.onRequest(any(), anyShort(), any(), any(), any())).thenReturn(delegateStage);
 
         // when
-        CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(API_VERSIONS, (short) 1, header, message,
-                filterContext);
+        CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(
+                API_VERSIONS,
+                (short) 1,
+                header,
+                message,
+                filterContext
+        );
 
         // then
         assertThat(stage).isSameAs(delegateStage);
@@ -144,8 +158,13 @@ class SafeInvokerTest {
         when(invoker.onResponse(any(), anyShort(), any(), any(), any())).thenReturn(delegateStage);
 
         // when
-        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(API_VERSIONS, (short) 1, header, message,
-                filterContext);
+        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(
+                API_VERSIONS,
+                (short) 1,
+                header,
+                message,
+                filterContext
+        );
 
         // then
         assertThat(stage).isSameAs(delegateStage);
@@ -163,8 +182,13 @@ class SafeInvokerTest {
         when(filterContext.forwardResponse(header, message)).thenReturn(forwardStage);
 
         // when
-        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(API_VERSIONS, (short) 1, header, message,
-                filterContext);
+        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(
+                API_VERSIONS,
+                (short) 1,
+                header,
+                message,
+                filterContext
+        );
 
         // then
         assertThat(stage).isSameAs(forwardStage);
@@ -177,13 +201,21 @@ class SafeInvokerTest {
         when(invoker.onRequest(any(), anyShort(), any(), any(), any())).thenReturn(null);
 
         // when
-        CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(API_VERSIONS, (short) 1, new RequestHeaderData(), new ApiVersionsRequestData(),
-                Mockito.mock(FilterContext.class));
+        CompletionStage<RequestFilterResult> stage = safeInvoker.onRequest(
+                API_VERSIONS,
+                (short) 1,
+                new RequestHeaderData(),
+                new ApiVersionsRequestData(),
+                Mockito.mock(FilterContext.class)
+        );
 
         // then
-        assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(IllegalStateException.class).havingCause()
-                .withMessageContaining("invoker onRequest returned null for apiKey API_VERSIONS");
+        assertThat(stage).isCompletedExceptionally()
+                         .failsWithin(Duration.ZERO)
+                         .withThrowableOfType(ExecutionException.class)
+                         .withCauseInstanceOf(IllegalStateException.class)
+                         .havingCause()
+                         .withMessageContaining("invoker onRequest returned null for apiKey API_VERSIONS");
     }
 
     @Test
@@ -193,13 +225,21 @@ class SafeInvokerTest {
         when(invoker.onResponse(any(), anyShort(), any(), any(), any())).thenReturn(null);
 
         // when
-        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(API_VERSIONS, (short) 1, new ResponseHeaderData(), new ApiVersionsResponseData(),
-                Mockito.mock(FilterContext.class));
+        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(
+                API_VERSIONS,
+                (short) 1,
+                new ResponseHeaderData(),
+                new ApiVersionsResponseData(),
+                Mockito.mock(FilterContext.class)
+        );
 
         // then
-        assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(IllegalStateException.class).havingCause()
-                .withMessageContaining("invoker onResponse returned null for apiKey API_VERSIONS");
+        assertThat(stage).isCompletedExceptionally()
+                         .failsWithin(Duration.ZERO)
+                         .withThrowableOfType(ExecutionException.class)
+                         .withCauseInstanceOf(IllegalStateException.class)
+                         .havingCause()
+                         .withMessageContaining("invoker onResponse returned null for apiKey API_VERSIONS");
     }
 
     @Test
@@ -209,12 +249,19 @@ class SafeInvokerTest {
         when(invoker.shouldHandleResponse(API_VERSIONS, (short) 1)).thenThrow(exception);
 
         // when
-        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(API_VERSIONS, (short) 1, new ResponseHeaderData(), new ApiVersionsResponseData(),
-                Mockito.mock(FilterContext.class));
+        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(
+                API_VERSIONS,
+                (short) 1,
+                new ResponseHeaderData(),
+                new ApiVersionsResponseData(),
+                Mockito.mock(FilterContext.class)
+        );
 
         // then
-        assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)
-                .withCause(exception);
+        assertThat(stage).isCompletedExceptionally()
+                         .failsWithin(Duration.ZERO)
+                         .withThrowableOfType(ExecutionException.class)
+                         .withCause(exception);
     }
 
     @Test
@@ -225,12 +272,19 @@ class SafeInvokerTest {
         when(invoker.onResponse(any(), anyShort(), any(), any(), any())).thenThrow(exception);
 
         // when
-        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(API_VERSIONS, (short) 1, new ResponseHeaderData(), new ApiVersionsResponseData(),
-                Mockito.mock(FilterContext.class));
+        CompletionStage<ResponseFilterResult> stage = safeInvoker.onResponse(
+                API_VERSIONS,
+                (short) 1,
+                new ResponseHeaderData(),
+                new ApiVersionsResponseData(),
+                Mockito.mock(FilterContext.class)
+        );
 
         // then
-        assertThat(stage).isCompletedExceptionally().failsWithin(Duration.ZERO).withThrowableOfType(ExecutionException.class)
-                .withCause(exception);
+        assertThat(stage).isCompletedExceptionally()
+                         .failsWithin(Duration.ZERO)
+                         .withThrowableOfType(ExecutionException.class)
+                         .withCause(exception);
     }
 
 }

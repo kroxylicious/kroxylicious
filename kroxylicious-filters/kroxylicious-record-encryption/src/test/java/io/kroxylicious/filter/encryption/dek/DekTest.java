@@ -33,7 +33,7 @@ class DekTest {
         var key = makeKey();
         key.destroy();
         assertThatThrownBy(() -> new Dek<>("edek", key, cipherManager, 100))
-                .isExactlyInstanceOf(IllegalArgumentException.class);
+                                                                            .isExactlyInstanceOf(IllegalArgumentException.class);
 
     }
 
@@ -42,7 +42,7 @@ class DekTest {
     void constructorThrowsOnNegativeExceptions(CipherManager cipherManager) {
         var key = makeKey();
         assertThatThrownBy(() -> new Dek<>("edek", key, cipherManager, -1))
-                .isExactlyInstanceOf(IllegalArgumentException.class);
+                                                                           .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
@@ -51,7 +51,7 @@ class DekTest {
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 0);
         assertThatThrownBy(() -> dek.encryptor(1))
-                .isExactlyInstanceOf(ExhaustedDekException.class);
+                                                  .isExactlyInstanceOf(ExhaustedDekException.class);
     }
 
     @NonNull
@@ -65,7 +65,7 @@ class DekTest {
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 1);
         assertThatThrownBy(() -> dek.encryptor(0))
-                .isExactlyInstanceOf(IllegalArgumentException.class);
+                                                  .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
@@ -74,7 +74,7 @@ class DekTest {
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 1);
         assertThatThrownBy(() -> dek.encryptor(-1))
-                .isExactlyInstanceOf(IllegalArgumentException.class);
+                                                   .isExactlyInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
@@ -172,7 +172,7 @@ class DekTest {
         assertThat(key.isDestroyed()).isFalse(); // because still open for decrypt
 
         assertThatThrownBy(() -> dek.encryptor(1))
-                .isExactlyInstanceOf(DestroyedDekException.class); // can't get a new encryptor though
+                                                  .isExactlyInstanceOf(DestroyedDekException.class); // can't get a new encryptor though
 
         dek.destroyForDecrypt(); // this should trigger key destruction
 
@@ -272,7 +272,7 @@ class DekTest {
         assertThat(key.isDestroyed()).isFalse(); // still open for encrypt
 
         assertThatThrownBy(dek::decryptor)
-                .isExactlyInstanceOf(DestroyedDekException.class); // can't get a new decryptor
+                                          .isExactlyInstanceOf(DestroyedDekException.class); // can't get a new decryptor
 
         dek.destroyForEncrypt(); // this should trigger key destruction
 
@@ -415,9 +415,12 @@ class DekTest {
     }
 
     // encrypt and decrypt with no AAD
-    record EncryptInfo(DestroyableRawSecretKey key,
-                       ByteBuffer params,
-                       ByteBuffer ciphertext) {}
+    record EncryptInfo(
+            DestroyableRawSecretKey key,
+            ByteBuffer params,
+            ByteBuffer ciphertext
+    ) {
+    }
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
@@ -445,8 +448,9 @@ class DekTest {
 
         ByteBuffer decryptAad = ByteBuffer.wrap(new byte[]{ 12, 12, 12 });
         assertThatThrownBy(() -> decrypt(cipherManager, decryptAad, encryptInfo))
-                .isExactlyInstanceOf(DekException.class)
-                .cause().isExactlyInstanceOf(AEADBadTagException.class);
+                                                                                 .isExactlyInstanceOf(DekException.class)
+                                                                                 .cause()
+                                                                                 .isExactlyInstanceOf(AEADBadTagException.class);
     }
 
     private String decrypt(CipherManager cipherManager, ByteBuffer aad, EncryptInfo encryptInfo) {
@@ -481,12 +485,12 @@ class DekTest {
         // Destroy the DEK: We expect the encryptor should still be usable
         dek.destroy();
         assertThat(dek.isDestroyed())
-                .describedAs("Key should be not be destroyed because some encryptions are left")
-                .isFalse();
+                                     .describedAs("Key should be not be destroyed because some encryptions are left")
+                                     .isFalse();
 
         assertThatThrownBy(() -> dek.encryptor(1))
-                .describedAs("Expect to not be able to get another encoder")
-                .isExactlyInstanceOf(ExhaustedDekException.class);
+                                                  .describedAs("Expect to not be able to get another encoder")
+                                                  .isExactlyInstanceOf(ExhaustedDekException.class);
 
         // Note, we use a common buffer backing both the plaintext and the ciphertext so that we're testing that
         // encrypt() is copy-safe.
@@ -499,33 +503,35 @@ class DekTest {
         // Move the position of the common buffer to the end of the written parameters
         commonBuffer.position(commonBuffer.position() + paramsBuffer.remaining());
 
-        var ciphertextBuffer = encryptor.encrypt(plaintextBuffer,
+        var ciphertextBuffer = encryptor.encrypt(
+                plaintextBuffer,
                 aad,
-                size -> commonBuffer.slice());
+                size -> commonBuffer.slice()
+        );
 
         // TODO assertions on the buffer
 
         assertThat(key.isDestroyed()).isTrue();
 
         assertThat(dek.isDestroyed())
-                .describedAs("Key should be destroyed when no encryptions left")
-                .isTrue();
+                                     .describedAs("Key should be destroyed when no encryptions left")
+                                     .isTrue();
         assertThat(plaintextBuffer.position())
-                .describedAs("Position should be unchanged")
-                .isZero();
+                                              .describedAs("Position should be unchanged")
+                                              .isZero();
 
         // Shouldn't be able to use the Encryptor again
         assertThatThrownBy(() -> encryptor.generateParameters(size -> ByteBuffer.allocate(size)))
-                .isExactlyInstanceOf(DekUsageException.class)
-                .hasMessage("The Encryptor has no more operations allowed");
+                                                                                                 .isExactlyInstanceOf(DekUsageException.class)
+                                                                                                 .hasMessage("The Encryptor has no more operations allowed");
         // assertThatThrownBy(() -> encryptor.encrypt(plaintextBuffer,
         // null,
         // size -> ByteBuffer.allocate(size)))
         // .isExactlyInstanceOf(DekUsageException.class)
         // .hasMessage("The Encryptor has no more operations allowed");
         assertThat(plaintextBuffer.position())
-                .describedAs("Position should be unchanged")
-                .isZero();
+                                              .describedAs("Position should be unchanged")
+                                              .isZero();
 
         // It should be safe to close the encryptor
         encryptor.close();

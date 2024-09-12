@@ -58,8 +58,9 @@ public interface CipherManager extends PersistedIdentifiable<CipherSpec> {
      * {@link #size(AlgorithmParameterSpec)} bytes {@linkplain ByteBuffer#remaining() remaining}.
      */
     void writeParameters(
-                         ByteBuffer parametersBuffer,
-                         AlgorithmParameterSpec params);
+            ByteBuffer parametersBuffer,
+            AlgorithmParameterSpec params
+    );
 
     /**
      * Read previously-serialize parameters from the given buffer.

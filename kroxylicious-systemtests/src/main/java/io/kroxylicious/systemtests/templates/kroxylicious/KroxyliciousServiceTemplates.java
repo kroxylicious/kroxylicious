@@ -23,16 +23,16 @@ public class KroxyliciousServiceTemplates {
 
     public static ServiceBuilder defaultKroxyService(String namespaceName) {
         return new ServiceBuilder()
-                .withApiVersion("v1")
-                .withKind(Constants.SERVICE_KIND)
-                .withNewMetadata()
-                .withName(Constants.KROXY_SERVICE_NAME)
-                .withNamespace(namespaceName)
-                .endMetadata()
-                .editSpec()
-                .withSelector(kroxyLabelSelector)
-                .withPorts(getPlainServicePorts())
-                .endSpec();
+                                   .withApiVersion("v1")
+                                   .withKind(Constants.SERVICE_KIND)
+                                   .withNewMetadata()
+                                   .withName(Constants.KROXY_SERVICE_NAME)
+                                   .withNamespace(namespaceName)
+                                   .endMetadata()
+                                   .editSpec()
+                                   .withSelector(kroxyLabelSelector)
+                                   .withPorts(getPlainServicePorts())
+                                   .endSpec();
     }
 
     private static List<ServicePort> getPlainServicePorts() {
@@ -46,10 +46,10 @@ public class KroxyliciousServiceTemplates {
 
     private static ServicePort createServicePort(String name, int port, int targetPort) {
         return new ServicePortBuilder()
-                .withName(name)
-                .withProtocol("TCP")
-                .withPort(port)
-                .withTargetPort(new IntOrString(targetPort))
-                .build();
+                                       .withName(name)
+                                       .withProtocol("TCP")
+                                       .withPort(port)
+                                       .withTargetPort(new IntOrString(targetPort))
+                                       .build();
     }
 }

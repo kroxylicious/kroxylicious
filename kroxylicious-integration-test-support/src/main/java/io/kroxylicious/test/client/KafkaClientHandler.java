@@ -82,8 +82,7 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
                     if (c.cause() != null) {
                         // I/O failed etc
                         responseFuture.completeExceptionally(c.cause());
-                    }
-                    else if (!msg.hasResponse()) {
+                    } else if (!msg.hasResponse()) {
                         responseFuture.complete(null);
                     }
                 });

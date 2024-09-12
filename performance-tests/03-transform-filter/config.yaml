@@ -7,7 +7,7 @@
 ---
 adminHttp:
   endpoints:
-    prometheus: {}
+    prometheus: { }
 virtualClusters:
   demo:
     targetCluster:
@@ -19,14 +19,14 @@ virtualClusters:
     logNetwork: false
     logFrames: false
 filters:
-- type: ProduceRequestTransformationFilterFactory
-  config:
-    transformation: UpperCasing
-    transformationConfig:
-      charset: UTF-8
-- type: FetchResponseTransformationFilterFactory
-  config:
-    transformation: UpperCasing
-    transformationConfig:
-      charset: UTF-8
+  - type: ProduceRequestTransformationFilterFactory
+    config:
+      transformation: UpperCasing
+      transformationConfig:
+        charset: UTF-8
+  - type: FetchResponseTransformationFilterFactory
+    config:
+      transformation: UpperCasing
+      transformationConfig:
+        charset: UTF-8
 

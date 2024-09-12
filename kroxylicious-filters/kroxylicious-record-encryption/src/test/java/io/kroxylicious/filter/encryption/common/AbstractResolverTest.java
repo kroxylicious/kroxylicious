@@ -32,8 +32,9 @@ class AbstractResolverTest {
         private final MyEnum name;
 
         MyImpl(
-               int id,
-               MyEnum name) {
+                int id,
+                MyEnum name
+        ) {
             this.id = (byte) id;
             this.name = name;
         }
@@ -70,8 +71,8 @@ class AbstractResolverTest {
         assertThat(resolver.fromName(MyEnum.BAR)).isSameAs(bar);
 
         assertThatThrownBy(() -> resolver.fromName(MyEnum.QUUX))
-                .isExactlyInstanceOf(EncryptionException.class)
-                .hasMessage("Unknown MyEnum name: QUUX");
+                                                                .isExactlyInstanceOf(EncryptionException.class)
+                                                                .hasMessage("Unknown MyEnum name: QUUX");
     }
 
     @Test
@@ -83,8 +84,8 @@ class AbstractResolverTest {
         assertThat(resolver.fromSerializedId((byte) 1)).isSameAs(bar);
 
         assertThatThrownBy(() -> resolver.fromSerializedId((byte) 42))
-                .isExactlyInstanceOf(EncryptionException.class)
-                .hasMessage("Unknown MyEnum id: 42");
+                                                                      .isExactlyInstanceOf(EncryptionException.class)
+                                                                      .hasMessage("Unknown MyEnum id: 42");
     }
 
     @Test
@@ -97,8 +98,10 @@ class AbstractResolverTest {
         assertThat(resolver.toSerializedId(bar)).isEqualTo((byte) 1);
         MyImpl quux = new MyImpl(2, MyEnum.QUUX);
         assertThatThrownBy(() -> resolver.toSerializedId(quux))
-                .isExactlyInstanceOf(EncryptionException.class)
-                .hasMessageStartingWith("Unknown MyEnum impl: io.kroxylicious.filter.encryption.common.AbstractResolverTest$MyImpl@");
+                                                               .isExactlyInstanceOf(EncryptionException.class)
+                                                               .hasMessageStartingWith(
+                                                                       "Unknown MyEnum impl: io.kroxylicious.filter.encryption.common.AbstractResolverTest$MyImpl@"
+                                                               );
     }
 
     @Test
@@ -110,16 +113,18 @@ class AbstractResolverTest {
 
         // It should no longer know about bar, because we subsetted it
         assertThatThrownBy(() -> resolver.fromName(MyEnum.BAR))
-                .isExactlyInstanceOf(EncryptionException.class)
-                .hasMessage("Unknown MyEnum name: BAR");
+                                                               .isExactlyInstanceOf(EncryptionException.class)
+                                                               .hasMessage("Unknown MyEnum name: BAR");
 
         assertThatThrownBy(() -> resolver.fromSerializedId((byte) 1))
-                .isExactlyInstanceOf(EncryptionException.class)
-                .hasMessage("Unknown MyEnum id: 1");
+                                                                     .isExactlyInstanceOf(EncryptionException.class)
+                                                                     .hasMessage("Unknown MyEnum id: 1");
 
         assertThatThrownBy(() -> resolver.toSerializedId(bar))
-                .isExactlyInstanceOf(EncryptionException.class)
-                .hasMessageStartingWith("Unknown MyEnum impl: io.kroxylicious.filter.encryption.common.AbstractResolverTest$MyImpl@");
+                                                              .isExactlyInstanceOf(EncryptionException.class)
+                                                              .hasMessageStartingWith(
+                                                                      "Unknown MyEnum impl: io.kroxylicious.filter.encryption.common.AbstractResolverTest$MyImpl@"
+                                                              );
     }
 
     @Test
@@ -128,8 +133,8 @@ class AbstractResolverTest {
         MyImpl bar = new MyImpl(0, MyEnum.BAR);
         List<MyInterface> impls = List.of(foo, bar);
         assertThatThrownBy(() -> new MyResolver(impls))
-                .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Duplicate key 0");
+                                                       .isExactlyInstanceOf(IllegalStateException.class)
+                                                       .hasMessageContaining("Duplicate key 0");
     }
 
     @Test
@@ -138,8 +143,8 @@ class AbstractResolverTest {
         MyImpl bar = new MyImpl(1, MyEnum.FOO);
         List<MyInterface> impls = List.of(foo, bar);
         assertThatThrownBy(() -> new MyResolver(impls))
-                .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Duplicate key FOO");
+                                                       .isExactlyInstanceOf(IllegalStateException.class)
+                                                       .hasMessageContaining("Duplicate key FOO");
     }
 
 }

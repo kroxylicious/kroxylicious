@@ -17,13 +17,13 @@
             - partitionIndex: 0
               highWatermark: 0
               lastStableOffset: 0
-              abortedTransactions: []
+              abortedTransactions: [ ]
               preferredReadReplica: 0
               records: null
               errorCode: 0
               logStartOffset: 0
       throttleTimeMs: 0
-    diff: []
+    diff: [ ]
   disabled: false
 - apiMessageType: FETCH
   description: Fetch v16 with nodeEndpoints
@@ -38,7 +38,7 @@
             - partitionIndex: 0
               highWatermark: 0
               lastStableOffset: 0
-              abortedTransactions: []
+              abortedTransactions: [ ]
               preferredReadReplica: 0
               records: null
               errorCode: 6 # NOT_LEADER_OR_FOLLOWER
@@ -73,12 +73,12 @@
             - partitionIndex: 0
               highWatermark: 0
               lastStableOffset: 0
-              abortedTransactions: []
+              abortedTransactions: [ ]
               preferredReadReplica: 0
               records: null
               errorCode: 0
               logStartOffset: 0
-      nodeEndpoints: []
+      nodeEndpoints: [ ]
       throttleTimeMs: 0
-    diff: []
+    diff: [ ]
   disabled: false

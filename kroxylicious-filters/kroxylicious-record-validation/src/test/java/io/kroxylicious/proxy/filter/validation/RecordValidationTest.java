@@ -24,7 +24,10 @@ class RecordValidationTest {
     void initRejectsMissingConfig() {
         RecordValidation factory = new RecordValidation();
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
-                .hasMessage(RecordValidation.class.getSimpleName() + " requires configuration, but config object is null");
+                                                                .hasMessage(
+                                                                        RecordValidation.class.getSimpleName()
+                                                                            + " requires configuration, but config object is null"
+                                                                );
     }
 
     @Test

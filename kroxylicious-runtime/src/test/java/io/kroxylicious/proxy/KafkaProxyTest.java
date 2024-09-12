@@ -42,31 +42,33 @@ class KafkaProxyTest {
         var configParser = new ConfigParser();
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config))) {
             assertThatThrownBy(kafkaProxy::startup).isInstanceOf(PluginConfigurationException.class)
-                    .hasMessage(
-                            "Exception initializing filter factory RequiresConfigFactory with config null: RequiresConfigFactory requires configuration, but config object is null");
+                                                   .hasMessage(
+                                                           "Exception initializing filter factory RequiresConfigFactory with config null: RequiresConfigFactory requires configuration, but config object is null"
+                                                   );
         }
     }
 
     public static Stream<Arguments> detectsConflictingPorts() {
-        return Stream.of(Arguments.of("bootstrap port conflict", """
-                virtualClusters:
-                  demo1:
-                    targetCluster:
-                      bootstrap_servers: kafka.example:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
-                        bootstrapAddress: localhost:9192
-                        numberOfBrokerPorts: 1
-                  demo2:
-                    targetCluster:
-                      bootstrap_servers: kafka.example:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
-                        bootstrapAddress: localhost:9192 # Conflict
-                        numberOfBrokerPorts: 1
-                """, "The exclusive bind of port(s) 9192,9193 to <any> would conflict with existing exclusive port bindings on <any>."),
+        return Stream.of(
+                Arguments.of("bootstrap port conflict", """
+                        virtualClusters:
+                          demo1:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: PortPerBrokerClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: localhost:9192
+                                numberOfBrokerPorts: 1
+                          demo2:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: PortPerBrokerClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: localhost:9192 # Conflict
+                                numberOfBrokerPorts: 1
+                        """, "The exclusive bind of port(s) 9192,9193 to <any> would conflict with existing exclusive port bindings on <any>."),
                 Arguments.of("broker port conflict", """
                         virtualClusters:
                           demo1:
@@ -87,7 +89,8 @@ class KafkaProxyTest {
                                 bootstrapAddress: localhost:8192
                                 brokerStartPort: 9193 # Conflict
                                 numberOfBrokerPorts: 1
-                        """, "The exclusive bind of port(s) 9193 to <any> would conflict with existing exclusive port bindings on <any>."));
+                        """, "The exclusive bind of port(s) 9193 to <any> would conflict with existing exclusive port bindings on <any>.")
+        );
     }
 
     @ParameterizedTest(name = "{0}")

@@ -71,15 +71,18 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
         return validationStage.thenCompose(result -> {
             if (result.isAnyTopicPartitionInvalid()) {
                 return handleInvalidTopicPartitions(header, request, context, result);
-            }
-            else {
+            } else {
                 return context.forwardRequest(header, request);
             }
         });
     }
 
-    private CompletionStage<RequestFilterResult> handleInvalidTopicPartitions(RequestHeaderData header, ProduceRequestData request, FilterContext context,
-                                                                              ProduceRequestValidationResult result) {
+    private CompletionStage<RequestFilterResult> handleInvalidTopicPartitions(
+            RequestHeaderData header,
+            ProduceRequestData request,
+            FilterContext context,
+            ProduceRequestValidationResult result
+    ) {
         if (result.isAllTopicPartitionsInvalid()) {
             LOGGER.debug("all topic-partitions for request contained invalid data: {}", result);
             ProduceResponseData response = invalidateEntireRequest(request, result);
@@ -94,10 +97,12 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
             }
             correlatedResults.put(header.correlationId(), result);
             return context.forwardRequest(header, request);
-        }
-        else {
-            LOGGER.debug("some topic-partitions for transactional request with id: {}, contained invalid data: {}, invalidation entire request",
-                    request.transactionalId(), result);
+        } else {
+            LOGGER.debug(
+                    "some topic-partitions for transactional request with id: {}, contained invalid data: {}, invalidation entire request",
+                    request.transactionalId(),
+                    result
+            );
             ProduceResponseData response = invalidateEntireRequest(request, result);
             return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
         }
@@ -116,9 +121,11 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
         return response;
     }
 
-    private static ProduceResponseData.TopicProduceResponse createInvalidatedTopicProduceResponse(String topicName,
-                                                                                                  ProduceRequestData.TopicProduceData topicProduceData,
-                                                                                                  TopicValidationResult topicValidationResult) {
+    private static ProduceResponseData.TopicProduceResponse createInvalidatedTopicProduceResponse(
+            String topicName,
+            ProduceRequestData.TopicProduceData topicProduceData,
+            TopicValidationResult topicValidationResult
+    ) {
         ProduceResponseData.TopicProduceResponse response = new ProduceResponseData.TopicProduceResponse();
         response.setName(topicName);
         List<ProduceResponseData.PartitionProduceResponse> responses = topicProduceData.partitionData().stream().map(partitionProduceData -> {
@@ -129,18 +136,22 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
         return response;
     }
 
-    private static ProduceResponseData.PartitionProduceResponse createInvalidatedPartitionProduceResponse(ProduceRequestData.PartitionProduceData partitionProduceData,
-                                                                                                          PartitionValidationResult partitionResult) {
+    private static ProduceResponseData.PartitionProduceResponse createInvalidatedPartitionProduceResponse(
+            ProduceRequestData.PartitionProduceData partitionProduceData,
+            PartitionValidationResult partitionResult
+    ) {
         ProduceResponseData.PartitionProduceResponse produceResponse = new ProduceResponseData.PartitionProduceResponse();
         produceResponse.setIndex(partitionProduceData.index());
         produceResponse.setErrorCode(Errors.INVALID_RECORD.code());
         if (partitionResult.allRecordsValid()) {
             produceResponse.setErrorMessage("Invalid record in another topic-partition caused whole ProduceRequest to be invalidated");
-        }
-        else {
+        } else {
             for (RecordValidationFailure recordValidationFailure : partitionResult.recordValidationFailures()) {
-                produceResponse.recordErrors().add(new ProduceResponseData.BatchIndexAndErrorMessage().setBatchIndex(recordValidationFailure.invalidIndex())
-                        .setBatchIndexErrorMessage(recordValidationFailure.errorMessage()));
+                produceResponse.recordErrors()
+                               .add(
+                                       new ProduceResponseData.BatchIndexAndErrorMessage().setBatchIndex(recordValidationFailure.invalidIndex())
+                                                                                          .setBatchIndexErrorMessage(recordValidationFailure.errorMessage())
+                               );
             }
             produceResponse.setErrorMessage(toErrorString(partitionResult.recordValidationFailures()));
         }
@@ -153,15 +164,18 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
     }
 
     @Override
-    public CompletionStage<ResponseFilterResult> onProduceResponse(short apiVersion, ResponseHeaderData header, ProduceResponseData response,
-                                                                   FilterContext context) {
+    public CompletionStage<ResponseFilterResult> onProduceResponse(
+            short apiVersion,
+            ResponseHeaderData header,
+            ProduceResponseData response,
+            FilterContext context
+    ) {
         ProduceRequestValidationResult produceRequestValidationResult = correlatedResults.remove(header.correlationId());
         if (produceRequestValidationResult != null) {
             LOGGER.debug("augmenting invalid topic-partition details into response: {}", produceRequestValidationResult);
             augmentResponseWithInvalidTopicPartitions(response, produceRequestValidationResult);
             return context.forwardResponse(header, response);
-        }
-        else {
+        } else {
             return context.forwardResponse(header, response);
         }
     }
@@ -183,8 +197,11 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
             ProduceResponseData.PartitionProduceResponse response = new ProduceResponseData.PartitionProduceResponse();
             response.setIndex(partitionValidationResult.index());
             for (RecordValidationFailure recordValidationFailure : partitionValidationResult.recordValidationFailures()) {
-                response.recordErrors().add(new ProduceResponseData.BatchIndexAndErrorMessage().setBatchIndex(recordValidationFailure.invalidIndex())
-                        .setBatchIndexErrorMessage(recordValidationFailure.errorMessage()));
+                response.recordErrors()
+                        .add(
+                                new ProduceResponseData.BatchIndexAndErrorMessage().setBatchIndex(recordValidationFailure.invalidIndex())
+                                                                                   .setBatchIndexErrorMessage(recordValidationFailure.errorMessage())
+                        );
             }
             response.setErrorCode(Errors.INVALID_RECORD.code());
             response.setErrorMessage(toErrorString(partitionValidationResult.recordValidationFailures()));

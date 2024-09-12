@@ -13,7 +13,7 @@
           host: upstream
           port: 9199
           rack: a
-      topics: []
+      topics: [ ]
       clusterId: zz
       controllerId: 0
       throttleTimeMs: 0

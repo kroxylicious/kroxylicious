@@ -67,13 +67,13 @@ public class BytebufValidators {
      *
      * @return BytebufValidator that will validate against all.
      */
-    public static BytebufValidator chainOf(@NonNull List<BytebufValidator> elements) {
+    public static BytebufValidator chainOf(@NonNull
+    List<BytebufValidator> elements) {
         Objects.nonNull(elements);
 
         if (elements.isEmpty()) {
             return allValid();
-        }
-        else {
+        } else {
             return new ChainingByteBufferValidator(elements);
         }
     }

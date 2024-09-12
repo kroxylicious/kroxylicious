@@ -126,7 +126,7 @@ public class ByteBufAccessorTest {
         var bbuf = Unpooled.wrappedBuffer(bbuffer.flip());
         var kp = new ByteBufAccessorImpl(bbuf);
         assertThatThrownBy(() -> kp.readArray(2)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Error reading byte array of 2 byte(s): only 1 byte(s) available");
+                                                 .hasMessageContaining("Error reading byte array of 2 byte(s): only 1 byte(s) available");
     }
 
     @Test
@@ -234,12 +234,12 @@ public class ByteBufAccessorTest {
 
     public static Stream<Object[]> requestApiVersions() {
         return IntStream.range(0, ApiVersionsRequestData.SCHEMAS.length)
-                .mapToObj(index -> new Object[]{ (short) (ApiVersionsRequestData.LOWEST_SUPPORTED_VERSION + index), ApiVersionsRequestData.SCHEMAS[index] });
+                        .mapToObj(index -> new Object[]{ (short) (ApiVersionsRequestData.LOWEST_SUPPORTED_VERSION + index), ApiVersionsRequestData.SCHEMAS[index] });
     }
 
     public static Stream<Object[]> responseApiVersions() {
         return IntStream.range(0, ApiVersionsResponseData.SCHEMAS.length)
-                .mapToObj(index -> new Object[]{ (short) (ApiVersionsResponseData.LOWEST_SUPPORTED_VERSION + index), ApiVersionsResponseData.SCHEMAS[index] });
+                        .mapToObj(index -> new Object[]{ (short) (ApiVersionsResponseData.LOWEST_SUPPORTED_VERSION + index), ApiVersionsResponseData.SCHEMAS[index] });
     }
 
     private void assertSameRequest(Schema schema, ApiVersionsRequestData message, ApiVersionsRequestData readReq) {
@@ -252,8 +252,8 @@ public class ByteBufAccessorTest {
     void testReadApiVersionsRequest(short apiVersion, Schema schema) {
         // Write using Kafka API
         var message = new ApiVersionsRequestData()
-                .setClientSoftwareName("foo/bar")
-                .setClientSoftwareVersion("1.2.0");
+                                                  .setClientSoftwareName("foo/bar")
+                                                  .setClientSoftwareVersion("1.2.0");
         var cache = new ObjectSerializationCache();
         int messageSize = message.size(cache, apiVersion);
         ByteBuffer bbuffer = ByteBuffer.allocate(messageSize);
@@ -273,8 +273,8 @@ public class ByteBufAccessorTest {
     void testWriteApiVersionsRequest(short apiVersion, Schema schema) {
         // Write using our API
         var message = new ApiVersionsRequestData()
-                .setClientSoftwareName("foo/bar")
-                .setClientSoftwareVersion("1.2.0");
+                                                  .setClientSoftwareName("foo/bar")
+                                                  .setClientSoftwareVersion("1.2.0");
         var cache = new ObjectSerializationCache();
         int messageSize = message.size(cache, apiVersion);
         var bbuf = Unpooled.buffer(messageSize);
@@ -302,27 +302,33 @@ public class ByteBufAccessorTest {
     void testReadApiVersionsResponse(short apiVersion, Schema schema) {
         // Write using Kafka API
         var ff = new ApiVersionsResponseData.FinalizedFeatureKeyCollection();
-        ff.add(new ApiVersionsResponseData.FinalizedFeatureKey()
-                .setName("ff")
-                .setMaxVersionLevel((short) 78)
-                .setMinVersionLevel((short) 77));
+        ff.add(
+                new ApiVersionsResponseData.FinalizedFeatureKey()
+                                                                 .setName("ff")
+                                                                 .setMaxVersionLevel((short) 78)
+                                                                 .setMinVersionLevel((short) 77)
+        );
         var sf = new ApiVersionsResponseData.SupportedFeatureKeyCollection();
-        sf.add(new ApiVersionsResponseData.SupportedFeatureKey()
-                .setName("ff")
-                .setMaxVersion((short) 88)
-                .setMinVersion((short) 87));
+        sf.add(
+                new ApiVersionsResponseData.SupportedFeatureKey()
+                                                                 .setName("ff")
+                                                                 .setMaxVersion((short) 88)
+                                                                 .setMinVersion((short) 87)
+        );
         var ak = new ApiVersionsResponseData.ApiVersionCollection();
-        ak.add(new ApiVersionsResponseData.ApiVersion()
-                .setApiKey(ApiKeys.ADD_OFFSETS_TO_TXN.id)
-                .setMinVersion((short) 1)
-                .setMaxVersion((short) 3));
+        ak.add(
+                new ApiVersionsResponseData.ApiVersion()
+                                                        .setApiKey(ApiKeys.ADD_OFFSETS_TO_TXN.id)
+                                                        .setMinVersion((short) 1)
+                                                        .setMaxVersion((short) 3)
+        );
         var message = new ApiVersionsResponseData()
-                .setErrorCode(Errors.NONE.code())
-                .setThrottleTimeMs(23)
-                .setFinalizedFeaturesEpoch(12)
-                .setFinalizedFeatures(ff)
-                .setSupportedFeatures(sf)
-                .setApiKeys(ak);
+                                                   .setErrorCode(Errors.NONE.code())
+                                                   .setThrottleTimeMs(23)
+                                                   .setFinalizedFeaturesEpoch(12)
+                                                   .setFinalizedFeatures(ff)
+                                                   .setSupportedFeatures(sf)
+                                                   .setApiKeys(ak);
         var cache = new ObjectSerializationCache();
         int messageSize = message.size(cache, apiVersion);
         ByteBuffer bbuffer = ByteBuffer.allocate(messageSize);
@@ -342,27 +348,33 @@ public class ByteBufAccessorTest {
     void testWriteApiVersionsResponse(short apiVersion, Schema schema) {
         // Write using our API
         var ff = new ApiVersionsResponseData.FinalizedFeatureKeyCollection();
-        ff.add(new ApiVersionsResponseData.FinalizedFeatureKey()
-                .setName("ff")
-                .setMaxVersionLevel((short) 78)
-                .setMinVersionLevel((short) 77));
+        ff.add(
+                new ApiVersionsResponseData.FinalizedFeatureKey()
+                                                                 .setName("ff")
+                                                                 .setMaxVersionLevel((short) 78)
+                                                                 .setMinVersionLevel((short) 77)
+        );
         var sf = new ApiVersionsResponseData.SupportedFeatureKeyCollection();
-        sf.add(new ApiVersionsResponseData.SupportedFeatureKey()
-                .setName("ff")
-                .setMaxVersion((short) 88)
-                .setMinVersion((short) 87));
+        sf.add(
+                new ApiVersionsResponseData.SupportedFeatureKey()
+                                                                 .setName("ff")
+                                                                 .setMaxVersion((short) 88)
+                                                                 .setMinVersion((short) 87)
+        );
         var ak = new ApiVersionsResponseData.ApiVersionCollection();
-        ak.add(new ApiVersionsResponseData.ApiVersion()
-                .setApiKey(ApiKeys.ADD_OFFSETS_TO_TXN.id)
-                .setMinVersion((short) 1)
-                .setMaxVersion((short) 3));
+        ak.add(
+                new ApiVersionsResponseData.ApiVersion()
+                                                        .setApiKey(ApiKeys.ADD_OFFSETS_TO_TXN.id)
+                                                        .setMinVersion((short) 1)
+                                                        .setMaxVersion((short) 3)
+        );
         var message = new ApiVersionsResponseData()
-                .setErrorCode(Errors.NONE.code())
-                .setThrottleTimeMs(23)
-                .setFinalizedFeaturesEpoch(12)
-                .setFinalizedFeatures(ff)
-                .setSupportedFeatures(sf)
-                .setApiKeys(ak);
+                                                   .setErrorCode(Errors.NONE.code())
+                                                   .setThrottleTimeMs(23)
+                                                   .setFinalizedFeaturesEpoch(12)
+                                                   .setFinalizedFeatures(ff)
+                                                   .setSupportedFeatures(sf)
+                                                   .setApiKeys(ak);
         var cache = new ObjectSerializationCache();
         int messageSize = message.size(cache, apiVersion);
         var bbuf = Unpooled.buffer(messageSize);

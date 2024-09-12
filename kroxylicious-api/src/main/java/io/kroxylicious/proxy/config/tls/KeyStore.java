@@ -23,12 +23,19 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * @param storeType             specifies the server key type. Legal values are those types supported by the platform {@link java.security.KeyStore},
  *                              and PEM (for X-509 certificates express in PEM format).
  */
-@SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
-public record KeyStore(@JsonProperty(required = true) String storeFile,
-                       @JsonProperty(value = "storePassword") PasswordProvider storePasswordProvider,
-                       @JsonProperty(value = "keyPassword") PasswordProvider keyPasswordProvider,
-                       String storeType)
-        implements KeyProvider {
+@SuppressFBWarnings(
+        value = "PATH_TRAVERSAL_IN",
+        justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
+public record KeyStore(
+        @JsonProperty(required = true)
+        String storeFile,
+        @JsonProperty(value = "storePassword")
+        PasswordProvider storePasswordProvider,
+        @JsonProperty(value = "keyPassword")
+        PasswordProvider keyPasswordProvider,
+        String storeType
+)
+                      implements KeyProvider {
 
     public KeyStore {
         Objects.requireNonNull(storeFile);

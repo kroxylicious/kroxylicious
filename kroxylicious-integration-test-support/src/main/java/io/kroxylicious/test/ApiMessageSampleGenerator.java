@@ -77,17 +77,26 @@ public class ApiMessageSampleGenerator {
     }
 
     private static Map<ApiAndVersion, ApiMessage> instantiateAll(Map<ApiKeys, Class<? extends ApiMessage>> messages, Random random) {
-        return messages.entrySet().stream().sorted(Comparator.comparing(apiKeysClassEntry -> apiKeysClassEntry.getKey().name))
-                .flatMap(ApiMessageSampleGenerator::getSupportedVersions)
-                .flatMap(entry -> instantiateSample(entry, random)).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        return messages.entrySet()
+                       .stream()
+                       .sorted(Comparator.comparing(apiKeysClassEntry -> apiKeysClassEntry.getKey().name))
+                       .flatMap(ApiMessageSampleGenerator::getSupportedVersions)
+                       .flatMap(entry -> instantiateSample(entry, random))
+                       .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
     private static Stream<AbstractMap.SimpleEntry<ApiAndVersion, Class<? extends ApiMessage>>> getSupportedVersions(
-                                                                                                                    Map.Entry<ApiKeys, Class<? extends ApiMessage>> apiKeysClassEntry) {
+            Map.Entry<ApiKeys, Class<? extends ApiMessage>> apiKeysClassEntry
+    ) {
         short lowestSupportedVersion = apiKeysClassEntry.getKey().messageType.lowestSupportedVersion();
         short highestSupportedVersion = apiKeysClassEntry.getKey().messageType.highestSupportedVersion(true);
-        return IntStream.range(lowestSupportedVersion, highestSupportedVersion + 1).mapToObj(version -> new AbstractMap.SimpleEntry<>(
-                new ApiAndVersion(apiKeysClassEntry.getKey(), (short) version), apiKeysClassEntry.getValue()));
+        return IntStream.range(lowestSupportedVersion, highestSupportedVersion + 1)
+                        .mapToObj(
+                                version -> new AbstractMap.SimpleEntry<>(
+                                        new ApiAndVersion(apiKeysClassEntry.getKey(), (short) version),
+                                        apiKeysClassEntry.getValue()
+                                )
+                        );
     }
 
     private static Stream<Map.Entry<ApiAndVersion, ApiMessage>> instantiateSample(Map.Entry<ApiAndVersion, Class<? extends ApiMessage>> entry, Random random) {
@@ -115,13 +124,18 @@ public class ApiMessageSampleGenerator {
         try {
             Message instance = clazz.getConstructor().newInstance();
             Map<String, org.apache.kafka.common.protocol.types.Field> fieldsForVersion = Arrays.stream(schema.fields())
-                    .filter(boundField -> !boundField.def.name.startsWith("_"))
-                    .collect(Collectors.toMap(ApiMessageSampleGenerator::toSetterName, boundField -> boundField.def));
+                                                                                               .filter(boundField -> !boundField.def.name.startsWith("_"))
+                                                                                               .collect(
+                                                                                                       Collectors.toMap(
+                                                                                                               ApiMessageSampleGenerator::toSetterName,
+                                                                                                               boundField -> boundField.def
+                                                                                                       )
+                                                                                               );
 
             Stream<Method> sortedMethods = Arrays.stream(clazz.getMethods())
-                    .filter(method -> method.getName().startsWith("set"))
-                    .filter(method -> fieldsForVersion.containsKey(method.getName()))
-                    .sorted(Comparator.comparing(Method::getName));
+                                                 .filter(method -> method.getName().startsWith("set"))
+                                                 .filter(method -> fieldsForVersion.containsKey(method.getName()))
+                                                 .sorted(Comparator.comparing(Method::getName));
             sortedMethods.forEach(method -> {
                 try {
                     Object o = instantiateArg(method, random, fieldsForVersion.get(method.getName()).type);
@@ -145,51 +159,37 @@ public class ApiMessageSampleGenerator {
     static private Object instantiateArg(Class<?> paramClass, Type paramGenericType, Random random, org.apache.kafka.common.protocol.types.Type type) {
         if (paramClass == long.class || paramClass == Long.class) {
             return random.nextLong(RANGE_MIN, RANGE_MAX);
-        }
-        else if (paramClass == int.class || paramClass == Integer.class) {
+        } else if (paramClass == int.class || paramClass == Integer.class) {
             return random.nextInt(RANGE_MIN, RANGE_MAX);
-        }
-        else if (paramClass == short.class || paramClass == Short.class) {
+        } else if (paramClass == short.class || paramClass == Short.class) {
             return (short) random.nextInt(RANGE_MIN, RANGE_MAX);
-        }
-        else if (paramClass == double.class || paramClass == Double.class) {
+        } else if (paramClass == double.class || paramClass == Double.class) {
             return random.nextDouble(RANGE_MIN, RANGE_MAX);
-        }
-        else if (paramClass == String.class) {
+        } else if (paramClass == String.class) {
             return "random-string-" + random.nextInt(RANGE_MIN, RANGE_MAX);
-        }
-        else if (paramClass == byte.class || paramClass == Byte.class) {
+        } else if (paramClass == byte.class || paramClass == Byte.class) {
             return (byte) random.nextInt(RANGE_MIN, 127);
-        }
-        else if (paramClass == byte[].class) {
+        } else if (paramClass == byte[].class) {
             byte[] bytes = new byte[5];
             random.nextBytes(bytes);
             return bytes;
-        }
-        else if (paramClass == ByteBuffer.class) {
+        } else if (paramClass == ByteBuffer.class) {
             byte[] bytes = new byte[5];
             random.nextBytes(bytes);
             return ByteBuffer.wrap(bytes).flip();
-        }
-        else if (paramClass == boolean.class) {
+        } else if (paramClass == boolean.class) {
             return random.nextBoolean();
-        }
-        else if (paramClass == Uuid.class) {
+        } else if (paramClass == Uuid.class) {
             return randomUuid(random);
-        }
-        else if (paramClass == BaseRecords.class) {
+        } else if (paramClass == BaseRecords.class) {
             return randomMemoryRecords(random);
-        }
-        else if (Message.class.isAssignableFrom(paramClass)) {
+        } else if (Message.class.isAssignableFrom(paramClass)) {
             return instantiate(paramClass.asSubclass(Message.class), random, (Schema) type);
-        }
-        else if (List.class.isAssignableFrom(paramClass)) {
+        } else if (List.class.isAssignableFrom(paramClass)) {
             return instantiateList(paramGenericType, random, type);
-        }
-        else if (ImplicitLinkedHashCollection.class.isAssignableFrom(paramClass)) {
+        } else if (ImplicitLinkedHashCollection.class.isAssignableFrom(paramClass)) {
             return instantiateMessageCollection(paramClass.asSubclass(ImplicitLinkedHashCollection.class), random, type);
-        }
-        else {
+        } else {
             throw new IllegalArgumentException("unexpected type " + paramClass.getSimpleName());
         }
     }
@@ -199,11 +199,19 @@ public class ApiMessageSampleGenerator {
         String value = "value-" + random.nextInt(RANGE_MIN, RANGE_MAX);
         long baseOffset = random.nextInt(RANGE_MIN, RANGE_MAX);
         long logAppendTime = RecordBatch.NO_TIMESTAMP;
-        try (MemoryRecordsBuilder builder = MemoryRecords.builder(ByteBuffer.allocate(1), RecordBatch.CURRENT_MAGIC_VALUE, Compression.NONE,
-                TimestampType.CREATE_TIME, baseOffset,
+        try (MemoryRecordsBuilder builder = MemoryRecords.builder(
+                ByteBuffer.allocate(1),
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                Compression.NONE,
+                TimestampType.CREATE_TIME,
+                baseOffset,
                 logAppendTime,
-                RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false,
-                RecordBatch.NO_PARTITION_LEADER_EPOCH)) {
+                RecordBatch.NO_PRODUCER_ID,
+                RecordBatch.NO_PRODUCER_EPOCH,
+                RecordBatch.NO_SEQUENCE,
+                false,
+                RecordBatch.NO_PARTITION_LEADER_EPOCH
+        )) {
             builder.append(new SimpleRecord(random.nextLong(RANGE_MIN, RANGE_MAX), key.getBytes(StandardCharsets.UTF_8), value.getBytes(StandardCharsets.UTF_8)));
             return builder.build();
         }
@@ -235,8 +243,11 @@ public class ApiMessageSampleGenerator {
         return new Uuid(mostSignificantBits, leastSignificantBits);
     }
 
-    private static Object instantiateMessageCollection(Class<? extends ImplicitLinkedHashCollection> genericType, Random random,
-                                                       org.apache.kafka.common.protocol.types.Type field) {
+    private static Object instantiateMessageCollection(
+            Class<? extends ImplicitLinkedHashCollection> genericType,
+            Random random,
+            org.apache.kafka.common.protocol.types.Type field
+    ) {
         try {
             ImplicitLinkedHashCollection<ImplicitLinkedHashCollection.Element> collection = genericType.getConstructor().newInstance();
             ParameterizedType paramClass1 = (ParameterizedType) genericType.getGenericSuperclass();

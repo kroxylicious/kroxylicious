@@ -41,26 +41,26 @@ public class TestClientsJobTemplates {
     private static JobBuilder baseClientJob(String jobName) {
         Map<String, String> labelSelector = Map.of("app", jobName);
         return new JobBuilder()
-                .withApiVersion("batch/v1")
-                .withKind(Constants.JOB)
-                .withNewMetadata()
-                .withName(jobName)
-                .addToLabels(labelSelector)
-                .endMetadata()
-                .withNewSpec()
-                .withBackoffLimit(0)
-                .withCompletions(1)
-                .withParallelism(1)
-                .withNewTemplate()
-                .withNewMetadata()
-                .withLabels(labelSelector)
-                .withName(jobName)
-                .endMetadata()
-                .withNewSpec()
-                .withRestartPolicy(Constants.RESTART_POLICY_NEVER)
-                .endSpec()
-                .endTemplate()
-                .endSpec();
+                               .withApiVersion("batch/v1")
+                               .withKind(Constants.JOB)
+                               .withNewMetadata()
+                               .withName(jobName)
+                               .addToLabels(labelSelector)
+                               .endMetadata()
+                               .withNewSpec()
+                               .withBackoffLimit(0)
+                               .withCompletions(1)
+                               .withParallelism(1)
+                               .withNewTemplate()
+                               .withNewMetadata()
+                               .withLabels(labelSelector)
+                               .withName(jobName)
+                               .endMetadata()
+                               .withNewSpec()
+                               .withRestartPolicy(Constants.RESTART_POLICY_NEVER)
+                               .endSpec()
+                               .endTemplate()
+                               .endSpec();
     }
 
     /**
@@ -72,16 +72,18 @@ public class TestClientsJobTemplates {
      */
     public static JobBuilder defaultAdminClientJob(String jobName, List<String> args) {
         return baseClientJob(jobName)
-                .editSpec()
-                .editTemplate()
-                .editSpec()
-                .withContainers(ContainerTemplates.baseImageBuilder("admin", Constants.TEST_CLIENTS_IMAGE)
-                        .withCommand("admin-client")
-                        .withArgs(args)
-                        .build())
-                .endSpec()
-                .endTemplate()
-                .endSpec();
+                                     .editSpec()
+                                     .editTemplate()
+                                     .editSpec()
+                                     .withContainers(
+                                             ContainerTemplates.baseImageBuilder("admin", Constants.TEST_CLIENTS_IMAGE)
+                                                               .withCommand("admin-client")
+                                                               .withArgs(args)
+                                                               .build()
+                                     )
+                                     .endSpec()
+                                     .endTemplate()
+                                     .endSpec();
     }
 
     /**
@@ -95,25 +97,36 @@ public class TestClientsJobTemplates {
      * @param messageKey
      * @return the job builder
      */
-    public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
-                                                          @Nullable String messageKey) {
-        return newJobForContainer(jobName,
+    public static JobBuilder defaultTestClientProducerJob(
+            String jobName,
+            String bootstrap,
+            String topicName,
+            int numOfMessages,
+            String message,
+            @Nullable
+            String messageKey
+    ) {
+        return newJobForContainer(
+                jobName,
                 "test-client-producer",
                 Constants.TEST_CLIENTS_IMAGE,
-                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey));
+                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey)
+        );
     }
 
     private static JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
         return baseClientJob(jobName)
-                .editSpec()
-                .editTemplate()
-                .editSpec()
-                .withContainers(ContainerTemplates.baseImageBuilder(containerName, image)
-                        .withEnv(envVars)
-                        .build())
-                .endSpec()
-                .endTemplate()
-                .endSpec();
+                                     .editSpec()
+                                     .editTemplate()
+                                     .editSpec()
+                                     .withContainers(
+                                             ContainerTemplates.baseImageBuilder(containerName, image)
+                                                               .withEnv(envVars)
+                                                               .build()
+                                     )
+                                     .endSpec()
+                                     .endTemplate()
+                                     .endSpec();
     }
 
     /**
@@ -126,10 +139,12 @@ public class TestClientsJobTemplates {
      * @return the job builder
      */
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages) {
-        return newJobForContainer(jobName,
+        return newJobForContainer(
+                jobName,
                 "test-client-consumer",
                 Constants.TEST_CLIENTS_IMAGE,
-                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages));
+                testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages)
+        );
     }
 
     /**
@@ -141,15 +156,17 @@ public class TestClientsJobTemplates {
      */
     public static JobBuilder defaultKcatJob(String jobName, List<String> args) {
         return baseClientJob(jobName)
-                .editSpec()
-                .editTemplate()
-                .editSpec()
-                .withContainers(ContainerTemplates.baseImageBuilder("kcat", Constants.KCAT_CLIENT_IMAGE)
-                        .withArgs(args)
-                        .build())
-                .endSpec()
-                .endTemplate()
-                .endSpec();
+                                     .editSpec()
+                                     .editTemplate()
+                                     .editSpec()
+                                     .withContainers(
+                                             ContainerTemplates.baseImageBuilder("kcat", Constants.KCAT_CLIENT_IMAGE)
+                                                               .withArgs(args)
+                                                               .build()
+                                     )
+                                     .endSpec()
+                                     .endTemplate()
+                                     .endSpec();
     }
 
     /**
@@ -161,36 +178,42 @@ public class TestClientsJobTemplates {
      */
     public static JobBuilder defaultKafkaGoConsumerJob(String jobName, List<String> args) {
         return baseClientJob(jobName)
-                .editSpec()
-                .withBackoffLimit(3)
-                .editTemplate()
-                .editSpec()
-                .withRestartPolicy(Constants.RESTART_POLICY_ONFAILURE)
-                .withContainers(ContainerTemplates.baseImageBuilder("kafka-go-consumer", Constants.KAF_CLIENT_IMAGE)
-                        .withArgs(args)
-                        .build())
-                .endSpec()
-                .endTemplate()
-                .endSpec();
+                                     .editSpec()
+                                     .withBackoffLimit(3)
+                                     .editTemplate()
+                                     .editSpec()
+                                     .withRestartPolicy(Constants.RESTART_POLICY_ONFAILURE)
+                                     .withContainers(
+                                             ContainerTemplates.baseImageBuilder("kafka-go-consumer", Constants.KAF_CLIENT_IMAGE)
+                                                               .withArgs(args)
+                                                               .build()
+                                     )
+                                     .endSpec()
+                                     .endTemplate()
+                                     .endSpec();
     }
 
     private static EnvVar envVar(String name, String value) {
         return new EnvVarBuilder()
-                .withName(name)
-                .withValue(value)
-                .build();
+                                  .withName(name)
+                                  .withValue(value)
+                                  .build();
     }
 
-    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message, @Nullable String messageKey) {
-        List<EnvVar> envVars = new ArrayList<>(List.of(
-                envVar(BOOTSTRAP_VAR, bootstrap),
-                envVar(DELAY_MS_VAR, "200"),
-                envVar(TOPIC_VAR, topicName),
-                envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
-                envVar(MESSAGE_VAR, message),
-                envVar(PRODUCER_ACKS_VAR, "all"),
-                envVar(LOG_LEVEL_VAR, "INFO"),
-                envVar(CLIENT_TYPE_VAR, "KafkaProducer")));
+    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message, @Nullable
+    String messageKey) {
+        List<EnvVar> envVars = new ArrayList<>(
+                List.of(
+                        envVar(BOOTSTRAP_VAR, bootstrap),
+                        envVar(DELAY_MS_VAR, "200"),
+                        envVar(TOPIC_VAR, topicName),
+                        envVar(MESSAGE_COUNT_VAR, String.valueOf(numOfMessages)),
+                        envVar(MESSAGE_VAR, message),
+                        envVar(PRODUCER_ACKS_VAR, "all"),
+                        envVar(LOG_LEVEL_VAR, "INFO"),
+                        envVar(CLIENT_TYPE_VAR, "KafkaProducer")
+                )
+        );
         if (messageKey != null) {
             envVars.add(envVar(MESSAGE_KEY_VAR, messageKey));
         }
@@ -205,6 +228,7 @@ public class TestClientsJobTemplates {
                 envVar(GROUP_ID_VAR, "my-group"),
                 envVar(LOG_LEVEL_VAR, "INFO"),
                 envVar(CLIENT_TYPE_VAR, "KafkaConsumer"),
-                envVar(OUTPUT_FORMAT_VAR, "json"));
+                envVar(OUTPUT_FORMAT_VAR, "json")
+        );
     }
 }

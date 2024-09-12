@@ -52,15 +52,21 @@ public class KroxyliciousConfigUtils {
         for (int i = 0; i < virtualClusterNames.length; i++) {
             String virtualClusterName = virtualClusterNames[i];
             var vcb = new VirtualClusterBuilder()
-                    .withNewTargetCluster()
-                    .withBootstrapServers(clusterBootstrapServers)
-                    .endTargetCluster()
-                    .withClusterNetworkAddressConfigProvider(
-                            new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                    .withConfig("bootstrapAddress", new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
-                                    .build());
+                                                 .withNewTargetCluster()
+                                                 .withBootstrapServers(clusterBootstrapServers)
+                                                 .endTargetCluster()
+                                                 .withClusterNetworkAddressConfigProvider(
+                                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                                 PortPerBrokerClusterNetworkAddressConfigProvider.class.getName()
+                                                         )
+                                                          .withConfig(
+                                                                  "bootstrapAddress",
+                                                                  new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10)
+                                                          )
+                                                          .build()
+                                                 );
             configurationBuilder
-                    .addToVirtualClusters(virtualClusterName, vcb.build());
+                                .addToVirtualClusters(virtualClusterName, vcb.build());
         }
         return configurationBuilder;
     }
@@ -97,11 +103,9 @@ public class KroxyliciousConfigUtils {
         }
         if (provider.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig c) {
             return c.getBootstrapAddress().toString();
-        }
-        else if (provider.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig c) {
+        } else if (provider.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig c) {
             return c.getBootstrapAddress().toString();
-        }
-        else {
+        } else {
             throw new IllegalStateException("I don't know how to handle ClusterEndpointConfigProvider type:" + provider.type());
         }
     }

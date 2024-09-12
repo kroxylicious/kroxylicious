@@ -17,8 +17,8 @@ The filter currently supports two modes of operation:
 
 Validation rules can be applied to check the content of the Kafka record key or value.
 
-If the validation fails, the product request is rejected and the producing application receives an error response.  The broker
-will not receive the rejected records.
+If the validation fails, the product request is rejected and the producing application receives an error response.
+The broker will not receive the rejected records.
 
 NOTE: This filter is currently in incubation and available as a preview.
 We would not recommend using it in a production environment.

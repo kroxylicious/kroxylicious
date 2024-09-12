@@ -15,16 +15,18 @@ import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
  * A decoded request frame.
  */
 public class DecodedRequestFrame<B extends ApiMessage>
-        extends DecodedFrame<RequestHeaderData, B>
-        implements RequestFrame {
+                                extends DecodedFrame<RequestHeaderData, B>
+                                implements RequestFrame {
 
     private final boolean decodeResponse;
 
-    public DecodedRequestFrame(short apiVersion,
-                               int correlationId,
-                               boolean decodeResponse,
-                               RequestHeaderData header,
-                               B body) {
+    public DecodedRequestFrame(
+            short apiVersion,
+            int correlationId,
+            boolean decodeResponse,
+            RequestHeaderData header,
+            B body
+    ) {
         super(apiVersion, correlationId, header, body);
         this.decodeResponse = decodeResponse;
     }

@@ -17,11 +17,19 @@ public class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
         int index = buf.readerIndex();
         try {
             var correlationId = buf.readInt();
-            return getClass().getSimpleName() + "(" +
-                    "length=" + length +
-                    ", correlationId=" + correlationId +
-                    ", buf=" + buf +
-                    ')';
+            return getClass().getSimpleName()
+                   + "("
+                   +
+                   "length="
+                   + length
+                   +
+                   ", correlationId="
+                   + correlationId
+                   +
+                   ", buf="
+                   + buf
+                   +
+                   ')';
         }
         finally {
             buf.readerIndex(index);

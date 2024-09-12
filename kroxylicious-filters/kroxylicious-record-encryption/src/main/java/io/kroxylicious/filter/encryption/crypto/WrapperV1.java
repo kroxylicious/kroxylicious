@@ -39,15 +39,48 @@ public class WrapperV1 implements Wrapper {
     }
 
     @Override
-    public <E> void writeWrapper(@NonNull Serde<E> edekSerde, @NonNull E edek, @NonNull String topicName, int partitionId, @NonNull RecordBatch batch,
-                                 @NonNull Record kafkaRecord, @NonNull Dek<E>.Encryptor encryptor, @NonNull Parcel parcel, @NonNull Aad aadSpec,
-                                 @NonNull Set<RecordField> recordFields, @NonNull ByteBuffer buffer) {
+    public <E> void writeWrapper(
+            @NonNull
+            Serde<E> edekSerde,
+            @NonNull
+            E edek,
+            @NonNull
+            String topicName,
+            int partitionId,
+            @NonNull
+            RecordBatch batch,
+            @NonNull
+            Record kafkaRecord,
+            @NonNull
+            Dek<E>.Encryptor encryptor,
+            @NonNull
+            Parcel parcel,
+            @NonNull
+            Aad aadSpec,
+            @NonNull
+            Set<RecordField> recordFields,
+            @NonNull
+            ByteBuffer buffer
+    ) {
         throw unsupportedVersionException();
     }
 
     @Override
-    public <E> void read(@NonNull Parcel parcel, @NonNull String topicName, int partition, @NonNull RecordBatch batch, @NonNull Record record,
-                         ByteBuffer wrapper, Dek<E>.Decryptor decryptor, @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {
+    public <E> void read(
+            @NonNull
+            Parcel parcel,
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            RecordBatch batch,
+            @NonNull
+            Record record,
+            ByteBuffer wrapper,
+            Dek<E>.Decryptor decryptor,
+            @NonNull
+            BiConsumer<ByteBuffer, Header[]> consumer
+    ) {
         throw unsupportedVersionException();
     }
 

@@ -65,7 +65,8 @@
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
-        <strimzi.version>0.43.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
+        <strimzi.version>0.43.0
+        </strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
         <kubernetes-client.version>6.13.3</kubernetes-client.version>
         <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.8</maven.core.version>
@@ -391,7 +392,7 @@
                 <groupId>org.apache.maven</groupId>
                 <artifactId>maven-core</artifactId>
                 <version>${maven.core.version}</version>
-             </dependency>
+            </dependency>
             <dependency>
                 <groupId>org.awaitility</groupId>
                 <artifactId>awaitility</artifactId>
@@ -901,20 +902,25 @@
                                     <failOnWarning>true</failOnWarning>
                                     <ignoreUnusedRuntime>true</ignoreUnusedRuntime>
                                     <ignoredUsedUndeclaredDependencies>
-                                        <ignoredUsedUndeclaredDependency>com.google.code.findbugs:jsr305</ignoredUsedUndeclaredDependency>
+                                        <ignoredUsedUndeclaredDependency>com.google.code.findbugs:jsr305
+                                        </ignoredUsedUndeclaredDependency>
                                     </ignoredUsedUndeclaredDependencies>
                                     <ignoredUnusedDeclaredDependencies>
                                         <!-- several modules have a test dependency on log4j-slf4j2-impl to enable test logging -->
-                                        <ignoredUnusedDeclaredDependency>org.apache.logging.log4j:log4j-slf4j2-impl</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>org.apache.logging.log4j:log4j-slf4j2-impl
+                                        </ignoredUnusedDeclaredDependency>
                                         <!-- for some reason, the analyzer fails to detect netty-transport-native-unix-common use -->
-                                        <ignoredUnusedDeclaredDependency>io.netty:netty-transport-native-unix-common</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.netty:netty-transport-native-unix-common
+                                        </ignoredUnusedDeclaredDependency>
                                         <!-- dependency analyzer seems not to grok that a dependency on a
                                         @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
-                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
+                                        </ignoredUnusedDeclaredDependency>
                                     </ignoredUnusedDeclaredDependencies>
                                     <ignoredDependencies>
                                         <!-- Kroxylicious junit extension requires this to be on the classpath -->
-                                        <ignoredUnusedDeclaredDependency>org.apache.kafka:kafka_2.13</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>org.apache.kafka:kafka_2.13
+                                        </ignoredUnusedDeclaredDependency>
                                     </ignoredDependencies>
                                 </configuration>
                             </execution>
@@ -956,6 +962,18 @@
                                 <configuration>
                                     <directories>
                                         <directory>${project.build.testSourceDirectory}</directory>
+                                    </directories>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>format-generated</id>
+                                <goals>
+                                    <goal>format</goal>
+                                </goals>
+                                <phase>process-sources</phase>
+                                <configuration>
+                                    <directories>
+                                        <directory>${project.build.directory}/generated-sources/krpc</directory>
                                     </directories>
                                 </configuration>
                             </execution>

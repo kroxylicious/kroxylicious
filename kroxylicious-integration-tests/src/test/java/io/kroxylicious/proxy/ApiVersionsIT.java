@@ -57,8 +57,12 @@ public class ApiVersionsIT {
                 var client = tester.simpleTestClient()) {
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() - 1));
             Response response = whenGetApiVersionsFromKroxylicious(client);
-            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(),
-                    (short) (ApiKeys.METADATA.latestVersion() - 1));
+            assertKroxyliciousResponseOffersApiVersionsForApiKey(
+                    response,
+                    ApiKeys.METADATA,
+                    ApiKeys.METADATA.oldestVersion(),
+                    (short) (ApiKeys.METADATA.latestVersion() - 1)
+            );
         }
     }
 
@@ -118,8 +122,9 @@ public class ApiVersionsIT {
             assertEquals(ApiKeys.API_VERSIONS, payload.apiKeys());
             assertEquals((short) 3, payload.apiVersion());
             ApiVersionsResponseData message = (ApiVersionsResponseData) payload.message();
-            Map<ApiKeys, ApiVersionsResponseData.ApiVersion> responseVersions = message.apiKeys().stream()
-                    .collect(Collectors.toMap(k -> ApiKeys.forId(k.apiKey()), k -> k));
+            Map<ApiKeys, ApiVersionsResponseData.ApiVersion> responseVersions = message.apiKeys()
+                                                                                       .stream()
+                                                                                       .collect(Collectors.toMap(k -> ApiKeys.forId(k.apiKey()), k -> k));
             for (ApiKeys knownValue : ApiKeys.values()) {
                 assertTrue(responseVersions.containsKey(knownValue));
                 assertEquals(knownValue.oldestVersion(), responseVersions.get(knownValue).minVersion());

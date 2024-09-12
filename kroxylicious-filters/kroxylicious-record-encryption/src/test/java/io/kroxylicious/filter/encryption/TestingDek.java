@@ -29,8 +29,11 @@ public record TestingDek(byte[] serializedEdek) {
 
     @Override
     public String toString() {
-        return "TestingDek{" +
-                "serializedEdek=" + Arrays.toString(serializedEdek) +
-                '}';
+        return "TestingDek{"
+               +
+               "serializedEdek="
+               + Arrays.toString(serializedEdek)
+               +
+               '}';
     }
 }

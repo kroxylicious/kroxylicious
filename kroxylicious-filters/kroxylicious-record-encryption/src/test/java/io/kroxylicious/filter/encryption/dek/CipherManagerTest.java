@@ -34,8 +34,11 @@ class CipherManagerTest {
     @MethodSource("allCipherManagers")
     void serializedParamsGoodForDecrypt(CipherManager cipherManager) throws GeneralSecurityException {
 
-        assertThat(CipherSpecResolver.ALL.fromSerializedId(
-                CipherSpecResolver.ALL.toSerializedId(cipherManager))).isSameAs(cipherManager);
+        assertThat(
+                CipherSpecResolver.ALL.fromSerializedId(
+                        CipherSpecResolver.ALL.toSerializedId(cipherManager)
+                )
+        ).isSameAs(cipherManager);
 
         var params = cipherManager.paramSupplier().get();
 
@@ -57,19 +60,19 @@ class CipherManagerTest {
         var bb = ByteBuffer.allocate(size);
         cipherManager.writeParameters(bb, params);
         assertThat(bb.limit())
-                .describedAs("Spec should return exact size for parametersBuffer")
-                .isEqualTo(size);
+                              .describedAs("Spec should return exact size for parametersBuffer")
+                              .isEqualTo(size);
         assertThat(bb.position())
-                .describedAs("Spec should not do the flip")
-                .isEqualTo(bb.limit());
+                                 .describedAs("Spec should not do the flip")
+                                 .isEqualTo(bb.limit());
 
         bb.flip();
 
         // Prove that we can use the params via serialization to decrypt
         var readParams = cipherManager.readParameters(bb);
         assertThat(bb.position())
-                .describedAs("Spec should not do the rewind")
-                .isEqualTo(bb.limit());
+                                 .describedAs("Spec should not do the rewind")
+                                 .isEqualTo(bb.limit());
         Cipher decCipher = cipherManager.newCipher();
         decCipher.init(Cipher.DECRYPT_MODE, secretKey, readParams);
         String plaintext = new String(decCipher.doFinal(ciphertext), StandardCharsets.UTF_8);

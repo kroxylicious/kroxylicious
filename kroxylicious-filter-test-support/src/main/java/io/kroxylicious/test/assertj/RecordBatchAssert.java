@@ -33,90 +33,90 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
     public RecordBatchAssert hasSizeInBytes(int expected) {
         isNotNull();
         Assertions.assertThat(actual.sizeInBytes())
-                .describedAs("sizeInBytes")
-                .isEqualTo(expected);
+                  .describedAs("sizeInBytes")
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasBaseOffset(long expected) {
         isNotNull();
         Assertions.assertThat(actual.baseOffset())
-                .describedAs("baseOffset")
-                .isEqualTo(expected);
+                  .describedAs("baseOffset")
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasBaseSequence(int expected) {
         isNotNull();
         Assertions.assertThat(actual.baseSequence())
-                .describedAs("baseSequence")
-                .isEqualTo(expected);
+                  .describedAs("baseSequence")
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasCompressionType(CompressionType expected) {
         isNotNull();
         Assertions.assertThat(actual.compressionType())
-                .describedAs("compressionType")
-                .isNotNull()
-                .isEqualTo(expected);
+                  .describedAs("compressionType")
+                  .isNotNull()
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasNumRecords(int expected) {
         isNotNull();
         Assertions.assertThat(actual)
-                .describedAs("records")
-                .hasSize(expected);
+                  .describedAs("records")
+                  .hasSize(expected);
         return this;
     }
 
     public RecordBatchAssert hasMagic(byte magic) {
         isNotNull();
         Assertions.assertThat(actual.magic())
-                .describedAs("magic")
-                .isEqualTo(magic);
+                  .describedAs("magic")
+                  .isEqualTo(magic);
         return this;
     }
 
     public RecordBatchAssert isControlBatch(boolean expected) {
         isNotNull();
         Assertions.assertThat(actual.isControlBatch())
-                .describedAs("controlBatch")
-                .isEqualTo(expected);
+                  .describedAs("controlBatch")
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert isTransactional(boolean expected) {
         isNotNull();
         Assertions.assertThat(actual.isTransactional())
-                .describedAs("transactional")
-                .isEqualTo(expected);
+                  .describedAs("transactional")
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasPartitionLeaderEpoch(int expected) {
         isNotNull();
         Assertions.assertThat(actual.partitionLeaderEpoch())
-                .describedAs("partitionLeaderEpoch")
-                .isEqualTo(expected);
+                  .describedAs("partitionLeaderEpoch")
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasDeleteHorizonMs(OptionalLong expected) {
         isNotNull();
         Assertions.assertThat(actual.deleteHorizonMs())
-                .describedAs("deleteHorizonMs")
-                .isNotNull()
-                .isEqualTo(expected);
+                  .describedAs("deleteHorizonMs")
+                  .isNotNull()
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasLastOffset(long expected) {
         isNotNull();
         Assertions.assertThat(actual.lastOffset())
-                .describedAs("lastOffset")
-                .isEqualTo(expected);
+                  .describedAs("lastOffset")
+                  .isEqualTo(expected);
         return this;
     }
 
@@ -142,47 +142,47 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
     public RecordBatchAssert hasLastSequence(int expected) {
         isNotNull();
         Assertions.assertThat(actual.lastSequence())
-                .describedAs("lastSequence")
-                .isEqualTo(expected);
+                  .describedAs("lastSequence")
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasProducerEpoch(short expected) {
         isNotNull();
         Assertions.assertThat(actual.producerEpoch())
-                .describedAs("producerEpoch")
-                .isEqualTo(expected);
+                  .describedAs("producerEpoch")
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasProducerId(long expected) {
         isNotNull();
         Assertions.assertThat(actual.producerId())
-                .describedAs("producerId")
-                .isEqualTo(expected);
+                  .describedAs("producerId")
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasMaxTimestamp(long expected) {
         isNotNull();
         Assertions.assertThat(actual.maxTimestamp())
-                .describedAs("maxTimestamp")
-                .isEqualTo(expected);
+                  .describedAs("maxTimestamp")
+                  .isEqualTo(expected);
         return this;
     }
 
     public RecordBatchAssert hasTimestampType(TimestampType expected) {
         isNotNull();
         Assertions.assertThat(actual.timestampType())
-                .describedAs("timestampType")
-                .isEqualTo(expected);
+                  .describedAs("timestampType")
+                  .isEqualTo(expected);
         return this;
     }
 
     private IterableAssert<Record> recordIterable() {
         isNotNull();
         IterableAssert<Record> records = IterableAssert.assertThatIterable(actual)
-                .describedAs("records");
+                                                       .describedAs("records");
         return records;
     }
 
@@ -190,16 +190,16 @@ public class RecordBatchAssert extends AbstractAssert<RecordBatchAssert, RecordB
         isNotNull();
         isNotEmpty();
         return recordIterable()
-                .first(new InstanceOfAssertFactory<>(Record.class, RecordAssert::assertThat))
-                .describedAs("first record");
+                               .first(new InstanceOfAssertFactory<>(Record.class, RecordAssert::assertThat))
+                               .describedAs("first record");
     }
 
     public RecordAssert lastRecord() {
         isNotNull();
         isNotEmpty();
         return recordIterable()
-                .last(new InstanceOfAssertFactory<>(Record.class, RecordAssert::assertThat))
-                .describedAs("last record");
+                               .last(new InstanceOfAssertFactory<>(Record.class, RecordAssert::assertThat))
+                               .describedAs("last record");
     }
 
     @NonNull

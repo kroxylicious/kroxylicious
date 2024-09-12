@@ -7,13 +7,16 @@ assignees: ''
 
 ---
 
-_Please use this to only for bug reports_. For questions or when you need help, you can use the [GitHub Discussions](https://github.com/kroxylicious/kroxylicious/discussions) or use the [community Slack](https://kroxylicious.slack.com) chat.
+_Please use this to only for bug reports_. For questions or when you need help, you can use
+the [GitHub Discussions](https://github.com/kroxylicious/kroxylicious/discussions) or use
+the [community Slack](https://kroxylicious.slack.com) chat.
 
 **Describe the bug**
 A clear and concise description of what the bug is.
 
 **To Reproduce**
 Steps to reproduce the behavior:
+
 1. Configure kroxylicious like this ...
 2. Run command '....'
 3. See error

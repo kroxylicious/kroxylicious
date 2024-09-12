@@ -31,7 +31,10 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions.
      */
     @NonNull
-    CompletionStage<DekPair<E>> generateDekPair(@NonNull K kekRef);
+    CompletionStage<DekPair<E>> generateDekPair(
+            @NonNull
+            K kekRef
+    );
 
     /**
      * <p>Asynchronously decrypts a data encryption key that was {@linkplain #generateDekPair(Object) previously encrypted}.</p>
@@ -47,7 +50,10 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions
      */
     @NonNull
-    CompletionStage<SecretKey> decryptEdek(@NonNull E edek);
+    CompletionStage<SecretKey> decryptEdek(
+            @NonNull
+            E edek
+    );
 
     /**
      * Get a serializer for encrypted DEKs.
@@ -66,5 +72,8 @@ public interface Kms<K, E> {
      * @throws KmsException For other exceptions.
      */
     @NonNull
-    CompletionStage<K> resolveAlias(@NonNull String alias);
+    CompletionStage<K> resolveAlias(
+            @NonNull
+            String alias
+    );
 }

@@ -19,5 +19,6 @@ public class ExamplePluginInstance implements ExamplePluginFactory<ExamplePlugin
         return null;
     }
 
-    public record Config(String pluginKey) {}
+    public record Config(String pluginKey) {
+    }
 }

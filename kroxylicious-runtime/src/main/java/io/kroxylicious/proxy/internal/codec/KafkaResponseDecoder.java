@@ -49,8 +49,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         CorrelationManager.Correlation correlation = this.correlationManager.getBrokerCorrelation(upstreamCorrelationId);
         if (correlation == null) {
             throw new AssertionError("Missing correlation id " + upstreamCorrelationId);
-        }
-        else if (LOGGER.isDebugEnabled()) {
+        } else if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Recovered correlation {} for upstream correlation id {}", ctx, correlation, upstreamCorrelationId);
         }
         int correlationId = correlation.downstreamCorrelationId();
@@ -73,12 +72,10 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             Metrics.payloadSizeBytesDownstreamSummary(apiKey, apiVersion).record(length);
             if (recipient == null) {
                 frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
-            }
-            else {
+            } else {
                 frame = new InternalResponseFrame<>(recipient, apiVersion, correlationId, header, body, correlation.promise());
             }
-        }
-        else {
+        } else {
             frame = opaqueFrame(in, correlationId, length);
         }
         log().trace("{}: Frame: {}", ctx, frame);

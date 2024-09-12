@@ -88,8 +88,8 @@ class SampleProduceRequestFilterTest {
         // We should see that the unpacked request value has changed from the input value, and
         // We should see that the unpacked request value has been transformed to the correct value
         assertThat(unpackedRequest)
-                .doesNotContain(PRE_TRANSFORM_VALUE)
-                .containsExactly(POST_TRANSFORM_VALUE);
+                                   .doesNotContain(PRE_TRANSFORM_VALUE)
+                                   .containsExactly(POST_TRANSFORM_VALUE);
     }
 
     /**
@@ -105,7 +105,7 @@ class SampleProduceRequestFilterTest {
         var unpackedRequest = unpackProduceRequestData((ProduceRequestData) forwardedRequest);
         // We should see that the unpacked request value has not changed from the input value
         assertThat(unpackedRequest)
-                .containsExactly(NO_TRANSFORM_VALUE);
+                                   .containsExactly(NO_TRANSFORM_VALUE);
     }
 
     /**
@@ -136,7 +136,8 @@ class SampleProduceRequestFilterTest {
 
     private void setupContextMock() {
         when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(requestFilterResult));
+                invocation -> CompletableFuture.completedStage(requestFilterResult)
+        );
         when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
 
@@ -145,7 +146,8 @@ class SampleProduceRequestFilterTest {
                     Object[] args = invocation.getArguments();
                     Integer size = (Integer) args[0];
                     return new ByteBufferOutputStream(size);
-                });
+                }
+        );
     }
 
     private static ProduceRequestData buildProduceRequestData(String transformValue) {
@@ -153,9 +155,21 @@ class SampleProduceRequestFilterTest {
         // Build stream
         var stream = new ByteBufferOutputStream(ByteBuffer.wrap(transformValue.getBytes(StandardCharsets.UTF_8)));
         // Build records from stream
-        var recordsBuilder = new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, Compression.NONE, TimestampType.CREATE_TIME, 0,
-                RecordBatch.NO_TIMESTAMP, RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
-                RecordBatch.NO_PARTITION_LEADER_EPOCH, stream.remaining());
+        var recordsBuilder = new MemoryRecordsBuilder(
+                stream,
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                Compression.NONE,
+                TimestampType.CREATE_TIME,
+                0,
+                RecordBatch.NO_TIMESTAMP,
+                RecordBatch.NO_PRODUCER_ID,
+                RecordBatch.NO_PRODUCER_EPOCH,
+                RecordBatch.NO_SEQUENCE,
+                false,
+                false,
+                RecordBatch.NO_PARTITION_LEADER_EPOCH,
+                stream.remaining()
+        );
         // Create record Headers
         Header header = new RecordHeader("myKey", "myValue".getBytes());
         // Add transformValue as buffer to records
@@ -211,8 +225,8 @@ class SampleProduceRequestFilterTest {
     private static void checkRecordMetadataMatches(Record a, Record b) {
         // We don't compare record size, value, or value size as we expect the filter to change these
         assertThat(a).usingRecursiveComparison()
-                .ignoringFields("sizeInBytes", "valueSize", "value")
-                .isEqualTo(b);
+                     .ignoringFields("sizeInBytes", "valueSize", "value")
+                     .isEqualTo(b);
         assertThat(a.headers()).usingRecursiveComparison().isEqualTo(b.headers());
     }
 }

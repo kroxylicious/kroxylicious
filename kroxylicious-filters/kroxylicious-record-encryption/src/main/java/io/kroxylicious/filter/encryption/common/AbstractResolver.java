@@ -22,7 +22,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param <S> The self type of the subclass implementing this class.
  */
 public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIdentifiable<E>, S extends AbstractResolver<E, T, S>>
-        implements Resolver<E, T> {
+                                      implements Resolver<E, T> {
     private final Map<E, T> nameMapping;
     private final Map<Byte, T> idMapping;
     private final Map<T, Byte> reverseIdMapping;
@@ -69,7 +69,8 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
     }
 
     @Override
-    public @NonNull T fromName(@NonNull E element) {
+    public @NonNull T fromName(@NonNull
+    E element) {
         Objects.requireNonNull(element);
         return lookup(nameMapping, "name", element);
     }
@@ -79,14 +80,16 @@ public abstract class AbstractResolver<E extends Enum<E>, T extends PersistedIde
         return lookup(idMapping, "id", id);
     }
 
-    public byte toSerializedId(@NonNull T impl) {
+    public byte toSerializedId(@NonNull
+    T impl) {
         // Don't just call impl.serializedId because that doesn't check that this result knows about the id
         Objects.requireNonNull(impl);
         return lookup(reverseIdMapping, "impl", impl);
     }
 
     @NonNull
-    private <K, V> V lookup(Map<K, V> map, String identifierDescriptor, @NonNull K impl) {
+    private <K, V> V lookup(Map<K, V> map, String identifierDescriptor, @NonNull
+    K impl) {
         var id = map.get(impl);
         if (id == null) {
             throw newException("Unknown " + enumName() + " " + identifierDescriptor + ": " + impl);

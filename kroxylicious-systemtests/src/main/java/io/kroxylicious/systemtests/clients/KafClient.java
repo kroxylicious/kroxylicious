@@ -58,15 +58,29 @@ public class KafClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable
+    String messageKey, int numOfMessages) {
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
 
-        List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
-                "-n", deployNamespace, name,
-                "--image=" + Constants.KAF_CLIENT_IMAGE,
-                "--", "kaf", "-n", String.valueOf(numOfMessages), "-b", bootstrap));
+        List<String> executableCommand = new ArrayList<>(
+                List.of(
+                        cmdKubeClient(deployNamespace).toString(),
+                        "run",
+                        "-i",
+                        "-n",
+                        deployNamespace,
+                        name,
+                        "--image=" + Constants.KAF_CLIENT_IMAGE,
+                        "--",
+                        "kaf",
+                        "-n",
+                        String.valueOf(numOfMessages),
+                        "-b",
+                        bootstrap
+                )
+        );
         recordKey.ifPresent(key -> {
             executableCommand.add("--key");
             executableCommand.add(key);
@@ -93,14 +107,14 @@ public class KafClient implements KafkaClient {
         String log;
         try {
             log = await().alias("Consumer waiting to receive messages")
-                    .ignoreException(KubernetesClientException.class)
-                    .atMost(timeout)
-                    .until(() -> {
-                        if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
-                            return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
-                        }
-                        return null;
-                    }, m -> getNumberOfJsonMessages(m) >= numOfMessages);
+                         .ignoreException(KubernetesClientException.class)
+                         .atMost(timeout)
+                         .until(() -> {
+                             if (kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).get() != null) {
+                                 return kubeClient().logsInSpecificNamespace(deployNamespace, podName);
+                             }
+                             return null;
+                         }, m -> getNumberOfJsonMessages(m) >= numOfMessages);
         }
         catch (ConditionTimeoutException e) {
             log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);

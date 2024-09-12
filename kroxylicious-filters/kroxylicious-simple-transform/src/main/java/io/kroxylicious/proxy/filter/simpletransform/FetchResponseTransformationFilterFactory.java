@@ -22,7 +22,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 @Plugin(configType = FetchResponseTransformationFilterFactory.Config.class)
 public class FetchResponseTransformationFilterFactory
-        implements FilterFactory<Config, Config> {
+                                                      implements FilterFactory<Config, Config> {
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) {
@@ -31,15 +31,21 @@ public class FetchResponseTransformationFilterFactory
 
     @NonNull
     @Override
-    public FetchResponseTransformationFilter createFilter(FilterFactoryContext context,
-                                                          Config configuration) {
+    public FetchResponseTransformationFilter createFilter(
+            FilterFactoryContext context,
+            Config configuration
+    ) {
         var factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         Objects.requireNonNull(factory, "Violated contract of FilterCreationContext");
         return new FetchResponseTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }
 
-    public record Config(@JsonProperty(required = true) @PluginImplName(ByteBufferTransformationFactory.class) String transformation,
-                         @PluginImplConfig(implNameProperty = "transformation") Object transformationConfig) {
+    public record Config(
+            @JsonProperty(required = true) @PluginImplName(ByteBufferTransformationFactory.class)
+            String transformation,
+            @PluginImplConfig(implNameProperty = "transformation")
+            Object transformationConfig
+    ) {
 
     }
 

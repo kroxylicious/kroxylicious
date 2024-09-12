@@ -131,10 +131,18 @@ class RecordEncryptionFilterTest {
         });
 
         when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any()))
-                .thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
+                                                                             .thenReturn(
+                                                                                     CompletableFuture.completedFuture(
+                                                                                             RecordTestUtils.singleElementMemoryRecords("key", "value")
+                                                                                     )
+                                                                             );
 
         when(decryptionManager.decrypt(any(), anyInt(), any(), any()))
-                .thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("decrypt", "decrypt")));
+                                                                      .thenReturn(
+                                                                              CompletableFuture.completedFuture(
+                                                                                      RecordTestUtils.singleElementMemoryRecords("decrypt", "decrypt")
+                                                                              )
+                                                                      );
 
         encryptionFilter = new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run));
     }
@@ -142,9 +150,11 @@ class RecordEncryptionFilterTest {
     @Test
     void shouldNotEncryptTopicWithoutKeyId() {
         // Given
-        var produceRequestData = buildProduceRequestData(new TopicProduceData()
-                .setName(UNENCRYPTED_TOPIC)
-                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        var produceRequestData = buildProduceRequestData(
+                new TopicProduceData()
+                                      .setName(UNENCRYPTED_TOPIC)
+                                      .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD))))
+        );
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
@@ -156,9 +166,11 @@ class RecordEncryptionFilterTest {
     @Test
     void shouldEncryptTopicWithKeyId() {
         // Given
-        var produceRequestData = buildProduceRequestData(new TopicProduceData()
-                .setName(ENCRYPTED_TOPIC)
-                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        var produceRequestData = buildProduceRequestData(
+                new TopicProduceData()
+                                      .setName(ENCRYPTED_TOPIC)
+                                      .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD))))
+        );
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
@@ -170,52 +182,78 @@ class RecordEncryptionFilterTest {
     @Test
     void shouldOnlyEncryptTopicWithKeyId() {
         // Given
-        var produceRequestData = buildProduceRequestData(new TopicProduceData()
-                .setName(ENCRYPTED_TOPIC)
-                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
+        var produceRequestData = buildProduceRequestData(
                 new TopicProduceData()
-                        .setName(UNENCRYPTED_TOPIC)
-                        .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+                                      .setName(ENCRYPTED_TOPIC)
+                                      .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
+                new TopicProduceData()
+                                      .setName(UNENCRYPTED_TOPIC)
+                                      .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD))))
+        );
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(encryptionManager).encrypt(any(), anyInt(), any(),
-                argThat(records -> assertThat(records.records())
-                        .hasSize(1)
-                        .allSatisfy(record -> assertThat(record.value()).isEqualTo(ByteBuffer.wrap(HELLO_CIPHER_WORLD)))),
-                any());
+        verify(encryptionManager).encrypt(
+                any(),
+                anyInt(),
+                any(),
+                argThat(
+                        records -> assertThat(records.records())
+                                                                .hasSize(1)
+                                                                .allSatisfy(record -> assertThat(record.value()).isEqualTo(ByteBuffer.wrap(HELLO_CIPHER_WORLD)))
+                ),
+                any()
+        );
     }
 
     @Test
     void shouldPassThroughUnencryptedRecords() {
         // Given
-        var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
-                .setTopic(UNENCRYPTED_TOPIC)
-                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        var fetchResponseData = buildFetchResponseData(
+                new FetchableTopicResponse()
+                                            .setTopic(UNENCRYPTED_TOPIC)
+                                            .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD))))
+        );
 
         // When
-        encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
+        encryptionFilter.onFetchResponse(
+                FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(),
+                fetchResponseData,
+                context
+        );
 
         // Then
-        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .isInstanceOf(FetchResponseData.class).isEqualTo(fetchResponseData)));
+        verify(context).forwardResponse(
+                any(ResponseHeaderData.class),
+                assertArg(
+                        actualFetchResponse -> assertThat(actualFetchResponse)
+                                                                              .isInstanceOf(FetchResponseData.class)
+                                                                              .isEqualTo(fetchResponseData)
+                )
+        );
     }
 
     @Test
     void shouldPropagateRequestExceptions() {
         // Given
-        var produceRequestData = buildProduceRequestData(new TopicProduceData()
-                .setName(ENCRYPTED_TOPIC)
-                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        var produceRequestData = buildProduceRequestData(
+                new TopicProduceData()
+                                      .setName(ENCRYPTED_TOPIC)
+                                      .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD))))
+        );
         RuntimeException exception = new RuntimeException("boom");
         when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.failedFuture(exception));
 
         // When
-        CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
-                new RequestHeaderData(), produceRequestData, context);
+        CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(
+                ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(),
+                produceRequestData,
+                context
+        );
 
         // Then
         assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
@@ -224,15 +262,21 @@ class RecordEncryptionFilterTest {
     @Test
     void shouldPropagateResponseExceptions() {
         // Given
-        var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
-                .setTopic(UNENCRYPTED_TOPIC)
-                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+        var fetchResponseData = buildFetchResponseData(
+                new FetchableTopicResponse()
+                                            .setTopic(UNENCRYPTED_TOPIC)
+                                            .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD))))
+        );
         RuntimeException exception = new RuntimeException("boom");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
 
         // When
-        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(
+                FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(),
+                fetchResponseData,
+                context
+        );
 
         // Then
         assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
@@ -241,22 +285,28 @@ class RecordEncryptionFilterTest {
     @Test
     void shouldDecryptEncryptedRecords() {
         // Given
-        var encryptedFetchResponse = buildFetchResponseData(new FetchableTopicResponse()
-                .setTopic(ENCRYPTED_TOPIC)
-                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(ENCRYPTED_MESSAGE_BYTES)))));
+        var encryptedFetchResponse = buildFetchResponseData(
+                new FetchableTopicResponse()
+                                            .setTopic(ENCRYPTED_TOPIC)
+                                            .setPartitions(List.of(new PartitionData().setRecords(makeRecord(ENCRYPTED_MESSAGE_BYTES))))
+        );
 
         MemoryRecords decryptedRecords = RecordTestUtils.singleElementMemoryRecords("key", "value");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.completedFuture(decryptedRecords));
 
         // When
-        encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
-                new ResponseHeaderData(), encryptedFetchResponse, context);
+        encryptionFilter.onFetchResponse(
+                FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(),
+                encryptedFetchResponse,
+                context
+        );
 
         // Then
         verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> {
             assertThat(actualFetchResponse)
-                    .isInstanceOf(FetchResponseData.class)
-                    .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class));
+                                           .isInstanceOf(FetchResponseData.class)
+                                           .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class));
             FetchResponseData fetchResponse = (FetchResponseData) actualFetchResponse;
             assertThat(fetchResponse.responses()).hasSize(1);
             FetchableTopicResponse onlyTopicResponse = fetchResponse.responses().iterator().next();
@@ -270,16 +320,23 @@ class RecordEncryptionFilterTest {
     @Test
     void shouldEncryptTopic() {
         // Given
-        var produceRequestData = buildProduceRequestData(new TopicProduceData()
-                .setName(ENCRYPTED_TOPIC)
-                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        var produceRequestData = buildProduceRequestData(
+                new TopicProduceData()
+                                      .setName(ENCRYPTED_TOPIC)
+                                      .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD))))
+        );
 
         // When
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(context).forwardRequest(any(), argThat(request -> assertThat(request)
-                .has(produceRequestMatching(pr -> pr.topicData().stream().anyMatch(td -> ENCRYPTED_TOPIC.equals(td.name()))))));
+        verify(context).forwardRequest(
+                any(),
+                argThat(
+                        request -> assertThat(request)
+                                                      .has(produceRequestMatching(pr -> pr.topicData().stream().anyMatch(td -> ENCRYPTED_TOPIC.equals(td.name()))))
+                )
+        );
     }
 
     private static FetchResponseData buildFetchResponseData(FetchableTopicResponse... topicResponses) {
@@ -312,9 +369,21 @@ class RecordEncryptionFilterTest {
 
     @NonNull
     private static MemoryRecordsBuilder memoryRecordsBuilderForStream(ByteBufferOutputStream stream) {
-        return new MemoryRecordsBuilder(stream, RecordBatch.CURRENT_MAGIC_VALUE, Compression.NONE, TimestampType.CREATE_TIME, 0,
-                RecordBatch.NO_TIMESTAMP, RecordBatch.NO_PRODUCER_ID, RecordBatch.NO_PRODUCER_EPOCH, RecordBatch.NO_SEQUENCE, false, false,
-                RecordBatch.NO_PARTITION_LEADER_EPOCH, stream.remaining());
+        return new MemoryRecordsBuilder(
+                stream,
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                Compression.NONE,
+                TimestampType.CREATE_TIME,
+                0,
+                RecordBatch.NO_TIMESTAMP,
+                RecordBatch.NO_PRODUCER_ID,
+                RecordBatch.NO_PRODUCER_EPOCH,
+                RecordBatch.NO_SEQUENCE,
+                false,
+                false,
+                RecordBatch.NO_PARTITION_LEADER_EPOCH,
+                stream.remaining()
+        );
     }
 
     public static <T> T argThat(Consumer<T> assertions) {

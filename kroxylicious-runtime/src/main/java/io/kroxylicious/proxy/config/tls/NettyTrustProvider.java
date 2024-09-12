@@ -38,11 +38,12 @@ public class NettyTrustProvider {
                     enableHostnameVerification();
                     if (trustStore.isPemType()) {
                         return builder.trustManager(new File(trustStore.storeFile()));
-                    }
-                    else {
+                    } else {
                         try (var is = new FileInputStream(trustStore.storeFile())) {
-                            var password = Optional.ofNullable(trustStore.storePasswordProvider()).map(PasswordProvider::getProvidedPassword).map(String::toCharArray)
-                                    .orElse(null);
+                            var password = Optional.ofNullable(trustStore.storePasswordProvider())
+                                                   .map(PasswordProvider::getProvidedPassword)
+                                                   .map(String::toCharArray)
+                                                   .orElse(null);
                             var keyStore = KeyStore.getInstance(trustStore.getType());
                             keyStore.load(is, password);
 
@@ -63,8 +64,7 @@ public class NettyTrustProvider {
                     if (insecureTls.insecure()) {
                         disableHostnameVerification();
                         return builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-                    }
-                    else {
+                    } else {
                         enableHostnameVerification();
                         return builder;
                     }
@@ -88,7 +88,8 @@ public class NettyTrustProvider {
                 setEndpointAlgorithm(null);
             }
 
-            private void setEndpointAlgorithm(@Nullable String httpsHostnameVerification) {
+            private void setEndpointAlgorithm(@Nullable
+            String httpsHostnameVerification) {
                 builder.endpointIdentificationAlgorithm(httpsHostnameVerification);
             }
         });

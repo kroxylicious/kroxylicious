@@ -47,7 +47,8 @@ public interface KafkaClient {
      * @param messageKey optional record key for the message. <code>null</code> means don't specify a key
      * @param numOfMessages the num of messages
      */
-    void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) throws KubeClusterException;
+    void produceMessages(String topicName, String bootstrap, String message, @Nullable
+    String messageKey, int numOfMessages) throws KubeClusterException;
 
     /**
      * Consume messages.

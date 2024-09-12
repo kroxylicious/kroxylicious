@@ -61,10 +61,10 @@ public abstract class BaseMultiTenantIT extends BaseIT {
 
     public static final String TENANT_1_CLUSTER = "foo";
     static final HostPort TENANT_1_PROXY_ADDRESS = HostPort
-            .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_1_CLUSTER, 9192));
+                                                           .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_1_CLUSTER, 9192));
     public static final String TENANT_2_CLUSTER = "bar";
     static final HostPort TENANT_2_PROXY_ADDRESS = HostPort
-            .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_2_CLUSTER, 9292));
+                                                           .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_2_CLUSTER, 9292));
 
     static final long FUTURE_TIMEOUT_SECONDS = 5L;
     Map<String, Object> clientConfig;
@@ -79,14 +79,27 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         this.testInfo = testInfo;
         // TODO: use a per-tenant server certificate.
         this.certificateGenerator = new KeytoolCertificateGenerator();
-        this.certificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("*"),
-                "KI", "RedHat", null, null, "US");
+        this.certificateGenerator.generateSelfSignedCertificateEntry(
+                "test@redhat.com",
+                IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("*"),
+                "KI",
+                "RedHat",
+                null,
+                null,
+                "US"
+        );
         Path clientTrustStore = certsDirectory.resolve(certificateGenerator.getTrustStoreLocation());
         this.certificateGenerator.generateTrustStore(this.certificateGenerator.getCertFilePath(), "client", clientTrustStore.toAbsolutePath().toString());
-        this.clientConfig = Map.of(CommonClientConfigs.CLIENT_ID_CONFIG, testInfo.getDisplayName(),
-                CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, certificateGenerator.getPassword());
+        this.clientConfig = Map.of(
+                CommonClientConfigs.CLIENT_ID_CONFIG,
+                testInfo.getDisplayName(),
+                CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                SecurityProtocol.SSL.name,
+                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG,
+                clientTrustStore.toAbsolutePath().toString(),
+                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG,
+                certificateGenerator.getPassword()
+        );
     }
 
     static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator) {
@@ -97,52 +110,90 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         var filterBuilder = new FilterDefinitionBuilder(MultiTenantTransformationFilterFactory.class.getName());
         Optional.ofNullable(filterConfig).ifPresent(filterBuilder::withConfig);
         return new ConfigurationBuilder()
-                .addToVirtualClusters(TENANT_1_CLUSTER, new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(cluster.getBootstrapServers())
-                        .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                        .withConfig("bootstrapAddress", TENANT_1_PROXY_ADDRESS)
-                                        .build())
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(certificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .endTls()
-                        .build())
-                .addToVirtualClusters(TENANT_2_CLUSTER, new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(cluster.getBootstrapServers())
-                        .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                        .withConfig("bootstrapAddress", TENANT_2_PROXY_ADDRESS)
-                                        .build())
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(certificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .endTls()
-                        .build())
-                .addToFilters(filterBuilder.build());
+                                         .addToVirtualClusters(
+                                                 TENANT_1_CLUSTER,
+                                                 new VirtualClusterBuilder()
+                                                                            .withNewTargetCluster()
+                                                                            .withBootstrapServers(cluster.getBootstrapServers())
+                                                                            .endTargetCluster()
+                                                                            .withClusterNetworkAddressConfigProvider(
+                                                                                    new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                                                            PortPerBrokerClusterNetworkAddressConfigProvider.class.getName()
+                                                                                    )
+                                                                                     .withConfig("bootstrapAddress", TENANT_1_PROXY_ADDRESS)
+                                                                                     .build()
+                                                                            )
+                                                                            .withNewTls()
+                                                                            .withNewKeyStoreKey()
+                                                                            .withStoreFile(certificateGenerator.getKeyStoreLocation())
+                                                                            .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
+                                                                            .endKeyStoreKey()
+                                                                            .endTls()
+                                                                            .build()
+                                         )
+                                         .addToVirtualClusters(
+                                                 TENANT_2_CLUSTER,
+                                                 new VirtualClusterBuilder()
+                                                                            .withNewTargetCluster()
+                                                                            .withBootstrapServers(cluster.getBootstrapServers())
+                                                                            .endTargetCluster()
+                                                                            .withClusterNetworkAddressConfigProvider(
+                                                                                    new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                                                            PortPerBrokerClusterNetworkAddressConfigProvider.class.getName()
+                                                                                    )
+                                                                                     .withConfig("bootstrapAddress", TENANT_2_PROXY_ADDRESS)
+                                                                                     .build()
+                                                                            )
+                                                                            .withNewTls()
+                                                                            .withNewKeyStoreKey()
+                                                                            .withStoreFile(certificateGenerator.getKeyStoreLocation())
+                                                                            .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
+                                                                            .endKeyStoreKey()
+                                                                            .endTls()
+                                                                            .build()
+                                         )
+                                         .addToFilters(filterBuilder.build());
     }
 
-    Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, String virtualCluster, String groupId, Map<String, Object> baseConfig,
-                                                   Map<String, Object> additionalConfig) {
-        Map<String, Object> standardConfig = Map.of(ConsumerConfig.GROUP_ID_CONFIG, groupId,
-                ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, Boolean.FALSE.toString(),
-                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, Boolean.FALSE.toString(),
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, OffsetResetStrategy.EARLIEST.toString());
+    Consumer<String, String> getConsumerWithConfig(
+            KroxyliciousTester tester,
+            String virtualCluster,
+            String groupId,
+            Map<String, Object> baseConfig,
+            Map<String, Object> additionalConfig
+    ) {
+        Map<String, Object> standardConfig = Map.of(
+                ConsumerConfig.GROUP_ID_CONFIG,
+                groupId,
+                ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG,
+                Boolean.FALSE.toString(),
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
+                Boolean.FALSE.toString(),
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                OffsetResetStrategy.EARLIEST.toString()
+        );
         return getConsumerWithConfig(tester, Optional.of(virtualCluster), baseConfig, standardConfig, additionalConfig);
     }
 
-    void consumeAndAssert(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster, String topicName, String groupId,
-                          Deque<Predicate<ConsumerRecord<String, String>>> expected, boolean offsetCommit) {
-        try (var consumer = getConsumerWithConfig(tester, virtualCluster, groupId, clientConfig, Map.of(
-                ConsumerConfig.MAX_POLL_RECORDS_CONFIG, String.format("%d", expected.size())))) {
+    void consumeAndAssert(
+            KroxyliciousTester tester,
+            Map<String, Object> clientConfig,
+            String virtualCluster,
+            String topicName,
+            String groupId,
+            Deque<Predicate<ConsumerRecord<String, String>>> expected,
+            boolean offsetCommit
+    ) {
+        try (var consumer = getConsumerWithConfig(
+                tester,
+                virtualCluster,
+                groupId,
+                clientConfig,
+                Map.of(
+                        ConsumerConfig.MAX_POLL_RECORDS_CONFIG,
+                        String.format("%d", expected.size())
+                )
+        )) {
 
             var topicPartitions = List.of(new TopicPartition(topicName, 0));
             consumer.assign(topicPartitions);
@@ -163,8 +214,13 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         }
     }
 
-    void produceAndAssert(KroxyliciousTester tester, Map<String, Object> clientConfig, String virtualCluster,
-                          Stream<ProducerRecord<String, String>> records, Optional<String> transactionalId) {
+    void produceAndAssert(
+            KroxyliciousTester tester,
+            Map<String, Object> clientConfig,
+            String virtualCluster,
+            Stream<ProducerRecord<String, String>> records,
+            Optional<String> transactionalId
+    ) {
 
         Map<String, Object> config = new HashMap<>();
         config.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000);
@@ -205,8 +261,12 @@ public abstract class BaseMultiTenantIT extends BaseIT {
         return new Predicate<>() {
             @Override
             public boolean test(ConsumerRecord<K, V> item) {
-                return Objects.equals(item.topic(), expectedTopic) && Objects.equals(item.key(), expectedKey) && Objects.equals(
-                        item.value(), expectedValue);
+                return Objects.equals(item.topic(), expectedTopic)
+                       && Objects.equals(item.key(), expectedKey)
+                       && Objects.equals(
+                               item.value(),
+                               expectedValue
+                       );
             }
 
             @Override

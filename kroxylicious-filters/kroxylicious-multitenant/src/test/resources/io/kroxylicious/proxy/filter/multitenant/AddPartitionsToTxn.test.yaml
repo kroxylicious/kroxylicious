@@ -13,7 +13,7 @@
       v3AndBelowProducerEpoch: 0
       v3AndBelowTopics:
         - name: foo
-          partitions: [0]
+          partitions: [ 0 ]
     diff:
       - op: replace
         path: "/v3AndBelowTransactionalId"

@@ -28,7 +28,8 @@ public class AdminHttpClient implements Closeable {
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final URI uri;
 
-    AdminHttpClient(@NonNull URI uri) {
+    AdminHttpClient(@NonNull
+    URI uri) {
         this.uri = uri;
     }
 

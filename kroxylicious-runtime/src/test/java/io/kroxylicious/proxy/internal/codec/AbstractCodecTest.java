@@ -59,44 +59,46 @@ public abstract class AbstractCodecTest {
 
     public static Stream<Short> requestApiVersions(ApiMessageType type) {
         return IntStream.rangeClosed(type.lowestSupportedVersion(), type.highestSupportedVersion(true))
-                .mapToObj(version -> (short) version);
+                        .mapToObj(version -> (short) version);
     }
 
     public static ApiVersionsRequestData exampleApiVersionsRequest() {
         return new ApiVersionsRequestData()
-                .setClientSoftwareName("foo/bar")
-                .setClientSoftwareVersion("1.2.0");
+                                           .setClientSoftwareName("foo/bar")
+                                           .setClientSoftwareVersion("1.2.0");
     }
 
     protected static ApiVersionsResponseData exampleApiVersionsResponse() {
         ApiVersionsResponseData.ApiVersionCollection ak = new ApiVersionsResponseData.ApiVersionCollection();
         for (var apiKey : ApiKeys.values()) {
-            ak.add(new ApiVersionsResponseData.ApiVersion()
-                    .setApiKey(apiKey.id)
-                    .setMinVersion(apiKey.messageType.lowestSupportedVersion())
-                    .setMaxVersion(apiKey.messageType.highestSupportedVersion(true)));
+            ak.add(
+                    new ApiVersionsResponseData.ApiVersion()
+                                                            .setApiKey(apiKey.id)
+                                                            .setMinVersion(apiKey.messageType.lowestSupportedVersion())
+                                                            .setMaxVersion(apiKey.messageType.highestSupportedVersion(true))
+            );
         }
 
         return new ApiVersionsResponseData()
-                .setErrorCode(Errors.NONE.code())
-                .setThrottleTimeMs(12)
-                .setFinalizedFeaturesEpoch(1)
-                .setApiKeys(ak)
-                .setSupportedFeatures(new ApiVersionsResponseData.SupportedFeatureKeyCollection())
-                .setFinalizedFeatures(new ApiVersionsResponseData.FinalizedFeatureKeyCollection());
+                                            .setErrorCode(Errors.NONE.code())
+                                            .setThrottleTimeMs(12)
+                                            .setFinalizedFeaturesEpoch(1)
+                                            .setApiKeys(ak)
+                                            .setSupportedFeatures(new ApiVersionsResponseData.SupportedFeatureKeyCollection())
+                                            .setFinalizedFeatures(new ApiVersionsResponseData.FinalizedFeatureKeyCollection());
     }
 
     protected static RequestHeaderData exampleRequestHeader(short apiVersion) {
         return new RequestHeaderData()
-                .setClientId("fooooo")
-                .setCorrelationId(12)
-                .setRequestApiKey(ApiKeys.API_VERSIONS.id)
-                .setRequestApiVersion(apiVersion);
+                                      .setClientId("fooooo")
+                                      .setCorrelationId(12)
+                                      .setRequestApiKey(ApiKeys.API_VERSIONS.id)
+                                      .setRequestApiVersion(apiVersion);
     }
 
     public static ResponseHeaderData exampleResponseHeader() {
         return new ResponseHeaderData()
-                .setCorrelationId(12);
+                                       .setCorrelationId(12);
     }
 
     protected static RequestHeaderData deserializeRequestHeaderUsingKafkaApis(short headerVersion, ByteBuffer buffer) {
@@ -134,10 +136,12 @@ public abstract class AbstractCodecTest {
         return bbuffer;
     }
 
-    protected <F extends Frame> void testEncode(ByteBuffer expected,
-                                                F toBeEncoded,
-                                                KafkaMessageEncoder<F> encoder)
-            throws Exception {
+    protected <F extends Frame> void testEncode(
+            ByteBuffer expected,
+            F toBeEncoded,
+            KafkaMessageEncoder<F> encoder
+    )
+      throws Exception {
         int expectedSize = expected.capacity();
         assertEquals(expected.limit(), expectedSize);
 
@@ -145,8 +149,11 @@ public abstract class AbstractCodecTest {
         ByteBuffer ourBuffer = ByteBuffer.allocate(expectedSize).clear();
         var allocator = mock(ByteBufAllocator.class);
         when(allocator.heapBuffer(anyInt())).thenAnswer(i -> {
-            assertEquals(expectedSize, (Integer) i.getArgument(0),
-                    "Expected the estimated size to be the exact message size");
+            assertEquals(
+                    expectedSize,
+                    (Integer) i.getArgument(0),
+                    "Expected the estimated size to be the exact message size"
+            );
             return Unpooled.wrappedBuffer(ourBuffer).resetWriterIndex();
         });
         var chc = mock(ChannelHandlerContext.class);
@@ -160,29 +167,38 @@ public abstract class AbstractCodecTest {
 
         // Compare the buffers byte-for-byte
         assertArrayEquals(
-                expected.array(), ourBuffer.array(),
-                String.format("Expected: %s%nBut was: %s", Arrays.toString(expected.array()), Arrays.toString(ourBuffer.array())));
+                expected.array(),
+                ourBuffer.array(),
+                String.format("Expected: %s%nBut was: %s", Arrays.toString(expected.array()), Arrays.toString(ourBuffer.array()))
+        );
     }
 
     public static void assertSameBytes(ByteBuf expect, ByteBuf actual) {
         byte[] expectedBytes = ByteBufUtil.getBytes(expect);
         byte[] actualBytes = ByteBufUtil.getBytes(actual);
-        assertArrayEquals(expectedBytes, actualBytes,
-                "Expected the buffers to contain the same bytes:\n" +
-                        Arrays.toString(expectedBytes) + "\ncf\n" + Arrays.toString(actualBytes));
+        assertArrayEquals(
+                expectedBytes,
+                actualBytes,
+                "Expected the buffers to contain the same bytes:\n"
+                             +
+                             Arrays.toString(expectedBytes)
+                             + "\ncf\n"
+                             + Arrays.toString(actualBytes)
+        );
     }
 
     public static <H extends ApiMessage, B extends ApiMessage> int exactlyOneFrame_decoded(
-                                                                                           short apiVersion,
-                                                                                           Function<Short, Short> headerVersionSupplier,
-                                                                                           Function<Short, H> headerSupplier,
-                                                                                           Supplier<B> bodySupplier,
-                                                                                           BiFunction<Short, ByteBuffer, H> headerDeser,
-                                                                                           BiFunction<Short, ByteBuffer, B> bodyDeser,
-                                                                                           KafkaMessageDecoder decoder,
-                                                                                           Class<? extends DecodedFrame> frameClass,
-                                                                                           Function<H, H> headerAdjuster,
-                                                                                           boolean expectedHasResponse) {
+            short apiVersion,
+            Function<Short, Short> headerVersionSupplier,
+            Function<Short, H> headerSupplier,
+            Supplier<B> bodySupplier,
+            BiFunction<Short, ByteBuffer, H> headerDeser,
+            BiFunction<Short, ByteBuffer, B> bodyDeser,
+            KafkaMessageDecoder decoder,
+            Class<? extends DecodedFrame> frameClass,
+            Function<H, H> headerAdjuster,
+            boolean expectedHasResponse
+    ) {
 
         ApiMessage encodedHeader = headerSupplier.apply(apiVersion);
 
@@ -217,14 +233,15 @@ public abstract class AbstractCodecTest {
     }
 
     public static <H extends ApiMessage, B extends ApiMessage> int exactlyOneFrame_encoded(
-                                                                                           short apiVersion,
-                                                                                           Function<Short, Short> headerVersionSupplier,
-                                                                                           Function<Short, H> headerSupplier,
-                                                                                           Supplier<B> bodySupplier,
-                                                                                           KafkaMessageDecoder decoder,
-                                                                                           Class<? extends Frame> frameClass,
-                                                                                           boolean expectedHasResponse)
-            throws Exception {
+            short apiVersion,
+            Function<Short, Short> headerVersionSupplier,
+            Function<Short, H> headerSupplier,
+            Supplier<B> bodySupplier,
+            KafkaMessageDecoder decoder,
+            Class<? extends Frame> frameClass,
+            boolean expectedHasResponse
+    )
+      throws Exception {
 
         var encodedHeader = headerSupplier.apply(apiVersion);
 

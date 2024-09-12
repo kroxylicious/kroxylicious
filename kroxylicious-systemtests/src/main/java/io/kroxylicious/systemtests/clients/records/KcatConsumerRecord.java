@@ -31,12 +31,20 @@ public class KcatConsumerRecord extends ConsumerRecord {
      * @param offset the offset
      */
     @JsonCreator
-    public KcatConsumerRecord(@JsonProperty("headers") List<String> headers,
-                              @JsonProperty("topic") String topic,
-                              @JsonProperty("key") String key,
-                              @JsonProperty("payload") String payload,
-                              @JsonProperty("partition") int partition,
-                              @JsonProperty("offset") long offset) {
+    public KcatConsumerRecord(
+            @JsonProperty("headers")
+            List<String> headers,
+            @JsonProperty("topic")
+            String topic,
+            @JsonProperty("key")
+            String key,
+            @JsonProperty("payload")
+            String payload,
+            @JsonProperty("partition")
+            int partition,
+            @JsonProperty("offset")
+            long offset
+    ) {
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
             int headersSize = headers.size();

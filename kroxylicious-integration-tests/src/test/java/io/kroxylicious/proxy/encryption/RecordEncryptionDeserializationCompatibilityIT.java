@@ -62,25 +62,47 @@ class RecordEncryptionDeserializationCompatibilityIT {
     private static final String ENCRYPTED_AES_TOPIC = "aes-topic";
     private static final String PRE_EXISTING_AES_KEK_SECRET_BYTES = "FwailFttZJR2Jq43YPhwsKTtuTJQNnPPutrFu9uVPx4=";
     private static final String PRE_EXISTING_AES_KEK_UUID = "c32d1cef-9c60-4f86-b56b-281684c98ad0";
-    private static final TestCase V2_VALUE_NOT_NULL = new TestCase(EncryptionVersion.V2, "value not null", ENCRYPTED_AES_TOPIC,
-            new SerializedRecord(List.of(new SerializedHeader("kroxylicious.io/encryption", "Ag==")),
+    private static final TestCase V2_VALUE_NOT_NULL = new TestCase(
+            EncryptionVersion.V2,
+            "value not null",
+            ENCRYPTED_AES_TOPIC,
+            new SerializedRecord(
+                    List.of(new SerializedHeader("kroxylicious.io/encryption", "Ag==")),
                     "YQ==",
-                    "AE6ADMHU4V/OFRDILMd8AsMtHO+cYE+GtWsoFoTJitA0Y8iY9RZBcQDxGqsIylR5ugQ57JYiqOOwLVPwm6X2t9iT/3VoUjJ/M8xFWpiczFIAT5ZR6To+WDLYniREKe+0/f6lRFsCb/MGEZhfVgkb3g=="),
-            new DeserializedRecord(List.of(), "a", "b"));
+                    "AE6ADMHU4V/OFRDILMd8AsMtHO+cYE+GtWsoFoTJitA0Y8iY9RZBcQDxGqsIylR5ugQ57JYiqOOwLVPwm6X2t9iT/3VoUjJ/M8xFWpiczFIAT5ZR6To+WDLYniREKe+0/f6lRFsCb/MGEZhfVgkb3g=="
+            ),
+            new DeserializedRecord(List.of(), "a", "b")
+    );
 
     // null values are serialized as-is with no encryption header, we need to forward null on to support tombstoning compacted topics
-    private static final TestCase V2_VALUE_NULL = new TestCase(EncryptionVersion.V2, "value null", ENCRYPTED_AES_TOPIC,
-            new SerializedRecord(List.of(),
+    private static final TestCase V2_VALUE_NULL = new TestCase(
+            EncryptionVersion.V2,
+            "value null",
+            ENCRYPTED_AES_TOPIC,
+            new SerializedRecord(
+                    List.of(),
                     "YQ==",
-                    null),
-            new DeserializedRecord(List.of(), "a", null));
-    private static final TestCase V2_OTHER_HEADERS = new TestCase(EncryptionVersion.V2, "other headers are preserved", ENCRYPTED_AES_TOPIC,
-            new SerializedRecord(List.of(new SerializedHeader("kroxylicious.io/encryption", "Ag=="), new SerializedHeader("x", "eQ==")),
+                    null
+            ),
+            new DeserializedRecord(List.of(), "a", null)
+    );
+    private static final TestCase V2_OTHER_HEADERS = new TestCase(
+            EncryptionVersion.V2,
+            "other headers are preserved",
+            ENCRYPTED_AES_TOPIC,
+            new SerializedRecord(
+                    List.of(
+                            new SerializedHeader("kroxylicious.io/encryption", "Ag=="),
+                            new SerializedHeader("x", "eQ==")
+                    ),
                     "YQ==",
-                    "AE6ADMNIqL7qk5zZDYBSp8MtHO+cYE+GtWsoFoTJitDZbCqfZvPsulMdhpO06acCIQ8unRSmTypxUAuaRyY5rZhrKP+WxohB5BUDHnMPztQAsUYlZQzgsNt3kbv4O7aPzm7Bh9FP2bl8c4fDXH33uA=="),
-            new DeserializedRecord(List.of(new DeserializedHeader("x", "y")), "a", "b"));
+                    "AE6ADMNIqL7qk5zZDYBSp8MtHO+cYE+GtWsoFoTJitDZbCqfZvPsulMdhpO06acCIQ8unRSmTypxUAuaRyY5rZhrKP+WxohB5BUDHnMPztQAsUYlZQzgsNt3kbv4O7aPzm7Bh9FP2bl8c4fDXH33uA=="
+            ),
+            new DeserializedRecord(List.of(new DeserializedHeader("x", "y")), "a", "b")
+    );
 
-    record SerializedHeader(String key, @Nullable String valueBase64) {
+    record SerializedHeader(String key, @Nullable
+    String valueBase64) {
         public byte[] valueBytes() {
             return valueBase64 == null ? null : Base64.getDecoder().decode(valueBase64);
         }
@@ -90,7 +112,9 @@ class RecordEncryptionDeserializationCompatibilityIT {
         }
     }
 
-    record SerializedRecord(List<SerializedHeader> headers, @Nullable String keyBase64, @Nullable String valueBase64) {
+    record SerializedRecord(List<SerializedHeader> headers, @Nullable
+    String keyBase64, @Nullable
+    String valueBase64) {
         public byte[] keyBytes() {
             return keyBase64 == null ? null : Base64.getDecoder().decode(keyBase64);
         }
@@ -104,16 +128,28 @@ class RecordEncryptionDeserializationCompatibilityIT {
         }
     }
 
-    record DeserializedHeader(String name, @Nullable String value) {
+    record DeserializedHeader(String name, @Nullable
+    String value) {
         public Header kafkaHeader() {
             return new RecordHeader(name, value == null ? null : value.getBytes(StandardCharsets.UTF_8));
         }
     }
 
-    record DeserializedRecord(List<DeserializedHeader> headers, @Nullable String key, @Nullable String value) {
+    record DeserializedRecord(List<DeserializedHeader> headers, @Nullable
+    String key, @Nullable
+    String value) {
         public ProducerRecord<String, String> producerRecord(String topic) {
-            return new ProducerRecord<>(topic, 0, key, value, headers.stream().map(DeserializedHeader::kafkaHeader).collect(
-                    Collectors.toList()));
+            return new ProducerRecord<>(
+                    topic,
+                    0,
+                    key,
+                    value,
+                    headers.stream()
+                           .map(DeserializedHeader::kafkaHeader)
+                           .collect(
+                                   Collectors.toList()
+                           )
+            );
         }
     }
 
@@ -132,7 +168,7 @@ class RecordEncryptionDeserializationCompatibilityIT {
     @ParameterizedTest(name = "encryption version: {0} - {1}")
     @MethodSource("testCases")
     void testRecordsCanBeDeserialized(EncryptionVersion ignoredVersion, String ignoredName, TestCase testCase, KafkaCluster cluster, Producer<byte[], byte[]> producer)
-            throws Exception {
+                                                                                                                                                                        throws Exception {
         producer.send(testCase.producerRecord()).get(5, TimeUnit.SECONDS);
         try (var tester = kroxyliciousTester(proxy(cluster).addToFilters(buildEncryptionFilterDefinition()))) {
             Map<String, Object> config = Map.of(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString(), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
@@ -147,7 +183,13 @@ class RecordEncryptionDeserializationCompatibilityIT {
 
     private void assertExpected(DeserializedRecord expected, ConsumerRecord<String, String> onlyRecord) {
         List<DeserializedHeader> actual = StreamSupport.stream(onlyRecord.headers().spliterator(), false)
-                .map(h -> new DeserializedHeader(h.key(), h.value() == null ? null : new String(h.value(), StandardCharsets.UTF_8))).collect(Collectors.toList());
+                                                       .map(
+                                                               h -> new DeserializedHeader(
+                                                                       h.key(),
+                                                                       h.value() == null ? null : new String(h.value(), StandardCharsets.UTF_8)
+                                                               )
+                                                       )
+                                                       .collect(Collectors.toList());
         assertThat(actual).isEqualTo(expected.headers);
         assertThat(onlyRecord.key()).isEqualTo(expected.key);
         assertThat(onlyRecord.value()).isEqualTo(expected.value);
@@ -157,9 +199,17 @@ class RecordEncryptionDeserializationCompatibilityIT {
     @SuppressWarnings("java:S2699") // no assertions required
     @ParameterizedTest(name = "encryption version: {0} - {1}")
     @MethodSource("testCases")
-    void generateData(EncryptionVersion ignoredVersion, String ignoredName, TestCase testCase, KafkaCluster cluster,
-                      @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "encryption") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<byte[], byte[]> consumer)
-            throws ExecutionException, InterruptedException, TimeoutException {
+    void generateData(
+            EncryptionVersion ignoredVersion,
+            String ignoredName,
+            TestCase testCase,
+            KafkaCluster cluster,
+            @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "encryption") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest")
+            Consumer<byte[], byte[]> consumer
+    )
+      throws ExecutionException,
+      InterruptedException,
+      TimeoutException {
         try (var tester = kroxyliciousTester(proxy(cluster).addToFilters(buildEncryptionFilterDefinition()))) {
             tester.producer().send(testCase.expected.producerRecord(ENCRYPTED_AES_TOPIC)).get(5, TimeUnit.SECONDS);
             consumer.subscribe(List.of(ENCRYPTED_AES_TOPIC));
@@ -188,12 +238,13 @@ class RecordEncryptionDeserializationCompatibilityIT {
         byte[] kekSecret = Base64.getDecoder().decode(PRE_EXISTING_AES_KEK_SECRET_BYTES);
         // when we add support for more ciphers, we could add additional topics with the relevant key material for that cipher
         List<UnitTestingKmsService.Kek> existingKeks = List.of(
-                new UnitTestingKmsService.Kek(PRE_EXISTING_AES_KEK_UUID, kekSecret, "AES", ENCRYPTED_AES_TOPIC));
+                new UnitTestingKmsService.Kek(PRE_EXISTING_AES_KEK_UUID, kekSecret, "AES", ENCRYPTED_AES_TOPIC)
+        );
         return new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
-                .withConfig("kms", UnitTestingKmsService.class.getSimpleName())
-                .withConfig("kmsConfig", new UnitTestingKmsService.Config(12, 128, existingKeks))
-                .withConfig("selector", TemplateKekSelector.class.getSimpleName())
-                .withConfig("selectorConfig", Map.of("template", "${topicName}"))
-                .build();
+                                                                                  .withConfig("kms", UnitTestingKmsService.class.getSimpleName())
+                                                                                  .withConfig("kmsConfig", new UnitTestingKmsService.Config(12, 128, existingKeks))
+                                                                                  .withConfig("selector", TemplateKekSelector.class.getSimpleName())
+                                                                                  .withConfig("selectorConfig", Map.of("template", "${topicName}"))
+                                                                                  .build();
     }
 }

@@ -125,7 +125,7 @@ class OauthBearerValidationFilterTest {
         // when
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
             dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
-                    .thenReturn(saslServer);
+                 .thenReturn(saslServer);
             filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
         }
         filter.onSaslAuthenticateRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
@@ -143,7 +143,7 @@ class OauthBearerValidationFilterTest {
 
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
             dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
-                    .thenThrow(new SaslException());
+                 .thenThrow(new SaslException());
             filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
         }
 
@@ -162,7 +162,7 @@ class OauthBearerValidationFilterTest {
         // when
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
             dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
-                    .thenReturn(saslServer);
+                 .thenReturn(saslServer);
             filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
         }
         filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), new SaslHandshakeRequestData(), context);
@@ -204,11 +204,15 @@ class OauthBearerValidationFilterTest {
         // when
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
             dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
-                    .thenReturn(saslServer);
+                 .thenReturn(saslServer);
             filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
         }
         filter.onSaslAuthenticateRequest(
-                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(),
+                givenAuthenticateRequest,
+                context
+        );
 
         // then
         verify(builder).shortCircuitResponse(assertArg(actualResponse -> {
@@ -232,11 +236,15 @@ class OauthBearerValidationFilterTest {
         // when
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
             dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
-                    .thenReturn(saslServer);
+                 .thenReturn(saslServer);
             filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
         }
         filter.onSaslAuthenticateRequest(
-                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(),
+                givenAuthenticateRequest,
+                context
+        );
 
         // then
         verify(builder).shortCircuitResponse(assertArg(actualResponse -> {
@@ -254,7 +262,11 @@ class OauthBearerValidationFilterTest {
 
         // when
         filter.onSaslAuthenticateRequest(
-                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(),
+                givenAuthenticateRequest,
+                context
+        );
 
         // then
         verify(builder).shortCircuitResponse(assertArg(actualResponse -> {
@@ -281,19 +293,27 @@ class OauthBearerValidationFilterTest {
         // when
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
             dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
-                    .thenReturn(saslServer);
+                 .thenReturn(saslServer);
             filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
         }
         filter.onSaslAuthenticateRequest(
-                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(),
+                givenAuthenticateRequest,
+                context
+        );
         filter.onSaslAuthenticateRequest(
-                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(),
+                givenAuthenticateRequest,
+                context
+        );
 
         var order = inOrder(builder);
         order.verify(builder)
-                .shortCircuitResponse(argThat(arg -> saslAuthenticateResponseMatching(data -> data.errorCode() == SASL_AUTHENTICATION_FAILED.code()).matches(arg)));
+             .shortCircuitResponse(argThat(arg -> saslAuthenticateResponseMatching(data -> data.errorCode() == SASL_AUTHENTICATION_FAILED.code()).matches(arg)));
         order.verify(builder)
-                .shortCircuitResponse(argThat(arg -> saslAuthenticateResponseMatching(data -> data.errorCode() == ILLEGAL_SASL_STATE.code()).matches(arg)));
+             .shortCircuitResponse(argThat(arg -> saslAuthenticateResponseMatching(data -> data.errorCode() == ILLEGAL_SASL_STATE.code()).matches(arg)));
 
     }
 
@@ -312,11 +332,15 @@ class OauthBearerValidationFilterTest {
         // when
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
             dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
-                    .thenReturn(saslServer);
+                 .thenReturn(saslServer);
             filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
         }
         filter.onSaslAuthenticateRequest(
-                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+                SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(),
+                givenAuthenticateRequest,
+                context
+        );
 
         // then
         verify(builder).shortCircuitResponse(assertArg(actualResponse -> {

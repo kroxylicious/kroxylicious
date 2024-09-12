@@ -13,13 +13,13 @@
 <module name="Checker">
 
     <!-- Source code is not formatted using tabs -->
-    <module name="FileTabCharacter" />
+    <module name="FileTabCharacter"/>
 
     <module name="TreeWalker">
-        <module name="SuppressWarningsHolder" />
+        <module name="SuppressWarningsHolder"/>
         <!-- Checks for imports -->
-        <module name="AvoidStarImport" />
-        <module name="RedundantImport" />
+        <module name="AvoidStarImport"/>
+        <module name="RedundantImport"/>
         <module name="UnusedImports">
             <property name="processJavadoc" value="true"/>
         </module>
@@ -28,8 +28,8 @@
         <module name="RedundantModifier"/>
 
         <!-- Checks for common coding problems -->
-        <module name="EqualsHashCode" />
-        <module name="IllegalInstantiation" />
+        <module name="EqualsHashCode"/>
+        <module name="IllegalInstantiation"/>
 
         <!-- Checks that ModeShape would really like to use but this requires cleaning up more code -->
         <!--
@@ -42,13 +42,13 @@
         -->
 
         <!-- Miscellaneous other checks. -->
-        <module name="PackageAnnotation" />
-        <module name="CovariantEquals" />
-        <module name="OneStatementPerLine" />
-        <module name="EmptyStatement" />
-        <module name="DefaultComesLast" />
-        <module name="TypecastParenPad" />
-        <module name="CovariantEquals" />
+        <module name="PackageAnnotation"/>
+        <module name="CovariantEquals"/>
+        <module name="OneStatementPerLine"/>
+        <module name="EmptyStatement"/>
+        <module name="DefaultComesLast"/>
+        <module name="TypecastParenPad"/>
+        <module name="CovariantEquals"/>
 
         <module name="MissingOverride"/>
 
@@ -58,38 +58,30 @@
         <module name="WhitespaceAfter"/>
 
         <module name="WhitespaceAround">
-            <property name="tokens" value="LCURLY,QUESTION,COLON,SLIST" />
-            <property name="allowEmptyLambdas" value="true" />
-            <property name="allowEmptyConstructors" value="true" />
-            <property name="allowEmptyTypes" value="true" />
-        </module>
-
-        <!-- Checks for blocks. You know, those {}'s -->
-        <module name="LeftCurly">
-            <property name="option" value="eol" />
-        </module>
-
-        <module name="RightCurly">
-            <property name="option" value="alone"/>
+            <property name="tokens" value="LCURLY,QUESTION,COLON,SLIST"/>
+            <property name="allowEmptyLambdas" value="true"/>
+            <property name="allowEmptyConstructors" value="true"/>
+            <property name="allowEmptyTypes" value="true"/>
         </module>
 
         <module name="ParenPad">
-            <property name="tokens" value="CTOR_CALL, SUPER_CTOR_CALL" />
-            <property name="option" value="nospace" />
+            <property name="tokens" value="CTOR_CALL, SUPER_CTOR_CALL"/>
+            <property name="option" value="nospace"/>
         </module>
 
         <module name="RegexpSinglelineJava">
-            <property name="format" value="System\.(out)|(err)\.print(ln)?\(" />
+            <property name="format" value="System\.(out)|(err)\.print(ln)?\("/>
             <!-- The last sentence of the message is a keyword to trigger exclusion: see ExcludeTestPackages -->
-            <property name="message" value="Not allowed to print to System.out: if you're damn sure you want it, disable Checkstyle on this line. [not required for tests]" />
-            <property name="ignoreComments" value="true" />
+            <property name="message"
+                      value="Not allowed to print to System.out: if you're damn sure you want it, disable Checkstyle on this line. [not required for tests]"/>
+            <property name="ignoreComments" value="true"/>
         </module>
 
         <!-- Nobody should be using StringBuffer anymore -->
         <module name="RegexpSinglelineJava">
-            <property name="format" value=" StringBuffer" />
+            <property name="format" value=" StringBuffer"/>
             <!-- The last sentence of the message is a keyword to trigger exclusion: see ExcludeTestPackages -->
-            <property name="message" value="Nobody should be using StringBuffer anymore" />
+            <property name="message" value="Nobody should be using StringBuffer anymore"/>
         </module>
         <module name="IllegalInstantiation">
             <property name="classes" value="java.lang.Boolean"/>
@@ -97,22 +89,22 @@
 
         <!-- not currently used by Kroxylicious but probably should do so -->
         <!-- i.e. ban netty imports in the API package, maybe there is a better tool than checkstlye for that -->
-<!--        &lt;!&ndash;  Avoid importing some packages &ndash;&gt;-->
-<!--        <module name="IllegalImport">-->
-<!--            &lt;!&ndash; Should use TestNG &ndash;&gt;-->
-<!--            <property name="illegalPkgs" value="org.testng"/>-->
-<!--        </module>-->
-<!--        <module name="IllegalImport">-->
-<!--            &lt;!&ndash; Should use ModeShape-specific annotations &ndash;&gt;-->
-<!--            <property name="illegalPkgs" value="net.jcip.annotations, org.apache.http.annotation"/>-->
-<!--        </module>-->
+        <!--        &lt;!&ndash;  Avoid importing some packages &ndash;&gt;-->
+        <!--        <module name="IllegalImport">-->
+        <!--            &lt;!&ndash; Should use TestNG &ndash;&gt;-->
+        <!--            <property name="illegalPkgs" value="org.testng"/>-->
+        <!--        </module>-->
+        <!--        <module name="IllegalImport">-->
+        <!--            &lt;!&ndash; Should use ModeShape-specific annotations &ndash;&gt;-->
+        <!--            <property name="illegalPkgs" value="net.jcip.annotations, org.apache.http.annotation"/>-->
+        <!--        </module>-->
 
         <!--
         Allow for suppressing sections of code using a starting and ending comment:
         // CHECKSTYLE\:OFF
         // CHECKSTYLE\:ON
         -->
-        <module name="SuppressionCommentFilter" />
+        <module name="SuppressionCommentFilter"/>
 
         <!-- Allow for suppressing sections of code using just a leading comment:
         // CHECKSTYLE IGNORE check FOR NEXT 2 LINES
@@ -164,5 +156,5 @@
         <!--The system property is set via Maven-->
         <property name="file" value="${checkstyle.suppressions.file}"/>
     </module>
-    <module name="SuppressWarningsFilter" />
+    <module name="SuppressWarningsFilter"/>
 </module>

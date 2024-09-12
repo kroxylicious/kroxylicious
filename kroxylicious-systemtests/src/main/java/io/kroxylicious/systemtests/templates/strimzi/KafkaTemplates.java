@@ -33,20 +33,20 @@ public class KafkaTemplates {
      */
     public static KafkaBuilder kafkaPersistent(String namespaceName, String clusterName, int kafkaReplicas, int zkReplicas) {
         return defaultKafka(namespaceName, clusterName, kafkaReplicas, zkReplicas)
-                .editSpec()
-                .editKafka()
-                .withNewPersistentClaimStorage()
-                .withSize("1Gi")
-                .withDeleteClaim(true)
-                .endPersistentClaimStorage()
-                .endKafka()
-                .editZookeeper()
-                .withNewPersistentClaimStorage()
-                .withSize("1Gi")
-                .withDeleteClaim(true)
-                .endPersistentClaimStorage()
-                .endZookeeper()
-                .endSpec();
+                                                                                  .editSpec()
+                                                                                  .editKafka()
+                                                                                  .withNewPersistentClaimStorage()
+                                                                                  .withSize("1Gi")
+                                                                                  .withDeleteClaim(true)
+                                                                                  .endPersistentClaimStorage()
+                                                                                  .endKafka()
+                                                                                  .editZookeeper()
+                                                                                  .withNewPersistentClaimStorage()
+                                                                                  .withSize("1Gi")
+                                                                                  .withDeleteClaim(true)
+                                                                                  .endPersistentClaimStorage()
+                                                                                  .endZookeeper()
+                                                                                  .endSpec();
     }
 
     /**
@@ -60,19 +60,23 @@ public class KafkaTemplates {
      */
     public static KafkaBuilder kafkaPersistentWithExternalIp(String namespaceName, String clusterName, int kafkaReplicas, int zkReplicas) {
         return kafkaPersistent(namespaceName, clusterName, kafkaReplicas, zkReplicas)
-                .editSpec()
-                .editKafka()
-                .addToListeners(new GenericKafkaListenerBuilder()
-                        .withName("external")
-                        .withTls(false)
-                        .withPort(9094)
-                        .withType(KafkaListenerType.LOADBALANCER)
-                        .editOrNewConfiguration()
-                        .withExternalTrafficPolicy(ExternalTrafficPolicy.LOCAL)
-                        .endConfiguration()
-                        .build())
-                .endKafka()
-                .endSpec();
+                                                                                     .editSpec()
+                                                                                     .editKafka()
+                                                                                     .addToListeners(
+                                                                                             new GenericKafkaListenerBuilder()
+                                                                                                                              .withName("external")
+                                                                                                                              .withTls(false)
+                                                                                                                              .withPort(9094)
+                                                                                                                              .withType(KafkaListenerType.LOADBALANCER)
+                                                                                                                              .editOrNewConfiguration()
+                                                                                                                              .withExternalTrafficPolicy(
+                                                                                                                                      ExternalTrafficPolicy.LOCAL
+                                                                                                                              )
+                                                                                                                              .endConfiguration()
+                                                                                                                              .build()
+                                                                                     )
+                                                                                     .endKafka()
+                                                                                     .endSpec();
     }
 
     /**
@@ -85,54 +89,56 @@ public class KafkaTemplates {
      */
     public static KafkaBuilder kafkaPersistentWithKRaftAnnotations(String namespaceName, String clusterName, int kafkaReplicas) {
         return kafkaPersistent(namespaceName, clusterName, kafkaReplicas, kafkaReplicas)
-                .editMetadata()
-                .addToAnnotations(ResourceAnnotations.ANNO_STRIMZI_IO_NODE_POOLS, "enabled")
-                .addToAnnotations(ResourceAnnotations.ANNO_STRIMZI_IO_KRAFT, "enabled")
-                .endMetadata();
+                                                                                        .editMetadata()
+                                                                                        .addToAnnotations(ResourceAnnotations.ANNO_STRIMZI_IO_NODE_POOLS, "enabled")
+                                                                                        .addToAnnotations(ResourceAnnotations.ANNO_STRIMZI_IO_KRAFT, "enabled")
+                                                                                        .endMetadata();
     }
 
     private static KafkaBuilder defaultKafka(String namespaceName, String clusterName, int kafkaReplicas, int zkReplicas) {
         return new KafkaBuilder()
-                .withApiVersion(Constants.KAFKA_API_VERSION_V1BETA2)
-                .withKind(Constants.KAFKA_KIND)
-                .withNewMetadata()
-                .withName(clusterName)
-                .withNamespace(namespaceName)
-                .endMetadata()
-                .editSpec()
-                .editKafka()
-                .withVersion(Environment.KAFKA_VERSION)
-                .withReplicas(kafkaReplicas)
-                .addToConfig("log.message.format.version", KafkaVersionUtils.getKafkaProtocolVersion(Environment.KAFKA_VERSION))
-                .addToConfig("inter.broker.protocol.version", KafkaVersionUtils.getKafkaProtocolVersion(Environment.KAFKA_VERSION))
-                .addToConfig("offsets.topic.replication.factor", Math.min(kafkaReplicas, 3))
-                .addToConfig("transaction.state.log.min.isr", Math.min(kafkaReplicas, 2))
-                .addToConfig("transaction.state.log.replication.factor", Math.min(kafkaReplicas, 3))
-                .addToConfig("default.replication.factor", Math.min(kafkaReplicas, 3))
-                .addToConfig("min.insync.replicas", Math.min(Math.max(kafkaReplicas - 1, 1), 2))
-                .addToConfig("auto.create.topics.enable", false)
-                .withListeners(new GenericKafkaListenerBuilder()
-                        .withName(Constants.PLAIN_LISTENER_NAME)
-                        .withPort(9092)
-                        .withType(KafkaListenerType.INTERNAL)
-                        .withTls(false)
-                        .build(),
-                        new GenericKafkaListenerBuilder()
-                                .withName(Constants.TLS_LISTENER_NAME)
-                                .withPort(9093)
-                                .withType(KafkaListenerType.INTERNAL)
-                                .withTls(true)
-                                .build())
-                .withNewInlineLogging()
-                .addToLoggers("kafka.root.logger.level", LogLevel.INFO.name())
-                .endInlineLogging()
-                .endKafka()
-                .editZookeeper()
-                .withReplicas(zkReplicas)
-                .withNewInlineLogging()
-                .addToLoggers("zookeeper.root.logger", LogLevel.INFO.name())
-                .endInlineLogging()
-                .endZookeeper()
-                .endSpec();
+                                 .withApiVersion(Constants.KAFKA_API_VERSION_V1BETA2)
+                                 .withKind(Constants.KAFKA_KIND)
+                                 .withNewMetadata()
+                                 .withName(clusterName)
+                                 .withNamespace(namespaceName)
+                                 .endMetadata()
+                                 .editSpec()
+                                 .editKafka()
+                                 .withVersion(Environment.KAFKA_VERSION)
+                                 .withReplicas(kafkaReplicas)
+                                 .addToConfig("log.message.format.version", KafkaVersionUtils.getKafkaProtocolVersion(Environment.KAFKA_VERSION))
+                                 .addToConfig("inter.broker.protocol.version", KafkaVersionUtils.getKafkaProtocolVersion(Environment.KAFKA_VERSION))
+                                 .addToConfig("offsets.topic.replication.factor", Math.min(kafkaReplicas, 3))
+                                 .addToConfig("transaction.state.log.min.isr", Math.min(kafkaReplicas, 2))
+                                 .addToConfig("transaction.state.log.replication.factor", Math.min(kafkaReplicas, 3))
+                                 .addToConfig("default.replication.factor", Math.min(kafkaReplicas, 3))
+                                 .addToConfig("min.insync.replicas", Math.min(Math.max(kafkaReplicas - 1, 1), 2))
+                                 .addToConfig("auto.create.topics.enable", false)
+                                 .withListeners(
+                                         new GenericKafkaListenerBuilder()
+                                                                          .withName(Constants.PLAIN_LISTENER_NAME)
+                                                                          .withPort(9092)
+                                                                          .withType(KafkaListenerType.INTERNAL)
+                                                                          .withTls(false)
+                                                                          .build(),
+                                         new GenericKafkaListenerBuilder()
+                                                                          .withName(Constants.TLS_LISTENER_NAME)
+                                                                          .withPort(9093)
+                                                                          .withType(KafkaListenerType.INTERNAL)
+                                                                          .withTls(true)
+                                                                          .build()
+                                 )
+                                 .withNewInlineLogging()
+                                 .addToLoggers("kafka.root.logger.level", LogLevel.INFO.name())
+                                 .endInlineLogging()
+                                 .endKafka()
+                                 .editZookeeper()
+                                 .withReplicas(zkReplicas)
+                                 .withNewInlineLogging()
+                                 .addToLoggers("zookeeper.root.logger", LogLevel.INFO.name())
+                                 .endInlineLogging()
+                                 .endZookeeper()
+                                 .endSpec();
     }
 }

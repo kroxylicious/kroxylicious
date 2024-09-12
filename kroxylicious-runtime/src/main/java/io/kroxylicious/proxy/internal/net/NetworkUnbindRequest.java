@@ -47,8 +47,7 @@ public class NetworkUnbindRequest extends NetworkBindingOperation<Void> {
                     if (channelFuture.cause() != null) {
                         LOGGER.debug("Unbind failed {}", addr, channelFuture.cause());
                         future.completeExceptionally(channelFuture.cause());
-                    }
-                    else {
+                    } else {
                         LOGGER.info("Unbound {}", addr);
                         future.complete(null);
                     }

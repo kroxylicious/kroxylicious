@@ -45,7 +45,8 @@ class FilePasswordTest {
         return Stream.of(
                 Arguments.of(filePassword, "mypassword", "mypassword"),
                 Arguments.of(filePassword, "mypassword\n", "mypassword"),
-                Arguments.of(filePassword, "mypassword\nignores\nadditional lines", "mypassword"));
+                Arguments.of(filePassword, "mypassword\nignores\nadditional lines", "mypassword")
+        );
     }
 
     @ParameterizedTest
@@ -54,8 +55,8 @@ class FilePasswordTest {
         Files.writeString(file.toPath(), input);
         var provider = providerFunc.apply(file.getAbsolutePath());
         assertThat(provider)
-                .extracting(PasswordProvider::getProvidedPassword)
-                .isEqualTo(expected);
+                            .extracting(PasswordProvider::getProvidedPassword)
+                            .isEqualTo(expected);
     }
 
     @Test
@@ -64,8 +65,8 @@ class FilePasswordTest {
         Files.writeString(file.toPath(), password);
         var provider = new FilePassword(file.getAbsolutePath());
         assertThat(provider)
-                .extracting(Object::toString)
-                .doesNotHave(new Condition<>(s -> s.contains(password), "contains password"));
+                            .extracting(Object::toString)
+                            .doesNotHave(new Condition<>(s -> s.contains(password), "contains password"));
     }
 
     @Test
@@ -75,7 +76,7 @@ class FilePasswordTest {
         String path = file.getAbsolutePath();
         var provider = new FilePassword(file.getAbsolutePath());
         assertThatThrownBy(provider::getProvidedPassword)
-                .hasMessageContaining(path)
-                .hasRootCauseInstanceOf(FileNotFoundException.class);
+                                                         .hasMessageContaining(path)
+                                                         .hasRootCauseInstanceOf(FileNotFoundException.class);
     }
 }

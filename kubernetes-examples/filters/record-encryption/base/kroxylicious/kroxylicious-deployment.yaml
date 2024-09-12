@@ -22,29 +22,29 @@ spec:
         app: kroxylicious
     spec:
       containers:
-      - name: kroxylicious
-        image: quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT
-        imagePullPolicy: Always
-        args: ["--config", "/opt/kroxylicious/config/config.yaml"]
-        ports:
-        - containerPort: 9190
-          name: metrics
-        - containerPort: 30090
-        # Tenant devenv1
-        - containerPort: 30192
-        - containerPort: 30193
-        - containerPort: 30194
-        - containerPort: 30195
-        # Tenant devenv2
-        - containerPort: 30292
-        - containerPort: 30293
-        - containerPort: 30294
-        - containerPort: 30295
-        volumeMounts:
-        - name: config-volume
-          mountPath: /opt/kroxylicious/config/config.yaml
-          subPath: config.yaml
+        - name: kroxylicious
+          image: quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT
+          imagePullPolicy: Always
+          args: [ "--config", "/opt/kroxylicious/config/config.yaml" ]
+          ports:
+            - containerPort: 9190
+              name: metrics
+            - containerPort: 30090
+            # Tenant devenv1
+            - containerPort: 30192
+            - containerPort: 30193
+            - containerPort: 30194
+            - containerPort: 30195
+            # Tenant devenv2
+            - containerPort: 30292
+            - containerPort: 30293
+            - containerPort: 30294
+            - containerPort: 30295
+          volumeMounts:
+            - name: config-volume
+              mountPath: /opt/kroxylicious/config/config.yaml
+              subPath: config.yaml
       volumes:
-      - name: config-volume
-        configMap:
-          name: kroxylicious-config
+        - name: config-volume
+          configMap:
+            name: kroxylicious-config

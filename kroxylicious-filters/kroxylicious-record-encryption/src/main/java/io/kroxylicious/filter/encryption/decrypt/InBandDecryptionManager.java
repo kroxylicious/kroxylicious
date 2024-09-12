@@ -50,10 +50,15 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
 
     private final EncryptionResolver encryptionResolver;
 
-    public InBandDecryptionManager(EncryptionResolver encryptionResolver,
-                                   @NonNull DekManager<K, E> dekManager,
-                                   @NonNull DecryptionDekCache<K, E> dekCache,
-                                   @Nullable FilterThreadExecutor filterThreadExecutor) {
+    public InBandDecryptionManager(
+            EncryptionResolver encryptionResolver,
+            @NonNull
+            DekManager<K, E> dekManager,
+            @NonNull
+            DecryptionDekCache<K, E> dekCache,
+            @Nullable
+            FilterThreadExecutor filterThreadExecutor
+    ) {
         this.encryptionResolver = encryptionResolver;
         this.dekManager = Objects.requireNonNull(dekManager);
         this.dekCache = Objects.requireNonNull(dekCache);
@@ -67,17 +72,28 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
      * @param kafkaRecord The record.
      * @return The encryption header, or null if it's missing (indicating that the record wasn't encrypted).
      */
-    Encryption decryptionVersion(@NonNull String topicName,
-                                 int partition,
-                                 @NonNull Record kafkaRecord) {
+    Encryption decryptionVersion(
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            Record kafkaRecord
+    ) {
         for (Header header : kafkaRecord.headers()) {
             if (EncryptionHeader.ENCRYPTION_HEADER_NAME.equals(header.key())) {
                 byte[] value = header.value();
                 if (value.length != 1) {
-                    throw new EncryptionException("Invalid value for header with key '" + EncryptionHeader.ENCRYPTION_HEADER_NAME + "' "
-                            + "in record at offset " + kafkaRecord.offset()
-                            + " in partition " + partition
-                            + " of topic " + topicName);
+                    throw new EncryptionException(
+                            "Invalid value for header with key '"
+                                                  + EncryptionHeader.ENCRYPTION_HEADER_NAME
+                                                  + "' "
+                                                  + "in record at offset "
+                                                  + kafkaRecord.offset()
+                                                  + " in partition "
+                                                  + partition
+                                                  + " of topic "
+                                                  + topicName
+                    );
                 }
                 return encryptionResolver.fromSerializedId(value[0]);
             }
@@ -87,10 +103,15 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
 
     @NonNull
     @Override
-    public CompletionStage<MemoryRecords> decrypt(@NonNull String topicName,
-                                                  int partition,
-                                                  @NonNull MemoryRecords records,
-                                                  @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+    public CompletionStage<MemoryRecords> decrypt(
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            MemoryRecords records,
+            @NonNull
+            IntFunction<ByteBufferOutputStream> bufferAllocator
+    ) {
         if (records.sizeInBytes() == 0) {
             // no records to transform, return input without modification
             return CompletableFuture.completedFuture(records);
@@ -106,11 +127,13 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         return decryptStates.thenApply(
                 decryptStateList -> {
                     try {
-                        return decrypt(topicName,
+                        return decrypt(
+                                topicName,
                                 partition,
                                 records,
                                 decryptStateList,
-                                allocateBufferForDecrypt(records, bufferAllocator));
+                                allocateBufferForDecrypt(records, bufferAllocator)
+                        );
                     }
                     finally {
                         for (var ds : decryptStateList) {
@@ -119,7 +142,8 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
                             }
                         }
                     }
-                });
+                }
+        );
     }
 
     /**
@@ -131,9 +155,11 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
      * @return A stage that completes with a list of the DecryptState
      * for each record in the given {@code records}, in the same order.
      */
-    private CompletionStage<List<DecryptState<E>>> resolveAll(String topicName,
-                                                              int partition,
-                                                              MemoryRecords records) {
+    private CompletionStage<List<DecryptState<E>>> resolveAll(
+            String topicName,
+            int partition,
+            MemoryRecords records
+    ) {
         Serde<E> serde = dekManager.edekSerde();
         // Use a pair of lists because we end up wanting a `List<DecryptState>`,
         // indexed by the position of the record in the multi-batch MemoryRecords,
@@ -151,8 +177,7 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
                 ByteBuffer wrapper = record.value();
                 cacheKeys.add(decryptionVersion.wrapper().readSpecAndEdek(wrapper, serde, DecryptionDekCache.CacheKey::new));
                 states.add(new DecryptState<>(decryptionVersion));
-            }
-            else {
+            } else {
                 // It's not encrypted, so use sentinels
                 cacheKeys.add(DecryptionDekCache.CacheKey.unencrypted());
                 states.add(DecryptState.none());
@@ -160,14 +185,19 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         });
         // Lookup the decryptors for the cache keys
         return filterThreadExecutor.completingOnFilterThread(dekCache.getAll(cacheKeys, filterThreadExecutor))
-                .thenApply(cacheKeyDecryptorMap ->
-                // Once we have the decryptors from the cache...
-                issueDecryptors(cacheKeyDecryptorMap, cacheKeys, states));
+                                   .thenApply(cacheKeyDecryptorMap ->
+                                   // Once we have the decryptors from the cache...
+                                   issueDecryptors(cacheKeyDecryptorMap, cacheKeys, states));
     }
 
-    private @NonNull List<DecryptState<E>> issueDecryptors(@NonNull Map<DecryptionDekCache.CacheKey<E>, Dek<E>> cacheKeyDecryptorMap,
-                                                           @NonNull List<DecryptionDekCache.CacheKey<E>> cacheKeys,
-                                                           @NonNull List<DecryptState<E>> states) {
+    private @NonNull List<DecryptState<E>> issueDecryptors(
+            @NonNull
+            Map<DecryptionDekCache.CacheKey<E>, Dek<E>> cacheKeyDecryptorMap,
+            @NonNull
+            List<DecryptionDekCache.CacheKey<E>> cacheKeys,
+            @NonNull
+            List<DecryptState<E>> states
+    ) {
         Map<DecryptionDekCache.CacheKey<E>, Dek<E>.Decryptor> issuedDecryptors = new HashMap<>();
         try {
             for (int index = 0, cacheKeysSize = cacheKeys.size(); index < cacheKeysSize; index++) {
@@ -192,8 +222,10 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
         }
     }
 
-    private static ByteBufferOutputStream allocateBufferForDecrypt(MemoryRecords memoryRecords,
-                                                                   IntFunction<ByteBufferOutputStream> allocator) {
+    private static ByteBufferOutputStream allocateBufferForDecrypt(
+            MemoryRecords memoryRecords,
+            IntFunction<ByteBufferOutputStream> allocator
+    ) {
         int sizeEstimate = memoryRecords.sizeInBytes();
         return allocator.apply(sizeEstimate);
     }
@@ -208,14 +240,22 @@ public class InBandDecryptionManager<K, E> implements DecryptionManager {
      * @return The decrypted records.
      */
     @NonNull
-    private MemoryRecords decrypt(@NonNull String topicName,
-                                  int partition,
-                                  @NonNull MemoryRecords records,
-                                  @NonNull List<DecryptState<E>> decryptorList,
-                                  @NonNull ByteBufferOutputStream buffer) {
+    private MemoryRecords decrypt(
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            MemoryRecords records,
+            @NonNull
+            List<DecryptState<E>> decryptorList,
+            @NonNull
+            ByteBufferOutputStream buffer
+    ) {
         return RecordStream.ofRecordsWithIndex(records)
-                .mapPerRecord((batch, record, index) -> decryptorList.get(index))
-                .toMemoryRecords(buffer,
-                        new RecordDecryptor<>(topicName, partition));
+                           .mapPerRecord((batch, record, index) -> decryptorList.get(index))
+                           .toMemoryRecords(
+                                   buffer,
+                                   new RecordDecryptor<>(topicName, partition)
+                           );
     }
 }

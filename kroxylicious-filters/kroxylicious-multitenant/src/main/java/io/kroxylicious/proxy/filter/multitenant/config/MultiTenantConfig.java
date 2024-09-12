@@ -19,7 +19,8 @@ public record MultiTenantConfig(String prefixResourceNameSeparator) {
 
     public static final String DEFAULT_SEPARATOR = "-";
 
-    public MultiTenantConfig(@JsonProperty(required = false) String prefixResourceNameSeparator) {
+    public MultiTenantConfig(@JsonProperty(required = false)
+    String prefixResourceNameSeparator) {
         this.prefixResourceNameSeparator = Objects.requireNonNullElse(prefixResourceNameSeparator, DEFAULT_SEPARATOR);
     }
 }

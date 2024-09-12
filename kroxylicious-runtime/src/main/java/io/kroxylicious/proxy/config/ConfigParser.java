@@ -51,7 +51,8 @@ public class ConfigParser implements PluginFactoryRegistry {
     private static final ServiceBasedPluginFactoryRegistry pluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
 
     @Override
-    public <T> @NonNull PluginFactory<T> pluginFactory(@NonNull Class<T> pluginClass) {
+    public <T> @NonNull PluginFactory<T> pluginFactory(@NonNull
+    Class<T> pluginClass) {
         return pluginFactoryRegistry.pluginFactory(pluginClass);
     }
 
@@ -84,19 +85,19 @@ public class ConfigParser implements PluginFactoryRegistry {
 
     public static ObjectMapper createObjectMapper() {
         return (ObjectMapper) new ObjectMapper(new YAMLFactory())
-                .registerModule(new ParameterNamesModule())
-                .registerModule(new Jdk8Module())
-                .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))
-                .setVisibility(PropertyAccessor.ALL, Visibility.NONE)
-                .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
-                .setVisibility(PropertyAccessor.CREATOR, Visibility.ANY)
-                .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false)
-                .configure(JsonParser.Feature.STRICT_DUPLICATE_DETECTION, true)
-                .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT)
-                .registerModule(new PluginModule())
-                .setHandlerInstantiator(new PluginHandlerInstantiator());
+                                                                 .registerModule(new ParameterNamesModule())
+                                                                 .registerModule(new Jdk8Module())
+                                                                 .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))
+                                                                 .setVisibility(PropertyAccessor.ALL, Visibility.NONE)
+                                                                 .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
+                                                                 .setVisibility(PropertyAccessor.CREATOR, Visibility.ANY)
+                                                                 .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
+                                                                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+                                                                 .configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false)
+                                                                 .configure(JsonParser.Feature.STRICT_DUPLICATE_DETECTION, true)
+                                                                 .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT)
+                                                                 .registerModule(new PluginModule())
+                                                                 .setHandlerInstantiator(new PluginHandlerInstantiator());
     }
 
     private static class PluginModule extends SimpleModule {
@@ -138,13 +139,18 @@ public class ConfigParser implements PluginFactoryRegistry {
                 PluginImplName pluginImplName = null;
                 if (annotated instanceof AnnotatedParameter ap) {
                     pluginImplName = pluginReferenceFromParameter(annotated, ap);
-                }
-                else if (annotated instanceof AnnotatedField af) {
+                } else if (annotated instanceof AnnotatedField af) {
                     pluginImplName = pluginReferenceFromField(annotated, af);
                 }
                 if (pluginImplName == null) {
-                    throw new PluginDiscoveryException("Couldn't find @" + PluginImplName.class.getSimpleName() + " on member referred to by @"
-                            + PluginImplConfig.class.getSimpleName() + " on " + annotated);
+                    throw new PluginDiscoveryException(
+                            "Couldn't find @"
+                                                       + PluginImplName.class.getSimpleName()
+                                                       + " on member referred to by @"
+                                                       + PluginImplConfig.class.getSimpleName()
+                                                       + " on "
+                                                       + annotated
+                    );
                 }
                 return newResolver(pluginImplName.value());
             }
@@ -190,8 +196,7 @@ public class ConfigParser implements PluginFactoryRegistry {
             AnnotatedElement parameterOwner = owner.getAnnotated();
             if (parameterOwner instanceof Constructor<?> ctor) {
                 return findPluginReferenceAnnotation(instanceNameProperty, ctor);
-            }
-            else {
+            } else {
                 throw new IllegalStateException("Unsupported owner: " + owner);
             }
         }

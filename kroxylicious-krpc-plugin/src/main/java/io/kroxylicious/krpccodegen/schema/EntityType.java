@@ -8,23 +8,29 @@ package io.kroxylicious.krpccodegen.schema;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public enum EntityType {
-    @JsonProperty("unknown")
-    UNKNOWN(null),
+    @JsonProperty(
+        "unknown"
+    ) UNKNOWN(null),
 
-    @JsonProperty("transactionalId")
-    TRANSACTIONAL_ID(FieldType.StringFieldType.INSTANCE),
+    @JsonProperty(
+        "transactionalId"
+    ) TRANSACTIONAL_ID(FieldType.StringFieldType.INSTANCE),
 
-    @JsonProperty("producerId")
-    PRODUCER_ID(FieldType.Int64FieldType.INSTANCE),
+    @JsonProperty(
+        "producerId"
+    ) PRODUCER_ID(FieldType.Int64FieldType.INSTANCE),
 
-    @JsonProperty("groupId")
-    GROUP_ID(FieldType.StringFieldType.INSTANCE),
+    @JsonProperty(
+        "groupId"
+    ) GROUP_ID(FieldType.StringFieldType.INSTANCE),
 
-    @JsonProperty("topicName")
-    TOPIC_NAME(FieldType.StringFieldType.INSTANCE),
+    @JsonProperty(
+        "topicName"
+    ) TOPIC_NAME(FieldType.StringFieldType.INSTANCE),
 
-    @JsonProperty("brokerId")
-    BROKER_ID(FieldType.Int32FieldType.INSTANCE);
+    @JsonProperty(
+        "brokerId"
+    ) BROKER_ID(FieldType.Int32FieldType.INSTANCE);
 
     private final FieldType baseType;
 
@@ -38,12 +44,20 @@ public enum EntityType {
         }
         if (type instanceof FieldType.ArrayType arrayType) {
             verifyTypeMatches(fieldName, arrayType.elementType());
-        }
-        else {
+        } else {
             if (!type.toString().equals(baseType.toString())) {
-                throw new RuntimeException("Field " + fieldName + " has entity type " +
-                        name() + ", but field type " + type.toString() + ", which does " +
-                        "not match.");
+                throw new RuntimeException(
+                        "Field "
+                                           + fieldName
+                                           + " has entity type "
+                                           +
+                                           name()
+                                           + ", but field type "
+                                           + type.toString()
+                                           + ", which does "
+                                           +
+                                           "not match."
+                );
             }
         }
     }

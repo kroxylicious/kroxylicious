@@ -25,8 +25,13 @@ import static org.junit.jupiter.api.Assertions.fail;
 @Plugin(configType = ExampleFilterFactory.Config.class)
 public class ExampleFilterFactory implements FilterFactory<ExampleFilterFactory.Config, ExampleFilterFactory.Config> {
 
-    public record Config(@PluginImplName(ExamplePluginFactory.class) @JsonProperty(required = true) String examplePlugin,
-                         @PluginImplConfig(implNameProperty = "examplePlugin") Object examplePluginConfig) {}
+    public record Config(
+            @PluginImplName(ExamplePluginFactory.class) @JsonProperty(required = true)
+            String examplePlugin,
+            @PluginImplConfig(implNameProperty = "examplePlugin")
+            Object examplePluginConfig
+    ) {
+    }
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) {

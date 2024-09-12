@@ -29,10 +29,16 @@ public class BytebufValidation {
      * @param allowEmpty whether an empty byte-buffer should be considered valid
      */
     @JsonCreator
-    public BytebufValidation(@JsonProperty("syntacticallyCorrectJson") SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig,
-                             @JsonProperty("schemaValidationConfig") SchemaValidationConfig schemaValidationConfig,
-                             @JsonProperty(value = "allowNulls", defaultValue = "true") Boolean allowNulls,
-                             @JsonProperty(value = "allowEmpty", defaultValue = "false") Boolean allowEmpty) {
+    public BytebufValidation(
+            @JsonProperty("syntacticallyCorrectJson")
+            SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig,
+            @JsonProperty("schemaValidationConfig")
+            SchemaValidationConfig schemaValidationConfig,
+            @JsonProperty(value = "allowNulls", defaultValue = "true")
+            Boolean allowNulls,
+            @JsonProperty(value = "allowEmpty", defaultValue = "false")
+            Boolean allowEmpty
+    ) {
         this.syntacticallyCorrectJsonConfig = syntacticallyCorrectJsonConfig;
         this.schemaValidationConfig = schemaValidationConfig;
         this.allowNulls = allowNulls == null || allowNulls;
@@ -80,8 +86,13 @@ public class BytebufValidation {
             return false;
         }
         BytebufValidation that = (BytebufValidation) o;
-        return allowNulls == that.allowNulls && allowEmpty == that.allowEmpty && Objects.equals(syntacticallyCorrectJsonConfig,
-                that.syntacticallyCorrectJsonConfig) && Objects.equals(schemaValidationConfig, that.schemaValidationConfig);
+        return allowNulls == that.allowNulls
+               && allowEmpty == that.allowEmpty
+               && Objects.equals(
+                       syntacticallyCorrectJsonConfig,
+                       that.syntacticallyCorrectJsonConfig
+               )
+               && Objects.equals(schemaValidationConfig, that.schemaValidationConfig);
     }
 
     @Override
@@ -91,11 +102,20 @@ public class BytebufValidation {
 
     @Override
     public String toString() {
-        return "BytebufValidation{" +
-                "syntacticallyCorrectJsonConfig=" + syntacticallyCorrectJsonConfig +
-                ", schemaValidationConfig=" + schemaValidationConfig +
-                ", allowNulls=" + allowNulls +
-                ", allowEmpty=" + allowEmpty +
-                '}';
+        return "BytebufValidation{"
+               +
+               "syntacticallyCorrectJsonConfig="
+               + syntacticallyCorrectJsonConfig
+               +
+               ", schemaValidationConfig="
+               + schemaValidationConfig
+               +
+               ", allowNulls="
+               + allowNulls
+               +
+               ", allowEmpty="
+               + allowEmpty
+               +
+               '}';
     }
 }

@@ -30,9 +30,9 @@
             - partitionIndex: 0
               leaderId: 1
               leaderEpoch: 1
-              replicaNodes: []
-              isrNodes: []
-              offlineReplicas: []
+              replicaNodes: [ ]
+              isrNodes: [ ]
+              offlineReplicas: [ ]
               errorCode: 0
       brokers:
         - nodeId: 1

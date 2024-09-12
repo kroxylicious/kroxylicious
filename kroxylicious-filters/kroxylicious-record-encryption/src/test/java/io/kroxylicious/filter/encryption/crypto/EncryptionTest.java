@@ -39,7 +39,7 @@ class EncryptionTest {
         assertThat(cipherSpecResolver.toSerializedId(Aes.AES_256_GCM_128)).isEqualTo(Aes.AES_256_GCM_128.serializedId());
         // Encryption v1 does not support CHACHA
         assertThatThrownBy(() -> cipherSpecResolver.fromName(CipherSpec.CHACHA20_POLY1305)).isExactlyInstanceOf(UnknownCipherSpecException.class)
-                .hasMessage("Unknown CipherSpec name: CHACHA20_POLY1305");
+                                                                                           .hasMessage("Unknown CipherSpec name: CHACHA20_POLY1305");
 
         var aadResolver = ((WrapperV2) Encryption.V2.wrapper()).aadResolver();
         // Encryption v1 supports AAD.NONE

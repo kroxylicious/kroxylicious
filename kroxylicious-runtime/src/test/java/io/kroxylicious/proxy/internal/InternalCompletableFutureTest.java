@@ -79,10 +79,14 @@ class InternalCompletableFutureTest {
                 Arguments.of("thenApplyAsync(E)", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenApplyAsync(u -> u, e)),
 
                 Arguments.of("thenCombine", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenCombine(other, (u1, u2) -> u1)),
-                Arguments.of("thenCombineAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenCombineAsync(other, (u1, u2) -> u1)),
-                Arguments.of("thenCombineAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenCombineAsync(other, (u1, u2) -> u1, e)),
+                Arguments.of(
+                        "thenCombineAsync",
+                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenCombineAsync(other, (u1, u2) -> u1)
+                ),
+                Arguments.of(
+                        "thenCombineAsync(E)",
+                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenCombineAsync(other, (u1, u2) -> u1, e)
+                ),
 
                 Arguments.of("thenCompose", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenCompose(u -> completed)),
                 Arguments.of("thenComposeAsync", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenComposeAsync(u -> completed)),
@@ -110,12 +114,18 @@ class InternalCompletableFutureTest {
                 Arguments.of("exceptionallyAsync", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyAsync(t -> null)),
                 Arguments.of("exceptionallyAsync(E)", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyAsync(t -> null, e)),
 
-                Arguments.of("exceptionallyCompose",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyCompose(t -> completed)),
-                Arguments.of("exceptionallyComposeAsync",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyComposeAsync(t -> completed)),
-                Arguments.of("exceptionallyComposeAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyComposeAsync(t -> completed, e)),
+                Arguments.of(
+                        "exceptionallyCompose",
+                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyCompose(t -> completed)
+                ),
+                Arguments.of(
+                        "exceptionallyComposeAsync",
+                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyComposeAsync(t -> completed)
+                ),
+                Arguments.of(
+                        "exceptionallyComposeAsync(E)",
+                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.exceptionallyComposeAsync(t -> completed, e)
+                ),
 
                 Arguments.of("acceptEither", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.acceptEither(other, u -> {
                 })),
@@ -126,8 +136,10 @@ class InternalCompletableFutureTest {
 
                 Arguments.of("applyToEither", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.applyToEither(other, u -> u)),
                 Arguments.of("applyToEitherAsync", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.applyToEitherAsync(other, u -> u)),
-                Arguments.of("applyToEitherAsync(E)",
-                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.applyToEitherAsync(other, u -> u, e)),
+                Arguments.of(
+                        "applyToEitherAsync(E)",
+                        (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.applyToEitherAsync(other, u -> u, e)
+                ),
 
                 Arguments.of("runAfterEither", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.runAfterEither(other, () -> {
                 })),
@@ -138,19 +150,24 @@ class InternalCompletableFutureTest {
 
                 Arguments.of("theAcceptBoth", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenAcceptBoth(other, (u1, u2) -> {
                 })),
-                Arguments.of("thenAcceptBothAsync",
+                Arguments.of(
+                        "thenAcceptBothAsync",
                         (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenAcceptBothAsync(other, (u1, u2) -> {
-                        })),
-                Arguments.of("thenAcceptBothAsync(E)",
+                        })
+                ),
+                Arguments.of(
+                        "thenAcceptBothAsync(E)",
                         (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.thenAcceptBothAsync(other, (u1, u2) -> {
-                        }, e)),
+                        }, e)
+                ),
 
                 Arguments.of("runAfterBoth", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.runAfterBoth(other, () -> {
                 })),
                 Arguments.of("runAfterBothAsync", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.runAfterBothAsync(other, () -> {
                 })),
                 Arguments.of("runAfterBothAsync(E)", (BiFunction<CompletionStage<Void>, Executor, CompletionStage<Void>>) (s, e) -> s.runAfterBothAsync(other, () -> {
-                }, e)));
+                }, e))
+        );
     }
 
     @ParameterizedTest(name = "{0}")

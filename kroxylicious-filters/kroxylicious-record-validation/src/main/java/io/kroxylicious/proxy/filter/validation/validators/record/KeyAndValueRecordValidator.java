@@ -40,8 +40,7 @@ public class KeyAndValueRecordValidator implements RecordValidator {
         return keyValid.thenCompose(result -> {
             if (!result.valid()) {
                 return CompletableFuture.completedFuture(new Result(false, "Key was invalid: " + result.errorMessage()));
-            }
-            else {
+            } else {
                 return validateValue(record);
             }
         });
@@ -52,8 +51,7 @@ public class KeyAndValueRecordValidator implements RecordValidator {
         return valueValid.thenCompose(result1 -> {
             if (!result1.valid()) {
                 return CompletableFuture.completedFuture(new Result(false, "Value was invalid: " + result1.errorMessage()));
-            }
-            else {
+            } else {
                 return Result.VALID_RESULT_STAGE;
             }
         });

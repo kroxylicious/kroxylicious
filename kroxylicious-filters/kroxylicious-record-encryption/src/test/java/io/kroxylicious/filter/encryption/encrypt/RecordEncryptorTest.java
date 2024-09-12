@@ -42,10 +42,11 @@ class RecordEncryptorTest {
     private static FixedDekKmsService fixedDekKmsService;
 
     record TestComponents(
-                          Dek.Encryptor encryptor,
-                          Dek.Decryptor decryptor,
-                          Serde<ByteBuffer> edekSerde)
-            implements Closeable {
+            Dek.Encryptor encryptor,
+            Dek.Decryptor decryptor,
+            Serde<ByteBuffer> edekSerde
+    )
+                         implements Closeable {
         public void close() {
             encryptor.close();
             decryptor.close();
@@ -79,11 +80,13 @@ class RecordEncryptorTest {
 
     private Record encryptSingleRecord(TestComponents components, Set<RecordField> fields, long offset, long timestamp, String key, String value, Header... headers) {
         var re = new RecordEncryptor(
-                "topic", 0,
+                "topic",
+                0,
                 Encryption.V2,
                 new EncryptionScheme<>("key", fields),
                 components.edekSerde,
-                ByteBuffer.allocate(100));
+                ByteBuffer.allocate(100)
+        );
 
         Record record = RecordTestUtils.record(RecordBatch.MAGIC_VALUE_V2, offset, timestamp, key, value, headers);
 
@@ -116,13 +119,13 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(t)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasValueNotEqualTo(value)
-                .singleHeader()
-                .hasKeyEqualTo("kroxylicious.io/encryption")
-                .hasValueEqualTo(new byte[]{ 2 });
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasValueNotEqualTo(value)
+                       .singleHeader()
+                       .hasKeyEqualTo("kroxylicious.io/encryption")
+                       .hasValueEqualTo(new byte[]{ 2 });
 
         // And when
         var rd = new RecordDecryptor("topic", 0);
@@ -130,11 +133,11 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(rt)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasValueEqualTo(value)
-                .hasEmptyHeaders();
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasValueEqualTo(value)
+                       .hasEmptyHeaders();
     }
 
     // TODO with legacy magic
@@ -154,13 +157,13 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(t)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasValueNotEqualTo(value)
-                .hasHeadersSize(2)
-                .containsHeaderWithKey("kroxylicious.io/encryption")
-                .containsHeaderWithKey("bob");
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasValueNotEqualTo(value)
+                       .hasHeadersSize(2)
+                       .containsHeaderWithKey("kroxylicious.io/encryption")
+                       .containsHeaderWithKey("bob");
 
         // And when
         var rd = new RecordDecryptor("topic", 0); // index -> new DecryptState(t, EncryptionVersion.V1, DECRYPTOR)
@@ -169,13 +172,13 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(rt)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasValueEqualTo(value)
-                .singleHeader()
-                .hasKeyEqualTo("bob")
-                .hasNullValue();
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasValueEqualTo(value)
+                       .singleHeader()
+                       .hasKeyEqualTo("bob")
+                       .hasNullValue();
     }
 
     @Test
@@ -192,11 +195,11 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(t)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasNullValue()
-                .hasEmptyHeaders();
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasNullValue()
+                       .hasEmptyHeaders();
 
         // And when
         var rd = new RecordDecryptor("topic", 0); // note the null return
@@ -204,11 +207,11 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(rt)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasNullValue()
-                .hasEmptyHeaders();
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasNullValue()
+                       .hasEmptyHeaders();
     }
 
     @Test
@@ -226,13 +229,13 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(t)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasValueNotEqualTo(value)
-                .singleHeader()
-                .hasKeyEqualTo("kroxylicious.io/encryption")
-                .hasValueEqualTo(new byte[]{ 2 });
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasValueNotEqualTo(value)
+                       .singleHeader()
+                       .hasKeyEqualTo("kroxylicious.io/encryption")
+                       .hasValueEqualTo(new byte[]{ 2 });
 
         // And when
         var rd = new RecordDecryptor("topic", 0);
@@ -240,13 +243,13 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(rt)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasValueEqualTo(value)
-                .singleHeader()
-                .hasKeyEqualTo("bob")
-                .hasNullValue();
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasValueEqualTo(value)
+                       .singleHeader()
+                       .hasKeyEqualTo("bob")
+                       .hasNullValue();
     }
 
     @Test
@@ -265,13 +268,13 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(t)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasNullValue()
-                .singleHeader()
-                .hasKeyEqualTo("kroxylicious.io/encryption")
-                .hasValueEqualTo(new byte[]{ 1 });
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasNullValue()
+                       .singleHeader()
+                       .hasKeyEqualTo("kroxylicious.io/encryption")
+                       .hasValueEqualTo(new byte[]{ 1 });
 
         // TODO decryption
     }
@@ -292,13 +295,13 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(t)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasValueEqualTo(value)
-                .singleHeader()
-                .hasKeyEqualTo("kroxylicious.io/encryption")
-                .hasValueEqualTo(new byte[]{ 1 });
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasValueEqualTo(value)
+                       .singleHeader()
+                       .hasKeyEqualTo("kroxylicious.io/encryption")
+                       .hasValueEqualTo(new byte[]{ 1 });
 
         // TODO decryption
     }
@@ -319,13 +322,13 @@ class RecordEncryptorTest {
 
         // Then
         KafkaAssertions.assertThat(t)
-                .hasOffsetEqualTo(offset)
-                .hasTimestampEqualTo(timestamp)
-                .hasKeyEqualTo(key)
-                .hasValueEqualTo(value)
-                .singleHeader()
-                .hasKeyEqualTo("kroxylicious.io/encryption")
-                .hasValueEqualTo(new byte[]{ 1 });
+                       .hasOffsetEqualTo(offset)
+                       .hasTimestampEqualTo(timestamp)
+                       .hasKeyEqualTo(key)
+                       .hasValueEqualTo(value)
+                       .singleHeader()
+                       .hasKeyEqualTo("kroxylicious.io/encryption")
+                       .hasValueEqualTo(new byte[]{ 1 });
 
         // TODO decryption
     }

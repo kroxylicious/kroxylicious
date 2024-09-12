@@ -32,11 +32,12 @@ public class SharedEncryptionContext<K, E> {
      * @param encryptionDekCache
      */
     SharedEncryptionContext(
-                            Kms<K, E> kms,
-                            RecordEncryptionConfig configuration,
-                            DekManager<K, E> dekManager,
-                            EncryptionDekCache<K, E> encryptionDekCache,
-                            DecryptionDekCache<K, E> decryptionDekCache) {
+            Kms<K, E> kms,
+            RecordEncryptionConfig configuration,
+            DekManager<K, E> dekManager,
+            EncryptionDekCache<K, E> encryptionDekCache,
+            DecryptionDekCache<K, E> decryptionDekCache
+    ) {
         this.kms = kms;
         this.configuration = configuration;
         this.dekManager = dekManager;

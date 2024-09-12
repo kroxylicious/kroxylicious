@@ -24,13 +24,17 @@ public class ApiMessageCondition<X extends ApiMessage> extends Condition<X> {
     }
 
     public static <X extends ApiMessage> ApiMessageCondition<X> forApiKey(short expectedApiKey) {
-        return new ApiMessageCondition<>(apiMessage -> apiMessage.apiKey() == expectedApiKey,
-                new TextDescription("an ApiMessage of type %s (%d)", ApiKeys.forId(expectedApiKey), expectedApiKey));
+        return new ApiMessageCondition<>(
+                apiMessage -> apiMessage.apiKey() == expectedApiKey,
+                new TextDescription("an ApiMessage of type %s (%d)", ApiKeys.forId(expectedApiKey), expectedApiKey)
+        );
     }
 
     public static <X extends ApiMessage> ApiMessageCondition<X> forApiKey(ApiKeys expectedApiKey) {
-        return new ApiMessageCondition<>(apiMessage -> ApiKeys.forId(apiMessage.apiKey()) == expectedApiKey,
-                new TextDescription("an ApiMessage of type %s (%d)", expectedApiKey, expectedApiKey.id));
+        return new ApiMessageCondition<>(
+                apiMessage -> ApiKeys.forId(apiMessage.apiKey()) == expectedApiKey,
+                new TextDescription("an ApiMessage of type %s (%d)", expectedApiKey, expectedApiKey.id)
+        );
     }
 
     public ApiMessageCondition(Predicate<X> predicate) {
@@ -41,8 +45,7 @@ public class ApiMessageCondition<X extends ApiMessage> extends Condition<X> {
     public boolean matches(X apiMessage) {
         if (apiMessage != null) {
             return predicate.test(apiMessage);
-        }
-        else {
+        } else {
             return false;
         }
     }

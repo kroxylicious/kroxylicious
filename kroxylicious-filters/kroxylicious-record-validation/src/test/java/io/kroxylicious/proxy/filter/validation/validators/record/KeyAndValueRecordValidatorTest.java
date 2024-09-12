@@ -31,7 +31,7 @@ class KeyAndValueRecordValidatorTest {
     void testInvalidKey() {
         RecordValidator recordValidator = keyAndValueValidator(INVALID, VALID);
         assertThat(recordValidator.validate(mock(Record.class)))
-                .isCompletedWithValue(new Result(false, "Key was invalid: " + FAIL_MESSAGE));
+                                                                .isCompletedWithValue(new Result(false, "Key was invalid: " + FAIL_MESSAGE));
     }
 
     @Test

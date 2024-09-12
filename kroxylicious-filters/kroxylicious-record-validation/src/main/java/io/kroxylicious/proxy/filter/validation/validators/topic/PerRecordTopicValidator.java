@@ -34,12 +34,15 @@ class PerRecordTopicValidator implements TopicValidator {
 
     @Override
     public CompletionStage<TopicValidationResult> validateTopicData(ProduceRequestData.TopicProduceData topicProduceData) {
-        CompletableFuture<PartitionValidationResult>[] result = topicProduceData.partitionData().stream().map(this::validateTopicPartition)
-                .map(CompletionStage::toCompletableFuture)
-                .toArray(CompletableFuture[]::new);
+        CompletableFuture<PartitionValidationResult>[] result = topicProduceData.partitionData()
+                                                                                .stream()
+                                                                                .map(this::validateTopicPartition)
+                                                                                .map(CompletionStage::toCompletableFuture)
+                                                                                .toArray(CompletableFuture[]::new);
         return CompletableFuture.allOf(result).thenApply(unused -> {
-            Map<Integer, PartitionValidationResult> collect = Arrays.stream(result).map(CompletableFuture::join)
-                    .collect(Collectors.toMap(PartitionValidationResult::index, x -> x));
+            Map<Integer, PartitionValidationResult> collect = Arrays.stream(result)
+                                                                    .map(CompletableFuture::join)
+                                                                    .collect(Collectors.toMap(PartitionValidationResult::index, x -> x));
             return new PerPartitionTopicValidationResult(topicProduceData.name(), collect);
         });
     }

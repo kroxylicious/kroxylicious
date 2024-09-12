@@ -25,14 +25,29 @@ public final class StructSpec {
     private final boolean hasKeys;
 
     @JsonCreator
-    public StructSpec(@JsonProperty("name") String name,
-                      @JsonProperty("versions") String versions,
-                      @JsonProperty("fields") List<FieldSpec> fields) {
+    public StructSpec(
+            @JsonProperty(
+                "name"
+            )
+            String name,
+            @JsonProperty(
+                "versions"
+            )
+            String versions,
+            @JsonProperty(
+                "fields"
+            )
+            List<FieldSpec> fields
+    ) {
         this.name = Objects.requireNonNull(name);
         this.versions = Versions.parse(versions, null);
         if (this.versions == null) {
-            throw new RuntimeException("You must specify the version of the " +
-                    name + " structure.");
+            throw new RuntimeException(
+                    "You must specify the version of the "
+                                       +
+                                       name
+                                       + " structure."
+            );
         }
         ArrayList<FieldSpec> newFields = new ArrayList<>();
         if (fields != null) {
@@ -42,9 +57,18 @@ public final class StructSpec {
                 final Optional<Integer> fieldTag = field.tag();
                 if (fieldTag.isPresent()) {
                     if (tags.contains(fieldTag.get())) {
-                        throw new RuntimeException("In " + name + ", field " + field.name() +
-                                " has a duplicate tag ID " + fieldTag.get() + ".  All tags IDs " +
-                                "must be unique.");
+                        throw new RuntimeException(
+                                "In "
+                                                   + name
+                                                   + ", field "
+                                                   + field.name()
+                                                   +
+                                                   " has a duplicate tag ID "
+                                                   + fieldTag.get()
+                                                   + ".  All tags IDs "
+                                                   +
+                                                   "must be unique."
+                        );
                     }
                     tags.add(fieldTag.get());
                 }
@@ -54,9 +78,17 @@ public final class StructSpec {
             // since larger numbers take more space.
             for (int i = 0; i < tags.size(); i++) {
                 if (!tags.contains(i)) {
-                    throw new RuntimeException("In " + name + ", the tag IDs are not " +
-                            "contiguous.  Make use of tag " + i + " before using any " +
-                            "higher tag IDs.");
+                    throw new RuntimeException(
+                            "In "
+                                               + name
+                                               + ", the tag IDs are not "
+                                               +
+                                               "contiguous.  Make use of tag "
+                                               + i
+                                               + " before using any "
+                                               +
+                                               "higher tag IDs."
+                    );
                 }
             }
         }

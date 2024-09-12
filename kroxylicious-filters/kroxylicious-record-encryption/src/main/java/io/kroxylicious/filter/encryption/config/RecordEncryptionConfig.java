@@ -17,12 +17,19 @@ import io.kroxylicious.proxy.plugin.PluginImplName;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplName(KmsService.class) String kms,
-                                     @PluginImplConfig(implNameProperty = "kms") Object kmsConfig,
+public record RecordEncryptionConfig(
+        @JsonProperty(required = true) @PluginImplName(KmsService.class)
+        String kms,
+        @PluginImplConfig(implNameProperty = "kms")
+        Object kmsConfig,
 
-                                     @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
-                                     @PluginImplConfig(implNameProperty = "selector") Object selectorConfig,
-                                     @JsonProperty Map<String, Object> experimental) {
+        @JsonProperty(required = true) @PluginImplName(KekSelectorService.class)
+        String selector,
+        @PluginImplConfig(implNameProperty = "selector")
+        Object selectorConfig,
+        @JsonProperty
+        Map<String, Object> experimental
+) {
     public RecordEncryptionConfig {
         experimental = experimental == null ? Map.of() : experimental;
     }
@@ -36,8 +43,16 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
         Long notFoundAliasExpireAfterWriteSeconds = getExperimentalLong("notFoundAliasExpireAfterWriteSeconds");
         Long encryptionDekRefreshAfterWriteSeconds = getExperimentalLong("encryptionDekRefreshAfterWriteSeconds");
         Long encryptionDekExpireAfterWriteSeconds = getExperimentalLong("encryptionDekExpireAfterWriteSeconds");
-        return new KmsCacheConfig(decryptedDekCacheSize, decryptedDekExpireAfterAccessSeconds, resolvedAliasCacheSize, resolvedAliasExpireAfterWriteSeconds,
-                resolvedAliasRefreshAfterWriteSeconds, notFoundAliasExpireAfterWriteSeconds, encryptionDekRefreshAfterWriteSeconds, encryptionDekExpireAfterWriteSeconds);
+        return new KmsCacheConfig(
+                decryptedDekCacheSize,
+                decryptedDekExpireAfterAccessSeconds,
+                resolvedAliasCacheSize,
+                resolvedAliasExpireAfterWriteSeconds,
+                resolvedAliasRefreshAfterWriteSeconds,
+                notFoundAliasExpireAfterWriteSeconds,
+                encryptionDekRefreshAfterWriteSeconds,
+                encryptionDekExpireAfterWriteSeconds
+        );
     }
 
     public DekManagerConfig dekManager() {
@@ -51,11 +66,9 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
         return Optional.ofNullable(experimental.get(property)).map(value -> {
             if (value instanceof Number number) {
                 return number.intValue();
-            }
-            else if (value instanceof String stringValue) {
+            } else if (value instanceof String stringValue) {
                 return Integer.parseInt(stringValue);
-            }
-            else {
+            } else {
                 throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
             }
         }).orElse(null);
@@ -66,11 +79,9 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
         return Optional.ofNullable(experimental.get(property)).map(value -> {
             if (value instanceof Number number) {
                 return number.longValue();
-            }
-            else if (value instanceof String stringValue) {
+            } else if (value instanceof String stringValue) {
                 return Long.parseLong(stringValue);
-            }
-            else {
+            } else {
                 throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
             }
         }).orElse(null);

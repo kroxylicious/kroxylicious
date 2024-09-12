@@ -20,11 +20,11 @@ spec:
     # Bouncy Castle in the classpath.  PKCS8 works without the classpath addition.
     encoding: PKCS8
   keystores:
-   pkcs12:
-     create: true
-     passwordSecretRef:
-       name: kroxy-server-keystore-password
-       key: storePassword
+    pkcs12:
+      create: true
+      passwordSecretRef:
+        name: kroxy-server-keystore-password
+        key: storePassword
   dnsNames:
     # Note that the postinstall.sh scripts relies on the bootstrap address being first.
     - mycluster-proxy.kafka

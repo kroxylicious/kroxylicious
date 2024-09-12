@@ -65,14 +65,16 @@ class KroxyliciousTest {
     }
 
     @Test
-    void testExitsIfConfigurationNonExistent(@TempDir Path dir) {
+    void testExitsIfConfigurationNonExistent(@TempDir
+    Path dir) {
         String nonExistent = dir.resolve(randomUUID().toString()).toString();
         assertEquals(2, cmd.execute("-c", nonExistent));
         assertThat(stdErr()).contains("Given configuration file does not exist: " + nonExistent);
     }
 
     @Test
-    void testExitsIfConfigurationNotExpectedFormat(@TempDir Path dir) throws IOException {
+    void testExitsIfConfigurationNotExpectedFormat(@TempDir
+    Path dir) throws IOException {
         Path file = dir.resolve(randomUUID().toString());
         Files.writeString(file, "absolute garbage");
         assertEquals(1, cmd.execute("-c", file.toString()));
@@ -80,7 +82,8 @@ class KroxyliciousTest {
     }
 
     @Test
-    void testKroxyliciousStartsAndThenTerminates(@TempDir Path dir) throws Exception {
+    void testKroxyliciousStartsAndThenTerminates(@TempDir
+    Path dir) throws Exception {
         Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
         when(mockProxy.startup()).thenReturn(mockProxy);
         doNothing().when(mockProxy).block();
@@ -88,7 +91,8 @@ class KroxyliciousTest {
     }
 
     @Test
-    void testKroxyliciousExceptionOnBlock(@TempDir Path dir) throws Exception {
+    void testKroxyliciousExceptionOnBlock(@TempDir
+    Path dir) throws Exception {
         Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
         when(mockProxy.startup()).thenReturn(mockProxy);
         Mockito.doThrow(new RuntimeException("exception on block")).when(mockProxy).block();
@@ -98,7 +102,8 @@ class KroxyliciousTest {
     }
 
     @Test
-    void testKroxyliciousExceptionOnStartup(@TempDir Path dir) throws Exception {
+    void testKroxyliciousExceptionOnStartup(@TempDir
+    Path dir) throws Exception {
         Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
         when(mockProxy.startup()).thenThrow(new RuntimeException("startup blew up"));
         assertEquals(1, cmd.execute("-c", file.toString()));

@@ -63,8 +63,7 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
                 if (e.getCause() instanceof UnknownAliasException) {
                     var kekId = kms.generateKey();
                     kms.createAlias(kekId, alias);
-                }
-                else {
+                } else {
                     throw unwrapRuntimeException(e);
                 }
             }

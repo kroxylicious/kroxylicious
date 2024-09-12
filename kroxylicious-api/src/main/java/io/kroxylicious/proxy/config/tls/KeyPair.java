@@ -24,11 +24,18 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * @param certificateFile     location of a file containing the certificate and intermediates.
  * @param keyPasswordProvider provider for the privateKeyFile password or null if key does not require a password
  */
-@SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
-public record KeyPair(@JsonProperty(required = true) String privateKeyFile,
-                      @JsonProperty(required = true) String certificateFile,
-                      @JsonProperty(value = "keyPassword") PasswordProvider keyPasswordProvider)
-        implements KeyProvider {
+@SuppressFBWarnings(
+        value = "PATH_TRAVERSAL_IN",
+        justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
+public record KeyPair(
+        @JsonProperty(required = true)
+        String privateKeyFile,
+        @JsonProperty(required = true)
+        String certificateFile,
+        @JsonProperty(value = "keyPassword")
+        PasswordProvider keyPasswordProvider
+)
+                     implements KeyProvider {
 
     public KeyPair {
         Objects.requireNonNull(privateKeyFile);

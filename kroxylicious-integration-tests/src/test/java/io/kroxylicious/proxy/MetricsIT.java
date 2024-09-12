@@ -49,50 +49,50 @@ class MetricsIT {
     @Test
     void nonexistentEndpointGives404(KafkaCluster cluster) {
         var config = proxy(cluster)
-                .withNewAdminHttp()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endAdminHttp();
+                                   .withNewAdminHttp()
+                                   .withNewEndpoints()
+                                   .withNewPrometheus()
+                                   .endPrometheus()
+                                   .endEndpoints()
+                                   .endAdminHttp();
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getAdminHttpClient()) {
             var notFoundResp = ahc.getFromAdminEndpoint("nonexistent");
             assertThat(notFoundResp.statusCode())
-                    .isEqualTo(HttpResponseStatus.NOT_FOUND.code());
+                                                 .isEqualTo(HttpResponseStatus.NOT_FOUND.code());
         }
     }
 
     @Test
     void scrapeEndpointExists(KafkaCluster cluster) {
         var config = proxy(cluster)
-                .withNewAdminHttp()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endAdminHttp();
+                                   .withNewAdminHttp()
+                                   .withNewEndpoints()
+                                   .withNewPrometheus()
+                                   .endPrometheus()
+                                   .endEndpoints()
+                                   .endAdminHttp();
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getAdminHttpClient()) {
             var ok = ahc.getFromAdminEndpoint("metrics");
             assertThat(ok.statusCode())
-                    .isEqualTo(HttpResponseStatus.OK.code());
+                                       .isEqualTo(HttpResponseStatus.OK.code());
             assertThat(ok.body())
-                    .isNotEmpty();
+                                 .isNotEmpty();
         }
     }
 
     @Test
     void knownPrometheusMetricPresent(KafkaCluster cluster) {
         var config = proxy(cluster)
-                .withNewAdminHttp()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endAdminHttp();
+                                   .withNewAdminHttp()
+                                   .withNewEndpoints()
+                                   .withNewPrometheus()
+                                   .endPrometheus()
+                                   .endEndpoints()
+                                   .endAdminHttp();
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getAdminHttpClient()) {
@@ -100,43 +100,44 @@ class MetricsIT {
             Metrics.counter(counterName).increment();
             var metrics = ahc.scrapeMetrics();
             assertThat(metrics)
-                    .hasSizeGreaterThan(0)
-                    .extracting(SimpleMetric::name, SimpleMetric::value)
-                    .contains(tuple(counterName, 1.0));
+                               .hasSizeGreaterThan(0)
+                               .extracting(SimpleMetric::name, SimpleMetric::value)
+                               .contains(tuple(counterName, 1.0));
         }
     }
 
     @Test
     void prometheusMetricFromNamedBinder(KafkaCluster cluster) {
         var config = proxy(cluster)
-                .addToMicrometer(
-                        new MicrometerDefinitionBuilder(StandardBindersHook.class.getName()).withConfig("binderNames", List.of("JvmGcMetrics")).build())
-                .withNewAdminHttp()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endAdminHttp();
+                                   .addToMicrometer(
+                                           new MicrometerDefinitionBuilder(StandardBindersHook.class.getName()).withConfig("binderNames", List.of("JvmGcMetrics")).build()
+                                   )
+                                   .withNewAdminHttp()
+                                   .withNewEndpoints()
+                                   .withNewPrometheus()
+                                   .endPrometheus()
+                                   .endEndpoints()
+                                   .endAdminHttp();
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getAdminHttpClient()) {
             assertThat(ahc.scrapeMetrics())
-                    .hasSizeGreaterThan(0)
-                    .extracting(SimpleMetric::name)
-                    .contains("jvm_gc_memory_allocated_bytes_total");
+                                           .hasSizeGreaterThan(0)
+                                           .extracting(SimpleMetric::name)
+                                           .contains("jvm_gc_memory_allocated_bytes_total");
         }
     }
 
     @Test
     void prometheusMetricsWithCommonTags(KafkaCluster cluster) {
         var config = proxy(cluster)
-                .addToMicrometer(new MicrometerDefinitionBuilder(CommonTagsHook.class.getName()).withConfig("commonTags", Map.of("a", "b")).build())
-                .withNewAdminHttp()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endAdminHttp();
+                                   .addToMicrometer(new MicrometerDefinitionBuilder(CommonTagsHook.class.getName()).withConfig("commonTags", Map.of("a", "b")).build())
+                                   .withNewAdminHttp()
+                                   .withNewEndpoints()
+                                   .withNewPrometheus()
+                                   .endPrometheus()
+                                   .endEndpoints()
+                                   .endAdminHttp();
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getAdminHttpClient()) {
@@ -145,10 +146,10 @@ class MetricsIT {
 
             var metrics = ahc.scrapeMetrics();
             assertThat(metrics)
-                    .filteredOn("name", counterName)
-                    .singleElement()
-                    .extracting(SimpleMetric::labels)
-                    .isEqualTo(Map.of("a", "b"));
+                               .filteredOn("name", counterName)
+                               .singleElement()
+                               .extracting(SimpleMetric::labels)
+                               .isEqualTo(Map.of("a", "b"));
         }
     }
 

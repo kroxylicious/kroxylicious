@@ -45,15 +45,20 @@ public class Strimzi {
     public void deploy() {
         LOGGER.info("Deploy Strimzi in {} namespace", deploymentNamespace);
         if (kubeClient().getDeployment(deploymentNamespace, Constants.STRIMZI_DEPLOYMENT_NAME) != null
-                || Environment.SKIP_STRIMZI_INSTALL) {
+            || Environment.SKIP_STRIMZI_INSTALL) {
             LOGGER.warn("Skipping strimzi deployment. It is already deployed!");
             return;
         }
 
-        ResourceManager.helmClient().namespace(deploymentNamespace).installByContainerImage(STRIMZI_HELM_REPOSITORY, STRIMZI_SERVICE_NAME,
-                Optional.of(Environment.STRIMZI_VERSION),
-                Optional.of(Path.of(TestUtils.getResourcesURI("helm_strimzi_overrides.yaml"))),
-                Optional.empty());
+        ResourceManager.helmClient()
+                       .namespace(deploymentNamespace)
+                       .installByContainerImage(
+                               STRIMZI_HELM_REPOSITORY,
+                               STRIMZI_SERVICE_NAME,
+                               Optional.of(Environment.STRIMZI_VERSION),
+                               Optional.of(Path.of(TestUtils.getResourcesURI("helm_strimzi_overrides.yaml"))),
+                               Optional.empty()
+                       );
     }
 
     /**

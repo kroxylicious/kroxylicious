@@ -38,7 +38,7 @@
     payload:
       key: mygroup
       keyType: 0
-      coordinatorKeys: []
+      coordinatorKeys: [ ]
     diff:
       - op: replace
         path: /key

@@ -17,8 +17,11 @@ class ApiVersionsServiceImplTest {
     @Test
     void testIntersection_UpstreamMatchesApiKeys() {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
-        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, ApiKeys.METADATA.oldestVersion(),
-                ApiKeys.METADATA.latestVersion());
+        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(
+                ApiKeys.METADATA.id,
+                ApiKeys.METADATA.oldestVersion(),
+                ApiKeys.METADATA.latestVersion()
+        );
         apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
     }
@@ -26,8 +29,11 @@ class ApiVersionsServiceImplTest {
     @Test
     void testIntersection_UpstreamMinVersionLessThanApiKeys() {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
-        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, (short) (ApiKeys.METADATA.oldestVersion() - 1),
-                ApiKeys.METADATA.latestVersion());
+        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(
+                ApiKeys.METADATA.id,
+                (short) (ApiKeys.METADATA.oldestVersion() - 1),
+                ApiKeys.METADATA.latestVersion()
+        );
         apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
     }
@@ -35,8 +41,11 @@ class ApiVersionsServiceImplTest {
     @Test
     void testIntersection_UpstreamMinVersionGreaterThanApiKeys() {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
-        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, (short) (ApiKeys.METADATA.oldestVersion() + 1),
-                ApiKeys.METADATA.latestVersion());
+        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(
+                ApiKeys.METADATA.id,
+                (short) (ApiKeys.METADATA.oldestVersion() + 1),
+                ApiKeys.METADATA.latestVersion()
+        );
         apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, (short) (ApiKeys.METADATA.oldestVersion() + 1), ApiKeys.METADATA.latestVersion());
     }
@@ -44,8 +53,11 @@ class ApiVersionsServiceImplTest {
     @Test
     void testIntersection_UpstreamMaxVersionLessThanApiKeys() {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
-        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, ApiKeys.METADATA.oldestVersion(),
-                (short) (ApiKeys.METADATA.latestVersion() - 1));
+        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(
+                ApiKeys.METADATA.id,
+                ApiKeys.METADATA.oldestVersion(),
+                (short) (ApiKeys.METADATA.latestVersion() - 1)
+        );
         apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() - 1));
     }
@@ -53,8 +65,11 @@ class ApiVersionsServiceImplTest {
     @Test
     void testIntersection_UpstreamMaxVersionGreaterThanApiKeys() {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
-        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, ApiKeys.METADATA.oldestVersion(),
-                (short) (ApiKeys.METADATA.latestVersion() + 1));
+        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(
+                ApiKeys.METADATA.id,
+                ApiKeys.METADATA.oldestVersion(),
+                (short) (ApiKeys.METADATA.latestVersion() + 1)
+        );
         apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
     }
@@ -62,8 +77,11 @@ class ApiVersionsServiceImplTest {
     @Test
     void testIntersection_DiscardsUnknownUpstreamApiKeys() {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
-        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith((short) 678, ApiKeys.METADATA.oldestVersion(),
-                (short) (ApiKeys.METADATA.latestVersion() + 1));
+        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(
+                (short) 678,
+                ApiKeys.METADATA.oldestVersion(),
+                (short) (ApiKeys.METADATA.latestVersion() + 1)
+        );
         apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThat(upstreamApiVersions.apiKeys()).isEmpty();
     }
@@ -80,8 +98,14 @@ class ApiVersionsServiceImplTest {
 
     private static ApiVersionsResponseData createApiVersionsWith(short api, short minVersion, short maxVersion) {
         ApiVersionsResponseData upstreamApiVersions = new ApiVersionsResponseData();
-        upstreamApiVersions.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(api).setMinVersion(minVersion).setMaxVersion(
-                maxVersion));
+        upstreamApiVersions.apiKeys()
+                           .add(
+                                   new ApiVersionsResponseData.ApiVersion().setApiKey(api)
+                                                                           .setMinVersion(minVersion)
+                                                                           .setMaxVersion(
+                                                                                   maxVersion
+                                                                           )
+                           );
         return upstreamApiVersions;
     }
 

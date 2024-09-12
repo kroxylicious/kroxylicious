@@ -53,7 +53,8 @@ public class Metrics {
         List<Tag> tags = List.of(
                 Tag.of("ApiKey", apiKey.name()),
                 Tag.of("ApiVersion", String.valueOf(apiVersion)),
-                flowing);
+                flowing
+        );
         return summary(KROXYLICIOUS_PAYLOAD_SIZE_BYTES, tags);
     }
 

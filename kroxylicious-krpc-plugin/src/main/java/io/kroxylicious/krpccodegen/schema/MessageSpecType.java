@@ -11,30 +11,35 @@ public enum MessageSpecType {
     /**
      * Kafka request RPCs.
      */
-    @JsonProperty("request")
-    REQUEST,
+    @JsonProperty(
+        "request"
+    ) REQUEST,
 
     /**
      * Kafka response RPCs.
      */
-    @JsonProperty("response")
-    RESPONSE,
+    @JsonProperty(
+        "response"
+    ) RESPONSE,
 
     /**
      * Kafka RPC headers.
      */
-    @JsonProperty("header")
-    HEADER,
+    @JsonProperty(
+        "header"
+    ) HEADER,
 
     /**
      * KIP-631 controller records.
      */
-    @JsonProperty("metadata")
-    METADATA,
+    @JsonProperty(
+        "metadata"
+    ) METADATA,
 
     /**
      * Other message spec types.
      */
-    @JsonProperty("data")
-    DATA;
+    @JsonProperty(
+        "data"
+    ) DATA;
 }

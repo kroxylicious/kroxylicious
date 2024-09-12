@@ -38,49 +38,55 @@ public class KroxyliciousDeploymentTemplates {
      */
     public static DeploymentBuilder defaultKroxyDeployment(String namespaceName, String containerImage, int replicas) {
         return new DeploymentBuilder()
-                .withApiVersion("apps/v1")
-                .withKind(Constants.DEPLOYMENT)
-                .withNewMetadata()
-                .withName(Constants.KROXY_DEPLOYMENT_NAME)
-                .withNamespace(namespaceName)
-                .addToLabels(kroxyLabelSelector)
-                .endMetadata()
-                .withNewSpec()
-                .withReplicas(replicas)
-                .withNewSelector()
-                .addToMatchLabels(kroxyLabelSelector)
-                .endSelector()
-                .withNewTemplate()
-                .withNewMetadata()
-                .withLabels(kroxyLabelSelector)
-                .endMetadata()
-                .withNewSpec()
-                .withContainers(ContainerTemplates.baseImageBuilder("kroxylicious", containerImage)
-                        .withArgs("--config", "/opt/kroxylicious/config/config.yaml")
-                        .withPorts(getPlainContainerPortList())
-                        .withVolumeMounts(getPlainVolumeMountList())
-                        .build())
-                .withImagePullSecrets(new LocalObjectReferenceBuilder()
-                        .withName("regcred")
-                        .build())
-                .addNewVolume()
-                .withName(CONFIG_VOLUME_NAME)
-                .withNewConfigMap()
-                .withName(Constants.KROXY_CONFIG_NAME)
-                .endConfigMap()
-                .endVolume()
-                .endSpec()
-                .endTemplate()
-                .endSpec();
+                                      .withApiVersion("apps/v1")
+                                      .withKind(Constants.DEPLOYMENT)
+                                      .withNewMetadata()
+                                      .withName(Constants.KROXY_DEPLOYMENT_NAME)
+                                      .withNamespace(namespaceName)
+                                      .addToLabels(kroxyLabelSelector)
+                                      .endMetadata()
+                                      .withNewSpec()
+                                      .withReplicas(replicas)
+                                      .withNewSelector()
+                                      .addToMatchLabels(kroxyLabelSelector)
+                                      .endSelector()
+                                      .withNewTemplate()
+                                      .withNewMetadata()
+                                      .withLabels(kroxyLabelSelector)
+                                      .endMetadata()
+                                      .withNewSpec()
+                                      .withContainers(
+                                              ContainerTemplates.baseImageBuilder("kroxylicious", containerImage)
+                                                                .withArgs("--config", "/opt/kroxylicious/config/config.yaml")
+                                                                .withPorts(getPlainContainerPortList())
+                                                                .withVolumeMounts(getPlainVolumeMountList())
+                                                                .build()
+                                      )
+                                      .withImagePullSecrets(
+                                              new LocalObjectReferenceBuilder()
+                                                                               .withName("regcred")
+                                                                               .build()
+                                      )
+                                      .addNewVolume()
+                                      .withName(CONFIG_VOLUME_NAME)
+                                      .withNewConfigMap()
+                                      .withName(Constants.KROXY_CONFIG_NAME)
+                                      .endConfigMap()
+                                      .endVolume()
+                                      .endSpec()
+                                      .endTemplate()
+                                      .endSpec();
     }
 
     private static List<VolumeMount> getPlainVolumeMountList() {
         List<VolumeMount> volumeMountList = new ArrayList<>();
-        volumeMountList.add(new VolumeMountBuilder()
-                .withName(CONFIG_VOLUME_NAME)
-                .withMountPath("/opt/kroxylicious/config/config.yaml")
-                .withSubPath("config.yaml")
-                .build());
+        volumeMountList.add(
+                new VolumeMountBuilder()
+                                        .withName(CONFIG_VOLUME_NAME)
+                                        .withMountPath("/opt/kroxylicious/config/config.yaml")
+                                        .withSubPath("config.yaml")
+                                        .build()
+        );
         return volumeMountList;
     }
 
@@ -101,12 +107,12 @@ public class KroxyliciousDeploymentTemplates {
 
     private static ContainerPort createContainerPort(String name, int port) {
         return baseContainerPort(port)
-                .withName(name)
-                .build();
+                                      .withName(name)
+                                      .build();
     }
 
     private static ContainerPortBuilder baseContainerPort(int port) {
         return new ContainerPortBuilder()
-                .withContainerPort(port);
+                                         .withContainerPort(port);
     }
 }

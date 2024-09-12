@@ -92,9 +92,11 @@ class PromiseFactoryTest {
 
             final AtomicReference<ScheduledFuture<?>> timeoutFuture = new AtomicReference<>();
             when(executorService.schedule(any(Runnable.class), anyLong(), any())).thenAnswer(invocationOnMock -> {
-                final ScheduledFuture<?> newValue = scheduledExecutorService.schedule((Runnable) invocationOnMock.getArgument(0),
+                final ScheduledFuture<?> newValue = scheduledExecutorService.schedule(
+                        (Runnable) invocationOnMock.getArgument(0),
                         invocationOnMock.getArgument(1),
-                        invocationOnMock.getArgument(2));
+                        invocationOnMock.getArgument(2)
+                );
                 timeoutFuture.set(newValue);
                 return newValue;
             });
@@ -105,8 +107,13 @@ class PromiseFactoryTest {
             promise.complete(null);
 
             // Then
-            assertThat(timeoutFuture).satisfies(atomicRef -> assertThat(atomicRef).hasValueMatching(Objects::nonNull)
-                    .hasValueSatisfying(scheduledFuture -> Assertions.FUTURE.createAssert(scheduledFuture).isCancelled()));
+            assertThat(timeoutFuture).satisfies(
+                    atomicRef -> assertThat(atomicRef).hasValueMatching(Objects::nonNull)
+                                                      .hasValueSatisfying(
+                                                              scheduledFuture -> Assertions.FUTURE.createAssert(scheduledFuture)
+                                                                                                  .isCancelled()
+                                                      )
+            );
         }
         finally {
             scheduledExecutorService.shutdownNow();
@@ -160,11 +167,12 @@ class PromiseFactoryTest {
         timeoutTask.run();
 
         // Then
-        assertThat(incomingFuture).isDone().isCompletedExceptionally()
-                .failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(TimeoutException.class)
-                .withMessageContaining("Too Slow!");
+        assertThat(incomingFuture).isDone()
+                                  .isCompletedExceptionally()
+                                  .failsWithin(Duration.ZERO)
+                                  .withThrowableOfType(ExecutionException.class)
+                                  .withCauseInstanceOf(TimeoutException.class)
+                                  .withMessageContaining("Too Slow!");
     }
 
     @Test
@@ -179,10 +187,11 @@ class PromiseFactoryTest {
         timeoutTask.run();
 
         // Then
-        assertThat(incomingFuture).isDone().isCompletedExceptionally()
-                .failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(TimeoutException.class)
-                .withMessageContaining("Promise Timed out");
+        assertThat(incomingFuture).isDone()
+                                  .isCompletedExceptionally()
+                                  .failsWithin(Duration.ZERO)
+                                  .withThrowableOfType(ExecutionException.class)
+                                  .withCauseInstanceOf(TimeoutException.class)
+                                  .withMessageContaining("Promise Timed out");
     }
 }

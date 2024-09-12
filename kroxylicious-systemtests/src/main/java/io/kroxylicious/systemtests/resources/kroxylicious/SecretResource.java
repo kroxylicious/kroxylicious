@@ -38,8 +38,12 @@ public class SecretResource implements ResourceType<Secret> {
 
     @Override
     public void delete(Secret resource) {
-        secretClient().inNamespace(resource.getMetadata().getNamespace()).withName(
-                resource.getMetadata().getName()).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
+        secretClient().inNamespace(resource.getMetadata().getNamespace())
+                      .withName(
+                              resource.getMetadata().getName()
+                      )
+                      .withPropagationPolicy(DeletionPropagation.FOREGROUND)
+                      .delete();
     }
 
     @Override

@@ -41,8 +41,11 @@ public class DecryptionDekCache<K, E> {
     private final DekManager<K, E> dekManager;
 
     public record CacheKey<E>(
-                              @Nullable CipherManager cipherManager,
-                              @Nullable E edek) {
+            @Nullable
+            CipherManager cipherManager,
+            @Nullable
+            E edek
+    ) {
         public CacheKey {
             if (cipherManager == null ^ edek == null) {
                 throw new IllegalArgumentException();
@@ -67,9 +70,13 @@ public class DecryptionDekCache<K, E> {
 
     private final AsyncLoadingCache<CacheKey<E>, Dek<E>> decryptorCache;
 
-    public DecryptionDekCache(@NonNull DekManager<K, E> dekManager,
-                              @Nullable Executor dekCacheExecutor,
-                              int dekCacheMaxItems) {
+    public DecryptionDekCache(
+            @NonNull
+            DekManager<K, E> dekManager,
+            @Nullable
+            Executor dekCacheExecutor,
+            int dekCacheMaxItems
+    ) {
         this.dekManager = Objects.requireNonNull(dekManager);
         Caffeine<Object, Object> cache = Caffeine.<CacheKey<E>, Dek<E>> newBuilder();
         if (dekCacheMaxItems != NO_MAX_CACHE_SIZE) {
@@ -79,8 +86,8 @@ public class DecryptionDekCache<K, E> {
             cache.executor(dekCacheExecutor);
         }
         this.decryptorCache = cache
-                .removalListener(this::afterCacheEviction)
-                .buildAsync(this::loadDek);
+                                   .removalListener(this::afterCacheEviction)
+                                   .buildAsync(this::loadDek);
     }
 
     /**
@@ -98,16 +105,20 @@ public class DecryptionDekCache<K, E> {
         // the cacheKey.isNone() check above
         assert cacheKey.edek() != null && cacheKey.cipherManager() != null;
         return dekManager.decryptEdek(cacheKey.edek(), cacheKey.cipherManager())
-                .toCompletableFuture();
+                         .toCompletableFuture();
     }
 
     /**
      * Invoked by Caffeine after a DEK is evicted from the cache.
      * This method is executed on the {@code dekCacheExecutor} passed to the constructor.
      */
-    private void afterCacheEviction(@Nullable CacheKey<E> cacheKey,
-                                    @Nullable Dek<E> dek,
-                                    RemovalCause removalCause) {
+    private void afterCacheEviction(
+            @Nullable
+            CacheKey<E> cacheKey,
+            @Nullable
+            Dek<E> dek,
+            RemovalCause removalCause
+    ) {
         if (dek != null) {
             dek.destroyForDecrypt();
             if (LOGGER.isTraceEnabled()) {
@@ -122,8 +133,12 @@ public class DecryptionDekCache<K, E> {
      * @param filterThreadExecutor The filter thread executor
      * @return A completion stage which completes on the filter thread with the DEKs for the given {@code cacheKeys}.
      */
-    public @NonNull CompletionStage<Map<CacheKey<E>, Dek<E>>> getAll(@NonNull List<CacheKey<E>> cacheKeys,
-                                                                     @NonNull FilterThreadExecutor filterThreadExecutor) {
+    public @NonNull CompletionStage<Map<CacheKey<E>, Dek<E>>> getAll(
+            @NonNull
+            List<CacheKey<E>> cacheKeys,
+            @NonNull
+            FilterThreadExecutor filterThreadExecutor
+    ) {
         return filterThreadExecutor.completingOnFilterThread(decryptorCache.getAll(cacheKeys));
     }
 }

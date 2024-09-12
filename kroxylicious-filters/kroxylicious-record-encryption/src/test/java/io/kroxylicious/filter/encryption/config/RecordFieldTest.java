@@ -22,7 +22,8 @@ class RecordFieldTest {
                 EnumSet.of(RecordField.RECORD_HEADER_VALUES),
                 EnumSet.of(RecordField.RECORD_HEADER_VALUES, RecordField.RECORD_VALUE),
                 EnumSet.allOf(RecordField.class),
-                EnumSet.noneOf(RecordField.class))) {
+                EnumSet.noneOf(RecordField.class)
+        )) {
             var b = RecordField.toBits(recordValue);
             assertEquals(recordValue, RecordField.fromBits(b), recordValue.toString());
         }

@@ -5,21 +5,21 @@
 [id='con-vault-setup-{context}']
 = Enable the Transit Engine
 
-The filter integrates with the {hashicorp-vault}/docs/secrets/transit[HashiCorp Vault *Transit
-Engine*].   Vault does not enable the Transit Engine by default.  It must be
+The filter integrates with the {hashicorp-vault}/docs/secrets/transit[HashiCorp Vault *Transit Engine*].
+Vault does not enable the Transit Engine by default.
+It must be
 {hashicorp-vault}/docs/secrets/transit#setup[enabled] before it can be used with the filter.
 
 [#_vault_transit_engine_url]
 == Vault Transit Engine URL
 
-The Vault Transit Engine URL is required so the filter knows the location of the Transit Engine within the
-Vault instance.
+The Vault Transit Engine URL is required so the filter knows the location of the Transit Engine within the Vault instance.
 
 The URL is formed from the concatenation of the `Api Address` (reported by Vault reported by during
-{hashicorp-vault}/tutorials/getting-started/getting-started-dev-server#starting-the-dev-server[starts up]) with the
-complete path to Transit Engine, including the name of the engine itself. If
-{hashicorp-vault}/docs/enterprise/namespaces[Namespacing] is used on the Vault instance, the path needs to include the
-namespace(s). The URL will end with `/transit` unless the `-path` parameter was used when
+{hashicorp-vault}/tutorials/getting-started/getting-started-dev-server#starting-the-dev-server[starts up]) with the complete path to Transit Engine, including the name of the engine itself.
+If
+{hashicorp-vault}/docs/enterprise/namespaces[Namespacing] is used on the Vault instance, the path needs to include the namespace(s).
+The URL will end with `/transit` unless the `-path` parameter was used when
 {hashicorp-vault}/docs/secrets/transit#setup[enabling the engine].
 
 If namespacing is not in use, the URL will look like this:
@@ -29,16 +29,15 @@ If namespacing is not in use, the URL will look like this:
 https://myvaultinstance:8200/v1/transit
 ----
 
-If namespacing is in use, the path must include the namespaces. For example, if there is a parent namespace is `a` and
-a child namespace is `b`, the URL will look like this:
+If namespacing is in use, the path must include the namespaces.
+For example, if there is a parent namespace is `a` and a child namespace is `b`, the URL will look like this:
 
 [source,shell]
 ----
 https://myvaultinstance:8200/v1/a/b/transit
 ----
 
-If the name of the Transit engine was changed (using the `-path` argument to the `vault secrets enable transit` command)
-the URL will look like this:
+If the name of the Transit engine was changed (using the `-path` argument to the `vault secrets enable transit` command) the URL will look like this:
 
 [source,shell]
 ----
@@ -69,8 +68,7 @@ capabilities = ["read", "write"]
 
 == Establish an application identity for the filter
 
-The filter must authenticate to Vault in order to perform envelope encryption operations, such as generating and decrypting DEKs
-Therefore, a Vault identity with sufficient permissions must be created for the filter.
+The filter must authenticate to Vault in order to perform envelope encryption operations, such as generating and decrypting DEKs Therefore, a Vault identity with sufficient permissions must be created for the filter.
 
 Create a Vault policy for the filter:
 
@@ -89,9 +87,8 @@ capabilities = [ "update"]
 EOF
 ----
 
-Create a {hashicorp-vault}/docs/concepts/tokens#periodic-tokens[Periodic] (long-lived) Vault Token
-for the filterfootnote:[The example token create command illustrates the use of `-no-default-policy`
-and `-orphan`. The use of these flags is not functionally important.  You may adapt the
+Create a {hashicorp-vault}/docs/concepts/tokens#periodic-tokens[Periodic] (long-lived) Vault Token for the filterfootnote:[The example token create command illustrates the use of `-no-default-policy`
+and `-orphan`. The use of these flags is not functionally important. You may adapt the
 configuration of the token to suit the standards required by your organization]:
 
 [source,shell]
@@ -103,12 +100,15 @@ vault token create -display-name "kroxylicious record encryption" \
                    -orphan                                            <3>
 
 ----
-<1> Causes the token to be periodic (with every renewal using the given period).
-<2> Detach the "default" policy from the policy set for this token.  This is done so the token has least-privilege.
-<3> Create the token with no parent. This is done so that expiration of a parent won't expire the token used by the filter.
 
-The `token create` command yields the `token`. The `token` value is required later when configuring the vault within the
-filter.
+<1> Causes the token to be periodic (with every renewal using the given period).
+<2> Detach the "default" policy from the policy set for this token.
+This is done so the token has least-privilege.
+<3> Create the token with no parent.
+This is done so that expiration of a parent won't expire the token used by the filter.
+
+The `token create` command yields the `token`.
+The `token` value is required later when configuring the vault within the filter.
 
 [source]
 ----
@@ -118,7 +118,7 @@ token_policies     [kroxylicious_encryption_filter_policy]
 ----
 
 The token must be {hashicorp-vault}/docs/concepts/tokens#token-time-to-live-periodic-tokens-and-explicit-max-ttls[renewed]
-before expiration.  
+before expiration.
 It is the responsibility of the administrator to do this.
 
 This can be done with a command like:
@@ -140,7 +140,8 @@ First, as the administrator, create a KEK in the hierarchy at this path `transit
 VAULT_TOKEN=<kroxylicious encryption filter token> validate_vault_token.sh <kek path>
 ----
 
-The script should respond 'Ok'.  If errors are reported check the policy/token configuration.
+The script should respond 'Ok'.
+If errors are reported check the policy/token configuration.
 
 `transit/keys/KEK_testkey` can now be removed.
 

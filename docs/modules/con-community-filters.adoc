@@ -9,5 +9,5 @@
 Community contributed filters are showcased in the
 https://github.com/kroxylicious/kroxylicious-community-gallery[Community Gallery^].
 
-NOTE: These filters are contributed by the community and are not managed or maintained by the Kroxylicious team. 
+NOTE: These filters are contributed by the community and are not managed or maintained by the Kroxylicious team.
 Use them at your own risk.

@@ -34,18 +34,26 @@ public class ContributionManager {
         this.loaderFunction = loaderFunction;
     }
 
-    public <S extends Contributor> ConfigurationDefinition getDefinition(Class<S> contributorClass,
-                                                                         String typeName) {
+    public <S extends Contributor> ConfigurationDefinition getDefinition(
+            Class<S> contributorClass,
+            String typeName
+    ) {
         return (ConfigurationDefinition) findContributor(contributorClass, typeName, s -> new ConfigurationDefinition(s.getConfigType(), s.requiresConfiguration()));
     }
 
-    public <T, S extends Contributor> T createInstance(Class<S> contributorClass, String typeName,
-                                                       Context constructionContext) {
+    public <T, S extends Contributor> T createInstance(
+            Class<S> contributorClass,
+            String typeName,
+            Context constructionContext
+    ) {
         return (T) findContributor(contributorClass, typeName, contributor -> contributor.createInstance(constructionContext));
     }
 
-    private <T, S extends Contributor<T, ?, ?>, X> X findContributor(Class<S> contributorClass, String typeName,
-                                                                     Function<S, X> extractor) {
+    private <T, S extends Contributor<T, ?, ?>, X> X findContributor(
+            Class<S> contributorClass,
+            String typeName,
+            Function<S, X> extractor
+    ) {
         final Iterable<S> contributorsForClass = this.contributors.computeIfAbsent(contributorClass, loaderFunction);
         for (S contributor : contributorsForClass) {
             if (matches(typeName, contributor)) {
@@ -57,10 +65,13 @@ public class ContributionManager {
 
     private static <T, S extends Contributor<T, ?, ?>> boolean matches(String typeName, S contributor) {
         Class<?> contributorClass = contributor.getServiceType();
-        boolean matchesShortNameForTopLevelClass = !contributorClass.isMemberClass() && !contributorClass.isLocalClass() && !contributorClass.isAnonymousClass()
-                && contributorClass.getSimpleName().equals(typeName);
+        boolean matchesShortNameForTopLevelClass = !contributorClass.isMemberClass()
+                                                   && !contributorClass.isLocalClass()
+                                                   && !contributorClass.isAnonymousClass()
+                                                   && contributorClass.getSimpleName().equals(typeName);
         return contributorClass.getName().equals(typeName) || matchesShortNameForTopLevelClass;
     }
 
-    public record ConfigurationDefinition(Class<?> configurationType, boolean configurationRequired) {}
+    public record ConfigurationDefinition(Class<?> configurationType, boolean configurationRequired) {
+    }
 }

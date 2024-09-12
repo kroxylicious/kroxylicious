@@ -32,15 +32,15 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
     public MemoryRecordsAssert hasSizeInBytes(int expected) {
         isNotNull();
         Assertions.assertThat(actual.sizeInBytes())
-                .describedAs("sizeInBytes")
-                .isEqualTo(expected);
+                  .describedAs("sizeInBytes")
+                  .isEqualTo(expected);
         return this;
     }
 
     public IterableAssert<? extends RecordBatch> batchesIterable() {
         isNotNull();
         var batchesAssert = IterableAssert.assertThatIterable(actual.batches())
-                .describedAs("batches");
+                                          .describedAs("batches");
         return batchesAssert;
     }
 
@@ -66,29 +66,29 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
         isNotNull();
         isNotEmpty();
         return batchesIterable()
-                .first(new InstanceOfAssertFactory<>(RecordBatch.class, RecordBatchAssert::assertThat))
-                .describedAs("first batch");
+                                .first(new InstanceOfAssertFactory<>(RecordBatch.class, RecordBatchAssert::assertThat))
+                                .describedAs("first batch");
     }
 
     public RecordBatchAssert lastBatch() {
         isNotNull();
         isNotEmpty();
         return batchesIterable()
-                .last(new InstanceOfAssertFactory<>(RecordBatch.class, RecordBatchAssert::assertThat))
-                .describedAs("last batch");
+                                .last(new InstanceOfAssertFactory<>(RecordBatch.class, RecordBatchAssert::assertThat))
+                                .describedAs("last batch");
     }
 
     private void isNotEmpty() {
         Assertions.assertThat(actual.batches())
-                .describedAs("number of batches")
-                .hasSizeGreaterThan(0);
+                  .describedAs("number of batches")
+                  .hasSizeGreaterThan(0);
     }
 
     public MemoryRecordsAssert hasNumBatches(int expected) {
         isNotNull();
         Assertions.assertThat(actual.batches())
-                .describedAs("number of batches")
-                .hasSize(expected);
+                  .describedAs("number of batches")
+                  .hasSize(expected);
         return this;
     }
 
@@ -99,8 +99,8 @@ public class MemoryRecordsAssert extends AbstractAssert<MemoryRecordsAssert, Mem
             actualCounts.add((int) StreamSupport.stream(batch.spliterator(), false).count());
         }
         Assertions.assertThat(actualCounts)
-                .describedAs("batch sizes")
-                .isEqualTo(IntStream.of(expected).boxed().toList());
+                  .describedAs("batch sizes")
+                  .isEqualTo(IntStream.of(expected).boxed().toList());
         return this;
     }
 

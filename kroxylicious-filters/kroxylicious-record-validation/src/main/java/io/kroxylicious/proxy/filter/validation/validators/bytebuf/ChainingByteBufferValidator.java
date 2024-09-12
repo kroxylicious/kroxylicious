@@ -25,7 +25,8 @@ class ChainingByteBufferValidator implements BytebufValidator {
 
     private final List<BytebufValidator> elements;
 
-    ChainingByteBufferValidator(@NonNull List<BytebufValidator> elements) {
+    ChainingByteBufferValidator(@NonNull
+    List<BytebufValidator> elements) {
         this.elements = List.copyOf(elements);
     }
 
@@ -37,8 +38,7 @@ class ChainingByteBufferValidator implements BytebufValidator {
             future = future.thenCompose(x -> {
                 if (x.valid()) {
                     return bv.validate(buffer.asReadOnlyBuffer(), kafkaRecord, isKey);
-                }
-                else {
+                } else {
                     return CompletableFuture.completedStage(x);
                 }
             });

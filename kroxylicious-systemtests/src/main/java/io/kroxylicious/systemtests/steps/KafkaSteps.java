@@ -45,8 +45,14 @@ public class KafkaSteps {
     public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas) {
         LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
-        List<String> args = List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
-                "--topic-rep-factor=" + replicas);
+        List<String> args = List.of(
+                TOPIC_COMMAND,
+                "create",
+                BOOTSTRAP_ARG + bootstrap,
+                "--topic=" + topicName,
+                "--topic-partitions=" + partitions,
+                "--topic-rep-factor=" + replicas
+        );
 
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();

@@ -62,12 +62,12 @@ public enum ForwardingStyle implements Function<ForwardingContext, CompletionSta
         private CompletionStage<ListGroupsResponseData> sendAsyncRequestAndCheckForResponseErrors(FilterContext filterContext) {
             var request = new ListGroupsRequestData();
             return filterContext.<ListGroupsResponseData> sendRequest(new RequestHeaderData().setRequestApiVersion(request.highestSupportedVersion()), request)
-                    .thenApply(r -> {
-                        if (r.errorCode() != Errors.NONE.code()) {
-                            throw new RuntimeException("Async request unexpected failed (errorCode: %d)".formatted(r.errorCode()));
-                        }
-                        return r;
-                    });
+                                .thenApply(r -> {
+                                    if (r.errorCode() != Errors.NONE.code()) {
+                                        throw new RuntimeException("Async request unexpected failed (errorCode: %d)".formatted(r.errorCode()));
+                                    }
+                                    return r;
+                                });
         }
     }
 }

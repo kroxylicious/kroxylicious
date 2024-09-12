@@ -43,8 +43,9 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
 
     @Override
     public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
-        return parameterContext.getParameter().getType().isAssignableFrom(String.class) &&
-                parameterContext.getParameter().getName().toLowerCase().contains("namespace");
+        return parameterContext.getParameter().getType().isAssignableFrom(String.class)
+               &&
+               parameterContext.getParameter().getName().toLowerCase().contains("namespace");
     }
 
     @Override
@@ -75,8 +76,11 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
-                DeploymentUtils.collectClusterInfo(namespace, extensionContext.getRequiredTestClass().getSimpleName(),
-                        extensionContext.getRequiredTestMethod().getName());
+                DeploymentUtils.collectClusterInfo(
+                        namespace,
+                        extensionContext.getRequiredTestClass().getSimpleName(),
+                        extensionContext.getRequiredTestMethod().getName()
+                );
                 clusterDumpCollected = true;
             });
         }

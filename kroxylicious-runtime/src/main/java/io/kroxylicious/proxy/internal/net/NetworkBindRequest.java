@@ -56,8 +56,7 @@ public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
             if (bindingAddress.isPresent()) {
                 LOGGER.debug("Binding {}:{}", bindingAddress.get(), port);
                 bind = serverBootstrap.bind(bindingAddress.get(), port);
-            }
-            else {
+            } else {
                 LOGGER.debug("Binding <any>:{}", port);
                 bind = serverBootstrap.bind(port);
             }
@@ -65,8 +64,7 @@ public class NetworkBindRequest extends NetworkBindingOperation<Channel> {
                 executorService.execute(() -> {
                     if (channelFuture.cause() != null) {
                         future.completeExceptionally(channelFuture.cause());
-                    }
-                    else {
+                    } else {
                         future.complete(channelFuture.channel());
                     }
                 });

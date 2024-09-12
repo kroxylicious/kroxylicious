@@ -63,18 +63,27 @@ public class DekManager<K, E> {
      * @return A completion state that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
-    public CompletionStage<Dek<E>> generateDek(@NonNull K kekRef, @NonNull CipherManager cipherManager) {
+    public CompletionStage<Dek<E>> generateDek(@NonNull
+    K kekRef, @NonNull
+    CipherManager cipherManager) {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(cipherManager);
         return kms.generateDekPair(kekRef)
-                .thenApply(dekPair -> {
-                    DestroyableRawSecretKey destroyableKey = DestroyableRawSecretKey.toDestroyableKey(dekPair.dek());
-                    if (destroyableKey.numKeyBits() < cipherManager.requiredNumKeyBits()) {
-                        throw new EncryptionConfigurationException("KMS returned " + destroyableKey.numKeyBits() + "-bit DEK but "
-                                + cipherManager.name() + " requires keys of " + cipherManager.requiredNumKeyBits() + " bits");
-                    }
-                    return new Dek<>(dekPair.edek(), destroyableKey, cipherManager, maxEncryptionsPerDek);
-                });
+                  .thenApply(dekPair -> {
+                      DestroyableRawSecretKey destroyableKey = DestroyableRawSecretKey.toDestroyableKey(dekPair.dek());
+                      if (destroyableKey.numKeyBits() < cipherManager.requiredNumKeyBits()) {
+                          throw new EncryptionConfigurationException(
+                                  "KMS returned "
+                                                                     + destroyableKey.numKeyBits()
+                                                                     + "-bit DEK but "
+                                                                     + cipherManager.name()
+                                                                     + " requires keys of "
+                                                                     + cipherManager.requiredNumKeyBits()
+                                                                     + " bits"
+                          );
+                      }
+                      return new Dek<>(dekPair.edek(), destroyableKey, cipherManager, maxEncryptionsPerDek);
+                  });
     }
 
     /**
@@ -85,7 +94,9 @@ public class DekManager<K, E> {
      * @return A completion stage that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
-    public CompletionStage<Dek<E>> decryptEdek(@NonNull E edek, @NonNull CipherManager cipherManager) {
+    public CompletionStage<Dek<E>> decryptEdek(@NonNull
+    E edek, @NonNull
+    CipherManager cipherManager) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(cipherManager);
         return kms.decryptEdek(edek).thenApply(key -> new Dek<>(edek, DestroyableRawSecretKey.toDestroyableKey(key), cipherManager, 0));

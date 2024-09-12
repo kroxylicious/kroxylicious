@@ -65,7 +65,9 @@ class Wrapping96BitCounterTest {
         byte[] iv = new byte[generator.sizeBytes()];
         generator.generateIv(iv);
         assertArrayEquals(
-                new byte[]{ (byte) 127, (byte) -1, (byte) -1, (byte) -1, (byte) 127, (byte) -1, (byte) -1, (byte) -1, (byte) 127, (byte) -1, (byte) -1, (byte) -1 }, iv);
+                new byte[]{ (byte) 127, (byte) -1, (byte) -1, (byte) -1, (byte) 127, (byte) -1, (byte) -1, (byte) -1, (byte) 127, (byte) -1, (byte) -1, (byte) -1 },
+                iv
+        );
         generator.generateIv(iv);
         assertArrayEquals(new byte[]{ (byte) -128, 0, 0, 0, (byte) -128, 0, 0, 0, (byte) -128, 0, 0, 0 }, iv);
         generator.generateIv(iv);
@@ -82,14 +84,11 @@ class Wrapping96BitCounterTest {
                 this.count++;
                 if (count == 0) {
                     return first;
-                }
-                else if (count == 1) {
+                } else if (count == 1) {
                     return second;
-                }
-                else if (count == 2) {
+                } else if (count == 2) {
                     return third;
-                }
-                else {
+                } else {
                     throw new IllegalStateException();
                 }
             }

@@ -40,8 +40,12 @@ public class KafkaResource implements ResourceType<Kafka> {
 
     @Override
     public void delete(Kafka resource) {
-        kafkaClient().inNamespace(resource.getMetadata().getNamespace()).withName(
-                resource.getMetadata().getName()).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
+        kafkaClient().inNamespace(resource.getMetadata().getNamespace())
+                     .withName(
+                             resource.getMetadata().getName()
+                     )
+                     .withPropagationPolicy(DeletionPropagation.FOREGROUND)
+                     .delete();
     }
 
     @Override
@@ -51,8 +55,11 @@ public class KafkaResource implements ResourceType<Kafka> {
 
     @Override
     public boolean waitForReadiness(Kafka resource) {
-        return ResourceManager.waitForResourceStatusReady(kafkaClient(), resource,
-                ResourceOperation.getTimeoutForResourceReadiness(Constants.KAFKA_KIND));
+        return ResourceManager.waitForResourceStatusReady(
+                kafkaClient(),
+                resource,
+                ResourceOperation.getTimeoutForResourceReadiness(Constants.KAFKA_KIND)
+        );
     }
 
     /**

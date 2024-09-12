@@ -29,8 +29,9 @@ public class NamespaceUtils {
     public static void deleteNamespaceWithWait(String namespace) {
         LOGGER.info("Deleting namespace: {}", namespace);
         kubeClient().deleteNamespace(namespace);
-        await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
-                .until(() -> kubeClient().getNamespace(namespace) == null);
+        await().atMost(Constants.GLOBAL_TIMEOUT)
+               .pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+               .until(() -> kubeClient().getNamespace(namespace) == null);
 
         LOGGER.info("Namespace: {} deleted", namespace);
     }
@@ -47,8 +48,9 @@ public class NamespaceUtils {
             return;
         }
         kubeClient().createNamespace(namespace);
-        await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
-                .until(() -> kubeClient().getNamespace(namespace) != null);
+        await().atMost(Constants.GLOBAL_TIMEOUT)
+               .pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+               .until(() -> kubeClient().getNamespace(namespace) != null);
 
         LOGGER.info("Namespace: {} created", namespace);
     }

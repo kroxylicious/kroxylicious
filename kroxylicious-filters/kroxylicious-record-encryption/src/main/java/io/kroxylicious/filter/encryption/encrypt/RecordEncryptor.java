@@ -55,12 +55,19 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
      * @param edekSerde Serde for the encrypted DEK.
      * @param recordBuffer A buffer
      */
-    public RecordEncryptor(@NonNull String topicName,
-                           int partition,
-                           @NonNull Encryption encryption,
-                           @NonNull EncryptionScheme<K> encryptionScheme,
-                           @NonNull Serde<E> edekSerde,
-                           @NonNull ByteBuffer recordBuffer) {
+    public RecordEncryptor(
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            Encryption encryption,
+            @NonNull
+            EncryptionScheme<K> encryptionScheme,
+            @NonNull
+            Serde<E> edekSerde,
+            @NonNull
+            ByteBuffer recordBuffer
+    ) {
         this.topicName = Objects.requireNonNull(topicName);
         this.partition = partition;
         this.encryption = Objects.requireNonNull(encryption);
@@ -71,7 +78,8 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
     }
 
     @Override
-    public void initBatch(@NonNull RecordBatch batch) {
+    public void initBatch(@NonNull
+    RecordBatch batch) {
         this.batch = Objects.requireNonNull(batch);
     }
 
@@ -81,13 +89,14 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
     }
 
     @Override
-    public void init(Dek<E>.Encryptor encryptor, @NonNull Record kafkaRecord) throws BufferTooSmallException {
+    public void init(Dek<E>.Encryptor encryptor, @NonNull
+    Record kafkaRecord) throws BufferTooSmallException {
         if (this.batch == null) {
             throw new IllegalStateException();
         }
         if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES)
-                && kafkaRecord.headers().length > 0
-                && !kafkaRecord.hasValue()) {
+            && kafkaRecord.headers().length > 0
+            && !kafkaRecord.hasValue()) {
             // todo implement header encryption preserving null record-values
             throw new IllegalStateException("encrypting headers prohibited when original record value null, we must preserve the null for tombstoning");
         }
@@ -97,51 +106,57 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
     }
 
     @Nullable
-    private ByteBuffer doTransformValue(@NonNull Record kafkaRecord) throws BufferTooSmallException {
+    private ByteBuffer doTransformValue(@NonNull
+    Record kafkaRecord) throws BufferTooSmallException {
         final ByteBuffer transformedValue;
         if (kafkaRecord.hasValue()) {
             transformedValue = writeWrapper(kafkaRecord, recordBuffer);
-        }
-        else {
+        } else {
             transformedValue = null;
         }
         return transformedValue;
     }
 
-    private Header[] doTransformHeaders(@NonNull Record kafkaRecord) {
+    private Header[] doTransformHeaders(@NonNull
+    Record kafkaRecord) {
         final Header[] transformedHeaders;
         if (kafkaRecord.hasValue()) {
             Header[] oldHeaders = kafkaRecord.headers();
             if (encryptionScheme.recordFields().contains(RecordField.RECORD_HEADER_VALUES) || oldHeaders.length == 0) {
                 transformedHeaders = encryptionHeader;
-            }
-            else {
+            } else {
                 transformedHeaders = new Header[1 + oldHeaders.length];
                 transformedHeaders[0] = encryptionHeader[0];
                 System.arraycopy(oldHeaders, 0, transformedHeaders, 1, oldHeaders.length);
             }
-        }
-        else {
+        } else {
             transformedHeaders = kafkaRecord.headers();
         }
         return transformedHeaders;
     }
 
     @Nullable
-    private ByteBuffer writeWrapper(@NonNull Record kafkaRecord,
-                                    @NonNull ByteBuffer buffer)
-            throws BufferTooSmallException {
-        encryption.wrapper().writeWrapper(edekSerde,
-                Objects.requireNonNull(encryptor.edek()),
-                topicName,
-                partition,
-                batch,
-                kafkaRecord,
-                encryptor,
-                encryption.parcel(),
-                encryptionScheme.aadSpec(),
-                encryptionScheme.recordFields(),
-                buffer);
+    private ByteBuffer writeWrapper(
+            @NonNull
+            Record kafkaRecord,
+            @NonNull
+            ByteBuffer buffer
+    )
+      throws BufferTooSmallException {
+        encryption.wrapper()
+                  .writeWrapper(
+                          edekSerde,
+                          Objects.requireNonNull(encryptor.edek()),
+                          topicName,
+                          partition,
+                          batch,
+                          kafkaRecord,
+                          encryptor,
+                          encryption.parcel(),
+                          encryptionScheme.aadSpec(),
+                          encryptionScheme.recordFields(),
+                          buffer
+                  );
         recordBuffer.flip();
         return recordBuffer;
     }

@@ -27,8 +27,8 @@ import io.netty.util.ReferenceCounted;
  *
  */
 public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
-        extends AbstractReferenceCounted
-        implements Frame {
+                                  extends AbstractReferenceCounted
+                                  implements Frame {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DecodedFrame.class);
 
@@ -101,8 +101,14 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         }
         final int encodedSize = estimateEncodedSize();
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("Writing {} with 4 byte length ({}) plus bytes of header {}, and body {} to {}",
-                    getClass().getSimpleName(), encodedSize, header, body, out);
+            LOGGER.trace(
+                    "Writing {} with 4 byte length ({}) plus bytes of header {}, and body {} to {}",
+                    getClass().getSimpleName(),
+                    encodedSize,
+                    header,
+                    body,
+                    out
+            );
         }
         out.ensureWritable(encodedSize);
         final int initialIndex = out.writerIndex();
@@ -115,11 +121,22 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     @Override
     public String toString() {
-        return getClass().getSimpleName() + "(" +
-                apiKey() + "(" + apiVersion + ")v" + apiVersion +
-                ", header=" + header +
-                ", body=" + body +
-                ')';
+        return getClass().getSimpleName()
+               + "("
+               +
+               apiKey()
+               + "("
+               + apiVersion
+               + ")v"
+               + apiVersion
+               +
+               ", header="
+               + header
+               +
+               ", body="
+               + body
+               +
+               ')';
     }
 
     public void add(ByteBuf buffer) {

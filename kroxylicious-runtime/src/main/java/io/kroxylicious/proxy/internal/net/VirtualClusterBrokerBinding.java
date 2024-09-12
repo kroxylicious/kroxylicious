@@ -20,7 +20,7 @@ import io.kroxylicious.proxy.service.HostPort;
  * @param restrictUpstreamToMetadataDiscovery  true if the upstreamTarget corresponds to a broker, false if it points at a bootstrap.
  */
 public record VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPort upstreamTarget, int nodeId, boolean restrictUpstreamToMetadataDiscovery)
-        implements VirtualClusterBinding {
+                                         implements VirtualClusterBinding {
     public VirtualClusterBrokerBinding {
         Objects.requireNonNull(virtualCluster, "virtualCluster must not be null");
         Objects.requireNonNull(upstreamTarget, "upstreamTarget must not be null");
@@ -28,11 +28,23 @@ public record VirtualClusterBrokerBinding(VirtualCluster virtualCluster, HostPor
 
     @Override
     public String toString() {
-        return "VirtualClusterBrokerBinding[" +
-                "virtualCluster=" + this.virtualCluster() + ", " +
-                "upstreamTarget=" + this.upstreamTarget() + ", " +
-                "restrictUpstreamToMetadataDiscovery=" + this.restrictUpstreamToMetadataDiscovery() + ", " +
-                "nodeId=" + nodeId + ']';
+        return "VirtualClusterBrokerBinding["
+               +
+               "virtualCluster="
+               + this.virtualCluster()
+               + ", "
+               +
+               "upstreamTarget="
+               + this.upstreamTarget()
+               + ", "
+               +
+               "restrictUpstreamToMetadataDiscovery="
+               + this.restrictUpstreamToMetadataDiscovery()
+               + ", "
+               +
+               "nodeId="
+               + nodeId
+               + ']';
     }
 
     public boolean refersToSameVirtualClusterAndNode(VirtualClusterBrokerBinding other) {

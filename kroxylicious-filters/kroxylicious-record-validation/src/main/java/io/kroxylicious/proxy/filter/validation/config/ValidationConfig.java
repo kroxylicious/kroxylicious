@@ -36,9 +36,14 @@ public class ValidationConfig {
      * @param defaultRule the default validation rule to be applied when no rule is matched for a topic within a ProduceRequest
      */
     @JsonCreator
-    public ValidationConfig(@JsonProperty(value = "forwardPartialRequests", defaultValue = "false") Boolean forwardPartialRequests,
-                            @JsonProperty("rules") List<TopicMatchingRecordValidationRule> rules,
-                            @JsonProperty("defaultRule") RecordValidationRule defaultRule) {
+    public ValidationConfig(
+            @JsonProperty(value = "forwardPartialRequests", defaultValue = "false")
+            Boolean forwardPartialRequests,
+            @JsonProperty("rules")
+            List<TopicMatchingRecordValidationRule> rules,
+            @JsonProperty("defaultRule")
+            RecordValidationRule defaultRule
+    ) {
         this.forwardPartialRequests = forwardPartialRequests != null && forwardPartialRequests;
         this.rules = rules;
         this.defaultRule = defaultRule;
@@ -77,8 +82,12 @@ public class ValidationConfig {
             return false;
         }
         ValidationConfig that = (ValidationConfig) o;
-        return forwardPartialRequests == that.forwardPartialRequests && Objects.equals(rules, that.rules) && Objects.equals(defaultRule,
-                that.defaultRule);
+        return forwardPartialRequests == that.forwardPartialRequests
+               && Objects.equals(rules, that.rules)
+               && Objects.equals(
+                       defaultRule,
+                       that.defaultRule
+               );
     }
 
     @Override
@@ -88,10 +97,17 @@ public class ValidationConfig {
 
     @Override
     public String toString() {
-        return "ValidationConfig{" +
-                "forwardPartialRequests=" + forwardPartialRequests +
-                ", rules=" + rules +
-                ", defaultRule=" + defaultRule +
-                '}';
+        return "ValidationConfig{"
+               +
+               "forwardPartialRequests="
+               + forwardPartialRequests
+               +
+               ", rules="
+               + rules
+               +
+               ", defaultRule="
+               + defaultRule
+               +
+               '}';
     }
 }

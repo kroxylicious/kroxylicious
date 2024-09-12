@@ -102,8 +102,12 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNet
         @JsonIgnore
         private final Pattern brokerAddressNodeIdCapturingRegex;
 
-        public SniRoutingClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
-                                                                   @JsonProperty(required = true) String brokerAddressPattern) {
+        public SniRoutingClusterNetworkAddressConfigProviderConfig(
+                @JsonProperty(required = true)
+                HostPort bootstrapAddress,
+                @JsonProperty(required = true)
+                String brokerAddressPattern
+        ) {
             if (bootstrapAddress == null) {
                 throw new IllegalArgumentException("bootstrapAddress cannot be null");
             }

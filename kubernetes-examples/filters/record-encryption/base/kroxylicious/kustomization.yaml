@@ -11,8 +11,8 @@ kind: Kustomization
 namespace: kroxylicious
 
 resources:
-- kroxylicious-namespace.yaml
-- kroxylicious-config.yaml
-- kroxylicious-deployment.yaml
-- kroxylicious-service.yaml
+  - kroxylicious-namespace.yaml
+  - kroxylicious-config.yaml
+  - kroxylicious-deployment.yaml
+  - kroxylicious-service.yaml
 

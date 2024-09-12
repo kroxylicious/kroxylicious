@@ -33,9 +33,11 @@ public class RequestEncoderTest extends AbstractCodecTest {
 
     public static List<Object[]> testResponseFrames() {
         List<Object[]> cartesianProduct = new ArrayList<>();
-        List.of(true, false).forEach(
-                requestHasResponse -> Stream.of(true, false)
-                        .forEach(decodeResponse -> cartesianProduct.add(new Object[]{ requestHasResponse, decodeResponse })));
+        List.of(true, false)
+            .forEach(
+                    requestHasResponse -> Stream.of(true, false)
+                                                .forEach(decodeResponse -> cartesianProduct.add(new Object[]{ requestHasResponse, decodeResponse }))
+            );
         return cartesianProduct;
     }
 
@@ -74,8 +76,10 @@ public class RequestEncoderTest extends AbstractCodecTest {
         var correlationManager = new CorrelationManager(78);
         whenRequestEncoded(frame, correlationManager);
 
-        assertTrue(correlationManager.brokerRequests.isEmpty(),
-                "Expect request with no response to not have a correlation stored");
+        assertTrue(
+                correlationManager.brokerRequests.isEmpty(),
+                "Expect request with no response to not have a correlation stored"
+        );
     }
 
     @ParameterizedTest
@@ -87,10 +91,15 @@ public class RequestEncoderTest extends AbstractCodecTest {
         var correlationManager = new CorrelationManager(78);
         whenRequestEncoded(frame, correlationManager);
 
-        assertNotNull(correlationManager.brokerRequests.get(78),
-                "Expect request with response to have a correlation stored");
-        assertEquals(1, correlationManager.brokerRequests.size(),
-                "Expect request with response to have a correlation");
+        assertNotNull(
+                correlationManager.brokerRequests.get(78),
+                "Expect request with response to have a correlation stored"
+        );
+        assertEquals(
+                1,
+                correlationManager.brokerRequests.size(),
+                "Expect request with response to have a correlation"
+        );
     }
 
     private static void whenRequestEncoded(givenRequestFrame result, CorrelationManager correlationManager) throws Exception {
@@ -102,15 +111,15 @@ public class RequestEncoderTest extends AbstractCodecTest {
     private static givenRequestFrame createRequestFrame(boolean hasResponse) {
         short produceVersion = ApiKeys.PRODUCE.latestVersion();
         var header = new RequestHeaderData()
-                .setRequestApiKey(ApiKeys.PRODUCE.id)
-                .setRequestApiVersion(produceVersion)
-                .setCorrelationId(45);
+                                            .setRequestApiKey(ApiKeys.PRODUCE.id)
+                                            .setRequestApiVersion(produceVersion)
+                                            .setCorrelationId(45);
         short headerVersion = ApiKeys.PRODUCE.requestHeaderVersion(produceVersion);
         if (headerVersion >= 1) {
             header.setClientId("323423");
         }
         var body = new ProduceRequestData()
-                .setAcks((short) 0);
+                                           .setAcks((short) 0);
         if (produceVersion >= 3) {
             body.setTransactionalId("wnedkwjn");
         }
@@ -125,5 +134,6 @@ public class RequestEncoderTest extends AbstractCodecTest {
         return result;
     }
 
-    private record givenRequestFrame(ByteBuffer byteBuffer, OpaqueRequestFrame frame) {}
+    private record givenRequestFrame(ByteBuffer byteBuffer, OpaqueRequestFrame frame) {
+    }
 }

@@ -30,10 +30,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public interface Wrapper extends PersistedIdentifiable<WrapperVersion> {
     static <E> ByteBuffer decryptParcel(
-                                        ByteBuffer ciphertextParcel,
-                                        ByteBuffer aad,
-                                        ByteBuffer parameterBuffer,
-                                        Dek<E>.Decryptor encryptor) {
+            ByteBuffer ciphertextParcel,
+            ByteBuffer aad,
+            ByteBuffer parameterBuffer,
+            Dek<E>.Decryptor encryptor
+    ) {
         ByteBuffer plaintext = ciphertextParcel.duplicate();
         encryptor.decrypt(ciphertextParcel, aad, parameterBuffer, plaintext);
         plaintext.flip();
@@ -41,30 +42,48 @@ public interface Wrapper extends PersistedIdentifiable<WrapperVersion> {
     }
 
     <E> void writeWrapper(
-                          @NonNull Serde<E> edekSerde,
-                          @NonNull E edek,
-                          @NonNull String topicName,
-                          int partitionId,
-                          @NonNull RecordBatch batch,
-                          @NonNull Record kafkaRecord,
-                          @NonNull Dek<E>.Encryptor encryptor,
-                          @NonNull Parcel parcel,
-                          @NonNull Aad aadSpec,
-                          @NonNull Set<RecordField> recordFields,
-                          @NonNull ByteBuffer buffer);
+            @NonNull
+            Serde<E> edekSerde,
+            @NonNull
+            E edek,
+            @NonNull
+            String topicName,
+            int partitionId,
+            @NonNull
+            RecordBatch batch,
+            @NonNull
+            Record kafkaRecord,
+            @NonNull
+            Dek<E>.Encryptor encryptor,
+            @NonNull
+            Parcel parcel,
+            @NonNull
+            Aad aadSpec,
+            @NonNull
+            Set<RecordField> recordFields,
+            @NonNull
+            ByteBuffer buffer
+    );
 
     <E> void read(
-                  @NonNull Parcel parcel,
-                  @NonNull String topicName,
-                  int partition,
-                  @NonNull RecordBatch batch,
-                  @NonNull Record record,
-                  ByteBuffer wrapper,
-                  Dek<E>.Decryptor decryptor,
-                  @NonNull BiConsumer<ByteBuffer, Header[]> consumer);
+            @NonNull
+            Parcel parcel,
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            RecordBatch batch,
+            @NonNull
+            Record record,
+            ByteBuffer wrapper,
+            Dek<E>.Decryptor decryptor,
+            @NonNull
+            BiConsumer<ByteBuffer, Header[]> consumer
+    );
 
     <E, T> T readSpecAndEdek(
-                             ByteBuffer wrapper,
-                             Serde<E> serde,
-                             BiFunction<CipherManager, E, T> fn);
+            ByteBuffer wrapper,
+            Serde<E> serde,
+            BiFunction<CipherManager, E, T> fn
+    );
 }

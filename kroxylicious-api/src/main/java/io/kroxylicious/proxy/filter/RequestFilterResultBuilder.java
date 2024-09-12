@@ -32,7 +32,9 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable ResponseHeaderData header, @NonNull ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable
+    ResponseHeaderData header, @NonNull
+    ApiMessage message) throws IllegalArgumentException;
 
     /**
      * A short-circuit response towards the client.
@@ -42,6 +44,7 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull
+    ApiMessage message) throws IllegalArgumentException;
 
 }

@@ -28,7 +28,9 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
     private final String template;
     private final Kms<K, ?> kms;
 
-    TemplateTopicNameKekSelector(@NonNull Kms<K, ?> kms, @NonNull String template) {
+    TemplateTopicNameKekSelector(@NonNull
+    Kms<K, ?> kms, @NonNull
+    String template) {
         var matcher = PATTERN.matcher(Objects.requireNonNull(template));
         while (matcher.find()) {
             if (matcher.group(1).equals("topicName")) {
@@ -40,23 +42,26 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
         this.kms = Objects.requireNonNull(kms);
     }
 
-    private record Pair<K>(String topicName, K kekId) {}
+    private record Pair<K>(String topicName, K kekId) {
+    }
 
     @NonNull
     @Override
-    public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames) {
+    public CompletionStage<Map<String, K>> selectKek(@NonNull
+    Set<String> topicNames) {
         var collect = topicNames.stream()
-                .map(
-                        topicName -> kms.resolveAlias(evaluateTemplate(topicName))
-                                .exceptionallyCompose(e -> {
-                                    if (e instanceof UnknownAliasException
-                                            || (e instanceof CompletionException ce && ce.getCause() instanceof UnknownAliasException)) {
-                                        return CompletableFuture.completedFuture(null);
-                                    }
-                                    return CompletableFuture.failedFuture(e);
-                                })
-                                .thenApply(kekId -> new Pair<>(topicName, kekId)))
-                .toList();
+                                .map(
+                                        topicName -> kms.resolveAlias(evaluateTemplate(topicName))
+                                                        .exceptionallyCompose(e -> {
+                                                            if (e instanceof UnknownAliasException
+                                                                || (e instanceof CompletionException ce && ce.getCause() instanceof UnknownAliasException)) {
+                                                                return CompletableFuture.completedFuture(null);
+                                                            }
+                                                            return CompletableFuture.failedFuture(e);
+                                                        })
+                                                        .thenApply(kekId -> new Pair<>(topicName, kekId))
+                                )
+                                .toList();
         return RecordEncryptionUtil.join(collect).thenApply(list -> {
             // Note we can't use `java.util.stream...(Collectors.toMap())` to build the map, because it has null values
             // which Collectors.toMap() does now allow.
@@ -75,8 +80,7 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
             String replacement;
             if (matcher.group(1).equals("topicName")) {
                 replacement = topicName;
-            }
-            else { // this should be impossible because of the check in the constructor
+            } else { // this should be impossible because of the check in the constructor
                 throw new IllegalStateException();
             }
             matcher.appendReplacement(sb, replacement);

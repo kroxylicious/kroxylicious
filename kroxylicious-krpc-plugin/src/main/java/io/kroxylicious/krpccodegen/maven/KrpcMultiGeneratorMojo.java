@@ -17,7 +17,10 @@ import io.kroxylicious.krpccodegen.main.KrpcGenerator.Builder;
  * The Apache FreeMaker variable {@code messageSpec} is defined with the message specification
  * being processed.
  */
-@Mojo(name = "generate-multi", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
+@Mojo(
+        name = "generate-multi",
+        defaultPhase = LifecyclePhase.GENERATE_SOURCES
+)
 public class KrpcMultiGeneratorMojo extends AbstractKrpcGeneratorMojo {
 
     /**

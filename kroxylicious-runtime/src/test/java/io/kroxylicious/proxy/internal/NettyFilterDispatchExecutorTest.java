@@ -45,8 +45,8 @@ class NettyFilterDispatchExecutorTest {
     @Test
     void nullEventLoopNotAllowed() {
         assertThatThrownBy(() -> NettyFilterDispatchExecutor.eventLoopExecutor(null))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessage("eventLoop cannot be null");
+                                                                                     .isInstanceOf(NullPointerException.class)
+                                                                                     .hasMessage("eventLoop cannot be null");
     }
 
     @Test
@@ -81,8 +81,8 @@ class NettyFilterDispatchExecutorTest {
         try {
             FilterDispatchExecutor dispatchExecutor = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
             assertThatThrownBy(() -> dispatchExecutor.completeOnFilterDispatchThread(null))
-                    .isInstanceOf(NullPointerException.class)
-                    .hasMessage("completionStage was null");
+                                                                                           .isInstanceOf(NullPointerException.class)
+                                                                                           .hasMessage("completionStage was null");
         }
         finally {
             eventLoop.shutdownGracefully();
@@ -137,7 +137,7 @@ class NettyFilterDispatchExecutorTest {
             FilterDispatchExecutor dispatchExecutor = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
             CompletableFuture<Object> completionStage = new CompletableFuture<>();
             CompletionStage<Boolean> inDispatchThread = dispatchExecutor.completeOnFilterDispatchThread(completionStage)
-                    .thenApply(o -> dispatchExecutor.isInFilterDispatchThread());
+                                                                        .thenApply(o -> dispatchExecutor.isInFilterDispatchThread());
             completionStage.complete("arbitrary");
             assertThat(chainStandardCompletableFuture(inDispatchThread)).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(true);
         }
@@ -151,8 +151,7 @@ class NettyFilterDispatchExecutorTest {
         stage.whenComplete((o, throwable) -> {
             if (throwable != null) {
                 future.completeExceptionally(throwable);
-            }
-            else {
+            } else {
                 future.complete(o);
             }
         });
@@ -167,8 +166,10 @@ class NettyFilterDispatchExecutorTest {
             CompletableFuture<Object> completionStage = new CompletableFuture<>();
             CompletionStage<Object> inDispatchThread = dispatchExecutor.completeOnFilterDispatchThread(completionStage);
             assertThatThrownBy(inDispatchThread::toCompletableFuture)
-                    .isInstanceOf(UnsupportedOperationException.class)
-                    .hasMessage("CompletableFuture usage disallowed, we don't want to block the event loop or allow unexpected completion");
+                                                                     .isInstanceOf(UnsupportedOperationException.class)
+                                                                     .hasMessage(
+                                                                             "CompletableFuture usage disallowed, we don't want to block the event loop or allow unexpected completion"
+                                                                     );
         }
         finally {
             eventLoop.shutdownGracefully();
@@ -213,7 +214,7 @@ class NettyFilterDispatchExecutorTest {
             FilterDispatchExecutor dispatchExecutor = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
             CompletableFuture<Object> completionStage = new CompletableFuture<>();
             CompletionStage<Boolean> inDispatchThread = dispatchExecutor.completeOnFilterDispatchThread(completionStage)
-                    .thenApply(o -> dispatchExecutor.isInFilterDispatchThread());
+                                                                        .thenApply(o -> dispatchExecutor.isInFilterDispatchThread());
             dispatchExecutor.execute(() -> completionStage.complete("arbitrary"));
             assertThat(chainStandardCompletableFuture(inDispatchThread)).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(true);
         }
@@ -230,13 +231,13 @@ class NettyFilterDispatchExecutorTest {
             FilterDispatchExecutor dispatchExecutor = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
             CompletableFuture<Object> completionStage = new CompletableFuture<>();
             CompletionStage<Boolean> inDispatchThread = dispatchExecutor.completeOnFilterDispatchThread(completionStage)
-                    .thenApply(o -> dispatchExecutor.isInFilterDispatchThread());
+                                                                        .thenApply(o -> dispatchExecutor.isInFilterDispatchThread());
             anotherLoop.execute(() -> completionStage.complete("arbitrary"));
             assertThat(chainStandardCompletableFuture(inDispatchThread)).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(true);
             // double-check we are on the expected eventloop
             CompletableFuture<Object> completionStage2 = new CompletableFuture<>();
             CompletionStage<Boolean> inExpectedEventLoop = dispatchExecutor.completeOnFilterDispatchThread(completionStage2)
-                    .thenApply(o -> eventLoop.inEventLoop() && !anotherLoop.inEventLoop());
+                                                                           .thenApply(o -> eventLoop.inEventLoop() && !anotherLoop.inEventLoop());
             anotherLoop.execute(() -> completionStage2.complete("arbitrary"));
             assertThat(chainStandardCompletableFuture(inExpectedEventLoop)).succeedsWithin(5, TimeUnit.SECONDS, BOOLEAN).isEqualTo(true);
         }

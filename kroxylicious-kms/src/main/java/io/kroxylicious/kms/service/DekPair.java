@@ -20,4 +20,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param dek The plaintext DEK.
  * @param <E> The type of encrypted DEK.
  */
-public record DekPair<E>(@NonNull E edek, @NonNull SecretKey dek) {}
+public record DekPair<E>(
+        @NonNull
+        E edek,
+        @NonNull
+        SecretKey dek
+) {
+}

@@ -23,59 +23,79 @@ class PerPartitionTopicValidationResultTest {
         var result = new PerPartitionTopicValidationResult("foo", Map.of());
 
         assertThat(result)
-                .returns(false, PerPartitionTopicValidationResult::isAllPartitionsInvalid)
-                .returns(false, PerPartitionTopicValidationResult::isAnyPartitionInvalid);
+                          .returns(false, PerPartitionTopicValidationResult::isAllPartitionsInvalid)
+                          .returns(false, PerPartitionTopicValidationResult::isAnyPartitionInvalid);
         assertThat(result)
-                .extracting(PerPartitionTopicValidationResult::invalidPartitions, STREAM)
-                .isEmpty();
+                          .extracting(PerPartitionTopicValidationResult::invalidPartitions, STREAM)
+                          .isEmpty();
     }
 
     @Test
     void partitionWithAllInvalidResults() {
-        var result = new PerPartitionTopicValidationResult("foo",
-                Map.of(1, new PartitionValidationResult(2, List.of(INVALID))));
+        var result = new PerPartitionTopicValidationResult(
+                "foo",
+                Map.of(1, new PartitionValidationResult(2, List.of(INVALID)))
+        );
 
         assertThat(result)
-                .returns(true, PerPartitionTopicValidationResult::isAnyPartitionInvalid)
-                .returns(true, PerPartitionTopicValidationResult::isAllPartitionsInvalid);
+                          .returns(true, PerPartitionTopicValidationResult::isAnyPartitionInvalid)
+                          .returns(true, PerPartitionTopicValidationResult::isAllPartitionsInvalid);
     }
 
     @Test
     void partitionWithOneInvalidResults() {
-        var result = new PerPartitionTopicValidationResult("foo",
-                Map.of(0, new PartitionValidationResult(0, List.of()),
-                        1, new PartitionValidationResult(1, List.of(INVALID))));
+        var result = new PerPartitionTopicValidationResult(
+                "foo",
+                Map.of(
+                        0,
+                        new PartitionValidationResult(0, List.of()),
+                        1,
+                        new PartitionValidationResult(1, List.of(INVALID))
+                )
+        );
 
         assertThat(result)
-                .returns(true, PerPartitionTopicValidationResult::isAnyPartitionInvalid)
-                .returns(false, PerPartitionTopicValidationResult::isAllPartitionsInvalid);
+                          .returns(true, PerPartitionTopicValidationResult::isAnyPartitionInvalid)
+                          .returns(false, PerPartitionTopicValidationResult::isAllPartitionsInvalid);
     }
 
     @Test
     void byPartitionId() {
-        var result = new PerPartitionTopicValidationResult("foo",
-                Map.of(0, new PartitionValidationResult(10, List.of(INVALID)),
-                        1, new PartitionValidationResult(100, List.of())));
+        var result = new PerPartitionTopicValidationResult(
+                "foo",
+                Map.of(
+                        0,
+                        new PartitionValidationResult(10, List.of(INVALID)),
+                        1,
+                        new PartitionValidationResult(100, List.of())
+                )
+        );
 
         assertThat(result.getPartitionResult(0))
-                .extracting(PartitionValidationResult::index)
-                .isEqualTo(10);
+                                                .extracting(PartitionValidationResult::index)
+                                                .isEqualTo(10);
 
         assertThat(result.getPartitionResult(1))
-                .extracting(PartitionValidationResult::index)
-                .isEqualTo(100);
+                                                .extracting(PartitionValidationResult::index)
+                                                .isEqualTo(100);
     }
 
     @Test
     void invalidPartitions() {
-        var result = new PerPartitionTopicValidationResult("foo",
-                Map.of(0, new PartitionValidationResult(0, List.of()),
-                        1, new PartitionValidationResult(100, List.of(INVALID))));
+        var result = new PerPartitionTopicValidationResult(
+                "foo",
+                Map.of(
+                        0,
+                        new PartitionValidationResult(0, List.of()),
+                        1,
+                        new PartitionValidationResult(100, List.of(INVALID))
+                )
+        );
 
         assertThat(result.invalidPartitions())
-                .singleElement()
-                .extracting(PartitionValidationResult::index)
-                .isEqualTo(100);
+                                              .singleElement()
+                                              .extracting(PartitionValidationResult::index)
+                                              .isEqualTo(100);
     }
 
     @Test
@@ -83,7 +103,7 @@ class PerPartitionTopicValidationResultTest {
         var result = new PerPartitionTopicValidationResult("foo", Map.of());
 
         assertThat(result.topicName())
-                .isEqualTo("foo");
+                                      .isEqualTo("foo");
     }
 
 }

@@ -19,8 +19,10 @@ import java.util.Objects;
  * @param kekRef - kek reference. In this implementation it is the key's name.
  * @param edek - edek bytes
  */
-record VaultEdek(String kekRef,
-                 byte[] edek) {
+record VaultEdek(
+        String kekRef,
+        byte[] edek
+) {
     VaultEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
@@ -66,9 +68,14 @@ record VaultEdek(String kekRef,
      */
     @Override
     public String toString() {
-        return "VaultEdek{" +
-                "keyRef=" + kekRef +
-                ", edek=" + Arrays.toString(edek) +
-                '}';
+        return "VaultEdek{"
+               +
+               "keyRef="
+               + kekRef
+               +
+               ", edek="
+               + Arrays.toString(edek)
+               +
+               '}';
     }
 }

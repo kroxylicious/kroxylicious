@@ -45,17 +45,26 @@ class KroxyliciousIT {
     private static final String PLAINTEXT = "Hello, world!";
 
     @Test
-    void shouldProxyWhenRunAsStandaloneProcess(KafkaCluster cluster, Admin admin, @TempDir Path tempDir) throws Exception {
+    void shouldProxyWhenRunAsStandaloneProcess(KafkaCluster cluster, Admin admin, @TempDir
+    Path tempDir) throws Exception {
         var proxyAddress = HostPort.parse("localhost:9192");
 
-        admin.createTopics(List.of(
-                new NewTopic(TOPIC_1, 1, (short) 1),
-                new NewTopic(TOPIC_2, 1, (short) 1))).all().get();
+        admin.createTopics(
+                List.of(
+                        new NewTopic(TOPIC_1, 1, (short) 1),
+                        new NewTopic(TOPIC_2, 1, (short) 1)
+                )
+        ).all().get();
 
         try (var tester = kroxyliciousTester(proxy(cluster), new SubprocessKroxyliciousFactory(tempDir));
-                var producer = tester.producer(Map.of(
-                        ProducerConfig.CLIENT_ID_CONFIG, "shouldModifyProduceMessage",
-                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var producer = tester.producer(
+                        Map.of(
+                                ProducerConfig.CLIENT_ID_CONFIG,
+                                "shouldModifyProduceMessage",
+                                ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG,
+                                3_600_000
+                        )
+                );
                 var consumer = tester.consumer()) {
             producer.send(new ProducerRecord<>(TOPIC_1, "my-key", PLAINTEXT)).get();
             producer.send(new ProducerRecord<>(TOPIC_2, "my-key", PLAINTEXT)).get();

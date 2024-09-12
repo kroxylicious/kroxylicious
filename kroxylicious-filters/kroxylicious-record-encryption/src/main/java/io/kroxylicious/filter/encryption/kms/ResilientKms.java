@@ -40,33 +40,49 @@ public class ResilientKms<K, E> implements Kms<K, E> {
     private final BackoffStrategy strategy;
     private final int retries;
 
-    private ResilientKms(@NonNull Kms<K, E> inner,
-                         @NonNull ScheduledExecutorService executorService,
-                         @NonNull BackoffStrategy backoffStrategy,
-                         int retries) {
+    private ResilientKms(
+            @NonNull
+            Kms<K, E> inner,
+            @NonNull
+            ScheduledExecutorService executorService,
+            @NonNull
+            BackoffStrategy backoffStrategy,
+            int retries
+    ) {
         this.inner = requireNonNull(inner);
         this.executorService = requireNonNull(executorService);
         strategy = requireNonNull(backoffStrategy);
         this.retries = retries;
     }
 
-    public static <K, E> Kms<K, E> wrap(@NonNull Kms<K, E> delegate,
-                                        @NonNull ScheduledExecutorService executorService,
-                                        @NonNull BackoffStrategy strategy,
-                                        int retries) {
-        return new ResilientKms<>(delegate, executorService,
-                strategy, retries);
+    public static <K, E> Kms<K, E> wrap(
+            @NonNull
+            Kms<K, E> delegate,
+            @NonNull
+            ScheduledExecutorService executorService,
+            @NonNull
+            BackoffStrategy strategy,
+            int retries
+    ) {
+        return new ResilientKms<>(
+                delegate,
+                executorService,
+                strategy,
+                retries
+        );
     }
 
     @NonNull
     @Override
-    public CompletionStage<DekPair<E>> generateDekPair(@NonNull K kekRef) {
+    public CompletionStage<DekPair<E>> generateDekPair(@NonNull
+    K kekRef) {
         return retry("generateDekPair", () -> inner.generateDekPair(kekRef));
     }
 
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull E edek) {
+    public CompletionStage<SecretKey> decryptEdek(@NonNull
+    E edek) {
         return retry("decryptEdek", () -> inner.decryptEdek(edek));
     }
 
@@ -78,7 +94,8 @@ public class ResilientKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<K> resolveAlias(@NonNull String alias) {
+    public CompletionStage<K> resolveAlias(@NonNull
+    String alias) {
         return retry("resolveAlias", () -> inner.resolveAlias(alias));
     }
 
@@ -86,7 +103,8 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         return retry(name, operation, 0, null);
     }
 
-    private <A> CompletionStage<A> retry(String name, Supplier<CompletionStage<A>> operation, int attempt, @Nullable Throwable lastFailure) {
+    private <A> CompletionStage<A> retry(String name, Supplier<CompletionStage<A>> operation, int attempt, @Nullable
+    Throwable lastFailure) {
         if (attempt >= retries) {
             String lastFailureMessage = ofNullable(lastFailure).map(Throwable::getMessage).orElse("null");
             String message = name + " failed after " + attempt + " attempts, last failure message: " + lastFailureMessage;
@@ -94,14 +112,14 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         }
         Duration delay = strategy.getDelay(attempt);
         return schedule(operation, delay)
-                .exceptionallyCompose(e -> {
-                    if (isUnknownEntityException(e) || (e instanceof CompletionException ce && (isUnknownEntityException(ce.getCause())))) {
-                        LOGGER.debug("not retrying unknown entity exception");
-                        return CompletableFuture.failedFuture(e);
-                    }
-                    LOGGER.debug("{} failed attempt {}", name, attempt, e);
-                    return retry(name, operation, attempt + 1, e);
-                });
+                                         .exceptionallyCompose(e -> {
+                                             if (isUnknownEntityException(e) || (e instanceof CompletionException ce && (isUnknownEntityException(ce.getCause())))) {
+                                                 LOGGER.debug("not retrying unknown entity exception");
+                                                 return CompletableFuture.failedFuture(e);
+                                             }
+                                             LOGGER.debug("{} failed attempt {}", name, attempt, e);
+                                             return retry(name, operation, attempt + 1, e);
+                                         });
     }
 
     private static boolean isUnknownEntityException(Throwable e) {
@@ -117,8 +135,7 @@ public class ResilientKms<K, E> implements Kms<K, E> {
             operation.get().whenComplete((a, throwable) -> {
                 if (throwable != null) {
                     future.completeExceptionally(throwable);
-                }
-                else {
+                } else {
                     future.complete(a);
                 }
             });

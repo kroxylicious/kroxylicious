@@ -30,9 +30,14 @@ public interface EncryptionManager<K> {
      */
     @NonNull
     CompletionStage<MemoryRecords> encrypt(
-                                           @NonNull String topicName,
-                                           int partition,
-                                           @NonNull EncryptionScheme<K> encryptionScheme,
-                                           @NonNull MemoryRecords records,
-                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator);
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            EncryptionScheme<K> encryptionScheme,
+            @NonNull
+            MemoryRecords records,
+            @NonNull
+            IntFunction<ByteBufferOutputStream> bufferAllocator
+    );
 }

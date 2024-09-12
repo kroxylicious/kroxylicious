@@ -12,7 +12,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public record DescribeKeyRequest(@JsonProperty(value = "KeyId") @NonNull String keyId) {
+public record DescribeKeyRequest(@JsonProperty(value = "KeyId") @NonNull
+String keyId) {
 
     public DescribeKeyRequest {
         Objects.requireNonNull(keyId);

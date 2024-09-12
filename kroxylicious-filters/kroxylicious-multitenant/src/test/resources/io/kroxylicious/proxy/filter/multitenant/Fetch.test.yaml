@@ -24,7 +24,7 @@
               lastFetchedEpoch: 0
               logStartOffset: 0
               partitionMaxBytes: 0
-      forgottenTopicsData: []
+      forgottenTopicsData: [ ]
       rackId: us-east1
     diff:
       - op: replace
@@ -40,7 +40,7 @@
             - partitionIndex: 0
               highWatermark: 0
               lastStableOffset: 0
-              abortedTransactions: []
+              abortedTransactions: [ ]
               preferredReadReplica: 0
               records: null
               errorCode: 0
@@ -71,9 +71,9 @@
               lastFetchedEpoch: 0
               logStartOffset: 0
               partitionMaxBytes: 0
-      forgottenTopicsData: []
+      forgottenTopicsData: [ ]
       rackId: us-east1
-    diff: []
+    diff: [ ]
   response:
     payload:
       errorCode: 0
@@ -84,11 +84,11 @@
             - partitionIndex: 0
               highWatermark: 0
               lastStableOffset: 0
-              abortedTransactions: []
+              abortedTransactions: [ ]
               preferredReadReplica: 0
               records: null
               errorCode: 0
               logStartOffset: 0
       throttleTimeMs: 0
-    diff: []
+    diff: [ ]
   disabled: false

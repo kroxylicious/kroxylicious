@@ -33,7 +33,8 @@ public class InstrumentedKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<DekPair<E>> generateDekPair(@NonNull K kekRef) {
+    public CompletionStage<DekPair<E>> generateDekPair(@NonNull
+    K kekRef) {
         metrics.countGenerateDekPairAttempt();
         return delegate.generateDekPair(kekRef).whenComplete((eDekPair, throwable) -> {
             KmsMetrics.OperationOutcome outcome = classify(throwable);
@@ -43,7 +44,8 @@ public class InstrumentedKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull E edek) {
+    public CompletionStage<SecretKey> decryptEdek(@NonNull
+    E edek) {
         metrics.countDecryptEdekAttempt();
         return delegate.decryptEdek(edek).whenComplete((eDekPair, throwable) -> {
             KmsMetrics.OperationOutcome outcome = classify(throwable);
@@ -53,7 +55,8 @@ public class InstrumentedKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<K> resolveAlias(@NonNull String alias) {
+    public CompletionStage<K> resolveAlias(@NonNull
+    String alias) {
         metrics.countResolveAliasAttempt();
         return delegate.resolveAlias(alias).whenComplete((eDekPair, throwable) -> {
             KmsMetrics.OperationOutcome outcome = classify(throwable);
@@ -70,12 +73,10 @@ public class InstrumentedKms<K, E> implements Kms<K, E> {
     private KmsMetrics.OperationOutcome classify(Throwable throwable) {
         if (throwable == null) {
             return KmsMetrics.OperationOutcome.SUCCESS;
-        }
-        else {
+        } else {
             if (isNotFoundException(throwable) || isNotFoundException(throwable.getCause())) {
                 return KmsMetrics.OperationOutcome.NOT_FOUND;
-            }
-            else {
+            } else {
                 return KmsMetrics.OperationOutcome.EXCEPTION;
             }
         }

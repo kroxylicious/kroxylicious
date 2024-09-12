@@ -118,7 +118,7 @@ class TlsParseTest {
                             }
                         }
                     }
-                       """;
+                    """;
             readTls(json);
         }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(NullPointerException.class);
     }

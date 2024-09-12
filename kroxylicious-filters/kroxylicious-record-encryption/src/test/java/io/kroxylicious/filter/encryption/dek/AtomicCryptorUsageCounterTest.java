@@ -41,8 +41,8 @@ class AtomicCryptorUsageCounterTest {
     @Test
     void testUnexpectedEncryptorRelease() {
         assertThatThrownBy(counter::releaseEncryptorUsage)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("cannot decrement at START or END");
+                                                          .isInstanceOf(IllegalStateException.class)
+                                                          .hasMessageContaining("cannot decrement at START or END");
     }
 
     @Test
@@ -50,8 +50,8 @@ class AtomicCryptorUsageCounterTest {
         assertCanAcquireEncryptorUsage();
         assertNotEnded(counter.releaseEncryptorUsage());
         assertThatThrownBy(counter::releaseEncryptorUsage)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("cannot decrement at START or END");
+                                                          .isInstanceOf(IllegalStateException.class)
+                                                          .hasMessageContaining("cannot decrement at START or END");
     }
 
     @Test
@@ -59,15 +59,15 @@ class AtomicCryptorUsageCounterTest {
         assertCanAcquireDecryptorUsage();
         assertNotEnded(counter.releaseDecryptorUsage());
         assertThatThrownBy(counter::releaseDecryptorUsage)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("cannot decrement at START or END");
+                                                          .isInstanceOf(IllegalStateException.class)
+                                                          .hasMessageContaining("cannot decrement at START or END");
     }
 
     @Test
     void testUnexpectedDecryptorRelease() {
         assertThatThrownBy(counter::releaseDecryptorUsage)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("cannot decrement at START or END");
+                                                          .isInstanceOf(IllegalStateException.class)
+                                                          .hasMessageContaining("cannot decrement at START or END");
     }
 
     @Test

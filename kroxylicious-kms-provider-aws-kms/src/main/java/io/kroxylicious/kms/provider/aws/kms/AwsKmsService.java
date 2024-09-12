@@ -23,11 +23,14 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
     @NonNull
     @Override
     public AwsKms buildKms(Config options) {
-        return new AwsKms(options.endpointUrl(),
+        return new AwsKms(
+                options.endpointUrl(),
                 options.accessKey().getProvidedPassword(),
                 options.secretKey().getProvidedPassword(),
                 options.region(),
-                Duration.ofSeconds(20), options.sslContext());
+                Duration.ofSeconds(20),
+                options.sslContext()
+        );
     }
 
 }

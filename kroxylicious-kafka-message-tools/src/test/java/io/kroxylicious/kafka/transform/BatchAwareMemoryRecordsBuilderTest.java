@@ -44,8 +44,8 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // Then
         assertThatThrownBy(() -> builder.append((Record) null))
-                .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("You must start a batch");
+                                                               .isExactlyInstanceOf(IllegalStateException.class)
+                                                               .hasMessageContaining("You must start a batch");
     }
 
     @Test
@@ -139,8 +139,8 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // Then
         assertThatThrownBy(() -> builder.append((Record) null))
-                .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Builder is closed");
+                                                               .isExactlyInstanceOf(IllegalStateException.class)
+                                                               .hasMessageContaining("Builder is closed");
     }
 
     @Test
@@ -153,7 +153,8 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // Then
         assertThatThrownBy(() -> {
-            builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+            builder.addBatch(
+                    RecordBatch.CURRENT_MAGIC_VALUE,
                     Compression.NONE,
                     TimestampType.CREATE_TIME,
                     0,
@@ -164,10 +165,11 @@ class BatchAwareMemoryRecordsBuilderTest {
                     false,
                     false,
                     0,
-                    0);
+                    0
+            );
         })
-                .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Builder is closed");
+          .isExactlyInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("Builder is closed");
     }
 
     @Test
@@ -183,15 +185,16 @@ class BatchAwareMemoryRecordsBuilderTest {
         assertThatThrownBy(() -> {
             builder.addBatchLike(batch);
         })
-                .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Builder is closed");
+          .isExactlyInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("Builder is closed");
     }
 
     @Test
     void shouldPreventAppendAfterBuild2() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -202,22 +205,24 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0);
+                0
+        );
 
         // When
         builder.build();
 
         // Then
         assertThatThrownBy(() -> builder.append((Record) null))
-                .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Builder is closed");
+                                                               .isExactlyInstanceOf(IllegalStateException.class)
+                                                               .hasMessageContaining("Builder is closed");
     }
 
     @Test
     void shouldPreventAppendControlRecordAfterBuild() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -228,7 +233,8 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0);
+                0
+        );
 
         // When
         builder.build();
@@ -238,15 +244,16 @@ class BatchAwareMemoryRecordsBuilderTest {
         assertThatThrownBy(() -> {
             builder.appendControlRecordWithOffset(1, controlRecord);
         })
-                .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Builder is closed");
+          .isExactlyInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("Builder is closed");
     }
 
     @Test
     void shouldPreventAppendEndTxnMarkerRecordAfterBuild() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -257,7 +264,8 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0);
+                0
+        );
 
         // When
         builder.build();
@@ -267,8 +275,8 @@ class BatchAwareMemoryRecordsBuilderTest {
         assertThatThrownBy(() -> {
             builder.appendEndTxnMarker(1, marker);
         })
-                .isExactlyInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Builder is closed");
+          .isExactlyInstanceOf(IllegalStateException.class)
+          .hasMessageContaining("Builder is closed");
     }
 
     // 0 batches
@@ -282,9 +290,9 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // Then
         assertThat(StreamSupport.stream(mr.batches().spliterator(), false).count())
-                .isZero();
+                                                                                   .isZero();
         assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
-                .isZero();
+                                                                                   .isZero();
         assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
     }
 
@@ -293,7 +301,8 @@ class BatchAwareMemoryRecordsBuilderTest {
     void shouldAllowEmptyBatches() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -304,16 +313,17 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0);
+                0
+        );
 
         // When
         var mr = builder.build();
 
         // Then
         assertThat(StreamSupport.stream(mr.batches().spliterator(), false).count())
-                .isZero();
+                                                                                   .isZero();
         assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
-                .isZero();
+                                                                                   .isZero();
         assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
     }
 
@@ -326,7 +336,8 @@ class BatchAwareMemoryRecordsBuilderTest {
     Record assertSingletonBatch() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -337,7 +348,8 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0);
+                0
+        );
         builder.append(new SimpleRecord("hello".getBytes(StandardCharsets.UTF_8)));
 
         // When
@@ -345,9 +357,9 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // Then
         assertThat(StreamSupport.stream(mr.batches().spliterator(), false).count())
-                .isEqualTo(1);
+                                                                                   .isEqualTo(1);
         assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
-                .isEqualTo(1);
+                                                                                   .isEqualTo(1);
         assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
         return mr.records().iterator().next();
     }
@@ -356,7 +368,8 @@ class BatchAwareMemoryRecordsBuilderTest {
     void shouldSupportNonEmptyBatch_appendRecord() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -367,7 +380,8 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0);
+                0
+        );
         builder.append(assertSingletonBatch());
 
         // When
@@ -375,9 +389,9 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // Then
         assertThat(StreamSupport.stream(mr.batches().spliterator(), false).count())
-                .isEqualTo(1);
+                                                                                   .isEqualTo(1);
         assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
-                .isEqualTo(1);
+                                                                                   .isEqualTo(1);
         assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
     }
 
@@ -385,7 +399,8 @@ class BatchAwareMemoryRecordsBuilderTest {
     void shouldSupportNonEmptyBatch_appendRecordWithOffset() {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(100));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -396,7 +411,8 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0);
+                0
+        );
         builder.appendWithOffset(42, assertSingletonBatch());
 
         // When
@@ -404,9 +420,9 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // Then
         assertThat(StreamSupport.stream(mr.batches().spliterator(), false).count())
-                .isEqualTo(1);
+                                                                                   .isEqualTo(1);
         assertThat(StreamSupport.stream(mr.records().spliterator(), false).count())
-                .isEqualTo(1);
+                                                                                   .isEqualTo(1);
         assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
     }
 
@@ -416,7 +432,8 @@ class BatchAwareMemoryRecordsBuilderTest {
     void shouldSupportMultipleBatches(int initialBufferSize) {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(initialBufferSize));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -427,9 +444,11 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0);
+                0
+        );
         builder.append(new SimpleRecord("hello".getBytes(StandardCharsets.UTF_8)));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.zstd().build(),
                 TimestampType.LOG_APPEND_TIME,
                 1, // not base off
@@ -440,7 +459,8 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0);
+                0
+        );
         builder.append(new SimpleRecord("hello2".getBytes(StandardCharsets.UTF_8)));
 
         // When
@@ -470,7 +490,8 @@ class BatchAwareMemoryRecordsBuilderTest {
     void shouldSupportControlBatches(int initialBufferSize) {
         // Given
         var builder = new BatchAwareMemoryRecordsBuilder(new ByteBufferOutputStream(initialBufferSize));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -481,9 +502,11 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0);
+                0
+        );
         builder.append(new SimpleRecord("data-key".getBytes(StandardCharsets.UTF_8), "data-value".getBytes(StandardCharsets.UTF_8)));
-        builder.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.zstd().build(),
                 TimestampType.LOG_APPEND_TIME,
                 1,
@@ -494,7 +517,8 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 true,
                 0,
-                0);
+                0
+        );
         SimpleRecord controlRecord = controlRecord();
         builder.appendControlRecordWithOffset(1, controlRecord);
 
@@ -534,7 +558,8 @@ class BatchAwareMemoryRecordsBuilderTest {
 
         // When
         var builder1 = new BatchAwareMemoryRecordsBuilder(buffer);
-        builder1.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder1.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -545,7 +570,8 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0)
+                0
+        )
                 .append(new SimpleRecord("hello1".getBytes(StandardCharsets.UTF_8)));
         var mr1 = builder1.build();
 
@@ -554,7 +580,8 @@ class BatchAwareMemoryRecordsBuilderTest {
         assertThat(bb1.capacity()).isEqualTo(80);
 
         var builder2 = new BatchAwareMemoryRecordsBuilder(buffer);
-        builder2.addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+        builder2.addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE,
                 TimestampType.CREATE_TIME,
                 0,
@@ -565,7 +592,8 @@ class BatchAwareMemoryRecordsBuilderTest {
                 false,
                 false,
                 0,
-                0)
+                0
+        )
                 .append(new SimpleRecord("hello2".getBytes(StandardCharsets.UTF_8)));
         var mr2 = builder2.build();
 
@@ -576,13 +604,13 @@ class BatchAwareMemoryRecordsBuilderTest {
         assertThat(bb1.capacity()).isEqualTo(80);
 
         assertThat(StreamSupport.stream(mr1.batches().spliterator(), false).count())
-                .isEqualTo(1);
+                                                                                    .isEqualTo(1);
         assertThat(StreamSupport.stream(mr1.records().spliterator(), false).count())
-                .isEqualTo(1);
+                                                                                    .isEqualTo(1);
         assertThat(StreamSupport.stream(mr2.batches().spliterator(), false).count())
-                .isEqualTo(1);
+                                                                                    .isEqualTo(1);
         assertThat(StreamSupport.stream(mr2.records().spliterator(), false).count())
-                .isEqualTo(1);
+                                                                                    .isEqualTo(1);
     }
 
 }

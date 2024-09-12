@@ -32,7 +32,9 @@ public interface FilterResultBuilder<H extends ApiMessage, R extends FilterResul
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<R> forward(@NonNull H header, @NonNull ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<R> forward(@NonNull
+    H header, @NonNull
+    ApiMessage message) throws IllegalArgumentException;
 
     /**
      * Signals the desire of the filter that the connection is closed.

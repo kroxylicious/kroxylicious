@@ -100,7 +100,7 @@ class ApiMessageConditionTest {
 
         // Then
         assertThat(matches).describedAs("expected %s (%s) to return %s for ProduceRequestData", apiKey, apiKey.id, ApiKeys.PRODUCE == apiKey)
-                .isEqualTo(ApiKeys.PRODUCE == apiKey);
+                           .isEqualTo(ApiKeys.PRODUCE == apiKey);
     }
 
     @ParameterizedTest
@@ -114,10 +114,10 @@ class ApiMessageConditionTest {
 
         // Then
         assertThat(description).extracting(Description::value)
-                .asString()
-                .isNotBlank()
-                .contains(apiKey.name())
-                .contains(String.valueOf(apiKey.id));
+                               .asString()
+                               .isNotBlank()
+                               .contains(apiKey.name())
+                               .contains(String.valueOf(apiKey.id));
     }
 
     @ParameterizedTest
@@ -131,10 +131,10 @@ class ApiMessageConditionTest {
 
         // Then
         assertThat(description).extracting(Description::value)
-                .asString()
-                .isNotBlank()
-                .contains(apiKey.name())
-                .contains(String.valueOf(apiKey.id));
+                               .asString()
+                               .isNotBlank()
+                               .contains(apiKey.name())
+                               .contains(String.valueOf(apiKey.id));
     }
 
 }

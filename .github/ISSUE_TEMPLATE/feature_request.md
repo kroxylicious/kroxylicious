@@ -6,7 +6,10 @@ labels: enhancement
 assignees: ''
 
 ---
-If you have questions before creating this feature request, you can use the [GitHub Discussions](https://github.com/kroxylicious/kroxylicious/discussions) or use the [community Slack](https://kroxylicious.slack.com) chat.
+
+If you have questions before creating this feature request, you can use
+the [GitHub Discussions](https://github.com/kroxylicious/kroxylicious/discussions) or use
+the [community Slack](https://kroxylicious.slack.com) chat.
 
 **Is your feature request related to a problem? Please describe.**
 A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]

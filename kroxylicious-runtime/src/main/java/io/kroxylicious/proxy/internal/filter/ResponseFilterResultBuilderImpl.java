@@ -13,7 +13,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 
 public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<ResponseHeaderData, ResponseFilterResult>
-        implements ResponseFilterResultBuilder {
+                                             implements ResponseFilterResultBuilder {
 
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
 

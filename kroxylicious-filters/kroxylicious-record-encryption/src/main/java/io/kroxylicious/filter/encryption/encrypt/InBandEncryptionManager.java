@@ -34,10 +34,10 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private static final int MAX_ATTEMPTS = 3;
 
     /**
-    * The encryption version used on the produce path.
-    * Note that the encryption version used on the fetch path is read from the
-    * {@link EncryptionHeader#ENCRYPTION_HEADER_NAME} header.
-    */
+     * The encryption version used on the produce path.
+     * Note that the encryption version used on the fetch path is read from the
+     * {@link EncryptionHeader#ENCRYPTION_HEADER_NAME} header.
+     */
     private final Encryption encryption;
     private final Serde<E> edekSerde;
     private final EncryptionDekCache<K, E> dekCache;
@@ -46,12 +46,18 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private final int recordBufferInitialBytes;
     private final int recordBufferMaxBytes;
 
-    public InBandEncryptionManager(@NonNull Encryption encryption,
-                                   @NonNull Serde<E> edekSerde,
-                                   int recordBufferInitialBytes,
-                                   int recordBufferMaxBytes,
-                                   @NonNull EncryptionDekCache<K, E> dekCache,
-                                   @NonNull FilterThreadExecutor filterThreadExecutor) {
+    public InBandEncryptionManager(
+            @NonNull
+            Encryption encryption,
+            @NonNull
+            Serde<E> edekSerde,
+            int recordBufferInitialBytes,
+            int recordBufferMaxBytes,
+            @NonNull
+            EncryptionDekCache<K, E> dekCache,
+            @NonNull
+            FilterThreadExecutor filterThreadExecutor
+    ) {
         this.filterThreadExecutor = filterThreadExecutor;
         this.encryption = Objects.requireNonNull(encryption); // TODO read from config
         this.edekSerde = Objects.requireNonNull(edekSerde);
@@ -68,18 +74,25 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     }
 
     @VisibleForTesting
-    public CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
+    public CompletionStage<Dek<E>> currentDek(@NonNull
+    EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
         return dekCache.get(encryptionScheme, filterThreadExecutor);
     }
 
     @Override
     @NonNull
-    public CompletionStage<MemoryRecords> encrypt(@NonNull String topicName,
-                                                  int partition,
-                                                  @NonNull EncryptionScheme<K> encryptionScheme,
-                                                  @NonNull MemoryRecords records,
-                                                  @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+    public CompletionStage<MemoryRecords> encrypt(
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            EncryptionScheme<K> encryptionScheme,
+            @NonNull
+            MemoryRecords records,
+            @NonNull
+            IntFunction<ByteBufferOutputStream> bufferAllocator
+    ) {
         if (records.sizeInBytes() == 0) {
             // no records to transform, return input without modification
             return CompletableFuture.completedFuture(records);
@@ -94,24 +107,44 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, bufferAllocator, totalRecords);
     }
 
-    private ByteBufferOutputStream allocateBufferForEncrypt(@NonNull MemoryRecords records,
-                                                            @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+    private ByteBufferOutputStream allocateBufferForEncrypt(
+            @NonNull
+            MemoryRecords records,
+            @NonNull
+            IntFunction<ByteBufferOutputStream> bufferAllocator
+    ) {
         int sizeEstimate = 2 * records.sizeInBytes();
         // Accurate estimation is tricky without knowing the record sizes
         return bufferAllocator.apply(sizeEstimate);
     }
 
-    private CompletionStage<MemoryRecords> attemptEncrypt(@NonNull String topicName,
-                                                          int partition,
-                                                          @NonNull EncryptionScheme<K> encryptionScheme,
-                                                          @NonNull MemoryRecords records,
-                                                          int attempt,
-                                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator,
-                                                          int allRecordsCount) {
+    private CompletionStage<MemoryRecords> attemptEncrypt(
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            EncryptionScheme<K> encryptionScheme,
+            @NonNull
+            MemoryRecords records,
+            int attempt,
+            @NonNull
+            IntFunction<ByteBufferOutputStream> bufferAllocator,
+            int allRecordsCount
+    ) {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
-                    new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + allRecordsCount + " records for topic " + topicName + " partition "
-                            + partition + " after " + attempt + " attempts"));
+                    new RequestNotSatisfiable(
+                            "failed to reserve an EDEK to encrypt "
+                                              + allRecordsCount
+                                              + " records for topic "
+                                              + topicName
+                                              + " partition "
+                                              + partition
+                                              + " after "
+                                              + attempt
+                                              + " attempts"
+                    )
+            );
         }
         return currentDek(encryptionScheme).thenCompose(dek -> {
             // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
@@ -123,7 +156,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                             encryptionScheme,
                             records,
                             encryptor,
-                            bufferAllocator);
+                            bufferAllocator
+                    );
                     return CompletableFuture.completedFuture(encryptedMemoryRecords);
                 }
                 catch (ExhaustedDekException e) {
@@ -135,35 +169,48 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                 }
             }
             // recurse, incrementing the attempt number
-            return attemptEncrypt(topicName,
+            return attemptEncrypt(
+                    topicName,
                     partition,
                     encryptionScheme,
                     records,
                     attempt + 1,
                     bufferAllocator,
-                    allRecordsCount);
+                    allRecordsCount
+            );
         });
     }
 
     @NonNull
-    private MemoryRecords encryptBatches(@NonNull String topicName,
-                                         int partition,
-                                         @NonNull EncryptionScheme<K> encryptionScheme,
-                                         @NonNull MemoryRecords memoryRecords,
-                                         @NonNull Dek<E>.Encryptor encryptor,
-                                         @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
+    private MemoryRecords encryptBatches(
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            EncryptionScheme<K> encryptionScheme,
+            @NonNull
+            MemoryRecords memoryRecords,
+            @NonNull
+            Dek<E>.Encryptor encryptor,
+            @NonNull
+            IntFunction<ByteBufferOutputStream> bufferAllocator
+    ) {
         ByteBuffer recordBuffer = ByteBuffer.allocate(recordBufferInitialBytes);
         do {
             try {
                 return RecordStream.ofRecords(memoryRecords)
-                        .mapConstant(encryptor)
-                        .toMemoryRecords(allocateBufferForEncrypt(memoryRecords, bufferAllocator),
-                                new RecordEncryptor<>(topicName,
-                                        partition,
-                                        encryption,
-                                        encryptionScheme,
-                                        edekSerde,
-                                        recordBuffer));
+                                   .mapConstant(encryptor)
+                                   .toMemoryRecords(
+                                           allocateBufferForEncrypt(memoryRecords, bufferAllocator),
+                                           new RecordEncryptor<>(
+                                                   topicName,
+                                                   partition,
+                                                   encryption,
+                                                   encryptionScheme,
+                                                   edekSerde,
+                                                   recordBuffer
+                                           )
+                                   );
             }
             catch (BufferTooSmallException e) {
                 int newCapacity = 2 * recordBuffer.capacity();
@@ -175,8 +222,12 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         } while (true);
     }
 
-    private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme,
-                                  @NonNull Dek<E> dek) {
+    private void rotateKeyContext(
+            @NonNull
+            EncryptionScheme<K> encryptionScheme,
+            @NonNull
+            Dek<E> dek
+    ) {
         dek.destroyForEncrypt();
         dekCache.invalidate(encryptionScheme);
     }

@@ -26,8 +26,9 @@ public enum RecordField {
 
     public static byte toBits(Set<RecordField> recordField) {
         return (byte) recordField.stream()
-                .mapToInt(w -> w.code).reduce((x, y) -> x | y)
-                .orElse(0);
+                                 .mapToInt(w -> w.code)
+                                 .reduce((x, y) -> x | y)
+                                 .orElse(0);
     }
 
     public static Set<RecordField> fromBits(byte b) {

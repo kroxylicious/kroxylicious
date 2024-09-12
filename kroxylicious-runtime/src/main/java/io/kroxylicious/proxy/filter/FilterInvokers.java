@@ -50,14 +50,11 @@ public class FilterInvokers {
         validateFilter(filter, isResponseFilter, isRequestFilter, isAnySpecificFilterInterface);
         if (isResponseFilter && isRequestFilter) {
             return singleFilterAndInvoker(filter, new RequestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter));
-        }
-        else if (isRequestFilter) {
+        } else if (isRequestFilter) {
             return singleFilterAndInvoker(filter, new RequestFilterInvoker((RequestFilter) filter));
-        }
-        else if (isResponseFilter) {
+        } else if (isResponseFilter) {
             return singleFilterAndInvoker(filter, new ResponseFilterInvoker((ResponseFilter) filter));
-        }
-        else {
+        } else {
             return singleFilterAndInvoker(filter, arrayInvoker(filter));
         }
     }
@@ -71,8 +68,10 @@ public class FilterInvokers {
             throw unsupportedFilterInstance(filter, "Cannot mix specific message filter interfaces and [RequestFilter|ResponseFilter] interfaces");
         }
         if (!isRequestFilter && !isResponseFilter && !isAnySpecificFilterInterface) {
-            throw unsupportedFilterInstance(filter,
-                    "Filter must implement ResponseFilter, RequestFilter or any combination of specific message Filter interfaces");
+            throw unsupportedFilterInstance(
+                    filter,
+                    "Filter must implement ResponseFilter, RequestFilter or any combination of specific message Filter interfaces"
+            );
         }
     }
 

@@ -55,12 +55,16 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class MultiTenantTransformationFilterFactoryFilterTest {
     private static final Pattern TEST_RESOURCE_FILTER = Pattern.compile(
-            String.format("%s/.*\\.yaml", MultiTenantTransformationFilterFactoryFilterTest.class.getPackageName().replace(".", "/")));
+            String.format("%s/.*\\.yaml", MultiTenantTransformationFilterFactoryFilterTest.class.getPackageName().replace(".", "/"))
+    );
     private static final String TENANT_1 = "tenant1";
 
     private static List<ResourceInfo> getTestResources() throws IOException {
-        var resources = ClassPath.from(MultiTenantTransformationFilterFactoryFilterTest.class.getClassLoader()).getResources().stream()
-                .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches()).toList();
+        var resources = ClassPath.from(MultiTenantTransformationFilterFactoryFilterTest.class.getClassLoader())
+                                 .getResources()
+                                 .stream()
+                                 .filter(ri -> TEST_RESOURCE_FILTER.matcher(ri.getResourceName()).matches())
+                                 .toList();
 
         // https://youtrack.jetbrains.com/issue/IDEA-315462: we've seen issues in IDEA in IntelliJ Workspace Model API mode where test resources
         // don't get added to the Junit runner classpath. You can work around by not using that mode, or by adding src/test/resources to the
@@ -96,14 +100,16 @@ class MultiTenantTransformationFilterFactoryFilterTest {
     }
 
     public static Stream<Arguments> requests() throws Exception {
-        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.request() != null)
-                .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.request()));
+        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources())
+                                     .filter(td -> td.request() != null)
+                                     .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.request()));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "requests")
-    void requestsTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef)
-            throws Exception {
+    void requestsTransformed(@SuppressWarnings("unused")
+    String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef)
+                                                                                                                throws Exception {
         var request = requestTestDef.message();
         // marshalled the request object back to json, this is used for the comparison later.
         var requestWriter = requestConverterFor(apiMessageType).writer();
@@ -112,7 +118,8 @@ class MultiTenantTransformationFilterFactoryFilterTest {
         when(requestFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(requestFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
         when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(requestFilterResult));
+                invocation -> CompletableFuture.completedStage(requestFilterResult)
+        );
 
         var stage = invoker.onRequest(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), header, request, context);
         assertThat(stage).isCompleted();
@@ -123,14 +130,16 @@ class MultiTenantTransformationFilterFactoryFilterTest {
     }
 
     public static Stream<Arguments> responses() throws Exception {
-        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources()).filter(td -> td.response() != null)
-                .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.response()));
+        return RequestResponseTestDef.requestResponseTestDefinitions(getTestResources())
+                                     .filter(td -> td.response() != null)
+                                     .map(td -> Arguments.of(td.testName(), td.apiKey(), td.header(), td.response()));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "responses")
-    void responseTransformed(@SuppressWarnings("unused") String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef)
-            throws Exception {
+    void responseTransformed(@SuppressWarnings("unused")
+    String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef)
+                                                                                                                 throws Exception {
         var response = responseTestDef.message();
         // marshalled the response object back to json, this is used for comparison later.
         var responseWriter = responseConverterFor(apiMessageType).writer();
@@ -140,7 +149,8 @@ class MultiTenantTransformationFilterFactoryFilterTest {
         when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(responseFilterResult.header()).thenAnswer(invocation -> responseHeaderDataArgumentCaptor.getValue());
         when(context.forwardResponse(responseHeaderDataArgumentCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(responseFilterResult));
+                invocation -> CompletableFuture.completedStage(responseFilterResult)
+        );
 
         ResponseHeaderData headerData = new ResponseHeaderData();
         var stage = invoker.onResponse(ApiKeys.forId(apiMessageType.apiKey()), header.requestApiVersion(), headerData, response, context);
@@ -155,6 +165,8 @@ class MultiTenantTransformationFilterFactoryFilterTest {
     void testContributor() {
         MultiTenantTransformationFilterFactory factory = new MultiTenantTransformationFilterFactory();
         assertThat(factory.createFilter(Mockito.mock(FilterFactoryContext.class), Mockito.mock(MultiTenantConfig.class)))
-                .isInstanceOf(MultiTenantTransformationFilter.class);
+                                                                                                                         .isInstanceOf(
+                                                                                                                                 MultiTenantTransformationFilter.class
+                                                                                                                         );
     }
 }

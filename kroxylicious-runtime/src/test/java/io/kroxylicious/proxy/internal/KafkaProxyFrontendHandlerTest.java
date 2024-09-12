@@ -92,10 +92,10 @@ class KafkaProxyFrontendHandlerTest {
         int downstreamCorrelationId = corrId++;
 
         RequestHeaderData header = new RequestHeaderData()
-                .setRequestApiKey(apiKey.id)
-                .setRequestApiVersion(apiVersion)
-                .setClientId("client-id")
-                .setCorrelationId(downstreamCorrelationId);
+                                                          .setRequestApiKey(apiKey.id)
+                                                          .setRequestApiVersion(apiVersion)
+                                                          .setClientId("client-id")
+                                                          .setCorrelationId(downstreamCorrelationId);
 
         inboundChannel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
     }
@@ -226,8 +226,12 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     private void writeInboundApiVersionsRequest(String clientSoftwareName) {
-        writeRequest(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
-                .setClientSoftwareName(clientSoftwareName).setClientSoftwareVersion("1.0.0"));
+        writeRequest(
+                ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION,
+                new ApiVersionsRequestData()
+                                            .setClientSoftwareName(clientSoftwareName)
+                                            .setClientSoftwareVersion("1.0.0")
+        );
     }
 
     KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, VirtualCluster virtualCluster) {
@@ -241,7 +245,8 @@ class KafkaProxyFrontendHandlerTest {
                 outboundChannel = new EmbeddedChannel();
                 outboundChannelTcpConnectionFuture = outboundChannel.newPromise();
                 return outboundChannelTcpConnectionFuture.addListener(
-                        future -> this.onUpstreamChannelActive(outboundChannel.pipeline().firstContext().fireChannelActive()));
+                        future -> this.onUpstreamChannelActive(outboundChannel.pipeline().firstContext().fireChannelActive())
+                );
             }
         };
     }
@@ -257,11 +262,13 @@ class KafkaProxyFrontendHandlerTest {
      */
     @ParameterizedTest
     @MethodSource("provideArgsForExpectedFlow")
-    void expectedFlow(boolean sslConfigured,
-                      boolean haProxyConfigured,
-                      boolean saslOffloadConfigured,
-                      boolean sendApiVersions,
-                      boolean sendSasl) {
+    void expectedFlow(
+            boolean sslConfigured,
+            boolean haProxyConfigured,
+            boolean saslOffloadConfigured,
+            boolean sendApiVersions,
+            boolean sendSasl
+    ) {
 
         var dp = new SaslDecodePredicate(saslOffloadConfigured);
         ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
@@ -273,30 +280,26 @@ class KafkaProxyFrontendHandlerTest {
             NetFilter.NetFilterContext ctx = i.getArgument(0);
             if (sslConfigured) {
                 assertEquals(SNI_HOSTNAME, ctx.sniHostname());
-            }
-            else {
+            } else {
                 assertNull(ctx.sniHostname());
             }
             if (haProxyConfigured) {
                 assertEquals("embedded", String.valueOf(ctx.srcAddress()));
                 assertEquals("1.2.3.4", ctx.clientHost());
-            }
-            else {
+            } else {
                 assertEquals("embedded", String.valueOf(ctx.srcAddress()));
                 assertEquals("embedded", ctx.clientHost());
             }
             if (sendApiVersions) {
                 assertEquals("foo", ctx.clientSoftwareName());
                 assertEquals("1.0.0", ctx.clientSoftwareVersion());
-            }
-            else {
+            } else {
                 assertNull(ctx.clientSoftwareName());
                 assertNull(ctx.clientSoftwareVersion());
             }
             if (saslOffloadConfigured && sendSasl) {
                 assertEquals("alice", ctx.authorizedId());
-            }
-            else {
+            } else {
                 assertNull(ctx.authorizedId());
             }
 
@@ -314,9 +317,17 @@ class KafkaProxyFrontendHandlerTest {
 
         if (haProxyConfigured) {
             // Simulate the HA proxy handler
-            inboundChannel.writeInbound(new HAProxyMessage(HAProxyProtocolVersion.V1,
-                    HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
-                    "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT));
+            inboundChannel.writeInbound(
+                    new HAProxyMessage(
+                            HAProxyProtocolVersion.V1,
+                            HAProxyCommand.PROXY,
+                            HAProxyProxiedProtocol.TCP4,
+                            "1.2.3.4",
+                            "5.6.7.8",
+                            65535,
+                            CLUSTER_PORT
+                    )
+            );
         }
 
         if (sendApiVersions) {
@@ -326,8 +337,7 @@ class KafkaProxyFrontendHandlerTest {
                 assertEquals(State.API_VERSIONS, handler.state());
                 // when offloading SASL, we do not connect to a backend server until after SASL auth. The ApiVersions response is generated in the proxy.
                 verify(filter, never()).selectServer(handler);
-            }
-            else {
+            } else {
                 // should cause connection to the backend cluster when not offloading SASL
                 handleConnect(filter, handler);
             }
@@ -342,8 +352,7 @@ class KafkaProxyFrontendHandlerTest {
                 // then we assume it DOESN'T propagate the SASL frames down the pipeline
                 // and therefore no backend connection happens
                 verify(filter, never()).selectServer(handler);
-            }
-            else {
+            } else {
                 // Simulate the client doing SaslHandshake and SaslAuthentication,
                 writeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData());
                 if (!sendApiVersions) {
@@ -405,8 +414,10 @@ class KafkaProxyFrontendHandlerTest {
     private void handleConnect(NetFilter filter, KafkaProxyFrontendHandler handler) {
         verify(filter).selectServer(handler);
         assertEquals(State.CONNECTING, handler.state());
-        assertFalse(inboundChannel.config().isAutoRead(),
-                "Expect inbound autoRead=true, since outbound not yet active");
+        assertFalse(
+                inboundChannel.config().isAutoRead(),
+                "Expect inbound autoRead=true, since outbound not yet active"
+        );
 
         // Simulate the backend handler receiving channel active and telling the frontend handler
         outboundChannelBecomesActive(handler);
@@ -414,8 +425,10 @@ class KafkaProxyFrontendHandlerTest {
 
     private void outboundChannelBecomesActive(KafkaProxyFrontendHandler handler) {
         outboundChannelTcpConnectionFuture.setSuccess();
-        assertTrue(inboundChannel.config().isAutoRead(),
-                "Expect inbound autoRead=true, since outbound now active");
+        assertTrue(
+                inboundChannel.config().isAutoRead(),
+                "Expect inbound autoRead=true, since outbound now active"
+        );
         assertEquals(State.OUTBOUND_ACTIVE, handler.state());
     }
 
@@ -429,14 +442,16 @@ class KafkaProxyFrontendHandlerTest {
         while ((outboundMessage = outboundChannel.readOutbound()) != null) {
             assertThat(outboundMessage).isNotNull();
             ArrayList<Object> objects = new ArrayList<>();
-            new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES).decode(outboundChannel.pipeline().firstContext(),
-                    outboundMessage, objects);
+            new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES).decode(
+                    outboundChannel.pipeline().firstContext(),
+                    outboundMessage,
+                    objects
+            );
             assertThat(objects).hasSize(1);
             if (objects.get(0) instanceof DecodedRequestFrame<?> f) {
                 // noinspection unchecked
                 result.add((DecodedRequestFrame<T>) f);
-            }
-            else {
+            } else {
                 throw new IllegalStateException("message was not a DecodedRequestFrame");
             }
         }

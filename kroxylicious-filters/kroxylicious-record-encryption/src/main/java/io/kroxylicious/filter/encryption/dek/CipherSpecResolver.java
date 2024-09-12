@@ -14,9 +14,12 @@ import io.kroxylicious.filter.encryption.config.CipherSpec;
 
 public class CipherSpecResolver extends AbstractResolver<CipherSpec, CipherManager, CipherSpecResolver> {
 
-    public static final CipherSpecResolver ALL = new CipherSpecResolver(List.of(
-            Aes.AES_256_GCM_128,
-            ChaChaPoly.INSTANCE));
+    public static final CipherSpecResolver ALL = new CipherSpecResolver(
+            List.of(
+                    Aes.AES_256_GCM_128,
+                    ChaChaPoly.INSTANCE
+            )
+    );
 
     public CipherSpecResolver(Collection<CipherManager> impls) {
         super(impls);

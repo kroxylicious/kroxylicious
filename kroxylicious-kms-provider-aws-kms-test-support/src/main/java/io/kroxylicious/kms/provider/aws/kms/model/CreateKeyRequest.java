@@ -8,4 +8,6 @@ package io.kroxylicious.kms.provider.aws.kms.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record CreateKeyRequest(@JsonProperty("description") String description) {}
+public record CreateKeyRequest(@JsonProperty("description")
+String description) {
+}

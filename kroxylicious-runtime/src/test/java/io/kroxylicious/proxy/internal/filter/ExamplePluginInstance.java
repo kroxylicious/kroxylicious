@@ -12,7 +12,8 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 @Plugin(configType = ExamplePluginInstance.Config.class)
 public class ExamplePluginInstance implements ExamplePluginFactory<ExamplePluginInstance.Config> {
-    public record Config(String myConfig) {}
+    public record Config(String myConfig) {
+    }
 
     @Override
     public ExamplePlugin createExamplePlugin(Config configuration) {

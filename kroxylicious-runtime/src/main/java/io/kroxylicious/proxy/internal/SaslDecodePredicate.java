@@ -72,9 +72,14 @@ class SaslDecodePredicate implements DecodePredicate {
 
     @Override
     public String toString() {
-        return "SaslDecodePredicate(" +
-                "handleSasl=" + handleSasl +
-                ", delegate=" + delegate +
-                ')';
+        return "SaslDecodePredicate("
+               +
+               "handleSasl="
+               + handleSasl
+               +
+               ", delegate="
+               + delegate
+               +
+               ')';
     }
 }

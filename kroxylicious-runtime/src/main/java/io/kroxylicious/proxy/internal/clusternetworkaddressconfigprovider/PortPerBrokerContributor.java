@@ -14,7 +14,7 @@ import io.kroxylicious.proxy.service.Context;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class PortPerBrokerContributor implements
-        ClusterNetworkAddressConfigProviderContributor<PortPerBrokerClusterNetworkAddressConfigProviderConfig> {
+                                      ClusterNetworkAddressConfigProviderContributor<PortPerBrokerClusterNetworkAddressConfigProviderConfig> {
 
     @NonNull
     @Override
@@ -37,7 +37,8 @@ public class PortPerBrokerContributor implements
     @NonNull
     @Override
     public ClusterNetworkAddressConfigProvider createInstance(
-                                                              Context<PortPerBrokerClusterNetworkAddressConfigProviderConfig> context) {
+            Context<PortPerBrokerClusterNetworkAddressConfigProviderConfig> context
+    ) {
         return new PortPerBrokerClusterNetworkAddressConfigProvider(context.getConfig());
     }
 

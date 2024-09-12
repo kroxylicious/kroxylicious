@@ -47,29 +47,41 @@ class ResponseDecoderTest extends AbstractCodecTest {
     @MethodSource("requestApiVersions")
     void testApiVersionsExactlyOneFrame_decoded(short apiVersion) {
         mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, true);
-        assertEquals(52, exactlyOneFrame_decoded(apiVersion,
-                ApiKeys.API_VERSIONS::responseHeaderVersion,
-                v -> AbstractCodecTest.exampleResponseHeader(),
-                AbstractCodecTest::exampleApiVersionsResponse,
-                AbstractCodecTest::deserializeResponseHeaderUsingKafkaApis,
-                AbstractCodecTest::deserializeApiVersionsResponseUsingKafkaApis,
-                responseDecoder,
-                DecodedResponseFrame.class,
-                header -> header.setCorrelationId(12), false),
-                "Unexpected correlation id");
+        assertEquals(
+                52,
+                exactlyOneFrame_decoded(
+                        apiVersion,
+                        ApiKeys.API_VERSIONS::responseHeaderVersion,
+                        v -> AbstractCodecTest.exampleResponseHeader(),
+                        AbstractCodecTest::exampleApiVersionsResponse,
+                        AbstractCodecTest::deserializeResponseHeaderUsingKafkaApis,
+                        AbstractCodecTest::deserializeApiVersionsResponseUsingKafkaApis,
+                        responseDecoder,
+                        DecodedResponseFrame.class,
+                        header -> header.setCorrelationId(12),
+                        false
+                ),
+                "Unexpected correlation id"
+        );
     }
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
         mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, false);
-        assertEquals(52, exactlyOneFrame_encoded(apiVersion,
-                ApiKeys.API_VERSIONS::responseHeaderVersion,
-                v -> AbstractCodecTest.exampleResponseHeader(),
-                AbstractCodecTest::exampleApiVersionsResponse,
-                responseDecoder,
-                OpaqueResponseFrame.class, false),
-                "Unexpected correlation id");
+        assertEquals(
+                52,
+                exactlyOneFrame_encoded(
+                        apiVersion,
+                        ApiKeys.API_VERSIONS::responseHeaderVersion,
+                        v -> AbstractCodecTest.exampleResponseHeader(),
+                        AbstractCodecTest::exampleApiVersionsResponse,
+                        responseDecoder,
+                        OpaqueResponseFrame.class,
+                        false
+                ),
+                "Unexpected correlation id"
+        );
     }
 
     @NonNull
@@ -135,11 +147,15 @@ class ResponseDecoderTest extends AbstractCodecTest {
         mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
 
         // given
-        ByteBuf buffer = Unpooled.wrappedBuffer(serializeUsingKafkaApis((short) 0,
-                exampleResponseHeader(),
-                (short) 0,
-                new ApiVersionsResponseData()
-                        .setErrorCode(Errors.UNSUPPORTED_VERSION.code())));
+        ByteBuf buffer = Unpooled.wrappedBuffer(
+                serializeUsingKafkaApis(
+                        (short) 0,
+                        exampleResponseHeader(),
+                        (short) 0,
+                        new ApiVersionsResponseData()
+                                                     .setErrorCode(Errors.UNSUPPORTED_VERSION.code())
+                )
+        );
         List<Object> objects = new ArrayList<>();
 
         // when
@@ -147,8 +163,8 @@ class ResponseDecoderTest extends AbstractCodecTest {
 
         // then
         assertThat(objects)
-                .singleElement()
-                .extracting("body")
-                .isEqualTo(new ApiVersionsResponseData().setErrorCode(Errors.UNSUPPORTED_VERSION.code()));
+                           .singleElement()
+                           .extracting("body")
+                           .isEqualTo(new ApiVersionsResponseData().setErrorCode(Errors.UNSUPPORTED_VERSION.code()));
     }
 }

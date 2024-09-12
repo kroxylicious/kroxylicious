@@ -24,7 +24,8 @@ public class VersionComparator implements Comparable<String> {
     }
 
     @Override
-    public int compareTo(@NonNull String expectedVersion) {
+    public int compareTo(@NonNull
+    String expectedVersion) {
         String[] currentParts = this.currentVersion.split("\\.");
         String[] expectedParts = expectedVersion.split("\\.");
 

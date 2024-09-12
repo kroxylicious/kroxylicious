@@ -19,7 +19,8 @@ record VaultResponse<D>(D data) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record ReadKeyData(String name, @JsonProperty("latest_version") int latestVersion) {
+    record ReadKeyData(String name, @JsonProperty("latest_version")
+    int latestVersion) {
         ReadKeyData {
             Objects.requireNonNull(name);
         }

@@ -38,9 +38,16 @@ public class SingleFilterFactoryInstanceTest {
         final UUID configInstance = UUID.randomUUID();
 
         // When
-        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstance)
-                        .build()));
+        mockTester = mockKafkaKroxyliciousTester(
+                (mockBootstrap) -> proxy(mockBootstrap)
+                                                       .addToFilters(
+                                                               new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(
+                                                                       INITIALISATION_COUNTER,
+                                                                       configInstance
+                                                               )
+                                                                                                                             .build()
+                                                       )
+        );
 
         // Then
         InvocationCountingFilterFactory.assertInvocationCount(configInstance, 1);
@@ -53,9 +60,21 @@ public class SingleFilterFactoryInstanceTest {
         final UUID configInstanceB = UUID.randomUUID();
 
         // When
-        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstanceA).build())
-                .addToFilters(new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstanceB).build()));
+        mockTester = mockKafkaKroxyliciousTester(
+                (mockBootstrap) -> proxy(mockBootstrap)
+                                                       .addToFilters(
+                                                               new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(
+                                                                       INITIALISATION_COUNTER,
+                                                                       configInstanceA
+                                                               ).build()
+                                                       )
+                                                       .addToFilters(
+                                                               new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(
+                                                                       INITIALISATION_COUNTER,
+                                                                       configInstanceB
+                                                               ).build()
+                                                       )
+        );
 
         // Then
         InvocationCountingFilterFactory.assertInvocationCount(configInstanceA, 1);

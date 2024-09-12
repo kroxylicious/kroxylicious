@@ -1,8 +1,8 @@
 [allowlist]
-  description = "Global Allowlist"
+description = "Global Allowlist"
 
-  paths = [
+paths = [
     # Test key material
     '''kroxylicious\/src\/test\/resources\/io\/kroxylicious\/proxy\/config\/tls\/.*$''',
-  ]
+]
 

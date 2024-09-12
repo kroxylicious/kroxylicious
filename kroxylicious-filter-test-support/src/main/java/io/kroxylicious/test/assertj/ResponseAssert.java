@@ -34,15 +34,17 @@ public class ResponseAssert<T extends AbstractResponse> extends AbstractAssert<R
     public ResponseAssert<T> hasErrorCount(Errors errorType, int errorCount) {
         isNotNull();
         MapAssert.assertThatMap(this.actual.errorCounts())
-                .as("Expected response to have errors")
-                .isNotEmpty()
-                .hasEntrySatisfying(errorType,
-                        new Condition<>() {
-                            @Override
-                            public boolean matches(Integer value) {
-                                return value >= errorCount;
-                            }
-                        });
+                 .as("Expected response to have errors")
+                 .isNotEmpty()
+                 .hasEntrySatisfying(
+                         errorType,
+                         new Condition<>() {
+                             @Override
+                             public boolean matches(Integer value) {
+                                 return value >= errorCount;
+                             }
+                         }
+                 );
 
         return this;
     }

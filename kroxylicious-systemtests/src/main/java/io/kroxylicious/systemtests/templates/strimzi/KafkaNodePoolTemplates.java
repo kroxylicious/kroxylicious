@@ -31,14 +31,14 @@ public class KafkaNodePoolTemplates {
      */
     public static KafkaNodePoolBuilder defaultKafkaNodePool(String namespaceName, String nodePoolName, String kafkaClusterName, int kafkaReplicas) {
         return new KafkaNodePoolBuilder()
-                .withNewMetadata()
-                .withNamespace(namespaceName)
-                .withName(nodePoolName)
-                .withLabels(Map.of(Constants.STRIMZI_CLUSTER_LABEL, kafkaClusterName))
-                .endMetadata()
-                .withNewSpec()
-                .withReplicas(kafkaReplicas)
-                .endSpec();
+                                         .withNewMetadata()
+                                         .withNamespace(namespaceName)
+                                         .withName(nodePoolName)
+                                         .withLabels(Map.of(Constants.STRIMZI_CLUSTER_LABEL, kafkaClusterName))
+                                         .endMetadata()
+                                         .withNewSpec()
+                                         .withReplicas(kafkaReplicas)
+                                         .endSpec();
     }
 
     /**
@@ -52,9 +52,9 @@ public class KafkaNodePoolTemplates {
      */
     public static KafkaNodePoolBuilder kafkaNodePoolWithBrokerRole(String namespaceName, String nodePoolName, String kafkaClusterName, int kafkaReplicas) {
         return defaultKafkaNodePool(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
-                .editOrNewSpec()
-                .addToRoles(ProcessRoles.BROKER)
-                .endSpec();
+                                                                                                 .editOrNewSpec()
+                                                                                                 .addToRoles(ProcessRoles.BROKER)
+                                                                                                 .endSpec();
     }
 
     /**
@@ -71,18 +71,18 @@ public class KafkaNodePoolTemplates {
 
     private static KafkaNodePoolBuilder kafkaBasedNodePoolWithRole(String nodePoolName, Kafka kafka, List<ProcessRoles> roles, int kafkaNodePoolReplicas) {
         return new KafkaNodePoolBuilder()
-                .withNewMetadata()
-                .withName(nodePoolName)
-                .withNamespace(kafka.getMetadata().getNamespace())
-                .withLabels(Map.of(Constants.STRIMZI_CLUSTER_LABEL, kafka.getMetadata().getName()))
-                .endMetadata()
-                .withNewSpec()
-                .withRoles(roles)
-                .withReplicas(kafkaNodePoolReplicas)
-                .withStorage(kafka.getSpec().getKafka().getStorage())
-                .withJvmOptions(kafka.getSpec().getKafka().getJvmOptions())
-                .withResources(kafka.getSpec().getKafka().getResources())
-                .endSpec();
+                                         .withNewMetadata()
+                                         .withName(nodePoolName)
+                                         .withNamespace(kafka.getMetadata().getNamespace())
+                                         .withLabels(Map.of(Constants.STRIMZI_CLUSTER_LABEL, kafka.getMetadata().getName()))
+                                         .endMetadata()
+                                         .withNewSpec()
+                                         .withRoles(roles)
+                                         .withReplicas(kafkaNodePoolReplicas)
+                                         .withStorage(kafka.getSpec().getKafka().getStorage())
+                                         .withJvmOptions(kafka.getSpec().getKafka().getJvmOptions())
+                                         .withResources(kafka.getSpec().getKafka().getResources())
+                                         .endSpec();
     }
 
     /**
@@ -96,9 +96,9 @@ public class KafkaNodePoolTemplates {
      */
     public static KafkaNodePoolBuilder kafkaNodePoolWithControllerRole(String namespaceName, String nodePoolName, String kafkaClusterName, int kafkaReplicas) {
         return defaultKafkaNodePool(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
-                .editOrNewSpec()
-                .addToRoles(ProcessRoles.CONTROLLER)
-                .endSpec();
+                                                                                                 .editOrNewSpec()
+                                                                                                 .addToRoles(ProcessRoles.CONTROLLER)
+                                                                                                 .endSpec();
     }
 
     /**
@@ -110,15 +110,19 @@ public class KafkaNodePoolTemplates {
      * @param kafkaReplicas the kafka replicas
      * @return the kafka node pool builder
      */
-    public static KafkaNodePoolBuilder kafkaNodePoolWithControllerRoleAndPersistentStorage(String namespaceName, String nodePoolName, String kafkaClusterName,
-                                                                                           int kafkaReplicas) {
+    public static KafkaNodePoolBuilder kafkaNodePoolWithControllerRoleAndPersistentStorage(
+            String namespaceName,
+            String nodePoolName,
+            String kafkaClusterName,
+            int kafkaReplicas
+    ) {
         return kafkaNodePoolWithControllerRole(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
-                .editOrNewSpec()
-                .withNewPersistentClaimStorage()
-                .withSize("1Gi")
-                .withDeleteClaim(true)
-                .endPersistentClaimStorage()
-                .endSpec();
+                                                                                                            .editOrNewSpec()
+                                                                                                            .withNewPersistentClaimStorage()
+                                                                                                            .withSize("1Gi")
+                                                                                                            .withDeleteClaim(true)
+                                                                                                            .endPersistentClaimStorage()
+                                                                                                            .endSpec();
     }
 
     /**
@@ -130,14 +134,18 @@ public class KafkaNodePoolTemplates {
      * @param kafkaReplicas the kafka replicas
      * @return the kafka node pool builder
      */
-    public static KafkaNodePoolBuilder kafkaNodePoolWithBrokerRoleAndPersistentStorage(String namespaceName, String nodePoolName, String kafkaClusterName,
-                                                                                       int kafkaReplicas) {
+    public static KafkaNodePoolBuilder kafkaNodePoolWithBrokerRoleAndPersistentStorage(
+            String namespaceName,
+            String nodePoolName,
+            String kafkaClusterName,
+            int kafkaReplicas
+    ) {
         return kafkaNodePoolWithBrokerRole(namespaceName, nodePoolName, kafkaClusterName, kafkaReplicas)
-                .editOrNewSpec()
-                .withNewPersistentClaimStorage()
-                .withSize("1Gi")
-                .withDeleteClaim(true)
-                .endPersistentClaimStorage()
-                .endSpec();
+                                                                                                        .editOrNewSpec()
+                                                                                                        .withNewPersistentClaimStorage()
+                                                                                                        .withSize("1Gi")
+                                                                                                        .withDeleteClaim(true)
+                                                                                                        .endPersistentClaimStorage()
+                                                                                                        .endSpec();
     }
 }

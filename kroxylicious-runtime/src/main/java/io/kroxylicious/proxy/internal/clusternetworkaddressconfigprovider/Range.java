@@ -29,7 +29,12 @@ public record Range(int startInclusive, int endExclusive) {
     public Range {
         if (endExclusive <= startInclusive) {
             throw new IllegalArgumentException(
-                    "end of range: " + endExclusive + " (exclusive) is before start of range: " + startInclusive + " (inclusive)");
+                    "end of range: "
+                                               + endExclusive
+                                               + " (exclusive) is before start of range: "
+                                               + startInclusive
+                                               + " (inclusive)"
+            );
         }
     }
 
@@ -48,7 +53,8 @@ public record Range(int startInclusive, int endExclusive) {
      * @return true if this range ends before the start of other range
      */
     @VisibleForTesting
-    boolean isEndBeforeStartOf(@NonNull Range range) {
+    boolean isEndBeforeStartOf(@NonNull
+    Range range) {
         Objects.requireNonNull(range, "range to compare with is null");
         return this.endExclusive <= range.startInclusive;
     }
@@ -59,7 +65,8 @@ public record Range(int startInclusive, int endExclusive) {
      * @param range range to compare
      * @return true if this range does not overlap with other range
      */
-    public boolean isDistinctFrom(@NonNull Range range) {
+    public boolean isDistinctFrom(@NonNull
+    Range range) {
         Objects.requireNonNull(range, "range to compare with is null");
         return isEndBeforeStartOf(range) || range.isEndBeforeStartOf(this);
     }

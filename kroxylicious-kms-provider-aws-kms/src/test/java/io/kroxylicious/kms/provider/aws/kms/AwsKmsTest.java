@@ -54,8 +54,8 @@ class AwsKmsTest {
         withMockAwsWithSingleResponse(response, kms -> {
             var aliasStage = kms.resolveAlias("alias");
             assertThat(aliasStage)
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .isEqualTo(expectedKeyId);
+                                  .succeedsWithin(Duration.ofSeconds(5))
+                                  .isEqualTo(expectedKeyId);
         });
     }
 
@@ -70,10 +70,10 @@ class AwsKmsTest {
         withMockAwsWithSingleResponse(response, 400, kms -> {
             var aliasStage = kms.resolveAlias("alias");
             assertThat(aliasStage)
-                    .failsWithin(Duration.ofSeconds(5))
-                    .withThrowableThat()
-                    .withCauseInstanceOf(UnknownAliasException.class)
-                    .withMessageContaining("key 'alias' is not found");
+                                  .failsWithin(Duration.ofSeconds(5))
+                                  .withThrowableThat()
+                                  .withCauseInstanceOf(UnknownAliasException.class)
+                                  .withMessageContaining("key 'alias' is not found");
         });
     }
 
@@ -82,10 +82,10 @@ class AwsKmsTest {
         withMockAwsWithSingleResponse(null, 500, kms -> {
             var aliasStage = kms.resolveAlias("alias");
             assertThat(aliasStage)
-                    .failsWithin(Duration.ofSeconds(5))
-                    .withThrowableThat()
-                    .withCauseInstanceOf(KmsException.class)
-                    .withMessageContaining("Operation failed");
+                                  .failsWithin(Duration.ofSeconds(5))
+                                  .withThrowableThat()
+                                  .withCauseInstanceOf(KmsException.class)
+                                  .withMessageContaining("Operation failed");
         });
     }
 
@@ -100,22 +100,23 @@ class AwsKmsTest {
                 }
                 """;
         var ciphertextBlobBytes = BASE64_DECODER.decode(
-                "AQEDAHjRYf5WytIc0C857tFSnBaPn2F8DgfmThbJlGfR8P3WlwAAAH4wfAYJKoZIhvcNAQcGoG8wbQIBADBoBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDEFogLqPWZconQhwHAIBEIA7d9AC7GeJJM34njQvg4Wf1d5sw0NIo1MrBqZa+YdhV8MrkBQPeac0ReRVNDt9qleAt+SHgIRF8P0H+7U=");
+                "AQEDAHjRYf5WytIc0C857tFSnBaPn2F8DgfmThbJlGfR8P3WlwAAAH4wfAYJKoZIhvcNAQcGoG8wbQIBADBoBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDEFogLqPWZconQhwHAIBEIA7d9AC7GeJJM34njQvg4Wf1d5sw0NIo1MrBqZa+YdhV8MrkBQPeac0ReRVNDt9qleAt+SHgIRF8P0H+7U="
+        );
         var plainTextBytes = BASE64_DECODER.decode("VdzKNHGzUAzJeRBVY+uUmofUGGiDzyB3+i9fVkh3piw=");
         var expectedKey = DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES");
 
         withMockAwsWithSingleResponse(response, vaultKms -> {
             var aliasStage = vaultKms.generateDekPair("alias");
             assertThat(aliasStage)
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .extracting(DekPair::edek)
-                    .isEqualTo(new AwsKmsEdek("alias", ciphertextBlobBytes));
+                                  .succeedsWithin(Duration.ofSeconds(5))
+                                  .extracting(DekPair::edek)
+                                  .isEqualTo(new AwsKmsEdek("alias", ciphertextBlobBytes));
 
             assertThat(aliasStage)
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .extracting(DekPair::dek)
-                    .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
-                    .matches(key -> SecretKeyUtils.same(key, expectedKey));
+                                  .succeedsWithin(Duration.ofSeconds(5))
+                                  .extracting(DekPair::dek)
+                                  .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
+                                  .matches(key -> SecretKeyUtils.same(key, expectedKey));
         });
     }
 
@@ -133,9 +134,9 @@ class AwsKmsTest {
 
         withMockAwsWithSingleResponse(response, kms -> {
             Assertions.assertThat(kms.decryptEdek(new AwsKmsEdek("kek", "unused".getBytes(StandardCharsets.UTF_8))))
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
-                    .matches(key -> SecretKeyUtils.same(key, expectedKey));
+                      .succeedsWithin(Duration.ofSeconds(5))
+                      .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
+                      .matches(key -> SecretKeyUtils.same(key, expectedKey));
         });
     }
 

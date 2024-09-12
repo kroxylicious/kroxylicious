@@ -54,8 +54,7 @@ public class HelmClient {
         if (Exec.isExecutableOnPath(HELM_CMD)) {
             helmCommand = HELM_CMD;
             return true;
-        }
-        else if (Exec.isExecutableOnPath(HELM_3_CMD)) {
+        } else if (Exec.isExecutableOnPath(HELM_3_CMD)) {
             helmCommand = HELM_3_CMD;
             return true;
         }
@@ -98,8 +97,13 @@ public class HelmClient {
         return this;
     }
 
-    public HelmClient installByContainerImage(String helmRepositoryOci, String releaseName, Optional<String> version, Optional<Path> overrideFile,
-                                              Optional<Map<String, String>> overrideMap) {
+    public HelmClient installByContainerImage(
+            String helmRepositoryOci,
+            String releaseName,
+            Optional<String> version,
+            Optional<Path> overrideFile,
+            Optional<Map<String, String>> overrideMap
+    ) {
         return install("oci://" + helmRepositoryOci, releaseName, version, overrideFile, overrideMap);
     }
 
@@ -112,9 +116,17 @@ public class HelmClient {
      */
     public HelmClient addRepository(String repoName, String repoUrl) {
         LOGGER.info("Adding repo {}", repoName);
-        Exec.exec(null, command("repo", "add",
-                repoName,
-                repoUrl), Duration.ZERO, true);
+        Exec.exec(
+                null,
+                command(
+                        "repo",
+                        "add",
+                        repoName,
+                        repoUrl
+                ),
+                Duration.ZERO,
+                true
+        );
         return this;
     }
 
@@ -154,7 +166,9 @@ public class HelmClient {
     }
 
     private String mapToValuesParameterArgument(Map<String, String> m) {
-        return m.entrySet().stream().map(HelmClient::concatEntry)
+        return m.entrySet()
+                .stream()
+                .map(HelmClient::concatEntry)
                 .collect(joining(","));
     }
 

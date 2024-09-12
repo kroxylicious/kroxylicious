@@ -98,8 +98,7 @@ public class Exec {
         LOGGER.info("Process: {}", process);
         if (isRunning()) {
             return -1;
-        }
-        else {
+        } else {
             return process.exitValue();
         }
     }
@@ -229,8 +228,15 @@ public class Exec {
             execResult = new ExecResult(ret, executor.out(), executor.err());
 
             if (throwErrors && ret != 0) {
-                String msg = "`" + join(" ", command) + "` got status code " + ret + " and stderr:\n------\n" + executor.stdErr + "\n------\nand stdout:\n------\n"
-                        + executor.stdOut + "\n------";
+                String msg = "`"
+                             + join(" ", command)
+                             + "` got status code "
+                             + ret
+                             + " and stderr:\n------\n"
+                             + executor.stdErr
+                             + "\n------\nand stdout:\n------\n"
+                             + executor.stdOut
+                             + "\n------";
 
                 throwExceptionForErrorPattern(msg, executor.err(), execResult);
             }
@@ -323,12 +329,10 @@ public class Exec {
         if (timeout.toMillis() > 0) {
             if (process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
                 retCode = process.exitValue();
-            }
-            else {
+            } else {
                 process.destroyForcibly();
             }
-        }
-        else {
+        } else {
             retCode = process.waitFor();
         }
 

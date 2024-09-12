@@ -13,8 +13,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @SuppressWarnings("java:S6218") // we don't need DecryptRequest equality
-public record DecryptRequest(@JsonProperty(value = "KeyId") @NonNull String keyId,
-                             @JsonProperty(value = "CiphertextBlob") @NonNull byte[] ciphertextBlob) {
+public record DecryptRequest(
+        @JsonProperty(value = "KeyId") @NonNull
+        String keyId,
+        @JsonProperty(value = "CiphertextBlob") @NonNull
+        byte[] ciphertextBlob
+) {
     public DecryptRequest {
         Objects.requireNonNull(keyId);
         Objects.requireNonNull(ciphertextBlob);

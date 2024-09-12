@@ -156,10 +156,13 @@ public class Environment {
             var version = p.getProperty(property);
             if (version == null) {
                 throw new IllegalStateException(property + " key absent in " + metadataProps);
-            }
-            else if (version.startsWith("$")) {
+            } else if (version.startsWith("$")) {
                 throw new IllegalStateException(
-                        "likely unexpanded property reference found in '" + version + "', check Maven filtering configuration of resource " + metadataProps);
+                        "likely unexpanded property reference found in '"
+                                                + version
+                                                + "', check Maven filtering configuration of resource "
+                                                + metadataProps
+                );
             }
             return version;
         }

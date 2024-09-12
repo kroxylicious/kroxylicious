@@ -41,8 +41,7 @@ class NullEmptyBytebufValidator implements BytebufValidator {
     private Result validateField(boolean hasField, int fieldLenth) {
         if (!hasField) {
             return nullValid ? Result.VALID_RESULT : new Result(false, "Null buffer invalid");
-        }
-        else if (fieldLenth <= 0) {
+        } else if (fieldLenth <= 0) {
             return emptyValid ? Result.VALID_RESULT : new Result(false, "Empty buffer invalid");
         }
         return null;

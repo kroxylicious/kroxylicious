@@ -41,8 +41,13 @@ public class KubeLocalStackTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
         String installedVersion = getLocalStackVersion();
         String expectedVersion = AwsKmsTestKmsFacade.LOCALSTACK_IMAGE.getVersionPart();
         if (!isCorrectVersionInstalled(installedVersion, expectedVersion)) {
-            throw new KubeClusterException("LocalStack version installed " + installedVersion + " does not match with the expected: '"
-                    + expectedVersion + "'");
+            throw new KubeClusterException(
+                    "LocalStack version installed "
+                                           + installedVersion
+                                           + " does not match with the expected: '"
+                                           + expectedVersion
+                                           + "'"
+            );
         }
     }
 

@@ -16,7 +16,11 @@ import java.lang.annotation.Target;
  * (e.g. package-visible instead of private).
  */
 @Documented
-@Target({ ElementType.TYPE, ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR })
-@Retention(RetentionPolicy.SOURCE)
+@Target(
+    { ElementType.TYPE, ElementType.FIELD, ElementType.METHOD, ElementType.CONSTRUCTOR }
+)
+@Retention(
+    RetentionPolicy.SOURCE
+)
 public @interface VisibleForTesting {
 }

@@ -62,8 +62,13 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private final List<Closeable> closeables = new ArrayList<>();
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultKroxyliciousTester.class);
 
-    DefaultKroxyliciousTester(ConfigurationBuilder configurationBuilder, Function<Configuration, AutoCloseable> kroxyliciousFactory, ClientFactory clientFactory,
-                              @Nullable KroxyliciousTesterBuilder.TrustStoreConfiguration trustStoreConfiguration) {
+    DefaultKroxyliciousTester(
+            ConfigurationBuilder configurationBuilder,
+            Function<Configuration, AutoCloseable> kroxyliciousFactory,
+            ClientFactory clientFactory,
+            @Nullable
+            KroxyliciousTesterBuilder.TrustStoreConfiguration trustStoreConfiguration
+    ) {
         this.kroxyliciousConfig = configurationBuilder.build();
         this.proxy = kroxyliciousFactory.apply(kroxyliciousConfig);
         this.trustStoreConfiguration = Optional.ofNullable(trustStoreConfiguration);
@@ -80,16 +85,18 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         int numVirtualClusters = kroxyliciousConfig.virtualClusters().size();
         if (numVirtualClusters == 1) {
             return kroxyliciousConfig.virtualClusters().keySet().stream().findFirst().orElseThrow();
-        }
-        else {
+        } else {
             throw new AmbiguousVirtualClusterException(
-                    "no default virtual cluster determined because there were multiple or no virtual clusters in kroxylicious configuration");
+                    "no default virtual cluster determined because there were multiple or no virtual clusters in kroxylicious configuration"
+            );
         }
     }
 
     private KroxyliciousClients clients(String virtualCluster) {
-        return clients.computeIfAbsent(virtualCluster,
-                k -> clientFactory.build(virtualCluster, buildDefaultClientConfiguration(virtualCluster)));
+        return clients.computeIfAbsent(
+                virtualCluster,
+                k -> clientFactory.build(virtualCluster, buildDefaultClientConfiguration(virtualCluster))
+        );
     }
 
     @NonNull
@@ -301,8 +308,8 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
             final Set<String> topics = topicsForVirtualCluster(virtualCluster);
             if (!topics.isEmpty()) {
                 admin.deleteTopics(topics)
-                        .all()
-                        .get(30, TimeUnit.SECONDS);
+                     .all()
+                     .get(30, TimeUnit.SECONDS);
             }
         }
         catch (InterruptedException e) {
@@ -320,9 +327,9 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public AdminHttpClient getAdminHttpClient() {
         var client = Optional.ofNullable(kroxyliciousConfig.adminHttpConfig())
-                .map(ahc -> URI.create("http://localhost:" + ahc.port()))
-                .map(AdminHttpClient::new)
-                .orElseThrow(() -> new IllegalStateException("admin http interface not configured"));
+                             .map(ahc -> URI.create("http://localhost:" + ahc.port()))
+                             .map(AdminHttpClient::new)
+                             .orElseThrow(() -> new IllegalStateException("admin http interface not configured"));
         closeables.add(client);
         return client;
     }

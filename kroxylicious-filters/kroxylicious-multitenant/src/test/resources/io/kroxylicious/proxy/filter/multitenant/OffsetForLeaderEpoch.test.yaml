@@ -10,11 +10,11 @@
     payload:
       replicaId: 1
       topics:
-          - topic: foo
-            partitions:
-              - partition: 0
-                currentLeaderEpoch: 0
-                leaderEpoch: 0
+        - topic: foo
+          partitions:
+            - partition: 0
+              currentLeaderEpoch: 0
+              leaderEpoch: 0
     diff:
       - op: replace
         path: "/topics/0/topic"

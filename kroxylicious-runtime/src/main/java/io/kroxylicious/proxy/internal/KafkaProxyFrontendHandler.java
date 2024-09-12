@@ -64,8 +64,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaProxyFrontendHandler
-        extends ChannelInboundHandlerAdapter
-        implements NetFilter.NetFilterContext {
+                                       extends ChannelInboundHandlerAdapter
+                                       implements NetFilter.NetFilterContext {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
@@ -152,10 +152,12 @@ public class KafkaProxyFrontendHandler
     private boolean isInboundBlocked = true;
     private HAProxyMessage haProxyMessage;
 
-    KafkaProxyFrontendHandler(NetFilter filter,
-                              SaslDecodePredicate dp,
-                              VirtualCluster virtualCluster,
-                              KafkaProxyExceptionMapper exceptionHandler) {
+    KafkaProxyFrontendHandler(
+            NetFilter filter,
+            SaslDecodePredicate dp,
+            VirtualCluster virtualCluster,
+            KafkaProxyExceptionMapper exceptionHandler
+    ) {
         this.filter = filter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
@@ -183,9 +185,11 @@ public class KafkaProxyFrontendHandler
         LOGGER.trace("{}: outboundChannelActive: {}", inboundCtx.channel().id(), upstreamCtx.channel().id());
         this.outboundCtx = upstreamCtx;
         this.state = State.CONNECTED;
-        virtualCluster.getUpstreamSslContext().ifPresentOrElse(
-                this::startUpstreamTlsNegotiation,
-                this::onUpstreamChannelUsable);
+        virtualCluster.getUpstreamSslContext()
+                      .ifPresentOrElse(
+                              this::startUpstreamTlsNegotiation,
+                              this::onUpstreamChannelUsable
+                      );
     }
 
     @Override
@@ -201,8 +205,7 @@ public class KafkaProxyFrontendHandler
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (state == State.OUTBOUND_ACTIVE) { // post-backend connection
             forwardOutbound(ctx, msg);
-        }
-        else {
+        } else {
             handlePreOutboundActive(ctx, msg);
         }
     }
@@ -211,17 +214,13 @@ public class KafkaProxyFrontendHandler
         if (isInitialHaProxyMessage(msg)) {
             this.haProxyMessage = (HAProxyMessage) msg;
             state = State.HA_PROXY;
-        }
-        else if (isInitialDecodedApiVersionsFrame(msg)) {
+        } else if (isInitialDecodedApiVersionsFrame(msg)) {
             handleApiVersionsFrame(ctx, msg);
-        }
-        else if (isInitialRequestFrame(msg)) {
+        } else if (isInitialRequestFrame(msg)) {
             bufferMsgAndSelectServer(msg);
-        }
-        else if (isSubsequentRequestFrame(msg)) {
+        } else if (isSubsequentRequestFrame(msg)) {
             bufferMessage(msg);
-        }
-        else {
+        } else {
             throw illegalState("Unexpected channelRead() message of " + msg.getClass());
         }
     }
@@ -235,8 +234,7 @@ public class KafkaProxyFrontendHandler
             writeApiVersionsResponse(ctx, apiVersionsFrame);
             // Request to read the following request
             ctx.channel().read();
-        }
-        else {
+        } else {
             bufferMsgAndSelectServer(msg);
         }
     }
@@ -249,19 +247,19 @@ public class KafkaProxyFrontendHandler
         return (state == State.START
                 || state == State.HA_PROXY
                 || state == State.API_VERSIONS)
-                && msg instanceof RequestFrame;
+               && msg instanceof RequestFrame;
     }
 
     private boolean isInitialHaProxyMessage(Object msg) {
         return state == State.START
-                && msg instanceof HAProxyMessage;
+               && msg instanceof HAProxyMessage;
     }
 
     private boolean isInitialDecodedApiVersionsFrame(Object msg) {
         return (state == State.START
                 || state == State.HA_PROXY)
-                && msg instanceof DecodedRequestFrame
-                && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS;
+               && msg instanceof DecodedRequestFrame
+               && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS;
     }
 
     private void bufferMsgAndSelectServer(Object msg) {
@@ -287,8 +285,12 @@ public class KafkaProxyFrontendHandler
             throw new IllegalStateException();
         }
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
-                    inboundCtx.channel().id(), remote, filters);
+            LOGGER.debug(
+                    "{}: Connecting to backend broker {} using filters {}",
+                    inboundCtx.channel().id(),
+                    remote,
+                    filters
+            );
         }
         var correlationManager = new CorrelationManager();
 
@@ -298,10 +300,10 @@ public class KafkaProxyFrontendHandler
         Bootstrap b = new Bootstrap();
         backendHandler = new KafkaProxyBackendHandler(this, inboundCtx, exceptionHandler);
         b.group(inboundChannel.eventLoop())
-                .channel(inboundChannel.getClass())
-                .handler(backendHandler)
-                .option(ChannelOption.AUTO_READ, true)
-                .option(ChannelOption.TCP_NODELAY, true);
+         .channel(inboundChannel.getClass())
+         .handler(backendHandler)
+         .option(ChannelOption.AUTO_READ, true)
+         .option(ChannelOption.TCP_NODELAY, true);
 
         LOGGER.trace("Connecting to outbound {}", remote);
         ChannelFuture tcpConnectFuture = initConnection(remote.host(), remote.port(), b);
@@ -333,8 +335,7 @@ public class KafkaProxyFrontendHandler
         tcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
                 onTcpConnection(filters);
-            }
-            else {
+            } else {
                 onUpstreamChannelFailed(remote, future, inboundChannel);
             }
         });
@@ -355,15 +356,20 @@ public class KafkaProxyFrontendHandler
         state = State.FAILED;
         // Close the connection if the connection attempt has failed.
         Throwable failureCause = future.cause();
-        exceptionHandler.mapException(failureCause).ifPresentOrElse(
-                result -> closeWith(inboundChannel, result),
-                () -> {
-                    LOGGER.atWarn()
-                            .setCause(LOGGER.isDebugEnabled() ? failureCause : null)
-                            .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
-                                    remote, failureCause.getMessage());
-                    closeNoResponse(inboundChannel);
-                });
+        exceptionHandler.mapException(failureCause)
+                        .ifPresentOrElse(
+                                result -> closeWith(inboundChannel, result),
+                                () -> {
+                                    LOGGER.atWarn()
+                                          .setCause(LOGGER.isDebugEnabled() ? failureCause : null)
+                                          .log(
+                                                  "Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
+                                                  remote,
+                                                  failureCause.getMessage()
+                                          );
+                                    closeNoResponse(inboundChannel);
+                                }
+                        );
     }
 
     private void onTcpConnection(List<FilterAndInvoker> filters) {
@@ -387,14 +393,22 @@ public class KafkaProxyFrontendHandler
 
     public void forwardOutbound(final ChannelHandlerContext ctx, Object msg) {
         if (outboundCtx == null) {
-            LOGGER.trace("READ on inbound {} ignored because outbound is not active (msg: {})",
-                    ctx.channel(), msg);
+            LOGGER.trace(
+                    "READ on inbound {} ignored because outbound is not active (msg: {})",
+                    ctx.channel(),
+                    msg
+            );
             return;
         }
         final Channel outboundChannel = outboundCtx.channel();
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("READ on inbound {} outbound {} (outbound.isWritable: {}, msg: {})",
-                    ctx.channel(), outboundChannel, outboundChannel.isWritable(), msg);
+            LOGGER.trace(
+                    "READ on inbound {} outbound {} (outbound.isWritable: {}, msg: {})",
+                    ctx.channel(),
+                    outboundChannel,
+                    outboundChannel.isWritable(),
+                    msg
+            );
             LOGGER.trace("Outbound bytesBeforeUnwritable: {}", outboundChannel.bytesBeforeUnwritable());
             LOGGER.trace("Outbound config: {}", outboundChannel.config());
             LOGGER.trace("Outbound is active, writing and flushing {}", msg);
@@ -402,8 +416,7 @@ public class KafkaProxyFrontendHandler
         if (outboundChannel.isWritable()) {
             outboundChannel.write(msg, outboundCtx.voidPromise());
             pendingFlushes = true;
-        }
-        else {
+        } else {
             outboundChannel.writeAndFlush(msg, outboundCtx.voidPromise());
             pendingFlushes = false;
         }
@@ -419,10 +432,16 @@ public class KafkaProxyFrontendHandler
         short apiVersion = frame.apiVersion();
         int correlationId = frame.correlationId();
         ResponseHeaderData header = new ResponseHeaderData()
-                .setCorrelationId(correlationId);
+                                                            .setCorrelationId(correlationId);
         LOGGER.debug("{}: Writing ApiVersions response", ctx.channel());
-        ctx.writeAndFlush(new DecodedResponseFrame<>(
-                apiVersion, correlationId, header, API_VERSIONS_RESPONSE));
+        ctx.writeAndFlush(
+                new DecodedResponseFrame<>(
+                        apiVersion,
+                        correlationId,
+                        header,
+                        API_VERSIONS_RESPONSE
+                )
+        );
     }
 
     private void storeApiVersionsFeatures(DecodedRequestFrame<ApiVersionsRequestData> frame) {
@@ -446,16 +465,23 @@ public class KafkaProxyFrontendHandler
     @Override
     public void channelReadComplete(final ChannelHandlerContext ctx) {
         if (outboundCtx == null) {
-            LOGGER.trace("READ_COMPLETE on inbound {}, ignored because outbound is not active",
-                    ctx.channel());
+            LOGGER.trace(
+                    "READ_COMPLETE on inbound {}, ignored because outbound is not active",
+                    ctx.channel()
+            );
             pendingReadComplete = true;
             return;
         }
         final Channel outboundChannel = outboundCtx.channel();
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("READ_COMPLETE on inbound {} outbound {} (pendingFlushes: {}, isInboundBlocked: {}, output.isWritable: {})",
-                    ctx.channel(), outboundChannel,
-                    pendingFlushes, isInboundBlocked, outboundChannel.isWritable());
+            LOGGER.trace(
+                    "READ_COMPLETE on inbound {} outbound {} (pendingFlushes: {}, isInboundBlocked: {}, output.isWritable: {})",
+                    ctx.channel(),
+                    outboundChannel,
+                    pendingFlushes,
+                    isInboundBlocked,
+                    outboundChannel.isWritable()
+            );
         }
         if (pendingFlushes) {
             pendingFlushes = false;
@@ -487,8 +513,11 @@ public class KafkaProxyFrontendHandler
             var tlsHint = virtualCluster.getDownstreamSslContext().isPresent() ? "" : " or an unexpected TLS handshake";
             LOGGER.warn(
                     "Received over-sized frame, max frame size bytes {}, received frame size bytes {} "
-                            + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
-                    e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
+                        + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
+                    e.getMaxFrameSizeBytes(),
+                    e.getReceivedFrameSizeBytes(),
+                    tlsHint
+            );
         }
         closeNoResponse(ctx.channel());
     }
@@ -503,10 +532,11 @@ public class KafkaProxyFrontendHandler
     /**
      * Closes the specified channel after all queued write requests are flushed.
      */
-    void closeWith(Channel ch, @Nullable ResponseFrame response) {
+    void closeWith(Channel ch, @Nullable
+    ResponseFrame response) {
         if (ch.isActive()) {
             ch.writeAndFlush(response != null ? response : Unpooled.EMPTY_BUFFER)
-                    .addListener(ChannelFutureListener.CLOSE);
+              .addListener(ChannelFutureListener.CLOSE);
         }
     }
 
@@ -517,8 +547,7 @@ public class KafkaProxyFrontendHandler
                 this.sniHostname = sniCompletionEvent.hostname();
             }
             // TODO handle the failure case
-        }
-        else if (event instanceof AuthenticationEvent) {
+        } else if (event instanceof AuthenticationEvent) {
             this.authentication = (AuthenticationEvent) event;
         }
         super.userEventTriggered(ctx, event);
@@ -528,13 +557,11 @@ public class KafkaProxyFrontendHandler
     public String clientHost() {
         if (haProxyMessage != null) {
             return haProxyMessage.sourceAddress();
-        }
-        else {
+        } else {
             SocketAddress socketAddress = inboundCtx.channel().remoteAddress();
             if (socketAddress instanceof InetSocketAddress) {
                 return ((InetSocketAddress) socketAddress).getAddress().getHostAddress();
-            }
-            else {
+            } else {
                 return String.valueOf(socketAddress);
             }
         }
@@ -544,13 +571,11 @@ public class KafkaProxyFrontendHandler
     public int clientPort() {
         if (haProxyMessage != null) {
             return haProxyMessage.sourcePort();
-        }
-        else {
+        } else {
             SocketAddress socketAddress = inboundCtx.channel().remoteAddress();
             if (socketAddress instanceof InetSocketAddress) {
                 return ((InetSocketAddress) socketAddress).getPort();
-            }
-            else {
+            } else {
                 return -1;
             }
         }
@@ -636,8 +661,7 @@ public class KafkaProxyFrontendHandler
         sslHandler.handshakeFuture().addListener(handshakeFuture -> {
             if (handshakeFuture.isSuccess()) {
                 this.onUpstreamChannelUsable();
-            }
-            else {
+            } else {
                 this.onUpstreamChannelFailed(remote, handshakeFuture, this.inboundCtx.channel());
             }
         });
@@ -647,15 +671,14 @@ public class KafkaProxyFrontendHandler
         ResponseFrame result;
         final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
         LOGGER.atInfo()
-                .setCause(LOGGER.isDebugEnabled() ? throwable : null)
-                .addArgument(inboundCtx.channel().id())
-                .addArgument(outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get())
-                .addArgument(throwable.getMessage())
-                .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
+              .setCause(LOGGER.isDebugEnabled() ? throwable : null)
+              .addArgument(inboundCtx.channel().id())
+              .addArgument(outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get())
+              .addArgument(throwable.getMessage())
+              .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
         if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
             result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
-        }
-        else {
+        } else {
             result = null;
         }
         return Optional.ofNullable(result);

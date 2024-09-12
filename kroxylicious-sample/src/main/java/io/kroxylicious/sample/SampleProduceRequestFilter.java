@@ -42,10 +42,10 @@ public class SampleProduceRequestFilter implements ProduceRequestFilter {
     public SampleProduceRequestFilter(SampleFilterConfig config) {
         this.config = config;
         this.timer = Timer
-                .builder("sample_produce_request_filter_transform")
-                .description("Time taken for the SampleProduceRequestFilter to transform the produce data.")
-                .tag("filter", "SampleProduceRequestFilter")
-                .register(Metrics.globalRegistry);
+                          .builder("sample_produce_request_filter_transform")
+                          .description("Time taken for the SampleProduceRequestFilter to transform the produce data.")
+                          .tag("filter", "SampleProduceRequestFilter")
+                          .register(Metrics.globalRegistry);
     }
 
     /**

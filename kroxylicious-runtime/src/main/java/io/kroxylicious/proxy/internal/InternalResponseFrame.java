@@ -40,13 +40,26 @@ public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponse
 
     @Override
     public String toString() {
-        return "InternalResponseFrame(" +
-                "recipient=" + recipient +
-                ", promise=" + future +
-                ", apiVersion=" + apiVersion +
-                ", correlationId=" + correlationId +
-                ", header=" + header +
-                ", body=" + body +
-                ')';
+        return "InternalResponseFrame("
+               +
+               "recipient="
+               + recipient
+               +
+               ", promise="
+               + future
+               +
+               ", apiVersion="
+               + apiVersion
+               +
+               ", correlationId="
+               + correlationId
+               +
+               ", header="
+               + header
+               +
+               ", body="
+               + body
+               +
+               ')';
     }
 }

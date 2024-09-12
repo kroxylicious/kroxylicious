@@ -53,14 +53,20 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KafkaClients.kcat()
+                                                  .inNamespace(namespace)
+                                                  .consumeMessages(
+                                                          topicName,
+                                                          bootstrap,
+                                                          numberOfMessages,
+                                                          Duration.ofMinutes(2)
+                                                  );
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -75,14 +81,20 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KafkaClients.kaf()
+                                                  .inNamespace(namespace)
+                                                  .consumeMessages(
+                                                          topicName,
+                                                          bootstrap,
+                                                          numberOfMessages,
+                                                          Duration.ofMinutes(2)
+                                                  );
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -97,14 +109,20 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KafkaClients.strimziTestClient()
+                                                  .inNamespace(namespace)
+                                                  .consumeMessages(
+                                                          topicName,
+                                                          bootstrap,
+                                                          numberOfMessages,
+                                                          Duration.ofMinutes(2)
+                                                  );
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -119,14 +137,20 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.kcat().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KafkaClients.kcat()
+                                                  .inNamespace(namespace)
+                                                  .consumeMessages(
+                                                          topicName,
+                                                          bootstrap,
+                                                          numberOfMessages,
+                                                          Duration.ofMinutes(2)
+                                                  );
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -141,14 +165,20 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.kaf().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KafkaClients.strimziTestClient()
+                                                  .inNamespace(namespace)
+                                                  .consumeMessages(
+                                                          topicName,
+                                                          bootstrap,
+                                                          numberOfMessages,
+                                                          Duration.ofMinutes(2)
+                                                  );
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     /**
@@ -163,14 +193,20 @@ class NonJVMClientsST extends AbstractST {
         KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KafkaClients.kaf().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
-                Duration.ofMinutes(2));
+        List<ConsumerRecord> result = KafkaClients.kaf()
+                                                  .inNamespace(namespace)
+                                                  .consumeMessages(
+                                                          topicName,
+                                                          bootstrap,
+                                                          numberOfMessages,
+                                                          Duration.ofMinutes(2)
+                                                  );
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
-                .hasSize(numberOfMessages)
-                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+                          .extracting(ConsumerRecord::getValue)
+                          .hasSize(numberOfMessages)
+                          .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
     @BeforeEach
@@ -200,6 +236,7 @@ class NonJVMClientsST extends AbstractST {
 
         resourceManager.createResourceWithWait(
                 KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
-                kafka);
+                kafka
+        );
     }
 }

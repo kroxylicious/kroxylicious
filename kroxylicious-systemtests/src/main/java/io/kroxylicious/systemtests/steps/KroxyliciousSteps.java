@@ -58,9 +58,14 @@ public class KroxyliciousSteps {
      * @param timeout maximum time to wait for the expectedMessage to appear
      * @return the list of consumer records
      */
-    public static List<ConsumerRecord> consumeMessageFromKafkaCluster(String clientNamespace, String topicName, String kafkaClusterName,
-                                                                      String kafkaNamespace, int numberOfMessages,
-                                                                      Duration timeout) {
+    public static List<ConsumerRecord> consumeMessageFromKafkaCluster(
+            String clientNamespace,
+            String topicName,
+            String kafkaClusterName,
+            String kafkaNamespace,
+            int numberOfMessages,
+            Duration timeout
+    ) {
         String kafkaBootstrap = kafkaClusterName + "-kafka-bootstrap." + kafkaNamespace + ".svc.cluster.local:9092";
         return consumeMessages(clientNamespace, topicName, kafkaBootstrap, numberOfMessages, timeout);
     }

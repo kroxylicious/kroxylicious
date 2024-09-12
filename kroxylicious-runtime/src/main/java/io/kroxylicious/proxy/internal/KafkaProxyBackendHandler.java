@@ -61,8 +61,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         if (inboundChannel.isWritable()) {
             inboundChannel.write(msg, inboundCtx.voidPromise());
             unflushedWrites = true;
-        }
-        else {
+        } else {
             inboundChannel.writeAndFlush(msg, inboundCtx.voidPromise());
             unflushedWrites = false;
         }
@@ -94,9 +93,9 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         // So only act here if its un-expected by the front end.
         if (exceptionMapper.mapException(cause).isEmpty()) {
             LOGGER.atWarn()
-                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                    .addArgument(cause != null ? cause.getMessage() : "")
-                    .log("Netty caught exception from the backend: {}. Increase log level to DEBUG for stacktrace");
+                  .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                  .addArgument(cause != null ? cause.getMessage() : "")
+                  .log("Netty caught exception from the backend: {}. Increase log level to DEBUG for stacktrace");
             frontendHandler.closeNoResponse(ctx.channel());
         }
     }

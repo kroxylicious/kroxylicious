@@ -33,10 +33,10 @@ public record RequestResponseTestDef(String testName, ApiMessageType apiKey, Req
 
     public static Stream<RequestResponseTestDef> requestResponseTestDefinitions(List<ResourceInfo> resources) {
         return resources.stream()
-                .map(RequestResponseTestDef::readTestResource)
-                .flatMap(Arrays::stream)
-                .filter(Predicate.not(td -> td.get("disabled").asBoolean(false)))
-                .map(RequestResponseTestDef::buildRequestResponseTestDef);
+                        .map(RequestResponseTestDef::readTestResource)
+                        .flatMap(Arrays::stream)
+                        .filter(Predicate.not(td -> td.get("disabled").asBoolean(false)))
+                        .map(RequestResponseTestDef::buildRequestResponseTestDef);
     }
 
     private static JsonNode[] readTestResource(ResourceInfo resourceInfo) {
@@ -67,8 +67,13 @@ public record RequestResponseTestDef(String testName, ApiMessageType apiKey, Req
         var messageType = ApiMessageType.valueOf(apiMessageTypeNode.asText());
         var header = new RequestHeaderData().setRequestApiKey(messageType.apiKey()).setRequestApiVersion(versionNode.shortValue());
 
-        var testName = String.format("%s,%s,v%d[%s]", source, messageType, versionNode.intValue(),
-                Optional.ofNullable(descriptionNode).map(JsonNode::asText).orElse("-"));
+        var testName = String.format(
+                "%s,%s,v%d[%s]",
+                source,
+                messageType,
+                versionNode.intValue(),
+                Optional.ofNullable(descriptionNode).map(JsonNode::asText).orElse("-")
+        );
         var requestConverter = KafkaApiMessageConverter.requestConverterFor(messageType);
         var responseConverter = KafkaApiMessageConverter.responseConverterFor(messageType);
         var request = buildApiMessageTestDef(header.requestApiVersion(), jsonNode.get("request"), requestConverter.reader());

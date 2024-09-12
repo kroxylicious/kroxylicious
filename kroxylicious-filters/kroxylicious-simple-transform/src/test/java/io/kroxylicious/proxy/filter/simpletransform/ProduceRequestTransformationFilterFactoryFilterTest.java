@@ -76,11 +76,15 @@ class ProduceRequestTransformationFilterFactoryFilterTest {
 
     @BeforeEach
     void setUp() {
-        filter = new ProduceRequestTransformationFilter(new UpperCasing.Transformation(
-                new UpperCasing.Config("UTF-8")));
+        filter = new ProduceRequestTransformationFilter(
+                new UpperCasing.Transformation(
+                        new UpperCasing.Config("UTF-8")
+                )
+        );
 
         when(context.forwardRequest(requestHeaderDataCaptor.capture(), apiMessageCaptor.capture())).thenAnswer(
-                invocation -> CompletableFuture.completedStage(responseFilterResult));
+                invocation -> CompletableFuture.completedStage(responseFilterResult)
+        );
 
         when(responseFilterResult.message()).thenAnswer(invocation -> apiMessageCaptor.getValue());
         when(responseFilterResult.header()).thenAnswer(invocation -> requestHeaderDataCaptor.getValue());
@@ -90,18 +94,24 @@ class ProduceRequestTransformationFilterFactoryFilterTest {
                     Object[] args = invocation.getArguments();
                     Integer size = (Integer) args[0];
                     return new ByteBufferOutputStream(size);
-                });
+                }
+        );
     }
 
     @Test
     void testFactory() {
         var factory = new ProduceRequestTransformationFilterFactory();
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
-                .hasMessage(ProduceRequestTransformationFilterFactory.class.getSimpleName() + " requires configuration, but config object is null");
+                                                                .hasMessage(
+                                                                        ProduceRequestTransformationFilterFactory.class.getSimpleName()
+                                                                            + " requires configuration, but config object is null"
+                                                                );
         FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
         doReturn(new UpperCasing()).when(constructContext).pluginInstance(any(), any());
-        var config = new ProduceRequestTransformationFilterFactory.Config(UpperCasing.class.getName(),
-                new UpperCasing.Config("UTF-8"));
+        var config = new ProduceRequestTransformationFilterFactory.Config(
+                UpperCasing.class.getName(),
+                new UpperCasing.Config("UTF-8")
+        );
         assertThat(factory.createFilter(constructContext, config)).isInstanceOf(ProduceRequestTransformationFilter.class);
     }
 
@@ -118,32 +128,32 @@ class ProduceRequestTransformationFilterFactoryFilterTest {
 
         // verify that the response now has the topic name
         assertThat(filteredRequest.topicData())
-                .withFailMessage("expected same number of topics in the request")
-                .hasSameSizeAs(produceRequest.topicData())
-                .withFailMessage("expected topic request to have been augmented with topic name")
-                .anyMatch(ftr -> Objects.equals(ftr.name(), TOPIC_NAME));
+                                               .withFailMessage("expected same number of topics in the request")
+                                               .hasSameSizeAs(produceRequest.topicData())
+                                               .withFailMessage("expected topic request to have been augmented with topic name")
+                                               .anyMatch(ftr -> Objects.equals(ftr.name(), TOPIC_NAME));
 
         var filteredRecords = requestToRecordStream(filteredRequest).toList();
         assertThat(filteredRecords)
-                .withFailMessage("unexpected number of records in the filtered request")
-                .hasSize(1);
+                                   .withFailMessage("unexpected number of records in the filtered request")
+                                   .hasSize(1);
 
         var filteredRecord = filteredRecords.get(0);
         assertThat(decodeUtf8Value(filteredRecord))
-                .withFailMessage("expected record value to have been transformed")
-                .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+                                                   .withFailMessage("expected record value to have been transformed")
+                                                   .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
     }
 
     private Stream<Record> requestToRecordStream(ProduceRequestData filteredResponse) {
         return Stream.of(filteredResponse.topicData())
-                .flatMap(Collection::stream)
-                .map(TopicProduceData::partitionData)
-                .flatMap(Collection::stream)
-                .map(PartitionProduceData::records)
-                .map(Records.class::cast)
-                .map(Records::records)
-                .map(Iterable::spliterator)
-                .flatMap(si -> StreamSupport.stream(si, false));
+                     .flatMap(Collection::stream)
+                     .map(TopicProduceData::partitionData)
+                     .flatMap(Collection::stream)
+                     .map(PartitionProduceData::records)
+                     .map(Records.class::cast)
+                     .map(Records::records)
+                     .map(Iterable::spliterator)
+                     .flatMap(si -> StreamSupport.stream(si, false));
     }
 
     @NonNull
@@ -156,8 +166,14 @@ class ProduceRequestTransformationFilterFactoryFilterTest {
     }
 
     private static MemoryRecords buildOneRecord(String key, String value) {
-        try (MemoryRecordsBuilder builder = MemoryRecords.builder(ByteBuffer.allocate(1024), RecordBatch.CURRENT_MAGIC_VALUE,
-                Compression.NONE, TimestampType.CREATE_TIME, 0L, System.currentTimeMillis())) {
+        try (MemoryRecordsBuilder builder = MemoryRecords.builder(
+                ByteBuffer.allocate(1024),
+                RecordBatch.CURRENT_MAGIC_VALUE,
+                Compression.NONE,
+                TimestampType.CREATE_TIME,
+                0L,
+                System.currentTimeMillis()
+        )) {
             builder.append(0L, key.getBytes(), value.getBytes());
             return builder.build();
         }

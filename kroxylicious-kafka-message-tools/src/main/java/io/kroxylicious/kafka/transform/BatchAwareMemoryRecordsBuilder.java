@@ -40,7 +40,8 @@ public class BatchAwareMemoryRecordsBuilder {
      * Initialize a new instance, which will append into the given buffer.
      * @param buffer The buffer to use.
      */
-    public BatchAwareMemoryRecordsBuilder(@NonNull ByteBufferOutputStream buffer) {
+    public BatchAwareMemoryRecordsBuilder(@NonNull
+    ByteBufferOutputStream buffer) {
         this.buffer = Objects.requireNonNull(buffer);
     }
 
@@ -80,22 +81,25 @@ public class BatchAwareMemoryRecordsBuilder {
      * @param deleteHorizonMs
      * @return this builder
      */
-    public @NonNull BatchAwareMemoryRecordsBuilder addBatch(byte magic,
-                                                            Compression compression,
-                                                            TimestampType timestampType,
-                                                            long baseOffset,
-                                                            long logAppendTime,
-                                                            long producerId,
-                                                            short producerEpoch,
-                                                            int baseSequence,
-                                                            boolean isTransactional,
-                                                            boolean isControlBatch,
-                                                            int partitionLeaderEpoch,
-                                                            long deleteHorizonMs) {
+    public @NonNull BatchAwareMemoryRecordsBuilder addBatch(
+            byte magic,
+            Compression compression,
+            TimestampType timestampType,
+            long baseOffset,
+            long logAppendTime,
+            long producerId,
+            short producerEpoch,
+            int baseSequence,
+            boolean isTransactional,
+            boolean isControlBatch,
+            int partitionLeaderEpoch,
+            long deleteHorizonMs
+    ) {
         checkIfClosed();
         maybeAppendCurrentBatch();
         // MRB respects the initial position() of buffer, so this doesn't overwrite anything already in buffer
-        builder = new MemoryRecordsBuilder(buffer,
+        builder = new MemoryRecordsBuilder(
+                buffer,
                 magic,
                 compression,
                 timestampType,
@@ -108,14 +112,18 @@ public class BatchAwareMemoryRecordsBuilder {
                 isControlBatch,
                 partitionLeaderEpoch,
                 0, // TODO think about limiting the size that the buffer can grow to
-                deleteHorizonMs);
+                deleteHorizonMs
+        );
         return this;
     }
 
-    public BatchAwareMemoryRecordsBuilder addBatch(Compression compression,
-                                                   TimestampType timestampType,
-                                                   long baseOffset) {
-        return addBatch(RecordBatch.CURRENT_MAGIC_VALUE,
+    public BatchAwareMemoryRecordsBuilder addBatch(
+            Compression compression,
+            TimestampType timestampType,
+            long baseOffset
+    ) {
+        return addBatch(
+                RecordBatch.CURRENT_MAGIC_VALUE,
                 compression,
                 timestampType,
                 baseOffset,
@@ -126,7 +134,8 @@ public class BatchAwareMemoryRecordsBuilder {
                 false,
                 false,
                 RecordBatch.NO_PARTITION_LEADER_EPOCH,
-                RecordBatch.NO_TIMESTAMP);
+                RecordBatch.NO_TIMESTAMP
+        );
     }
 
     /**
@@ -137,7 +146,8 @@ public class BatchAwareMemoryRecordsBuilder {
     public @NonNull BatchAwareMemoryRecordsBuilder addBatchLike(RecordBatch templateBatch) {
         TimestampType timestampType = templateBatch.timestampType();
         long logAppendTime = timestampType == TimestampType.LOG_APPEND_TIME ? templateBatch.maxTimestamp() : RecordBatch.NO_TIMESTAMP;
-        return addBatch(templateBatch.magic(),
+        return addBatch(
+                templateBatch.magic(),
                 Compression.of(templateBatch.compressionType()).build(),
                 timestampType,
                 templateBatch.baseOffset(),
@@ -148,7 +158,8 @@ public class BatchAwareMemoryRecordsBuilder {
                 templateBatch.isTransactional(),
                 templateBatch.isControlBatch(),
                 templateBatch.partitionLeaderEpoch(),
-                templateBatch.deleteHorizonMs().orElse(RecordBatch.NO_TIMESTAMP));
+                templateBatch.deleteHorizonMs().orElse(RecordBatch.NO_TIMESTAMP)
+        );
     }
 
     /**
@@ -157,7 +168,8 @@ public class BatchAwareMemoryRecordsBuilder {
      * @param batch The batch to write to the buffer
      * @return this builder
      */
-    public @NonNull BatchAwareMemoryRecordsBuilder writeBatch(@NonNull MutableRecordBatch batch) {
+    public @NonNull BatchAwareMemoryRecordsBuilder writeBatch(@NonNull
+    MutableRecordBatch batch) {
         checkIfClosed();
         if (haveBatch()) {
             appendCurrentBatch();
@@ -239,26 +251,32 @@ public class BatchAwareMemoryRecordsBuilder {
      * @param headers The record headers if there are any
      * @return This builder
      */
-    public @NonNull BatchAwareMemoryRecordsBuilder appendWithOffset(long offset,
-                                                                    long timestamp,
-                                                                    ByteBuffer key,
-                                                                    ByteBuffer value,
-                                                                    Header[] headers) {
+    public @NonNull BatchAwareMemoryRecordsBuilder appendWithOffset(
+            long offset,
+            long timestamp,
+            ByteBuffer key,
+            ByteBuffer value,
+            Header[] headers
+    ) {
         checkIfClosed();
         checkHasBatch();
         builder.appendWithOffset(offset, timestamp, key, value, headers);
         return this;
     }
 
-    public @NonNull BatchAwareMemoryRecordsBuilder appendControlRecordWithOffset(long offset, @NonNull SimpleRecord record) {
+    public @NonNull BatchAwareMemoryRecordsBuilder appendControlRecordWithOffset(long offset, @NonNull
+    SimpleRecord record) {
         checkIfClosed();
         checkHasBatch();
         builder.appendControlRecordWithOffset(offset, record);
         return this;
     }
 
-    public @NonNull BatchAwareMemoryRecordsBuilder appendEndTxnMarker(long timestamp,
-                                                                      @NonNull EndTransactionMarker marker) {
+    public @NonNull BatchAwareMemoryRecordsBuilder appendEndTxnMarker(
+            long timestamp,
+            @NonNull
+            EndTransactionMarker marker
+    ) {
         checkIfClosed();
         checkHasBatch();
         builder.appendEndTxnMarker(timestamp, marker);
@@ -277,8 +295,7 @@ public class BatchAwareMemoryRecordsBuilder {
         ByteBuffer recordsBuff;
         if (closed) {
             recordsBuff = this.buffer.buffer();
-        }
-        else {
+        } else {
             closed = true;
             maybeAppendCurrentBatch();
             ByteBuffer buf = this.buffer.buffer();

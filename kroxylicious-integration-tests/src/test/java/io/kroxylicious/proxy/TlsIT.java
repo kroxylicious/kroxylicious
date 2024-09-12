@@ -72,9 +72,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TlsIT extends BaseIT {
     private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
     private static final ClusterNetworkAddressConfigProviderDefinition CONFIG_PROVIDER_DEFINITION = new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-            PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-            .withConfig("bootstrapAddress", PROXY_ADDRESS)
-            .build();
+            PortPerBrokerClusterNetworkAddressConfigProvider.class.getName()
+    )
+     .withConfig("bootstrapAddress", PROXY_ADDRESS)
+     .build();
     private static final String TOPIC = "my-test-topic";
     @TempDir
     private Path certsDirectory;
@@ -87,12 +88,16 @@ class TlsIT extends BaseIT {
         this.downstreamCertificateGenerator = new KeytoolCertificateGenerator();
         this.downstreamCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "localhost", "KI", "RedHat", null, null, "US");
         this.clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
-        this.downstreamCertificateGenerator.generateTrustStore(this.downstreamCertificateGenerator.getCertFilePath(), "client",
-                clientTrustStore.toAbsolutePath().toString());
+        this.downstreamCertificateGenerator.generateTrustStore(
+                this.downstreamCertificateGenerator.getCertFilePath(),
+                "client",
+                clientTrustStore.toAbsolutePath().toString()
+        );
     }
 
     @Test
-    void upstreamUsesSelfSignedTls_TrustStore(@Tls KafkaCluster cluster) {
+    void upstreamUsesSelfSignedTls_TrustStore(@Tls
+    KafkaCluster cluster) {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -100,18 +105,21 @@ class TlsIT extends BaseIT {
         assertThat(brokerTruststorePassword).isNotEmpty();
 
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
-                        .withNewTrustStoreTrust()
-                        .withStoreFile(brokerTruststore)
-                        .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
-                        .endTrustStoreTrust()
-                        .endTls()
-                        .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
-                        .build());
+                                                .addToVirtualClusters(
+                                                        "demo",
+                                                        new VirtualClusterBuilder()
+                                                                                   .withNewTargetCluster()
+                                                                                   .withBootstrapServers(bootstrapServers)
+                                                                                   .withNewTls()
+                                                                                   .withNewTrustStoreTrust()
+                                                                                   .withStoreFile(brokerTruststore)
+                                                                                   .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
+                                                                                   .endTrustStoreTrust()
+                                                                                   .endTls()
+                                                                                   .endTargetCluster()
+                                                                                   .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                                                                   .build()
+                                                );
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
@@ -121,7 +129,8 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void upstreamConnectionValidatesHostnames(@Tls KafkaCluster cluster) {
+    void upstreamConnectionValidatesHostnames(@Tls
+    KafkaCluster cluster) {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -129,33 +138,39 @@ class TlsIT extends BaseIT {
         assertThat(brokerTruststorePassword).isNotEmpty();
 
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers.replace("localhost", "127.0.0.1"))
-                        // 127.0.0.1 is not included as Subject Alternate Name (SAN) so hostname validation will fail.
-                        .withNewTls()
-                        .withNewTrustStoreTrust()
-                        .withStoreFile(brokerTruststore)
-                        .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
-                        .endTrustStoreTrust()
-                        .endTls()
-                        .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
-                        .build());
+                                                .addToVirtualClusters(
+                                                        "demo",
+                                                        new VirtualClusterBuilder()
+                                                                                   .withNewTargetCluster()
+                                                                                   .withBootstrapServers(bootstrapServers.replace("localhost", "127.0.0.1"))
+                                                                                   // 127.0.0.1 is not included as Subject Alternate Name (SAN) so hostname validation will fail.
+                                                                                   .withNewTls()
+                                                                                   .withNewTrustStoreTrust()
+                                                                                   .withStoreFile(brokerTruststore)
+                                                                                   .withNewInlinePasswordStoreProvider(brokerTruststorePassword)
+                                                                                   .endTrustStoreTrust()
+                                                                                   .endTls()
+                                                                                   .endTargetCluster()
+                                                                                   .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                                                                   .build()
+                                                );
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
             assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(10_000)).clusterId())
-                    .failsWithin(Duration.ofSeconds(30))
-                    .withThrowableThat()
-                    .withCauseInstanceOf(TimeoutException.class)
-                    .havingCause()
-                    .withMessageStartingWith("Timed out waiting for a node assignment.");
+                                                                                                         .failsWithin(Duration.ofSeconds(30))
+                                                                                                         .withThrowableThat()
+                                                                                                         .withCauseInstanceOf(TimeoutException.class)
+                                                                                                         .havingCause()
+                                                                                                         .withMessageStartingWith(
+                                                                                                                 "Timed out waiting for a node assignment."
+                                                                                                         );
         }
     }
 
     @Test
-    void upstreamUsesSelfSignedTls_TrustX509(@Tls KafkaCluster cluster) throws Exception {
+    void upstreamUsesSelfSignedTls_TrustX509(@Tls
+    KafkaCluster cluster) throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -168,23 +183,26 @@ class TlsIT extends BaseIT {
         var trustAnchors = params.getTrustAnchors();
         var certificates = trustAnchors.stream().map(TrustAnchor::getTrustedCert).toList();
         assertThat(certificates).isNotNull()
-                .hasSizeGreaterThan(0);
+                                .hasSizeGreaterThan(0);
 
         var file = writeTrustToTemporaryFile(certificates);
 
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
-                        .withNewTrustStoreTrust()
-                        .withStoreFile(file.getAbsolutePath())
-                        .withStoreType("PEM")
-                        .endTrustStoreTrust()
-                        .endTls()
-                        .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
-                        .build());
+                                                .addToVirtualClusters(
+                                                        "demo",
+                                                        new VirtualClusterBuilder()
+                                                                                   .withNewTargetCluster()
+                                                                                   .withBootstrapServers(bootstrapServers)
+                                                                                   .withNewTls()
+                                                                                   .withNewTrustStoreTrust()
+                                                                                   .withStoreFile(file.getAbsolutePath())
+                                                                                   .withStoreType("PEM")
+                                                                                   .endTrustStoreTrust()
+                                                                                   .endTls()
+                                                                                   .endTargetCluster()
+                                                                                   .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                                                                   .build()
+                                                );
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
@@ -194,19 +212,23 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void upstreamUsesTlsInsecure(@Tls KafkaCluster cluster) {
+    void upstreamUsesTlsInsecure(@Tls
+    KafkaCluster cluster) {
         var bootstrapServers = cluster.getBootstrapServers();
 
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
-                        .withNewInsecureTlsTrust(true)
-                        .endTls()
-                        .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
-                        .build());
+                                                .addToVirtualClusters(
+                                                        "demo",
+                                                        new VirtualClusterBuilder()
+                                                                                   .withNewTargetCluster()
+                                                                                   .withBootstrapServers(bootstrapServers)
+                                                                                   .withNewTls()
+                                                                                   .withNewInsecureTlsTrust(true)
+                                                                                   .endTls()
+                                                                                   .endTargetCluster()
+                                                                                   .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                                                                   .build()
+                                                );
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
             // do some work to ensure connection is opened
@@ -223,13 +245,15 @@ class TlsIT extends BaseIT {
         var clientCert = new KeytoolCertificateGenerator();
         clientCert.generateSelfSignedCertificateEntry("clientTest@kroxylicious.io", "client", "Dev", "Kroxylicious.io", null, null, "US");
 
-        try (var cluster = KafkaClusterFactory.create(KafkaClusterConfig.builder()
-                .brokerKeytoolCertificateGenerator(brokerCert)
-                // note passing client generator causes ssl.client.auth to be set 'required'
-                .clientKeytoolCertificateGenerator(clientCert)
-                .kraftMode(true)
-                .securityProtocol("SSL")
-                .build())) {
+        try (var cluster = KafkaClusterFactory.create(
+                KafkaClusterConfig.builder()
+                                  .brokerKeytoolCertificateGenerator(brokerCert)
+                                  // note passing client generator causes ssl.client.auth to be set 'required'
+                                  .clientKeytoolCertificateGenerator(clientCert)
+                                  .kraftMode(true)
+                                  .securityProtocol("SSL")
+                                  .build()
+        )) {
             cluster.start();
 
             var config = new HashMap<>(cluster.getKafkaClientConfiguration());
@@ -250,22 +274,25 @@ class TlsIT extends BaseIT {
             assertUnsuccessfulDirectClientAuthConnectionWithoutClientCert(cluster);
 
             var builder = new ConfigurationBuilder()
-                    .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                            .withNewTargetCluster()
-                            .withBootstrapServers(cluster.getBootstrapServers())
-                            .withNewTls()
-                            .withNewTrustStoreTrust()
-                            .withStoreFile(trustStore)
-                            .withNewInlinePasswordStoreProvider(trustPassword)
-                            .endTrustStoreTrust()
-                            .withNewKeyStoreKey()
-                            .withStoreFile(keyStore)
-                            .withNewInlinePasswordStoreProvider(keyPassword)
-                            .endKeyStoreKey()
-                            .endTls()
-                            .endTargetCluster()
-                            .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
-                            .build());
+                                                    .addToVirtualClusters(
+                                                            "demo",
+                                                            new VirtualClusterBuilder()
+                                                                                       .withNewTargetCluster()
+                                                                                       .withBootstrapServers(cluster.getBootstrapServers())
+                                                                                       .withNewTls()
+                                                                                       .withNewTrustStoreTrust()
+                                                                                       .withStoreFile(trustStore)
+                                                                                       .withNewInlinePasswordStoreProvider(trustPassword)
+                                                                                       .endTrustStoreTrust()
+                                                                                       .withNewKeyStoreKey()
+                                                                                       .withStoreFile(keyStore)
+                                                                                       .withNewInlinePasswordStoreProvider(keyPassword)
+                                                                                       .endKeyStoreKey()
+                                                                                       .endTls()
+                                                                                       .endTargetCluster()
+                                                                                       .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                                                                       .build()
+                                                    );
 
             try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
                 // do some work to ensure connection is opened
@@ -293,13 +320,14 @@ class TlsIT extends BaseIT {
         try (var admin = CloseableAdmin.create(config)) {
             // Any operation to test that connection to cluster fails as we don't present a certificate.
             assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
-                    .hasRootCauseMessage("Received fatal alert: bad_certificate");
+                                                                                                   .hasRootCauseMessage("Received fatal alert: bad_certificate");
         }
     }
 
     @ParameterizedTest
     @ValueSource(classes = { InlinePassword.class, FilePassword.class })
-    void downstreamAndUpstreamTls(Class<? extends PasswordProvider> providerClazz, @Tls KafkaCluster cluster) {
+    void downstreamAndUpstreamTls(Class<? extends PasswordProvider> providerClazz, @Tls
+    KafkaCluster cluster) {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -312,30 +340,40 @@ class TlsIT extends BaseIT {
         var proxyKeystorePasswordProvider = constructPasswordProvider(providerClazz, proxyKeystorePassword);
 
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
-                        .withNewTargetCluster()
-                        .withBootstrapServers(bootstrapServers)
-                        .withNewTls()
-                        .withNewTrustStoreTrust()
-                        .withStoreFile(brokerTruststore)
-                        .withStorePasswordProvider(brokerTrustPasswordProvider)
-                        .endTrustStoreTrust()
-                        .endTls()
-                        .endTargetCluster()
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(proxyKeystoreLocation)
-                        .withStorePasswordProvider(proxyKeystorePasswordProvider)
-                        .endKeyStoreKey()
-                        .endTls()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
-                        .build());
+                                                .addToVirtualClusters(
+                                                        "demo",
+                                                        new VirtualClusterBuilder()
+                                                                                   .withNewTargetCluster()
+                                                                                   .withBootstrapServers(bootstrapServers)
+                                                                                   .withNewTls()
+                                                                                   .withNewTrustStoreTrust()
+                                                                                   .withStoreFile(brokerTruststore)
+                                                                                   .withStorePasswordProvider(brokerTrustPasswordProvider)
+                                                                                   .endTrustStoreTrust()
+                                                                                   .endTls()
+                                                                                   .endTargetCluster()
+                                                                                   .withNewTls()
+                                                                                   .withNewKeyStoreKey()
+                                                                                   .withStoreFile(proxyKeystoreLocation)
+                                                                                   .withStorePasswordProvider(proxyKeystorePasswordProvider)
+                                                                                   .endKeyStoreKey()
+                                                                                   .endTls()
+                                                                                   .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                                                                   .build()
+                                                );
 
         try (var tester = kroxyliciousTester(builder);
-                var admin = tester.admin("demo",
-                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword))) {
+                var admin = tester.admin(
+                        "demo",
+                        Map.of(
+                                CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG,
+                                clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG,
+                                proxyKeystorePassword
+                        )
+                )) {
             // do some work to ensure connection is opened
             final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
@@ -345,11 +383,9 @@ class TlsIT extends BaseIT {
     private PasswordProvider constructPasswordProvider(Class<? extends PasswordProvider> providerClazz, String password) {
         if (providerClazz.equals(InlinePassword.class)) {
             return new InlinePassword(password);
-        }
-        else if (providerClazz.equals(FilePassword.class)) {
+        } else if (providerClazz.equals(FilePassword.class)) {
             return new FilePassword(writePasswordToFile(password));
-        }
-        else {
+        } else {
             throw new IllegalArgumentException("Unexpected provider class: " + providerClazz);
         }
 

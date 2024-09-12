@@ -29,8 +29,12 @@ public interface DecryptionManager {
      */
     @NonNull
     CompletionStage<MemoryRecords> decrypt(
-                                           @NonNull String topicName,
-                                           int partition,
-                                           @NonNull MemoryRecords records,
-                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator);
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            MemoryRecords records,
+            @NonNull
+            IntFunction<ByteBufferOutputStream> bufferAllocator
+    );
 }

@@ -173,6 +173,7 @@ public class KrpcGenerator {
     }
 
     static final ObjectMapper JSON_SERDE = new ObjectMapper();
+
     static {
         JSON_SERDE.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         JSON_SERDE.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
@@ -196,10 +197,20 @@ public class KrpcGenerator {
     private final String outputFilePattern;
     private final Charset outputEncoding = StandardCharsets.UTF_8;
 
-    @SuppressWarnings("java:S107") // Methods should not have too many parameters - ignored as use-case with builder seems reasonable.
-    private KrpcGenerator(Logger logger, GeneratorMode mode, File messageSpecDir, String messageSpecFilter, File templateDir, List<String> templateNames,
-                          String outputPackage, File outputDir,
-                          String outputFilePattern) {
+    @SuppressWarnings(
+        "java:S107"
+    ) // Methods should not have too many parameters - ignored as use-case with builder seems reasonable.
+    private KrpcGenerator(
+            Logger logger,
+            GeneratorMode mode,
+            File messageSpecDir,
+            String messageSpecFilter,
+            File templateDir,
+            List<String> templateNames,
+            String outputPackage,
+            File outputDir,
+            String outputFilePattern
+    ) {
         this.logger = logger != null ? logger : System.getLogger(KrpcGenerator.class.getName());
         this.mode = mode;
         this.messageSpecDir = messageSpecDir != null ? messageSpecDir : new File(".");
@@ -246,8 +257,7 @@ public class KrpcGenerator {
             for (MessageSpec messageSpec : messageSpecs) {
                 renderSingle(cfg, messageSpec);
             }
-        }
-        else {
+        } else {
             renderMulti(cfg, messageSpecs);
         }
 
@@ -272,8 +282,11 @@ public class KrpcGenerator {
                 try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
                     logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", messageSpec.name(), templateName, outputFile);
                     Map<String, Object> dataModel = Map.of(
-                            "structRegistry", structRegistry,
-                            "messageSpec", messageSpec);
+                            "structRegistry",
+                            structRegistry,
+                            "messageSpec",
+                            messageSpec
+                    );
                     template.process(dataModel, writer);
                 }
             }
@@ -309,9 +322,13 @@ public class KrpcGenerator {
                 try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
                     Map<String, Object> dataModel = Map.of(
                             // "structRegistry", structRegistry,
-                            "outputPackage", outputPackage,
-                            "messageSpecs", messageSpecs,
-                            "retrieveApiKey", new RetrieveApiKey());
+                            "outputPackage",
+                            outputPackage,
+                            "messageSpecs",
+                            messageSpecs,
+                            "retrieveApiKey",
+                            new RetrieveApiKey()
+                    );
                     template.process(dataModel, writer);
                 }
             }
@@ -329,7 +346,7 @@ public class KrpcGenerator {
         logger.log(Level.DEBUG, "{0}", Arrays.toString(messageSpecDir.listFiles()));
         Set<Path> paths;
         try (DirectoryStream<Path> directoryStream = Files
-                .newDirectoryStream(messageSpecDir.toPath(), messageSpecFilter)) {
+                                                          .newDirectoryStream(messageSpecDir.toPath(), messageSpecFilter)) {
             Spliterator<Path> spliterator = directoryStream.spliterator();
             paths = StreamSupport.stream(spliterator, false).collect(Collectors.toSet());
         }
@@ -338,19 +355,19 @@ public class KrpcGenerator {
         }
 
         return paths.stream()
-                .map(inputPath -> {
-                    try {
-                        logger.log(Level.DEBUG, "Parsing message spec {0}", inputPath);
-                        MessageSpec messageSpec = JSON_SERDE.readValue(inputPath.toFile(), MessageSpec.class);
-                        logger.log(Level.DEBUG, "Loaded {0} from {1}", messageSpec.name(), inputPath);
-                        return messageSpec;
-                    }
-                    catch (Exception e) {
-                        throw new RuntimeException("Exception while processing " + inputPath.toString(), e);
-                    }
-                })
-                .sorted((m1, m2) -> m1.name().compareTo(m2.name()))
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+                    .map(inputPath -> {
+                        try {
+                            logger.log(Level.DEBUG, "Parsing message spec {0}", inputPath);
+                            MessageSpec messageSpec = JSON_SERDE.readValue(inputPath.toFile(), MessageSpec.class);
+                            logger.log(Level.DEBUG, "Loaded {0} from {1}", messageSpec.name(), inputPath);
+                            return messageSpec;
+                        }
+                        catch (Exception e) {
+                            throw new RuntimeException("Exception while processing " + inputPath.toString(), e);
+                        }
+                    })
+                    .sorted((m1, m2) -> m1.name().compareTo(m2.name()))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private Configuration buildFmConfiguration() throws Exception {

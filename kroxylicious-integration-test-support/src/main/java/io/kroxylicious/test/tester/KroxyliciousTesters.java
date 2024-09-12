@@ -49,8 +49,10 @@ public class KroxyliciousTesters {
      * @return KroxyliciousTester
      */
     public static KroxyliciousTester kroxyliciousTester(ConfigurationBuilder configurationBuilder, Function<Configuration, AutoCloseable> kroxyliciousFactory) {
-        return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder).setKroxyliciousFactory(kroxyliciousFactory)
-                .setClientFactory((clusterName, defaultClientConfiguration) -> new KroxyliciousClients(defaultClientConfiguration)).createDefaultKroxyliciousTester();
+        return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
+                                              .setKroxyliciousFactory(kroxyliciousFactory)
+                                              .setClientFactory((clusterName, defaultClientConfiguration) -> new KroxyliciousClients(defaultClientConfiguration))
+                                              .createDefaultKroxyliciousTester();
     }
 
     /**
@@ -61,8 +63,13 @@ public class KroxyliciousTesters {
      * @return KroxyliciousTester
      */
     public static MockServerKroxyliciousTester mockKafkaKroxyliciousTester(Function<String, ConfigurationBuilder> configurationForMockBootstrap) {
-        return new MockServerKroxyliciousTester(MockServer.startOnRandomPort(), configurationForMockBootstrap, DefaultKroxyliciousTester::spawnProxy,
-                (clusterName, defaultClientConfiguration) -> new KroxyliciousClients(defaultClientConfiguration), null);
+        return new MockServerKroxyliciousTester(
+                MockServer.startOnRandomPort(),
+                configurationForMockBootstrap,
+                DefaultKroxyliciousTester::spawnProxy,
+                (clusterName, defaultClientConfiguration) -> new KroxyliciousClients(defaultClientConfiguration),
+                null
+        );
     }
 
 }

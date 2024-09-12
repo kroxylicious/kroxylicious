@@ -79,8 +79,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             if (log().isTraceEnabled()) {
                 log().trace("{}: header: {}", ctx, header);
             }
-        }
-        else {
+        } else {
             accessor = null;
         }
         final RequestFrame frame;
@@ -94,8 +93,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             if (log().isTraceEnabled()) {
                 log().trace("{}: frame {}", ctx, frame);
             }
-        }
-        else {
+        } else {
             boolean hasResponse = true;
             if (apiKey == ApiKeys.PRODUCE) {
                 short acks = readAcks(in, startOfMessage, apiKey.id, apiVersion);
@@ -143,11 +141,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             int transactionIdLength;
             if (apiVersion < 9) { // Last non-flexible version
                 transactionIdLength = in.readShort();
-            }
-            else if (apiVersion <= 11) { // Flexible versions
+            } else if (apiVersion <= 11) { // Flexible versions
                 transactionIdLength = ByteBufAccessorImpl.readUnsignedVarint(in);
-            }
-            else {
+            } else {
                 throw new AssertionError("Unsupported Produce apiVersion: " + apiVersion);
             }
             incrementReaderIndex(in, transactionIdLength);
@@ -156,17 +152,20 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         return acks;
     }
 
-    private OpaqueRequestFrame opaqueFrame(ByteBuf in,
-                                           int correlationId,
-                                           boolean decodeResponse,
-                                           int length,
-                                           boolean hasResponse) {
+    private OpaqueRequestFrame opaqueFrame(
+            ByteBuf in,
+            int correlationId,
+            boolean decodeResponse,
+            int length,
+            boolean hasResponse
+    ) {
         return new OpaqueRequestFrame(
                 in.readSlice(length).retain(),
                 correlationId,
                 decodeResponse,
                 length,
-                hasResponse);
+                hasResponse
+        );
     }
 
     private RequestHeaderData readHeader(short headerVersion, Readable accessor) {

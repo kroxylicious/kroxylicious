@@ -87,10 +87,10 @@ class RecordEncryptionFilterIT {
             consumer.subscribe(List.of(topic.name()));
             var records = consumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator())
-                    .toIterable()
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(HELLO_WORLD);
+                                          .toIterable()
+                                          .singleElement()
+                                          .extracting(ConsumerRecord::value)
+                                          .isEqualTo(HELLO_WORLD);
         }
     }
 
@@ -105,9 +105,16 @@ class RecordEncryptionFilterIT {
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString()));
-                var consumer = tester.consumer(Map.of(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
-                        ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString(),
-                        ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed"))) {
+                var consumer = tester.consumer(
+                        Map.of(
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                                "earliest",
+                                ConsumerConfig.GROUP_ID_CONFIG,
+                                UUID.randomUUID().toString(),
+                                ConsumerConfig.ISOLATION_LEVEL_CONFIG,
+                                "read_committed"
+                        )
+                )) {
             producer.initTransactions();
             withTransaction(producer, transactionProducer -> {
                 producer.send(new ProducerRecord<>(topic.name(), HELLO_WORLD)).get(5, TimeUnit.SECONDS);
@@ -115,10 +122,10 @@ class RecordEncryptionFilterIT {
             consumer.subscribe(List.of(topic.name()));
             var records = consumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator())
-                    .toIterable()
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(HELLO_WORLD);
+                                          .toIterable()
+                                          .singleElement()
+                                          .extracting(ConsumerRecord::value)
+                                          .isEqualTo(HELLO_WORLD);
         }
     }
 
@@ -134,9 +141,16 @@ class RecordEncryptionFilterIT {
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString()));
-                var consumer = tester.consumer(Map.of(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
-                        ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString(),
-                        ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed"))) {
+                var consumer = tester.consumer(
+                        Map.of(
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                                "earliest",
+                                ConsumerConfig.GROUP_ID_CONFIG,
+                                UUID.randomUUID().toString(),
+                                ConsumerConfig.ISOLATION_LEVEL_CONFIG,
+                                "read_committed"
+                        )
+                )) {
             producer.initTransactions();
             // send to the same partition to demonstrate a message appended to the same partition after the abort is made available
             String key = "key";
@@ -151,10 +165,10 @@ class RecordEncryptionFilterIT {
             consumer.subscribe(List.of(topic.name()));
             var records = consumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator())
-                    .toIterable()
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(HELLO_WORLD);
+                                          .toIterable()
+                                          .singleElement()
+                                          .extracting(ConsumerRecord::value)
+                                          .isEqualTo(HELLO_WORLD);
         }
     }
 
@@ -170,9 +184,16 @@ class RecordEncryptionFilterIT {
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString()));
-                var consumer = tester.consumer(Map.of(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
-                        ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString(),
-                        ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed"))) {
+                var consumer = tester.consumer(
+                        Map.of(
+                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                                "earliest",
+                                ConsumerConfig.GROUP_ID_CONFIG,
+                                UUID.randomUUID().toString(),
+                                ConsumerConfig.ISOLATION_LEVEL_CONFIG,
+                                "read_committed"
+                        )
+                )) {
             producer.initTransactions();
 
             withTransaction(producer, transactionProducer -> {
@@ -182,7 +203,7 @@ class RecordEncryptionFilterIT {
             consumer.subscribe(List.of(topic.name()));
             var records = consumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator())
-                    .isExhausted();
+                                          .isExhausted();
         }
     }
 
@@ -220,32 +241,43 @@ class RecordEncryptionFilterIT {
             consumer.subscribe(List.of(topic.name()));
             var records = consumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator())
-                    .toIterable()
-                    .hasSize(5)
-                    .extracting(ConsumerRecord::value)
-                    .containsExactly(HELLO_WORLD + 1, HELLO_WORLD + 2, HELLO_WORLD + 3, HELLO_WORLD + 4, HELLO_WORLD + 5);
+                                          .toIterable()
+                                          .hasSize(5)
+                                          .extracting(ConsumerRecord::value)
+                                          .containsExactly(HELLO_WORLD + 1, HELLO_WORLD + 2, HELLO_WORLD + 3, HELLO_WORLD + 4, HELLO_WORLD + 5);
         }
     }
 
     // EDEKs can be configured with a time-based expiry. This gives us the nice property that after a KEK is rotated
     // in the external KMS a new EDEK will be generated using the new key.
     @TestTemplate
-    void edekExpiry(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade,
-                    @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "rotation-test") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") KafkaConsumer<byte[], byte[]> directConsumer)
-            throws Exception {
+    void edekExpiry(
+            KafkaCluster cluster,
+            Topic topic,
+            TestKmsFacade<?, ?, ?> testKmsFacade,
+            @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "rotation-test")
+            @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest")
+            KafkaConsumer<byte[], byte[]> directConsumer
+    )
+      throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
         // 1 second is the current minimum configurable value
         Duration edekExpiry = Duration.ofSeconds(1);
-        builder.addToFilters(new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
-                .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
-                .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
-                .withConfig("experimental", Map.of("encryptionDekRefreshAfterWriteSeconds", edekExpiry.toSeconds()))
-                .withConfig("selector", TemplateKekSelector.class.getSimpleName())
-                .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
-                .build());
+        builder.addToFilters(
+                new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
+                                                                                   .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
+                                                                                   .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
+                                                                                   .withConfig(
+                                                                                           "experimental",
+                                                                                           Map.of("encryptionDekRefreshAfterWriteSeconds", edekExpiry.toSeconds())
+                                                                                   )
+                                                                                   .withConfig("selector", TemplateKekSelector.class.getSimpleName())
+                                                                                   .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
+                                                                                   .build()
+        );
 
         var messageBeforeKeyRotation = "hello world, old key";
         var messageAfterKeyRotation = "hello world, new key";
@@ -264,9 +296,9 @@ class RecordEncryptionFilterIT {
                 consumer.subscribe(List.of(topic.name()));
                 var records = consumer.poll(Duration.ofSeconds(2));
                 assertThat(records.iterator())
-                        .toIterable()
-                        .extracting(ConsumerRecord::value)
-                        .containsExactly(messageBeforeKeyRotation, messageAfterKeyRotation, messageAfterKeyRotation, messageAfterKeyRotation);
+                                              .toIterable()
+                                              .extracting(ConsumerRecord::value)
+                                              .containsExactly(messageBeforeKeyRotation, messageAfterKeyRotation, messageAfterKeyRotation, messageAfterKeyRotation);
             }
 
             assertMoreThanOneEdekUsed(topic, directConsumer);
@@ -278,7 +310,8 @@ class RecordEncryptionFilterIT {
         ConsumerRecords<byte[], byte[]> records = directConsumer.poll(Duration.ofSeconds(2));
         Set<BytesEdek> edeks = StreamSupport.stream(records.spliterator(), false).map(kafkaRecord -> {
             List<byte[]> encryptionVersions = StreamSupport.stream(kafkaRecord.headers().headers(EncryptionHeader.ENCRYPTION_HEADER_NAME).spliterator(), false)
-                    .map(Header::value).toList();
+                                                           .map(Header::value)
+                                                           .toList();
             assertThat(encryptionVersions).hasSize(1).singleElement(BYTE_ARRAY).hasSize(1);
             Encryption encryption = EncryptionResolver.ALL.fromSerializedId(encryptionVersions.getFirst()[0]);
             return encryption.wrapper().readSpecAndEdek(ByteBuffer.wrap(kafkaRecord.value()), BytesEdek.getSerde(), (cipherManager, o) -> o);
@@ -310,16 +343,16 @@ class RecordEncryptionFilterIT {
                 consumer.subscribe(List.of(topic.name()));
                 var records = consumer.poll(Duration.ofSeconds(2));
                 assertThat(records.iterator())
-                        .toIterable()
-                        .extracting(ConsumerRecord::value)
-                        .containsExactly(messageBeforeKeyRotation, messageAfterKeyRotation);
+                                              .toIterable()
+                                              .extracting(ConsumerRecord::value)
+                                              .containsExactly(messageBeforeKeyRotation, messageAfterKeyRotation);
             }
         }
     }
 
     @TestTemplate
     void topicRecordsAreUnreadableOnServer(KafkaCluster cluster, Topic topic, KafkaConsumer<String, String> directConsumer, TestKmsFacade<?, ?, ?> testKmsFacade)
-            throws Exception {
+                                                                                                                                                                  throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -337,16 +370,16 @@ class RecordEncryptionFilterIT {
             directConsumer.seekToBeginning(tps);
             var records = directConsumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator())
-                    .toIterable()
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isNotEqualTo(message);
+                                          .toIterable()
+                                          .singleElement()
+                                          .extracting(ConsumerRecord::value)
+                                          .isNotEqualTo(message);
         }
     }
 
     @TestTemplate
     void unencryptedRecordsConsumable(KafkaCluster cluster, KafkaProducer<String, String> directProducer, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade)
-            throws Exception {
+                                                                                                                                                             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -366,17 +399,21 @@ class RecordEncryptionFilterIT {
             consumer.subscribe(List.of(topic.name()));
             var records = consumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator()).toIterable()
-                    .hasSize(2)
-                    .map(ConsumerRecord::value)
-                    .contains(HELLO_SECRET, HELLO_WORLD);
+                                          .hasSize(2)
+                                          .map(ConsumerRecord::value)
+                                          .contains(HELLO_SECRET, HELLO_WORLD);
         }
     }
 
     @TestTemplate
-    void nullValueRecordProducedAndConsumedSuccessfully(KafkaCluster cluster,
-                                                        @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "test") Consumer<String, String> directConsumer,
-                                                        Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade)
-            throws Exception {
+    void nullValueRecordProducedAndConsumedSuccessfully(
+            KafkaCluster cluster,
+            @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "test")
+            Consumer<String, String> directConsumer,
+            Topic topic,
+            TestKmsFacade<?, ?, ?> testKmsFacade
+    )
+      throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -400,15 +437,15 @@ class RecordEncryptionFilterIT {
         consumer.subscribe(List.of(topic));
         var records = consumer.poll(Duration.ofSeconds(2));
         assertThat(records.iterator())
-                .toIterable()
-                .singleElement()
-                .extracting(ConsumerRecord::value)
-                .isNull();
+                                      .toIterable()
+                                      .singleElement()
+                                      .extracting(ConsumerRecord::value)
+                                      .isNull();
     }
 
     @TestTemplate
     void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade)
-            throws Exception {
+                                                                                                                                                                throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(encryptedTopic.name());
 
@@ -426,9 +463,9 @@ class RecordEncryptionFilterIT {
             consumer.subscribe(List.of(encryptedTopic.name(), plainTopic.name()));
             var records = consumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator())
-                    .toIterable()
-                    .extracting(ConsumerRecord::value)
-                    .contains(HELLO_SECRET, HELLO_WORLD);
+                                          .toIterable()
+                                          .extracting(ConsumerRecord::value)
+                                          .contains(HELLO_SECRET, HELLO_WORLD);
         }
     }
 
@@ -442,11 +479,15 @@ class RecordEncryptionFilterIT {
      */
     @TestTemplate
     @SuppressWarnings("java:S2925")
-    void offsetFidelity(@BrokerConfig(name = "log.cleaner.backoff.ms", value = "50") KafkaCluster cluster,
-                        @TopicConfig(name = "segment.ms", value = "125") @TopicConfig(name = "cleanup.policy", value = "compact") Topic compactedTopic,
-                        Consumer<String, String> directConsumer,
-                        TestKmsFacade<?, ?, ?> testKmsFacade)
-            throws Exception {
+    void offsetFidelity(
+            @BrokerConfig(name = "log.cleaner.backoff.ms", value = "50")
+            KafkaCluster cluster,
+            @TopicConfig(name = "segment.ms", value = "125") @TopicConfig(name = "cleanup.policy", value = "compact")
+            Topic compactedTopic,
+            Consumer<String, String> directConsumer,
+            TestKmsFacade<?, ?, ?> testKmsFacade
+    )
+      throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(compactedTopic.name());
 
@@ -471,9 +512,12 @@ class RecordEncryptionFilterIT {
             // Wait until the topic compaction has coalesced the two b records into one.
             // This will result in a gap in the offsets.
             var directlyReadRecords = await().atMost(Duration.ofSeconds(30))
-                    .pollDelay(Duration.ofSeconds(1))
-                    .until(() -> consumeAll(compactedTopic.name(), 0, directConsumer).map(RecordEncryptionFilterIT::stringifyRecordKeyOffset).toList(),
-                            contains("a:0", "b:2", "c:3"));
+                                             .pollDelay(Duration.ofSeconds(1))
+                                             .until(
+                                                     () -> consumeAll(compactedTopic.name(), 0, directConsumer).map(RecordEncryptionFilterIT::stringifyRecordKeyOffset)
+                                                                                                               .toList(),
+                                                     contains("a:0", "b:2", "c:3")
+                                             );
 
             var proxyReadRecords = consumeAll(compactedTopic.name(), 0, proxyConsumer).map(RecordEncryptionFilterIT::stringifyRecordKeyOffset).toList();
 
@@ -525,10 +569,10 @@ class RecordEncryptionFilterIT {
             consumer.subscribe(List.of(topic.name()));
             var records = consumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator())
-                    .toIterable()
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(HELLO_WORLD);
+                                          .toIterable()
+                                          .singleElement()
+                                          .extracting(ConsumerRecord::value)
+                                          .isEqualTo(HELLO_WORLD);
 
             // Send two batches to the same topic
             var message = "hello world #2";
@@ -537,25 +581,26 @@ class RecordEncryptionFilterIT {
             consumer.subscribe(List.of(topic.name()));
             records = consumer.poll(Duration.ofSeconds(2));
             assertThat(records.iterator())
-                    .toIterable()
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(message);
+                                          .toIterable()
+                                          .singleElement()
+                                          .extracting(ConsumerRecord::value)
+                                          .isEqualTo(message);
         }
 
         assertThat(testKmsFacade.getKms())
-                .asInstanceOf(InstanceOfAssertFactories.type(InMemoryKms.class))
-                .extracting(InMemoryKms::numDeksGenerated).isEqualTo(1);
+                                          .asInstanceOf(InstanceOfAssertFactories.type(InMemoryKms.class))
+                                          .extracting(InMemoryKms::numDeksGenerated)
+                                          .isEqualTo(1);
 
     }
 
     private FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
         return new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
-                .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
-                .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
-                .withConfig("selector", TemplateKekSelector.class.getSimpleName())
-                .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
-                .build();
+                                                                                  .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
+                                                                                  .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
+                                                                                  .withConfig("selector", TemplateKekSelector.class.getSimpleName())
+                                                                                  .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
+                                                                                  .build();
     }
 
 }

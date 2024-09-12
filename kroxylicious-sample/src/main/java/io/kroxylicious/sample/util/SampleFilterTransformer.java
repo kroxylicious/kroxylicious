@@ -62,9 +62,13 @@ public class SampleFilterTransformer {
 
             for (RecordBatch batch : records.batches()) {
                 for (Record batchRecord : batch) {
-                    newRecords.appendWithOffset(batchRecord.offset(), batchRecord.timestamp(), batchRecord.key(),
+                    newRecords.appendWithOffset(
+                            batchRecord.offset(),
+                            batchRecord.timestamp(),
+                            batchRecord.key(),
                             transformRecord(batchRecord.value(), findValue, replacementValue),
-                            batchRecord.headers());
+                            batchRecord.headers()
+                    );
                 }
             }
             return newRecords.build();
@@ -88,9 +92,20 @@ public class SampleFilterTransformer {
      * functionality in io.kroxylicious.proxy.internal, but we aren't supposed to import from there.
      */
     private static MemoryRecordsBuilder createMemoryRecordsBuilder(ByteBufferOutputStream stream, RecordBatch firstBatch) {
-        return new MemoryRecordsBuilder(stream, firstBatch.magic(), Compression.of(firstBatch.compressionType()).build(), firstBatch.timestampType(),
+        return new MemoryRecordsBuilder(
+                stream,
+                firstBatch.magic(),
+                Compression.of(firstBatch.compressionType()).build(),
+                firstBatch.timestampType(),
                 firstBatch.baseOffset(),
-                firstBatch.maxTimestamp(), firstBatch.producerId(), firstBatch.producerEpoch(), firstBatch.baseSequence(), firstBatch.isTransactional(),
-                firstBatch.isControlBatch(), firstBatch.partitionLeaderEpoch(), stream.remaining());
+                firstBatch.maxTimestamp(),
+                firstBatch.producerId(),
+                firstBatch.producerEpoch(),
+                firstBatch.baseSequence(),
+                firstBatch.isTransactional(),
+                firstBatch.isControlBatch(),
+                firstBatch.partitionLeaderEpoch(),
+                stream.remaining()
+        );
     }
 }

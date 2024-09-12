@@ -98,15 +98,13 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
                 if (f.getName().endsWith(".yaml")) {
                     execResults.put(f, Exec.exec(null, namespacedCommand(subcommand, "-f", f.getAbsolutePath()), Duration.ZERO, false, false, null));
                 }
-            }
-            else if (f.isDirectory()) {
+            } else if (f.isDirectory()) {
                 File[] children = f.listFiles();
                 if (children != null) {
                     Arrays.sort(children, cmp);
                     execResults.putAll(execRecursive(subcommand, children, cmp));
                 }
-            }
-            else if (!f.exists()) {
+            } else if (!f.exists()) {
                 throw new RuntimeException(new NoSuchFileException(f.getPath()));
             }
         }

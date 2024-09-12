@@ -9,7 +9,7 @@
   request:
     payload:
       groupId: mygroup
-      members: []
+      members: [ ]
     diff:
       - op: replace
         path: "/groupId"

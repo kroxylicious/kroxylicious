@@ -17,9 +17,9 @@ There are three steps to using the filter:
 3. Configuring the filter within Kroxylicious.
 
 The filter integrates with a Key Management Service (KMS), which has ultimate responsibility for the safe storage of sensitive key material.
-The filter relies on a KMS implementation. 
-Currently, Kroxylicious integrates with either HashiCorp Vault or AWS Key Management Service. 
-You can provide implementations for your specific KMS systems. 
+The filter relies on a KMS implementation.
+Currently, Kroxylicious integrates with either HashiCorp Vault or AWS Key Management Service.
+You can provide implementations for your specific KMS systems.
 Additional KMS support will be added based on demand.
 
 //overview of the record encryption process

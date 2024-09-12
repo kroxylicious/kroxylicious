@@ -5,7 +5,6 @@ in a Kubernetes environment.
 
 The instructions for running the examples are given below.
 
-
 # Example Catalogue
 
 ## Examples demonstrating filter capabilities
@@ -17,11 +16,11 @@ The instructions for running the examples are given below.
 
 ## Examples demonstrating network-topologies
 
-| example                                                                   | showcases                                                                              |
-|---------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
-| [portperbroker_plain](network-topologies/portperbroker_plain/README.md)   | kroxylicious+strimzi using plain connections upstream/downstream.                      |
+| example                                                                                     | showcases                                                                              |
+|---------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| [portperbroker_plain](network-topologies/portperbroker_plain/README.md)                     | kroxylicious+strimzi using plain connections upstream/downstream.                      |
 | [rangeawareportperbroker_plain](network-topologies/rangeawareportperbroker_plain/README.md) | kroxylicious+strimzi with node pools                                                   |
-| [snirouting_tls](network-topologies/snirouting_tls/README.md)             | kroxylicious+strimzi using TLS upstream/downstream connections with SNI based routing. |
+| [snirouting_tls](network-topologies/snirouting_tls/README.md)                               | kroxylicious+strimzi using TLS upstream/downstream connections with SNI based routing. |
 
 ## Prerequisites to run the kubernetes-examples
 
@@ -32,11 +31,11 @@ The instructions for running the examples are given below.
 * [kaf](https://github.com/birdayz/kaf)
 * macOS users must have [`gsed`](https://formulae.brew.sh/formula/gnu-sed)
 
-If you want build your own kroxylicious images you'll additionally need: 
+If you want build your own kroxylicious images you'll additionally need:
 
-* [Docker engine](https://docs.docker.com/engine/install) or [podman](https://podman.io/docs/installation) 
-* Access to a container registry such as [quay.io](https://quay.io) or [docker.io](https://docker.io) with a public accessible repository within the registry named `kroxylicious`.
-
+* [Docker engine](https://docs.docker.com/engine/install) or [podman](https://podman.io/docs/installation)
+* Access to a container registry such as [quay.io](https://quay.io) or [docker.io](https://docker.io) with a public
+  accessible repository within the registry named `kroxylicious`.
 
 ## Running the kubernetes-examples
 
@@ -47,7 +46,9 @@ To run using pre-built Kroxylcious images:
 ```shell
 ./scripts/run-example.sh ${kubernetes_example_directory}
 ```
-where `${kubernetes_example_directory}` is replaced by a path to an example directory e.g. `./kubernetes-examples/network-topologies/portperbroker_plain`.
+
+where `${kubernetes_example_directory}` is replaced by a path to an example directory e.g.
+`./kubernetes-examples/network-topologies/portperbroker_plain`.
 
 To use an alternative image for Kroxylicious, set the `KROXYLICIOUS_IMAGE` environment variable.
 
@@ -56,6 +57,7 @@ KROXYLICIOUS_IMAGE=quay.io/kroxylicious/kroxylicious:x.y.z ./scripts/run-example
 ```
 
 This `run-example.sh` script does the following:
+
 1. starts minikube (if necessary)
 1. installs cert manager, vault and strimzi as necessary.
 1. installs a Kafka cluster using Strimzi into minikube

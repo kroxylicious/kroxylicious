@@ -58,7 +58,8 @@ class EagerMetadataLearnerTest {
         return Stream.of(
                 toArgs("ApiVersionsRequest", new ApiVersionsRequest(new ApiVersionsRequestData(), ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION)),
                 toArgs("SaslHandshakeRequest", new SaslHandshakeRequest(new SaslHandshakeRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)),
-                toArgs("SaslAuthenticateRequest", new SaslAuthenticateRequest(new SaslAuthenticateRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION)));
+                toArgs("SaslAuthenticateRequest", new SaslAuthenticateRequest(new SaslAuthenticateRequestData(), SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION))
+        );
     }
 
     @ParameterizedTest(name = "{0}")
@@ -74,8 +75,14 @@ class EagerMetadataLearnerTest {
                 toArgs("ProduceRequest replaced by MetadataRequest", new ProduceRequest(new ProduceRequestData(), ProduceRequestData.HIGHEST_SUPPORTED_VERSION)),
                 toArgs("MetadataRequest (highest supported)", new MetadataRequest(new MetadataRequestData(), MetadataRequestData.HIGHEST_SUPPORTED_VERSION)),
                 toArgs("MetadataRequest (lowest supported)", new MetadataRequest(new MetadataRequestData(), MetadataRequestData.LOWEST_SUPPORTED_VERSION)),
-                toArgs("MetadataRequest (payload fidelity)", new MetadataRequest(new MetadataRequestData().setTopics(List.of(new MetadataRequestTopic().setName("foo"))),
-                        MetadataRequestData.LOWEST_SUPPORTED_VERSION)));
+                toArgs(
+                        "MetadataRequest (payload fidelity)",
+                        new MetadataRequest(
+                                new MetadataRequestData().setTopics(List.of(new MetadataRequestTopic().setName("foo"))),
+                                MetadataRequestData.LOWEST_SUPPORTED_VERSION
+                        )
+                )
+        );
     }
 
     @ParameterizedTest(name = "{0}")
@@ -86,7 +93,7 @@ class EagerMetadataLearnerTest {
 
         when(context.requestFilterResultBuilder()).thenReturn(new RequestFilterResultBuilderImpl());
         when(context.sendRequest(isA(RequestHeaderData.class), isA(MetadataRequestData.class)))
-                .thenReturn(CompletableFuture.completedStage(metadataResponse));
+                                                                                               .thenReturn(CompletableFuture.completedStage(metadataResponse));
         var stage = learner.onRequest(apiKey, header, request, context);
         assertThat(stage).isCompleted();
         var result = stage.toCompletableFuture().get();
@@ -95,8 +102,7 @@ class EagerMetadataLearnerTest {
             // if caller's request is a metadata request, then the filter must forward it with fidelity
             verify(context).sendRequest(header, request);
             assertThat(result.message()).isEqualTo(metadataResponse);
-        }
-        else {
+        } else {
             verify(context).sendRequest(eq(new RequestHeaderData().setRequestApiVersion(MetadataRequestData.LOWEST_SUPPORTED_VERSION)), isA(MetadataRequestData.class));
         }
         assertThat(result.closeConnection()).isTrue();

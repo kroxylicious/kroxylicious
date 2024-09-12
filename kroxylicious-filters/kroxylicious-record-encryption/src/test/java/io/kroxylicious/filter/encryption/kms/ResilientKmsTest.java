@@ -217,8 +217,10 @@ class ResilientKmsTest {
     void testGenerateDekRetries() {
         // given
         Kms<Long, Long> kms = Mockito.mock(Kms.class);
-        when(kms.generateDekPair(1L)).thenReturn(failedFuture(new RuntimeException("BOOM! test exception")),
-                completedFuture(DEK_PAIR));
+        when(kms.generateDekPair(1L)).thenReturn(
+                failedFuture(new RuntimeException("BOOM! test exception")),
+                completedFuture(DEK_PAIR)
+        );
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
@@ -236,8 +238,10 @@ class ResilientKmsTest {
     void testGenerateDekDoesNotRetryUnknownKey() {
         // given
         Kms<Long, Long> kms = Mockito.mock(Kms.class);
-        when(kms.generateDekPair(1L)).thenReturn(failedFuture(new UnknownKeyException("unknown key")),
-                completedFuture(DEK_PAIR));
+        when(kms.generateDekPair(1L)).thenReturn(
+                failedFuture(new UnknownKeyException("unknown key")),
+                completedFuture(DEK_PAIR)
+        );
         BackoffStrategy strategy = Mockito.mock(BackoffStrategy.class);
         when(strategy.getDelay(anyInt())).thenReturn(Duration.ofMillis(DELAY));
         ScheduledExecutorService mockExecutor = getMockExecutor();
@@ -368,7 +372,7 @@ class ResilientKmsTest {
         when(kms.edekSerde()).thenReturn(mockSerde);
         BackoffStrategy backoffStrategy = mock(BackoffStrategy.class);
         assertThatThrownBy(() -> ResilientKms.wrap(kms, null, backoffStrategy, 3))
-                .isInstanceOf(NullPointerException.class);
+                                                                                  .isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -376,7 +380,7 @@ class ResilientKmsTest {
         BackoffStrategy backoffStrategy = mock(BackoffStrategy.class);
         ScheduledExecutorService executor = getMockExecutor();
         assertThatThrownBy(() -> ResilientKms.wrap(null, executor, backoffStrategy, 3))
-                .isInstanceOf(NullPointerException.class);
+                                                                                       .isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -386,7 +390,7 @@ class ResilientKmsTest {
         when(kms.edekSerde()).thenReturn(mockSerde);
         ScheduledExecutorService executor = getMockExecutor();
         assertThatThrownBy(() -> ResilientKms.wrap(kms, executor, null, 3))
-                .isInstanceOf(NullPointerException.class);
+                                                                           .isInstanceOf(NullPointerException.class);
     }
 
     @NonNull

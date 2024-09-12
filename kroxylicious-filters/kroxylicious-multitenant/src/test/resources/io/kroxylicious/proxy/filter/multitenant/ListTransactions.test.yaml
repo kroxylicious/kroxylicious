@@ -8,15 +8,15 @@
   version: 0
   response:
     payload:
-      unknownStateFilters: []
-      producerIdFilters: []
+      unknownStateFilters: [ ]
+      producerIdFilters: [ ]
       transactionStates:
-      - transactionalId: tenant1-12345
-        producerId: 0
-        transactionState: CompleteCommit
-      - transactionalId: tenant2-12345
-        producerId: 0
-        transactionState: CompleteCommit
+        - transactionalId: tenant1-12345
+          producerId: 0
+          transactionState: CompleteCommit
+        - transactionalId: tenant2-12345
+          producerId: 0
+          transactionState: CompleteCommit
       throttleTimeMs: 0
       errorCode: 0
     diff:

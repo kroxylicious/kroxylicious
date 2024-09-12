@@ -101,7 +101,7 @@ class FilterIT {
         var encoded = encode(name, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8)));
         var decoded = new String(decode(name, encoded).array(), StandardCharsets.UTF_8);
         assertThat(decoded)
-                .isEqualTo(PLAINTEXT);
+                           .isEqualTo(PLAINTEXT);
     }
 
     @Test
@@ -113,7 +113,7 @@ class FilterIT {
         var encoded = encode(name, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8)));
 
         assertThat(encoded)
-                .isNotEqualTo(encode(differentName, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))));
+                           .isNotEqualTo(encode(differentName, ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))));
     }
 
     static ByteBuffer encode(String topicName, ByteBuffer in) {
@@ -157,10 +157,10 @@ class FilterIT {
             consumer.close();
 
             assertThat(records.iterator())
-                    .toIterable()
-                    .hasSize(1)
-                    .map(ConsumerRecord::value)
-                    .containsExactly(PLAINTEXT);
+                                          .toIterable()
+                                          .hasSize(1)
+                                          .map(ConsumerRecord::value)
+                                          .containsExactly(PLAINTEXT);
 
         }
     }
@@ -180,10 +180,11 @@ class FilterIT {
     }
 
     @Test
-    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    @SuppressWarnings("java:S5841")
+    // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
+                                   .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
 
         var topicName = UUID.randomUUID().toString();
         try (var tester = kroxyliciousTester(config);
@@ -201,16 +202,21 @@ class FilterIT {
                 Arguments.of("synchronous with close", true, ForwardingStyle.SYNCHRONOUS),
                 Arguments.of("synchronous without close", false, ForwardingStyle.SYNCHRONOUS),
                 Arguments.of("asynchronous with close", true, ForwardingStyle.ASYNCHRONOUS_DELAYED),
-                Arguments.of("asynchronous without close", true, ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER));
+                Arguments.of("asynchronous without close", true, ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER)
+        );
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void requestFilterCanShortCircuitResponse(String name, boolean withCloseConnection, ForwardingStyle forwardingStyle) {
         var rejectFilter = REJECTING_CREATE_TOPIC_FILTER
-                .withConfig("withCloseConnection", withCloseConnection,
-                        "forwardingStyle", forwardingStyle)
-                .build();
+                                                        .withConfig(
+                                                                "withCloseConnection",
+                                                                withCloseConnection,
+                                                                "forwardingStyle",
+                                                                forwardingStyle
+                                                        )
+                                                        .build();
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(rejectFilter));
                 var requestClient = tester.simpleTestClient()) {
 
@@ -226,13 +232,15 @@ class FilterIT {
 
             var responseMessage = (CreateTopicsResponseData) response.payload().message();
             assertThat(responseMessage.topics())
-                    .hasSameSizeAs(createTopic.topics())
-                    .allMatch(p -> p.errorCode() == Errors.INVALID_TOPIC_EXCEPTION.code(),
-                            "response contains topics without the expected errorCode");
+                                                .hasSameSizeAs(createTopic.topics())
+                                                .allMatch(
+                                                        p -> p.errorCode() == Errors.INVALID_TOPIC_EXCEPTION.code(),
+                                                        "response contains topics without the expected errorCode"
+                                                );
 
             var expectConnectionOpen = !withCloseConnection;
             await().atMost(Duration.ofSeconds(5))
-                    .untilAsserted(() -> assertThat(requestClient.isOpen()).isEqualTo(expectConnectionOpen));
+                   .untilAsserted(() -> assertThat(requestClient.isOpen()).isEqualTo(expectConnectionOpen));
         }
     }
 
@@ -244,9 +252,11 @@ class FilterIT {
     @ParameterizedTest
     @EnumSource(value = RequestResponseMarkingFilterFactory.Direction.class)
     void supportsForwardDeferredByAsynchronousAction(RequestResponseMarkingFilterFactory.Direction direction) {
-        doSupportsForwardDeferredByAsynchronousRequest(direction,
+        doSupportsForwardDeferredByAsynchronousRequest(
+                direction,
                 "supportsForwardDeferredByAsynchronousAction",
-                ForwardingStyle.ASYNCHRONOUS_DELAYED);
+                ForwardingStyle.ASYNCHRONOUS_DELAYED
+        );
     }
 
     /**
@@ -257,9 +267,11 @@ class FilterIT {
     @ParameterizedTest
     @EnumSource(value = RequestResponseMarkingFilterFactory.Direction.class)
     void supportsForwardDeferredByAsynchronousActionOnEventLoop(RequestResponseMarkingFilterFactory.Direction direction) {
-        doSupportsForwardDeferredByAsynchronousRequest(direction,
+        doSupportsForwardDeferredByAsynchronousRequest(
+                direction,
                 "supportsForwardDeferredByAsynchronousActionOnEventLoop",
-                ForwardingStyle.ASYNCHRONOUS_DELAYED_ON_EVENTlOOP);
+                ForwardingStyle.ASYNCHRONOUS_DELAYED_ON_EVENTlOOP
+        );
     }
 
     /**
@@ -270,25 +282,40 @@ class FilterIT {
     @ParameterizedTest
     @EnumSource(value = RequestResponseMarkingFilterFactory.Direction.class)
     void supportsForwardDeferredByAsynchronousBrokerRequest(RequestResponseMarkingFilterFactory.Direction direction) {
-        doSupportsForwardDeferredByAsynchronousRequest(direction,
+        doSupportsForwardDeferredByAsynchronousRequest(
+                direction,
                 "supportsForwardDeferredByAsynchronousBrokerRequest",
-                ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER);
+                ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER
+        );
     }
 
-    private void doSupportsForwardDeferredByAsynchronousRequest(RequestResponseMarkingFilterFactory.Direction direction, String name,
-                                                                ForwardingStyle forwardingStyle) {
+    private void doSupportsForwardDeferredByAsynchronousRequest(
+            RequestResponseMarkingFilterFactory.Direction direction,
+            String name,
+            ForwardingStyle forwardingStyle
+    ) {
         var markingFilter = new FilterDefinitionBuilder(RequestResponseMarkingFilterFactory.class.getName())
-                .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
-                        "direction", Set.of(direction),
-                        "name", name,
-                        "forwardingStyle", forwardingStyle)
-                .build();
+                                                                                                            .withConfig(
+                                                                                                                    "keysToMark",
+                                                                                                                    Set.of(LIST_TRANSACTIONS),
+                                                                                                                    "direction",
+                                                                                                                    Set.of(direction),
+                                                                                                                    "name",
+                                                                                                                    name,
+                                                                                                                    "forwardingStyle",
+                                                                                                                    forwardingStyle
+                                                                                                            )
+                                                                                                            .build();
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(markingFilter));
                 var kafkaClient = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
             ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
             apiVersionsResponseData.apiKeys()
-                    .add(new ApiVersionsResponseData.ApiVersion().setApiKey(FETCH.id).setMaxVersion(FETCH.latestVersion()).setMinVersion(FETCH.oldestVersion()));
+                                   .add(
+                                           new ApiVersionsResponseData.ApiVersion().setApiKey(FETCH.id)
+                                                                                   .setMaxVersion(FETCH.latestVersion())
+                                                                                   .setMinVersion(FETCH.oldestVersion())
+                                   );
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), apiVersionsResponseData));
 
             // In the ASYNCHRONOUS_REQUEST_TO_BROKER case, the filter will send an async list_group
@@ -299,7 +326,7 @@ class FilterIT {
             }
 
             var response = kafkaClient
-                    .getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
+                                      .getSync(new Request(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData()));
             var requestMessageReceivedByBroker = tester.getOnlyRequestForApiKey(LIST_TRANSACTIONS).message();
             var responseMessageReceivedByClient = response.payload().message();
 
@@ -308,15 +335,18 @@ class FilterIT {
 
             var target = direction == RequestResponseMarkingFilterFactory.Direction.REQUEST ? requestMessageReceivedByBroker : responseMessageReceivedByClient;
             assertThat(unknownTaggedFieldsToStrings(target, FILTER_NAME_TAG)).containsExactly(
-                    RequestResponseMarkingFilter.class.getSimpleName() + "-%s-%s".formatted(name, direction.toString().toLowerCase(Locale.ROOT)));
+                    RequestResponseMarkingFilter.class.getSimpleName()
+                                                                                              + "-%s-%s".formatted(name, direction.toString().toLowerCase(Locale.ROOT))
+            );
         }
     }
 
     @Test
-    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    @SuppressWarnings("java:S5841")
+    // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
+                                   .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
 
         var name = UUID.randomUUID().toString();
         try (var tester = kroxyliciousTester(config);
@@ -338,10 +368,10 @@ class FilterIT {
 
     private static void assertCreatingTopicThrowsExpectedException(Admin proxyAdmin, String topicName) {
         assertThatExceptionOfType(ExecutionException.class)
-                .isThrownBy(() -> proxyAdmin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get())
-                .withCauseInstanceOf(InvalidTopicException.class)
-                .havingCause()
-                .withMessage(RejectingCreateTopicFilter.ERROR_MESSAGE);
+                                                           .isThrownBy(() -> proxyAdmin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1))).all().get())
+                                                           .withCauseInstanceOf(InvalidTopicException.class)
+                                                           .havingCause()
+                                                           .withMessage(RejectingCreateTopicFilter.ERROR_MESSAGE);
     }
 
     @Test
@@ -352,13 +382,19 @@ class FilterIT {
         var expectedEncoded2 = encode(topic2.name(), ByteBuffer.wrap(bytes)).array();
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(ProduceRequestTransformationFilterFactory.class.getName())
-                        .withConfig("transformation", TestEncoderFactory.class.getName()).build());
+                                   .addToFilters(
+                                           new FilterDefinitionBuilder(ProduceRequestTransformationFilterFactory.class.getName())
+                                                                                                                                 .withConfig(
+                                                                                                                                         "transformation",
+                                                                                                                                         TestEncoderFactory.class.getName()
+                                                                                                                                 )
+                                                                                                                                 .build()
+                                   );
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
                 var consumer = tester
-                        .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                                     .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
             producer.send(new ProducerRecord<>(topic1.name(), "my-key", PLAINTEXT)).get();
             producer.send(new ProducerRecord<>(topic2.name(), "my-key", PLAINTEXT)).get();
             producer.flush();
@@ -368,14 +404,14 @@ class FilterIT {
 
             assertThat(records).hasSize(2);
             assertThat(records.records(topic1.name()))
-                    .hasSize(1)
-                    .map(ConsumerRecord::value)
-                    .containsExactly(expectedEncoded1);
+                                                      .hasSize(1)
+                                                      .map(ConsumerRecord::value)
+                                                      .containsExactly(expectedEncoded1);
 
             assertThat(records.records(topic2.name()))
-                    .hasSize(1)
-                    .map(ConsumerRecord::value)
-                    .containsExactly(expectedEncoded2);
+                                                      .hasSize(1)
+                                                      .map(ConsumerRecord::value)
+                                                      .containsExactly(expectedEncoded2);
         }
     }
 
@@ -383,7 +419,8 @@ class FilterIT {
     void requestFiltersCanRespondWithoutProxyingRespondsInCorrectOrder() throws Exception {
 
         try (var tester = mockKafkaKroxyliciousTester(
-                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build()));
+                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build())
+        );
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
@@ -405,7 +442,8 @@ class FilterIT {
     void clientsCanSendMultipleMessagesImmediately() {
 
         try (var tester = mockKafkaKroxyliciousTester(
-                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build()));
+                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build())
+        );
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
@@ -422,7 +460,8 @@ class FilterIT {
     void zeroAckProduceRequestsDoNotInterfereWithResponseReorderingLogic() throws Exception {
 
         try (var tester = mockKafkaKroxyliciousTester(
-                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build()));
+                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build())
+        );
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.dropWhen(zeroAckProduceRequestMatcher());
@@ -448,15 +487,21 @@ class FilterIT {
     @Test
     void shouldModifyZeroAckProduceMessage(KafkaCluster cluster, Topic topic) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(ProduceRequestTransformationFilterFactory.class.getName())
-                        .withConfig("transformation", TestEncoderFactory.class.getName()).build());
+                                   .addToFilters(
+                                           new FilterDefinitionBuilder(ProduceRequestTransformationFilterFactory.class.getName())
+                                                                                                                                 .withConfig(
+                                                                                                                                         "transformation",
+                                                                                                                                         TestEncoderFactory.class.getName()
+                                                                                                                                 )
+                                                                                                                                 .build()
+                                   );
 
         var expectedEncoded = encode(topic.name(), ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))).array();
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ACKS_CONFIG, "0"));
                 var consumer = tester
-                        .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                                     .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
             producer.send(new ProducerRecord<>(topic.name(), "my-key", PLAINTEXT)).get();
             producer.flush();
 
@@ -464,10 +509,10 @@ class FilterIT {
             var records = consumer.poll(Duration.ofSeconds(10));
 
             assertThat(records.iterator())
-                    .toIterable()
-                    .hasSize(1)
-                    .map(ConsumerRecord::value)
-                    .containsExactly(expectedEncoded);
+                                          .toIterable()
+                                          .hasSize(1)
+                                          .map(ConsumerRecord::value)
+                                          .containsExactly(expectedEncoded);
         }
     }
 
@@ -479,7 +524,7 @@ class FilterIT {
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000, ACKS_CONFIG, "0"));
                 var consumer = tester
-                        .consumer(Serdes.String(), Serdes.String(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+                                     .consumer(Serdes.String(), Serdes.String(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
             producer.send(new ProducerRecord<>(topic.name(), "my-key", PLAINTEXT)).get();
             producer.flush();
 
@@ -488,9 +533,9 @@ class FilterIT {
 
             assertThat(records).hasSize(1);
             assertThat(records.iterator())
-                    .toIterable()
-                    .map(ConsumerRecord::value)
-                    .containsExactly(PLAINTEXT);
+                                          .toIterable()
+                                          .map(ConsumerRecord::value)
+                                          .containsExactly(PLAINTEXT);
         }
     }
 
@@ -502,12 +547,21 @@ class FilterIT {
         var encoded2 = encode(topic2.name(), ByteBuffer.wrap(bytes)).array();
 
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(FetchResponseTransformationFilterFactory.class.getName())
-                        .withConfig("transformation", TestDecoderFactory.class.getName()).build());
+                                   .addToFilters(
+                                           new FilterDefinitionBuilder(FetchResponseTransformationFilterFactory.class.getName())
+                                                                                                                                .withConfig(
+                                                                                                                                        "transformation",
+                                                                                                                                        TestDecoderFactory.class.getName()
+                                                                                                                                )
+                                                                                                                                .build()
+                                   );
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(Serdes.String(), Serdes.ByteArray(),
-                        Map.of(CLIENT_ID_CONFIG, "shouldModifyFetchMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var producer = tester.producer(
+                        Serdes.String(),
+                        Serdes.ByteArray(),
+                        Map.of(CLIENT_ID_CONFIG, "shouldModifyFetchMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000)
+                );
                 var consumer = tester.consumer()) {
 
             producer.send(new ProducerRecord<>(topic1.name(), "my-key", encoded1)).get();
@@ -517,11 +571,13 @@ class FilterIT {
             var records = consumer.poll(Duration.ofSeconds(100));
             assertThat(records).hasSize(2);
             assertThat(records.records(topic1.name()))
-                    .hasSize(1)
-                    .map(ConsumerRecord::value).containsExactly(PLAINTEXT);
+                                                      .hasSize(1)
+                                                      .map(ConsumerRecord::value)
+                                                      .containsExactly(PLAINTEXT);
             assertThat(records.records(topic2.name()))
-                    .hasSize(1)
-                    .map(ConsumerRecord::value).containsExactly(PLAINTEXT);
+                                                      .hasSize(1)
+                                                      .map(ConsumerRecord::value)
+                                                      .containsExactly(PLAINTEXT);
         }
     }
 

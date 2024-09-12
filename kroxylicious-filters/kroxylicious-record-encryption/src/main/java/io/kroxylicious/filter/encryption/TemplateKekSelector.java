@@ -19,7 +19,8 @@ public class TemplateKekSelector<K> implements KekSelectorService<TemplateConfig
 
     @NonNull
     @Override
-    public TopicNameBasedKekSelector<K> buildSelector(@NonNull Kms<K, ?> kms, TemplateConfig config) {
+    public TopicNameBasedKekSelector<K> buildSelector(@NonNull
+    Kms<K, ?> kms, TemplateConfig config) {
         return new TemplateTopicNameKekSelector<>(kms, config.template());
     }
 

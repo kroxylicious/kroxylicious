@@ -18,6 +18,7 @@ import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.utils.ByteUtils;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
+import io.kroxylicious.filter.encryption.common.PersistedIdentifiable;
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.config.WrapperVersion;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
@@ -52,8 +53,10 @@ public class WrapperV2 implements Wrapper {
     public final CipherSpecResolver cipherSpecResolver;
     public final AadResolver aadResolver;
 
-    public WrapperV2(CipherSpecResolver cipherSpecResolver,
-                     AadResolver aadResolver) {
+    public WrapperV2(
+            CipherSpecResolver cipherSpecResolver,
+            AadResolver aadResolver
+    ) {
         this.cipherSpecResolver = cipherSpecResolver;
         this.aadResolver = aadResolver;
     }
@@ -79,18 +82,30 @@ public class WrapperV2 implements Wrapper {
     }
 
     @Override
-    public <E> void writeWrapper(@NonNull Serde<E> edekSerde,
-                                 @NonNull E edek,
-                                 @NonNull String topicName,
-                                 int partitionId,
-                                 @NonNull RecordBatch batch,
-                                 @NonNull Record kafkaRecord,
-                                 @NonNull Dek<E>.Encryptor encryptor,
-                                 @NonNull Parcel parcel,
-                                 @NonNull Aad aad,
-                                 @NonNull Set<RecordField> recordFields,
-                                 @NonNull ByteBuffer buffer)
-            throws BufferTooSmallException {
+    public <E> void writeWrapper(
+            @NonNull
+            Serde<E> edekSerde,
+            @NonNull
+            E edek,
+            @NonNull
+            String topicName,
+            int partitionId,
+            @NonNull
+            RecordBatch batch,
+            @NonNull
+            Record kafkaRecord,
+            @NonNull
+            Dek<E>.Encryptor encryptor,
+            @NonNull
+            Parcel parcel,
+            @NonNull
+            Aad aad,
+            @NonNull
+            Set<RecordField> recordFields,
+            @NonNull
+            ByteBuffer buffer
+    )
+      throws BufferTooSmallException {
         try {
             CipherManager cipherManager = encryptor.cipherManager();
             buffer.put(cipherSpecResolver.toSerializedId(cipherManager));
@@ -110,9 +125,11 @@ public class WrapperV2 implements Wrapper {
             parcelBuffer.flip();
 
             // Overwrite the parcel with the cipher text
-            var ct = encryptor.encrypt(parcelBuffer,
+            var ct = encryptor.encrypt(
+                    parcelBuffer,
                     aadBuffer,
-                    size -> buffer.slice());
+                    size -> buffer.slice()
+            );
             buffer.position(buffer.position() + ct.remaining());
         }
         catch (BufferOverflowException e) {
@@ -120,7 +137,9 @@ public class WrapperV2 implements Wrapper {
         }
     }
 
-    private <E> void writeParameters(@NonNull Dek<E>.Encryptor encryptor, CipherManager cipherManager, @NonNull ByteBuffer buffer) {
+    private <E> void writeParameters(@NonNull
+    Dek<E>.Encryptor encryptor, CipherManager cipherManager, @NonNull
+    ByteBuffer buffer) {
         int paramsSize = cipherManager.constantParamsSize();
         final ByteBuffer paramsBuffer;
         if (paramsSize == CipherManager.VARIABLE_SIZE_PARAMETERS) {
@@ -129,8 +148,7 @@ public class WrapperV2 implements Wrapper {
                 ByteUtils.writeUnsignedVarint(size, slice);
                 return slice;
             });
-        }
-        else {
+        } else {
             paramsBuffer = encryptor.generateParameters(size -> buffer.slice());
         }
         buffer.position(buffer.position() + paramsBuffer.limit());
@@ -145,14 +163,21 @@ public class WrapperV2 implements Wrapper {
     }
 
     @Override
-    public <E> void read(@NonNull Parcel parcel,
-                         @NonNull String topicName,
-                         int partition,
-                         @NonNull RecordBatch batch,
-                         @NonNull Record record,
-                         ByteBuffer wrapper,
-                         Dek<E>.Decryptor decryptor,
-                         @NonNull BiConsumer<ByteBuffer, Header[]> consumer) {
+    public <E> void read(
+            @NonNull
+            Parcel parcel,
+            @NonNull
+            String topicName,
+            int partition,
+            @NonNull
+            RecordBatch batch,
+            @NonNull
+            Record record,
+            ByteBuffer wrapper,
+            Dek<E>.Decryptor decryptor,
+            @NonNull
+            BiConsumer<ByteBuffer, Header[]> consumer
+    ) {
         CipherManager cipherManager = cipherSpecResolver.fromSerializedId(wrapper.get());
         var edekLength = ByteUtils.readUnsignedVarint(wrapper);
         wrapper.position(wrapper.position() + edekLength);

@@ -21,7 +21,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * @param <K> The key reference
  * @param <E> The type of encrypted DEK
  */
-@SuppressWarnings("java:S5960") // this is test code, it exists in the main module to facilitate its use by concrete test cases
+@SuppressWarnings(
+    "java:S5960"
+) // this is test code, it exists in the main module to facilitate its use by concrete test cases
 public abstract class AbstractTestKmsFacadeTest<C, K, E> {
 
     private static final String ALIAS = "myalias";
@@ -36,9 +38,9 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
     void factory() {
         try (var facade = factory.build()) {
             assertThat(facade)
-                    .isNotNull()
-                    .extracting(TestKmsFacade::isAvailable)
-                    .isEqualTo(true);
+                              .isNotNull()
+                              .extracting(TestKmsFacade::isAvailable)
+                              .isEqualTo(true);
         }
     }
 
@@ -61,7 +63,7 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
             manager.generateKek(ALIAS);
 
             assertThatThrownBy(() -> manager.generateKek(ALIAS))
-                    .isInstanceOf(AlreadyExistsException.class);
+                                                                .isInstanceOf(AlreadyExistsException.class);
         }
     }
 
@@ -84,7 +86,7 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
             var manager = facade.getTestKekManager();
 
             assertThatThrownBy(() -> manager.rotateKek(ALIAS))
-                    .isInstanceOf(UnknownAliasException.class);
+                                                              .isInstanceOf(UnknownAliasException.class);
         }
     }
 
@@ -108,7 +110,7 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
             var manager = facade.getTestKekManager();
 
             assertThatThrownBy(() -> manager.deleteKek(ALIAS))
-                    .isInstanceOf(UnknownAliasException.class);
+                                                              .isInstanceOf(UnknownAliasException.class);
         }
     }
 }

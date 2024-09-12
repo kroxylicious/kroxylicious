@@ -21,11 +21,13 @@ public class OpaqueRequestFrame extends OpaqueFrame implements RequestFrame {
      * @param length
      * @param hasResponse
      */
-    public OpaqueRequestFrame(ByteBuf buf,
-                              int correlationId,
-                              boolean decodeResponse,
-                              int length,
-                              boolean hasResponse) {
+    public OpaqueRequestFrame(
+            ByteBuf buf,
+            int correlationId,
+            boolean decodeResponse,
+            int length,
+            boolean hasResponse
+    ) {
         super(buf, correlationId, length);
         this.decodeResponse = decodeResponse;
         this.hasResponse = hasResponse;
@@ -49,12 +51,22 @@ public class OpaqueRequestFrame extends OpaqueFrame implements RequestFrame {
             // TODO handle unknown api key
             ApiKeys apiKey = ApiKeys.forId(apiId);
             short apiVersion = buf.readShort();
-            return getClass().getSimpleName() + "(" +
-                    "length=" + length +
-                    ", apiKey=" + apiKey +
-                    ", apiVersion=" + apiVersion +
-                    ", buf=" + buf +
-                    ')';
+            return getClass().getSimpleName()
+                   + "("
+                   +
+                   "length="
+                   + length
+                   +
+                   ", apiKey="
+                   + apiKey
+                   +
+                   ", apiVersion="
+                   + apiVersion
+                   +
+                   ", buf="
+                   + buf
+                   +
+                   ')';
         }
         finally {
             buf.readerIndex(index);

@@ -22,7 +22,7 @@
                   batchIndexErrorMessage: null
               errorMessage: null
       throttleTimeMs: 0
-    diff: []
+    diff: [ ]
   disabled: false
 - apiMessageType: PRODUCE
   description: Produce v10 with nodeEndpoints
@@ -78,7 +78,7 @@
                 - batchIndex: 0
                   batchIndexErrorMessage: null
               errorMessage: null
-      nodeEndpoints: []
+      nodeEndpoints: [ ]
       throttleTimeMs: 0
-    diff: []
+    diff: [ ]
   disabled: false

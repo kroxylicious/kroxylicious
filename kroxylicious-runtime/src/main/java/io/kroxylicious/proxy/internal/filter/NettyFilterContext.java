@@ -22,8 +22,10 @@ public class NettyFilterContext implements FilterFactoryContext {
     private final FilterDispatchExecutor dispatchExecutor;
     private final PluginFactoryRegistry pluginFactoryRegistry;
 
-    public NettyFilterContext(EventLoop eventLoop,
-                              PluginFactoryRegistry pluginFactoryRegistry) {
+    public NettyFilterContext(
+            EventLoop eventLoop,
+            PluginFactoryRegistry pluginFactoryRegistry
+    ) {
         this.dispatchExecutor = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
         this.pluginFactoryRegistry = pluginFactoryRegistry;
     }
@@ -40,7 +42,9 @@ public class NettyFilterContext implements FilterFactoryContext {
 
     @NonNull
     @Override
-    public <P> P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName) {
+    public <P> P pluginInstance(@NonNull
+    Class<P> pluginClass, @NonNull
+    String instanceName) {
         PluginFactory<P> pluginFactory = pluginFactoryRegistry.pluginFactory(pluginClass);
         return pluginFactory.pluginInstance(instanceName);
     }

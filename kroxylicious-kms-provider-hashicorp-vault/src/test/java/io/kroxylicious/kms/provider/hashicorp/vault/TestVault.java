@@ -38,16 +38,16 @@ public class TestVault implements Closeable {
             throw new IllegalArgumentException("server TLS key/cert must be supplied if we want to configure client TLS auth");
         }
         VaultContainer<?> vault = new VaultContainer<>(HASHICORP_VAULT)
-                .withVaultToken(VAULT_TOKEN)
-                .withEnv("VAULT_FORMAT", "json")
-                .withInitCommand("secrets enable transit");
+                                                                       .withVaultToken(VAULT_TOKEN)
+                                                                       .withEnv("VAULT_FORMAT", "json")
+                                                                       .withInitCommand("secrets enable transit");
         if (serverKeys != null) {
             withTls(vault, serverKeys, clientKeys);
         }
         vault.start();
         this.vault = vault;
         endpoint = URI.create(serverKeys == null ? vault.getHttpHostAddress() : String.format("https://%s:%s", vault.getHost(), vault.getMappedPort(TLS_PORT)))
-                .resolve("v1/transit");
+                      .resolve("v1/transit");
     }
 
     private static void withTls(VaultContainer<?> vault, CertificateGenerator.Keys serverKeys, CertificateGenerator.Keys clientKeys) {
@@ -56,8 +56,8 @@ public class TestVault implements Closeable {
         int healthPort = isMutualTls ? PLAIN_PORT : TLS_PORT;
         vault.withExposedPorts(TLS_PORT, healthPort);
         vault.withCopyFileToContainer(MountableFile.forClasspathResource(configFile), "/vault/config/Vault.hcl")
-                .withCopyFileToContainer(MountableFile.forHostPath(serverKeys.selfSignedCertificatePem()), "/vault/config/cert.pem")
-                .withCopyFileToContainer(MountableFile.forHostPath(serverKeys.privateKeyPem()), "/vault/config/key.pem");
+             .withCopyFileToContainer(MountableFile.forHostPath(serverKeys.selfSignedCertificatePem()), "/vault/config/cert.pem")
+             .withCopyFileToContainer(MountableFile.forHostPath(serverKeys.privateKeyPem()), "/vault/config/key.pem");
         if (isMutualTls) {
             vault.withCopyFileToContainer(MountableFile.forHostPath(clientKeys.selfSignedCertificatePem()), "/vault/config/client-cert.pem");
         }

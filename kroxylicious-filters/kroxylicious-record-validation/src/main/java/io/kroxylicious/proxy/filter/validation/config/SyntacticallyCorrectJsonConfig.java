@@ -22,7 +22,8 @@ public class SyntacticallyCorrectJsonConfig {
      * @param validateObjectKeysUnique whether we expect the Object keys in the JSON to be unique
      */
     @JsonCreator
-    public SyntacticallyCorrectJsonConfig(@JsonProperty(value = "validateObjectKeysUnique", defaultValue = "false") Boolean validateObjectKeysUnique) {
+    public SyntacticallyCorrectJsonConfig(@JsonProperty(value = "validateObjectKeysUnique", defaultValue = "false")
+    Boolean validateObjectKeysUnique) {
         this.validateObjectKeysUnique = validateObjectKeysUnique != null && validateObjectKeysUnique;
     }
 
@@ -53,8 +54,11 @@ public class SyntacticallyCorrectJsonConfig {
 
     @Override
     public String toString() {
-        return "SyntacticallyCorrectJsonConfig{" +
-                "validateObjectKeysUnique=" + validateObjectKeysUnique +
-                '}';
+        return "SyntacticallyCorrectJsonConfig{"
+               +
+               "validateObjectKeysUnique="
+               + validateObjectKeysUnique
+               +
+               '}';
     }
 }

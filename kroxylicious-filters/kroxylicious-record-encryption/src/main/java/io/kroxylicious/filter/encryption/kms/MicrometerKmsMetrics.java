@@ -75,7 +75,8 @@ public class MicrometerKmsMetrics implements KmsMetrics {
     }
 
     @Override
-    public void countGenerateDekPairOutcome(@NonNull OperationOutcome outcome) {
+    public void countGenerateDekPairOutcome(@NonNull
+    OperationOutcome outcome) {
         switch (outcome) {
             case SUCCESS -> generateDekPairSuccesses.increment();
             case EXCEPTION -> generateDekPairExceptions.increment();
@@ -89,7 +90,8 @@ public class MicrometerKmsMetrics implements KmsMetrics {
     }
 
     @Override
-    public void countDecryptEdekOutcome(@NonNull OperationOutcome outcome) {
+    public void countDecryptEdekOutcome(@NonNull
+    OperationOutcome outcome) {
         switch (outcome) {
             case SUCCESS -> decryptEdekSuccesses.increment();
             case EXCEPTION -> decryptEdekExceptions.increment();
@@ -103,7 +105,8 @@ public class MicrometerKmsMetrics implements KmsMetrics {
     }
 
     @Override
-    public void countResolveAliasOutcome(@NonNull OperationOutcome outcome) {
+    public void countResolveAliasOutcome(@NonNull
+    OperationOutcome outcome) {
         switch (outcome) {
             case SUCCESS -> resolveAliasSuccesses.increment();
             case EXCEPTION -> resolveAliasExceptions.increment();

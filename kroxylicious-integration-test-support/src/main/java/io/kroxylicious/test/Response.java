@@ -6,5 +6,8 @@
 
 package io.kroxylicious.test;
 
-public record Response(ResponsePayload payload,
-                       int sequenceNumber) {}
+public record Response(
+        ResponsePayload payload,
+        int sequenceNumber
+) {
+}

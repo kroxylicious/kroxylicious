@@ -40,7 +40,8 @@ class ExponentialJitterBackoffStrategyTest {
                 Arguments.of(4d, ms500, 0, Duration.ZERO),
                 Arguments.of(4d, ms500, 1, Duration.of(500, ChronoUnit.MILLIS)),
                 Arguments.of(4d, ms500, 2, Duration.of(2000, ChronoUnit.MILLIS)),
-                Arguments.of(4d, ms500, 3, Duration.of(8000, ChronoUnit.MILLIS)));
+                Arguments.of(4d, ms500, 3, Duration.of(8000, ChronoUnit.MILLIS))
+        );
     }
 
     @ParameterizedTest
@@ -48,8 +49,12 @@ class ExponentialJitterBackoffStrategyTest {
     void testBackoffWithNoRandomJitter(double multiplier, Duration initialDelay, int failures, Duration expected) {
         Random mockRandom = Mockito.mock(Random.class);
         when(mockRandom.nextLong()).thenReturn(0L);
-        ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(initialDelay,
-                Duration.of(20, ChronoUnit.SECONDS), multiplier, mockRandom);
+        ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(
+                initialDelay,
+                Duration.of(20, ChronoUnit.SECONDS),
+                multiplier,
+                mockRandom
+        );
         Duration delay = strategy.getDelay(failures);
         assertThat(delay).isEqualTo(expected);
     }
@@ -69,7 +74,8 @@ class ExponentialJitterBackoffStrategyTest {
                 Arguments.of(maxFiveSeconds, 2, Duration.of(2, ChronoUnit.SECONDS)),
                 Arguments.of(maxFiveSeconds, 3, Duration.of(4, ChronoUnit.SECONDS)),
                 Arguments.of(maxFiveSeconds, 4, Duration.of(5, ChronoUnit.SECONDS)),
-                Arguments.of(maxFiveSeconds, 5, Duration.of(5, ChronoUnit.SECONDS)));
+                Arguments.of(maxFiveSeconds, 5, Duration.of(5, ChronoUnit.SECONDS))
+        );
     }
 
     @ParameterizedTest
@@ -77,8 +83,12 @@ class ExponentialJitterBackoffStrategyTest {
     void testCappedToMaximumDelay(Duration maximum, int failures, Duration expected) {
         Random mockRandom = Mockito.mock(Random.class);
         when(mockRandom.nextLong()).thenReturn(0L);
-        ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(Duration.of(1, ChronoUnit.SECONDS),
-                maximum, 2, mockRandom);
+        ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(
+                Duration.of(1, ChronoUnit.SECONDS),
+                maximum,
+                2,
+                mockRandom
+        );
         Duration delay = strategy.getDelay(failures);
         assertThat(delay).isEqualTo(expected);
     }
@@ -91,7 +101,8 @@ class ExponentialJitterBackoffStrategyTest {
                 Arguments.of(1000L, Duration.of(1000, ChronoUnit.MILLIS)),
                 Arguments.of(-200L, Duration.of(800, ChronoUnit.MILLIS)),
                 Arguments.of(-999L, Duration.of(1, ChronoUnit.MILLIS)),
-                Arguments.of(-1000L, Duration.of(1000, ChronoUnit.MILLIS)));
+                Arguments.of(-1000L, Duration.of(1000, ChronoUnit.MILLIS))
+        );
     }
 
     @ParameterizedTest
@@ -99,8 +110,12 @@ class ExponentialJitterBackoffStrategyTest {
     void testRandomJitter(Long randomLong, Duration expected) {
         Random mockRandom = Mockito.mock(Random.class);
         when(mockRandom.nextLong()).thenReturn(randomLong);
-        ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(Duration.of(1, ChronoUnit.SECONDS),
-                Duration.of(20, ChronoUnit.SECONDS), 2, mockRandom);
+        ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(
+                Duration.of(1, ChronoUnit.SECONDS),
+                Duration.of(20, ChronoUnit.SECONDS),
+                2,
+                mockRandom
+        );
         Duration delay = strategy.getDelay(1);
         assertThat(delay).isEqualTo(expected);
     }
@@ -117,22 +132,31 @@ class ExponentialJitterBackoffStrategyTest {
                 Arguments.of(oneSecond, oneSecond, 0.0d, random, "multiplier must be greater than one"),
                 Arguments.of(oneSecond, oneSecond, 1.0d, random, "multiplier must be greater than one"),
                 Arguments.of(oneSecond, oneSecond, 2.0d, null, "random must be non-null"),
-                Arguments.of(oneSecond, oneSecond, -1.2d, random, "multiplier must be greater than one"));
+                Arguments.of(oneSecond, oneSecond, -1.2d, random, "multiplier must be greater than one")
+        );
     }
 
     @ParameterizedTest
     @MethodSource
     void invalidConfigurations(Duration initial, Duration maximum, double multiplier, Random random, String message) {
         assertThatThrownBy(() -> {
-            new ExponentialJitterBackoffStrategy(initial,
-                    maximum, multiplier, random);
+            new ExponentialJitterBackoffStrategy(
+                    initial,
+                    maximum,
+                    multiplier,
+                    random
+            );
         }).isInstanceOf(IllegalArgumentException.class).hasMessageContaining(message);
     }
 
     @Test
     void testNegativeFailuresNotAllowed() {
-        ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(Duration.ofSeconds(1),
-                Duration.ofSeconds(1), 2, new Random());
+        ExponentialJitterBackoffStrategy strategy = new ExponentialJitterBackoffStrategy(
+                Duration.ofSeconds(1),
+                Duration.ofSeconds(1),
+                2,
+                new Random()
+        );
         assertThatThrownBy(() -> {
             strategy.getDelay(-1);
         }).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("failures is negative");

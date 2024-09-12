@@ -68,7 +68,9 @@ public interface FilterContext {
      * @param request The request to forward to the broker.
      * @return completed filter results.
      */
-    CompletionStage<RequestFilterResult> forwardRequest(@NonNull RequestHeaderData header, @NonNull ApiMessage request);
+    CompletionStage<RequestFilterResult> forwardRequest(@NonNull
+    RequestHeaderData header, @NonNull
+    ApiMessage request);
 
     /**
      * Send a request from a filter towards the broker.   The response to the request will be made available to the
@@ -102,8 +104,12 @@ public interface FilterContext {
      * @see io.kroxylicious.proxy.filter Thread Safety
      */
     @NonNull
-    <M extends ApiMessage> CompletionStage<M> sendRequest(@NonNull RequestHeaderData header,
-                                                          @NonNull ApiMessage request);
+    <M extends ApiMessage> CompletionStage<M> sendRequest(
+            @NonNull
+            RequestHeaderData header,
+            @NonNull
+            ApiMessage request
+    );
 
     /**
      * Generates a completed filter results containing the given header and response.  When
@@ -117,7 +123,9 @@ public interface FilterContext {
      * @param response The request to forward to the broker.
      * @return completed filter results.
      */
-    CompletionStage<ResponseFilterResult> forwardResponse(@NonNull ResponseHeaderData header, @NonNull ApiMessage response);
+    CompletionStage<ResponseFilterResult> forwardResponse(@NonNull
+    ResponseHeaderData header, @NonNull
+    ApiMessage response);
 
     /**
      * Creates a builder for a request filter result objects.  This object encapsulates

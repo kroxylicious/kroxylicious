@@ -6,10 +6,16 @@
 
 -->
 ====
-    Copyright Kroxylicious Authors.
+    Copyright Kroxylicious
+Authors .
 
-    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
-====
+    Licensed under
+the Apache
+Software License
+version 2.0,
+available at
+http://www.apache.org/licenses/LICENSE-2.0
+        ====
 
 name: ${messageSpec.name}
 type: ${messageSpec.type}
@@ -41,7 +47,7 @@ commonStructs:
 </#list>
 listeners:
 <#if messageSpec.listeners??>
-<#list messageSpec.listeners as listener>
+    <#list messageSpec.listeners as listener>
   name: ${listener.name()}
-</#list>
+    </#list>
 </#if>

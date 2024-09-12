@@ -47,8 +47,7 @@ public class IntegrationTestInetAddressResolverProvider extends InetAddressResol
                             throw new RuntimeException(e);
                         }
                     }).toList().stream();
-                }
-                else {
+                } else {
                     return configuration.builtinResolver().lookupByName(host, lookupPolicy);
                 }
             }

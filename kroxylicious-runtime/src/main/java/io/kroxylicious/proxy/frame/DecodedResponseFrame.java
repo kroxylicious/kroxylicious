@@ -12,8 +12,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * A decoded response frame.
  */
 public class DecodedResponseFrame<B extends ApiMessage>
-        extends DecodedFrame<ResponseHeaderData, B>
-        implements ResponseFrame {
+                                 extends DecodedFrame<ResponseHeaderData, B>
+                                 implements ResponseFrame {
 
     public DecodedResponseFrame(short apiVersion, int correlationId, ResponseHeaderData header, B body) {
         super(apiVersion, correlationId, header, body);
