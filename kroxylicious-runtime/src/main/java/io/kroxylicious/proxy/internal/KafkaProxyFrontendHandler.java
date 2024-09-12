@@ -253,6 +253,30 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    /**
+     * Closes both upstream and downstream channels, optionally
+     * sending the client the given response.
+     * Called when the channel to the upstream broker is failed,
+     * or TODO when either channel gets closed by the peer.
+     * TODO what guarantees that the given response has the
+     * type and correlation id that the client is expecting?
+     */
+    @VisibleForTesting
+    void closeServerAndClientChannels(
+            @Nullable ResponseFrame clientResponse
+    ) {
+        // Close the server connection
+        ChannelHandlerContext channelHandlerContext = state.outboundCtx();
+        if (channelHandlerContext != null) {
+            closeWith(channelHandlerContext.channel(), null);
+        }
+
+        // Close the client connection with any error code
+        closeWith(state.inboundCtx().channel(), clientResponse);
+
+        setState(state.toClosed());
+    }
+
     @Override
     public void userEventTriggered(
             @NonNull ChannelHandlerContext ctx,
@@ -294,73 +318,32 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    /**
+     * Relieves backpressure on the <em>server</em> connection by calling
+     * the {@link KafkaProxyBackendHandler#inboundChannelWritabilityChanged(ChannelHandlerContext)}
+     * @param inboundCtx The inbound context
+     * @throws Exception If something went wrong
+     * @see #upstreamWritabilityChanged(ChannelHandlerContext) 
+     */
     @Override
-    public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
-        super.channelWritabilityChanged(ctx);
-        // this is key to propagate back-pressure changes
-        if (backendHandler != null) {
-            backendHandler.inboundChannelWritabilityChanged(ctx);
+    public void channelWritabilityChanged(
+            final ChannelHandlerContext inboundCtx
+    ) throws Exception {
+        super.channelWritabilityChanged(inboundCtx);
+        if (inboundCtx.channel().isWritable() && backendHandler != null) {
+            backendHandler.inboundChannelWritabilityChanged(inboundCtx);
         }
-    }
-
-    @VisibleForTesting
-    ResponseFrame errorResponseForServerException(
-            @NonNull HostPort remote,
-            @NonNull Throwable serverException
-    ) {
-
-        ApiException errorCodeEx;
-        if (serverException instanceof SSLHandshakeException e) {
-            ChannelHandlerContext channelHandlerContext = state.outboundCtx();
-            LOGGER.atInfo()
-                    .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addArgument(state.inboundCtx().channel().id())
-                    // TODO what we use UPSTREAM_PEER_KEY and not `remote`??
-                    .addArgument(channelHandlerContext == null ? null : channelHandlerContext.channel().attr(UPSTREAM_PEER_KEY).get())
-                    .addArgument(e.getMessage())
-                    .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
-            errorCodeEx = ERROR_NEGOTIATING_SSL_CONNECTION;
-        }
-        else {
-            LOGGER.atWarn()
-                    .setCause(LOGGER.isDebugEnabled() ? serverException : null)
-                    .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
-                            remote, serverException.getMessage());
-            errorCodeEx = null;
-        }
-
-        return errorResponse(state, errorCodeEx);
     }
 
     /**
-     * Closes both upstream and downstream channels, optionally
-     * sending the client the given response.
-     * Called when the channel to the upstream broker is failed,
-     * or TODO when either channel gets closed by the peer.
-     * TODO what guarantees that the given response has the
-     * type and correlation id that the client is expecting?
-     */
-    @VisibleForTesting
-    void closeServerAndClientChannels(
-            @Nullable ResponseFrame clientResponse
-    ) {
-        // Close the server connection
-        ChannelHandlerContext channelHandlerContext = state.outboundCtx();
-        if (channelHandlerContext != null) {
-            closeWith(channelHandlerContext.channel(), null);
-        }
-
-        // Close the client connection with any error code
-        closeWith(state.inboundCtx().channel(), clientResponse);
-
-        setState(state.toClosed());
-    }
-
-    /**
-     * Relieve backpressure on the client connection by turning on auto-read.
+     * Relieve backpressure on the <em>client</em> connection by turning on auto-read.
+     * Called by the {@link KafkaProxyBackendHandler}.
      * @param upstreamCtx The upstream context.
+     * @see #channelWritabilityChanged(ChannelHandlerContext) 
      */
-    public void upstreamWritabilityChanged(ChannelHandlerContext upstreamCtx) {
+    public void upstreamWritabilityChanged(
+            @NonNull ChannelHandlerContext upstreamCtx
+    ) {
         if (this.state.outboundCtx() != upstreamCtx) {
             illegalState("Mismatching outbound context");
         }
@@ -371,7 +354,12 @@ public class KafkaProxyFrontendHandler
     }
 
     /**
-     * Handles a message from the client, depending on the {@link #state} and the type of message.
+     * Handles a message from the client,
+     * depending on the {@link #state} and the type of message.
+     *
+     * {@link #channelReadComplete(ChannelHandlerContext)} will
+     * be called once this method has been invoked with all
+     * the messages in the current read operation.
      * @param ctx The client context
      * @param msg The message
      */
@@ -488,6 +476,11 @@ public class KafkaProxyFrontendHandler
                 apiVersion, correlationId, header, API_VERSIONS_RESPONSE));
     }
 
+    /**
+     * <p>Invoked when the last message read by the current read operation
+     * has been consumed by {@link #channelRead(ChannelHandlerContext, Object)}.</p>
+     * @param ctx The client context
+     */
     @Override
     public void channelReadComplete(final ChannelHandlerContext ctx) {
         ChannelHandlerContext channelHandlerContext = state.outboundCtx();
@@ -787,6 +780,36 @@ public class KafkaProxyFrontendHandler
     @VisibleForTesting ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
         return bootstrap.connect(remoteHost, remotePort);
     }
+
+    @VisibleForTesting
+    ResponseFrame errorResponseForServerException(
+            @NonNull HostPort remote,
+            @NonNull Throwable serverException
+    ) {
+
+        ApiException errorCodeEx;
+        if (serverException instanceof SSLHandshakeException e) {
+            ChannelHandlerContext channelHandlerContext = state.outboundCtx();
+            LOGGER.atInfo()
+                    .setCause(LOGGER.isDebugEnabled() ? e : null)
+                    .addArgument(state.inboundCtx().channel().id())
+                    // TODO what we use UPSTREAM_PEER_KEY and not `remote`??
+                    .addArgument(channelHandlerContext == null ? null : channelHandlerContext.channel().attr(UPSTREAM_PEER_KEY).get())
+                    .addArgument(e.getMessage())
+                    .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
+            errorCodeEx = ERROR_NEGOTIATING_SSL_CONNECTION;
+        }
+        else {
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? serverException : null)
+                    .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
+                            remote, serverException.getMessage());
+            errorCodeEx = null;
+        }
+
+        return errorResponse(state, errorCodeEx);
+    }
+
 
     ////////////////////////
 
