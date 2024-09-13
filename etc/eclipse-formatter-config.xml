@@ -309,7 +309,7 @@
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_enum_constants" value="49"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_arguments_in_enum_constant" value="80"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_superinterfaces_in_enum_declaration" value="18"/>
-		<setting id="org.eclipse.jdt.core.formatter.alignment_for_record_components" value="80"/>
+		<setting id="org.eclipse.jdt.core.formatter.alignment_for_record_components" value="81"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_superinterfaces_in_record_declaration" value="18"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_arguments_in_method_invocation" value="80"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_selector_in_method_invocation" value="82"/>
@@ -348,12 +348,12 @@
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_type_arguments" value="0"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_type_parameters" value="0"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_package" value="0"/>
-		<setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_type" value="49"/>
+		<setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_type" value="48"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_enum_constant" value="0"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_field" value="49"/>
-		<setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_method" value="49"/>
+		<setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_method" value="48"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_local_variable" value="48"/>
-		<setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_parameter" value="16"/>
+		<setting id="org.eclipse.jdt.core.formatter.alignment_for_annotations_on_parameter" value="48"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_type_annotations" value="49"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_arguments_in_annotation" value="80"/>
 		<setting id="org.eclipse.jdt.core.formatter.alignment_for_module_statements" value="0"/>
