@@ -1103,10 +1103,6 @@
                                 <id>format-test-sources</id>
                                 <phase>none</phase>
                             </execution>
-                            <execution>
-                                <id>format-generated</id>
-                                <phase>none</phase>
-                            </execution>
                         </executions>
                     </plugin>
                     <plugin>
