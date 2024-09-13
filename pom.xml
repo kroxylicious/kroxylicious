@@ -65,8 +65,8 @@
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
-        <strimzi.version>0.43.0
-        </strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
+        <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
+        <strimzi.version>0.43.0</strimzi.version>
         <kubernetes-client.version>6.13.3</kubernetes-client.version>
         <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.8</maven.core.version>
