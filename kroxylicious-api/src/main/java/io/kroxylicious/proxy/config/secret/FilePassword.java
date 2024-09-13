@@ -43,11 +43,7 @@ public record FilePassword(
 
     @Override
     public String toString() {
-        return "FilePassword["
-               +
-               "passwordFile="
-               + passwordFile
-               + ']';
+        return "FilePassword[passwordFile=" + passwordFile + ']';
     }
 
     @NonNull
