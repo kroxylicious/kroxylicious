@@ -6,12 +6,12 @@
 
 -->
 ====
-        Copyright Kroxylicious Authors.
+    Copyright Kroxylicious Authors.
 
-        Licensed under the Apache Software License version2.0,available at http://www.apache.org/licenses/LICENSE-2.0
-        ====
+    Licensed under the Apache Software License version2.0,available at http://www.apache.org/licenses/LICENSE-2.0
+====
 
-        package ${outputPackage};
+package ${outputPackage};
 
 <#list messageSpecs as messageSpec>
 import org.apache.kafka.common.message.${messageSpec.name}Data;

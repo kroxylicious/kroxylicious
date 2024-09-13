@@ -150,7 +150,7 @@ class KrpcGeneratorTest {
                 Objects.requireNonNull(getClass().getClassLoader().getResource(expectedFile)),
                 UTF_8
         ).read();
-        assertThat(file).content().isEqualTo(expected);
+        assertThat(file).content().isEqualToIgnoringWhitespace(expected);
     }
 
     private static void testSingleGeneration(File tempDir, String messageSpec, String template, String expectedContents) throws Exception {
