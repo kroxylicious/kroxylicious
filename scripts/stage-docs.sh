@@ -112,11 +112,6 @@ cd "${WEBSITE_TMP}"
 echo "In '$(pwd)', cloning website repository at ${WEBSITE_URL}"
 git clone "${WEBSITE_URL}" "${WEBSITE_TMP}"
 
-# config so we can actually push to the website repo without it blowing up
-git config --unset-all http.https://github.com/.extraheader
-git config user.name "GitHub Actions Bot"
-git config user.email "<>"
-
 ORIGINAL_WEBSITE_WORKING_BRANCH=$(git branch --show-current)
 
 echo "Creating branch ${RELEASE_DOCS_BRANCH} from ${BRANCH_FROM} in $(git remote get-url "${REPOSITORY}")"
