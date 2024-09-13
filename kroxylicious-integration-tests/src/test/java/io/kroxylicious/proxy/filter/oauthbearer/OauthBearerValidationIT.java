@@ -163,8 +163,10 @@ class OauthBearerValidationIT {
     }
 
     @Test
-    void authWithBadToken(@TempDir
-    Path tempdir) throws Exception {
+    void authWithBadToken(
+            @TempDir
+            Path tempdir
+    ) throws Exception {
         var badTokenFile = Files.createTempFile(tempdir, "badtoken", "b64");
         Files.writeString(badTokenFile, BAD_TOKEN);
         var config = getClientConfig(badTokenFile.toUri());

@@ -112,7 +112,10 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
 
     protected static final AttributeKey<Map<RoutingKey, VirtualClusterBinding>> CHANNEL_BINDINGS = AttributeKey.newInstance("channelBindings");
 
-    private record ReconciliationRecord(Map<Integer, HostPort> upstreamNodeMap, CompletionStage<Void> reconciliationStage) {
+    private record ReconciliationRecord(
+            Map<Integer, HostPort> upstreamNodeMap,
+            CompletionStage<Void> reconciliationStage
+    ) {
         private ReconciliationRecord {
             Objects.requireNonNull(upstreamNodeMap);
             Objects.requireNonNull(reconciliationStage);
@@ -147,7 +150,10 @@ public class EndpointRegistry implements EndpointReconciler, VirtualClusterBindi
     /** Registry of virtual clusters that have been registered */
     private final Map<VirtualCluster, VirtualClusterRecord> registeredVirtualClusters = new ConcurrentHashMap<>();
 
-    private record ListeningChannelRecord(CompletionStage<Channel> bindingStage, AtomicReference<CompletionStage<Void>> unbindingStage) {
+    private record ListeningChannelRecord(
+            CompletionStage<Channel> bindingStage,
+            AtomicReference<CompletionStage<Void>> unbindingStage
+    ) {
         private ListeningChannelRecord {
             Objects.requireNonNull(bindingStage);
             Objects.requireNonNull(unbindingStage);

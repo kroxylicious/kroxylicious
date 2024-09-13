@@ -74,10 +74,15 @@ public final class Dek<E> {
     final AtomicCryptorUsageCounter outstandingCryptors;
     private final CipherManager cipherManager;
 
-    Dek(@NonNull
-    E edek, @NonNull
-    DestroyableRawSecretKey key, @NonNull
-    CipherManager cipherManager, long maxEncryptions) {
+    Dek(
+            @NonNull
+            E edek,
+            @NonNull
+            DestroyableRawSecretKey key,
+            @NonNull
+            CipherManager cipherManager,
+            long maxEncryptions
+    ) {
         /* protected access because instantion only allowed via a DekManager */
         Objects.requireNonNull(edek);
         if (Objects.requireNonNull(key).isDestroyed()) {
@@ -221,8 +226,10 @@ public final class Dek<E> {
          * @throws BufferTooSmallException If the buffer returned by the {@code paramAllocator}
          * had too few bytes remaining for the parameters to be written completely.
          */
-        public ByteBuffer generateParameters(@NonNull
-        EncryptAllocator paramAllocator) {
+        public ByteBuffer generateParameters(
+                @NonNull
+                EncryptAllocator paramAllocator
+        ) {
             if (numEncryptions <= 0) {
                 throw new DekUsageException("The Encryptor has no more operations allowed");
             } else {

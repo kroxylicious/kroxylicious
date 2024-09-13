@@ -171,7 +171,10 @@ class AwsKmsTest {
         }
     }
 
-    private record StaticResponse(int statusCode, String response) implements HttpHandler {
+    private record StaticResponse(
+            int statusCode,
+            String response
+    ) implements HttpHandler {
         @Override
         public void handle(HttpExchange e) throws IOException {
             e.sendResponseHeaders(statusCode, response.length());

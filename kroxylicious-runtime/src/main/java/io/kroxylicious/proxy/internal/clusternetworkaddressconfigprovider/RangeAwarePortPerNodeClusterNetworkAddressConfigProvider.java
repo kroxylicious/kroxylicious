@@ -116,9 +116,12 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
         }
     }
 
-    private record NamedRange(@NonNull
-    String name, @NonNull
-    Range range) {
+    private record NamedRange(
+            @NonNull
+            String name,
+            @NonNull
+            Range range
+    ) {
         public NamedRange {
             Objects.requireNonNull(name, "name was null");
             Objects.requireNonNull(range, "range was null");
@@ -261,7 +264,10 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
             return bootstrapAddress;
         }
 
-        private record RangeCollision(NamedRange a, NamedRange b) {
+        private record RangeCollision(
+                NamedRange a,
+                NamedRange b
+        ) {
             @Override
             public String toString() {
                 return "'" + a + "' collides with '" + b + "'";

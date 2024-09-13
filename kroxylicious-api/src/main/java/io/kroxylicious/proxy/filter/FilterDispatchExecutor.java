@@ -44,7 +44,9 @@ public interface FilterDispatchExecutor extends ScheduledExecutorService {
      * @return a stage completed (both exceptionally and normally) by this Filter Dispatch Thread
      * @param <T> stage value type
      */
-    <T> CompletionStage<T> completeOnFilterDispatchThread(@NonNull
-    CompletionStage<T> stage);
+    <T> CompletionStage<T> completeOnFilterDispatchThread(
+            @NonNull
+            CompletionStage<T> stage
+    );
 
 }

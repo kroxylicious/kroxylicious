@@ -41,7 +41,10 @@ class ResponseOrdererTest {
 
     }
 
-    record TestRequestFrame(int correlationId, boolean hasResponse) implements RequestFrame {
+    record TestRequestFrame(
+            int correlationId,
+            boolean hasResponse
+    ) implements RequestFrame {
 
         @Override
         public int estimateEncodedSize() {

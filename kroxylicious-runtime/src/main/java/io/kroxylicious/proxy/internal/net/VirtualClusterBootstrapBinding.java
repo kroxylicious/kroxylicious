@@ -17,7 +17,10 @@ import io.kroxylicious.proxy.service.HostPort;
  * @param virtualCluster the virtual cluster
  * @param upstreamTarget the upstream bootstrap target
  */
-public record VirtualClusterBootstrapBinding(VirtualCluster virtualCluster, HostPort upstreamTarget) implements VirtualClusterBinding {
+public record VirtualClusterBootstrapBinding(
+        VirtualCluster virtualCluster,
+        HostPort upstreamTarget
+) implements VirtualClusterBinding {
 
     public VirtualClusterBootstrapBinding {
         Objects.requireNonNull(virtualCluster, "virtualCluster cannot be null");

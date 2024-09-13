@@ -40,7 +40,10 @@ public class OutOfBandSendFilter implements DescribeClusterRequestFilter, Descri
         this.config = config;
     }
 
-    public record OutOfBandSendFilterConfig(ApiKeys apiKeyToSend, int tagIdToCollect) {
+    public record OutOfBandSendFilterConfig(
+            ApiKeys apiKeyToSend,
+            int tagIdToCollect
+    ) {
         @JsonCreator
         public OutOfBandSendFilterConfig(
                 @JsonProperty(value = "apiKeyToSend", required = true)

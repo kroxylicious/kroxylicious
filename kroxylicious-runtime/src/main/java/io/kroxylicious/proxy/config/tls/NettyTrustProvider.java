@@ -88,8 +88,10 @@ public class NettyTrustProvider {
                 setEndpointAlgorithm(null);
             }
 
-            private void setEndpointAlgorithm(@Nullable
-            String httpsHostnameVerification) {
+            private void setEndpointAlgorithm(
+                    @Nullable
+            String httpsHostnameVerification
+            ) {
                 builder.endpointIdentificationAlgorithm(httpsHostnameVerification);
             }
         });

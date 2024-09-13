@@ -74,15 +74,19 @@ public class ResilientKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<DekPair<E>> generateDekPair(@NonNull
-    K kekRef) {
+    public CompletionStage<DekPair<E>> generateDekPair(
+            @NonNull
+            K kekRef
+    ) {
         return retry("generateDekPair", () -> inner.generateDekPair(kekRef));
     }
 
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull
-    E edek) {
+    public CompletionStage<SecretKey> decryptEdek(
+            @NonNull
+            E edek
+    ) {
         return retry("decryptEdek", () -> inner.decryptEdek(edek));
     }
 
@@ -94,8 +98,10 @@ public class ResilientKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<K> resolveAlias(@NonNull
-    String alias) {
+    public CompletionStage<K> resolveAlias(
+            @NonNull
+            String alias
+    ) {
         return retry("resolveAlias", () -> inner.resolveAlias(alias));
     }
 
@@ -103,8 +109,13 @@ public class ResilientKms<K, E> implements Kms<K, E> {
         return retry(name, operation, 0, null);
     }
 
-    private <A> CompletionStage<A> retry(String name, Supplier<CompletionStage<A>> operation, int attempt, @Nullable
-    Throwable lastFailure) {
+    private <A> CompletionStage<A> retry(
+            String name,
+            Supplier<CompletionStage<A>> operation,
+            int attempt,
+            @Nullable
+            Throwable lastFailure
+    ) {
         if (attempt >= retries) {
             String lastFailureMessage = ofNullable(lastFailure).map(Throwable::getMessage).orElse("null");
             String message = name + " failed after " + attempt + " attempts, last failure message: " + lastFailureMessage;

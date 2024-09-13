@@ -107,9 +107,14 @@ class MultiTenantTransformationFilterFactoryFilterTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "requests")
-    void requestsTransformed(@SuppressWarnings("unused")
-    String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef requestTestDef)
-                                                                                                                throws Exception {
+    void requestsTransformed(
+            @SuppressWarnings("unused")
+            String testName,
+            ApiMessageType apiMessageType,
+            RequestHeaderData header,
+            ApiMessageTestDef requestTestDef
+    )
+      throws Exception {
         var request = requestTestDef.message();
         // marshalled the request object back to json, this is used for the comparison later.
         var requestWriter = requestConverterFor(apiMessageType).writer();
@@ -137,9 +142,14 @@ class MultiTenantTransformationFilterFactoryFilterTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource(value = "responses")
-    void responseTransformed(@SuppressWarnings("unused")
-    String testName, ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef)
-                                                                                                                 throws Exception {
+    void responseTransformed(
+            @SuppressWarnings("unused")
+            String testName,
+            ApiMessageType apiMessageType,
+            RequestHeaderData header,
+            ApiMessageTestDef responseTestDef
+    )
+      throws Exception {
         var response = responseTestDef.message();
         // marshalled the response object back to json, this is used for comparison later.
         var responseWriter = responseConverterFor(apiMessageType).writer();

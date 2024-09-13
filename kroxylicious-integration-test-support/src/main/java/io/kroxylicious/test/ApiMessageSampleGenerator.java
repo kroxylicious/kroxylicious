@@ -47,7 +47,10 @@ import org.apache.kafka.common.utils.ImplicitLinkedHashCollection;
  */
 public class ApiMessageSampleGenerator {
 
-    public record ApiAndVersion(ApiKeys keys, short apiVersion) {
+    public record ApiAndVersion(
+            ApiKeys keys,
+            short apiVersion
+    ) {
 
     }
 

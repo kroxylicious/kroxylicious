@@ -183,7 +183,11 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         }
     }
 
-    record PersonBean(String firstName, String lastName, int age) {
+    record PersonBean(
+            String firstName,
+            String lastName,
+            int age
+    ) {
     }
 
     @ParameterizedTest

@@ -96,8 +96,10 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void upstreamUsesSelfSignedTls_TrustStore(@Tls
-    KafkaCluster cluster) {
+    void upstreamUsesSelfSignedTls_TrustStore(
+            @Tls
+            KafkaCluster cluster
+    ) {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -129,8 +131,10 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void upstreamConnectionValidatesHostnames(@Tls
-    KafkaCluster cluster) {
+    void upstreamConnectionValidatesHostnames(
+            @Tls
+            KafkaCluster cluster
+    ) {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -169,8 +173,10 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void upstreamUsesSelfSignedTls_TrustX509(@Tls
-    KafkaCluster cluster) throws Exception {
+    void upstreamUsesSelfSignedTls_TrustX509(
+            @Tls
+            KafkaCluster cluster
+    ) throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
@@ -212,8 +218,10 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void upstreamUsesTlsInsecure(@Tls
-    KafkaCluster cluster) {
+    void upstreamUsesTlsInsecure(
+            @Tls
+            KafkaCluster cluster
+    ) {
         var bootstrapServers = cluster.getBootstrapServers();
 
         var builder = new ConfigurationBuilder()
@@ -326,8 +334,11 @@ class TlsIT extends BaseIT {
 
     @ParameterizedTest
     @ValueSource(classes = { InlinePassword.class, FilePassword.class })
-    void downstreamAndUpstreamTls(Class<? extends PasswordProvider> providerClazz, @Tls
-    KafkaCluster cluster) {
+    void downstreamAndUpstreamTls(
+            Class<? extends PasswordProvider> providerClazz,
+            @Tls
+            KafkaCluster cluster
+    ) {
         var bootstrapServers = cluster.getBootstrapServers();
         var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
         var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);

@@ -532,8 +532,11 @@ public class KafkaProxyFrontendHandler
     /**
      * Closes the specified channel after all queued write requests are flushed.
      */
-    void closeWith(Channel ch, @Nullable
-    ResponseFrame response) {
+    void closeWith(
+            Channel ch,
+            @Nullable
+            ResponseFrame response
+    ) {
         if (ch.isActive()) {
             ch.writeAndFlush(response != null ? response : Unpooled.EMPTY_BUFFER)
               .addListener(ChannelFutureListener.CLOSE);

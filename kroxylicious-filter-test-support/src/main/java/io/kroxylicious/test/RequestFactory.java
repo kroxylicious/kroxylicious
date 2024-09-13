@@ -123,7 +123,10 @@ public class RequestFactory {
                      });
     }
 
-    public record ApiMessageVersion(ApiMessage apiMessage, short apiVersion) {
+    public record ApiMessageVersion(
+            ApiMessage apiMessage,
+            short apiVersion
+    ) {
     }
 
     private static @NonNull ApiMessage apiMessageForApiKey(ApiKeys apiKey) {

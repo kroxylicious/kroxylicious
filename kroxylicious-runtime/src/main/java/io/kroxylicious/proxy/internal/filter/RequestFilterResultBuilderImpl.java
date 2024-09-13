@@ -34,9 +34,12 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable
-    ResponseHeaderData header, @NonNull
-    ApiMessage message) {
+    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(
+            @Nullable
+            ResponseHeaderData header,
+            @NonNull
+            ApiMessage message
+    ) {
         validateShortCircuitResponse(message);
         this.shortCircuitHeader = header;
         this.shortCircuitResponse = message;
@@ -44,8 +47,10 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull
-    ApiMessage message) {
+    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(
+            @NonNull
+            ApiMessage message
+    ) {
         validateShortCircuitResponse(message);
         this.shortCircuitResponse = message;
         return this;

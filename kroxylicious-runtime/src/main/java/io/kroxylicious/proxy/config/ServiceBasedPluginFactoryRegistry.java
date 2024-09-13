@@ -46,8 +46,10 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
     private final Map<Class<?>, Map<String, ProviderAndConfigType>> pluginInterfaceToNameToProvider = new ConcurrentHashMap<>();
 
     @NonNull
-    Map<String, ProviderAndConfigType> load(@NonNull
-    Class<?> pluginInterface) {
+    Map<String, ProviderAndConfigType> load(
+            @NonNull
+            Class<?> pluginInterface
+    ) {
         Objects.requireNonNull(pluginInterface);
         return pluginInterfaceToNameToProvider.computeIfAbsent(
                 pluginInterface,
@@ -102,13 +104,17 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
     }
 
     @Override
-    public <P> @NonNull PluginFactory<P> pluginFactory(@NonNull
-    Class<P> pluginClass) {
+    public <P> @NonNull PluginFactory<P> pluginFactory(
+            @NonNull
+            Class<P> pluginClass
+    ) {
         var nameToProvider = load(pluginClass);
         return new PluginFactory<>() {
             @Override
-            public @NonNull P pluginInstance(@NonNull
-            String instanceName) {
+            public @NonNull P pluginInstance(
+                    @NonNull
+            String instanceName
+            ) {
                 if (Objects.requireNonNull(instanceName).isEmpty()) {
                     throw new IllegalArgumentException();
                 }
@@ -145,8 +151,10 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
             @NonNull
             @Override
-            public Class<?> configType(@NonNull
-            String instanceName) {
+            public Class<?> configType(
+                    @NonNull
+            String instanceName
+            ) {
                 var providerAndConfigType = nameToProvider.get(instanceName);
                 if (providerAndConfigType != null) {
                     return providerAndConfigType.config();

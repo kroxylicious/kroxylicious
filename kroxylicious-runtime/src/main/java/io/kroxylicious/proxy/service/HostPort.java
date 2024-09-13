@@ -30,8 +30,11 @@ public final class HostPort {
      * @param host Symbolic hostnames, FQDNs, IPv4, and IPv6 forms are supported
      * @param port port number
      */
-    public HostPort(@NonNull
-    String host, int port) {
+    public HostPort(
+            @NonNull
+            String host,
+            int port
+    ) {
         Objects.requireNonNull(host, "host cannot be null");
         this.host = host;
         this.port = port;
@@ -89,8 +92,10 @@ public final class HostPort {
      */
     @JsonCreator
     @SuppressWarnings("java:S2583") // java:S2583 warns that the address null check can never fail. This is untrue as the NonNull constraint is advisory.
-    public static HostPort parse(@NonNull
-    String address) {
+    public static HostPort parse(
+            @NonNull
+            String address
+    ) {
         var exceptionText = ("unexpected address formation '%s'."
                              +
                              " Valid formations are 'host:9092', 'host.example.com:9092', or '[::ffff:c0a8:1]:9092', ").formatted(address);

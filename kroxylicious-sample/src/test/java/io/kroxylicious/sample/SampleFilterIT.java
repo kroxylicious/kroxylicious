@@ -221,6 +221,9 @@ class SampleFilterIT {
 
     }
 
-    private record TestFilter(String name, Map<String, Object> config) {
+    private record TestFilter(
+            String name,
+            Map<String, Object> config
+    ) {
     }
 }

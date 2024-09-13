@@ -78,8 +78,10 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
     }
 
     @Override
-    public void initBatch(@NonNull
-    RecordBatch batch) {
+    public void initBatch(
+            @NonNull
+            RecordBatch batch
+    ) {
         this.batch = Objects.requireNonNull(batch);
     }
 
@@ -89,8 +91,11 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
     }
 
     @Override
-    public void init(Dek<E>.Encryptor encryptor, @NonNull
-    Record kafkaRecord) throws BufferTooSmallException {
+    public void init(
+            Dek<E>.Encryptor encryptor,
+            @NonNull
+            Record kafkaRecord
+    ) throws BufferTooSmallException {
         if (this.batch == null) {
             throw new IllegalStateException();
         }
@@ -106,8 +111,10 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
     }
 
     @Nullable
-    private ByteBuffer doTransformValue(@NonNull
-    Record kafkaRecord) throws BufferTooSmallException {
+    private ByteBuffer doTransformValue(
+            @NonNull
+            Record kafkaRecord
+    ) throws BufferTooSmallException {
         final ByteBuffer transformedValue;
         if (kafkaRecord.hasValue()) {
             transformedValue = writeWrapper(kafkaRecord, recordBuffer);
@@ -117,8 +124,10 @@ public class RecordEncryptor<K, E> implements RecordTransform<Dek<E>.Encryptor> 
         return transformedValue;
     }
 
-    private Header[] doTransformHeaders(@NonNull
-    Record kafkaRecord) {
+    private Header[] doTransformHeaders(
+            @NonNull
+            Record kafkaRecord
+    ) {
         final Header[] transformedHeaders;
         if (kafkaRecord.hasValue()) {
             Header[] oldHeaders = kafkaRecord.headers();

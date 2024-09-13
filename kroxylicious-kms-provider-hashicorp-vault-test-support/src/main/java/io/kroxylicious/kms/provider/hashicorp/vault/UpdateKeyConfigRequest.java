@@ -8,6 +8,8 @@ package io.kroxylicious.kms.provider.hashicorp.vault;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-record UpdateKeyConfigRequest(@JsonProperty("deletion_allowed")
-boolean deletionAllowed) {
+record UpdateKeyConfigRequest(
+        @JsonProperty("deletion_allowed")
+        boolean deletionAllowed
+) {
 }

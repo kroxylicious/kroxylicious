@@ -532,8 +532,10 @@ public class RecordTestUtils {
      * @param records
      * @return The MemoryRecords
      */
-    public static MemoryRecords memoryRecords(@NonNull
-    List<Record> records) {
+    public static MemoryRecords memoryRecords(
+            @NonNull
+            List<Record> records
+    ) {
         try (MemoryRecordsBuilder memoryRecordsBuilder = defaultMemoryRecordsBuilder(DEFAULT_MAGIC_VALUE)) {
             records.forEach(record -> memoryRecordsBuilder.appendWithOffset(record.offset(), record));
             return memoryRecordsBuilder.build();

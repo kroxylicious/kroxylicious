@@ -25,7 +25,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param labels metric labels
  * @param value metric value
  */
-public record SimpleMetric(String name, Map<String, String> labels, double value) {
+public record SimpleMetric(
+        String name,
+        Map<String, String> labels,
+        double value
+) {
 
     // https://github.com/prometheus/docs/blob/main/content/docs/instrumenting/exposition_formats.md
     // note: RE doesn't handle escaping within label values
@@ -36,7 +40,10 @@ public record SimpleMetric(String name, Map<String, String> labels, double value
                                                                        );
     private static final Pattern NAME_WITH_QUOTED_VALUE = Pattern.compile("^(?<name>[a-zA-Z_:][a-zA-Z0-9_:]*)=\"(?<value>.*)\"$");
 
-    private record LineMatcher(String line, Matcher matcher) {
+    private record LineMatcher(
+            String line,
+            Matcher matcher
+    ) {
     }
 
     static List<SimpleMetric> parse(String output) {

@@ -28,9 +28,12 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
     private final String template;
     private final Kms<K, ?> kms;
 
-    TemplateTopicNameKekSelector(@NonNull
-    Kms<K, ?> kms, @NonNull
-    String template) {
+    TemplateTopicNameKekSelector(
+            @NonNull
+            Kms<K, ?> kms,
+            @NonNull
+            String template
+    ) {
         var matcher = PATTERN.matcher(Objects.requireNonNull(template));
         while (matcher.find()) {
             if (matcher.group(1).equals("topicName")) {
@@ -42,13 +45,18 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
         this.kms = Objects.requireNonNull(kms);
     }
 
-    private record Pair<K>(String topicName, K kekId) {
+    private record Pair<K>(
+            String topicName,
+            K kekId
+    ) {
     }
 
     @NonNull
     @Override
-    public CompletionStage<Map<String, K>> selectKek(@NonNull
-    Set<String> topicNames) {
+    public CompletionStage<Map<String, K>> selectKek(
+            @NonNull
+            Set<String> topicNames
+    ) {
         var collect = topicNames.stream()
                                 .map(
                                         topicName -> kms.resolveAlias(evaluateTemplate(topicName))

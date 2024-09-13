@@ -104,15 +104,19 @@ public class CachingKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<DekPair<E>> generateDekPair(@NonNull
-    K kekRef) {
+    public CompletionStage<DekPair<E>> generateDekPair(
+            @NonNull
+            K kekRef
+    ) {
         return delegate.generateDekPair(kekRef);
     }
 
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull
-    E edek) {
+    public CompletionStage<SecretKey> decryptEdek(
+            @NonNull
+            E edek
+    ) {
         return decryptDekCache.get(edek);
     }
 
@@ -124,8 +128,10 @@ public class CachingKms<K, E> implements Kms<K, E> {
 
     @NonNull
     @Override
-    public CompletionStage<K> resolveAlias(@NonNull
-    String alias) {
+    public CompletionStage<K> resolveAlias(
+            @NonNull
+            String alias
+    ) {
         CompletionStage<K> cachedNotFound = notFoundAliasCache.getIfPresent(alias);
         if (cachedNotFound != null) {
             return cachedNotFound;

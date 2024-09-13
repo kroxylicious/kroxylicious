@@ -57,8 +57,14 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable
-    String messageKey, int numOfMessages) {
+    public void produceMessages(
+            String topicName,
+            String bootstrap,
+            String message,
+            @Nullable
+            String messageKey,
+            int numOfMessages
+    ) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
         StringBuilder msg = new StringBuilder();

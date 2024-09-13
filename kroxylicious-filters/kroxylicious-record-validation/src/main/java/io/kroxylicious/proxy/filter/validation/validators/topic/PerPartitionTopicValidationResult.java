@@ -9,7 +9,10 @@ package io.kroxylicious.proxy.filter.validation.validators.topic;
 import java.util.Map;
 import java.util.stream.Stream;
 
-record PerPartitionTopicValidationResult(String topicName, Map<Integer, PartitionValidationResult> partitionValidationResults) implements TopicValidationResult {
+record PerPartitionTopicValidationResult(
+        String topicName,
+        Map<Integer, PartitionValidationResult> partitionValidationResults
+) implements TopicValidationResult {
 
     @Override
     public boolean isAnyPartitionInvalid() {

@@ -64,8 +64,10 @@ public class RecordStream<T> {
      * @param records The records
      * @return A stream over those records.
      */
-    public static RecordStream<Void> ofRecords(@NonNull
-    MemoryRecords records) {
+    public static RecordStream<Void> ofRecords(
+            @NonNull
+            MemoryRecords records
+    ) {
         Objects.requireNonNull(records);
         return new RecordStream<>(records, (batch, record, idx) -> null);
     }
@@ -76,8 +78,10 @@ public class RecordStream<T> {
      * @param records The records
      * @return A stream over those records.
      */
-    public static RecordStream<Integer> ofRecordsWithIndex(@NonNull
-    MemoryRecords records) {
+    public static RecordStream<Integer> ofRecordsWithIndex(
+            @NonNull
+            MemoryRecords records
+    ) {
         Objects.requireNonNull(records);
         return new RecordStream<>(records, (batch, record, idx) -> idx);
     }

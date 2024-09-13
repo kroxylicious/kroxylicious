@@ -27,7 +27,13 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
-public record RequestResponseTestDef(String testName, ApiMessageType apiKey, RequestHeaderData header, ApiMessageTestDef request, ApiMessageTestDef response) {
+public record RequestResponseTestDef(
+        String testName,
+        ApiMessageType apiKey,
+        RequestHeaderData header,
+        ApiMessageTestDef request,
+        ApiMessageTestDef response
+) {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
 

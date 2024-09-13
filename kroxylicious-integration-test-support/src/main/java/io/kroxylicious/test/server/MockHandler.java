@@ -39,7 +39,11 @@ import io.kroxylicious.test.codec.DecodedRequestFrame;
 @Sharable
 public class MockHandler extends ChannelInboundHandlerAdapter {
 
-    private record ConditionalMockResponse(Matcher<Request> matcher, Action action, AtomicLong invocations) {
+    private record ConditionalMockResponse(
+            Matcher<Request> matcher,
+            Action action,
+            AtomicLong invocations
+    ) {
 
     }
 

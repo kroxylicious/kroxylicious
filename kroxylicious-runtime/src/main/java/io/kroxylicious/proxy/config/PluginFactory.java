@@ -23,8 +23,10 @@ public interface PluginFactory<P> {
      * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
      */
     @NonNull
-    P pluginInstance(@NonNull
-    String instanceName);
+    P pluginInstance(
+            @NonNull
+            String instanceName
+    );
 
     /**
      * Resolves a plugin reference to the plugins config type.
@@ -33,6 +35,8 @@ public interface PluginFactory<P> {
      * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
      */
     @NonNull
-    Class<?> configType(@NonNull
-    String instanceName);
+    Class<?> configType(
+            @NonNull
+            String instanceName
+    );
 }

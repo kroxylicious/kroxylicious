@@ -78,8 +78,12 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    void getBrokerIdFromBrokerAddress(String name, @ConvertWith(HostPortConverter.class)
-    HostPort address, Integer expected) {
+    void getBrokerIdFromBrokerAddress(
+            String name,
+            @ConvertWith(HostPortConverter.class)
+            HostPort address,
+            Integer expected
+    ) {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider(
                 new SniRoutingClusterNetworkAddressConfigProviderConfig(
                         parse("boot.kafka:1234"),

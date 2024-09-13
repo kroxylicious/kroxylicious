@@ -204,7 +204,10 @@ public abstract class FilterHarness {
         }
     }
 
-    public record Correlation(Filter recipient, CompletableFuture<?> promise) {
+    public record Correlation(
+            Filter recipient,
+            CompletableFuture<?> promise
+    ) {
     }
 
     /**

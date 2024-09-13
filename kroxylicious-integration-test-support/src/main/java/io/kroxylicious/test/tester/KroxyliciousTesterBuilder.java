@@ -56,8 +56,10 @@ public class KroxyliciousTesterBuilder {
      * @param trustStorePassword the password used to secure the trust store.
      * @return the current instance of the builder for chaining in a fluent fashion.
      */
-    public KroxyliciousTesterBuilder setTrustStorePassword(@Nullable
-    String trustStorePassword) {
+    public KroxyliciousTesterBuilder setTrustStorePassword(
+            @Nullable
+            String trustStorePassword
+    ) {
         this.trustStorePassword = trustStorePassword;
         return this;
     }
@@ -97,7 +99,10 @@ public class KroxyliciousTesterBuilder {
         return this;
     }
 
-    record TrustStoreConfiguration(String trustStoreLocation, @Nullable
-    String trustStorePassword) {
+    record TrustStoreConfiguration(
+            String trustStoreLocation,
+            @Nullable
+            String trustStorePassword
+    ) {
     }
 }

@@ -51,8 +51,10 @@ public class ConfigParser implements PluginFactoryRegistry {
     private static final ServiceBasedPluginFactoryRegistry pluginFactoryRegistry = new ServiceBasedPluginFactoryRegistry();
 
     @Override
-    public <T> @NonNull PluginFactory<T> pluginFactory(@NonNull
-    Class<T> pluginClass) {
+    public <T> @NonNull PluginFactory<T> pluginFactory(
+            @NonNull
+            Class<T> pluginClass
+    ) {
         return pluginFactoryRegistry.pluginFactory(pluginClass);
     }
 

@@ -16,6 +16,8 @@ public interface PluginFactoryRegistry {
      * @return The factory for that type of plugin
      * @param <P> The type of plugin
      */
-    <P> @NonNull PluginFactory<P> pluginFactory(@NonNull
-    Class<P> pluginClass);
+    <P> @NonNull PluginFactory<P> pluginFactory(
+            @NonNull
+            Class<P> pluginClass
+    );
 }

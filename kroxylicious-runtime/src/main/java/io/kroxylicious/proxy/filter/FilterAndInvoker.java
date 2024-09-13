@@ -15,7 +15,10 @@ import static java.util.Objects.requireNonNull;
  * @param filter filter
  * @param invoker invoker
  */
-public record FilterAndInvoker(Filter filter, FilterInvoker invoker) {
+public record FilterAndInvoker(
+        Filter filter,
+        FilterInvoker invoker
+) {
 
     /**
      * A Filter and it's respective invoker

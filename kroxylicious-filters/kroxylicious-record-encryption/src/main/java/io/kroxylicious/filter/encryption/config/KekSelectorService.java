@@ -17,7 +17,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public interface KekSelectorService<C, K> {
     @NonNull
-    TopicNameBasedKekSelector<K> buildSelector(@NonNull
-    Kms<K, ?> kms, C options);
+    TopicNameBasedKekSelector<K> buildSelector(
+            @NonNull
+            Kms<K, ?> kms,
+            C options
+    );
 
 }

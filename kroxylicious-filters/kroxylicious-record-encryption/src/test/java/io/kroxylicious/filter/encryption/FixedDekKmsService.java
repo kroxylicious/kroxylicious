@@ -62,15 +62,19 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
 
         @NonNull
         @Override
-        public CompletionStage<DekPair<ByteBuffer>> generateDekPair(@NonNull
-        ByteBuffer kekRef) {
+        public CompletionStage<DekPair<ByteBuffer>> generateDekPair(
+                @NonNull
+                ByteBuffer kekRef
+        ) {
             return CompletableFuture.completedFuture(new DekPair<>(edek, dek));
         }
 
         @NonNull
         @Override
-        public CompletionStage<SecretKey> decryptEdek(@NonNull
-        ByteBuffer edek) {
+        public CompletionStage<SecretKey> decryptEdek(
+                @NonNull
+                ByteBuffer edek
+        ) {
             return CompletableFuture.completedFuture(dek);
         }
 
@@ -84,16 +88,21 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
                 }
 
                 @Override
-                public void serialize(ByteBuffer object, @NonNull
-                ByteBuffer buffer) {
+                public void serialize(
+                        ByteBuffer object,
+                        @NonNull
+                ByteBuffer buffer
+                ) {
                     var p0 = object.position();
                     buffer.put(object);
                     object.position(p0);
                 }
 
                 @Override
-                public ByteBuffer deserialize(@NonNull
-                ByteBuffer buffer) {
+                public ByteBuffer deserialize(
+                        @NonNull
+                ByteBuffer buffer
+                ) {
                     throw new UnsupportedOperationException();
                 }
             };
@@ -101,8 +110,10 @@ public class FixedDekKmsService implements KmsService<FixedDekKmsService.Config,
 
         @NonNull
         @Override
-        public CompletionStage<ByteBuffer> resolveAlias(@NonNull
-        String alias) {
+        public CompletionStage<ByteBuffer> resolveAlias(
+                @NonNull
+                String alias
+        ) {
             return CompletableFuture.completedFuture(KEK_ID);
         }
     }

@@ -13,7 +13,10 @@ import java.util.List;
  * @param index index of the partition
  * @param recordValidationFailures details of any records that failed validation
  */
-public record PartitionValidationResult(int index, List<RecordValidationFailure> recordValidationFailures) {
+public record PartitionValidationResult(
+        int index,
+        List<RecordValidationFailure> recordValidationFailures
+) {
 
     /**
      * Are all records in the partition valid?

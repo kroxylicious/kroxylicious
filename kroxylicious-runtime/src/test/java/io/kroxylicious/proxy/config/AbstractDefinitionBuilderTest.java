@@ -18,7 +18,10 @@ class AbstractDefinitionBuilderTest {
 
     public static final String TYPE = "concrete";
 
-    record Built(String type, Map<String, Object> config) {
+    record Built(
+            String type,
+            Map<String, Object> config
+    ) {
 
     }
 

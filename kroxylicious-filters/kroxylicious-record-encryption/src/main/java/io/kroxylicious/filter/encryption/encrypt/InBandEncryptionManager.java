@@ -74,8 +74,10 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     }
 
     @VisibleForTesting
-    public CompletionStage<Dek<E>> currentDek(@NonNull
-    EncryptionScheme<K> encryptionScheme) {
+    public CompletionStage<Dek<E>> currentDek(
+            @NonNull
+            EncryptionScheme<K> encryptionScheme
+    ) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
         return dekCache.get(encryptionScheme, filterThreadExecutor);
     }

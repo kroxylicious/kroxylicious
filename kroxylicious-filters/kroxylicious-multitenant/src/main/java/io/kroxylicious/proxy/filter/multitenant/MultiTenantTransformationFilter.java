@@ -664,8 +664,10 @@ public class MultiTenantTransformationFilter
         return kafkaResourcePrefix;
     }
 
-    public MultiTenantTransformationFilter(@NonNull
-    MultiTenantConfig configuration) {
+    public MultiTenantTransformationFilter(
+            @NonNull
+            MultiTenantConfig configuration
+    ) {
         Objects.requireNonNull(configuration);
         this.prefixResourceNameSeparator = configuration.prefixResourceNameSeparator();
     }

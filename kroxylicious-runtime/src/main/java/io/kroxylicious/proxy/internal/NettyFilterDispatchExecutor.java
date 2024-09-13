@@ -28,14 +28,18 @@ public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
 
     private final EventLoop eventLoop;
 
-    private NettyFilterDispatchExecutor(@NonNull
-    EventLoop eventLoop) {
+    private NettyFilterDispatchExecutor(
+            @NonNull
+            EventLoop eventLoop
+    ) {
         Objects.requireNonNull(eventLoop, "eventLoop cannot be null");
         this.eventLoop = eventLoop;
     }
 
-    public static FilterDispatchExecutor eventLoopExecutor(@NonNull
-    EventLoop loop) {
+    public static FilterDispatchExecutor eventLoopExecutor(
+            @NonNull
+            EventLoop loop
+    ) {
         return new NettyFilterDispatchExecutor(loop);
     }
 
@@ -49,8 +53,10 @@ public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
     }
 
     @Override
-    public <T> CompletionStage<T> completeOnFilterDispatchThread(@NonNull
-    CompletionStage<T> completionStage) {
+    public <T> CompletionStage<T> completeOnFilterDispatchThread(
+            @NonNull
+            CompletionStage<T> completionStage
+    ) {
         Objects.requireNonNull(completionStage, "completionStage was null");
         CompletableFuture<T> future = new InternalCompletableFuture<>(this);
         completionStage.whenComplete((value, throwable) -> {

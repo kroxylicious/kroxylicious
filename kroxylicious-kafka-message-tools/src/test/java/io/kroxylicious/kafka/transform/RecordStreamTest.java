@@ -207,9 +207,12 @@ class RecordStreamTest {
     }
 
     @NonNull
-    private static ByteBuffer prefix(@NonNull
-    String prefix, @NonNull
-    ByteBuffer buffer) {
+    private static ByteBuffer prefix(
+            @NonNull
+            String prefix,
+            @NonNull
+            ByteBuffer buffer
+    ) {
         return StandardCharsets.UTF_8.encode(CharBuffer.wrap(prefix + StandardCharsets.UTF_8.decode(buffer)));
     }
 
@@ -217,8 +220,10 @@ class RecordStreamTest {
         private T state;
 
         @Override
-        public void initBatch(@NonNull
-        RecordBatch batch) {
+        public void initBatch(
+                @NonNull
+                RecordBatch batch
+        ) {
 
         }
 
@@ -241,35 +246,45 @@ class RecordStreamTest {
         }
 
         @Override
-        public long transformOffset(@NonNull
-        Record record) {
+        public long transformOffset(
+                @NonNull
+                Record record
+        ) {
             return Math.abs(state.hashCode()) + record.offset();
         }
 
         @Override
-        public long transformTimestamp(@NonNull
-        Record record) {
+        public long transformTimestamp(
+                @NonNull
+                Record record
+        ) {
             return Math.abs(state.hashCode()) + record.timestamp();
         }
 
         @Nullable
         @Override
-        public ByteBuffer transformKey(@NonNull
-        Record record) {
+        public ByteBuffer transformKey(
+                @NonNull
+                Record record
+        ) {
             return prefix(String.valueOf(state), record.key());
         }
 
         @Nullable
         @Override
-        public ByteBuffer transformValue(@NonNull
-        Record record) {
+        public ByteBuffer transformValue(
+                @NonNull
+                Record record
+        ) {
             return prefix(String.valueOf(state), record.value());
         }
 
         @Nullable
         @Override
-        public Header[] transformHeaders(@NonNull
-        Record record) {
+        public Header[] transformHeaders(
+                @NonNull
+                Record record
+        ) {
             return new Header[0];
         }
     }

@@ -148,11 +148,16 @@ public class CertificateGenerator {
         }
     }
 
-    public record TrustStore(@NonNull
-    Path path, @NonNull
-    String type, @Nullable
-    String password, @Nullable
-    Path passwordFile) {
+    public record TrustStore(
+            @NonNull
+            Path path,
+            @NonNull
+            String type,
+            @Nullable
+            String password,
+            @Nullable
+            Path passwordFile
+    ) {
 
     }
 

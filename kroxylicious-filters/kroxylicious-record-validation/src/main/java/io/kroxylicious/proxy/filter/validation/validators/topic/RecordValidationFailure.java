@@ -11,7 +11,10 @@ package io.kroxylicious.proxy.filter.validation.validators.topic;
  * @param invalidIndex the index of the invalid record within its batch
  * @param errorMessage details of what was invalid
  */
-public record RecordValidationFailure(int invalidIndex, String errorMessage) {
+public record RecordValidationFailure(
+        int invalidIndex,
+        String errorMessage
+) {
 
     @Override
     public String toString() {

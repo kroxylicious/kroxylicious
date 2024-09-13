@@ -200,8 +200,14 @@ public class TestClientsJobTemplates {
                                   .build();
     }
 
-    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message, @Nullable
-    String messageKey) {
+    private static List<EnvVar> testClientsProducerEnvVars(
+            String bootstrap,
+            String topicName,
+            int numOfMessages,
+            String message,
+            @Nullable
+            String messageKey
+    ) {
         List<EnvVar> envVars = new ArrayList<>(
                 List.of(
                         envVar(BOOTSTRAP_VAR, bootstrap),

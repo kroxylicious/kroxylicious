@@ -36,8 +36,10 @@ class Wrapping96BitCounter implements Destroyable {
     private int hi;
     private boolean destroyed = false;
 
-    Wrapping96BitCounter(@NonNull
-    SecureRandom rng) {
+    Wrapping96BitCounter(
+            @NonNull
+            SecureRandom rng
+    ) {
         low = rng.nextInt();
         mid = rng.nextInt();
         hi = rng.nextInt();

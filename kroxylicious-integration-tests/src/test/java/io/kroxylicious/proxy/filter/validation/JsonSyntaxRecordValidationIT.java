@@ -39,7 +39,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     @Test
     void invalidJsonProduceRejected(KafkaCluster cluster, Topic topic) {
         var config = proxy(cluster)
-                                   .addToFilters(createFilterDef(false, topic));
+                .addToFilters(createFilterDef(false, topic));
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
@@ -52,7 +52,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         var config = proxy(cluster)
-                                   .addToFilters(createFilterDef(false, topic1));
+                .addToFilters(createFilterDef(false, topic1));
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var rejected = producer.send(new ProducerRecord<>(topic1.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
@@ -63,9 +63,9 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
             var records = consumeAll(tester, topic2);
             assertThat(records)
-                               .singleElement()
-                               .extracting(ConsumerRecord::value)
-                               .isEqualTo(SYNTACTICALLY_INCORRECT_JSON);
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(SYNTACTICALLY_INCORRECT_JSON);
         }
     }
 
@@ -74,7 +74,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         var config = proxy(cluster)
-                                   .addToFilters(createFilterDef(true, topic1));
+                .addToFilters(createFilterDef(true, topic1));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000, TRANSACTIONAL_ID_CONFIG, randomUUID().toString()))) {
@@ -94,7 +94,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         var config = proxy(cluster)
-                                   .addToFilters(createFilterDef(false, topic1));
+                .addToFilters(createFilterDef(false, topic1));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
@@ -111,7 +111,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         var config = proxy(cluster)
-                                   .addToFilters(createFilterDef(true, topic1));
+                .addToFilters(createFilterDef(true, topic1));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
@@ -124,19 +124,18 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
             var records = consumeAll(tester, topic2);
             assertThat(records)
-                               .singleElement()
-                               .extracting(ConsumerRecord::value)
-                               .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
         }
     }
 
     @Test
-    void partiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, @TopicPartitions(2)
-    Topic topic) {
+    void partiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, @TopicPartitions(2) Topic topic) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         var config = proxy(cluster)
-                                   .addToFilters(createFilterDef(true, topic));
+                .addToFilters(createFilterDef(true, topic));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
@@ -149,9 +148,9 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
             var records = consumeAll(tester, topic);
             assertThat(records)
-                               .singleElement()
-                               .extracting(ConsumerRecord::value)
-                               .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
         }
     }
 
@@ -160,7 +159,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         var config = proxy(cluster)
-                                   .addToFilters(createFilterDef(true, topic));
+                .addToFilters(createFilterDef(true, topic));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
@@ -176,7 +175,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     @Test
     void validJsonProduceAccepted(KafkaCluster cluster, Topic topic) {
         var config = proxy(cluster)
-                                   .addToFilters(createFilterDef(false, topic));
+                .addToFilters(createFilterDef(false, topic));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -185,29 +184,29 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
             var records = consumeAll(tester, topic);
             assertThat(records)
-                               .singleElement()
-                               .extracting(ConsumerRecord::value)
-                               .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
         }
     }
 
     @Test
     void allowNulls(KafkaCluster cluster, Topic topic) {
         var config = proxy(cluster)
-                                   .addToFilters(
-                                           new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig(
-                                                   "rules",
-                                                   List.of(
-                                                           Map.of(
-                                                                   "topicNames",
-                                                                   List.of(topic.name()),
-                                                                   "valueRule",
-                                                                   Map.of("allowNulls", true, "syntacticallyCorrectJson", Map.of())
-                                                           )
-                                                   )
-                                           )
-                                                                                                        .build()
-                                   );
+                .addToFilters(
+                        new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig(
+                                                                                             "rules",
+                                                                                             List.of(
+                                                                                                     Map.of(
+                                                                                                             "topicNames",
+                                                                                                             List.of(topic.name()),
+                                                                                                             "valueRule",
+                                                                                                             Map.of("allowNulls", true, "syntacticallyCorrectJson", Map.of())
+                                                                                                     )
+                                                                                             )
+                                                                                     )
+                                                                                     .build()
+                );
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -216,9 +215,9 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
             var records = consumeAll(tester, topic);
             assertThat(records)
-                               .singleElement()
-                               .extracting(ConsumerRecord::value)
-                               .isNull();
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isNull();
         }
     }
 
@@ -226,20 +225,20 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     void rejectNulls(KafkaCluster cluster, Topic topic) {
 
         var config = proxy(cluster)
-                                   .addToFilters(
-                                           new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig(
-                                                   "rules",
-                                                   List.of(
-                                                           Map.of(
-                                                                   "topicNames",
-                                                                   List.of(topic.name()),
-                                                                   "valueRule",
-                                                                   Map.of("allowNulls", false, "syntacticallyCorrectJson", Map.of())
-                                                           )
-                                                   )
-                                           )
-                                                                                                        .build()
-                                   );
+                .addToFilters(
+                        new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig(
+                                                                                             "rules",
+                                                                                             List.of(
+                                                                                                     Map.of(
+                                                                                                             "topicNames",
+                                                                                                             List.of(topic.name()),
+                                                                                                             "valueRule",
+                                                                                                             Map.of("allowNulls", false, "syntacticallyCorrectJson", Map.of())
+                                                                                                     )
+                                                                                             )
+                                                                                     )
+                                                                                     .build()
+                );
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -250,18 +249,18 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
     private FilterDefinition createFilterDef(boolean forwardPartialRequests, Topic... topics) {
         return new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig(
-                "forwardPartialRequests",
-                forwardPartialRequests,
-                "rules",
-                List.of(
-                        Map.of(
-                                "topicNames",
-                                Arrays.stream(topics).map(Topic::name).toList(),
-                                "valueRule",
-                                Map.of("syntacticallyCorrectJson", Map.of())
-                        )
-                )
-        )
+                                                                                    "forwardPartialRequests",
+                                                                                    forwardPartialRequests,
+                                                                                    "rules",
+                                                                                    List.of(
+                                                                                            Map.of(
+                                                                                                    "topicNames",
+                                                                                                    Arrays.stream(topics).map(Topic::name).toList(),
+                                                                                                    "valueRule",
+                                                                                                    Map.of("syntacticallyCorrectJson", Map.of())
+                                                                                            )
+                                                                                    )
+                                                                            )
                                                                             .build();
     }
 

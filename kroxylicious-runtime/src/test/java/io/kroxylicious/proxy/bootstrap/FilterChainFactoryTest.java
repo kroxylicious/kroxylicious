@@ -59,14 +59,18 @@ class FilterChainFactoryTest {
             @NonNull
             @SuppressWarnings({ "rawtypes", "unchecked" })
             @Override
-            public <P> PluginFactory<P> pluginFactory(@NonNull
-            Class<P> pluginClass) {
+            public <P> PluginFactory<P> pluginFactory(
+                    @NonNull
+            Class<P> pluginClass
+            ) {
                 if (pluginClass == FilterFactory.class) {
                     return new PluginFactory() {
                         @NonNull
                         @Override
-                        public FilterFactory pluginInstance(@NonNull
-                        String instanceName) {
+                        public FilterFactory pluginInstance(
+                                @NonNull
+                        String instanceName
+                        ) {
                             if (instanceName.endsWith(TestFilterFactory.class.getSimpleName())) {
                                 return new TestFilterFactory();
                             } else if (instanceName.endsWith(RequiresConfigFactory.class.getSimpleName())) {
@@ -81,8 +85,10 @@ class FilterChainFactoryTest {
 
                         @NonNull
                         @Override
-                        public Class<?> configType(@NonNull
-                        String instanceName) {
+                        public Class<?> configType(
+                                @NonNull
+                        String instanceName
+                        ) {
                             if (instanceName.endsWith(FlakyFactory.class.getSimpleName())) {
                                 return FlakyConfig.class;
                             }

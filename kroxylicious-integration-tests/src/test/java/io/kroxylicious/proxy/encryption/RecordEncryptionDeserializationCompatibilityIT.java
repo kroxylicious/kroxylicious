@@ -101,8 +101,11 @@ class RecordEncryptionDeserializationCompatibilityIT {
             new DeserializedRecord(List.of(new DeserializedHeader("x", "y")), "a", "b")
     );
 
-    record SerializedHeader(String key, @Nullable
-    String valueBase64) {
+    record SerializedHeader(
+            String key,
+            @Nullable
+            String valueBase64
+    ) {
         public byte[] valueBytes() {
             return valueBase64 == null ? null : Base64.getDecoder().decode(valueBase64);
         }
@@ -112,9 +115,13 @@ class RecordEncryptionDeserializationCompatibilityIT {
         }
     }
 
-    record SerializedRecord(List<SerializedHeader> headers, @Nullable
-    String keyBase64, @Nullable
-    String valueBase64) {
+    record SerializedRecord(
+            List<SerializedHeader> headers,
+            @Nullable
+            String keyBase64,
+            @Nullable
+            String valueBase64
+    ) {
         public byte[] keyBytes() {
             return keyBase64 == null ? null : Base64.getDecoder().decode(keyBase64);
         }
@@ -128,16 +135,23 @@ class RecordEncryptionDeserializationCompatibilityIT {
         }
     }
 
-    record DeserializedHeader(String name, @Nullable
-    String value) {
+    record DeserializedHeader(
+            String name,
+            @Nullable
+            String value
+    ) {
         public Header kafkaHeader() {
             return new RecordHeader(name, value == null ? null : value.getBytes(StandardCharsets.UTF_8));
         }
     }
 
-    record DeserializedRecord(List<DeserializedHeader> headers, @Nullable
-    String key, @Nullable
-    String value) {
+    record DeserializedRecord(
+            List<DeserializedHeader> headers,
+            @Nullable
+            String key,
+            @Nullable
+            String value
+    ) {
         public ProducerRecord<String, String> producerRecord(String topic) {
             return new ProducerRecord<>(
                     topic,
@@ -155,7 +169,13 @@ class RecordEncryptionDeserializationCompatibilityIT {
 
     // for now v1 encryption is hardcoded and implicit, in future it should be a configurable aspect of
     // the filter.
-    record TestCase(EncryptionVersion version, String name, String topic, SerializedRecord serializedRecord, DeserializedRecord expected) {
+    record TestCase(
+            EncryptionVersion version,
+            String name,
+            String topic,
+            SerializedRecord serializedRecord,
+            DeserializedRecord expected
+    ) {
         public ProducerRecord<byte[], byte[]> producerRecord() {
             return new ProducerRecord<>(topic, 0, serializedRecord.keyBytes(), serializedRecord.valueBytes(), serializedRecord.kafkaHeaders());
         }

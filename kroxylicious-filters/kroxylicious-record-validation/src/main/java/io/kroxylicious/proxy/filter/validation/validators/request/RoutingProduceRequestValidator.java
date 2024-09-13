@@ -40,7 +40,10 @@ public class RoutingProduceRequestValidator implements ProduceRequestValidator {
     private final TopicValidator defaultValidator;
     private final Map<String, TopicValidator> cache = new HashMap<>();
 
-    private record RoutingRule(Predicate<String> topicPredicate, TopicValidator validator) {
+    private record RoutingRule(
+            Predicate<String> topicPredicate,
+            TopicValidator validator
+    ) {
 
     }
 

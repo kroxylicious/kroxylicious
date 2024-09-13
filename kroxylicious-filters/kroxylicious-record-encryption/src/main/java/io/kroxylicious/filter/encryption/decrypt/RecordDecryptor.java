@@ -31,15 +31,20 @@ public class RecordDecryptor<E> implements RecordTransform<DecryptState<E>> {
     private ByteBuffer transformedValue;
     private Header[] transformedHeaders;
 
-    public RecordDecryptor(@NonNull
-    String topicName, int partition) {
+    public RecordDecryptor(
+            @NonNull
+            String topicName,
+            int partition
+    ) {
         this.topicName = Objects.requireNonNull(topicName);
         this.partition = partition;
     }
 
     @Override
-    public void initBatch(@NonNull
-    RecordBatch batch) {
+    public void initBatch(
+            @NonNull
+            RecordBatch batch
+    ) {
         this.batch = Objects.requireNonNull(batch);
     }
 
@@ -85,35 +90,45 @@ public class RecordDecryptor<E> implements RecordTransform<DecryptState<E>> {
     }
 
     @Override
-    public long transformOffset(@NonNull
-    Record record) {
+    public long transformOffset(
+            @NonNull
+            Record record
+    ) {
         return record.offset();
     }
 
     @Override
-    public long transformTimestamp(@NonNull
-    Record record) {
+    public long transformTimestamp(
+            @NonNull
+            Record record
+    ) {
         return record.timestamp();
     }
 
     @Nullable
     @Override
-    public ByteBuffer transformKey(@NonNull
-    Record record) {
+    public ByteBuffer transformKey(
+            @NonNull
+            Record record
+    ) {
         return record.key();
     }
 
     @Nullable
     @Override
-    public ByteBuffer transformValue(@NonNull
-    Record record) {
+    public ByteBuffer transformValue(
+            @NonNull
+            Record record
+    ) {
         return transformedValue == null ? null : transformedValue.duplicate();
     }
 
     @Nullable
     @Override
-    public Header[] transformHeaders(@NonNull
-    Record record) {
+    public Header[] transformHeaders(
+            @NonNull
+            Record record
+    ) {
         return transformedHeaders;
     }
 

@@ -18,7 +18,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * with startInclusive 1 and endExclusive 3 contains the integers 1 and 2.
  * A Range must be non-empty, endExclusive must be greater than startInclusive
  */
-public record Range(int startInclusive, int endExclusive) {
+public record Range(
+        int startInclusive,
+        int endExclusive
+) {
 
     /**
      * Constructs a Range
@@ -53,8 +56,10 @@ public record Range(int startInclusive, int endExclusive) {
      * @return true if this range ends before the start of other range
      */
     @VisibleForTesting
-    boolean isEndBeforeStartOf(@NonNull
-    Range range) {
+    boolean isEndBeforeStartOf(
+            @NonNull
+            Range range
+    ) {
         Objects.requireNonNull(range, "range to compare with is null");
         return this.endExclusive <= range.startInclusive;
     }
@@ -65,8 +70,10 @@ public record Range(int startInclusive, int endExclusive) {
      * @param range range to compare
      * @return true if this range does not overlap with other range
      */
-    public boolean isDistinctFrom(@NonNull
-    Range range) {
+    public boolean isDistinctFrom(
+            @NonNull
+            Range range
+    ) {
         Objects.requireNonNull(range, "range to compare with is null");
         return isEndBeforeStartOf(range) || range.isEndBeforeStartOf(this);
     }

@@ -137,9 +137,13 @@ public class WrapperV2 implements Wrapper {
         }
     }
 
-    private <E> void writeParameters(@NonNull
-    Dek<E>.Encryptor encryptor, CipherManager cipherManager, @NonNull
-    ByteBuffer buffer) {
+    private <E> void writeParameters(
+            @NonNull
+            Dek<E>.Encryptor encryptor,
+            CipherManager cipherManager,
+            @NonNull
+            ByteBuffer buffer
+    ) {
         int paramsSize = cipherManager.constantParamsSize();
         final ByteBuffer paramsBuffer;
         if (paramsSize == CipherManager.VARIABLE_SIZE_PARAMETERS) {

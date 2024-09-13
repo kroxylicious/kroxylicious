@@ -8,5 +8,8 @@ package io.kroxylicious.test.client;
 
 import io.kroxylicious.test.codec.DecodedResponseFrame;
 
-public record SequencedResponse(DecodedResponseFrame<?> frame, int sequenceNumber) {
+public record SequencedResponse(
+        DecodedResponseFrame<?> frame,
+        int sequenceNumber
+) {
 }

@@ -99,12 +99,18 @@ class ParcelTest {
         assertThat(buffer.remaining()).isZero();
     }
 
-    private record Header(@JsonProperty(required = true)
-    ByteBuffer keyBase64, ByteBuffer valueBase64) {
+    private record Header(
+            @JsonProperty(required = true)
+            ByteBuffer keyBase64,
+            ByteBuffer valueBase64
+    ) {
     }
 
-    private record ParcelContents(ByteBuffer valueBase64, @JsonProperty(required = true)
-    List<ParcelTest.Header> headers) {
+    private record ParcelContents(
+            ByteBuffer valueBase64,
+            @JsonProperty(required = true)
+            List<ParcelTest.Header> headers
+    ) {
         org.apache.kafka.common.header.Header[] kafkaHeaders() {
             return this.headers.stream().map(header -> new RecordHeader(header.keyBase64(), header.valueBase64())).toArray(org.apache.kafka.common.header.Header[]::new);
         }
@@ -113,8 +119,10 @@ class ParcelTest {
     private record Exemplar(ByteBuffer serializedBase64) {
     }
 
-    private record SerializationOptions(@JsonProperty(required = true)
-    Set<RecordField> recordFields) {
+    private record SerializationOptions(
+            @JsonProperty(required = true)
+            Set<RecordField> recordFields
+    ) {
     }
 
     private record ParcelSerializationExemplar(
@@ -129,7 +137,10 @@ class ParcelTest {
 
     }
 
-    private record NamedExemplars(ParcelSerializationExemplar exemplars, String name) {
+    private record NamedExemplars(
+            ParcelSerializationExemplar exemplars,
+            String name
+    ) {
         Stream<NamedExemplar> flatten() {
             ParcelContents originalRecordContents = exemplars.originalRecordContents;
             ParcelContents deserializedParcelContents = exemplars.deserializedParcelContents;

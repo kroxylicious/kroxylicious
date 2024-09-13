@@ -80,12 +80,18 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
      * @param date request date
      * @return a new request builder
      */
-    public static Builder newBuilder(@NonNull
-    String accessKey, @NonNull
-    String secretKey, @NonNull
-    String region, @NonNull
-    String service, @NonNull
-    Instant date) {
+    public static Builder newBuilder(
+            @NonNull
+            String accessKey,
+            @NonNull
+            String secretKey,
+            @NonNull
+            String region,
+            @NonNull
+            String service,
+            @NonNull
+            Instant date
+    ) {
         return new AwsV4SigningHttpRequestBuilder(accessKey, secretKey, region, service, date, HttpRequest.newBuilder());
     }
 
@@ -267,7 +273,10 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         return new CanonicalRequestResult(signedHeaders, canonicalRequestHash);
     }
 
-    private record CanonicalRequestResult(String signedHeaders, String canonicalRequestHash) {
+    private record CanonicalRequestResult(
+            String signedHeaders,
+            String canonicalRequestHash
+    ) {
     }
 
     @NonNull
@@ -282,7 +291,10 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         return new StringToSignResult(credentialScope, stringToSign);
     }
 
-    private record StringToSignResult(String credentialScope, String stringToSign) {
+    private record StringToSignResult(
+            String credentialScope,
+            String stringToSign
+    ) {
     }
 
     @NonNull

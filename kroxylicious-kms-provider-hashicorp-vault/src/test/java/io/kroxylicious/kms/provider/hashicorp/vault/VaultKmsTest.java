@@ -264,7 +264,10 @@ class VaultKmsTest {
         }
     }
 
-    record StaticResponse(int statusCode, String response) implements HttpHandler {
+    record StaticResponse(
+            int statusCode,
+            String response
+    ) implements HttpHandler {
         @Override
         public void handle(HttpExchange t) throws IOException {
             t.sendResponseHeaders(statusCode, response.length());

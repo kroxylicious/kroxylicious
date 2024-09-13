@@ -16,7 +16,11 @@ import java.util.Optional;
  * @param port port number
  * @param tls true if TLS is in use for this endpoint.
  */
-public record Endpoint(Optional<String> bindingAddress, int port, boolean tls) {
+public record Endpoint(
+        Optional<String> bindingAddress,
+        int port,
+        boolean tls
+) {
     public Endpoint {
         Objects.requireNonNull(bindingAddress);
     }

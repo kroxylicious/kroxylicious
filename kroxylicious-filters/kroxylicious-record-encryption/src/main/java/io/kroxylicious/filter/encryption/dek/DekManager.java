@@ -63,9 +63,12 @@ public class DekManager<K, E> {
      * @return A completion state that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
-    public CompletionStage<Dek<E>> generateDek(@NonNull
-    K kekRef, @NonNull
-    CipherManager cipherManager) {
+    public CompletionStage<Dek<E>> generateDek(
+            @NonNull
+            K kekRef,
+            @NonNull
+            CipherManager cipherManager
+    ) {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(cipherManager);
         return kms.generateDekPair(kekRef)
@@ -94,9 +97,12 @@ public class DekManager<K, E> {
      * @return A completion stage that completes with the {@link Dek}, or
      * fails if the request to the KMS fails.
      */
-    public CompletionStage<Dek<E>> decryptEdek(@NonNull
-    E edek, @NonNull
-    CipherManager cipherManager) {
+    public CompletionStage<Dek<E>> decryptEdek(
+            @NonNull
+            E edek,
+            @NonNull
+            CipherManager cipherManager
+    ) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(cipherManager);
         return kms.decryptEdek(edek).thenApply(key -> new Dek<>(edek, DestroyableRawSecretKey.toDestroyableKey(key), cipherManager, 0));

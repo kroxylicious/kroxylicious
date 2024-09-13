@@ -72,6 +72,9 @@ public class ContributionManager {
         return contributorClass.getName().equals(typeName) || matchesShortNameForTopLevelClass;
     }
 
-    public record ConfigurationDefinition(Class<?> configurationType, boolean configurationRequired) {
+    public record ConfigurationDefinition(
+            Class<?> configurationType,
+            boolean configurationRequired
+    ) {
     }
 }

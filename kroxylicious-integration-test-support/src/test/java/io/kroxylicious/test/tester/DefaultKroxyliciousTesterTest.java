@@ -263,8 +263,10 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @Test
-    void shouldConfigureConsumerForTls(@TempDir
-    Path certsDirectory) throws IOException {
+    void shouldConfigureConsumerForTls(
+            @TempDir
+            Path certsDirectory
+    ) throws IOException {
         // Given
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
         final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
@@ -283,8 +285,10 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @Test
-    void shouldConfigureProducerForTls(@TempDir
-    Path certsDirectory) throws IOException {
+    void shouldConfigureProducerForTls(
+            @TempDir
+            Path certsDirectory
+    ) throws IOException {
         // Given
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
         final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();
@@ -300,8 +304,10 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @Test
-    void shouldConfigureAdminForTls(@TempDir
-    Path certsDirectory) throws IOException {
+    void shouldConfigureAdminForTls(
+            @TempDir
+            Path certsDirectory
+    ) throws IOException {
         // Given
         final String certFilePath = certsDirectory.resolve(Path.of("cert-file")).toAbsolutePath().toString();
         final String trustStorePath = certsDirectory.resolve(Path.of("trust-store")).toAbsolutePath().toString();

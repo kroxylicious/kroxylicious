@@ -27,8 +27,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  *
  * @param passwordFile file containing the password.
  */
-public record FilePassword(@JsonProperty(required = true) @JsonAlias("filePath")
-String passwordFile) implements PasswordProvider {
+public record FilePassword(
+        @JsonProperty(required = true) @JsonAlias("filePath")
+        String passwordFile
+) implements PasswordProvider {
 
     public FilePassword {
         Objects.requireNonNull(passwordFile);

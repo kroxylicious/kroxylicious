@@ -40,8 +40,10 @@ public class BatchAwareMemoryRecordsBuilder {
      * Initialize a new instance, which will append into the given buffer.
      * @param buffer The buffer to use.
      */
-    public BatchAwareMemoryRecordsBuilder(@NonNull
-    ByteBufferOutputStream buffer) {
+    public BatchAwareMemoryRecordsBuilder(
+            @NonNull
+            ByteBufferOutputStream buffer
+    ) {
         this.buffer = Objects.requireNonNull(buffer);
     }
 
@@ -168,8 +170,10 @@ public class BatchAwareMemoryRecordsBuilder {
      * @param batch The batch to write to the buffer
      * @return this builder
      */
-    public @NonNull BatchAwareMemoryRecordsBuilder writeBatch(@NonNull
-    MutableRecordBatch batch) {
+    public @NonNull BatchAwareMemoryRecordsBuilder writeBatch(
+            @NonNull
+            MutableRecordBatch batch
+    ) {
         checkIfClosed();
         if (haveBatch()) {
             appendCurrentBatch();
@@ -264,8 +268,11 @@ public class BatchAwareMemoryRecordsBuilder {
         return this;
     }
 
-    public @NonNull BatchAwareMemoryRecordsBuilder appendControlRecordWithOffset(long offset, @NonNull
-    SimpleRecord record) {
+    public @NonNull BatchAwareMemoryRecordsBuilder appendControlRecordWithOffset(
+            long offset,
+            @NonNull
+            SimpleRecord record
+    ) {
         checkIfClosed();
         checkHasBatch();
         builder.appendControlRecordWithOffset(offset, record);

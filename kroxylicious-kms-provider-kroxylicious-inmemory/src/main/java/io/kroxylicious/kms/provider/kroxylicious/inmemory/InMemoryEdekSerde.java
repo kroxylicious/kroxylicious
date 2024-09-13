@@ -26,8 +26,10 @@ class InMemoryEdekSerde implements Serde<InMemoryEdek> {
     }
 
     @Override
-    public InMemoryEdek deserialize(@NonNull
-    ByteBuffer buffer) {
+    public InMemoryEdek deserialize(
+            @NonNull
+            ByteBuffer buffer
+    ) {
         short numAuthBits = Serde.getUnsignedByte(buffer);
         var ivLength = Serde.getUnsignedByte(buffer);
         var iv = new byte[ivLength];
@@ -49,8 +51,11 @@ class InMemoryEdekSerde implements Serde<InMemoryEdek> {
     }
 
     @Override
-    public void serialize(InMemoryEdek inMemoryEdek, @NonNull
-    ByteBuffer buffer) {
+    public void serialize(
+            InMemoryEdek inMemoryEdek,
+            @NonNull
+            ByteBuffer buffer
+    ) {
         Serde.putUnsignedByte(buffer, inMemoryEdek.numAuthBits());
         Serde.putUnsignedByte(buffer, inMemoryEdek.iv().length);
         buffer.put(inMemoryEdek.iv());

@@ -25,8 +25,10 @@ class ChainingByteBufferValidator implements BytebufValidator {
 
     private final List<BytebufValidator> elements;
 
-    ChainingByteBufferValidator(@NonNull
-    List<BytebufValidator> elements) {
+    ChainingByteBufferValidator(
+            @NonNull
+            List<BytebufValidator> elements
+    ) {
         this.elements = List.copyOf(elements);
     }
 

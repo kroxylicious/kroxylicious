@@ -40,7 +40,10 @@ public class EncryptionDekCache<K, E> {
     public static final int NO_MAX_CACHE_SIZE = -1;
     private CipherSpecResolver cipherSpecResolver;
 
-    private record CacheKey<K>(K kek, CipherSpec cipherSpec) {
+    private record CacheKey<K>(
+            K kek,
+            CipherSpec cipherSpec
+    ) {
     }
 
     private static <K> CacheKey<K> cacheKey(EncryptionScheme<K> encryptionScheme) {
@@ -144,8 +147,10 @@ public class EncryptionDekCache<K, E> {
      * of being loaded.
      * @param encryptionScheme The KEK for the DEK to discard.
      */
-    public void invalidate(@NonNull
-    EncryptionScheme<K> encryptionScheme) {
+    public void invalidate(
+            @NonNull
+            EncryptionScheme<K> encryptionScheme
+    ) {
         dekCache.synchronous().invalidate(cacheKey(encryptionScheme));
     }
 }

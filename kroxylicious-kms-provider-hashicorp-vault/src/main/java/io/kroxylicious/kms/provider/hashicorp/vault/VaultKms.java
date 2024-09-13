@@ -109,8 +109,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<DekPair<VaultEdek>> generateDekPair(@NonNull
-    String kekRef) {
+    public CompletionStage<DekPair<VaultEdek>> generateDekPair(
+            @NonNull
+            String kekRef
+    ) {
 
         var request = createVaultRequest()
                                           .uri(vaultTransitEngineUrl.resolve("datakey/plaintext/%s".formatted(encode(kekRef, UTF_8))))
@@ -138,8 +140,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull
-    VaultEdek edek) {
+    public CompletionStage<SecretKey> decryptEdek(
+            @NonNull
+            VaultEdek edek
+    ) {
 
         var body = createDecryptPostBody(edek);
 
@@ -157,8 +161,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
                                                                                                  );
     }
 
-    private String createDecryptPostBody(@NonNull
-    VaultEdek edek) {
+    private String createDecryptPostBody(
+            @NonNull
+            VaultEdek edek
+    ) {
         var map = Map.of("ciphertext", new String(edek.edek(), UTF_8));
 
         try {
@@ -176,8 +182,10 @@ public class VaultKms implements Kms<String, VaultEdek> {
      */
     @NonNull
     @Override
-    public CompletableFuture<String> resolveAlias(@NonNull
-    String alias) {
+    public CompletableFuture<String> resolveAlias(
+            @NonNull
+            String alias
+    ) {
 
         var request = createVaultRequest()
                                           .uri(vaultTransitEngineUrl.resolve("keys/%s".formatted(encode(alias, UTF_8))))

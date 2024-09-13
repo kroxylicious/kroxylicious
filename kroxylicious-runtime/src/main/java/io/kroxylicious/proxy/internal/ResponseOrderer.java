@@ -41,7 +41,10 @@ public class ResponseOrderer extends ChannelDuplexHandler {
     Map<Integer, QueuedResponse> queuedResponses = new HashMap<>();
     private static final Logger logger = LoggerFactory.getLogger(ResponseOrderer.class);
 
-    record QueuedResponse(Object msg, ChannelPromise promise) {
+    record QueuedResponse(
+            Object msg,
+            ChannelPromise promise
+    ) {
     }
 
     @Override

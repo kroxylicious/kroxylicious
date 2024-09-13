@@ -69,7 +69,10 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     /**
      * @param withCloseConnection
      * If true, rejection will also close the connection */
-    public record RejectingCreateTopicFilterConfig(boolean withCloseConnection, ForwardingStyle forwardingStyle) {
+    public record RejectingCreateTopicFilterConfig(
+            boolean withCloseConnection,
+            ForwardingStyle forwardingStyle
+    ) {
 
         @JsonCreator
         public RejectingCreateTopicFilterConfig(

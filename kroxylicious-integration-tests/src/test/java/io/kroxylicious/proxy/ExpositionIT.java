@@ -221,8 +221,10 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesClusterOfTwoBrokersWithRangeAwarePortPerNode(@BrokerCluster(numBrokers = 2)
-    KafkaCluster cluster) throws Exception {
+    void exposesClusterOfTwoBrokersWithRangeAwarePortPerNode(
+            @BrokerCluster(numBrokers = 2)
+            KafkaCluster cluster
+    ) throws Exception {
         var builder = new ConfigurationBuilder()
                                                 .addToVirtualClusters(
                                                         "demo",
@@ -263,8 +265,10 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesClusterOfTwoBrokersWithIdGapWithRangeAwarePortPerNode(@BrokerCluster(numBrokers = 2)
-    KafkaCluster cluster) throws Exception {
+    void exposesClusterOfTwoBrokersWithIdGapWithRangeAwarePortPerNode(
+            @BrokerCluster(numBrokers = 2)
+            KafkaCluster cluster
+    ) throws Exception {
         cluster.addBroker();
         cluster.removeBroker(1);
         var builder = new ConfigurationBuilder()
@@ -310,8 +314,10 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2)
-    KafkaCluster cluster) throws Exception {
+    void exposesClusterOfTwoBrokers(
+            @BrokerCluster(numBrokers = 2)
+            KafkaCluster cluster
+    ) throws Exception {
         var builder = new ConfigurationBuilder()
                                                 .addToVirtualClusters(
                                                         "demo",
@@ -591,8 +597,10 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void targetClusterDynamicallyAddsBroker(@BrokerCluster
-    KafkaCluster cluster) throws Exception {
+    void targetClusterDynamicallyAddsBroker(
+            @BrokerCluster
+            KafkaCluster cluster
+    ) throws Exception {
         var builder = new ConfigurationBuilder()
                                                 .addToVirtualClusters(
                                                         "demo",
@@ -639,8 +647,11 @@ class ExpositionIT extends BaseIT {
     // we currently cannot influence the node ids, so we start a 2 node cluster and shutdown node 0
     // cannot use KRaft as node 0 is a controller
     @Test
-    void canConfigureLowestBrokerIdWithPortPerBroker(@ZooKeeperCluster @BrokerCluster(numBrokers = 2)
-    KafkaCluster cluster, Admin admin) throws Exception {
+    void canConfigureLowestBrokerIdWithPortPerBroker(
+            @ZooKeeperCluster @BrokerCluster(numBrokers = 2)
+            KafkaCluster cluster,
+            Admin admin
+    ) throws Exception {
         cluster.removeBroker(0);
         await().atMost(Duration.ofSeconds(5))
                .until(
@@ -673,8 +684,10 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void targetClusterDynamicallyRemovesBroker(@BrokerCluster(numBrokers = 2)
-    KafkaCluster cluster) throws Exception {
+    void targetClusterDynamicallyRemovesBroker(
+            @BrokerCluster(numBrokers = 2)
+            KafkaCluster cluster
+    ) throws Exception {
         var builder = new ConfigurationBuilder()
                                                 .addToVirtualClusters(
                                                         "demo",
@@ -759,7 +772,11 @@ class ExpositionIT extends BaseIT {
         return n.host() + ":" + n.port();
     }
 
-    private record KeystoreTrustStorePair(String brokerKeyStore, String clientTrustStore, String password) {
+    private record KeystoreTrustStorePair(
+            String brokerKeyStore,
+            String clientTrustStore,
+            String password
+    ) {
     }
 
     @NonNull

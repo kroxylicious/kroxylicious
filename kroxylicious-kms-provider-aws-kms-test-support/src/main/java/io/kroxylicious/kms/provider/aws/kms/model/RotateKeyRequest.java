@@ -12,8 +12,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public record RotateKeyRequest(@JsonProperty("KeyId") @NonNull
-String keyId) {
+public record RotateKeyRequest(
+        @JsonProperty("KeyId") @NonNull
+        String keyId
+) {
     public RotateKeyRequest {
         Objects.requireNonNull(keyId);
     }

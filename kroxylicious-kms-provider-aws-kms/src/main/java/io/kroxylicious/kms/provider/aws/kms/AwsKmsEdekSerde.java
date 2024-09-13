@@ -47,8 +47,10 @@ class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
     }
 
     @Override
-    public AwsKmsEdek deserialize(@NonNull
-    ByteBuffer buffer) {
+    public AwsKmsEdek deserialize(
+            @NonNull
+            ByteBuffer buffer
+    ) {
         Objects.requireNonNull(buffer);
 
         var version = buffer.get();
@@ -77,8 +79,11 @@ class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
     }
 
     @Override
-    public void serialize(AwsKmsEdek edek, @NonNull
-    ByteBuffer buffer) {
+    public void serialize(
+            AwsKmsEdek edek,
+            @NonNull
+            ByteBuffer buffer
+    ) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(buffer);
         var keyRefBuf = edek.kekRef().getBytes(StandardCharsets.UTF_8);

@@ -21,8 +21,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class FilterThreadExecutor {
     private final Executor executor;
 
-    public FilterThreadExecutor(@NonNull
-    Executor executor) {
+    public FilterThreadExecutor(
+            @NonNull
+            Executor executor
+    ) {
         Objects.requireNonNull(executor);
         this.executor = executor;
     }
@@ -38,8 +40,10 @@ public class FilterThreadExecutor {
      * completed with the result of stage on the Filter thread
      * @param <T> result type
      */
-    public <T> @NonNull CompletionStage<T> completingOnFilterThread(@NonNull
-    CompletionStage<T> stage) {
+    public <T> @NonNull CompletionStage<T> completingOnFilterThread(
+            @NonNull
+            CompletionStage<T> stage
+    ) {
         CompletableFuture<T> future = stage.toCompletableFuture();
         if (future.isDone()) {
             return stage;

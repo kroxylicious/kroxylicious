@@ -24,6 +24,8 @@ public abstract class TopicNameBasedKekSelector<K> {
      * @param topicNames A set of topic names
      * @return A completion stage for the map form topic name to KEK id.
      */
-    public abstract @NonNull CompletionStage<Map<String, K>> selectKek(@NonNull
-    Set<String> topicNames);
+    public abstract @NonNull CompletionStage<Map<String, K>> selectKek(
+            @NonNull
+            Set<String> topicNames
+    );
 }

@@ -263,8 +263,10 @@ class SerializedFormTest {
         }
 
         @Override
-        public byte[] deserialize(@NonNull
-        ByteBuffer buffer) {
+        public byte[] deserialize(
+                @NonNull
+                ByteBuffer buffer
+        ) {
             return buffer.array();
         }
     }

@@ -21,8 +21,10 @@ class UUIDSerde implements Serde<UUID> {
     }
 
     @Override
-    public UUID deserialize(@NonNull
-    ByteBuffer buffer) {
+    public UUID deserialize(
+            @NonNull
+            ByteBuffer buffer
+    ) {
         var msb = buffer.getLong();
         var lsb = buffer.getLong();
         return new UUID(msb, lsb);
@@ -34,8 +36,11 @@ class UUIDSerde implements Serde<UUID> {
     }
 
     @Override
-    public void serialize(UUID uuid, @NonNull
-    ByteBuffer buffer) {
+    public void serialize(
+            UUID uuid,
+            @NonNull
+            ByteBuffer buffer
+    ) {
         buffer.putLong(uuid.getMostSignificantBits());
         buffer.putLong(uuid.getLeastSignificantBits());
     }

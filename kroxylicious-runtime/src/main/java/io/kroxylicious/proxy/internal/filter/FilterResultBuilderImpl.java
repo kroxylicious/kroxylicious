@@ -29,9 +29,12 @@ public abstract class FilterResultBuilderImpl<H extends ApiMessage, R extends Fi
     }
 
     @Override
-    public CloseOrTerminalStage<R> forward(@NonNull
-    H header, @NonNull
-    ApiMessage message) {
+    public CloseOrTerminalStage<R> forward(
+            @NonNull
+            H header,
+            @NonNull
+            ApiMessage message
+    ) {
         validateForward(header, message);
         this.header = header;
         this.message = message;

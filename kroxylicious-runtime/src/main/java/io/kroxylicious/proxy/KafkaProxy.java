@@ -58,7 +58,12 @@ public final class KafkaProxy implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
     private static final Logger STARTUP_SHUTDOWN_LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
 
-    private record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
+    private record EventGroupConfig(
+            String name,
+            EventLoopGroup bossGroup,
+            EventLoopGroup workerGroup,
+            Class<? extends ServerChannel> clazz
+    ) {
 
         public List<Future<?>> shutdownGracefully() {
             return List.of(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());

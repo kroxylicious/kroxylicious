@@ -114,8 +114,10 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<DekPair<AwsKmsEdek>> generateDekPair(@NonNull
-    String kekRef) {
+    public CompletionStage<DekPair<AwsKmsEdek>> generateDekPair(
+            @NonNull
+            String kekRef
+    ) {
         final GenerateDataKeyRequest generateRequest = new GenerateDataKeyRequest(kekRef, "AES_256");
         var request = createRequest(generateRequest, TRENT_SERVICE_GENERATE_DATA_KEY);
         return sendAsync(kekRef, request, GENERATE_DATA_KEY_RESPONSE_TYPE_REF, UnknownKeyException::new)
@@ -138,8 +140,10 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull
-    AwsKmsEdek edek) {
+    public CompletionStage<SecretKey> decryptEdek(
+            @NonNull
+            AwsKmsEdek edek
+    ) {
         final DecryptRequest decryptRequest = new DecryptRequest(edek.kekRef(), edek.edek());
         var request = createRequest(decryptRequest, TRENT_SERVICE_DECRYPT);
         return sendAsync(edek.kekRef(), request, DECRYPT_RESPONSE_TYPE_REF, UnknownKeyException::new)
@@ -158,8 +162,10 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     @NonNull
     @Override
-    public CompletableFuture<String> resolveAlias(@NonNull
-    String alias) {
+    public CompletableFuture<String> resolveAlias(
+            @NonNull
+            String alias
+    ) {
         final DescribeKeyRequest resolveRequest = new DescribeKeyRequest(ALIAS_PREFIX + alias);
         var request = createRequest(resolveRequest, TRENT_SERVICE_DESCRIBE_KEY);
         return sendAsync(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF, UnknownAliasException::new)

@@ -15,8 +15,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * <strong>Not recommended for production use.</strong>
  * @param password the password
  */
-public record InlinePassword(@JsonProperty(required = true)
-String password) implements PasswordProvider {
+public record InlinePassword(
+        @JsonProperty(required = true)
+        String password
+) implements PasswordProvider {
 
     public InlinePassword {
         Objects.requireNonNull(password);

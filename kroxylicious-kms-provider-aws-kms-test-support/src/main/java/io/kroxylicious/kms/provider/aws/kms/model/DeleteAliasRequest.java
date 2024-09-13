@@ -12,8 +12,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public record DeleteAliasRequest(@JsonProperty("AliasName") @NonNull
-String aliasName) {
+public record DeleteAliasRequest(
+        @JsonProperty("AliasName") @NonNull
+        String aliasName
+) {
     public DeleteAliasRequest {
         Objects.requireNonNull(aliasName);
     }
