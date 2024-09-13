@@ -15,13 +15,11 @@ REPOSITORY="origin"
 BRANCH_FROM="main"
 DRY_RUN="false"
 ORIGINAL_GH_DEFAULT_REPO=""
-while getopts ":v:u:b:dh" opt; do
+while getopts ":v:u:dh" opt; do
   case $opt in
     v) RELEASE_VERSION="${OPTARG}"
     ;;
     u) WEBSITE_REPO_URL="${OPTARG}"
-    ;;
-    b) BRANCH_FROM="${OPTARG}"
     ;;
     d) DRY_RUN="true"
     ;;
@@ -30,7 +28,6 @@ while getopts ":v:u:b:dh" opt; do
 usage: $0 -v version -u url [-b branch] [-r repository] [-d] [-h]
  -v version number e.g. 0.3.0
  -u url of the website repository e.g. git@github.com:kroxylicious/kroxylicious.github.io.git
- -b branch to release from (defaults to 'main')
  -d dry-run mode
  -h this help message
 EOF
@@ -96,7 +93,7 @@ WEBSITE_TMP=$(mktemp -d)
 
 # Use a `/.` at the end of the source path to avoid the source path being appended to the destination path if the `.../_files/` folder already exists
 KROXYLICIOUS_DOCS_LOCATION="${ORIGINAL_WORKING_DIR}/docs/."
-WEBSITE_DOCS_LOCATION="${WEBSITE_TMP}/kroxylicious.github.io/docs/${RELEASE_TAG}"
+WEBSITE_DOCS_LOCATION="${WEBSITE_TMP}/docs/${RELEASE_TAG}"
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
     #Disable the shell check as the colour codes only work with interpolation.
@@ -105,14 +102,15 @@ if [[ "${DRY_RUN:-false}" == true ]]; then
     GIT_DRYRUN="--dry-run"
 fi
 
+git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git config --unset-all
+
 echo "Checking out tags/${RELEASE_TAG} in  in $(git remote get-url "${REPOSITORY}")"
 git checkout "tags/${RELEASE_TAG}"
 
 # Move to temp directory so we don't end up with website files in the main repository
 cd "${WEBSITE_TMP}"
 echo "In '$(pwd)', cloning website repository at ${WEBSITE_URL}"
-git clone "${WEBSITE_URL}"
-cd kroxylicious.github.io/
+git clone "${WEBSITE_URL}" "${WEBSITE_TMP}"
 
 # config so we can actually push to the website repo without it blowing up
 git config --unset-all http.https://github.com/.extraheader
