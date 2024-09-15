@@ -32,11 +32,6 @@ The instructions for running the examples are given below.
 * [kaf](https://github.com/birdayz/kaf)
 * macOS users must have [`gsed`](https://formulae.brew.sh/formula/gnu-sed) and [`gawk`](https://formulae.brew.sh/formula/gawk)
 
-On top of these prerequisites, you will need to generate the maven wrapper `mvnw` by running in the root directory:
-```shell
-mvn wrapper:wrapper
-```
-
 If you want build your own kroxylicious images you'll additionally need: 
 
 * [Docker engine](https://docs.docker.com/engine/install) or [podman](https://podman.io/docs/installation) 
