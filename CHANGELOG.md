@@ -8,6 +8,7 @@ Format `<github issue/pr number>: <short description>`.
 ## SNAPSHOT
 
 * [#1517](https://github.com/kroxylicious/kroxylicious/pull/1517) Bump apicurio-registry.version from 2.6.2.Final to 2.6.3.Final
+* [#1515](https://github.com/kroxylicious/kroxylicious/pull/1515) Bump io.micrometer:micrometer-bom from 1.13.2 to 1.13.4
 
 ## 0.8.0
 
