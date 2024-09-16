@@ -47,7 +47,7 @@ on:
         required: false
         default: 'main'
       website-repository:
-        description: 'The URL of the website repository, starting with everything after the @, e.g. github.com/kroxylicious/kroxylicious.github.io.git'
+        description: 'The URI of the website repository, starting with everything after the @, e.g. github.com/kroxylicious/kroxylicious.github.io.git'
         required: false
         default: 'github.com/kroxylicious/kroxylicious.github.io.git'
       skip-tests:
@@ -127,7 +127,7 @@ jobs:
         if: ${{ success() }}
         run: |
           ./scripts/stage-docs.sh -v ${{ github.event.inputs.release-version }} \
-                                  -u ${{ github.event.inputs.website-repository }} \
+                                  -u "https://user:${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}@${{ github.event.inputs.website-repository }}" \
                                   ${{ github.event.inputs.dry-run == 'true' && '-d' || '' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-docs.sh

@@ -53,8 +53,6 @@ fi
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-WEBSITE_URL="https://user:${GH_TOKEN}@${WEBSITE_REPO_URL}"
-
 ORIGINAL_WORKING_BRANCH=$(git branch --show-current)
 ORIGINAL_WORKING_DIR=$(pwd)
 
@@ -102,6 +100,9 @@ if [[ "${DRY_RUN:-false}" == true ]]; then
     GIT_DRYRUN="--dry-run"
 fi
 
+# GitHub sets at least one http...extraheader config option in Git which prevents using the Actions' SSH Key for other repos
+# We have to find these settings and disable them here in the Kroxylicious repo before we can do anything with the website repo
+# Otherwise commits and pushes wil fail
 git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git config --unset-all
 
 echo "Checking out tags/${RELEASE_TAG} in  in $(git remote get-url "${REPOSITORY}")"
@@ -109,8 +110,8 @@ git checkout "tags/${RELEASE_TAG}"
 
 # Move to temp directory so we don't end up with website files in the main repository
 cd "${WEBSITE_TMP}"
-echo "In '$(pwd)', cloning website repository at ${WEBSITE_URL}"
-git clone "${WEBSITE_URL}" "${WEBSITE_TMP}"
+echo "In '$(pwd)', cloning website repository at ${WEBSITE_REPO_URL}"
+git clone "${WEBSITE_REPO_URL}" "${WEBSITE_TMP}"
 
 ORIGINAL_WEBSITE_WORKING_BRANCH=$(git branch --show-current)
 
