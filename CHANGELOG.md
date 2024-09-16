@@ -6,6 +6,9 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#1515](https://github.com/kroxylicious/kroxylicious/pull/1515) Bump io.micrometer:micrometer-bom from 1.13.2 to 1.13.4
+
 ## 0.8.0
 
 * [#1414](https://github.com/kroxylicious/kroxylicious/issues/1474) Enable hostname verification when connecting to upstream clusters using TLS 
