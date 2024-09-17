@@ -10,7 +10,7 @@ Kroxylicious has the following built-in providers:
 * Node ID ranges provider (`RangeAwarePortPerNodeClusterNetworkAddressConfigProvider`)
 * SNI routing address provider (`SniRoutingClusterNetworkAddressConfigProvider`)
 
-IMPORTANT: Make sure that the Kafka cluster bootstrap address and generated broker addresses are resolvable and routable by the Kafka client.
+IMPORTANT: Make sure that the virtual cluster bootstrap address and generated broker addresses are resolvable and routable by the Kafka client.
 
 == Broker address provider
 

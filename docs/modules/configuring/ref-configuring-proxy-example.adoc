@@ -2,8 +2,8 @@
 = Example Kroxylicious configuration
 
 [role="_abstract"]
-Kroxylicious configuration is defined in a `ConfigMap` resource.
-Use the `data` properties of the `ConfigMap` resource to configure the following:
+The following example shows configuration defined in a `ConfigMap` resource for Kroxylicious running on Kubernetes.
+The `data` properties of the `ConfigMap` resource provide the following configuration:
 
 * Virtual clusters that represent the Kafka clusters
 * Network addresses for broker communication in a Kafka cluster

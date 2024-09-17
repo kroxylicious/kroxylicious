@@ -1,4 +1,4 @@
-[id='con-configuring-cluster-connections-{context}']
+[id='con-configuring-target-cluster-connections-{context}']
 = Securing connections to target clusters
 
 [role="_abstract"]
@@ -7,7 +7,7 @@ The target cluster must already be configured to use TLS.
 
 Specify TLS for the virtual cluster configuration using `targetCluster.tls` properties 
 
-Use an empty object (`{}`) to inherit trust from the OpenShift platform. 
+Use an empty object (`{}`) to inherit trust from the underlying platform on which the cluster is running. 
 This option is suitable if the target cluster is using a TLS certificate signed by a public CA.
 
 .Example target cluster configuration for TLS
