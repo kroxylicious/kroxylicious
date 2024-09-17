@@ -6,14 +6,11 @@
 
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
-import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.CompletionException;
 
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.IntegrationTestingKmsService.Config;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kms.service.UnknownAliasException;
 
 public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemoryEdek> {
 
@@ -32,7 +29,7 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
 
     @Override
     public TestKekManager getTestKekManager() {
-        return new InMemoryTestKekManager();
+        return new InMemoryTestKekManager(getKms());
     }
 
     @Override
@@ -48,72 +45,5 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
     @Override
     public Config getKmsServiceConfig() {
         return new Config(kmsId.toString());
-    }
-
-    private class InMemoryTestKekManager implements TestKekManager {
-        @Override
-        public void generateKek(String alias) {
-            Objects.requireNonNull(alias);
-
-            try {
-                kms.resolveAlias(alias).toCompletableFuture().join();
-                throw new AlreadyExistsException(alias);
-            }
-            catch (CompletionException e) {
-                if (e.getCause() instanceof UnknownAliasException) {
-                    var kekId = kms.generateKey();
-                    kms.createAlias(kekId, alias);
-                }
-                else {
-                    throw unwrapRuntimeException(e);
-                }
-            }
-        }
-
-        @Override
-        public void deleteKek(String alias) {
-            Objects.requireNonNull(alias);
-            try {
-                var kekRef = kms.resolveAlias(alias).toCompletableFuture().join();
-                kms.deleteAlias(alias);
-                kms.deleteKey(kekRef);
-            }
-            catch (CompletionException e) {
-                throw unwrapRuntimeException(e);
-            }
-        }
-
-        @Override
-        public void rotateKek(String alias) {
-            Objects.requireNonNull(alias);
-
-            try {
-                kms.resolveAlias(alias).toCompletableFuture().join();
-                var kekId = kms.generateKey();
-                kms.createAlias(kekId, alias);
-            }
-            catch (CompletionException e) {
-                throw unwrapRuntimeException(e);
-            }
-        }
-
-        @Override
-        public boolean exists(String alias) {
-            try {
-                kms.resolveAlias(alias).toCompletableFuture().join();
-                return true;
-            }
-            catch (CompletionException e) {
-                if (e.getCause() instanceof UnknownAliasException) {
-                    return false;
-                }
-                throw unwrapRuntimeException(e);
-            }
-        }
-
-        private RuntimeException unwrapRuntimeException(Exception e) {
-            return e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
-        }
-
     }
 }

@@ -14,6 +14,8 @@ import org.testcontainers.vault.VaultContainer;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.VAULT_ROOT_TOKEN;
+
 public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     public static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.15");
 
