@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="SonarLintProjectSettings">
-    <option name="bindingEnabled" value="true" />
-    <option name="projectKey" value="kroxylicious_kroxylicious" />
-    <option name="serverId" value="kroxylicious" />
-  </component>
-</project>
