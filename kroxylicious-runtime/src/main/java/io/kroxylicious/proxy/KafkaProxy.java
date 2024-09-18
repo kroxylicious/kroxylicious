@@ -24,18 +24,19 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.IoHandlerFactory;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.Epoll;
-import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollIoHandler;
 import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.kqueue.KQueue;
-import io.netty.channel.kqueue.KQueueEventLoopGroup;
+import io.netty.channel.kqueue.KQueueIoHandler;
 import io.netty.channel.kqueue.KQueueServerSocketChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.incubator.channel.uring.IOUring;
-import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
-import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
+import io.netty.channel.uring.IoUring;
+import io.netty.channel.uring.IoUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
@@ -125,11 +126,11 @@ public final class KafkaProxy implements AutoCloseable {
                     .map(c -> new HostPort(c.getEffectiveBindAddress(), c.getEffectivePort()));
             portConflictDefector.validate(virtualClusterModels, managementHostPort);
 
-            var availableCores = Runtime.getRuntime().availableProcessors();
             meterRegistries = new MeterRegistries(pfr, micrometerConfig);
 
-            this.managementEventGroup = buildNettyEventGroups("management", availableCores, config.isUseIoUring());
-            this.serverEventGroup = buildNettyEventGroups("server", availableCores, config.isUseIoUring());
+            this.managementEventGroup = buildNettyEventGroups("management", 1, config.isUseIoUring());
+            // Specifying 0 threads means we apply Netty defaults which are (2 * availableCores) or the system property io.netty.eventLoopThreads.
+            this.serverEventGroup = buildNettyEventGroups("server", 0, config.isUseIoUring());
 
             var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries);
 
@@ -182,7 +183,8 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {
-        return new ServerBootstrap().group(virtualHostEventGroup.bossGroup(), virtualHostEventGroup.workerGroup())
+        return new ServerBootstrap()
+                .group(virtualHostEventGroup.bossGroup(), virtualHostEventGroup.workerGroup())
                 .channel(virtualHostEventGroup.clazz())
                 .option(ChannelOption.SO_REUSEADDR, true)
                 .childHandler(kafkaProxyInitializer)
@@ -194,29 +196,30 @@ public final class KafkaProxy implements AutoCloseable {
         final EventLoopGroup bossGroup;
         final EventLoopGroup workerGroup;
 
-        if (useIoUring) {
-            if (!IOUring.isAvailable()) {
-                throw new IllegalStateException("io_uring not available due to: " + IOUring.unavailabilityCause());
-            }
-            bossGroup = new IOUringEventLoopGroup(1);
-            workerGroup = new IOUringEventLoopGroup(availableCores);
-            channelClass = IOUringServerSocketChannel.class;
+        final IoHandlerFactory ioHandlerFactory;
+        if (useIoUring && !IoUring.isAvailable()) {
+            throw new IllegalStateException("io_uring not available due to: " + IoUring.unavailabilityCause());
+        }
+        if (IoUring.isAvailable() && useIoUring) {
+            ioHandlerFactory = io.netty.channel.uring.IoUringIoHandler.newFactory();
+            channelClass = IoUringServerSocketChannel.class;
         }
         else if (Epoll.isAvailable()) {
-            bossGroup = new EpollEventLoopGroup(1);
-            workerGroup = new EpollEventLoopGroup(availableCores);
+            ioHandlerFactory = EpollIoHandler.newFactory();
             channelClass = EpollServerSocketChannel.class;
         }
         else if (KQueue.isAvailable()) {
-            bossGroup = new KQueueEventLoopGroup(1);
-            workerGroup = new KQueueEventLoopGroup(availableCores);
+            ioHandlerFactory = KQueueIoHandler.newFactory();
             channelClass = KQueueServerSocketChannel.class;
         }
         else {
-            bossGroup = new NioEventLoopGroup(1);
-            workerGroup = new NioEventLoopGroup(availableCores);
+            ioHandlerFactory = NioIoHandler.newFactory();
             channelClass = NioServerSocketChannel.class;
         }
+
+        bossGroup = new MultiThreadIoEventLoopGroup(availableCores, ioHandlerFactory);
+        workerGroup = new MultiThreadIoEventLoopGroup(availableCores, ioHandlerFactory);
+
         return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
     }
 
