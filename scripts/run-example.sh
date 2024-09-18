@@ -8,7 +8,7 @@
 set -euo pipefail
 DEFAULT_KROXYLICIOUS_IMAGE='quay.io/kroxylicious/kroxylicious'
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-${DEFAULT_KROXYLICIOUS_IMAGE}}
-STRIMZI_VERSION=$(./mvnw org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)
+STRIMZI_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
@@ -128,4 +128,3 @@ if [[ -f "${SAMPLE_DIR}"/postinstall.sh ]]; then
 fi
 
 echo  -e  "${GREEN}Example installed successfully, to continue refer to ${SAMPLE_DIR}/README.md.${NOCOLOR}"
-
