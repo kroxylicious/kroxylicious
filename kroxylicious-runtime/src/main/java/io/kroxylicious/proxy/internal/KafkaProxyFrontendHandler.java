@@ -42,7 +42,6 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
@@ -81,7 +80,7 @@ public class KafkaProxyFrontendHandler
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
     public static final ApiException ERROR_NEGOTIATING_SSL_CONNECTION = new NetworkException("Error negotiating SSL connection");
-    public static final AttributeKey<HostPort> UPSTREAM_PEER_KEY = AttributeKey.valueOf("upstreamPeer");
+    // public static final AttributeKey<HostPort> UPSTREAM_PEER_KEY = AttributeKey.valueOf("upstreamPeer");
 
     static {
         var objectMapper = new ObjectMapper();
@@ -128,7 +127,6 @@ public class KafkaProxyFrontendHandler
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
 
-    private KafkaProxyBackendHandler backendHandler;
     private boolean pendingFlushes;
     private AuthenticationEvent authentication;
     private String sniHostname;
@@ -138,8 +136,7 @@ public class KafkaProxyFrontendHandler
     // once the outbound channel is active
     private boolean pendingReadComplete = true;
 
-    @VisibleForTesting
-    ProxyChannelState state = null;
+    private ProxyChannelState state = null;
 
     private boolean isInboundBlocked = true;
 
@@ -164,59 +161,108 @@ public class KafkaProxyFrontendHandler
         return state;
     }
 
-    private void setState(@NonNull ProxyChannelState state) {
+    @VisibleForTesting
+    void setState(@NonNull ProxyChannelState state) {
         this.state = state;
     }
 
     @VisibleForTesting
-    void setState(@NonNull ClientActive state) {
-        assert (this.state == null) : "" + this.state;
-        setState((ProxyChannelState) state);
+    void toClientActive(@NonNull ChannelHandlerContext inboundCtx) throws Exception {
+        if (this.state == null) {
+            ClientActive state1 = new ClientActive(inboundCtx);
+            setState(state1);
+            this.onClientActive(state1);
+        }
+        else {
+            illegalState("Client activation while not in the start state");
+            throw new IllegalStateException();
+        }
+
     }
 
     @VisibleForTesting
-    void setState(@NonNull HaProxy state) {
-        assert (this.state instanceof ClientActive) : "" + this.state;
-        setState((ProxyChannelState) state);
+    void toHaProxy(@NonNull HAProxyMessage haProxyMessage) {
+        if (this.state instanceof ClientActive cs) {
+            setState(cs.toHaProxy(haProxyMessage));
+        }
+        else {
+            illegalState("");
+        }
     }
 
     @VisibleForTesting
-    void setState(@NonNull ApiVersions state) {
-        assert (this.state instanceof ClientActive
-                || this.state instanceof HaProxy) : "" + this.state;
-        setState((ProxyChannelState) state);
+    void toApiVersions(@NonNull DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
+        if (this.state instanceof ClientActive ca) {
+            setState(ca.toApiVersions(apiVersionsFrame));
+        }
+        else if (this.state instanceof HaProxy ca) {
+            setState(ca.toApiVersions(apiVersionsFrame));
+        }
+        else {
+            illegalState("");
+            throw new IllegalStateException();
+        }
+    }
+
+    private Connecting toSelectingServer(@NonNull HostPort remote,
+                                         @NonNull KafkaProxyBackendHandler backendHandler) {
+        if (state instanceof SelectingServer selectingServerState) {
+            Connecting connecting = selectingServerState.toConnecting(remote, backendHandler);
+            setState(connecting);
+            return connecting;
+        }
+        else {
+            // TODO why do we do the state change here, rather than
+            // throwing ISE like the other methods overridden from
+            // NFC, then just catch ISE in selectServer?
+            String msg = "NetFilter called NetFilterContext.initiateConnect() more than once";
+            illegalState(msg + " : filter='" + netFilter + "'");
+            throw new IllegalStateException(msg);
+        }
+    }
+
+    /**
+     * Called when the upstream channel (to the broker)
+     * is active and TLS negotiation is starting.
+     * @param upstreamCtx The server context
+     * @param sslContext The SSL context for the server
+     */
+    @VisibleForTesting
+    void toNegotiatingTls(
+                          @NonNull ChannelHandlerContext upstreamCtx,
+                          @NonNull SslContext sslContext) {
+        if (state instanceof Connecting connectedState) {
+            setState(connectedState.toNegotiatingTls(this, upstreamCtx, sslContext));
+        }
+        else {
+            illegalState("In unexpected state for transition to NegotiatingTls");
+        }
     }
 
     @VisibleForTesting
-    void setState(@NonNull SelectingServer state) {
-        assert (this.state instanceof ClientActive
-                || this.state instanceof HaProxy
-                || this.state instanceof ApiVersions) : "" + this.state;
-        setState((ProxyChannelState) state);
+    void toForwarding(ChannelHandlerContext outboundCtx) {
+        List<Object> bufferedMsgs;
+        if (state instanceof Connecting connectedState) {
+            bufferedMsgs = connectedState.bufferedMsgs();
+            setState(connectedState.toForwarding(outboundCtx));
+        }
+        else if (state instanceof NegotiatingTls negotiatingTls) {
+            bufferedMsgs = negotiatingTls.bufferedMsgs();
+            setState(negotiatingTls.toForwarding());
+        }
+        else {
+            illegalState("In unexpected state for transition to OutboundActive");
+            throw new IllegalStateException();
+        }
+        // connection is complete, so first forward the buffered message
+        for (Object bufferedMsg : bufferedMsgs) {
+            forwardToServer(state.outboundCtx(), bufferedMsg);
+        }
     }
 
     @VisibleForTesting
-    void setState(@NonNull Connecting state) {
-        assert (this.state instanceof SelectingServer) : "" + this.state;
-        setState((ProxyChannelState) state);
-    }
-
-    @VisibleForTesting
-    void setState(@NonNull NegotiatingTls state) {
-        assert (this.state instanceof Connecting) : "" + this.state;
-        setState((ProxyChannelState) state);
-    }
-
-    @VisibleForTesting
-    void setState(@NonNull Forwarding state) {
-        assert (this.state instanceof Connecting
-                || this.state instanceof NegotiatingTls) : "" + this.state;
-        setState((ProxyChannelState) state);
-    }
-
-    @VisibleForTesting
-    void setState(@NonNull Closed state) {
-        setState((ProxyChannelState) state);
+    void toClosed() {
+        setState(new Closed());
     }
 
     void illegalState(@NonNull String msg) {
@@ -255,7 +301,7 @@ public class KafkaProxyFrontendHandler
                     .addListener(ChannelFutureListener.CLOSE);
         }
 
-        setState(state.toClosed());
+        toClosed();
     }
 
     @Override
@@ -277,12 +323,15 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        setState(new ClientActive(ctx));
+        toClientActive(ctx);
+    }
+
+    void onClientActive(ClientActive state) throws Exception {
         LOGGER.trace("{}: channelActive", state.inboundCtx().channel().id());
         // Initially the channel is not auto reading, so read the first batch of requests
-        ctx.channel().config().setAutoRead(false);
-        ctx.channel().read();
-        super.channelActive(ctx);
+        state.inboundCtx().channel().config().setAutoRead(false);
+        state.inboundCtx().channel().read();
+        super.channelActive(state.inboundCtx());
     }
 
     @Override
@@ -293,7 +342,7 @@ public class KafkaProxyFrontendHandler
 
     /**
      * Relieves backpressure on the <em>server</em> connection by calling
-     * the {@link KafkaProxyBackendHandler#inboundChannelWritabilityChanged(ChannelHandlerContext)}
+     * the {@link KafkaProxyBackendHandler#inboundChannelWritabilityChanged()}
      * @param inboundCtx The inbound context
      * @throws Exception If something went wrong
      * @see #upstreamWritabilityChanged(ChannelHandlerContext)
@@ -303,8 +352,21 @@ public class KafkaProxyFrontendHandler
                                           final ChannelHandlerContext inboundCtx)
             throws Exception {
         super.channelWritabilityChanged(inboundCtx);
-        if (inboundCtx.channel().isWritable() && backendHandler != null) {
-            backendHandler.inboundChannelWritabilityChanged(inboundCtx);
+        if (inboundCtx.channel().isWritable()) {
+            final KafkaProxyBackendHandler backendHandler;
+            if (state instanceof Connecting c) {
+                backendHandler = c.backendHandler();
+            }
+            else if (state instanceof NegotiatingTls c) {
+                backendHandler = c.backendHandler();
+            }
+            else if (state instanceof Forwarding c) {
+                backendHandler = c.backendHandler();
+            }
+            else {
+                return;
+            }
+            backendHandler.inboundChannelWritabilityChanged();
         }
     }
 
@@ -345,19 +407,27 @@ public class KafkaProxyFrontendHandler
         }
         else if (state instanceof ClientActive clientActiveState) {
             if (msg instanceof HAProxyMessage haProxyMessage) {
-                setState(clientActiveState.toHaProxy(haProxyMessage));
+                toHaProxy(haProxyMessage);
                 return;
             }
             else if (msg instanceof DecodedRequestFrame
                     && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
                 DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
-                ApiVersions apiVersions = clientActiveState.toApiVersions(apiVersionsFrame);
-                setState(apiVersions);
-                maybeToConnecting(apiVersions.toSelectingServer(), ctx, apiVersionsFrame);
+                if (dp.isAuthenticationOffloadEnabled()) {
+                    toApiVersions(apiVersionsFrame);
+                    // This handler can respond to ApiVersions itself
+                    writeApiVersionsResponse(ctx, apiVersionsFrame);
+                    // Request to read the following request
+                    ctx.channel().read();
+                }
+                else {
+                    SelectingServer selectingServer = clientActiveState.toSelectingServer(apiVersionsFrame);
+                    toConnectingViaSelectingServer(selectingServer, apiVersionsFrame);
+                }
                 return;
             }
             else if (msg instanceof RequestFrame) {
-                toSelectingServer(clientActiveState.toSelectingServer(), msg);
+                toConnectingViaSelectingServer(clientActiveState.toSelectingServer(null), msg);
                 return;
             }
         }
@@ -365,19 +435,34 @@ public class KafkaProxyFrontendHandler
             if (msg instanceof DecodedRequestFrame
                     && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
                 DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
-                ApiVersions apiVersions = haProxyState.toApiVersions(apiVersionsFrame);
-                setState(apiVersions);
-                maybeToConnecting(apiVersions.toSelectingServer(), ctx, apiVersionsFrame);
+                if (dp.isAuthenticationOffloadEnabled()) {
+                    toApiVersions(apiVersionsFrame);
+                    // This handler can respond to ApiVersions itself
+                    writeApiVersionsResponse(ctx, apiVersionsFrame);
+                    // Request to read the following request
+                    ctx.channel().read();
+                }
+                else {
+                    SelectingServer selectingServer = haProxyState.toSelectingServer(apiVersionsFrame);
+                    toConnectingViaSelectingServer(selectingServer, apiVersionsFrame);
+                }
                 return;
             }
             else if (msg instanceof RequestFrame) {
-                toSelectingServer(haProxyState.toSelectingServer(), msg);
+                toConnectingViaSelectingServer(haProxyState.toSelectingServer(null), msg);
                 return;
             }
         }
         else if (state instanceof ApiVersions apiVersionsState) {
             if (msg instanceof RequestFrame) {
-                toSelectingServer(apiVersionsState.toSelectingServer(), msg);
+                if (dp.isAuthenticationOffloadEnabled()) {
+                    // TODO if dp.isAuthenticationOffloadEnabled() then we need to forward to that handler
+                    // TODO we only do the connection once we know the authenticated identity
+                    toConnectingViaSelectingServer(apiVersionsState.toSelectingServer(), msg);
+                }
+                else {
+                    toConnectingViaSelectingServer(apiVersionsState.toSelectingServer(), msg);
+                }
                 return;
             }
         }
@@ -402,31 +487,26 @@ public class KafkaProxyFrontendHandler
         illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
     }
 
-    private void toSelectingServer(
-                                   @NonNull SelectingServer selectingServer,
-                                   @NonNull Object msg) {
-        setState(selectingServer);
+    private void toConnectingViaSelectingServer(
+                                                @NonNull SelectingServer selectingServer,
+                                                @NonNull Object msg) {
+        if (this.state instanceof ClientActive
+                || this.state instanceof HaProxy
+                || this.state instanceof ApiVersions) {
+
+            setState(selectingServer);
+        }
+        else {
+            illegalState("");
+            return;
+        }
+
         selectingServer.bufferMessage(msg);
 
         // Note filter.upstreamBroker will call back on the initiateConnect() method below
         netFilter.selectServer(this);
-        if (!(state instanceof Connecting)) {
+        if (!(this.state instanceof Connecting)) {
             illegalState("NetFilter.selectServer() did not callback on NetFilterContext.initiateConnect(): filter='" + netFilter + "'");
-        }
-    }
-
-    private void maybeToConnecting(
-                                   @NonNull SelectingServer selectingServer,
-                                   @NonNull ChannelHandlerContext ctx,
-                                   @NonNull DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-        if (dp.isAuthenticationOffloadEnabled()) {
-            // This handler can respond to ApiVersions itself
-            writeApiVersionsResponse(ctx, apiVersionsFrame);
-            // Request to read the following request
-            ctx.channel().read();
-        }
-        else {
-            toSelectingServer(selectingServer, apiVersionsFrame);
         }
     }
 
@@ -664,7 +744,7 @@ public class KafkaProxyFrontendHandler
     /**
      * Initiates the connection to a server.
      * Changes {@link #state} from {@link SelectingServer} to {@link Connecting}
-     * Initializes the {@link #backendHandler} and configures its pipeline
+     * Initializes the {@code backendHandler} and configures its pipeline
      * with the given {@code filters}.
      * <p>Called by the {@link #netFilter}.</p>
      * @param remote upstream broker target
@@ -674,42 +754,29 @@ public class KafkaProxyFrontendHandler
     public void initiateConnect(
                                 @NonNull HostPort remote,
                                 @NonNull List<FilterAndInvoker> filters) {
-        if (state instanceof SelectingServer selectingServerState) {
-            setState(selectingServerState.toConnecting());
-        }
-        else {
-            // TODO why do we do the state change here, rather than
-            // throwing ISE like the other methods overridden from
-            // NFC, then just catch ISE in selectServer?
-            illegalState("NetFilter called NetFilterContext.initiateConnect() more than once: filter='" + netFilter + "'");
-            return;
-        }
-        if (backendHandler != null) {
-            throw new IllegalStateException();
-        }
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
                     state.inboundCtx().channel().id(), remote, filters);
         }
-        var correlationManager = new CorrelationManager();
 
         final Channel inboundChannel = state.inboundCtx().channel();
 
+        var connecting = toSelectingServer(remote, new KafkaProxyBackendHandler(this, state.inboundCtx()));
+
         // Start the upstream connection attempt.
-        Bootstrap b = new Bootstrap();
-        backendHandler = new KafkaProxyBackendHandler(this, state.inboundCtx());
-        b.group(inboundChannel.eventLoop())
+        Bootstrap bootstrap = new Bootstrap();
+        bootstrap.group(inboundChannel.eventLoop())
                 .channel(inboundChannel.getClass())
-                .handler(backendHandler)
+                .handler(connecting.backendHandler())
                 .option(ChannelOption.AUTO_READ, true)
                 .option(ChannelOption.TCP_NODELAY, true);
 
         LOGGER.trace("Connecting to outbound {}", remote);
-        ChannelFuture tcpConnectFuture = initConnection(remote.host(), remote.port(), b);
+        ChannelFuture tcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
         Channel outboundChannel = tcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
-        outboundChannel.attr(UPSTREAM_PEER_KEY).set(remote);
+        var correlationManager = new CorrelationManager();
 
         // Note: Because we are acting as a client of the target cluster and are thus writing Request data to an outbound channel, the Request flows from the
         // last outbound handler in the pipeline to the first. When Responses are read from the cluster, the inbound handlers of the pipeline are invoked in
@@ -741,12 +808,12 @@ public class KafkaProxyFrontendHandler
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }
             else {
-                closeServerAndClientChannels(errorResponseForServerException(remote, future.cause()));
+                closeServerAndClientChannels(errorResponseForServerException(future.cause()));
             }
         });
     }
 
-    /** Ulgy hack used for testing */
+    /** Ugly hack used for testing */
     @VisibleForTesting
     ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
         return bootstrap.connect(remoteHost, remotePort);
@@ -754,17 +821,15 @@ public class KafkaProxyFrontendHandler
 
     @VisibleForTesting
     ResponseFrame errorResponseForServerException(
-                                                  @NonNull HostPort remote,
                                                   @NonNull Throwable serverException) {
 
         ApiException errorCodeEx;
         if (serverException instanceof SSLHandshakeException e) {
-            ChannelHandlerContext channelHandlerContext = state.outboundCtx();
             LOGGER.atInfo()
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .addArgument(state.inboundCtx().channel().id())
                     // TODO what we use UPSTREAM_PEER_KEY and not `remote`??
-                    .addArgument(channelHandlerContext == null ? null : channelHandlerContext.channel().attr(UPSTREAM_PEER_KEY).get())
+                    .addArgument(state.remote())
                     .addArgument(e.getMessage())
                     .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
             errorCodeEx = ERROR_NEGOTIATING_SSL_CONNECTION;
@@ -773,7 +838,7 @@ public class KafkaProxyFrontendHandler
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? serverException : null)
                     .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
-                            remote, serverException.getMessage());
+                            state.remote(), serverException.getMessage());
             errorCodeEx = null;
         }
 
@@ -799,33 +864,15 @@ public class KafkaProxyFrontendHandler
         }
     }
 
-    /**
-     * Called when the upstream channel (to the broker)
-     * is active and TLS negotiation is starting.
-     * @param upstreamCtx The server context
-     * @param sslContext The SSL context for the server
-     */
-    private void toNegotiatingTls(
-                                  @NonNull ChannelHandlerContext upstreamCtx,
-                                  @NonNull SslContext sslContext) {
-        if (state instanceof Connecting connectedState) {
-            setState(connectedState.toNegotiatingTls(this, upstreamCtx, sslContext));
-        }
-        else {
-            illegalState("In unexpected state for transition to NegotiatingTls");
-        }
-    }
-
     @VisibleForTesting
     void onUpstreamSslOutcome(
                               @NonNull ChannelHandlerContext outboundCtx,
                               @NonNull Future<?> handshakeFuture) {
         if (handshakeFuture.isSuccess()) {
-            toForwarding(outboundCtx);
+            toForwarding2(outboundCtx);
         }
-        else if (state instanceof NegotiatingTls negotiatingTlsState) {
-            HostPort remote = negotiatingTlsState.outboundCtx().channel().attr(UPSTREAM_PEER_KEY).get();
-            closeServerAndClientChannels(errorResponseForServerException(remote, handshakeFuture.cause()));
+        else if (state instanceof NegotiatingTls) {
+            closeServerAndClientChannels(errorResponseForServerException(handshakeFuture.cause()));
         }
         else {
             illegalState("TLS handshake successful, but not in NegotiatingTls state");
@@ -842,27 +889,12 @@ public class KafkaProxyFrontendHandler
      * ({@link #onUpstreamChannelActive(ChannelHandlerContext)} for plain TCP, or
      * {@link #onUpstreamSslOutcome(ChannelHandlerContext, Future)} for TLS).</p>
      */
-    private void toForwarding(ChannelHandlerContext outboundCtx) {
-        List<Object> bufferedMsgs = List.of();
-        if (state instanceof Connecting connectedState) {
-            bufferedMsgs = connectedState.bufferedMsgs();
-            setState(connectedState.toForwarding(outboundCtx));
-        }
-        else if (state instanceof NegotiatingTls negotiatingTls) {
-            bufferedMsgs = negotiatingTls.bufferedMsgs();
-            setState(negotiatingTls.toForwarding());
-        }
-        else {
-            illegalState("In unexpected state for transition to OutboundActive");
-        }
-        // connection is complete, so first forward the buffered message
-        for (Object bufferedMsg : bufferedMsgs) {
-            forwardToServer(state.outboundCtx(), bufferedMsg);
-        }
-        // TODO bufferedMsgs = null; // don't pin in memory once we no longer need it
+    private void toForwarding2(ChannelHandlerContext outboundCtx) {
+        toForwarding(outboundCtx);
+
         if (pendingReadComplete) {
             pendingReadComplete = false;
-            channelReadComplete(state.outboundCtx());
+            channelReadComplete(state.inboundCtx()); // TODO Why is this the outbound context?
         }
 
         LOGGER.trace("{}: onUpstreamChannelUsable: {}",
@@ -925,7 +957,7 @@ public class KafkaProxyFrontendHandler
                 toNegotiatingTls(upstreamCtx, upstreamSslContext.get());
             }
             else {
-                toForwarding(upstreamCtx);
+                toForwarding2(upstreamCtx);
             }
         }
         else {

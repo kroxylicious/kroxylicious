@@ -338,21 +338,21 @@ class KafkaProxyFrontendHandlerTest {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
 
-        assertThat(handler.state).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
 
         if (haProxyConfigured) {
             // Simulate the HA proxy handler
             inboundChannel.writeInbound(new HAProxyMessage(HAProxyProtocolVersion.V1,
                     HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
                     "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT));
-            assertThat(handler.state).isExactlyInstanceOf(ProxyChannelState.HaProxy.class);
+            assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.HaProxy.class);
         }
 
         if (sendApiVersions) {
             // Simulate the client doing ApiVersions
             writeInboundApiVersionsRequest(handler, "foo");
             Assumptions.abort();
-            assertThat(handler.state).matches(state -> state instanceof ProxyChannelState.ApiVersions
+            assertThat(handler.state()).matches(state -> state instanceof ProxyChannelState.ApiVersions
                     || state instanceof ProxyChannelState.SelectingServer,
                     "state in (ApiVersions, Connecting)");
             if (saslOffloadConfigured) {
@@ -360,7 +360,7 @@ class KafkaProxyFrontendHandlerTest {
                 verify(filter, never()).selectServer(handler);
             }
             else {
-                assertThat(handler.state).isExactlyInstanceOf(ProxyChannelState.SelectingServer.class);
+                assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.SelectingServer.class);
                 // should cause connection to the backend cluster when not offloading SASL
                 handleConnect(filter, handler);
             }
@@ -418,9 +418,11 @@ class KafkaProxyFrontendHandlerTest {
                 new ApiVersionsRequestData().setClientSoftwareName("bob").setClientSoftwareVersion("1.0.0"),
                 1);
 
-        handler.state = new ProxyChannelState.NegotiatingTls(inboundCtx, null, null, null,
+        handler.setState(new ProxyChannelState.NegotiatingTls(inboundCtx, null, null, null,
                 outboundCtx,
-                List.of(reqFrame));
+                List.of(reqFrame),
+                mock(KafkaProxyBackendHandler.class),
+                mock(HostPort.class)));
         assertThat(inboundChannel.isOpen())
                 .describedAs("Expect channel open before upstream failure")
                 .isTrue();
@@ -513,9 +515,11 @@ class KafkaProxyFrontendHandlerTest {
                 new ApiVersionsRequestData().setClientSoftwareName("bob").setClientSoftwareVersion("1.0.0"),
                 1);
 
-        handler.state = new ProxyChannelState.NegotiatingTls(inboundCtx, null, null, null,
+        handler.setState(new ProxyChannelState.NegotiatingTls(inboundCtx, null, null, null,
                 outboundCtx,
-                List.of(reqFrame));
+                List.of(reqFrame),
+                mock(KafkaProxyBackendHandler.class),
+                mock(HostPort.class)));
         assertThat(inboundChannel.isOpen())
                 .describedAs("Expect channel open before upstream failure")
                 .isTrue();

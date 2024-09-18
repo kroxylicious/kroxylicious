@@ -35,7 +35,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.stubbing.Answer;
 
 import io.netty.bootstrap.Bootstrap;
@@ -67,6 +66,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
@@ -457,11 +457,11 @@ class NewKafkaProxyFrontendHandlerTest {
     }
 
     @NonNull
-    private DecodedRequestFrame<ApiMessage> buildHanderInConnectedState(
-                                                                        boolean sni,
-                                                                        boolean haProxy,
-                                                                        boolean tlsConfigured,
-                                                                        ApiKeys firstMessage) {
+    private DecodedRequestFrame<ApiMessage> buildHanderInConnectingState(
+                                                                         boolean sni,
+                                                                         boolean haProxy,
+                                                                         boolean tlsConfigured,
+                                                                         ApiKeys firstMessage) {
         buildHandler(false, tlsConfigured, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
 
         hClientConnect(handler);
@@ -473,11 +473,14 @@ class NewKafkaProxyFrontendHandlerTest {
                 MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
                 new MetadataRequestData(),
                 correlectionId++);
-        handler.state = new ProxyChannelState.Connecting(inboundCtx,
+        handler.setState(new ProxyChannelState.Connecting(inboundCtx,
                 haProxy ? HA_PROXY_MESSAGE : null,
                 firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                 firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null,
-                new ArrayList<>(List.of(metadata)));
+                new ArrayList<>(List.of(metadata)),
+                mock(KafkaProxyBackendHandler.class),
+                mock(HostPort.class)));
+        inboundChannel.config().setAutoRead(false);
 
         if (tlsConfigured) {
             SslHandler sslHandler = virtualCluster.getUpstreamSslContext().get().newHandler(ByteBufAllocator.DEFAULT);
@@ -507,10 +510,7 @@ class NewKafkaProxyFrontendHandlerTest {
     @MethodSource("clientException")
     void toClientActiveThenException(Throwable clientException) {
         // Given
-        buildHandler(false, false, selectServerThrows(new AssertionError()));
-        assertThat(handler.state()).isNull();
-        hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), false);
 
         // When
         handler.exceptionCaught(inboundCtx, clientException);
@@ -523,10 +523,7 @@ class NewKafkaProxyFrontendHandlerTest {
     @Test
     void toClientActiveThenUnexpectedMessage() {
         // Given
-        buildHandler(false, false, selectServerThrows(new AssertionError()));
-        assertThat(handler.state()).isNull();
-        hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), false);
 
         // When
         inboundChannel.writeInbound("unexpected");
@@ -539,10 +536,7 @@ class NewKafkaProxyFrontendHandlerTest {
     @Test
     void toClientActiveThenInactive() {
         // Given
-        buildHandler(false, false, selectServerThrows(new AssertionError()));
-        assertThat(handler.state()).isNull();
-        hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), false);
 
         // When
         inboundChannel.close();
@@ -553,15 +547,9 @@ class NewKafkaProxyFrontendHandlerTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = { true, false })
+    @MethodSource("bool")
     void clientActiveToHaProxy(boolean sni) {
-        buildHandler(false, false, selectServerThrows(new AssertionError()));
-        // Given
-        hClientConnect(handler);
-        handler.state = new ProxyChannelState.ClientActive(this.inboundCtx);
-        if (sni) {
-            inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
-        }
+        buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), sni);
 
         // When
         inboundChannel.writeInbound(HA_PROXY_MESSAGE);
@@ -585,7 +573,7 @@ class NewKafkaProxyFrontendHandlerTest {
         buildHandlerInClientActiveState(false, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS), sni);
 
         if (haProxy) {
-            handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
+            handler.setState(new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE));
         }
 
         // When
@@ -609,7 +597,9 @@ class NewKafkaProxyFrontendHandlerTest {
         assertHandlerInConnectingState(haProxy, List.of(firstMessage));
     }
 
-    private void buildHandlerInClientActiveState(boolean saslOffloadConfigured, Answer<Void> filterSelectServerBehaviour, boolean sni) {
+    private void buildHandlerInClientActiveState(
+                                                 boolean saslOffloadConfigured,
+                                                 Answer<Void> filterSelectServerBehaviour, boolean sni) {
         buildHandler(saslOffloadConfigured, false, filterSelectServerBehaviour);
 
         hClientConnect(handler);
@@ -629,7 +619,7 @@ class NewKafkaProxyFrontendHandlerTest {
         buildHandlerInClientActiveState(true, selectServerCallsInitiateConnect(sni, haProxy, true), sni);
 
         if (haProxy) {
-            handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
+            handler.setState(new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE));
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
@@ -657,14 +647,13 @@ class NewKafkaProxyFrontendHandlerTest {
 
     @ParameterizedTest
     @MethodSource("booleanXboolean")
-    void filterNotCallingInitiateConnectIsAnErrorWithoutSaslOffload(
-                                                                    boolean sni,
+    void filterNotCallingInitiateConnectIsAnErrorWithoutSaslOffload(boolean sni,
                                                                     boolean haProxy) {
         // Given
         buildHandlerInClientActiveState(false, selectServerDoesNotCallInitiateConnect(sni, haProxy, true), sni);
 
         if (haProxy) {
-            handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
+            handler.setState(new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE));
         }
 
         // When
@@ -685,7 +674,7 @@ class NewKafkaProxyFrontendHandlerTest {
         buildHandlerInClientActiveState(true, selectServerDoesNotCallInitiateConnect(sni, haProxy, true), sni);
 
         if (haProxy) {
-            handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
+            handler.setState(new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE));
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
@@ -709,11 +698,13 @@ class NewKafkaProxyFrontendHandlerTest {
         buildHandlerInClientActiveState(false, selectServerCallsInitiateConnectTwice(sni, haProxy, true), sni);
 
         if (haProxy) {
-            handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
+            handler.setState(new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE));
         }
 
         // When
-        int corrId = writeInboundApiVersionsRequest();
+        assertThatThrownBy(() -> writeInboundApiVersionsRequest())
+                .isExactlyInstanceOf(IllegalStateException.class)
+                .hasMessage("NetFilter called NetFilterContext.initiateConnect() more than once");
 
         // Then
         inboundChannel.checkException();
@@ -729,7 +720,7 @@ class NewKafkaProxyFrontendHandlerTest {
         buildHandlerInClientActiveState(true, selectServerCallsInitiateConnectTwice(sni, haProxy, true), sni);
 
         if (haProxy) {
-            handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
+            handler.setState(new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE));
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
@@ -737,7 +728,9 @@ class NewKafkaProxyFrontendHandlerTest {
         assertHandlerInApiVersionsState(haProxy);
 
         // When
-        int saslHandshakeCorrId = writeSaslHandshake(KafkaAuthnHandler.SaslMechanism.PLAIN);
+        assertThatThrownBy(() -> writeSaslHandshake(KafkaAuthnHandler.SaslMechanism.PLAIN))
+                .isExactlyInstanceOf(IllegalStateException.class)
+                .hasMessage("NetFilter called NetFilterContext.initiateConnect() more than once");
 
         // Then
         inboundChannel.checkException();
@@ -754,7 +747,7 @@ class NewKafkaProxyFrontendHandlerTest {
         buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), sni);
 
         if (haProxy) {
-            handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
+            handler.setState(new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE));
         }
 
         // When
@@ -782,7 +775,7 @@ class NewKafkaProxyFrontendHandlerTest {
         buildHandlerInClientActiveState(true, selectServerThrows(new AssertionError()), sni);
 
         if (haProxy) {
-            handler.state = new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE);
+            handler.setState(new ProxyChannelState.HaProxy(inboundCtx, HA_PROXY_MESSAGE));
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
@@ -805,7 +798,7 @@ class NewKafkaProxyFrontendHandlerTest {
                                                   boolean haProxy,
                                                   ApiKeys firstMessage) {
         // Given
-        var metadata = buildHanderInConnectedState(sni, haProxy, false, firstMessage);
+        var metadata = buildHanderInConnectingState(sni, haProxy, false, firstMessage);
 
         // When
         handler.onUpstreamChannelActive(outboundCtx);
@@ -813,13 +806,14 @@ class NewKafkaProxyFrontendHandlerTest {
         // Then
         inboundChannel.checkException();
         outboundChannel.checkException();
-        var stateAssert = assertThat(handler.state).asInstanceOf(type(ProxyChannelState.Forwarding.class));
+        var stateAssert = assertThat(handler.state()).asInstanceOf(type(ProxyChannelState.Forwarding.class));
         stateAssert.extracting(ProxyChannelState.Forwarding::outboundCtx).isSameAs(outboundCtx);
         stateAssert.extracting(ProxyChannelState.Forwarding::bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
                 .isEmpty();
 
         assertBrokerMetadataResponse(metadata.correlationId());
+        assertThat(inboundChannel.config().isAutoRead()).isTrue();
 
         // TODO assert that _new_ messages get forwarded
 
@@ -833,7 +827,7 @@ class NewKafkaProxyFrontendHandlerTest {
                                                    ApiKeys firstMessage,
                                                    Throwable serverException) {
         // Given
-        var metadata = buildHanderInConnectedState(sni, haProxy, false, firstMessage);
+        var metadata = buildHanderInConnectingState(sni, haProxy, false, firstMessage);
 
         // When
         handler.onUpstreamChannelActive(outboundCtx);
@@ -852,7 +846,7 @@ class NewKafkaProxyFrontendHandlerTest {
                                                   boolean haProxy,
                                                   ApiKeys firstMessage) {
         // Given
-        var metadata = buildHanderInConnectedState(sni, haProxy, false, firstMessage);
+        var metadata = buildHanderInConnectingState(sni, haProxy, false, firstMessage);
         handler.onUpstreamChannelActive(outboundCtx);
 
         // When
@@ -871,7 +865,7 @@ class NewKafkaProxyFrontendHandlerTest {
                                                 boolean haProxy,
                                                 ApiKeys firstMessage) {
         // Given
-        var metadata = buildHanderInConnectedState(sni, haProxy, true, firstMessage);
+        var metadata = buildHanderInConnectingState(sni, haProxy, true, firstMessage);
 
         // When
         handler.onUpstreamChannelActive(outboundCtx);
@@ -879,27 +873,22 @@ class NewKafkaProxyFrontendHandlerTest {
         // Then
         inboundChannel.checkException();
 
-        var stateAssert = assertThat(handler.state).asInstanceOf(type(ProxyChannelState.NegotiatingTls.class));
+        var stateAssert = assertThat(handler.state()).asInstanceOf(type(ProxyChannelState.NegotiatingTls.class));
         stateAssert.extracting(ProxyChannelState.NegotiatingTls::outboundCtx).isSameAs(outboundCtx);
         stateAssert.extracting(ProxyChannelState.NegotiatingTls::bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
                 .isEqualTo(List.of(metadata));
+
+        assertThat(inboundChannel.config().isAutoRead())
+                .describedAs("Client autoread should be off while connecting to server")
+                .isFalse();
     }
 
     @ParameterizedTest
     @MethodSource("bool")
-    void tlsHandshakeFail(boolean withRequest) {
+    void tlsHandshakeFail(boolean withBufferedRequest) {
         // Given
-        buildHandler(false, true, selectServerThrows(new AssertionError()));
-        handler.state = new ProxyChannelState.NegotiatingTls(
-                inboundCtx,
-                null,
-                null,
-                null,
-                outboundCtx,
-                withRequest
-                        ? List.of(decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData(), 42))
-                        : List.of());
+        buildHandlerInNegotiatingTls(withBufferedRequest);
 
         // When
         handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newFailedFuture(new SSLHandshakeException("boom!")));
@@ -907,12 +896,15 @@ class NewKafkaProxyFrontendHandlerTest {
         // Then
         inboundChannel.checkException();
 
-        if (withRequest) {
+        if (withBufferedRequest) {
             assertClientSaslHandshakeResponse(42, Errors.NETWORK_EXCEPTION);
         }
         else {
             assertClientConnectionClosedWithNoResponse();
         }
+        assertThat(inboundChannel.config().isAutoRead())
+                .describedAs("Client autoread should be off while connecting to server")
+                .isFalse();
         assertThat(handler.state())
                 .isInstanceOf(ProxyChannelState.Closed.class);
         assertThat(inboundChannel.isActive()).isFalse();
@@ -923,18 +915,9 @@ class NewKafkaProxyFrontendHandlerTest {
 
     @ParameterizedTest
     @MethodSource("bool")
-    void tlsHandshakeSuccess(boolean withRequest) {
+    void tlsHandshakeSuccess(boolean withBufferedRequest) {
         // Given
-        buildHandler(false, true, selectServerThrows(new AssertionError()));
-        handler.state = new ProxyChannelState.NegotiatingTls(
-                inboundCtx,
-                null,
-                null,
-                null,
-                outboundCtx,
-                withRequest
-                        ? List.of(decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData(), 42))
-                        : List.of());
+        buildHandlerInNegotiatingTls(withBufferedRequest);
 
         // When
         handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newSucceededFuture());
@@ -942,18 +925,41 @@ class NewKafkaProxyFrontendHandlerTest {
         // Then
         inboundChannel.checkException();
 
-        if (withRequest) {
-            assertThat(outboundChannel.<Object> readOutbound()).isNotNull();
+        if (withBufferedRequest) {
+            assertThat(outboundChannel.<Object> readOutbound())
+                    .describedAs("Buffered request should be forwarded to server")
+                    .isNotNull();
         }
         else {
-            assertThat(outboundChannel.<Object> readOutbound()).isNull();
+            assertThat(outboundChannel.<Object> readOutbound())
+                    .describedAs("There was not buffered request, so nothing should be forwarded to the server yet")
+                    .isNull();
         }
         assertThat(handler.state())
                 .isInstanceOf(ProxyChannelState.Forwarding.class);
+        assertThat(inboundChannel.config().isAutoRead())
+                .describedAs("Client autoread should be on once connected to server")
+                .isTrue();
         assertThat(inboundChannel.isActive()).isTrue();
         assertThat(inboundChannel.isOpen()).isTrue();
         assertThat(outboundChannel.isActive()).isTrue();
         assertThat(outboundChannel.isOpen()).isTrue();
+    }
+
+    private void buildHandlerInNegotiatingTls(boolean withBufferedRequest) {
+        buildHandler(false, true, selectServerThrows(new AssertionError()));
+        handler.setState(new ProxyChannelState.NegotiatingTls(
+                inboundCtx,
+                null,
+                null,
+                null,
+                outboundCtx,
+                withBufferedRequest
+                        ? List.of(decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData(), 42))
+                        : List.of(),
+                mock(KafkaProxyBackendHandler.class),
+                mock(HostPort.class)));
+        inboundChannel.config().setAutoRead(false);
     }
 
     // TODO backpressure

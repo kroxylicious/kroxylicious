@@ -36,12 +36,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * Relieve backpressure on the server connection by turning on auto-read.
-     * @param inboundCtx The inbound/downstream context.
      */
-    public void inboundChannelWritabilityChanged(ChannelHandlerContext inboundCtx) {
-        assert inboundCtx == this.inboundCtx;
+    public void inboundChannelWritabilityChanged() {
         final ChannelHandlerContext outboundCtx = blockedOutboundCtx;
-        if (outboundCtx != null && inboundCtx.channel().isWritable()) {
+        if (outboundCtx != null && this.inboundCtx.channel().isWritable()) {
             blockedOutboundCtx = null;
             outboundCtx.channel().config().setAutoRead(true);
         }

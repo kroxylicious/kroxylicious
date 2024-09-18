@@ -85,12 +85,12 @@ sealed interface ProxyChannelState
         return null;
     }
 
-    default @NonNull List<Object> bufferedMsgs() {
-        return List.of();
+    default @Nullable HostPort remote() {
+        return null;
     }
 
-    default Closed toClosed() {
-        return new Closed();
+    default @NonNull List<Object> bufferedMsgs() {
+        return List.of();
     }
 
     /**
@@ -132,12 +132,12 @@ sealed interface ProxyChannelState
          * @return The Connecting state
          */
         @NonNull
-        public SelectingServer toSelectingServer() {
+        public SelectingServer toSelectingServer(@Nullable DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             return new SelectingServer(
                     inboundCtx,
                     null,
-                    null,
-                    null,
+                    apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareName(),
+                    apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareVersion(),
                     new ArrayList<>());
         }
     }
@@ -175,12 +175,12 @@ sealed interface ProxyChannelState
          * @return The Connecting state
          */
         @NonNull
-        public SelectingServer toSelectingServer() {
+        public SelectingServer toSelectingServer(@Nullable DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             return new SelectingServer(
                     inboundCtx,
                     haProxyMessage,
-                    null,
-                    null,
+                    apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareName(),
+                    apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareVersion(),
                     new ArrayList<>());
         }
     }
@@ -248,9 +248,10 @@ sealed interface ProxyChannelState
          * {@link io.kroxylicious.proxy.filter.NetFilter.NetFilterContext#initiateConnect(HostPort, List)}.
          * @return The Connecting2 state
          */
-        public Connecting toConnecting() {
+        public Connecting toConnecting(@NonNull HostPort remote,
+                                       @NonNull KafkaProxyBackendHandler backendHandler) {
             return new Connecting(inboundCtx, haProxyMessage, clientSoftwareName,
-                    clientSoftwareVersion, bufferedMsgs);
+                    clientSoftwareVersion, bufferedMsgs, backendHandler, remote);
         }
     }
 
@@ -268,7 +269,9 @@ sealed interface ProxyChannelState
                       @Nullable String clientSoftwareName,
                       @Nullable String clientSoftwareVersion,
 
-                      @NonNull List<Object> bufferedMsgs)
+                      @NonNull List<Object> bufferedMsgs,
+                      @NonNull KafkaProxyBackendHandler backendHandler,
+                      @NonNull HostPort remote)
             implements ProxyChannelState {
 
         public Connecting {
@@ -296,7 +299,9 @@ sealed interface ProxyChannelState
                     clientSoftwareName,
                     clientSoftwareVersion,
                     outboundCtx,
-                    bufferedMsgs);
+                    bufferedMsgs,
+                    backendHandler,
+                    remote);
         }
 
         /**
@@ -310,7 +315,9 @@ sealed interface ProxyChannelState
                     haProxyMessage,
                     clientSoftwareName,
                     clientSoftwareVersion,
-                    outboundCtx);
+                    outboundCtx,
+                    backendHandler,
+                    remote);
         }
 
     }
@@ -329,7 +336,9 @@ sealed interface ProxyChannelState
                           @Nullable String clientSoftwareName,
                           @Nullable String clientSoftwareVersion,
                           @NonNull ChannelHandlerContext outboundCtx,
-                          List<Object> bufferedMsgs)
+                          List<Object> bufferedMsgs,
+                          @NonNull KafkaProxyBackendHandler backendHandler,
+                          @NonNull HostPort remote)
             implements ProxyChannelState {
         public NegotiatingTls {
             Objects.requireNonNull(inboundCtx);
@@ -347,7 +356,9 @@ sealed interface ProxyChannelState
                     haProxyMessage,
                     clientSoftwareName,
                     clientSoftwareVersion,
-                    outboundCtx);
+                    outboundCtx,
+                    backendHandler,
+                    remote);
         }
 
         public NegotiatingTls bufferMessage(Object msg) {
@@ -358,23 +369,113 @@ sealed interface ProxyChannelState
 
     /**
      * There's a KRPC-capable channel to the server
-     * @param inboundCtx The client content
-     * @param haProxyMessage the info gleaned from the PROXY handshake, or null if the client didn't use the PROXY protocol
-     * @param clientSoftwareName the name of the client library, or null if the client didn't send this.
-     * @param clientSoftwareVersion the version of the client library, or null if the client didn't send this.
-     * @param outboundCtx The server context
      */
-    record Forwarding(
-                      @NonNull ChannelHandlerContext inboundCtx,
-                      @Nullable HAProxyMessage haProxyMessage,
-                      @Nullable String clientSoftwareName,
-                      @Nullable String clientSoftwareVersion,
-                      @NonNull ChannelHandlerContext outboundCtx)
+    final class Forwarding
             implements ProxyChannelState {
-        public Forwarding {
+        @NonNull
+        private final ChannelHandlerContext inboundCtx;
+        @Nullable
+        private final HAProxyMessage haProxyMessage;
+        @Nullable
+        private final String clientSoftwareName;
+        @Nullable
+        private final String clientSoftwareVersion;
+        @NonNull
+        private final ChannelHandlerContext outboundCtx;
+        @NonNull
+        private final KafkaProxyBackendHandler backendHandler;
+        private final HostPort remote;
+
+        Forwarding(
+                   @NonNull ChannelHandlerContext inboundCtx,
+                   @Nullable HAProxyMessage haProxyMessage,
+                   @Nullable String clientSoftwareName,
+                   @Nullable String clientSoftwareVersion,
+                   @NonNull ChannelHandlerContext outboundCtx,
+                   @NonNull KafkaProxyBackendHandler backendHandler,
+                   @NonNull HostPort remote) {
             Objects.requireNonNull(inboundCtx);
             Objects.requireNonNull(outboundCtx);
+            this.inboundCtx = inboundCtx;
+            this.haProxyMessage = haProxyMessage;
+            this.clientSoftwareName = clientSoftwareName;
+            this.clientSoftwareVersion = clientSoftwareVersion;
+            this.outboundCtx = outboundCtx;
+            this.backendHandler = backendHandler;
+            this.remote = remote;
         }
+
+        @Override
+        @NonNull
+        public ChannelHandlerContext inboundCtx() {
+            return inboundCtx;
+        }
+
+        @Nullable
+        public HAProxyMessage haProxyMessage() {
+            return haProxyMessage;
+        }
+
+        @Nullable
+        public String clientSoftwareName() {
+            return clientSoftwareName;
+        }
+
+        @Nullable
+        public String clientSoftwareVersion() {
+            return clientSoftwareVersion;
+        }
+
+        @Override
+        @NonNull
+        public ChannelHandlerContext outboundCtx() {
+            return outboundCtx;
+        }
+
+        @NonNull
+        public KafkaProxyBackendHandler backendHandler() {
+            return backendHandler;
+        }
+
+        @NonNull
+        public HostPort remote() {
+            return remote;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == this) {
+                return true;
+            }
+            if (obj == null || obj.getClass() != this.getClass()) {
+                return false;
+            }
+            var that = (Forwarding) obj;
+            return Objects.equals(this.inboundCtx, that.inboundCtx) &&
+                    Objects.equals(this.haProxyMessage, that.haProxyMessage) &&
+                    Objects.equals(this.clientSoftwareName, that.clientSoftwareName) &&
+                    Objects.equals(this.clientSoftwareVersion, that.clientSoftwareVersion) &&
+                    Objects.equals(this.outboundCtx, that.outboundCtx) &&
+                    Objects.equals(this.backendHandler, that.backendHandler) &&
+                    Objects.equals(this.remote, that.remote);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(inboundCtx, haProxyMessage, clientSoftwareName, clientSoftwareVersion, outboundCtx, backendHandler, remote);
+        }
+
+        @Override
+        public String toString() {
+            return "Forwarding[" +
+                    "inboundCtx=" + inboundCtx + ", " +
+                    "haProxyMessage=" + haProxyMessage + ", " +
+                    "clientSoftwareName=" + clientSoftwareName + ", " +
+                    "clientSoftwareVersion=" + clientSoftwareVersion + ", " +
+                    "outboundCtx=" + outboundCtx + ", " +
+                    "backendHandler=" + backendHandler + ']';
+        }
+
     }
 
     /**
