@@ -54,6 +54,6 @@ RUN set -ex; \
     fi
 COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious/
 
-RUN if [[ -n "${CURRENT_USER}" && "${CURRENT_USER}" != "root" ]] ; then groupadd -r -g "${CURRENT_USER_UID}" "${CURRENT_USER}" && useradd -m -r -u "${CURRENT_USER_UID}" -g "${CURRENT_USER}" "${CURRENT_USER}"; fi
+RUN if [[ -n "${CURRENT_USER}" && "${CURRENT_USER}" != "root" ]] ; then groupadd -r -g "${CURRENT_USER_UID}" "${CURRENT_USER}" && useradd -m -u "${CURRENT_USER_UID}" -g "${CURRENT_USER}" "${CURRENT_USER}"; fi
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]
