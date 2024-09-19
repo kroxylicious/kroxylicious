@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kms.service;
 
+import java.util.concurrent.CompletionException;
+
 /**
  * Exposes the ability to manage the KEKs on a KMS implementation.
  */
@@ -40,11 +42,37 @@ public interface TestKekManager {
      * @param alias kek alias
      * @return true if the alias exist, false otherwise.
      */
-    boolean exists(String alias);
+    default boolean exists(String alias) {
+        try {
+            read(alias);
+            return true;
+        }
+        catch (UnknownAliasException uae) {
+            return false;
+        }
+        catch (CompletionException e) {
+            if (e.getCause() instanceof UnknownAliasException) {
+                return false;
+            }
+            throw unwrapRuntimeException(e);
+        }
+    }
+
+    /**
+     * Read kek with given alias.
+     *
+     * @param alias kek alias
+     * @return the object
+     */
+    Object read(String alias);
 
     class AlreadyExistsException extends KmsException {
         public AlreadyExistsException(String alias) {
             super(alias);
         }
+    }
+
+    default RuntimeException unwrapRuntimeException(Exception e) {
+        return e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
     }
 }

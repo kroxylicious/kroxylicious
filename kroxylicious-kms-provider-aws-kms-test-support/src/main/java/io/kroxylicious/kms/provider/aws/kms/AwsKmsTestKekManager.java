@@ -29,13 +29,13 @@ import io.kroxylicious.kms.provider.aws.kms.model.RotateKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.UpdateAliasRequest;
-import io.kroxylicious.kms.service.AbstractTestKekManager;
 import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.UnknownAliasException;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class AwsKmsTestKekManager extends AbstractTestKekManager {
+public class AwsKmsTestKekManager implements TestKekManager {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int MINIMUM_ALLOWED_EXPIRY_DAYS = 7;
 
@@ -69,14 +69,14 @@ public class AwsKmsTestKekManager extends AbstractTestKekManager {
     }
 
     @Override
-    protected DescribeKeyResponse read(String alias) {
+    public DescribeKeyResponse read(String alias) {
         final DescribeKeyRequest describeKey = new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + alias);
         var request = createRequest(describeKey, TRENT_SERVICE_DESCRIBE_KEY);
         return sendRequest(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF);
     }
 
     @Override
-    protected void create(String alias) {
+    public void generateKek(String alias) {
         final CreateKeyRequest createKey = new CreateKeyRequest("key for alias: " + alias);
         var createRequest = createRequest(createKey, TRENT_SERVICE_CREATE_KEY);
         var createKeyResponse = sendRequest(alias, createRequest, CREATE_KEY_RESPONSE_TYPE_REF);
@@ -87,7 +87,7 @@ public class AwsKmsTestKekManager extends AbstractTestKekManager {
     }
 
     @Override
-    protected void delete(String alias) {
+    public void deleteKek(String alias) {
         var key = read(alias);
         var keyId = key.keyMetadata().keyId();
         final ScheduleKeyDeletionRequest request = new ScheduleKeyDeletionRequest(keyId, MINIMUM_ALLOWED_EXPIRY_DAYS);
@@ -101,7 +101,7 @@ public class AwsKmsTestKekManager extends AbstractTestKekManager {
     }
 
     @Override
-    protected void rotate(String alias) {
+    public void rotateKek(String alias) {
         var key = read(alias);
         final RotateKeyRequest rotateKey = new RotateKeyRequest(key.keyMetadata().keyId());
         var rotateKeyRequest = createRequest(rotateKey, TRENT_SERVICE_ROTATE_KEY);

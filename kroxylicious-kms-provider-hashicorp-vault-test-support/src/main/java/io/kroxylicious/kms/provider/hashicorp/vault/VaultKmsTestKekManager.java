@@ -12,7 +12,7 @@ import java.net.http.HttpRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.model.UpdateKeyConfigRequest;
-import io.kroxylicious.kms.service.AbstractTestKekManager;
+import io.kroxylicious.kms.service.TestKekManager;
 
 import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.createVaultDelete;
 import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.createVaultGet;
@@ -23,7 +23,7 @@ import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.sen
 import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public class VaultKmsTestKekManager extends AbstractTestKekManager {
+public class VaultKmsTestKekManager implements TestKekManager {
     private static final TypeReference<VaultResponse<VaultResponse.ReadKeyData>> VAULT_RESPONSE_READ_KEY_DATA_TYPEREF = new TypeReference<>() {
     };
     private static final String KEYS_PATH = "v1/transit/keys/%s";
@@ -33,12 +33,14 @@ public class VaultKmsTestKekManager extends AbstractTestKekManager {
         this.vaultUrl = vaultUrl;
     }
 
-    public void create(String keyId) {
+    @Override
+    public void generateKek(String keyId) {
         var request = createVaultPost(vaultUrl.resolve(KEYS_PATH.formatted(encode(keyId, UTF_8))), HttpRequest.BodyPublishers.noBody());
         sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
     }
 
-    public void delete(String keyId) {
+    @Override
+    public void deleteKek(String keyId) {
         var update = createVaultPost(vaultUrl.resolve((KEYS_PATH + "/config").formatted(encode(keyId, UTF_8))),
                 HttpRequest.BodyPublishers.ofString(getBody(new UpdateKeyConfigRequest(true))));
         sendRequest(keyId, update, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
@@ -47,12 +49,14 @@ public class VaultKmsTestKekManager extends AbstractTestKekManager {
         sendRequestExpectingNoContentResponse(delete);
     }
 
+    @Override
     public VaultResponse.ReadKeyData read(String keyId) {
         var request = createVaultGet(vaultUrl.resolve(KEYS_PATH.formatted(encode(keyId, UTF_8))));
         return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
     }
 
-    public void rotate(String keyId) {
+    @Override
+    public void rotateKek(String keyId) {
         var request = createVaultPost(vaultUrl.resolve((KEYS_PATH + "/rotate").formatted(encode(keyId, UTF_8))), HttpRequest.BodyPublishers.noBody());
         sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
     }
