@@ -161,8 +161,7 @@ public class AwsKmsTestKekManager implements TestKekManager {
         ErrorResponse error;
         // AWS API states that only the 200 response is currently used.
         // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
-        var httpSuccess = isHttpSuccess(statusCode);
-        if (!httpSuccess) {
+        if (!isHttpSuccess(statusCode)) {
             if (statusCode == 501) {
                 throw new AwsNotImplementException("AWS do not implement %s".formatted(uri));
             }

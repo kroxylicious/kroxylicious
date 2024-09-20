@@ -27,7 +27,7 @@ public class InMemoryTestKekManager implements TestKekManager {
 
     @Override
     public void generateKek(String alias) {
-       Objects.requireNonNull(alias);
+        Objects.requireNonNull(alias);
 
         try {
             read(alias);

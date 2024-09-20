@@ -36,7 +36,7 @@ public class VaultKmsTestKekManager implements TestKekManager {
     @Override
     public void generateKek(String keyId) {
         var request = createVaultPost(vaultUrl.resolve(KEYS_PATH.formatted(encode(keyId, UTF_8))), HttpRequest.BodyPublishers.noBody());
-        sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
+        var response = sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
     }
 
     @Override

@@ -12,8 +12,11 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.IntegrationTestingKmsService.Config;
 import io.kroxylicious.kms.service.AbstractTestKmsFacadeTest;
+import io.kroxylicious.kms.service.TestKekManager;
+import io.kroxylicious.kms.service.UnknownAliasException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InMemoryTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, UUID, InMemoryEdek> {
 
@@ -31,4 +34,37 @@ class InMemoryTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, UUID, 
         }
     }
 
+    @Test
+    void generateKekFailsIfAliasExists() {
+        try (var facade = factory.build()) {
+            facade.start();
+            var manager = facade.getTestKekManager();
+            manager.generateKek(ALIAS);
+
+            assertThatThrownBy(() -> manager.generateKek(ALIAS))
+                    .isInstanceOf(TestKekManager.AlreadyExistsException.class);
+        }
+    }
+
+    @Test
+    void rotateKekFailsIfAliasDoesNotExist() {
+        try (var facade = factory.build()) {
+            facade.start();
+            var manager = facade.getTestKekManager();
+
+            assertThatThrownBy(() -> manager.rotateKek(ALIAS))
+                    .isInstanceOf(UnknownAliasException.class);
+        }
+    }
+
+    @Test
+    void deleteKekFailsIfAliasDoesNotExist() {
+        try (var facade = factory.build()) {
+            facade.start();
+            var manager = facade.getTestKekManager();
+
+            assertThatThrownBy(() -> manager.deleteKek(ALIAS))
+                    .isInstanceOf(UnknownAliasException.class);
+        }
+    }
 }
