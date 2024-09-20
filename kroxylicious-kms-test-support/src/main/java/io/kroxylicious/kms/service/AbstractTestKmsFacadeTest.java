@@ -50,7 +50,6 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
         }
     }
 
-
     @Test
     void rotateKek() {
         try (var facade = factory.build()) {
