@@ -167,9 +167,10 @@ public class AwsKmsTestKekManager implements TestKekManager {
             }
             try {
                 error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
-                if(error.isNotFound()) {
+                if (error.isNotFound()) {
                     throw new UnknownAliasException(key);
-                } else {
+                }
+                else {
                     throw new IllegalStateException("unexpected response %s (AWS error: %s) for request: %s".formatted(response.statusCode(), error, uri));
                 }
             }
