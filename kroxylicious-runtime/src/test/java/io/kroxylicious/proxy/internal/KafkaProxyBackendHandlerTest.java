@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,15 +19,19 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 
+import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.service.HostPort;
+
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyBackendHandlerTest {
 
-    @Mock
-    KafkaProxyFrontendHandler kafkaProxyFrontendHandler;
 
-    private Channel outboundChannel;
+    @Mock StateHolder stateHolder;
+
     private KafkaProxyBackendHandler kafkaProxyBackendHandler;
     private ChannelHandlerContext outboundContext;
 
@@ -33,9 +39,9 @@ class KafkaProxyBackendHandlerTest {
     void setUp() {
         Channel inboundChannel = new EmbeddedChannel();
         inboundChannel.pipeline().addFirst("dummy", new ChannelDuplexHandler());
-        outboundChannel = new EmbeddedChannel();
+        Channel outboundChannel = new EmbeddedChannel();
         outboundChannel.pipeline().addFirst("dummy", new ChannelDuplexHandler());
-        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(kafkaProxyFrontendHandler, inboundChannel.pipeline().firstContext());
+        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(stateHolder, new VirtualCluster("wibble", new TargetCluster("localhost:9090", Optional.empty()), new PortPerBrokerClusterNetworkAddressConfigProvider(new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("localhost", 9090), "", 9090, 0, 10)), Optional.empty(), false, false));
         outboundContext = outboundChannel.pipeline().firstContext();
     }
 
@@ -47,7 +53,7 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.channelActive(outboundContext);
 
         // Then
-        verify(kafkaProxyFrontendHandler).onUpstreamChannelActive(outboundContext);
+        verify(stateHolder).onServerActive(outboundContext, null);
     }
 
     @Test

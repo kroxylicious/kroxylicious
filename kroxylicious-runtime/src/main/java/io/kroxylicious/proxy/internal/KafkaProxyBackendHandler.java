@@ -24,19 +24,15 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyBackendHandler.class);
 
-    private final KafkaProxyFrontendHandler frontendHandler;
     private final StateHolder stateHolder;
     private final SslContext sslContext;
     private ChannelHandlerContext serverCtx;
-    private boolean pendingClientFlushes;
     private boolean pendingServerFlushes;
 
     public KafkaProxyBackendHandler(
             StateHolder stateHolder,
-            KafkaProxyFrontendHandler frontendHandler,
             VirtualCluster virtualCluster) {
         this.stateHolder = stateHolder;
-        this.frontendHandler = frontendHandler;
         Optional<SslContext> upstreamSslContext = virtualCluster.getUpstreamSslContext();
         this.sslContext = upstreamSslContext.orElse(null);
     }
@@ -45,7 +41,6 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
             KafkaProxyFrontendHandler frontendHandler,
             ChannelHandlerContext chc) {
         // TODO kill this ctor
-        this.frontendHandler = frontendHandler;
         this.stateHolder = null;
         this.sslContext = null;
     }
@@ -119,10 +114,9 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         stateHolder.serverReadComplete();
     }
 
-    public void forwardToServer(ChannelHandlerContext clientCtx, Object msg) {
-        if (outboundCtx == null) {
-            LOGGER.trace("READ on inbound {} ignored because outbound is not active (msg: {})",
-                    inboundCtx.channel(), msg);
+    public void forwardToServer(Object msg) {
+        if (serverCtx == null) {
+            LOGGER.trace("WRITE to server ignored because outbound is not active (msg: {})", msg);
             return;
         }
         final Channel outboundChannel = serverCtx.channel();

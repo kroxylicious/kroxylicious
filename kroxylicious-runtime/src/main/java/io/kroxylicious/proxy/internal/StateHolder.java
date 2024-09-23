@@ -11,6 +11,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.model.VirtualCluster;
@@ -114,14 +115,15 @@ public class StateHolder {
         frontendHandler.inApiVersions(apiVersionsFrame);
     }
 
-    ProxyChannelState.Connecting onServerSelected(
+    void onServerSelected(
             @NonNull HostPort remote,
             @NonNull List<FilterAndInvoker> filters,
-            VirtualCluster virtualCluster) {
+            VirtualCluster virtualCluster, NetFilter netFilter) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
             ProxyChannelState.Connecting connecting = selectingServerState.toConnecting(remote);
             setState(connecting);
-            return connecting;
+            backendHandler = new KafkaProxyBackendHandler(this, virtualCluster);
+            frontendHandler.inConnecting(remote, filters, backendHandler);
         }
         else {
             // TODO why do we do the state change here, rather than
@@ -131,9 +133,6 @@ public class StateHolder {
             illegalState(msg + " : filter='" + netFilter + "'");
             throw new IllegalStateException(msg);
         }
-
-        backendHandler = new KafkaProxyBackendHandler(this, this.frontendHandler, virtualCluster);
-        frontendHandler.inConnecting(remote, filters, backendHandler);
     }
 
     void onServerActive(ChannelHandlerContext serverCtx,
@@ -147,7 +146,7 @@ public class StateHolder {
             }
         }
         else {
-            illegalState("NetFilter didn't call NetFilterContext.initiateConnect(): filter='" + netFilter + "'");
+            illegalState("");
         }
     }
 
@@ -179,15 +178,15 @@ public class StateHolder {
         frontendHandler.forwardToClient(msg);
     }
 
-    void forwardToServer(ChannelHandlerContext clientCtx, Object msg) {
-        backendHandler.forwardToServer(clientCtx, msg);
+    void forwardToServer(Object msg) {
+        backendHandler.forwardToServer(msg);
     }
 
     public void onRequest(SaslDecodePredicate dp,
                           ChannelHandlerContext ctx,
                           Object msg) {
         if (state() instanceof ProxyChannelState.Forwarding) { // post-backend connection
-            frontendHandler.forwardToServer(ctx, msg);
+            frontendHandler.forwardToServer(msg);
         }
         else {
             frontendHandler.bufferMsg(msg);

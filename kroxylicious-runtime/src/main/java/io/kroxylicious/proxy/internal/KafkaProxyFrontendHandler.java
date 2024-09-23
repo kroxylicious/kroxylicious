@@ -281,7 +281,7 @@ public class KafkaProxyFrontendHandler
     public void channelRead(
                             @NonNull ChannelHandlerContext ctx,
                             @NonNull Object msg) {
-        stateHolder.onRequest(dp, ctx, msg);
+        stateHolder.onRequest(dp, msg);
     }
 
     void inApiVersions(DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
@@ -528,7 +528,7 @@ public class KafkaProxyFrontendHandler
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
                     this.inboundCtx.channel().id(), remote, filters);
         }
-        this.stateHolder.onServerSelected(remote, filters, virtualCluster);
+        this.stateHolder.onServerSelected(remote, filters, virtualCluster, netFilter);
     }
 
     void inConnecting(
@@ -639,7 +639,7 @@ public class KafkaProxyFrontendHandler
     void inForwarding() {
         // connection is complete, so first forward the buffered message
         for (Object bufferedMsg : bufferedMsgs) {
-            forwardToServer(stateHolder.state().outboundCtx(), bufferedMsg);
+            forwardToServer(bufferedMsg);
         }
         bufferedMsgs = null;
 
@@ -658,11 +658,10 @@ public class KafkaProxyFrontendHandler
 
     /**
      * Forwards the given {@code msg} to the server
-     * @param inboundCtx The inbound (client) context.
      * @param msg The message to forward.
      */
-    void forwardToServer(final ChannelHandlerContext inboundCtx, Object msg) {
-        stateHolder.forwardToServer(inboundCtx, msg);
+    void forwardToServer(Object msg) {
+        stateHolder.forwardToServer(msg);
     }
 
     void forwardToClient(Object msg) {
