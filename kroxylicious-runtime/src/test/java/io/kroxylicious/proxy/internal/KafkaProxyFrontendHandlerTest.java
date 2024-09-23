@@ -418,10 +418,8 @@ class KafkaProxyFrontendHandlerTest {
                 new ApiVersionsRequestData().setClientSoftwareName("bob").setClientSoftwareVersion("1.0.0"),
                 1);
 
-        handler.setState(new ProxyChannelState.NegotiatingTls(inboundCtx, null, null, null,
+        handler.setState(new ProxyChannelState.NegotiatingTls( null, null, null,
                 outboundCtx,
-                List.of(reqFrame),
-                mock(KafkaProxyBackendHandler.class),
                 mock(HostPort.class)));
         assertThat(inboundChannel.isOpen())
                 .describedAs("Expect channel open before upstream failure")
@@ -515,10 +513,8 @@ class KafkaProxyFrontendHandlerTest {
                 new ApiVersionsRequestData().setClientSoftwareName("bob").setClientSoftwareVersion("1.0.0"),
                 1);
 
-        handler.setState(new ProxyChannelState.NegotiatingTls(inboundCtx, null, null, null,
+        handler.setState(new ProxyChannelState.NegotiatingTls( null, null, null,
                 outboundCtx,
-                List.of(reqFrame),
-                mock(KafkaProxyBackendHandler.class),
                 mock(HostPort.class)));
         assertThat(inboundChannel.isOpen())
                 .describedAs("Expect channel open before upstream failure")

@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -33,6 +32,9 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.NegotiatingTls;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.BlockedClient;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.BlockedServer;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.BlockedBoth;
 
 /**
  * <p>The state machine for a single client's connection to a server.
@@ -77,9 +79,10 @@ sealed interface ProxyChannelState
         Connecting,
         NegotiatingTls,
         Forwarding,
+        BlockedClient,
+        BlockedServer,
+        BlockedBoth,
         Closed {
-    @NonNull
-    ChannelHandlerContext inboundCtx();
 
     default @Nullable ChannelHandlerContext outboundCtx() {
         return null;
@@ -89,23 +92,30 @@ sealed interface ProxyChannelState
         return null;
     }
 
-    default @NonNull List<Object> bufferedMsgs() {
-        return List.of();
+    record BlockedClient() implements ProxyChannelState {
+
+    }
+
+    record BlockedServer() implements ProxyChannelState {
+
+    }
+
+    record BlockedBoth() implements ProxyChannelState {
+
     }
 
     /**
      * The initial state, when a client has connected, but no messages
      * have been received yet.
-     * @param inboundCtx
      */
-    record ClientActive(ChannelHandlerContext inboundCtx) implements ProxyChannelState {
+    record ClientActive() implements ProxyChannelState {
 
         /**
          * Transition to {@link HaProxy}, because a PROXY header has been received
          * @return The HaProxy state
          */
         public @NonNull HaProxy toHaProxy(HAProxyMessage haProxyMessage) {
-            return new HaProxy(inboundCtx, haProxyMessage);
+            return new HaProxy(haProxyMessage);
         }
 
         /**
@@ -121,7 +131,6 @@ sealed interface ProxyChannelState
             var clientSoftwareName = apiVersionsFrame.body().clientSoftwareName();
             var clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
             return new ApiVersions(
-                    inboundCtx,
                     null,
                     clientSoftwareName,
                     clientSoftwareVersion);
@@ -134,21 +143,18 @@ sealed interface ProxyChannelState
         @NonNull
         public SelectingServer toSelectingServer(@Nullable DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             return new SelectingServer(
-                    inboundCtx,
                     null,
                     apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareName(),
-                    apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareVersion(),
-                    new ArrayList<>());
+                    apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareVersion());
         }
     }
 
     /**
      * A PROXY protocol header has been received on the channel
-     * @param inboundCtx The client context
      * @param haProxyMessage The information in the PROXY header
      */
     record HaProxy(
-                   @NonNull ChannelHandlerContext inboundCtx,
+
                    @NonNull HAProxyMessage haProxyMessage)
             implements ProxyChannelState {
 
@@ -164,7 +170,6 @@ sealed interface ProxyChannelState
             var clientSoftwareName = apiVersionsFrame.body().clientSoftwareName();
             var clientSoftwareVersion = apiVersionsFrame.body().clientSoftwareVersion();
             return new ApiVersions(
-                    inboundCtx,
                     haProxyMessage,
                     clientSoftwareName,
                     clientSoftwareVersion);
@@ -177,29 +182,22 @@ sealed interface ProxyChannelState
         @NonNull
         public SelectingServer toSelectingServer(@Nullable DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             return new SelectingServer(
-                    inboundCtx,
                     haProxyMessage,
                     apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareName(),
-                    apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareVersion(),
-                    new ArrayList<>());
+                    apiVersionsFrame == null ? null : apiVersionsFrame.body().clientSoftwareVersion());
         }
     }
 
     /**
      * The client has sent an ApiVersions request
-     * @param inboundCtx
      * @param haProxyMessage
      * @param clientSoftwareName
      * @param clientSoftwareVersion
      */
-    record ApiVersions(@NonNull ChannelHandlerContext inboundCtx,
-                       @Nullable HAProxyMessage haProxyMessage,
+    record ApiVersions(@Nullable HAProxyMessage haProxyMessage,
                        @Nullable String clientSoftwareName, // optional in the protocol
                        @Nullable String clientSoftwareVersion // optional in the protocol
     ) implements ProxyChannelState {
-        public ApiVersions {
-            Objects.requireNonNull(inboundCtx);
-        }
 
         /**
          * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
@@ -208,11 +206,9 @@ sealed interface ProxyChannelState
         @NonNull
         public SelectingServer toSelectingServer() {
             return new SelectingServer(
-                    inboundCtx,
                     haProxyMessage,
                     clientSoftwareName,
-                    clientSoftwareVersion,
-                    new ArrayList<>());
+                    clientSoftwareVersion);
         }
     }
 
@@ -220,27 +216,14 @@ sealed interface ProxyChannelState
      * A channel to the server is now required, but
      * {@link io.kroxylicious.proxy.filter.NetFilter#selectServer(NetFilter.NetFilterContext)}
      * has not yet been called.
-     * @param inboundCtx
      * @param haProxyMessage
      * @param clientSoftwareName
      * @param clientSoftwareVersion
-     * @param bufferedMsgs
      */
-    record SelectingServer(@NonNull ChannelHandlerContext inboundCtx,
-                           @Nullable HAProxyMessage haProxyMessage,
+    record SelectingServer(@Nullable HAProxyMessage haProxyMessage,
                            @Nullable String clientSoftwareName,
-                           @Nullable String clientSoftwareVersion,
-                           @NonNull List<Object> bufferedMsgs)
+                           @Nullable String clientSoftwareVersion)
             implements ProxyChannelState {
-        public SelectingServer {
-            Objects.requireNonNull(inboundCtx);
-            Objects.requireNonNull(bufferedMsgs);
-        }
-
-        public SelectingServer bufferMessage(Object msg) {
-            this.bufferedMsgs.add(msg);
-            return this;
-        }
 
         /**
          * Transition to {@link Connecting}, because the NetFilter
@@ -248,59 +231,35 @@ sealed interface ProxyChannelState
          * {@link io.kroxylicious.proxy.filter.NetFilter.NetFilterContext#initiateConnect(HostPort, List)}.
          * @return The Connecting2 state
          */
-        public Connecting toConnecting(@NonNull HostPort remote,
-                                       @NonNull KafkaProxyBackendHandler backendHandler) {
-            return new Connecting(inboundCtx, haProxyMessage, clientSoftwareName,
-                    clientSoftwareVersion, bufferedMsgs, backendHandler, remote);
+        public Connecting toConnecting(@NonNull HostPort remote) {
+            return new Connecting(haProxyMessage, clientSoftwareName,
+                    clientSoftwareVersion, remote);
         }
     }
 
     /**
      * The NetFilter has determined the server to connect to,
      * but the channel to it is not yet active.
-     * @param inboundCtx
      * @param haProxyMessage
      * @param clientSoftwareName
      * @param clientSoftwareVersion
-     * @param bufferedMsgs
      */
-    record Connecting(@NonNull ChannelHandlerContext inboundCtx,
-                      @Nullable HAProxyMessage haProxyMessage,
+    record Connecting(@Nullable HAProxyMessage haProxyMessage,
                       @Nullable String clientSoftwareName,
                       @Nullable String clientSoftwareVersion,
-
-                      @NonNull List<Object> bufferedMsgs,
-                      @NonNull KafkaProxyBackendHandler backendHandler,
                       @NonNull HostPort remote)
             implements ProxyChannelState {
-
-        public Connecting {
-            Objects.requireNonNull(inboundCtx);
-            Objects.requireNonNull(bufferedMsgs);
-        }
-
-        public Connecting bufferMessage(Object msg) {
-            this.bufferedMsgs.add(msg);
-            return this;
-        }
 
         /**
          * Transition to {@link NegotiatingTls}, in the case where TLS is configured.
          * @return The NegotiatingTls state
          */
-        public @NonNull NegotiatingTls toNegotiatingTls(KafkaProxyFrontendHandler handler,
-                                                        ChannelHandlerContext outboundCtx,
-                                                        SslContext sslContext) {
-            final SslHandler sslHandler = outboundCtx.pipeline().get(SslHandler.class);
-            sslHandler.handshakeFuture().addListener(handshakeFuture -> handler.onUpstreamSslOutcome(outboundCtx, handshakeFuture));
+        public @NonNull NegotiatingTls toNegotiatingTls(ChannelHandlerContext outboundCtx) {
             return new NegotiatingTls(
-                    inboundCtx,
                     haProxyMessage,
                     clientSoftwareName,
                     clientSoftwareVersion,
                     outboundCtx,
-                    bufferedMsgs,
-                    backendHandler,
                     remote);
         }
 
@@ -311,12 +270,10 @@ sealed interface ProxyChannelState
         @NonNull
         public Forwarding toForwarding(ChannelHandlerContext outboundCtx) {
             return new Forwarding(
-                    inboundCtx,
                     haProxyMessage,
                     clientSoftwareName,
                     clientSoftwareVersion,
                     outboundCtx,
-                    backendHandler,
                     remote);
         }
 
@@ -324,24 +281,19 @@ sealed interface ProxyChannelState
 
     /**
      * There's an active channel to the server, but TLS is configured and handshaking is in progress.
-     * @param inboundCtx The client content
      * @param haProxyMessage the info gleaned from the PROXY handshake, or null if the client didn't use the PROXY protocol
      * @param clientSoftwareName the name of the client library, or null if the client didn't send this.
      * @param clientSoftwareVersion the version of the client library, or null if the client didn't send this.
      * @param outboundCtx The server context
      */
     record NegotiatingTls(
-                          @NonNull ChannelHandlerContext inboundCtx,
                           @Nullable HAProxyMessage haProxyMessage,
                           @Nullable String clientSoftwareName,
                           @Nullable String clientSoftwareVersion,
                           @NonNull ChannelHandlerContext outboundCtx,
-                          List<Object> bufferedMsgs,
-                          @NonNull KafkaProxyBackendHandler backendHandler,
                           @NonNull HostPort remote)
             implements ProxyChannelState {
         public NegotiatingTls {
-            Objects.requireNonNull(inboundCtx);
             Objects.requireNonNull(outboundCtx);
         }
 
@@ -352,19 +304,13 @@ sealed interface ProxyChannelState
         @NonNull
         public Forwarding toForwarding() {
             return new Forwarding(
-                    inboundCtx,
                     haProxyMessage,
                     clientSoftwareName,
                     clientSoftwareVersion,
                     outboundCtx,
-                    backendHandler,
                     remote);
         }
 
-        public NegotiatingTls bufferMessage(Object msg) {
-            this.bufferedMsgs.add(msg);
-            return this;
-        }
     }
 
     /**
@@ -372,8 +318,7 @@ sealed interface ProxyChannelState
      */
     final class Forwarding
             implements ProxyChannelState {
-        @NonNull
-        private final ChannelHandlerContext inboundCtx;
+
         @Nullable
         private final HAProxyMessage haProxyMessage;
         @Nullable
@@ -382,33 +327,21 @@ sealed interface ProxyChannelState
         private final String clientSoftwareVersion;
         @NonNull
         private final ChannelHandlerContext outboundCtx;
-        @NonNull
-        private final KafkaProxyBackendHandler backendHandler;
+
         private final HostPort remote;
 
         Forwarding(
-                   @NonNull ChannelHandlerContext inboundCtx,
                    @Nullable HAProxyMessage haProxyMessage,
                    @Nullable String clientSoftwareName,
                    @Nullable String clientSoftwareVersion,
                    @NonNull ChannelHandlerContext outboundCtx,
-                   @NonNull KafkaProxyBackendHandler backendHandler,
                    @NonNull HostPort remote) {
-            Objects.requireNonNull(inboundCtx);
             Objects.requireNonNull(outboundCtx);
-            this.inboundCtx = inboundCtx;
             this.haProxyMessage = haProxyMessage;
             this.clientSoftwareName = clientSoftwareName;
             this.clientSoftwareVersion = clientSoftwareVersion;
             this.outboundCtx = outboundCtx;
-            this.backendHandler = backendHandler;
             this.remote = remote;
-        }
-
-        @Override
-        @NonNull
-        public ChannelHandlerContext inboundCtx() {
-            return inboundCtx;
         }
 
         @Nullable
@@ -432,10 +365,6 @@ sealed interface ProxyChannelState
             return outboundCtx;
         }
 
-        @NonNull
-        public KafkaProxyBackendHandler backendHandler() {
-            return backendHandler;
-        }
 
         @NonNull
         public HostPort remote() {
@@ -451,29 +380,25 @@ sealed interface ProxyChannelState
                 return false;
             }
             var that = (Forwarding) obj;
-            return Objects.equals(this.inboundCtx, that.inboundCtx) &&
-                    Objects.equals(this.haProxyMessage, that.haProxyMessage) &&
+            return Objects.equals(this.haProxyMessage, that.haProxyMessage) &&
                     Objects.equals(this.clientSoftwareName, that.clientSoftwareName) &&
                     Objects.equals(this.clientSoftwareVersion, that.clientSoftwareVersion) &&
                     Objects.equals(this.outboundCtx, that.outboundCtx) &&
-                    Objects.equals(this.backendHandler, that.backendHandler) &&
                     Objects.equals(this.remote, that.remote);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(inboundCtx, haProxyMessage, clientSoftwareName, clientSoftwareVersion, outboundCtx, backendHandler, remote);
+            return Objects.hash(haProxyMessage, clientSoftwareName, clientSoftwareVersion, outboundCtx, remote);
         }
 
         @Override
         public String toString() {
             return "Forwarding[" +
-                    "inboundCtx=" + inboundCtx + ", " +
                     "haProxyMessage=" + haProxyMessage + ", " +
                     "clientSoftwareName=" + clientSoftwareName + ", " +
                     "clientSoftwareVersion=" + clientSoftwareVersion + ", " +
-                    "outboundCtx=" + outboundCtx + ", " +
-                    "backendHandler=" + backendHandler + ']';
+                    "outboundCtx=" + outboundCtx + ']';
         }
 
     }
@@ -482,11 +407,7 @@ sealed interface ProxyChannelState
      * The final state, where there are no connections to either client or server
      */
     record Closed() implements ProxyChannelState {
-        @NonNull
-        @Override
-        public ChannelHandlerContext inboundCtx() {
-            return null;
-        }
+
     }
 
 }

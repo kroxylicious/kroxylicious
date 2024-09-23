@@ -5,43 +5,63 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import io.kroxylicious.proxy.model.VirtualCluster;
+
+import io.netty.channel.Channel;
+import io.netty.handler.ssl.SslContext;
+
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
-import static java.util.Objects.requireNonNull;
+import java.util.Optional;
 
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyBackendHandler.class);
 
     private final KafkaProxyFrontendHandler frontendHandler;
-    private final ChannelHandlerContext inboundCtx;
-    private ChannelHandlerContext blockedOutboundCtx;
-    private boolean unflushedWrites;
+    private final StateHolder stateHolder;
+    private final SslContext sslContext;
+    private ChannelHandlerContext serverCtx;
+    private boolean pendingClientFlushes;
+    private boolean pendingServerFlushes;
 
-    public KafkaProxyBackendHandler(KafkaProxyFrontendHandler frontendHandler, ChannelHandlerContext inboundCtx) {
+    public KafkaProxyBackendHandler(
+            StateHolder stateHolder,
+            KafkaProxyFrontendHandler frontendHandler,
+            VirtualCluster virtualCluster) {
+        this.stateHolder = stateHolder;
         this.frontendHandler = frontendHandler;
-        this.inboundCtx = requireNonNull(inboundCtx);
+        Optional<SslContext> upstreamSslContext = virtualCluster.getUpstreamSslContext();
+        this.sslContext = upstreamSslContext.orElse(null);
+    }
+
+    public KafkaProxyBackendHandler(
+            KafkaProxyFrontendHandler frontendHandler,
+            ChannelHandlerContext chc) {
+        // TODO kill this ctor
+        this.frontendHandler = frontendHandler;
+        this.stateHolder = null;
+        this.sslContext = null;
     }
 
     @Override
     public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
         super.channelWritabilityChanged(ctx);
-        frontendHandler.upstreamWritabilityChanged(ctx);
-    }
-
-    /**
-     * Relieve backpressure on the server connection by turning on auto-read.
-     */
-    public void inboundChannelWritabilityChanged() {
-        final ChannelHandlerContext outboundCtx = blockedOutboundCtx;
-        if (outboundCtx != null && this.inboundCtx.channel().isWritable()) {
-            blockedOutboundCtx = null;
-            outboundCtx.channel().config().setAutoRead(true);
+        // TODO you're here, and you need to change this to be in terms of
+        // a stateHolder field
+        // i.e. stateHolder.onServerBlocked/onServerUnblocked
+        //frontendHandler.upstreamWritabilityChanged(ctx);
+        if (ctx.channel().isWritable()) {
+            stateHolder.onServerUnblocked();
+        }
+        else {
+            stateHolder.onServerBlocked();
         }
     }
 
@@ -49,46 +69,101 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.trace("Channel active {}", ctx);
-        this.frontendHandler.onUpstreamChannelActive(ctx);
+        serverCtx = ctx;
+        stateHolder.onServerActive(ctx, sslContext);
         super.channelActive(ctx);
     }
 
     @Override
-    public void channelRead(final ChannelHandlerContext ctx, Object msg) {
-        assert blockedOutboundCtx == null;
-        LOGGER.trace("Channel read {}", msg);
-        final Channel inboundChannel = inboundCtx.channel();
-        if (inboundChannel.isWritable()) {
-            inboundChannel.write(msg, inboundCtx.voidPromise());
-            unflushedWrites = true;
+    public void userEventTriggered(
+            ChannelHandlerContext ctx,
+            Object evt
+    ) throws Exception {
+        if (evt instanceof SslHandshakeCompletionEvent sslEvt) {
+            stateHolder.onServerTlsHandshakeCompletion(sslEvt);
         }
-        else {
-            inboundChannel.writeAndFlush(msg, inboundCtx.voidPromise());
-            unflushedWrites = false;
-        }
-    }
-
-    @Override
-    public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
-        super.channelReadComplete(ctx);
-        final Channel inboundChannel = inboundCtx.channel();
-        if (unflushedWrites) {
-            unflushedWrites = false;
-            inboundChannel.flush();
-        }
-        if (!inboundChannel.isWritable()) {
-            ctx.channel().config().setAutoRead(false);
-            this.blockedOutboundCtx = ctx;
-        }
+        super.userEventTriggered(ctx, evt);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        frontendHandler.upstreamChannelInactive(ctx);
+        stateHolder.onServerInactive(ctx);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        frontendHandler.upstreamExceptionCaught(ctx, cause);
+        stateHolder.onServerException(ctx, cause);
+    }
+
+    /**
+     * Relieve backpressure on the server connection by turning on auto-read.
+     */
+    public void inboundChannelWritabilityChanged() {
+        if (serverCtx != null) {
+            serverCtx.channel().config().setAutoRead(true);
+        }
+    }
+
+
+
+    @Override
+    public void channelRead(final ChannelHandlerContext ctx, Object msg) {
+        stateHolder.forwardToClient(msg);
+    }
+
+
+
+    @Override
+    public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
+        super.channelReadComplete(ctx);
+        stateHolder.serverReadComplete();
+    }
+
+    public void forwardToServer(ChannelHandlerContext clientCtx, Object msg) {
+        if (outboundCtx == null) {
+            LOGGER.trace("READ on inbound {} ignored because outbound is not active (msg: {})",
+                    inboundCtx.channel(), msg);
+            return;
+        }
+        final Channel outboundChannel = serverCtx.channel();
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("READ on inbound {} outbound {} (outbound.isWritable: {}, msg: {})",
+                    inboundCtx.channel(), outboundChannel, outboundChannel.isWritable(), msg);
+            LOGGER.trace("Outbound bytesBeforeUnwritable: {}", outboundChannel.bytesBeforeUnwritable());
+            LOGGER.trace("Outbound config: {}", outboundChannel.config());
+            LOGGER.trace("Outbound is active, writing and flushing {}", msg);
+        }
+        if (outboundChannel.isWritable()) {
+            outboundChannel.write(msg, outboundCtx.voidPromise());
+            pendingServerFlushes = true;
+        }
+        else {
+            outboundChannel.writeAndFlush(msg, outboundCtx.voidPromise());
+            pendingServerFlushes = false;
+        }
+        LOGGER.trace("/READ");
+    }
+
+    public void flushToServer() {
+        final Channel serverChannel = serverCtx.channel();
+        if (pendingServerFlushes) {
+            pendingServerFlushes = false;
+            serverChannel.flush();
+        }
+        if (!serverChannel.isWritable()) {
+            stateHolder.onServerBlocked();
+        }
+    }
+
+    public void inBlocked() {
+        if (serverCtx != null) {
+            serverCtx.channel().config().setAutoRead(false);
+        }
+    }
+
+    public void inUnblocked() {
+        if (serverCtx != null) {
+            serverCtx.channel().config().setAutoRead(true);
+        }
     }
 }
