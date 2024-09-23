@@ -131,17 +131,17 @@ public class VaultKmsTestUtils {
     }
 
     /**
-     * Gets body.
+     * Gets body json.
      *
      * @param obj the object
      * @return the body
      */
-    public static String getBody(Object obj) {
+    public static String encodeJson(Object obj) {
         try {
             return OBJECT_MAPPER.writeValueAsString(obj);
         }
         catch (JsonProcessingException e) {
-            throw new UncheckedIOException("Failed to create request body", e);
+            throw new UncheckedIOException("Failed to encode the request body", e);
         }
     }
 

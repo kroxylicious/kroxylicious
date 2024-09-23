@@ -28,7 +28,7 @@ import io.kroxylicious.proxy.config.secret.InlinePassword;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.createVaultPost;
-import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.getBody;
+import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.encodeJson;
 import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.sendRequest;
 import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.sendRequestExpectingNoContentResponse;
 import static java.net.URLEncoder.encode;
@@ -70,7 +70,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
     protected void enableTransit() {
         var engine = new EnableEngineRequest("transit");
-        var body = getBody(engine);
+        var body = encodeJson(engine);
         var request = createVaultPost(getVaultUrl().resolve("v1/sys/mounts/transit"), HttpRequest.BodyPublishers.ofString(body));
 
         sendRequestExpectingNoContentResponse(request);
@@ -79,7 +79,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
     protected void createPolicy(String policyName, InputStream policyStream) {
         Objects.requireNonNull(policyName);
         Objects.requireNonNull(policyStream);
-        var createPolicy = getBody(CreatePolicyRequest.fromInputStream(policyStream));
+        var createPolicy = encodeJson(CreatePolicyRequest.fromInputStream(policyStream));
         var request = createVaultPost(getVaultUrl().resolve("v1/sys/policy/%s".formatted(encode(policyName, UTF_8))), HttpRequest.BodyPublishers.ofString(createPolicy));
 
         sendRequestExpectingNoContentResponse(request);
@@ -87,7 +87,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
     protected String createOrphanToken(String description, boolean noDefaultPolicy, Set<String> policies) {
         var token = new CreateTokenRequest(description, noDefaultPolicy, policies);
-        String body = getBody(token);
+        String body = encodeJson(token);
         var request = createVaultPost(getVaultUrl().resolve("v1/auth/token/create-orphan"), HttpRequest.BodyPublishers.ofString(body));
 
         return sendRequest("dummy", request, VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF).auth().clientToken();

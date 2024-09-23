@@ -17,7 +17,7 @@ import io.kroxylicious.kms.service.TestKekManager;
 import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.createVaultDelete;
 import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.createVaultGet;
 import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.createVaultPost;
-import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.getBody;
+import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.encodeJson;
 import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.sendRequest;
 import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.sendRequestExpectingNoContentResponse;
 import static java.net.URLEncoder.encode;
@@ -42,7 +42,7 @@ public class VaultKmsTestKekManager implements TestKekManager {
     @Override
     public void deleteKek(String keyId) {
         var update = createVaultPost(vaultUrl.resolve((KEYS_PATH + "/config").formatted(encode(keyId, UTF_8))),
-                HttpRequest.BodyPublishers.ofString(getBody(new UpdateKeyConfigRequest(true))));
+                HttpRequest.BodyPublishers.ofString(encodeJson(new UpdateKeyConfigRequest(true))));
         sendRequest(keyId, update, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
 
         var delete = createVaultDelete(vaultUrl.resolve(KEYS_PATH.formatted(encode(keyId, UTF_8))));

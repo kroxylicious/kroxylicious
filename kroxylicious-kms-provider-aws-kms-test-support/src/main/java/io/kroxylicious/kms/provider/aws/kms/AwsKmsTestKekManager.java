@@ -129,7 +129,7 @@ public class AwsKmsTestKekManager implements TestKekManager {
     }
 
     private HttpRequest createRequest(Object request, String target) {
-        var body = getBody(request).getBytes(UTF_8);
+        var body = encodeJson(request).getBytes(UTF_8);
 
         return AwsV4SigningHttpRequestBuilder.newBuilder(accessKey, secretKey, region, "kms", Instant.now())
                 .uri(awsUrl)
@@ -212,12 +212,12 @@ public class AwsKmsTestKekManager implements TestKekManager {
         }
     }
 
-    private String getBody(Object obj) {
+    private String encodeJson(Object obj) {
         try {
             return OBJECT_MAPPER.writeValueAsString(obj);
         }
         catch (JsonProcessingException e) {
-            throw new UncheckedIOException("Failed to create request body", e);
+            throw new UncheckedIOException("Failed to encode the request body", e);
         }
     }
 }
