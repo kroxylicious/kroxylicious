@@ -30,8 +30,10 @@ public class InMemoryTestKekManager implements TestKekManager {
         Objects.requireNonNull(alias);
 
         try {
-            read(alias);
-            throw new AlreadyExistsException(alias);
+            var existing = read(alias);
+            if (existing != null) {
+                throw new AlreadyExistsException(alias);
+            }
         }
         catch (CompletionException e) {
             if (e.getCause() instanceof UnknownAliasException) {

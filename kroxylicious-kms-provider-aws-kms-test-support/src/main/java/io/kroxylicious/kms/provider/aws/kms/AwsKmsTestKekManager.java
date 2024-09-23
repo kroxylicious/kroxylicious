@@ -167,14 +167,15 @@ public class AwsKmsTestKekManager implements TestKekManager {
             }
             try {
                 error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
+                if(error.isNotFound()) {
+                    throw new UnknownAliasException(key);
+                } else {
+                    throw new IllegalStateException("unexpected response %s (AWS error: %s) for request: %s".formatted(response.statusCode(), error, uri));
+                }
             }
             catch (UncheckedIOException e) {
-                error = null;
+                throw new IllegalStateException("Unable to read error response with Status Code: %s from AWS for request: %s".formatted(response.statusCode(), uri));
             }
-            if (error != null && error.isNotFound()) {
-                throw new UnknownAliasException(key);
-            }
-            throw new IllegalStateException("unexpected response %s (AWS error: %s) for request: %s".formatted(response.statusCode(), error, uri));
         }
     }
 
