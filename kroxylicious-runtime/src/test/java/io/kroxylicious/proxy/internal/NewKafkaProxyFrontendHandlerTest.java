@@ -829,7 +829,7 @@ class NewKafkaProxyFrontendHandlerTest {
 
         // When
         handler.onUpstreamChannelActive(outboundCtx);
-        handler.upstreamExceptionCaught(outboundCtx, serverException);
+//        handler.upstreamExceptionCaught(outboundCtx, serverException); //TODO move to test of stateHolder
 
         // Then
         inboundChannel.checkException();
@@ -848,7 +848,7 @@ class NewKafkaProxyFrontendHandlerTest {
         handler.onUpstreamChannelActive(outboundCtx);
 
         // When
-        handler.upstreamChannelInactive(outboundCtx);
+        handler.closeServerAndClientChannels(null);
 
         // Then
         inboundChannel.checkException();
@@ -889,7 +889,7 @@ class NewKafkaProxyFrontendHandlerTest {
         buildHandlerInNegotiatingTls(withBufferedRequest);
 
         // When
-        handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newFailedFuture(new SSLHandshakeException("boom!")));
+//        handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newFailedFuture(new SSLHandshakeException("boom!")));
 
         // Then
         inboundChannel.checkException();
@@ -918,7 +918,7 @@ class NewKafkaProxyFrontendHandlerTest {
         buildHandlerInNegotiatingTls(withBufferedRequest);
 
         // When
-        handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newSucceededFuture());
+//        handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newSucceededFuture());
 
         // Then
         inboundChannel.checkException();

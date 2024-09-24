@@ -14,63 +14,92 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
 import io.netty.handler.ssl.SslContext;
 
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
+import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
+import org.slf4j.Logger;
 
 import java.util.List;
+import java.util.Objects;
+
+import static org.slf4j.LoggerFactory.getLogger;
 
 public class StateHolder {
-    private ProxyChannelState state;
-    private boolean clientBlocked;
-    private boolean serverBlocked;
-    private KafkaProxyFrontendHandler frontendHandler;
-    private KafkaProxyBackendHandler backendHandler;
+    @Nullable ProxyChannelState state;
+    /* Track autoread states here, because the netty autoread flag is volatile =>
+     expensive to set in every call to channelRead */
+    boolean serverReadsBlocked;
+    boolean clientReadsBlocked;
+    /**
+     * The frontend handler. Non-null if we got as far as ClientActive.
+     */
+    @Nullable KafkaProxyFrontendHandler frontendHandler;
+    /**
+     * The backend handler. Non-null if {@link #onServerSelected(HostPort, List, VirtualCluster, NetFilter)}
+     * has been called
+     */
+    @Nullable KafkaProxyBackendHandler backendHandler;
 
-    void onClientBlocked() {
-        clientBlocked = true;
-        backendHandler.inBlocked();
+    private final Logger LOGGER = getLogger(StateHolder.class);
+
+    void onClientUnwritable() {
+        if (!serverReadsBlocked) {
+            serverReadsBlocked = true;
+            backendHandler.blockServerReads();
+        }
     }
 
-    void onClientUnblocked() {
-        clientBlocked = false;
-        backendHandler.inUnblocked();
+    void onClientWritable() {
+        if (serverReadsBlocked) {
+            serverReadsBlocked = false;
+            backendHandler.unblockServerReads();
+        }
     }
 
-    void onServerBlocked() {
-        serverBlocked = true;
-        frontendHandler.inBlocked();
+    /**
+     * The channel to the server is no longer writable
+     */
+    void onServerUnwritable() {
+        if (!clientReadsBlocked) {
+            clientReadsBlocked = true;
+            frontendHandler.blockClientReads();
+        }
     }
 
-    void onServerUnblocked() {
-        serverBlocked = false;
-        frontendHandler.inUnblocked();
+    /**
+     * The channel to the server is now writable
+     */
+    void onServerWritable() {
+        if (clientReadsBlocked) {
+            clientReadsBlocked = false;
+            frontendHandler.unblockClientReads();
+        }
     }
 
     /////////////////
 
-
-
     public StateHolder() {
     }
-
 
     @VisibleForTesting
     ProxyChannelState state() {
         return state;
     }
 
-    @VisibleForTesting
     void setState(@NonNull ProxyChannelState state) {
         this.state = state;
     }
@@ -79,13 +108,11 @@ public class StateHolder {
     void onClientActive(@NonNull KafkaProxyFrontendHandler frontendHandler) {
         if (this.state == null) {
             this.frontendHandler = frontendHandler;
-            this.clientBlocked = false;
             setState(new ProxyChannelState.ClientActive());
             frontendHandler.inClientActive();
         }
         else {
             illegalState("Client activation while not in the start state");
-            throw new IllegalStateException();
         }
 
     }
@@ -102,17 +129,19 @@ public class StateHolder {
 
     @VisibleForTesting
     void onApiVersionsReceived(@NonNull DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
+        ProxyChannelState.ApiVersions apiVersions;
         if (this.state instanceof ProxyChannelState.ClientActive ca) {
-            setState(ca.toApiVersions(apiVersionsFrame));
+            apiVersions = ca.toApiVersions(apiVersionsFrame);
         }
-        else if (this.state instanceof ProxyChannelState.HaProxy ca) {
-            setState(ca.toApiVersions(apiVersionsFrame));
+        else if (this.state instanceof ProxyChannelState.HaProxy hap) {
+            apiVersions = hap.toApiVersions(apiVersionsFrame);
         }
         else {
             illegalState("");
-            throw new IllegalStateException();
+            return;
         }
-        frontendHandler.inApiVersions(apiVersionsFrame);
+        setState(apiVersions);
+        Objects.requireNonNull(frontendHandler).inApiVersions(apiVersionsFrame);
     }
 
     void onServerSelected(
@@ -143,6 +172,7 @@ public class StateHolder {
             }
             else {
                 setState(connectedState.toForwarding(serverCtx));
+                frontendHandler.inForwarding();
             }
         }
         else {
@@ -157,8 +187,7 @@ public class StateHolder {
                 frontendHandler.inForwarding();
             }
             else {
-                // TODO error close
-                closeServerAndClientChannels(null);
+                closeClientAndServerChannels(sslEvt.cause());
             }
         }
         else {
@@ -170,7 +199,7 @@ public class StateHolder {
         if (!(state instanceof ProxyChannelState.Closed)) {
             IllegalStateException exception = new IllegalStateException("While in state " + state + ": " + msg);
             LOGGER.error("Illegal state, closing channels with no client response", exception);
-            closeServerAndClientChannels(null);
+            closeClientAndServerChannels(null);
         }
     }
 
@@ -183,7 +212,6 @@ public class StateHolder {
     }
 
     public void onRequest(SaslDecodePredicate dp,
-                          ChannelHandlerContext ctx,
                           Object msg) {
         if (state() instanceof ProxyChannelState.Forwarding) { // post-backend connection
             frontendHandler.forwardToServer(msg);
@@ -275,12 +303,7 @@ public class StateHolder {
     }
 
     public void onServerInactive(ChannelHandlerContext ctx) {
-        frontendHandler.upstreamChannelInactive(ctx);
-        // TODO make this right
-    }
-
-    public void onServerException(ChannelHandlerContext ctx, Throwable cause) {
-        frontendHandler.upstreamExceptionCaught(ctx, cause);
+        frontendHandler.closeServerAndClientChannels(null);
         // TODO make this right
     }
 
@@ -289,6 +312,51 @@ public class StateHolder {
     }
 
     public void clientReadComplete() {
-        backendHandler.flushToServer();
+        if (backendHandler != null) {
+            backendHandler.flushToServer();
+        }
+    }
+
+    private void closeClientAndServerChannels(@Nullable Throwable errorCodeEx) {
+        // Close the server connection
+        if (backendHandler != null) {
+            backendHandler.close();
+        }
+
+        // Close the client connection with any error code
+        if (frontendHandler != null) {
+            frontendHandler.closeWithResponse(errorCodeEx);
+        }
+
+        setState(new ProxyChannelState.Closed());
+    }
+
+    public void onServerException(Throwable cause) {
+        LOGGER.atWarn()
+                .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                .addArgument(cause != null ? cause.getMessage() : "")
+                .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
+        closeClientAndServerChannels(cause);
+    }
+
+    public void onClientException(Throwable cause, boolean tlsEnabled) {
+        ApiException errorCodeEx;
+        if (cause instanceof DecoderException de
+                && de.getCause() instanceof FrameOversizedException e) {
+            var tlsHint = tlsEnabled ? "" : " or an unexpected TLS handshake";
+            LOGGER.warn(
+                    "Received over-sized frame from the client, max frame size bytes {}, received frame size bytes {} "
+                            + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
+                    e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
+            errorCodeEx = Errors.INVALID_REQUEST.exception();
+        }
+        else {
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                    .addArgument(cause != null ? cause.getMessage() : "")
+                    .log("Exception from the client channel: {}. Increase log level to DEBUG for stacktrace");
+            errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
+        }
+        closeClientAndServerChannels(errorCodeEx);
     }
 }

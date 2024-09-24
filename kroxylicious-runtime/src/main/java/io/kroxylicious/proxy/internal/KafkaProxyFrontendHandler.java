@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -19,7 +20,6 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +34,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.DecoderException;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
@@ -46,7 +45,6 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
-import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.model.VirtualCluster;
@@ -71,7 +69,6 @@ public class KafkaProxyFrontendHandler
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
     public static final ApiException ERROR_NEGOTIATING_SSL_CONNECTION = new NetworkException("Error negotiating SSL connection");
-    // public static final AttributeKey<HostPort> UPSTREAM_PEER_KEY = AttributeKey.valueOf("upstreamPeer");
 
     static {
         var objectMapper = new ObjectMapper();
@@ -83,7 +80,7 @@ public class KafkaProxyFrontendHandler
         }
     }
 
-    ChannelHandlerContext inboundCtx;
+    ChannelHandlerContext clientCtx;
     List<Object> bufferedMsgs;
 
     static @NonNull ResponseFrame buildErrorResponseFrame(
@@ -101,10 +98,9 @@ public class KafkaProxyFrontendHandler
      * @return The response frame
      */
     ResponseFrame errorResponse(
-                                       @NonNull ProxyChannelState state,
                                        @Nullable Throwable errorCodeEx) {
         ResponseFrame errorResponse;
-        final Object triggerMsg = !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
+        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
         if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
             errorResponse = buildErrorResponseFrame(triggerFrame, errorCodeEx);
         }
@@ -120,7 +116,6 @@ public class KafkaProxyFrontendHandler
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
 
-    private boolean pendingServerFlushes;
     private boolean pendingClientFlushes;
     private AuthenticationEvent authentication;
     private String sniHostname;
@@ -191,7 +186,7 @@ public class KafkaProxyFrontendHandler
         }
 
         // Close the client connection with any error code
-        Channel inboundChannel = this.inboundCtx.channel();
+        Channel inboundChannel = this.clientCtx.channel();
         if (inboundChannel.isActive()) {
             inboundChannel.writeAndFlush(clientResponse != null ? clientResponse : Unpooled.EMPTY_BUFFER)
                     .addListener(ChannelFutureListener.CLOSE);
@@ -219,16 +214,17 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        this.inboundCtx = ctx;
+        this.clientCtx = ctx;
         this.stateHolder.onClientActive(this);
-        super.channelActive(this.inboundCtx);
+        super.channelActive(this.clientCtx);
     }
 
     void inClientActive() {
-        LOGGER.trace("{}: channelActive", this.inboundCtx.channel().id());
+        LOGGER.trace("{}: channelActive", this.clientCtx.channel().id());
         // Initially the channel is not auto reading, so read the first batch of requests
-        this.inboundCtx.channel().config().setAutoRead(false);
-        this.inboundCtx.channel().read();
+        this.clientCtx.channel().config().setAutoRead(false);
+        // TODO why doesn't the initialize set autoread to false so we don't have to set it here?
+        this.clientCtx.channel().read();
     }
 
     @Override
@@ -242,7 +238,6 @@ public class KafkaProxyFrontendHandler
      * the {@link KafkaProxyBackendHandler#inboundChannelWritabilityChanged()}
      * @param inboundCtx The inbound context
      * @throws Exception If something went wrong
-     * @see #upstreamWritabilityChanged(ChannelHandlerContext)
      */
     @Override
     public void channelWritabilityChanged(
@@ -250,21 +245,21 @@ public class KafkaProxyFrontendHandler
             throws Exception {
         super.channelWritabilityChanged(inboundCtx);
         if (inboundCtx.channel().isWritable()) {
-            this.stateHolder.onClientUnblocked();
+            this.stateHolder.onClientWritable();
         }
         else {
-            this.stateHolder.onClientBlocked();
+            this.stateHolder.onClientUnwritable();
         }
     }
 
-    public void inBlocked() {
-        isClientBlocked = true;
-        this.inboundCtx.channel().config().setAutoRead(false);
+    public void blockClientReads() {
+        //isClientBlocked = true;
+        this.clientCtx.channel().config().setAutoRead(false);
     }
 
-    public void inUnblocked() {
-        isClientBlocked = false;
-        this.inboundCtx.channel().config().setAutoRead(true);
+    public void unblockClientReads() {
+        //isClientBlocked = false;
+        this.clientCtx.channel().config().setAutoRead(true);
     }
 
     /**
@@ -286,9 +281,9 @@ public class KafkaProxyFrontendHandler
 
     void inApiVersions(DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
         // This handler can respond to ApiVersions itself
-        writeApiVersionsResponse(this.inboundCtx, apiVersionsFrame);
+        writeApiVersionsResponse(this.clientCtx, apiVersionsFrame);
         // Request to read the following request
-        this.inboundCtx.channel().read();
+        this.clientCtx.channel().read();
     }
 
     public void inSelectingServer() {
@@ -330,29 +325,14 @@ public class KafkaProxyFrontendHandler
      * channels and changing {@link #stateHolder} to {@link Closed}.
      * @param ctx The downstream context
      * @param cause The downstream exception
-     * @see #upstreamExceptionCaught(ChannelHandlerContext, Throwable)
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        ApiException errorCodeEx;
-        if (cause instanceof DecoderException de
-                && de.getCause() instanceof FrameOversizedException e) {
-            var tlsHint = virtualCluster.getDownstreamSslContext().isPresent() ? "" : " or an unexpected TLS handshake";
-            LOGGER.warn(
-                    "Received over-sized frame from the client, max frame size bytes {}, received frame size bytes {} "
-                            + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
-                    e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
-            errorCodeEx = Errors.INVALID_REQUEST.exception();
-        }
-        else {
-            LOGGER.warn("Netty caught exception from the client: {}", cause.getMessage(), cause);
-            errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
-        }
-        closeServerAndClientChannels(errorResponse(stateHolder.state(), errorCodeEx));
+        stateHolder.onClientException(cause, virtualCluster.getDownstreamSslContext().isPresent());
     }
 
     void closeInboundWithNoResponse() {
-        Channel ch = this.inboundCtx.channel();
+        Channel ch = this.clientCtx.channel();
         if (ch.isActive()) {
             ch.writeAndFlush(Unpooled.EMPTY_BUFFER)
                     .addListener(ChannelFutureListener.CLOSE);
@@ -374,7 +354,7 @@ public class KafkaProxyFrontendHandler
                 return selectingServer.haProxyMessage().sourceAddress();
             }
             else {
-                SocketAddress socketAddress = this.inboundCtx.channel().remoteAddress();
+                SocketAddress socketAddress = this.clientCtx.channel().remoteAddress();
                 if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
                     return inetSocketAddress.getAddress().getHostAddress();
                 }
@@ -401,7 +381,7 @@ public class KafkaProxyFrontendHandler
                 return selectingServer.haProxyMessage().sourcePort();
             }
             else {
-                SocketAddress socketAddress = this.inboundCtx.channel().remoteAddress();
+                SocketAddress socketAddress = this.clientCtx.channel().remoteAddress();
                 if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
                     return inetSocketAddress.getPort();
                 }
@@ -424,7 +404,7 @@ public class KafkaProxyFrontendHandler
     @Override
     public SocketAddress srcAddress() {
         if (stateHolder.isSelectingServer()) {
-            return this.inboundCtx.channel().remoteAddress();
+            return this.clientCtx.channel().remoteAddress();
         }
         else {
             throw new IllegalStateException();
@@ -440,7 +420,7 @@ public class KafkaProxyFrontendHandler
     @Override
     public SocketAddress localAddress() {
         if (stateHolder.isSelectingServer()) {
-            return this.inboundCtx.channel().localAddress();
+            return this.clientCtx.channel().localAddress();
         }
         else {
             throw new IllegalStateException();
@@ -526,7 +506,7 @@ public class KafkaProxyFrontendHandler
                                 @NonNull List<FilterAndInvoker> filters) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
-                    this.inboundCtx.channel().id(), remote, filters);
+                    this.clientCtx.channel().id(), remote, filters);
         }
         this.stateHolder.onServerSelected(remote, filters, virtualCluster, netFilter);
     }
@@ -534,7 +514,7 @@ public class KafkaProxyFrontendHandler
     void inConnecting(
             @NonNull HostPort remote,
             @NonNull List<FilterAndInvoker> filters, KafkaProxyBackendHandler backendHandler) {
-        final Channel inboundChannel = this.inboundCtx.channel();
+        final Channel inboundChannel = this.clientCtx.channel();
         // Start the upstream connection attempt.
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(inboundChannel.eventLoop())
@@ -544,8 +524,8 @@ public class KafkaProxyFrontendHandler
                 .option(ChannelOption.TCP_NODELAY, true);
 
         LOGGER.trace("Connecting to outbound {}", remote);
-        ChannelFuture tcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
-        Channel outboundChannel = tcpConnectFuture.channel();
+        ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
+        Channel outboundChannel = serverTcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
         var correlationManager = new CorrelationManager();
@@ -569,9 +549,9 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("ssl", handler);
         });
 
-        tcpConnectFuture.addListener(future -> {
+        serverTcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
-                LOGGER.trace("{}: Outbound connected", this.inboundCtx.channel().id());
+                LOGGER.trace("{}: Outbound connected", this.clientCtx.channel().id());
                 // Now we know which filters are to be used we need to update the DecodePredicate
                 // so that the decoder starts decoding the messages that the filters want to intercept
                 dp.setDelegate(DecodePredicate.forFilters(filters));
@@ -599,7 +579,7 @@ public class KafkaProxyFrontendHandler
         if (serverException instanceof SSLHandshakeException e) {
             LOGGER.atInfo()
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addArgument(this.inboundCtx.channel().id())
+                    .addArgument(this.clientCtx.channel().id())
                     // TODO what we use UPSTREAM_PEER_KEY and not `remote`??
                     .addArgument(stateHolder.state().remote())
                     .addArgument(e.getMessage())
@@ -614,7 +594,7 @@ public class KafkaProxyFrontendHandler
             errorCodeEx = null;
         }
 
-        return errorResponse(stateHolder.state(), errorCodeEx);
+        return errorResponse(errorCodeEx);
     }
 
     ////////////////////////
@@ -645,15 +625,23 @@ public class KafkaProxyFrontendHandler
 
         if (pendingReadComplete) {
             pendingReadComplete = false;
-            channelReadComplete(this.inboundCtx); // TODO Why is this the outbound context?
+            channelReadComplete(this.clientCtx);
         }
 
         LOGGER.trace("{}: onUpstreamChannelUsable: {}",
-                this.inboundCtx.channel().id(),
+                this.clientCtx.channel().id(),
                 stateHolder.state().outboundCtx().channel().id());
-        var inboundChannel = this.inboundCtx.channel();
-        // once buffered message has been forwarded we enable auto-read to start accepting further messages
+        if (isClientBlocked) {
+            // once buffered message has been forwarded we enable auto-read to start accepting further messages
+            unblockClient();
+        }
+    }
+
+    private void unblockClient() {
+        isClientBlocked = false;
+        var inboundChannel = this.clientCtx.channel();
         inboundChannel.config().setAutoRead(true);
+        stateHolder.onClientWritable();
     }
 
     /**
@@ -667,25 +655,25 @@ public class KafkaProxyFrontendHandler
     void forwardToClient(Object msg) {
 //        assert blockedOutboundCtx == null;
 //        LOGGER.trace("Channel read {}", msg);
-        final Channel inboundChannel = inboundCtx.channel();
+        final Channel inboundChannel = clientCtx.channel();
         if (inboundChannel.isWritable()) {
-            inboundChannel.write(msg, inboundCtx.voidPromise());
+            inboundChannel.write(msg, clientCtx.voidPromise());
             pendingClientFlushes = true;
         }
         else {
-            inboundChannel.writeAndFlush(msg, inboundCtx.voidPromise());
+            inboundChannel.writeAndFlush(msg, clientCtx.voidPromise());
             pendingClientFlushes = false;
         }
     }
 
     void flushToClient() {
-        final Channel inboundChannel = inboundCtx.channel();
+        final Channel inboundChannel = clientCtx.channel();
         if (pendingClientFlushes) {
             pendingClientFlushes = false;
             inboundChannel.flush();
         }
         if (!inboundChannel.isWritable()) {
-            stateHolder.onClientBlocked();
+            stateHolder.onClientUnwritable();
         }
     }
 
@@ -706,53 +694,18 @@ public class KafkaProxyFrontendHandler
 
     }
 
-    /**
-     * <p>Closes the channel to the client.</p>
-     *
-     * <p>Called by {@link KafkaProxyBackendHandler}
-     * when the outbound channel to the upstream broker becomes active.</p>
-     *
-     * @param upstreamCtx
-     */
-    void upstreamChannelInactive(ChannelHandlerContext upstreamCtx) {
-        closeServerAndClientChannels(null);
-    }
-
-    /**
-     * <p>Closes the channel to the client.</p>
-     *
-     * <p>Called by {@link KafkaProxyBackendHandler}
-     * when the outbound channel to the upstream broker becomes active.</p>
-     *
-     * @param upstreamCtx The upstream context
-     * @param cause The exception
-     *
-     * @see KafkaProxyFrontendHandler#exceptionCaught(ChannelHandlerContext, Throwable)
-     */
-    void upstreamExceptionCaught(ChannelHandlerContext upstreamCtx, Throwable cause) {
-        // If the frontEnd has an exception handler for this exception
-        // it's likely to have already dealt with it.
-        // So only act here if its un-expected by the front end.
-        try {
-            throw cause;
-        }
-        catch (SSLHandshakeException e) {
-            // frontendHandler.onSslHandshakeException(e);
-        }
-        catch (Throwable t) {
-            LOGGER.atWarn()
-                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                    .addArgument(cause != null ? cause.getMessage() : "")
-                    .log("Netty caught exception from the backend: {}. Increase log level to DEBUG for stacktrace");
-            // TODO why are we asking the frontendHander to close
-            // but passing it the backend channel???
-        }
-        finally {
-            closeServerAndClientChannels(null);
-        }
-    }
-
     public void bufferMsg(Object msg) {
+        if (bufferedMsgs == null) {
+            bufferedMsgs = new ArrayList<>();
+        }
         bufferedMsgs.add(msg);
+    }
+
+    public void closeWithResponse(@Nullable Throwable errorCodeEx) {
+        Channel inboundChannel = this.clientCtx.channel();
+        if (inboundChannel.isActive()) {
+            inboundChannel.writeAndFlush(errorCodeEx != null ? errorResponse(errorCodeEx) : Unpooled.EMPTY_BUFFER)
+                    .addListener(ChannelFutureListener.CLOSE);
+        }
     }
 }

@@ -7,7 +7,9 @@ package io.kroxylicious.proxy.internal;
 
 import io.kroxylicious.proxy.model.VirtualCluster;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.handler.ssl.SslContext;
 
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
@@ -53,10 +55,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         // i.e. stateHolder.onServerBlocked/onServerUnblocked
         //frontendHandler.upstreamWritabilityChanged(ctx);
         if (ctx.channel().isWritable()) {
-            stateHolder.onServerUnblocked();
+            stateHolder.onServerWritable();
         }
         else {
-            stateHolder.onServerBlocked();
+            stateHolder.onServerUnwritable();
         }
     }
 
@@ -87,7 +89,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        stateHolder.onServerException(ctx, cause);
+        stateHolder.onServerException(cause);
     }
 
     /**
@@ -120,19 +122,12 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
             return;
         }
         final Channel outboundChannel = serverCtx.channel();
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("READ on inbound {} outbound {} (outbound.isWritable: {}, msg: {})",
-                    inboundCtx.channel(), outboundChannel, outboundChannel.isWritable(), msg);
-            LOGGER.trace("Outbound bytesBeforeUnwritable: {}", outboundChannel.bytesBeforeUnwritable());
-            LOGGER.trace("Outbound config: {}", outboundChannel.config());
-            LOGGER.trace("Outbound is active, writing and flushing {}", msg);
-        }
         if (outboundChannel.isWritable()) {
-            outboundChannel.write(msg, outboundCtx.voidPromise());
+            outboundChannel.write(msg, serverCtx.voidPromise());
             pendingServerFlushes = true;
         }
         else {
-            outboundChannel.writeAndFlush(msg, outboundCtx.voidPromise());
+            outboundChannel.writeAndFlush(msg, serverCtx.voidPromise());
             pendingServerFlushes = false;
         }
         LOGGER.trace("/READ");
@@ -145,19 +140,30 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
             serverChannel.flush();
         }
         if (!serverChannel.isWritable()) {
-            stateHolder.onServerBlocked();
+            stateHolder.onServerUnwritable();
         }
     }
 
-    public void inBlocked() {
+    public void blockServerReads() {
         if (serverCtx != null) {
             serverCtx.channel().config().setAutoRead(false);
         }
     }
 
-    public void inUnblocked() {
+    public void unblockServerReads() {
         if (serverCtx != null) {
             serverCtx.channel().config().setAutoRead(true);
         }
+    }
+
+    public void close() {
+        if (serverCtx != null) {
+            Channel outboundChannel = serverCtx.channel();
+            if (outboundChannel.isActive()) {
+                outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER)
+                        .addListener(ChannelFutureListener.CLOSE);
+            }
+        }
+
     }
 }

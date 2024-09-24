@@ -29,8 +29,11 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyBackendHandlerTest {
 
-
-    @Mock StateHolder stateHolder;
+    public static final PortPerBrokerClusterNetworkAddressConfigProvider ADDRESS_CONFIG_PROVIDER = new PortPerBrokerClusterNetworkAddressConfigProvider(
+            new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("localhost", 9090), "broker-", 9190,
+                    0, 10));
+    @Mock
+    StateHolder stateHolder;
 
     private KafkaProxyBackendHandler kafkaProxyBackendHandler;
     private ChannelHandlerContext outboundContext;
@@ -41,7 +44,8 @@ class KafkaProxyBackendHandlerTest {
         inboundChannel.pipeline().addFirst("dummy", new ChannelDuplexHandler());
         Channel outboundChannel = new EmbeddedChannel();
         outboundChannel.pipeline().addFirst("dummy", new ChannelDuplexHandler());
-        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(stateHolder, new VirtualCluster("wibble", new TargetCluster("localhost:9090", Optional.empty()), new PortPerBrokerClusterNetworkAddressConfigProvider(new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("localhost", 9090), "", 9090, 0, 10)), Optional.empty(), false, false));
+        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(stateHolder, new VirtualCluster("wibble", new TargetCluster("localhost:9090", Optional.empty()),
+                ADDRESS_CONFIG_PROVIDER, Optional.empty(), false, false));
         outboundContext = outboundChannel.pipeline().firstContext();
     }
 
@@ -65,6 +69,6 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.exceptionCaught(outboundContext, kaboom);
 
         // Then
-        verify(kafkaProxyFrontendHandler).upstreamExceptionCaught(outboundContext, kaboom);
+        verify(stateHolder).onServerException(kaboom);
     }
 }
