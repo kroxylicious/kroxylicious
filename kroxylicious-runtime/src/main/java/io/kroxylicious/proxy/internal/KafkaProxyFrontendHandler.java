@@ -43,6 +43,8 @@ import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
+import io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
+import io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
@@ -175,6 +177,7 @@ public class KafkaProxyFrontendHandler
     @VisibleForTesting
     void closeServerAndClientChannels(
                                       @Nullable ResponseFrame clientResponse) {
+        // TODO this method is suspicious and should be removed
         // Close the server connection
         ChannelHandlerContext outboundCtx = stateHolder.state().outboundCtx();
         if (outboundCtx != null) {
@@ -219,6 +222,9 @@ public class KafkaProxyFrontendHandler
         super.channelActive(this.clientCtx);
     }
 
+    /**
+     * Called by the {@link StateHolder} on entry to the {@link ClientActive} state.
+     */
     void inClientActive() {
         LOGGER.trace("{}: channelActive", this.clientCtx.channel().id());
         // Initially the channel is not auto reading, so read the first batch of requests
@@ -230,7 +236,7 @@ public class KafkaProxyFrontendHandler
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         LOGGER.trace("INACTIVE on inbound {}", ctx.channel());
-        closeServerAndClientChannels(null);
+        stateHolder.onClientInactive();
     }
 
     /**
@@ -276,9 +282,12 @@ public class KafkaProxyFrontendHandler
     public void channelRead(
                             @NonNull ChannelHandlerContext ctx,
                             @NonNull Object msg) {
-        stateHolder.onRequest(dp, msg);
+        stateHolder.onClientRequest(dp, msg);
     }
 
+    /**
+     * Called by the {@link StateHolder} on entry to the {@link ApiVersions} state.
+     */
     void inApiVersions(DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
         // This handler can respond to ApiVersions itself
         writeApiVersionsResponse(this.clientCtx, apiVersionsFrame);
@@ -286,8 +295,10 @@ public class KafkaProxyFrontendHandler
         this.clientCtx.channel().read();
     }
 
+    /**
+     * Called by the {@link StateHolder} on entry to the {@link SelectingServer} state.
+     */
     public void inSelectingServer() {
-
         // Note filter.upstreamBroker will call back on the initiateConnect() method below
         netFilter.selectServer(this);
         if (!this.stateHolder.isConnecting()) {
@@ -329,14 +340,6 @@ public class KafkaProxyFrontendHandler
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         stateHolder.onClientException(cause, virtualCluster.getDownstreamSslContext().isPresent());
-    }
-
-    void closeInboundWithNoResponse() {
-        Channel ch = this.clientCtx.channel();
-        if (ch.isActive()) {
-            ch.writeAndFlush(Unpooled.EMPTY_BUFFER)
-                    .addListener(ChannelFutureListener.CLOSE);
-        }
     }
 
     //////////// NetFilter methods
@@ -511,6 +514,9 @@ public class KafkaProxyFrontendHandler
         this.stateHolder.onServerSelected(remote, filters, virtualCluster, netFilter);
     }
 
+    /**
+     * Called by the {@link StateHolder} on entry to the {@link Connecting} state.
+     */
     void inConnecting(
             @NonNull HostPort remote,
             @NonNull List<FilterAndInvoker> filters, KafkaProxyBackendHandler backendHandler) {
@@ -616,6 +622,9 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    /**
+     * Called by the {@link StateHolder} on entry to the {@link Forwarding} state.
+     */
     void inForwarding() {
         // connection is complete, so first forward the buffered message
         for (Object bufferedMsg : bufferedMsgs) {
@@ -638,6 +647,7 @@ public class KafkaProxyFrontendHandler
     }
 
     private void unblockClient() {
+        // TODO suspicious
         isClientBlocked = false;
         var inboundChannel = this.clientCtx.channel();
         inboundChannel.config().setAutoRead(true);
@@ -691,17 +701,17 @@ public class KafkaProxyFrontendHandler
      */
     void onUpstreamChannelActive(
                                  @NonNull ChannelHandlerContext upstreamCtx) {
-
+        // TODO only called by tests
     }
 
-    public void bufferMsg(Object msg) {
+    void bufferMsg(Object msg) {
         if (bufferedMsgs == null) {
             bufferedMsgs = new ArrayList<>();
         }
         bufferedMsgs.add(msg);
     }
 
-    public void closeWithResponse(@Nullable Throwable errorCodeEx) {
+    void closeWithResponse(@Nullable Throwable errorCodeEx) {
         Channel inboundChannel = this.clientCtx.channel();
         if (inboundChannel.isActive()) {
             inboundChannel.writeAndFlush(errorCodeEx != null ? errorResponse(errorCodeEx) : Unpooled.EMPTY_BUFFER)

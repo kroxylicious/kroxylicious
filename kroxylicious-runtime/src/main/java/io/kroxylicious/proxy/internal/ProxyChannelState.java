@@ -13,8 +13,6 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslHandler;
 
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -32,43 +30,9 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.NegotiatingTls;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.BlockedClient;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.BlockedServer;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.BlockedBoth;
 
 /**
- * <p>The state machine for a single client's connection to a server.
- * Each state is represented by an immutable subclass which contains state-specific data.</p>
- *
- * <pre>
- *   «start»
- *      │
- *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelActive(ChannelHandlerContext) channelActive}
- *     {@link ClientActive ClientActive} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *  ╭───┤
- *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives a PROXY header
- *  │  {@link HaProxy HaProxy} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *  ╰───┤
- *  ╭───┤
- *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives an ApiVersions request
- *  │  {@link ApiVersions ApiVersions} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *  ╰───┤
- *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any other KRPC request
- *     {@link SelectingServer SelectingServer} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *      │
- *      ↓ netFiler.{@link NetFilter#selectServer(NetFilter.NetFilterContext) selectServer} calls frontend.{@link KafkaProxyFrontendHandler#initiateConnect(HostPort, List) initiateConnect}
- *     {@link Connecting Connecting} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *  ╭───┤
- *  ↓   ↓ backend.{@link KafkaProxyBackendHandler#channelActive(ChannelHandlerContext) channelActive} and TLS configured
- *  │  {@link NegotiatingTls NegotiatingTls} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *  ╰───┤
- *      ↓
- *     {@link Forwarding Forwarding} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *      │ backend.{@link KafkaProxyBackendHandler#channelInactive(ChannelHandlerContext) channelInactive}
- *      │ or frontend.{@link KafkaProxyFrontendHandler#channelInactive(ChannelHandlerContext) channelInactive}
- *      ↓
- *     {@link Closed Closed} ⇠╌╌╌╌ <b>error</b> ⇠╌╌╌╌
- * </pre>
+ * Root of a sealed class hierarchy representing the states of the {@link StateHolder}.
  */
 @VisibleForTesting
 sealed interface ProxyChannelState
@@ -79,9 +43,6 @@ sealed interface ProxyChannelState
         Connecting,
         NegotiatingTls,
         Forwarding,
-        BlockedClient,
-        BlockedServer,
-        BlockedBoth,
         Closed {
 
     default @Nullable ChannelHandlerContext outboundCtx() {
@@ -90,18 +51,6 @@ sealed interface ProxyChannelState
 
     default @Nullable HostPort remote() {
         return null;
-    }
-
-    record BlockedClient() implements ProxyChannelState {
-
-    }
-
-    record BlockedServer() implements ProxyChannelState {
-
-    }
-
-    record BlockedBoth() implements ProxyChannelState {
-
     }
 
     /**

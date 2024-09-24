@@ -38,7 +38,59 @@ import java.util.Objects;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
+/**
+ * <p>The state machine for a single client's connection to a server.
+ * The "session state" is held in the {@link #state} field and is represented by an immutable
+ * subclass of {@link ProxyChannelState} which contains state-specific data.
+ * Events which cause state transitions are represented by the {@code on*()} family of methods.
+ * Depending on the transition the frontend or backend handlers may get notified via one if their
+ * {@code in*()} methods.
+ * </p>
+ *
+ * <pre>
+ *   «start»
+ *      │
+ *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelActive(ChannelHandlerContext) channelActive}
+ *     {@link ProxyChannelState.ClientActive ClientActive} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  ╭───┤
+ *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives a PROXY header
+ *  │  {@link ProxyChannelState.HaProxy HaProxy} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  ╰───┤
+ *  ╭───┤
+ *  ↓   ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives an ApiVersions request
+ *  │  {@link ProxyChannelState.ApiVersions ApiVersions} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  ╰───┤
+ *      ↓ frontend.{@link KafkaProxyFrontendHandler#channelRead(ChannelHandlerContext, Object) channelRead} receives any other KRPC request
+ *     {@link ProxyChannelState.SelectingServer SelectingServer} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *      │
+ *      ↓ netFiler.{@link NetFilter#selectServer(NetFilter.NetFilterContext) selectServer} calls frontend.{@link KafkaProxyFrontendHandler#initiateConnect(HostPort, List) initiateConnect}
+ *     {@link ProxyChannelState.Connecting Connecting} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  ╭───┤
+ *  ↓   ↓ backend.{@link KafkaProxyBackendHandler#channelActive(ChannelHandlerContext) channelActive} and TLS configured
+ *  │  {@link ProxyChannelState.NegotiatingTls NegotiatingTls} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *  ╰───┤
+ *      ↓
+ *     {@link ProxyChannelState.Forwarding Forwarding} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *      │ backend.{@link KafkaProxyBackendHandler#channelInactive(ChannelHandlerContext) channelInactive}
+ *      │ or frontend.{@link KafkaProxyFrontendHandler#channelInactive(ChannelHandlerContext) channelInactive}
+ *      ↓
+ *     {@link ProxyChannelState.Closed Closed} ⇠╌╌╌╌ <b>error</b> ⇠╌╌╌╌
+ * </pre>
+ *
+ * <p>In addition to the "session state" this class also manages a second state machine for
+ * handling TCP backpressure via the {@link #clientReadsBlocked} and {@link #serverReadsBlocked} field:</p>
+ *
+ * <pre>
+ *     bothBlocked ←────────────────→ serverBlocked
+ *         ↑                                ↑
+ *         │                                │
+ *         ↓                                ↓
+ *    clientBlocked ←───────────────→ neitherBlocked
+ * </pre>
+ */
 public class StateHolder {
+    private static final Logger LOGGER = getLogger(StateHolder.class);
+
     @Nullable ProxyChannelState state;
     /* Track autoread states here, because the netty autoread flag is volatile =>
      expensive to set in every call to channelRead */
@@ -54,44 +106,6 @@ public class StateHolder {
      */
     @Nullable KafkaProxyBackendHandler backendHandler;
 
-    private final Logger LOGGER = getLogger(StateHolder.class);
-
-    void onClientUnwritable() {
-        if (!serverReadsBlocked) {
-            serverReadsBlocked = true;
-            backendHandler.blockServerReads();
-        }
-    }
-
-    void onClientWritable() {
-        if (serverReadsBlocked) {
-            serverReadsBlocked = false;
-            backendHandler.unblockServerReads();
-        }
-    }
-
-    /**
-     * The channel to the server is no longer writable
-     */
-    void onServerUnwritable() {
-        if (!clientReadsBlocked) {
-            clientReadsBlocked = true;
-            frontendHandler.blockClientReads();
-        }
-    }
-
-    /**
-     * The channel to the server is now writable
-     */
-    void onServerWritable() {
-        if (clientReadsBlocked) {
-            clientReadsBlocked = false;
-            frontendHandler.unblockClientReads();
-        }
-    }
-
-    /////////////////
-
     public StateHolder() {
     }
 
@@ -101,15 +115,49 @@ public class StateHolder {
     }
 
     void setState(@NonNull ProxyChannelState state) {
+        LOGGER.trace("{} transitioning to {}", this, state);
         this.state = state;
+    }
+
+    void onClientUnwritable() {
+        if (!serverReadsBlocked) {
+            serverReadsBlocked = true;
+            Objects.requireNonNull(backendHandler).blockServerReads();
+        }
+    }
+
+    void onClientWritable() {
+        if (serverReadsBlocked) {
+            serverReadsBlocked = false;
+            Objects.requireNonNull(backendHandler).unblockServerReads();
+        }
+    }
+
+    /**
+     * The channel to the server is no longer writable
+     */
+    void onServerUnwritable() {
+        if (!clientReadsBlocked) {
+            clientReadsBlocked = true;
+            Objects.requireNonNull(frontendHandler).blockClientReads();
+        }
+    }
+
+    /**
+     * The channel to the server is now writable
+     */
+    void onServerWritable() {
+        if (clientReadsBlocked) {
+            clientReadsBlocked = false;
+            Objects.requireNonNull(frontendHandler).unblockClientReads();
+        }
     }
 
     @VisibleForTesting
     void onClientActive(@NonNull KafkaProxyFrontendHandler frontendHandler) {
         if (this.state == null) {
             this.frontendHandler = frontendHandler;
-            setState(new ProxyChannelState.ClientActive());
-            frontendHandler.inClientActive();
+            toClientActive(new ProxyChannelState.ClientActive(), frontendHandler);
         }
         else {
             illegalState("Client activation while not in the start state");
@@ -117,31 +165,11 @@ public class StateHolder {
 
     }
 
-    @VisibleForTesting
-    void onHaProxy(@NonNull HAProxyMessage haProxyMessage) {
-        if (this.state instanceof ProxyChannelState.ClientActive cs) {
-            setState(cs.toHaProxy(haProxyMessage));
-        }
-        else {
-            illegalState("");
-        }
-    }
-
-    @VisibleForTesting
-    void onApiVersionsReceived(@NonNull DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
-        ProxyChannelState.ApiVersions apiVersions;
-        if (this.state instanceof ProxyChannelState.ClientActive ca) {
-            apiVersions = ca.toApiVersions(apiVersionsFrame);
-        }
-        else if (this.state instanceof ProxyChannelState.HaProxy hap) {
-            apiVersions = hap.toApiVersions(apiVersionsFrame);
-        }
-        else {
-            illegalState("");
-            return;
-        }
-        setState(apiVersions);
-        Objects.requireNonNull(frontendHandler).inApiVersions(apiVersionsFrame);
+    private void toClientActive(
+            @NonNull ProxyChannelState.ClientActive clientActive,
+            @NonNull KafkaProxyFrontendHandler frontendHandler) {
+        setState(clientActive);
+        frontendHandler.inClientActive();
     }
 
     void onServerSelected(
@@ -149,10 +177,7 @@ public class StateHolder {
             @NonNull List<FilterAndInvoker> filters,
             VirtualCluster virtualCluster, NetFilter netFilter) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
-            ProxyChannelState.Connecting connecting = selectingServerState.toConnecting(remote);
-            setState(connecting);
-            backendHandler = new KafkaProxyBackendHandler(this, virtualCluster);
-            frontendHandler.inConnecting(remote, filters, backendHandler);
+            toConnecting(selectingServerState.toConnecting(remote), remote, filters, virtualCluster);
         }
         else {
             // TODO why do we do the state change here, rather than
@@ -160,38 +185,50 @@ public class StateHolder {
             // NFC, then just catch ISE in selectServer?
             String msg = "NetFilter called NetFilterContext.initiateConnect() more than once";
             illegalState(msg + " : filter='" + netFilter + "'");
-            throw new IllegalStateException(msg);
         }
+    }
+
+    private void toConnecting(ProxyChannelState.Connecting connecting, @NonNull HostPort remote, @NonNull List<FilterAndInvoker> filters, VirtualCluster virtualCluster) {
+        setState(connecting);
+        backendHandler = new KafkaProxyBackendHandler(this, virtualCluster);
+        Objects.requireNonNull(frontendHandler).inConnecting(remote, filters, backendHandler);
     }
 
     void onServerActive(ChannelHandlerContext serverCtx,
                         @Nullable SslContext sslContext) {
         if (state() instanceof ProxyChannelState.Connecting connectedState) {
             if (sslContext != null) {
-                setState(connectedState.toNegotiatingTls(serverCtx));
+                toNegotiatingTls(connectedState.toNegotiatingTls(serverCtx));
             }
             else {
-                setState(connectedState.toForwarding(serverCtx));
-                frontendHandler.inForwarding();
+                toForwarding(connectedState.toForwarding(serverCtx));
             }
         }
         else {
-            illegalState("");
+            illegalState("Server became active while not in the connecting state");
         }
+    }
+
+    private void toNegotiatingTls(ProxyChannelState.NegotiatingTls negotiatingTls) {
+        setState(negotiatingTls);
+    }
+
+    private void toForwarding(ProxyChannelState.Forwarding forwarding) {
+        setState(forwarding);
+        Objects.requireNonNull(frontendHandler).inForwarding();
     }
 
     public void onServerTlsHandshakeCompletion(SslHandshakeCompletionEvent sslEvt) {
         if (state instanceof ProxyChannelState.NegotiatingTls negotiatingTls) {
             if (sslEvt.isSuccess()) {
-                setState(negotiatingTls.toForwarding());
-                frontendHandler.inForwarding();
+                toForwarding(negotiatingTls.toForwarding());
             }
             else {
-                closeClientAndServerChannels(sslEvt.cause());
+                toClosed(sslEvt.cause());
             }
         }
         else {
-            illegalState("");
+            illegalState("Server TLS handshake complete when not in the negotiating TLS state");
         }
     }
 
@@ -199,20 +236,21 @@ public class StateHolder {
         if (!(state instanceof ProxyChannelState.Closed)) {
             IllegalStateException exception = new IllegalStateException("While in state " + state + ": " + msg);
             LOGGER.error("Illegal state, closing channels with no client response", exception);
-            closeClientAndServerChannels(null);
+            toClosed(null);
         }
     }
 
     void forwardToClient(Object msg) {
-        frontendHandler.forwardToClient(msg);
+        Objects.requireNonNull(frontendHandler).forwardToClient(msg);
     }
 
     void forwardToServer(Object msg) {
-        backendHandler.forwardToServer(msg);
+        Objects.requireNonNull(backendHandler).forwardToServer(msg);
     }
 
-    public void onRequest(SaslDecodePredicate dp,
-                          Object msg) {
+    void onClientRequest(@NonNull SaslDecodePredicate dp,
+                         Object msg) {
+        Objects.requireNonNull(frontendHandler);
         if (state() instanceof ProxyChannelState.Forwarding) { // post-backend connection
             frontendHandler.forwardToServer(msg);
         }
@@ -220,24 +258,22 @@ public class StateHolder {
             frontendHandler.bufferMsg(msg);
             if (state() instanceof ProxyChannelState.ClientActive clientActive) {
                 if (msg instanceof HAProxyMessage haProxyMessage) {
-                    onHaProxy(haProxyMessage);
+                    toHaProxy(clientActive.toHaProxy(haProxyMessage));
                     return;
                 }
                 else if (msg instanceof DecodedRequestFrame
                         && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
                     DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
                     if (dp.isAuthenticationOffloadEnabled()) {
-                        onApiVersionsReceived(apiVersionsFrame);
+                        toApiVersions(clientActive.toApiVersions(apiVersionsFrame), apiVersionsFrame);
                     }
                     else {
-                        setState(clientActive.toSelectingServer(apiVersionsFrame));
-                        frontendHandler.inSelectingServer();
+                        toSelectingServer(clientActive.toSelectingServer(apiVersionsFrame));
                     }
                     return;
                 }
                 else if (msg instanceof RequestFrame) {
-                    setState(clientActive.toSelectingServer(null));
-                    frontendHandler.inSelectingServer();
+                    toSelectingServer(clientActive.toSelectingServer(null));
                     return;
                 }
             }
@@ -246,17 +282,15 @@ public class StateHolder {
                         && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
                     DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
                     if (dp.isAuthenticationOffloadEnabled()) {
-                        onApiVersionsReceived(apiVersionsFrame);
+                        toApiVersions(haProxy.toApiVersions(apiVersionsFrame), apiVersionsFrame);
                     }
                     else {
-                        setState(haProxy.toSelectingServer(apiVersionsFrame));
-                        frontendHandler.inSelectingServer();
+                        toSelectingServer(haProxy.toSelectingServer(apiVersionsFrame));
                     }
                     return;
                 }
                 else if (msg instanceof RequestFrame) {
-                    setState(haProxy.toSelectingServer(null));
-                    frontendHandler.inSelectingServer();
+                    toSelectingServer(haProxy.toSelectingServer(null));
                     return;
                 }
             }
@@ -265,12 +299,10 @@ public class StateHolder {
                     if (dp.isAuthenticationOffloadEnabled()) {
                         // TODO if dp.isAuthenticationOffloadEnabled() then we need to forward to that handler
                         // TODO we only do the connection once we know the authenticated identity
-                        setState(apiVersions.toSelectingServer());
-                        frontendHandler.inSelectingServer();
+                        toSelectingServer(apiVersions.toSelectingServer());
                     }
                     else {
-                        setState(apiVersions.toSelectingServer());
-                        frontendHandler.inSelectingServer();
+                        toSelectingServer(apiVersions.toSelectingServer());
                     }
                     return;
                 }
@@ -294,30 +326,43 @@ public class StateHolder {
         }
     }
 
-    public boolean isConnecting() {
+    private void toHaProxy(ProxyChannelState.HaProxy haProxy) {
+        setState(haProxy);
+    }
+
+    private void toApiVersions(ProxyChannelState.ApiVersions apiVersions, DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
+        setState(apiVersions);
+        frontendHandler.inApiVersions(apiVersionsFrame);
+    }
+
+    private void toSelectingServer(ProxyChannelState.SelectingServer selectingServer) {
+        setState(selectingServer);
+        frontendHandler.inSelectingServer();
+    }
+
+    boolean isConnecting() {
         return state instanceof ProxyChannelState.Connecting;
     }
 
-    public boolean isSelectingServer() {
+    boolean isSelectingServer() {
         return state instanceof ProxyChannelState.SelectingServer;
     }
 
-    public void onServerInactive(ChannelHandlerContext ctx) {
-        frontendHandler.closeServerAndClientChannels(null);
-        // TODO make this right
+    void onServerInactive() {
+        toClosed(null);
     }
 
-    public void serverReadComplete() {
-        frontendHandler.flushToClient();
+    void serverReadComplete() {
+        Objects.requireNonNull(frontendHandler).flushToClient();
     }
 
-    public void clientReadComplete() {
+    void clientReadComplete() {
         if (backendHandler != null) {
             backendHandler.flushToServer();
         }
     }
 
-    private void closeClientAndServerChannels(@Nullable Throwable errorCodeEx) {
+    private void toClosed(@Nullable Throwable errorCodeEx) {
         // Close the server connection
         if (backendHandler != null) {
             backendHandler.close();
@@ -331,15 +376,15 @@ public class StateHolder {
         setState(new ProxyChannelState.Closed());
     }
 
-    public void onServerException(Throwable cause) {
+    void onServerException(Throwable cause) {
         LOGGER.atWarn()
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .addArgument(cause != null ? cause.getMessage() : "")
                 .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
-        closeClientAndServerChannels(cause);
+        toClosed(cause);
     }
 
-    public void onClientException(Throwable cause, boolean tlsEnabled) {
+    void onClientException(Throwable cause, boolean tlsEnabled) {
         ApiException errorCodeEx;
         if (cause instanceof DecoderException de
                 && de.getCause() instanceof FrameOversizedException e) {
@@ -357,6 +402,10 @@ public class StateHolder {
                     .log("Exception from the client channel: {}. Increase log level to DEBUG for stacktrace");
             errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
-        closeClientAndServerChannels(errorCodeEx);
+        toClosed(errorCodeEx);
+    }
+
+    void onClientInactive() {
+        toClosed(null);
     }
 }

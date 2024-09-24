@@ -39,14 +39,6 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         this.sslContext = upstreamSslContext.orElse(null);
     }
 
-    public KafkaProxyBackendHandler(
-            KafkaProxyFrontendHandler frontendHandler,
-            ChannelHandlerContext chc) {
-        // TODO kill this ctor
-        this.stateHolder = null;
-        this.sslContext = null;
-    }
-
     @Override
     public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
         super.channelWritabilityChanged(ctx);
@@ -84,7 +76,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        stateHolder.onServerInactive(ctx);
+        stateHolder.onServerInactive();
     }
 
     @Override
