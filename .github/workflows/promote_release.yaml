@@ -97,6 +97,10 @@ jobs:
         run: |
           # This knows the commit that precedes PR_BRANCH will carry the tag.
           TAG=$(git name-rev --no-undefined --tags --name-only  origin/${PR_BRANCH}^)
+          if [[ ! "${TAG}" =~ ^v ]]; then
+            gh issue comment  ${{ github.event.issue.number }} --body "The release tag '${TAG}' is not in the expected form."
+            exit -1
+          fi
           echo "RELEASE_VERSION=$(echo ${TAG} | sed -e 's/^v//')" >> $GITHUB_ENV
 
       - name: 'Get heads'
