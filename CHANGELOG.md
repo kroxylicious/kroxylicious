@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.9.0
 
 * [#1514](https://github.com/kroxylicious/kroxylicious/pull/1514) Bump io.netty:netty-bom from 4.1.112.Final to 4.1.113.Final
