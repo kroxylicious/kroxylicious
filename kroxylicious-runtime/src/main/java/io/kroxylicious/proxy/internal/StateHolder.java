@@ -175,7 +175,8 @@ public class StateHolder {
     void onServerSelected(
             @NonNull HostPort remote,
             @NonNull List<FilterAndInvoker> filters,
-            VirtualCluster virtualCluster, NetFilter netFilter) {
+            VirtualCluster virtualCluster,
+            NetFilter netFilter) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
             toConnecting(selectingServerState.toConnecting(remote), remote, filters, virtualCluster);
         }
@@ -188,7 +189,10 @@ public class StateHolder {
         }
     }
 
-    private void toConnecting(ProxyChannelState.Connecting connecting, @NonNull HostPort remote, @NonNull List<FilterAndInvoker> filters, VirtualCluster virtualCluster) {
+    private void toConnecting(ProxyChannelState.Connecting connecting,
+                              @NonNull HostPort remote,
+                              @NonNull List<FilterAndInvoker> filters,
+                              VirtualCluster virtualCluster) {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this, virtualCluster);
         Objects.requireNonNull(frontendHandler).inConnecting(remote, filters, backendHandler);

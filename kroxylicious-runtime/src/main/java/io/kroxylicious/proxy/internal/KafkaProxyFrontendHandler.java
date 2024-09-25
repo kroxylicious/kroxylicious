@@ -82,9 +82,6 @@ public class KafkaProxyFrontendHandler
         }
     }
 
-    ChannelHandlerContext clientCtx;
-    List<Object> bufferedMsgs;
-
     static @NonNull ResponseFrame buildErrorResponseFrame(
                                                           @NonNull DecodedRequestFrame<?> triggerFrame,
                                                           @NonNull Throwable error) {
@@ -117,17 +114,18 @@ public class KafkaProxyFrontendHandler
     private final VirtualCluster virtualCluster;
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
+    private final StateHolder stateHolder = new StateHolder();
 
+    private @Nullable ChannelHandlerContext clientCtx;
+    @VisibleForTesting @Nullable List<Object> bufferedMsgs;
     private boolean pendingClientFlushes;
-    private AuthenticationEvent authentication;
-    private String sniHostname;
+    private @Nullable AuthenticationEvent authentication;
+    private @Nullable String sniHostname;
 
     // Flag if we receive a channelReadComplete() prior to outbound connection activation
     // so we can perform the channelReadComplete()/outbound flush & auto_read
     // once the outbound channel is active
     private boolean pendingReadComplete = true;
-
-    private final StateHolder stateHolder = new StateHolder();
 
     private boolean isClientBlocked = true;
 
@@ -299,7 +297,10 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link StateHolder} on entry to the {@link SelectingServer} state.
      */
     public void inSelectingServer() {
-        // Note filter.upstreamBroker will call back on the initiateConnect() method below
+        // Pass this as the filter context, so that
+        // filter.initiateConnect() call's back on
+        // our initiateConnect() method
+        var netFilter = this.netFilter;
         netFilter.selectServer(this);
         if (!this.stateHolder.isConnecting()) {
             illegalState("NetFilter.selectServer() did not callback on NetFilterContext.initiateConnect(): filter='" + netFilter + "'");
@@ -519,7 +520,8 @@ public class KafkaProxyFrontendHandler
      */
     void inConnecting(
             @NonNull HostPort remote,
-            @NonNull List<FilterAndInvoker> filters, KafkaProxyBackendHandler backendHandler) {
+            @NonNull List<FilterAndInvoker> filters,
+            KafkaProxyBackendHandler backendHandler) {
         final Channel inboundChannel = this.clientCtx.channel();
         // Start the upstream connection attempt.
         Bootstrap bootstrap = new Bootstrap();

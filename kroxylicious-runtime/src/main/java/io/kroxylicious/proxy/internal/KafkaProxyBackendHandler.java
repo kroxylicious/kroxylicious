@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.internal;
 
 import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -26,8 +27,8 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyBackendHandler.class);
 
-    private final StateHolder stateHolder;
-    private final SslContext sslContext;
+    @VisibleForTesting final StateHolder stateHolder;
+    @VisibleForTesting final SslContext sslContext;
     private ChannelHandlerContext serverCtx;
     private boolean pendingServerFlushes;
 
