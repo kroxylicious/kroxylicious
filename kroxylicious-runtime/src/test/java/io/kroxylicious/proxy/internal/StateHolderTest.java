@@ -21,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -53,6 +52,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 @ExtendWith(MockitoExtension.class)
 class StateHolderTest {
 
+    public static final HostPort BROKER_ADDRESS = new HostPort("localhost", 9092);
     private StateHolder stateHolder;
     private KafkaProxyBackendHandler backendHandler;
     private KafkaProxyFrontendHandler frontendHandler;
@@ -62,7 +62,7 @@ class StateHolderTest {
     void setUp() {
         stateHolder = new StateHolder();
         backendHandler = mock(KafkaProxyBackendHandler.class);
-        frontendHandler = mock( KafkaProxyFrontendHandler.class);
+        frontendHandler = mock(KafkaProxyFrontendHandler.class);
         emptyApiVersionsState = new ApiVersions(null, null, null);
     }
 
@@ -135,27 +135,23 @@ class StateHolderTest {
     @Test
     void inApiVersionsShouldCloseOnClientActive() {
         // Given
-        stateHolder.state = emptyApiVersionsState;
-        stateHolder.backendHandler = null;
-        stateHolder.frontendHandler = null;
+        stateHolderInApiVersionsState();
 
         // When
         stateHolder.onClientActive(frontendHandler);
 
         // Then
         assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closed.class);
+        assertThat(stateHolder.frontendHandler).isNull();
         verifyNoInteractions(frontendHandler);
-        verifyNoInteractions(backendHandler);
     }
 
     @Test
     void inClientActiveShouldCaptureHaProxyState() {
         // Given
+        stateHolderInClientActive();
         HAProxyMessage haProxyMessage = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
                 "1.1.1.1", "2.2.2.2", 46421, 9092);
-        stateHolder.state = new ProxyChannelState.ClientActive();
-        stateHolder.backendHandler = null;
-        stateHolder.frontendHandler = frontendHandler;
 
         // When
         stateHolder.onClientRequest(null, haProxyMessage);
@@ -186,7 +182,7 @@ class StateHolderTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
+    @ValueSource(booleans = { true, false })
     void inClientActiveShouldTransitionToApiVersionsOrSelectingServer(boolean handlingSasl) {
         // Given
         stateHolder.state = new ProxyChannelState.ClientActive();
@@ -225,20 +221,20 @@ class StateHolderTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void inSelectingServerShouldTransitionToConnectingWhenOnServerSelectedCalled(boolean configureSsl) throws SSLException {
+    @ValueSource(booleans = { true, false })
+    void inSelectingServerShouldTransitionToConnectingWhenOnNetFilterInitiateConnectCalled(boolean configureSsl) throws SSLException {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateHolder.state = new ProxyChannelState.SelectingServer(null, null, null);
         stateHolder.backendHandler = null;
         stateHolder.frontendHandler = frontendHandler;
-        var filters = List.<FilterAndInvoker>of();
+        var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualCluster.class);
         doReturn(configureSsl ? Optional.of(SslContextBuilder.forClient().build()) : Optional.empty()).when(vc).getUpstreamSslContext();
         var nf = mock(NetFilter.class);
 
         // When
-        stateHolder.onServerSelected(brokerAddress, filters, vc, nf);
+        stateHolder.onNetFilterInitiateConnect(brokerAddress, filters, vc, nf);
 
         // Then
         assertThat(stateHolder.state)
@@ -249,18 +245,18 @@ class StateHolderTest {
     }
 
     @Test
-    void inClientActiveShouldCloseWhenOnServerSelectedCalled() {
+    void inClientActiveShouldCloseWhenOnNetFilterInitiateConnectCalled() {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateHolder.state = new ProxyChannelState.ClientActive();
         stateHolder.backendHandler = null;
         stateHolder.frontendHandler = frontendHandler;
-        var filters = List.<FilterAndInvoker>of();
+        var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualCluster.class);
         var nf = mock(NetFilter.class);
 
         // When
-        stateHolder.onServerSelected(brokerAddress, filters, vc, nf);
+        stateHolder.onNetFilterInitiateConnect(brokerAddress, filters, vc, nf);
 
         // Then
         assertThat(stateHolder.state)
@@ -270,23 +266,16 @@ class StateHolderTest {
     }
 
     @Test
-    void inSelectingServerShouldCloseWhenOnServerSelectedCalledTwice() {
+    void inSelectingServerShouldCloseWhenOnNetFilterInitiateConnectCalledTwice() {
         // Given
-        HostPort brokerAddress = new HostPort("localhost", 9092);
-        stateHolder.state = new ProxyChannelState.SelectingServer(null, null, null);
-        stateHolder.backendHandler = null;
-        stateHolder.frontendHandler = frontendHandler;
-        var filters = List.<FilterAndInvoker>of();
+        stateHolderInConnecting();
+
+        var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualCluster.class);
         var nf = mock(NetFilter.class);
 
-        stateHolder.onServerSelected(brokerAddress, filters, vc, nf);
-        assertThat(stateHolder.state)
-                .isInstanceOf(ProxyChannelState.Connecting.class);
-        assertThat(stateHolder.backendHandler).isNotNull();
-
-        // When (called a 2nd time)
-        stateHolder.onServerSelected(brokerAddress, filters, vc, nf);
+        // When
+        stateHolder.onNetFilterInitiateConnect(BROKER_ADDRESS, filters, vc, nf);
 
         // Then
         assertThat(stateHolder.state)
@@ -296,13 +285,10 @@ class StateHolderTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
+    @ValueSource(booleans = { true, false })
     void inConnectingShouldTransitionWhenOnServerActiveCalled(boolean configureTls) throws SSLException {
         // Given
-        HostPort brokerAddress = new HostPort("localhost", 9092);
-        stateHolder.state = new ProxyChannelState.Connecting(null, null, null, brokerAddress);
-        stateHolder.backendHandler = backendHandler;
-        stateHolder.frontendHandler = frontendHandler;
+        stateHolderInConnecting();
         var serverCtx = mock(ChannelHandlerContext.class);
         SslContext sslContext;
         if (configureTls) {
@@ -320,7 +306,7 @@ class StateHolderTest {
             var stateAssert = assertThat(stateHolder.state)
                     .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.NegotiatingTls.class));
             stateAssert
-                    .extracting(ProxyChannelState.NegotiatingTls::remote).isEqualTo(brokerAddress);
+                    .extracting(ProxyChannelState.NegotiatingTls::remote).isEqualTo(BROKER_ADDRESS);
             verifyNoInteractions(frontendHandler);
             verifyNoInteractions(backendHandler);
         }
@@ -328,20 +314,17 @@ class StateHolderTest {
             var stateAssert = assertThat(stateHolder.state)
                     .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Forwarding.class));
             stateAssert
-                    .extracting(ProxyChannelState.Forwarding::remote).isEqualTo(brokerAddress);
+                    .extracting(ProxyChannelState.Forwarding::remote).isEqualTo(BROKER_ADDRESS);
             verify(frontendHandler).inForwarding();
             verifyNoInteractions(backendHandler);
         }
     }
 
     @Test
-    void inClientActiveShouldCloseWhenOnServerActiveCalled() throws SSLException {
+    void inClientActiveShouldCloseWhenOnServerActiveCalled() {
         // Given
-        HostPort brokerAddress = new HostPort("localhost", 9092);
-        stateHolder.state = new ProxyChannelState.ClientActive();
-        stateHolder.backendHandler = backendHandler;
-        stateHolder.frontendHandler = frontendHandler;
-        var filters = List.<FilterAndInvoker>of();
+        stateHolderInClientActive();
+        var filters = List.<FilterAndInvoker> of();
         var serverCtx = mock(ChannelHandlerContext.class);
         SslContext sslContext = null;
 
@@ -352,7 +335,6 @@ class StateHolderTest {
         assertThat(stateHolder.state)
                 .isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).closeWithResponse(null);
-        verify(backendHandler).close();
     }
 
     @Test
@@ -423,5 +405,22 @@ class StateHolderTest {
         verifyNoInteractions(dp);
         verifyNoInteractions(serverCtx);
         verify(backendHandler).forwardToServer(msg);
+    }
+
+    private void stateHolderInApiVersionsState() {
+        stateHolder.state = emptyApiVersionsState;
+        stateHolder.frontendHandler = null;
+    }
+
+    private void stateHolderInConnecting() {
+        stateHolder.state = new ProxyChannelState.Connecting(null, null, null, BROKER_ADDRESS);
+        stateHolder.backendHandler = backendHandler;
+        stateHolder.frontendHandler = frontendHandler;
+    }
+
+    private void stateHolderInClientActive() {
+        stateHolder.state = new ProxyChannelState.ClientActive();
+        stateHolder.backendHandler = null;
+        stateHolder.frontendHandler = frontendHandler;
     }
 }

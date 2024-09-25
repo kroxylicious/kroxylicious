@@ -142,7 +142,18 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public String toString() {
-        return "KafkaProxyFrontendHandler{state = " + stateHolder + "}";
+        // Don't include StateHolder's toString here
+        // because StateHolder's toString will include the frontend's toString
+        // and we don't want a SOE.
+        return "KafkaProxyFrontendHandler{"
+                + ", clientCtx=" + clientCtx
+                + ", number of bufferedMsgs=" + (bufferedMsgs == null ? 0 : bufferedMsgs.size())
+                + ", pendingClientFlushes=" + pendingClientFlushes
+                + ", authentication=" + authentication
+                + ", sniHostname='" + sniHostname + '\''
+                + ", pendingReadComplete=" + pendingReadComplete
+                + ", isClientBlocked=" + isClientBlocked
+                + '}';
     }
 
     @VisibleForTesting
@@ -512,7 +523,7 @@ public class KafkaProxyFrontendHandler
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
                     this.clientCtx.channel().id(), remote, filters);
         }
-        this.stateHolder.onServerSelected(remote, filters, virtualCluster, netFilter);
+        this.stateHolder.onNetFilterInitiateConnect(remote, filters, virtualCluster, netFilter);
     }
 
     /**

@@ -94,14 +94,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-
-
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) {
         stateHolder.forwardToClient(msg);
     }
-
-
 
     @Override
     public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
@@ -157,6 +153,16 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
                         .addListener(ChannelFutureListener.CLOSE);
             }
         }
+    }
 
+    @Override
+    public String toString() {
+        // Don't include StateHolder's toString here
+        // because StateHolder's toString will include the backends's toString
+        // and we don't want a SOE.
+        return "KafkaProxyBackendHandler{" +
+                ", serverCtx=" + serverCtx +
+                ", pendingServerFlushes=" + pendingServerFlushes +
+                '}';
     }
 }

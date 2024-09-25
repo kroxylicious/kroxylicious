@@ -87,6 +87,9 @@ import static org.slf4j.LoggerFactory.getLogger;
  *         ↓                                ↓
  *    clientBlocked ←───────────────→ neitherBlocked
  * </pre>
+ * <p>Note that this backpressure state machine is not related to the
+ * session state machine: in general backpressure could happen in
+ * several of the session states.</p>
  */
 public class StateHolder {
     private static final Logger LOGGER = getLogger(StateHolder.class);
@@ -101,7 +104,7 @@ public class StateHolder {
      */
     @Nullable KafkaProxyFrontendHandler frontendHandler;
     /**
-     * The backend handler. Non-null if {@link #onServerSelected(HostPort, List, VirtualCluster, NetFilter)}
+     * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualCluster, NetFilter)}
      * has been called
      */
     @Nullable KafkaProxyBackendHandler backendHandler;
@@ -172,7 +175,7 @@ public class StateHolder {
         frontendHandler.inClientActive();
     }
 
-    void onServerSelected(
+    void onNetFilterInitiateConnect(
             @NonNull HostPort remote,
             @NonNull List<FilterAndInvoker> filters,
             VirtualCluster virtualCluster,
@@ -411,5 +414,16 @@ public class StateHolder {
 
     void onClientInactive() {
         toClosed(null);
+    }
+
+    @Override
+    public String toString() {
+        return "StateHolder{" +
+                "state=" + state +
+                ", serverReadsBlocked=" + serverReadsBlocked +
+                ", clientReadsBlocked=" + clientReadsBlocked +
+                ", frontendHandler=" + frontendHandler +
+                ", backendHandler=" + backendHandler +
+                '}';
     }
 }
