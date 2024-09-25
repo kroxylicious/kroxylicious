@@ -39,7 +39,7 @@
         <guava.version>33.3.0-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.17.2</jackson.version>
-        <junit.version>5.10.3</junit.version>
+        <junit.version>5.11.0</junit.version>
         <kafka.version>3.8.0</kafka.version>
         <kroxy.extension.version>0.9.0</kroxy.extension.version>
         <log4j.version>2.24.0</log4j.version>
