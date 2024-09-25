@@ -37,7 +37,7 @@ jobs:
         id: team-membership
         with:
           username: ${{ github.actor }}
-          team: Developers
+          team: release-engineers
           GITHUB_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
 
       - name: 'Stop workflow if user is not a team member'

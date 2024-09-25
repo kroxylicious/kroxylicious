@@ -177,8 +177,8 @@ jobs:
                  -H "X-GitHub-Api-Version: 2022-11-28" \
                  /repos/${{ github.repository }}/statuses/${WORK_SHA} \
                  -f "state=pending" \
-                 -f "description=Blocked until Sonatype staging repository is released." \
-                 -f "context=sonatype"
+                 -f "description=Blocked until staging repository is released to Maven Central." \
+                 -f "context=maven-central"
 
       - name: 'Comment on PR to prompt next phase of the release'
         if: ${{ github.event.inputs.dry-run == 'false' }}
