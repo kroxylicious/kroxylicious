@@ -70,14 +70,12 @@ class StateHolderTest {
     private StateHolder stateHolder;
     private KafkaProxyBackendHandler backendHandler;
     private KafkaProxyFrontendHandler frontendHandler;
-    private ApiVersions emptyApiVersionsState;
 
     @BeforeEach
     void setUp() {
         stateHolder = new StateHolder();
         backendHandler = mock(KafkaProxyBackendHandler.class);
         frontendHandler = mock(KafkaProxyFrontendHandler.class);
-        emptyApiVersionsState = new ApiVersions(null, null, null);
     }
 
     private void stateHolderInClientActive() {
@@ -93,8 +91,8 @@ class StateHolderTest {
     }
 
     private void stateHolderInApiVersionsState() {
-        stateHolder.state = emptyApiVersionsState;
-        stateHolder.frontendHandler = null;
+        stateHolder.state = new ProxyChannelState.ApiVersions(null, null, null);
+        stateHolder.frontendHandler = frontendHandler;
     }
 
     private void stateHolderInSelectingServer() {
@@ -371,8 +369,6 @@ class StateHolderTest {
         verifyNoMoreInteractions(frontendHandler);
     }
 
-
-
     @Test
     void inApiVersionsShouldCloseOnClientActive() {
         // Given
@@ -383,17 +379,29 @@ class StateHolderTest {
 
         // Then
         assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closed.class);
-        assertThat(stateHolder.frontendHandler).isNull();
-        verifyNoInteractions(frontendHandler);
+        verify(frontendHandler).closeWithResponse(null);
+    }
+
+    @Test
+    void inApiVersionsShouldBuffer() {
+        // Given
+        stateHolderInApiVersionsState();
+        var msg = metadataRequest();
+        SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
+
+        // When
+        stateHolder.onClientRequest(dp, msg);
+
+        // Then
+        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.SelectingServer.class);
+        verify(frontendHandler).bufferMsg(msg);
     }
 
     @Test
     void inApiVersionsShouldCloseOnHaProxyMessage() {
         // Given
         HAProxyMessage haProxyMessage = HA_PROXY_MESSAGE;
-        stateHolder.state = emptyApiVersionsState;
-        stateHolder.backendHandler = null;
-        stateHolder.frontendHandler = frontendHandler;
+        stateHolderInApiVersionsState();
         var dp = mock(SaslDecodePredicate.class);
 
         // When
