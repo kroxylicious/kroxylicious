@@ -13,6 +13,7 @@ import javax.net.ssl.SSLException;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.channel.ChannelHandlerContext;
@@ -29,6 +31,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -118,7 +121,7 @@ class StateHolderTest {
     }
 
     @Test
-    void shouldCallInClientActive() {
+    void inStartStateShouldCallInClientActive() {
         // Given
 
         // When
@@ -130,7 +133,7 @@ class StateHolderTest {
     }
 
     @Test
-    void shouldCloseOnClientActiveInInvalidState() {
+    void inApiVersionsShouldCloseOnClientActive() {
         // Given
         stateHolder.state = emptyApiVersionsState;
         stateHolder.backendHandler = null;
@@ -146,7 +149,7 @@ class StateHolderTest {
     }
 
     @Test
-    void shouldCaptureHaProxyState() {
+    void inClientActiveShouldCaptureHaProxyState() {
         // Given
         HAProxyMessage haProxyMessage = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
                 "1.1.1.1", "2.2.2.2", 46421, 9092);
@@ -165,7 +168,7 @@ class StateHolderTest {
     }
 
     @Test
-    void shouldCloseOnHaProxyMessageInInvalidState() {
+    void inApiVersionsShouldCloseOnHaProxyMessage() {
         // Given
         HAProxyMessage haProxyMessage = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
                 "1.1.1.1", "2.2.2.2", 46421, 9092);
@@ -184,7 +187,7 @@ class StateHolderTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void shouldTransitionToApiVersionsOrSelectingServerFromClientActive(boolean handlingSasl) {
+    void inClientActiveShouldTransitionToApiVersionsOrSelectingServer(boolean handlingSasl) {
         // Given
         stateHolder.state = new ProxyChannelState.ClientActive();
         stateHolder.backendHandler = null;
@@ -223,7 +226,7 @@ class StateHolderTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void shouldTransitionToConnectingWhenOnServerSelectedCalled(boolean configureSsl) throws SSLException {
+    void inSelectingServerShouldTransitionToConnectingWhenOnServerSelectedCalled(boolean configureSsl) throws SSLException {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateHolder.state = new ProxyChannelState.SelectingServer(null, null, null);
@@ -246,7 +249,7 @@ class StateHolderTest {
     }
 
     @Test
-    void shouldCloseWhenOnServerSelectedCalledInInvalidState() {
+    void inClientActiveShouldCloseWhenOnServerSelectedCalled() {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateHolder.state = new ProxyChannelState.ClientActive();
@@ -266,15 +269,40 @@ class StateHolderTest {
         assertThat(stateHolder.backendHandler).isNull();
     }
 
+    @Test
+    void inSelectingServerShouldCloseWhenOnServerSelectedCalledTwice() {
+        // Given
+        HostPort brokerAddress = new HostPort("localhost", 9092);
+        stateHolder.state = new ProxyChannelState.SelectingServer(null, null, null);
+        stateHolder.backendHandler = null;
+        stateHolder.frontendHandler = frontendHandler;
+        var filters = List.<FilterAndInvoker>of();
+        var vc = mock(VirtualCluster.class);
+        var nf = mock(NetFilter.class);
+
+        stateHolder.onServerSelected(brokerAddress, filters, vc, nf);
+        assertThat(stateHolder.state)
+                .isInstanceOf(ProxyChannelState.Connecting.class);
+        assertThat(stateHolder.backendHandler).isNotNull();
+
+        // When (called a 2nd time)
+        stateHolder.onServerSelected(brokerAddress, filters, vc, nf);
+
+        // Then
+        assertThat(stateHolder.state)
+                .isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).closeWithResponse(null);
+        verify(backendHandler).close();
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void shouldTransitionWhenOnServerActiveCalledInConnectingState(boolean configureTls) throws SSLException {
+    void inConnectingShouldTransitionWhenOnServerActiveCalled(boolean configureTls) throws SSLException {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateHolder.state = new ProxyChannelState.Connecting(null, null, null, brokerAddress);
         stateHolder.backendHandler = backendHandler;
         stateHolder.frontendHandler = frontendHandler;
-        var filters = List.<FilterAndInvoker>of();
         var serverCtx = mock(ChannelHandlerContext.class);
         SslContext sslContext;
         if (configureTls) {
@@ -307,7 +335,7 @@ class StateHolderTest {
     }
 
     @Test
-    void shouldCloseWhenOnServerActiveCalledInIllegalState() throws SSLException {
+    void inClientActiveShouldCloseWhenOnServerActiveCalled() throws SSLException {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateHolder.state = new ProxyChannelState.ClientActive();
@@ -325,5 +353,75 @@ class StateHolderTest {
                 .isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).closeWithResponse(null);
         verify(backendHandler).close();
+    }
+
+    @Test
+    void inNegotiatingTlsShouldTransitionWhenOnServerTlsSuccess() throws SSLException {
+        // Given
+        HostPort brokerAddress = new HostPort("localhost", 9092);
+        var serverCtx = mock(ChannelHandlerContext.class);
+        stateHolder.state = new ProxyChannelState.NegotiatingTls(null, null, null, serverCtx, brokerAddress);
+        stateHolder.backendHandler = backendHandler;
+        stateHolder.frontendHandler = frontendHandler;
+
+        // When
+        stateHolder.onServerTlsHandshakeCompletion(SslHandshakeCompletionEvent.SUCCESS);
+
+        // Then
+        var stateAssert = assertThat(stateHolder.state)
+                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Forwarding.class));
+        stateAssert
+                .extracting(ProxyChannelState.Forwarding::remote).isEqualTo(brokerAddress);
+        verify(frontendHandler).inForwarding();
+        verifyNoInteractions(backendHandler);
+    }
+
+    @Test
+    void inNegotiatingTlsShouldCloseWhenOnServerTlsFail() throws SSLException {
+        // Given
+        HostPort brokerAddress = new HostPort("localhost", 9092);
+        var serverCtx = mock(ChannelHandlerContext.class);
+        stateHolder.state = new ProxyChannelState.NegotiatingTls(null, null, null, serverCtx, brokerAddress);
+        stateHolder.backendHandler = backendHandler;
+        stateHolder.frontendHandler = frontendHandler;
+        RuntimeException cause = new RuntimeException("Oops!");
+
+        // When
+        stateHolder.onServerTlsHandshakeCompletion(new SslHandshakeCompletionEvent(cause));
+
+        // Then
+        assertThat(stateHolder.state)
+                .isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).closeWithResponse(cause);
+        verify(backendHandler).close();
+    }
+
+    @Test
+    void inForwardingShouldFoward() throws SSLException {
+        // Given
+        HostPort brokerAddress = new HostPort("localhost", 9092);
+        var serverCtx = mock(ChannelHandlerContext.class);
+        var forwarding = new ProxyChannelState.Forwarding(null, null, null, serverCtx, brokerAddress);
+        stateHolder.state = forwarding;
+        stateHolder.backendHandler = backendHandler;
+        stateHolder.frontendHandler = frontendHandler;
+        SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
+        DecodedRequestFrame<MetadataRequestData> msg = new DecodedRequestFrame<>(
+                MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
+                0,
+                false,
+                new RequestHeaderData(),
+                new MetadataRequestData()
+        );
+
+        // When
+        stateHolder.onClientRequest(dp, msg);
+
+        // Then
+        assertThat(stateHolder.state).isSameAs(forwarding);
+        verifyNoInteractions(frontendHandler);
+        verifyNoInteractions(dp);
+        verifyNoInteractions(serverCtx);
+        verify(backendHandler).forwardToServer(msg);
     }
 }

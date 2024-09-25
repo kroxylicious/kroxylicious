@@ -630,7 +630,7 @@ public class KafkaProxyFrontendHandler
     void inForwarding() {
         // connection is complete, so first forward the buffered message
         for (Object bufferedMsg : bufferedMsgs) {
-            forwardToServer(bufferedMsg);
+            stateHolder.forwardToServer(bufferedMsg);
         }
         bufferedMsgs = null;
 
@@ -654,14 +654,6 @@ public class KafkaProxyFrontendHandler
         var inboundChannel = this.clientCtx.channel();
         inboundChannel.config().setAutoRead(true);
         stateHolder.onClientWritable();
-    }
-
-    /**
-     * Forwards the given {@code msg} to the server
-     * @param msg The message to forward.
-     */
-    void forwardToServer(Object msg) {
-        stateHolder.forwardToServer(msg);
     }
 
     void forwardToClient(Object msg) {

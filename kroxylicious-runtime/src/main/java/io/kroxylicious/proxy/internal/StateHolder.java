@@ -256,7 +256,7 @@ public class StateHolder {
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
         if (state() instanceof ProxyChannelState.Forwarding) { // post-backend connection
-            frontendHandler.forwardToServer(msg);
+            forwardToServer(msg);
         }
         else {
             frontendHandler.bufferMsg(msg);
