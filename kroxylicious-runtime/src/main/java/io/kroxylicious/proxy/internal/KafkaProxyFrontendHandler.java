@@ -717,10 +717,12 @@ public class KafkaProxyFrontendHandler
     }
 
     void closeWithResponse(@Nullable Throwable errorCodeEx) {
-        Channel inboundChannel = this.clientCtx.channel();
-        if (inboundChannel.isActive()) {
-            inboundChannel.writeAndFlush(errorCodeEx != null ? errorResponse(errorCodeEx) : Unpooled.EMPTY_BUFFER)
-                    .addListener(ChannelFutureListener.CLOSE);
+        if (this.clientCtx != null) {
+            Channel inboundChannel = this.clientCtx.channel();
+            if (inboundChannel.isActive()) {
+                inboundChannel.writeAndFlush(errorCodeEx != null ? errorResponse(errorCodeEx) : Unpooled.EMPTY_BUFFER)
+                        .addListener(ChannelFutureListener.CLOSE);
+            }
         }
     }
 }
