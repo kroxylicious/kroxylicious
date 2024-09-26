@@ -17,8 +17,6 @@ IMPORTANT: Make sure that the virtual cluster bootstrap address and generated br
 The per-broker network address configuration provider opens one port for a virtual cluster’s bootstrap address and one port for each broker in the target Kafka cluster. 
 The number of open ports is maintained dynamically. 
 For example, if a broker is removed from the cluster, the port assigned to it is closed.
-
-Kroxylicious automatically opens a port for each virtual cluster's bootstrap and one port per broker of each target cluster.
 If you have two virtual clusters, each targeting a Kafka cluster with three brokers, eight ports are bound in total.
 
 This provider works best with straightforward configurations. 
@@ -49,10 +47,7 @@ clusterNetworkAddressConfigProvider:
 Each broker's ID must be greater than or equal to `lowestTargetBrokerId` and less than `lowestTargetBrokerId + numberOfBrokerPorts`.
 The current strategy for mapping node IDs to ports is as follows: `nodeId -> brokerStartPort + nodeId - lowestTargetBrokerId`.
 The example configuration maps broker IDs 1000, 1001, and 1002 to ports 9193, 9194, and 9195, respectively. 
-Reconfigure `numberOfBrokerPorts` to accommodate any additional brokers in the cluster.
-
-IMPORTANT: For a configuration with multiple physical clusters, ensure that the `numberOfBrokerPorts` is set to (number of brokers * number of listeners per broker) + number of bootstrap listeners across all clusters. 
-For instance, if there are two physical clusters with 3 nodes each, and each broker has one listener, the configuration requires a value of 8 (comprising 3 ports for broker listeners + 1 port for the bootstrap listener in each cluster).
+Reconfigure `numberOfBrokerPorts` to accommodate the number of brokers in the cluster.
 
 The example broker address configuration creates the following broker addresses:
 

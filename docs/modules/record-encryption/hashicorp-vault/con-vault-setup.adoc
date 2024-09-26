@@ -8,8 +8,7 @@
 The filter integrates with the {hashicorp-vault}/docs/secrets/transit[HashiCorp Vault *Transit
 Engine*].
 Vault does not enable the Transit Engine by default.
-It must be
-{hashicorp-vault}/docs/secrets/transit#setup[enabled] before it can be used with the filter.
+It must be {hashicorp-vault}/docs/secrets/transit#setup[enabled] before it can be used by the filter.
 
 [#_vault_transit_engine_url]
 == Vault Transit Engine URL
@@ -65,7 +64,7 @@ As a guideline, the minimal Vault policy required by the administrator is as fol
 [source,shell]
 ----
 path "transit/keys/KEK_*" {
-capabilities = ["read", "write"]
+  capabilities = ["read", "write"]
 }
 ----
 
@@ -80,13 +79,13 @@ Create a Vault policy for the filter:
 ----
 vault policy write kroxylicious_encryption_filter_policy - << EOF
 path "transit/keys/KEK_*" {
-capabilities = ["read"]
+  capabilities = ["read"]
 }
 path "/transit/datakey/plaintext/KEK_*" {
-capabilities = ["update"]
+  capabilities = ["update"]
 }
 path "transit/decrypt/KEK_*" {
-capabilities = [ "update"]
+  capabilities = ["update"]
 }
 EOF
 ----
@@ -98,9 +97,9 @@ for the filter:
 ----
 vault token create -display-name "kroxylicious record encryption" \
                    -policy=kroxylicious_encryption_filter_policy \
-                   -period=768h \                                     <1>
-                   -no-default-policy \                               <2>
-                   -orphan                                            <3>
+                   -period=768h \ # <1>
+                   -no-default-policy \ # <2>
+                   -orphan # <3>
 
 ----
 <1> Causes the token to be periodic (with every renewal using the given period).
@@ -125,7 +124,7 @@ The token must be {hashicorp-vault}/docs/concepts/tokens#token-time-to-live-peri
 before expiration.  
 It is the responsibility of the administrator to do this.
 
-This can be done with a command like:
+This can be done with a command like the following:
 
 [source,shell]
 ----
@@ -144,7 +143,8 @@ First, as the administrator, create a KEK in the hierarchy at this path `transit
 VAULT_TOKEN=<kroxylicious encryption filter token> validate_vault_token.sh <kek path>
 ----
 
-The script should respond 'Ok'.  If errors are reported check the policy/token configuration.
+The script should respond `Ok`.  
+If errors are reported check the policy/token configuration.
 
 `transit/keys/KEK_testkey` can now be removed.
 

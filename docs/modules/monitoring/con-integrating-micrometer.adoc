@@ -32,7 +32,7 @@ micrometer:
 
 Prometheus is connected to the Micrometer global registry, so filters can record metrics against it as part of the Prometheus scrape data.
 
-Using the `curl localhost:9999/metrics` command shows metrics as follows:
+Using the `curl localhost:9190/metrics` command shows metrics as follows:
 
 .Example metrics returned from request
 [source,shell]

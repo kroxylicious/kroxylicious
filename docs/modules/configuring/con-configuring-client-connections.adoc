@@ -4,11 +4,14 @@
 [role="_abstract"]
 To secure client connections to virtual clusters, configure TLS on the virtual cluster by doing the following:
 
-Obtain a CA (Certificate Authority) certificate for the virtual cluster from a Certificate Authority.
-When requesting the certificate, ensure it matches the names of the virtual cluster's bootstrap and broker addresses. 
-This might require wildcard certificates and Subject Alternative Names (SANs).
+* Obtain a server certificate for the virtual cluster from a Certificate Authority (CA). +
+Ensure the certificate matches the names of the virtual cluster's bootstrap and broker addresses. +
+This may require wildcard certificates and Subject Alternative Names (SANs).
 
-Specify TLS credentials in the virtual cluster configuration using `tls` properties. 
+* Provide the TLS configuration using the tls properties in the virtual cluster's configuration to enable it to present the certificate to clients. 
+Depending on your certificate format, apply one of the following examples.
+
+NOTE: TLS is recommended on Kafka clients and virtual clusters for production configurations.
 
 .Example PKCS #12 configuration
 [source,yaml]
@@ -30,8 +33,6 @@ virtualClusters:
 <3> (Optional) Password for the key. If a password is not specified, the keystore’s password is used to decrypt the key too.
 <4> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
 
-NOTE: TLS is recommended on Kafka clients and virtual clusters for production configurations.
-
 .Example PEM configuration
 [source,yaml]
 ----
@@ -49,7 +50,8 @@ virtualClusters:
 <2> Public CA certificate of the virtual cluster.
 <3> (Optional) Password for the key.
 
-If required, configure the `insecure` property to disable trust and establish insecure connections with any Kafka Cluster, irrespective of certificate validity. However, this option is not recommended for production use.
+If required, configure the `insecure` property to disable trust and establish insecure connections with any Kafka Cluster, irrespective of certificate validity. 
+However, this option is only intended for use in development and testing environments where proper certificates are hard to obtain and mange.
 
 .Example to enable insecure TLS
 [source,yaml]
