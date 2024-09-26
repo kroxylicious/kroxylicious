@@ -75,9 +75,7 @@ Key rotation involves periodically replacing cryptographic keys with new ones an
 The filter allows the rotation of Key Encryption Keys (KEKs) within the Key Management System (KMS). 
 When a KEK is rotated, the new key material is eventually used for newly produced records. Existing records, encrypted with older KEK versions, remain decryptable as long as the previous KEK versions are still available in the KMS.
 
-:fn-dek-refresh: footnote:[Assuming traffic is flowing regularly through your encrypted topic. The refresh is driven by \
-records that need encryption flowing through your topic. In cases where there are very infrequent messages flowing it is \
-possible for a DEK to be used up to 2 hours (by default) after creation.]
+IMPORTANT: If your encrypted topic is receiving regular traffic, the Data Encryption Key (DEK) will be refreshed as new records flow through. However, if messages are infrequent, the DEK might be used for up to 2 hours (by default) after its creation.
 
 When the KEK is rotated in the external KMS, it will take up to 1 hour (by default) before all{fn-dek-refresh} records produced by the filter
 contain a DEK encrypted with the new key material. This is because existing encrypted DEKs are used for a configurable

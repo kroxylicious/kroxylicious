@@ -1,0 +1,19 @@
+// file included in the following:
+//
+// index.adoc
+
+[id='con-operating-{context}']
+= Monitoring proxies
+
+[role="_abstract"]
+Monitoring data allows you to monitor the performance and health of proxy operations. 
+You can configure your deployment to capture metrics data for analysis and notifications.
+
+* Introduce custom logging configurations using `log4j2` and set appropriate root log levels.
+* Set up an admin HTTP endpoint for Prometheus metrics scraping.
+* Integrate Micrometer for enhanced observability.
+* Configure common tags and standard binders for JVM and system metrics to ensure comprehensive monitoring and efficient proxy operation.
+
+include::../modules/monitoring/proc-introducing-metrics.adoc[leveloffset=+1]
+include::../modules/monitoring/con-setting-logs.adoc[leveloffset=+1]
+include::../modules/monitoring/con-integrating-micrometer.adoc[leveloffset=+1]

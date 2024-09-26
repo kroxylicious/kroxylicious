@@ -1,0 +1,56 @@
+// file included in the following:
+//
+// assembly-monitoring-proxy.adoc
+
+[id='proc-introducing-metrics-{context}']
+= Introducing metrics
+
+[role="_abstract"]
+If you want to introduce metrics to your Kroxylicious deployment, you can configure an insecure HTTP and Prometheus endpoint (at `/metrics`).
+
+Add the following to the `ConfigMap` resource that defines the Kroxylicious configuration:
+
+.Minimal metrics configuration
+[source,yaml]
+----
+adminHttp:
+  endpoints:
+    prometheus: {}
+----
+
+By default, the HTTP endpoint listens on `0.0.0.0:9190`.
+You can change the hostname and port as follows:
+
+.Example metrics configuration with hostname and port
+[source,yaml]
+----
+adminHttp:
+  host: localhost
+  port: 9999
+  endpoints:
+    prometheus: {}
+----
+
+The example files provided with the proxy include a `PodMonitor` resource.
+If you have enabled monitoring in OpenShift for user-defined projects, you can use a `PodMonitor` resource to ingest the proxy metrics.
+
+.Example `PodMonitor` resource configuration
+[source,yaml]
+----
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: proxy
+  labels:
+    app: proxy
+spec:
+  selector:
+    matchLabels:
+      app: proxy
+  namespaceSelector:
+    matchNames:
+      - proxy
+  podMetricsEndpoints:
+  - path: /metrics
+    port: metrics
+----
