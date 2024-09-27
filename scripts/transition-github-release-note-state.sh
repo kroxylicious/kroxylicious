@@ -57,6 +57,11 @@ if [[ ${ASSERT_NO_RELEASE_NOTES_EXIST} == "true" ]]; then
   exit 0
 elif [[ ${STATE} ]]; then
   NUM_EXIST_DRAFT_RELEASE_NOTES=$(curl "${CURL_ARGS[@]}" | jq --arg tag "${TAG}" '[.[] | select ( .tag_name == $tag and .draft == true )] | length')
+  if [[ ${NUM_EXIST_DRAFT_RELEASE_NOTES} == 0 && ${STATE} == "drop" ]]; then
+    >&2 echo "No draft release notes for tag ${TAG}."
+    exit 0
+  fi
+
   if [[ ${NUM_EXIST_DRAFT_RELEASE_NOTES} != 1 ]]; then
       >&2 echo "Unexpected number of draft release notes for tag ${TAG} found (${NUM_EXIST_DRAFT_RELEASE_NOTES})"
    exit 11

@@ -19,6 +19,3 @@ An API provides a convenient means for implementing custom logic within the prox
 .Additional resources
 
 * {ApacheKafkaSite}
-
-//broker config (upstream)
-include::../modules/con-proxy-overview.adoc[leveloffset=+1]

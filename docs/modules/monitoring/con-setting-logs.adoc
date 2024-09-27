@@ -1,0 +1,25 @@
+// file included in the following:
+//
+// assembly-monitoring-proxy.adoc
+
+[id='con-setting-logs-{context}']
+= Setting logs
+
+[role="_abstract"]
+The Kroxylicious {github-releases}[binary distribution^] includes https://logging.apache.org/log4j/2.x[log4j2] as the default logging backend. 
+
+When using the `bin/kroxylicious-start.sh` script from the binary distribution, you can set an environment variable to load a custom `log4j2` configuration file or change the root logging level.
+
+.Environment variable to load a custom `log4j2` file
+[source,properties]
+----
+KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=/path/to/custom/log4j2.yaml"
+----
+
+.Environment variable to load a custom `log4j2` file
+[source,properties]
+----
+KROXYLICIOUS_ROOT_LOG_LEVEL="DEBUG"
+----
+
+NOTE: Setting the root log level to `DEBUG` or `TRACE` will produce very verbose logs.

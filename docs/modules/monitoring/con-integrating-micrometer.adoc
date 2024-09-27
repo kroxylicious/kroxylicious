@@ -1,0 +1,96 @@
+// file included in the following:
+//
+// assembly-monitoring-proxy.adoc
+
+[id='con-integrating-micrometer-{context}']
+= Integrating Micrometer
+Kroxylicious integrates with https://micrometer.io/docs[Micrometer] for gathering metrics.
+
+Micrometer provides a simple facade over instrumentation clients for popular observability systems, allowing you to instrument your JVM-based application code without vendor lock-in. 
+The following example shows how to define the `CommonTagsHook` and `StandardBindersHook` types to add a label to metrics and register a JVM metrics binder.
+
+.Example proxy configuration for Micrometer integration
+[source,yaml]
+----
+adminHttp:
+  endpoints:
+    prometheus: {}
+micrometer:
+  - type: "CommonTagsHook" # <1>
+    config:
+      commonTags:
+        zone: "euc-1a" # <2>
+  - type: "StandardBindersHook" # <3>
+    config:
+      binderNames:
+      - "JvmGcMetrics" # <4>
+----
+<1> Specifies the `CommonTagsHook` type to add common tags to all metrics.
+<2> Adds common tag zone `euc-1a` to all metrics in the global registry included with Micrometer, which appears as a label in Prometheus.
+<3> Specifies the `StandardBindersHook` type to register standard Micrometer binders.
+<4> Registers the `JvmGcMetrics` binder with the global registry.
+
+Prometheus is connected to the Micrometer global registry, so filters can record metrics against it as part of the Prometheus scrape data.
+
+Using the `curl localhost:9190/metrics` command shows metrics as follows:
+
+.Example metrics returned from request
+[source,shell]
+----
+jvm_gc_memory_allocated_bytes_total{zone="euc-1a",} 0.0
+----
+
+== Common tags
+
+Add common tags for metrics to appear as labels in the Prometheus scrape.
+
+.Example common tag configuration
+[source,yaml]
+----
+- type: "CommonTagsHook"
+  config:
+    commonTags:
+      zone: "euc-1a"
+      owner: "team-a"
+----
+
+== Standard binders
+
+Micrometer uses the concept of meter binders to register metrics that provide information about the state of some aspect of the application or its container.
+By registering standard binders included with Micrometer, you can expose metrics about the JVM and system, such as JVM memory usage and garbage collection.
+
+.Example binders configuration
+[source,yaml]
+----
+micrometer:
+  - type: "StandardBindersHook"
+    config:
+      binderNames:
+      - "JvmGcMetrics"
+      - "JvmHeapPressureMetrics"
+----
+
+.Standard binders available with Micrometer
+[cols="2m,4m",options="header"]
+|===
+ 
+| Name | Micrometer class 
+| ClassLoaderMetrics | io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics 
+| JvmCompilationMetrics | io.micrometer.core.instrument.binder.jvm.JvmCompilationMetrics 
+| JvmGcMetrics | io.micrometer.core.instrument.binder.jvm.JvmGcMetrics 
+| JvmHeapPressureMetrics | io.micrometer.core.instrument.binder.jvm.JvmHeapPressureMetrics 
+| JvmInfoMetrics | io.micrometer.core.instrument.binder.jvm.JvmInfoMetrics 
+| JvmMemoryMetrics | io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics 
+| JvmThreadMetrics | io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics 
+| FileDescriptorMetrics | io.micrometer.core.instrument.binder.system.FileDescriptorMetrics 
+| ProcessorMetrics | io.micrometer.core.instrument.binder.system.ProcessorMetrics 
+| UptimeMetrics | io.micrometer.core.instrument.binder.system.UptimeMetrics 
+
+|===
+
+== Using Micrometer with filters
+
+Use the static methods of https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.10.5/io/micrometer/core/instrument/Metrics.html[Micrometer Metrics^] to register metrics with the global registry. 
+
+Alternatively, use `Metrics.globalRegistry` to get a reference to the global registry. 
+Metrics registered this way are automatically available through the Prometheus scrape endpoint.

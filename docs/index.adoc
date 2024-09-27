@@ -7,6 +7,8 @@ include::_assets/attributes.adoc[]
 = Kroxylicious
 
 include::assemblies/assembly-overview.adoc[leveloffset=+1]
+//broker config
+include::modules/con-proxy-overview.adoc[leveloffset=+2]
 
 //built-in filters
 include::assemblies/assembly-built-in-filters.adoc[leveloffset=+1]
@@ -17,8 +19,11 @@ include::modules/con-community-filters.adoc[leveloffset=+1]
 //custom filters
 include::modules/con-custom-filters.adoc[leveloffset=+1]
 
-include::modules/con-deploying.adoc[leveloffset=+1]
-include::modules/con-operating.adoc[leveloffset=+1]
+//configuring
+include::assemblies/assembly-configuring-proxy.adoc[leveloffset=+1]
+
+//monitoring
+include::assemblies/assembly-monitoring-proxy.adoc[leveloffset=+1]
 
 //trademark notices
 include::_assets/trademarks.adoc[leveloffset=+1]

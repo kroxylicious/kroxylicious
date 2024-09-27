@@ -1,0 +1,79 @@
+[id='con-configuring-target-cluster-connections-{context}']
+= Securing connections to target clusters
+
+[role="_abstract"]
+To secure a virtual cluster connection to a target cluster, configure TLS on the virtual cluster.
+The target cluster must already be configured to use TLS. 
+
+Specify TLS for the virtual cluster configuration using `targetCluster.tls` properties 
+
+Use an empty object (`{}`) to inherit trust from the underlying platform on which the cluster is running. 
+This option is suitable if the target cluster is using a TLS certificate signed by a public CA.
+
+.Example target cluster configuration for TLS
+[source,yaml]
+----
+virtualClusters:
+  my-cluster-proxy:
+    targetCluster:
+      bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls: {}                                         
+      #...
+----
+
+If it is using a TLS certificate signed by a private CA, you must add truststore configuration for the target cluster.
+
+.Example truststore configuration for a target cluster
+[source,yaml]
+----
+virtualClusters:
+  my-cluster-proxy:
+    targetCluster:
+      bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        trust:
+          storeFile: <path>/trust.p12 # <1>                
+          storePassword:
+            passwordFile: <path>/store.password # <2>    
+          storeType: PKCS12 # <3>                             
+      #...
+----
+<1> PKCS #12 store for the public CA certificate of the Kafka cluster.
+<2> Password to access the public Kafka cluster CA certificate.
+<3> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
+
+For mTLS, you can add keystore configuration for the virtual cluster too.
+
+.Example keystore and truststore configuration for mTLS
+[source,yaml]
+----
+virtualClusters:
+  my-cluster-proxy:
+    targetCluster:
+      bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093:9092
+      tls:
+        key:
+          privateKeyFile: <path>/client.key # <1>
+          certificateFile: <path>/client.crt # <2>
+        trust:
+          storeFile: <path>/server.crt
+          storeType: PEM
+# ...
+----
+<1> Private key of the virtual cluster.
+<2> Public CA certificate of the virtual cluster.
+
+For the purposes of testing outside of a production environment, you can set the `insecure` property to `true` to turn off TLS so that the Kroxylicious can connect to any Kafka cluster.
+
+.Example  configuration to turn off TLS
+[source,yaml]
+----
+virtualClusters:
+  my-cluster-proxy:
+    targetCluster:
+      bootstrap_servers: myprivatecluster:9092
+      tls:
+        trust:
+          insecure: true                                
+      #...
+----

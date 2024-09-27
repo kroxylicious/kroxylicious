@@ -1,0 +1,18 @@
+[id='con-configuring-virtual-clusters-{context}']
+= Configuring virtual clusters
+
+[role="_abstract"]
+A Kafka cluster is represented by the proxy as a virtual cluster. 
+Clients connect to the virtual cluster rather than the actual cluster.
+When Kroxylicious is deployed, it includes configuration to create virtual clusters. 
+
+A virtual cluster has exactly one target cluster, but many virtual clusters can target the same cluster.
+Each virtual cluster targets a single listener on the target cluster, so multiple listeners on the Kafka side are represented as multiple virtual clusters by the proxy.
+Clients connect to a virtual cluster using a `bootstrap_servers` address.
+The virtual cluster has a bootstrap address that maps to each broker in the target cluster.
+When a client connects to the proxy, communication is proxied to the target broker by rewriting the address.
+Responses back to clients are rewritten to reflect the appropriate network addresses of the virtual clusters. 
+
+You can secure virtual cluster connections from clients and to target clusters.
+
+Kroxylicious accepts keys and certificates in  PEM (Privacy Enhanced Mail), PKCS #12 (Public-Key Cryptography Standards), or JKS (Java KeyStore) keystore format.
