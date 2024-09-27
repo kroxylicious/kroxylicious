@@ -51,7 +51,7 @@ virtualClusters:
 <3> (Optional) Password for the key.
 
 If required, configure the `insecure` property to disable trust and establish insecure connections with any Kafka Cluster, irrespective of certificate validity. 
-However, this option is only intended for use in development and testing environments where proper certificates are hard to obtain and mange.
+However, this option is only intended for use in development and testing environments where proper certificates are hard to obtain and manage.
 
 .Example to enable insecure TLS
 [source,yaml]
