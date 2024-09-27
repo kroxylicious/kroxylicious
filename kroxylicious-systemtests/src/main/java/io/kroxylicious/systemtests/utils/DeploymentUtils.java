@@ -222,6 +222,7 @@ public class DeploymentUtils {
     }
 
     private static boolean isPendingPhase(String p) {
+        LOGGER.atDebug().setMessage("Pod Status: {}").addArgument(p).log();
         return "pending".equalsIgnoreCase(p);
     }
 
