@@ -212,7 +212,7 @@ Filter result builders allow you to:
 The builder lets you combine legal behaviours together.  For instance, to close the connection after forwarding
 a response to a client, a response filter could use:
 
-[source,yaml]
+[source,java]
 ----
 return context.responseFilterResultBuilder()
         .forward(header, response)
