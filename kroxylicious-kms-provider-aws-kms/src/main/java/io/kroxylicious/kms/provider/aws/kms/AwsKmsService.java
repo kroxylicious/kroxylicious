@@ -21,24 +21,19 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 @Plugin(configType = Config.class)
 public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
 
-    @SuppressWarnings("java:S3077") // Config is an immutable object
+    @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
     private volatile Config config;
 
     @Override
     public void initialize(@NonNull Config config) {
         Objects.requireNonNull(config);
-        if (this.config != null) {
-            throw new IllegalStateException("KMS service is already initialized");
-        }
         this.config = config;
     }
 
     @NonNull
     @Override
     public AwsKms buildKms() {
-        if (config == null) {
-            throw new IllegalStateException("KMS service not initialized");
-        }
+        Objects.requireNonNull(config, "KMS service not initialized");
         return new AwsKms(config.endpointUrl(),
                 config.accessKey().getProvidedPassword(),
                 config.secretKey().getProvidedPassword(),
