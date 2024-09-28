@@ -65,19 +65,13 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
     @Override
     public void initialize(@NonNull Config config) {
         Objects.requireNonNull(config);
-        if (this.config != null) {
-            throw new IllegalStateException("KMS service is already initialized");
-        }
         this.config = config;
     }
 
     @NonNull
     @Override
     public InMemoryKms buildKms() {
-        if (config == null) {
-            throw new IllegalStateException("KMS service not initialized");
-        }
-
+        Objects.requireNonNull(config, "KMS service not initialized");
         return KMSES.computeIfAbsent(config.name(), ignored -> new InMemoryKms(12, 128, Map.of(), Map.of()));
     }
 

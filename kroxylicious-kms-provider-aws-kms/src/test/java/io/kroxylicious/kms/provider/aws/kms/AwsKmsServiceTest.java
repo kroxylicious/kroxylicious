@@ -6,15 +6,11 @@
 
 package io.kroxylicious.kms.provider.aws.kms;
 
-import java.net.URI;
 import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import io.kroxylicious.kms.provider.aws.kms.config.Config;
-import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -34,14 +30,6 @@ class AwsKmsServiceTest {
     @Test
     void detectsMissingInitialization() {
         assertThatThrownBy(() -> awsKmsService.buildKms())
-                .isInstanceOf(IllegalStateException.class);
-    }
-
-    @Test
-    void detectsRepeatedInitialization() {
-        var config = new Config(URI.create("https:://invalid"), new InlinePassword("accessKey"), new InlinePassword("secretKey"), "us-east-1", null);
-        awsKmsService.initialize(config);
-        assertThatThrownBy(() -> awsKmsService.initialize(config))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(NullPointerException.class);
     }
 }

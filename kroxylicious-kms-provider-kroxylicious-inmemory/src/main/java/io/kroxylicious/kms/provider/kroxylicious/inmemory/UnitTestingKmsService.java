@@ -78,18 +78,13 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
     @Override
     public void initialize(@NonNull Config config) {
         Objects.requireNonNull(config);
-        if (this.config != null) {
-            throw new IllegalStateException("KMS service is already initialized");
-        }
         this.config = config;
     }
 
     @NonNull
     @Override
     public InMemoryKms buildKms() {
-        if (config == null) {
-            throw new IllegalStateException("KMS service not initialized");
-        }
+        Objects.requireNonNull(config, "KMS service not initialized");
 
         return kmsMap.computeIfAbsent(config, c -> {
             List<Kek> kekDefs = c.existingKeks();

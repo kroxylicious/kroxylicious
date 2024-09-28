@@ -24,7 +24,6 @@ public interface KmsService<C, K, E> extends AutoCloseable {
      * before {@link #buildKms()} is called.
      *
      * @param config KMS service configuration
-     * @throws IllegalStateException if the KMS Service has already been initialised or the KMS service is closed.
      */
     void initialize(C config);
 
