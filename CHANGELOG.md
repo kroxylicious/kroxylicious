@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1522](https://github.com/kroxylicious/kroxylicious/pull/1522) Bump apicurio-registry.version from 2.6.3.Final to 2.6.4.Final
 * [#1498](https://github.com/kroxylicious/kroxylicious/pull/1498) Give KmsService lifecycle methods
 * [#1514](https://github.com/kroxylicious/kroxylicious/pull/1514) Bump io.netty:netty-bom from 4.1.112.Final to 4.1.113.Final
 * [#1517](https://github.com/kroxylicious/kroxylicious/pull/1517) Bump apicurio-registry.version from 2.6.2.Final to 2.6.3.Final
