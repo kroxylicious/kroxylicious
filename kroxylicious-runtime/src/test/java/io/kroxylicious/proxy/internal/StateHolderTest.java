@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Optional;
 
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.kafka.common.errors.InvalidRequestException;
 import org.apache.kafka.common.errors.UnknownServerException;
@@ -37,7 +36,6 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -102,15 +100,7 @@ class StateHolderTest {
     }
 
     private ProxyChannelState.Connecting stateHolderInConnecting() {
-        ProxyChannelState.Connecting state = new ProxyChannelState.Connecting(null, null, null, BROKER_ADDRESS);
-        stateHolder.state = state;
-        stateHolder.backendHandler = backendHandler;
-        stateHolder.frontendHandler = frontendHandler;
-        return state;
-    }
-
-    private ProxyChannelState.NegotiatingTls stateHolderInNegotiatingTls(ChannelHandlerContext serverCtx) {
-        ProxyChannelState.NegotiatingTls state = new ProxyChannelState.NegotiatingTls(null, null, null);
+        ProxyChannelState.Connecting state = new ProxyChannelState.Connecting(null, null, null);
         stateHolder.state = state;
         stateHolder.backendHandler = backendHandler;
         stateHolder.frontendHandler = frontendHandler;
@@ -455,8 +445,7 @@ class StateHolderTest {
 
         // Then
         assertThat(stateHolder.state)
-                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Connecting.class))
-                .extracting(ProxyChannelState.Connecting::remote).isEqualTo(brokerAddress);
+                .isInstanceOf(ProxyChannelState.Connecting.class);
         verify(frontendHandler).inConnecting(eq(brokerAddress), eq(filters), notNull(KafkaProxyBackendHandler.class));
         assertThat(stateHolder.backendHandler).isNotNull();
     }
@@ -499,36 +488,19 @@ class StateHolderTest {
         verify(backendHandler).close();
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = { true, false })
-    void inConnectingShouldTransitionWhenOnServerActiveCalled(boolean configureTls) throws SSLException {
+    @Test
+    void inConnectingShouldTransitionWhenOnServerActiveCalled() {
         // Given
         stateHolderInConnecting();
-        var serverCtx = mock(ChannelHandlerContext.class);
-        SslContext sslContext;
-        if (configureTls) {
-            sslContext = SslContextBuilder.forClient().build();
-        }
-        else {
-            sslContext = null;
-        }
 
         // When
-        stateHolder.onServerActive(serverCtx, sslContext);
+        stateHolder.onServerActive();
 
         // Then
-        if (configureTls) {
-            var stateAssert = assertThat(stateHolder.state)
-                    .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.NegotiatingTls.class));
-            verifyNoInteractions(frontendHandler);
-            verifyNoInteractions(backendHandler);
-        }
-        else {
-            assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Forwarding.class);
+        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Forwarding.class);
 
-            verify(frontendHandler).inForwarding();
-            verifyNoInteractions(backendHandler);
-        }
+        verify(frontendHandler).inForwarding();
+        verifyNoInteractions(backendHandler);
     }
 
     @Test
@@ -549,65 +521,15 @@ class StateHolderTest {
     void inClientActiveShouldCloseWhenOnServerActiveCalled() {
         // Given
         stateHolderInClientActive();
-        var serverCtx = mock(ChannelHandlerContext.class);
-        SslContext sslContext = null;
 
         // When
-        stateHolder.onServerActive(serverCtx, sslContext);
+        stateHolder.onServerActive();
 
         // Then
         assertThat(stateHolder.state)
                 .isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).closeWithResponse(null);
     }
-
-    @Test
-    void inNegotiatingTlsShouldTransitionWhenOnServerTlsSuccess() {
-        // Given
-        var serverCtx = mock(ChannelHandlerContext.class);
-        stateHolderInNegotiatingTls(serverCtx);
-
-        // When
-        stateHolder.onServerTlsHandshakeCompletion(SslHandshakeCompletionEvent.SUCCESS);
-
-        // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Forwarding.class);
-        verify(frontendHandler).inForwarding();
-        verifyNoInteractions(backendHandler);
-    }
-
-    @Test
-    void inNegotiatingTlsShouldCloseWhenOnServerTlsFail() {
-        // Given
-        var serverCtx = mock(ChannelHandlerContext.class);
-        stateHolderInNegotiatingTls(serverCtx);
-        SSLHandshakeException cause = new SSLHandshakeException("Oops!");
-
-        // When
-        stateHolder.onServerTlsHandshakeCompletion(new SslHandshakeCompletionEvent(cause));
-
-        // Then
-        assertThat(stateHolder.state)
-                .isInstanceOf(ProxyChannelState.Closed.class);
-        verify(frontendHandler).closeWithResponse(cause);
-        verify(backendHandler).close();
-    }
-
-    @Test
-    void inNegotiatingTlsShouldBufferRequests() {
-        // Given
-        var serverCtx = mock(ChannelHandlerContext.class);
-        var state = stateHolderInNegotiatingTls(serverCtx);
-
-        // When
-        DecodedRequestFrame<MetadataRequestData> msg = metadataRequest();
-        stateHolder.onClientRequest(new SaslDecodePredicate(false), msg);
-
-        // Then
-        verify(frontendHandler).bufferMsg(msg);
-        assertThat(stateHolder.state).isEqualTo(state);
-    }
-
 
     @Test
     void inForwardingShouldForwardClientRequests() {

@@ -873,7 +873,7 @@ class StateHolderEmbeddedTest {
         // Then
         inboundChannel.checkException();
 
-        assertThat(handler.state()).isInstanceOf(ProxyChannelState.NegotiatingTls.class);
+        assertThat(handler.state()).isInstanceOf(ProxyChannelState.Connecting.class);
 
         assertThat(handler.bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
@@ -888,11 +888,11 @@ class StateHolderEmbeddedTest {
     @MethodSource("bool")
     void tlsHandshakeFail(boolean withBufferedRequest) {
         // Given
-        buildHandlerInNegotiatingTls(withBufferedRequest);
+        buildHandlerInConnecting(withBufferedRequest);
 
         // When
 
-        outboundCtx.fireUserEventTriggered(new SslHandshakeCompletionEvent(new SSLHandshakeException("Oops")));
+        outboundChannel.pipeline().fireUserEventTriggered(new SslHandshakeCompletionEvent(new SSLHandshakeException("Oops")));
 //        handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newFailedFuture(new SSLHandshakeException("boom!")));
 
         // Then
@@ -919,7 +919,7 @@ class StateHolderEmbeddedTest {
     @MethodSource("bool")
     void tlsHandshakeSuccess(boolean withBufferedRequest) {
         // Given
-        buildHandlerInNegotiatingTls(withBufferedRequest);
+        buildHandlerInConnecting(withBufferedRequest);
 
         // When
 //        handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newSucceededFuture());
@@ -949,9 +949,9 @@ class StateHolderEmbeddedTest {
         assertThat(outboundChannel.isOpen()).isTrue();
     }
 
-    private void buildHandlerInNegotiatingTls(boolean withBufferedRequest) {
+    private void buildHandlerInConnecting(boolean withBufferedRequest) {
         buildHandler(false, true, selectServerThrows(new AssertionError()));
-        handler.setState(new ProxyChannelState.NegotiatingTls(
+        handler.setState(new ProxyChannelState.Connecting(
                 null,
                 null,
                 null

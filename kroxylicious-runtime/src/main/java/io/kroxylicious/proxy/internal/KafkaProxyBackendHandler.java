@@ -61,9 +61,8 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.trace("Channel active {}", ctx);
         serverCtx = ctx;
-        stateHolder.onServerActive(ctx, sslContext);
         if (sslContext == null) {
-            stateHolder.onServerTlsHandshakeCompletion(new SslHandshakeCompletionEvent(null));
+            stateHolder.onServerActive();
         }
         super.channelActive(ctx);
     }
@@ -74,7 +73,12 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
             Object evt
     ) throws Exception {
         if (evt instanceof SslHandshakeCompletionEvent sslEvt) {
-            stateHolder.onServerTlsHandshakeCompletion(sslEvt);
+            if (sslEvt.isSuccess()) {
+                stateHolder.onServerActive();
+            }
+            else {
+                stateHolder.onServerException(sslEvt.cause());
+            }
         }
         super.userEventTriggered(ctx, evt);
     }

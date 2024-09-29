@@ -11,7 +11,6 @@ import java.util.Objects;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -28,7 +27,6 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.NegotiatingTls;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 
 /**
@@ -41,7 +39,6 @@ sealed interface ProxyChannelState
         ApiVersions,
         SelectingServer,
         Connecting,
-        NegotiatingTls,
         Forwarding,
         Closed {
 
@@ -174,66 +171,26 @@ sealed interface ProxyChannelState
          */
         public Connecting toConnecting(@NonNull HostPort remote) {
             return new Connecting(haProxyMessage, clientSoftwareName,
-                    clientSoftwareVersion, remote);
+                    clientSoftwareVersion);
         }
     }
 
     /**
      * The NetFilter has determined the server to connect to,
      * but the channel to it is not yet active.
+     *
      * @param haProxyMessage
      * @param clientSoftwareName
      * @param clientSoftwareVersion
      */
     record Connecting(@Nullable HAProxyMessage haProxyMessage,
                       @Nullable String clientSoftwareName,
-                      @Nullable String clientSoftwareVersion,
-                      @NonNull HostPort remote)
-            implements ProxyChannelState {
-
-        /**
-         * Transition to {@link NegotiatingTls}, in the case where TLS is configured.
-         * @return The NegotiatingTls state
-         */
-        public @NonNull NegotiatingTls toNegotiatingTls(ChannelHandlerContext outboundCtx) {
-            return new NegotiatingTls(
-                    haProxyMessage,
-                    clientSoftwareName,
-                    clientSoftwareVersion
-            );
-        }
-
-        /**
-         * Transition to {@link Forwarding}, in the case where TLS is not configured.
-         * @return The Forwarding state
-         */
-        @NonNull
-        public Forwarding toForwarding() {
-            return new Forwarding(
-                    haProxyMessage,
-                    clientSoftwareName,
-                    clientSoftwareVersion
-            );
-        }
-
-    }
-
-    /**
-     * There's an active channel to the server, but TLS is configured and handshaking is in progress.
-     *
-     * @param haProxyMessage the info gleaned from the PROXY handshake, or null if the client didn't use the PROXY protocol
-     * @param clientSoftwareName the name of the client library, or null if the client didn't send this.
-     * @param clientSoftwareVersion the version of the client library, or null if the client didn't send this.
-     */
-    record NegotiatingTls(
-                          @Nullable HAProxyMessage haProxyMessage,
-                          @Nullable String clientSoftwareName,
-                          @Nullable String clientSoftwareVersion
+                      @Nullable String clientSoftwareVersion
     )
             implements ProxyChannelState {
 
         /**
-         * Transition to {@link Forwarding}
+         * Transition to {@link Forwarding}, in the case where TLS is not configured.
          * @return The Forwarding state
          */
         @NonNull

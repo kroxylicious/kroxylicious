@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.Optional;
 
+import javax.net.ssl.SSLHandshakeException;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,12 +20,15 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -50,18 +55,18 @@ class KafkaProxyBackendHandlerTest {
     }
 
     @Test
-    void shouldForwardChannelActiveToFrontEndHandler() throws Exception {
+    void shouldNotifyServerActiveOnPlainConnection() throws Exception {
         // Given
 
         // When
         kafkaProxyBackendHandler.channelActive(outboundContext);
 
         // Then
-        verify(stateHolder).onServerActive(outboundContext, null);
+        verify(stateHolder).onServerActive();
     }
 
     @Test
-    void shouldInformFrontendHandlerOnUnanticipatedException() {
+    void shouldNotifyServerExceptionOnExceptionCaught() {
         // Given
         RuntimeException kaboom = new RuntimeException("Kaboom");
 
@@ -70,5 +75,30 @@ class KafkaProxyBackendHandlerTest {
 
         // Then
         verify(stateHolder).onServerException(kaboom);
+    }
+
+    @Test
+    void shouldNotifyServerActiveOnTlsNegotiated() throws Exception {
+        // Given
+        var serverCtx = mock(ChannelHandlerContext.class);
+
+        // When
+        kafkaProxyBackendHandler.userEventTriggered(serverCtx, SslHandshakeCompletionEvent.SUCCESS);
+
+        // Then
+        verify(stateHolder).onServerActive();
+    }
+
+    @Test
+    void shouldNotifyServerActiveOnFailedTls() throws Exception {
+        // Given
+        var serverCtx = mock(ChannelHandlerContext.class);
+        SSLHandshakeException cause = new SSLHandshakeException("Oops!");
+
+        // When
+        kafkaProxyBackendHandler.userEventTriggered(serverCtx, new SslHandshakeCompletionEvent(cause));
+
+        // Then
+        verify(stateHolder).onServerException(cause);
     }
 }

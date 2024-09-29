@@ -23,10 +23,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
-import io.netty.handler.ssl.SslContext;
-
-import io.netty.handler.ssl.SslHandshakeCompletionEvent;
-
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -65,10 +61,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  *      │
  *      ↓ netFiler.{@link NetFilter#selectServer(NetFilter.NetFilterContext) selectServer} calls frontend.{@link KafkaProxyFrontendHandler#initiateConnect(HostPort, List) initiateConnect}
  *     {@link ProxyChannelState.Connecting Connecting} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *  ╭───┤
- *  ↓   ↓ backend.{@link KafkaProxyBackendHandler#channelActive(ChannelHandlerContext) channelActive} and TLS configured
- *  │  {@link ProxyChannelState.NegotiatingTls NegotiatingTls} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
- *  ╰───┤
+ *      │
  *      ↓
  *     {@link ProxyChannelState.Forwarding Forwarding} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *      │ backend.{@link KafkaProxyBackendHandler#channelInactive(ChannelHandlerContext) channelInactive}
@@ -204,42 +197,18 @@ public class StateHolder {
         frontendHandler.inConnecting(remote, filters, backendHandler);
     }
 
-    void onServerActive(ChannelHandlerContext serverCtx,
-                        @Nullable SslContext sslContext) {
+    void onServerActive() {
         if (state() instanceof ProxyChannelState.Connecting connectedState) {
-            if (sslContext != null) {
-                toNegotiatingTls(connectedState.toNegotiatingTls(serverCtx));
-            }
-            else {
-                toForwarding(connectedState.toForwarding());
-            }
+            toForwarding(connectedState.toForwarding());
         }
         else {
             illegalState("Server became active while not in the connecting state");
         }
     }
 
-    private void toNegotiatingTls(ProxyChannelState.NegotiatingTls negotiatingTls) {
-        setState(negotiatingTls);
-    }
-
     private void toForwarding(ProxyChannelState.Forwarding forwarding) {
         setState(forwarding);
         Objects.requireNonNull(frontendHandler).inForwarding();
-    }
-
-    public void onServerTlsHandshakeCompletion(SslHandshakeCompletionEvent sslEvt) {
-        if (state instanceof ProxyChannelState.NegotiatingTls negotiatingTls) {
-            if (sslEvt.isSuccess()) {
-                toForwarding(negotiatingTls.toForwarding());
-            }
-            else {
-                toClosed(sslEvt.cause());
-            }
-        }
-        else {
-            illegalState("Server TLS handshake complete when not in the negotiating TLS state");
-        }
     }
 
     void illegalState(@NonNull String msg) {
@@ -273,6 +242,7 @@ public class StateHolder {
                 }
                 else if (msg instanceof DecodedRequestFrame
                         && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
+                    //TODO this isn't really a stateHolder responsibility
                     DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
                     if (dp.isAuthenticationOffloadEnabled()) {
                         toApiVersions(clientActive.toApiVersions(apiVersionsFrame), apiVersionsFrame);
@@ -323,11 +293,6 @@ public class StateHolder {
                 }
             }
             else if (state() instanceof ProxyChannelState.Connecting) {
-                if (msg instanceof RequestFrame) {
-                    return;
-                }
-            }
-            else if (state() instanceof ProxyChannelState.NegotiatingTls) {
                 if (msg instanceof RequestFrame) {
                     return;
                 }
