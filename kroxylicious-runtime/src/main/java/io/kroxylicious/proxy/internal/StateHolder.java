@@ -211,7 +211,7 @@ public class StateHolder {
                 toNegotiatingTls(connectedState.toNegotiatingTls(serverCtx));
             }
             else {
-                toForwarding(connectedState.toForwarding(serverCtx));
+                toForwarding(connectedState.toForwarding());
             }
         }
         else {

@@ -62,6 +62,9 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         LOGGER.trace("Channel active {}", ctx);
         serverCtx = ctx;
         stateHolder.onServerActive(ctx, sslContext);
+        if (sslContext == null) {
+            stateHolder.onServerTlsHandshakeCompletion(new SslHandshakeCompletionEvent(null));
+        }
         super.channelActive(ctx);
     }
 

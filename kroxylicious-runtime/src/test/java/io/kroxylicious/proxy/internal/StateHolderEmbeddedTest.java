@@ -873,8 +873,8 @@ class StateHolderEmbeddedTest {
         // Then
         inboundChannel.checkException();
 
-        var stateAssert = assertThat(handler.state()).asInstanceOf(type(ProxyChannelState.NegotiatingTls.class));
-        stateAssert.extracting(ProxyChannelState.NegotiatingTls::outboundCtx).isSameAs(outboundCtx);
+        assertThat(handler.state()).isInstanceOf(ProxyChannelState.NegotiatingTls.class);
+
         assertThat(handler.bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
                 .isEqualTo(List.of(metadata));
@@ -954,9 +954,8 @@ class StateHolderEmbeddedTest {
         handler.setState(new ProxyChannelState.NegotiatingTls(
                 null,
                 null,
-                null,
-                outboundCtx,
-                mock(HostPort.class)));
+                null
+        ));
         inboundChannel.config().setAutoRead(false);
     }
 

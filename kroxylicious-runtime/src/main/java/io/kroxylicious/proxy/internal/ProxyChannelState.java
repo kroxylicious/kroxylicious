@@ -199,9 +199,8 @@ sealed interface ProxyChannelState
             return new NegotiatingTls(
                     haProxyMessage,
                     clientSoftwareName,
-                    clientSoftwareVersion,
-                    outboundCtx,
-                    remote);
+                    clientSoftwareVersion
+            );
         }
 
         /**
@@ -209,34 +208,29 @@ sealed interface ProxyChannelState
          * @return The Forwarding state
          */
         @NonNull
-        public Forwarding toForwarding(ChannelHandlerContext outboundCtx) {
+        public Forwarding toForwarding() {
             return new Forwarding(
                     haProxyMessage,
                     clientSoftwareName,
-                    clientSoftwareVersion,
-                    outboundCtx,
-                    remote);
+                    clientSoftwareVersion
+            );
         }
 
     }
 
     /**
      * There's an active channel to the server, but TLS is configured and handshaking is in progress.
+     *
      * @param haProxyMessage the info gleaned from the PROXY handshake, or null if the client didn't use the PROXY protocol
      * @param clientSoftwareName the name of the client library, or null if the client didn't send this.
      * @param clientSoftwareVersion the version of the client library, or null if the client didn't send this.
-     * @param outboundCtx The server context
      */
     record NegotiatingTls(
                           @Nullable HAProxyMessage haProxyMessage,
                           @Nullable String clientSoftwareName,
-                          @Nullable String clientSoftwareVersion,
-                          @NonNull ChannelHandlerContext outboundCtx,
-                          @NonNull HostPort remote)
+                          @Nullable String clientSoftwareVersion
+    )
             implements ProxyChannelState {
-        public NegotiatingTls {
-            Objects.requireNonNull(outboundCtx);
-        }
 
         /**
          * Transition to {@link Forwarding}
@@ -247,9 +241,8 @@ sealed interface ProxyChannelState
             return new Forwarding(
                     haProxyMessage,
                     clientSoftwareName,
-                    clientSoftwareVersion,
-                    outboundCtx,
-                    remote);
+                    clientSoftwareVersion
+            );
         }
 
     }
@@ -270,10 +263,7 @@ sealed interface ProxyChannelState
         Forwarding(
                    @Nullable HAProxyMessage haProxyMessage,
                    @Nullable String clientSoftwareName,
-                   @Nullable String clientSoftwareVersion,
-                   @NonNull ChannelHandlerContext outboundCtx,
-                   @NonNull HostPort remote) {
-            Objects.requireNonNull(outboundCtx);
+                   @Nullable String clientSoftwareVersion) {
             this.haProxyMessage = haProxyMessage;
             this.clientSoftwareName = clientSoftwareName;
             this.clientSoftwareVersion = clientSoftwareVersion;

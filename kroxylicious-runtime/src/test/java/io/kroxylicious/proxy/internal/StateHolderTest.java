@@ -110,16 +110,15 @@ class StateHolderTest {
     }
 
     private ProxyChannelState.NegotiatingTls stateHolderInNegotiatingTls(ChannelHandlerContext serverCtx) {
-        ProxyChannelState.NegotiatingTls state = new ProxyChannelState.NegotiatingTls(null, null, null, serverCtx, BROKER_ADDRESS);
+        ProxyChannelState.NegotiatingTls state = new ProxyChannelState.NegotiatingTls(null, null, null);
         stateHolder.state = state;
         stateHolder.backendHandler = backendHandler;
         stateHolder.frontendHandler = frontendHandler;
         return state;
     }
 
-    private ProxyChannelState.Forwarding stateHolderInForwarding(
-            ChannelHandlerContext serverCtx) {
-        var forwarding = new ProxyChannelState.Forwarding(null, null, null, serverCtx, BROKER_ADDRESS);
+    private ProxyChannelState.Forwarding stateHolderInForwarding() {
+        var forwarding = new ProxyChannelState.Forwarding(null, null, null);
         stateHolder.state = forwarding;
         stateHolder.backendHandler = backendHandler;
         stateHolder.frontendHandler = frontendHandler;
@@ -521,8 +520,6 @@ class StateHolderTest {
         if (configureTls) {
             var stateAssert = assertThat(stateHolder.state)
                     .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.NegotiatingTls.class));
-            stateAssert
-                    .extracting(ProxyChannelState.NegotiatingTls::remote).isEqualTo(BROKER_ADDRESS);
             verifyNoInteractions(frontendHandler);
             verifyNoInteractions(backendHandler);
         }
@@ -617,7 +614,7 @@ class StateHolderTest {
         // Given
         var serverCtx = mock(ChannelHandlerContext.class);
         SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
-        var forwarding = stateHolderInForwarding(serverCtx);
+        var forwarding = stateHolderInForwarding();
         var msg = metadataRequest();
 
         // When
@@ -636,7 +633,7 @@ class StateHolderTest {
         // Given
         var serverCtx = mock(ChannelHandlerContext.class);
         SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
-        var forwarding = stateHolderInForwarding(serverCtx);
+        var forwarding = stateHolderInForwarding();
         var msg = metadataResponse();
 
         // When
@@ -653,8 +650,7 @@ class StateHolderTest {
     @Test
     void inForwardingShouldTransitionToClosedOnServerInactive() {
         // Given
-        var serverCtx = mock(ChannelHandlerContext.class);
-        stateHolderInForwarding(serverCtx);
+        stateHolderInForwarding();
 
         // When
         stateHolder.onServerInactive();
@@ -668,8 +664,7 @@ class StateHolderTest {
     @Test
     void inForwardingShouldTransitionToClosedOnClientInactive() {
         // Given
-        var serverCtx = mock(ChannelHandlerContext.class);
-        stateHolderInForwarding(serverCtx);
+        stateHolderInForwarding();
 
         // When
         stateHolder.onClientInactive();
