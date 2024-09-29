@@ -45,14 +45,6 @@ sealed interface ProxyChannelState
         Forwarding,
         Closed {
 
-    default @Nullable ChannelHandlerContext outboundCtx() {
-        return null;
-    }
-
-    default @Nullable HostPort remote() {
-        return null;
-    }
-
     /**
      * The initial state, when a client has connected, but no messages
      * have been received yet.
@@ -274,10 +266,6 @@ sealed interface ProxyChannelState
         private final String clientSoftwareName;
         @Nullable
         private final String clientSoftwareVersion;
-        @NonNull
-        private final ChannelHandlerContext outboundCtx;
-
-        private final HostPort remote;
 
         Forwarding(
                    @Nullable HAProxyMessage haProxyMessage,
@@ -289,8 +277,6 @@ sealed interface ProxyChannelState
             this.haProxyMessage = haProxyMessage;
             this.clientSoftwareName = clientSoftwareName;
             this.clientSoftwareVersion = clientSoftwareVersion;
-            this.outboundCtx = outboundCtx;
-            this.remote = remote;
         }
 
         @Nullable
@@ -308,17 +294,6 @@ sealed interface ProxyChannelState
             return clientSoftwareVersion;
         }
 
-        @Override
-        @NonNull
-        public ChannelHandlerContext outboundCtx() {
-            return outboundCtx;
-        }
-
-
-        @NonNull
-        public HostPort remote() {
-            return remote;
-        }
 
         @Override
         public boolean equals(Object obj) {
@@ -331,14 +306,12 @@ sealed interface ProxyChannelState
             var that = (Forwarding) obj;
             return Objects.equals(this.haProxyMessage, that.haProxyMessage) &&
                     Objects.equals(this.clientSoftwareName, that.clientSoftwareName) &&
-                    Objects.equals(this.clientSoftwareVersion, that.clientSoftwareVersion) &&
-                    Objects.equals(this.outboundCtx, that.outboundCtx) &&
-                    Objects.equals(this.remote, that.remote);
+                    Objects.equals(this.clientSoftwareVersion, that.clientSoftwareVersion);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(haProxyMessage, clientSoftwareName, clientSoftwareVersion, outboundCtx, remote);
+            return Objects.hash(haProxyMessage, clientSoftwareName, clientSoftwareVersion);
         }
 
         @Override
@@ -346,8 +319,7 @@ sealed interface ProxyChannelState
             return "Forwarding[" +
                     "haProxyMessage=" + haProxyMessage + ", " +
                     "clientSoftwareName=" + clientSoftwareName + ", " +
-                    "clientSoftwareVersion=" + clientSoftwareVersion + ", " +
-                    "outboundCtx=" + outboundCtx + ']';
+                    "clientSoftwareVersion=" + clientSoftwareVersion + ']';
         }
 
     }

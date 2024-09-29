@@ -303,9 +303,7 @@ class StateHolderTest {
 
         // Then
         assertThat(stateHolder.state)
-                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.SelectingServer.class))
-                .extracting(ProxyChannelState.SelectingServer::remote)
-                .isSameAs(null);
+                .isInstanceOf(ProxyChannelState.SelectingServer.class);
         verifyNoInteractions(dp);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
@@ -324,9 +322,8 @@ class StateHolderTest {
 
         // Then
         assertThat(stateHolder.state)
-                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.SelectingServer.class))
-                .extracting(ProxyChannelState.SelectingServer::remote)
-                .isSameAs(null);
+                .isInstanceOf(ProxyChannelState.SelectingServer.class)
+                ;
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
         verifyNoMoreInteractions(frontendHandler);
@@ -336,11 +333,10 @@ class StateHolderTest {
     void inHaProxyShouldCloseOnHaProxyMsg() {
         // Given
         stateHolderInHaProxy();
-        var msg = HA_PROXY_MESSAGE;
         var dp = new SaslDecodePredicate(false);
 
         // When
-        stateHolder.onClientRequest(dp, msg);
+        stateHolder.onClientRequest(dp, HA_PROXY_MESSAGE);
 
         // Then
         assertThat(stateHolder.state)
@@ -360,9 +356,8 @@ class StateHolderTest {
 
         // Then
         assertThat(stateHolder.state)
-                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.SelectingServer.class))
-                .extracting(ProxyChannelState.SelectingServer::remote)
-                .isSameAs(null);
+                .isInstanceOf(ProxyChannelState.SelectingServer.class)
+                ;
         verifyNoInteractions(dp);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
@@ -400,12 +395,11 @@ class StateHolderTest {
     @Test
     void inApiVersionsShouldCloseOnHaProxyMessage() {
         // Given
-        HAProxyMessage haProxyMessage = HA_PROXY_MESSAGE;
         stateHolderInApiVersionsState();
         var dp = mock(SaslDecodePredicate.class);
 
         // When
-        stateHolder.onClientRequest(dp, haProxyMessage);
+        stateHolder.onClientRequest(dp, HA_PROXY_MESSAGE);
 
         // Then
         assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closed.class);
@@ -533,23 +527,21 @@ class StateHolderTest {
             verifyNoInteractions(backendHandler);
         }
         else {
-            var stateAssert = assertThat(stateHolder.state)
-                    .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Forwarding.class));
-            stateAssert
-                    .extracting(ProxyChannelState.Forwarding::remote).isEqualTo(BROKER_ADDRESS);
+            assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Forwarding.class);
+
             verify(frontendHandler).inForwarding();
             verifyNoInteractions(backendHandler);
         }
     }
 
     @Test
-    void inConnectingShouldBufferRequests() throws SSLException {
+    void inConnectingShouldBufferRequests() {
         // Given
         var state = stateHolderInConnecting();
 
         // When
         DecodedRequestFrame<MetadataRequestData> msg = metadataRequest();
-        stateHolder.onClientRequest(null, msg);
+        stateHolder.onClientRequest(new SaslDecodePredicate(false), msg);
 
         // Then
         verify(frontendHandler).bufferMsg(msg);
@@ -582,10 +574,7 @@ class StateHolderTest {
         stateHolder.onServerTlsHandshakeCompletion(SslHandshakeCompletionEvent.SUCCESS);
 
         // Then
-        var stateAssert = assertThat(stateHolder.state)
-                .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Forwarding.class));
-        stateAssert
-                .extracting(ProxyChannelState.Forwarding::remote).isEqualTo(BROKER_ADDRESS);
+        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Forwarding.class);
         verify(frontendHandler).inForwarding();
         verifyNoInteractions(backendHandler);
     }
@@ -608,14 +597,14 @@ class StateHolderTest {
     }
 
     @Test
-    void inNegotiatingTlsShouldBufferRequests() throws SSLException {
+    void inNegotiatingTlsShouldBufferRequests() {
         // Given
         var serverCtx = mock(ChannelHandlerContext.class);
         var state = stateHolderInNegotiatingTls(serverCtx);
 
         // When
         DecodedRequestFrame<MetadataRequestData> msg = metadataRequest();
-        stateHolder.onClientRequest(null, msg);
+        stateHolder.onClientRequest(new SaslDecodePredicate(false), msg);
 
         // Then
         verify(frontendHandler).bufferMsg(msg);

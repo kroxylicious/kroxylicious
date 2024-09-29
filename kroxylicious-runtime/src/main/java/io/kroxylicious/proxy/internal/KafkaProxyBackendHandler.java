@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
+import java.util.Objects;
 import java.util.Optional;
 
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
@@ -29,13 +30,13 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @VisibleForTesting final StateHolder stateHolder;
     @VisibleForTesting final SslContext sslContext;
-    private ChannelHandlerContext serverCtx;
+    ChannelHandlerContext serverCtx;
     private boolean pendingServerFlushes;
 
     public KafkaProxyBackendHandler(
             StateHolder stateHolder,
             VirtualCluster virtualCluster) {
-        this.stateHolder = stateHolder;
+        this.stateHolder = Objects.requireNonNull(stateHolder);
         Optional<SslContext> upstreamSslContext = virtualCluster.getUpstreamSslContext();
         this.sslContext = upstreamSslContext.orElse(null);
     }

@@ -94,23 +94,27 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class StateHolder {
     private static final Logger LOGGER = getLogger(StateHolder.class);
 
-    @Nullable ProxyChannelState state;
-    /* Track autoread states here, because the netty autoread flag is volatile =>
-     expensive to set in every call to channelRead */
-    boolean serverReadsBlocked;
-    boolean clientReadsBlocked;
+    /**
+     * The current state. This can be changed via a call to one of the {@code on*()} methods.
+     */
+    @VisibleForTesting @Nullable ProxyChannelState state;
+
+    /* The netty autoread flag is volatile =>
+     * expensive to set in every call to channelRead.
+     * So we track autoread states via these non-volatile fields,
+     * allowing us to only touch the volatile when it needs to be changed
+     */
+    @VisibleForTesting boolean serverReadsBlocked;
+    @VisibleForTesting boolean clientReadsBlocked;
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
      */
-    @Nullable KafkaProxyFrontendHandler frontendHandler;
+    @VisibleForTesting @NonNull KafkaProxyFrontendHandler frontendHandler;
     /**
      * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualCluster, NetFilter)}
      * has been called
      */
-    @Nullable KafkaProxyBackendHandler backendHandler;
-
-    public StateHolder() {
-    }
+    @VisibleForTesting @Nullable KafkaProxyBackendHandler backendHandler;
 
     @VisibleForTesting
     ProxyChannelState state() {
@@ -142,7 +146,7 @@ public class StateHolder {
     void onServerUnwritable() {
         if (!clientReadsBlocked) {
             clientReadsBlocked = true;
-            Objects.requireNonNull(frontendHandler).blockClientReads();
+            frontendHandler.blockClientReads();
         }
     }
 
@@ -152,7 +156,7 @@ public class StateHolder {
     void onServerWritable() {
         if (clientReadsBlocked) {
             clientReadsBlocked = false;
-            Objects.requireNonNull(frontendHandler).unblockClientReads();
+            frontendHandler.unblockClientReads();
         }
     }
 
@@ -165,7 +169,6 @@ public class StateHolder {
         else {
             illegalState("Client activation while not in the start state");
         }
-
     }
 
     private void toClientActive(
@@ -198,7 +201,7 @@ public class StateHolder {
                               VirtualCluster virtualCluster) {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this, virtualCluster);
-        Objects.requireNonNull(frontendHandler).inConnecting(remote, filters, backendHandler);
+        frontendHandler.inConnecting(remote, filters, backendHandler);
     }
 
     void onServerActive(ChannelHandlerContext serverCtx,
@@ -337,22 +340,27 @@ public class StateHolder {
         setState(haProxy);
     }
 
-    private void toApiVersions(ProxyChannelState.ApiVersions apiVersions, DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
+    private void toApiVersions(ProxyChannelState.ApiVersions apiVersions,
+                               DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
         setState(apiVersions);
-        frontendHandler.inApiVersions(apiVersionsFrame);
+        Objects.requireNonNull(frontendHandler).inApiVersions(apiVersionsFrame);
     }
 
     private void toSelectingServer(ProxyChannelState.SelectingServer selectingServer) {
         setState(selectingServer);
-        frontendHandler.inSelectingServer();
+        Objects.requireNonNull(frontendHandler).inSelectingServer();
     }
 
-    boolean isConnecting() {
-        return state instanceof ProxyChannelState.Connecting;
+    void assertIsConnecting(String msg) {
+        if (!(state instanceof ProxyChannelState.Connecting)) {
+            illegalState(msg);
+        }
     }
 
-    boolean isSelectingServer() {
-        return state instanceof ProxyChannelState.SelectingServer;
+    void assertIsSelectingServer(String msg) {
+        if (!(state instanceof ProxyChannelState.SelectingServer)) {
+            illegalState(msg);
+        }
     }
 
     void onServerInactive() {
@@ -364,7 +372,7 @@ public class StateHolder {
     }
 
     void clientReadComplete() {
-        if (backendHandler != null) {
+        if (state instanceof ProxyChannelState.Forwarding) {
             backendHandler.flushToServer();
         }
     }

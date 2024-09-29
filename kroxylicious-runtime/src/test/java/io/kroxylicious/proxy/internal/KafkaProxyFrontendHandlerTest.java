@@ -266,7 +266,7 @@ class KafkaProxyFrontendHandlerTest {
 
                 outboundChannelTcpConnectionFuture = outboundChannel.newPromise();
                 return outboundChannelTcpConnectionFuture.addListener(
-                        future -> this.onUpstreamChannelActive(outboundChannel.pipeline().firstContext().fireChannelActive()));
+                        future -> outboundChannel.pipeline().firstContext().fireChannelActive());
             }
         };
     }
