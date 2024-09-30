@@ -8,6 +8,7 @@ package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -37,7 +38,9 @@ import static java.util.stream.Collectors.toMap;
  */
 @Plugin(configType = UnitTestingKmsService.Config.class)
 public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.Config, UUID, InMemoryEdek> {
-    private Map<Config, InMemoryKms> kmsMap = new ConcurrentHashMap<>();
+    private final Map<Config, InMemoryKms> kmsMap = new ConcurrentHashMap<>();
+    @SuppressWarnings("java:S3077") // Config is an immutable object
+    private volatile Config config;
 
     public static UnitTestingKmsService newInstance() {
         return (UnitTestingKmsService) ServiceLoader.load(KmsService.class).stream()
@@ -70,23 +73,26 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
         public Config() {
             this(12, 128, List.of());
         }
+    }
 
-        @Override
-        public List<Kek> existingKeks() {
-            return existingKeks == null ? List.of() : existingKeks;
-        }
+    @Override
+    public void initialize(@NonNull Config config) {
+        Objects.requireNonNull(config);
+        this.config = config;
     }
 
     @NonNull
     @Override
-    public InMemoryKms buildKms(Config options) {
-        return kmsMap.computeIfAbsent(options, config -> {
-            List<Kek> kekDefs = options.existingKeks();
+    public InMemoryKms buildKms() {
+        Objects.requireNonNull(config, "KMS service not initialized");
+
+        return kmsMap.computeIfAbsent(config, c -> {
+            List<Kek> kekDefs = c.existingKeks();
             Map<UUID, DestroyableRawSecretKey> keys = kekDefs.stream()
                     .collect(toMap(k -> UUID.fromString(k.uuid), k -> DestroyableRawSecretKey.takeCopyOf(k.key, k.algorithm)));
             Map<String, UUID> aliases = kekDefs.stream().collect(toMap(k -> k.alias, k -> UUID.fromString(k.uuid)));
-            return new InMemoryKms(options.numIvBytes(),
-                    options.numAuthBits(),
+            return new InMemoryKms(c.numIvBytes(),
+                    c.numAuthBits(),
                     keys, aliases);
         });
     }

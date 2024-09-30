@@ -37,7 +37,7 @@ class EnvelopEncryptionTest {
         var edekSerde = mock(Serde.class);
 
         doReturn(kmsService).when(fc).pluginInstance(KmsService.class, "KMS");
-        doReturn(kms).when(kmsService).buildKms(any());
+        doReturn(kms).when(kmsService).buildKms();
         doReturn(mock(FilterDispatchExecutor.class)).when(fc).filterDispatchExecutor();
         doReturn(edekSerde).when(kms).edekSerde();
 

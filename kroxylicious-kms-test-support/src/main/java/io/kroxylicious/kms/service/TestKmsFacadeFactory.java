@@ -26,6 +26,7 @@ public interface TestKmsFacadeFactory<C, K, E> {
 
     /**
      * Discovers the available {@link TestKmsFacadeFactory}.
+     *
      * @return factories
      */
     @SuppressWarnings("unchecked")

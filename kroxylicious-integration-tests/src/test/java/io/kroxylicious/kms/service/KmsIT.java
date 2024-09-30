@@ -8,8 +8,10 @@ package io.kroxylicious.kms.service;
 
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,16 +33,24 @@ class KmsIT<C, K, E> {
     private TestKekManager manager;
     private String alias;
     private K resolvedKekId;
+    private KmsService<C, K, E> service;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
     void beforeEach(TestKmsFacade<?, ?, ?> facade) throws Exception {
-        var service = (KmsService<C, K, E>) facade.getKmsServiceClass().getDeclaredConstructor(new Class[]{}).newInstance();
-        kms = service.buildKms((C) facade.getKmsServiceConfig());
+        service = (KmsService<C, K, E>) facade.getKmsServiceClass().getDeclaredConstructor(new Class[]{}).newInstance();
+        C kmsServiceConfig = (C) facade.getKmsServiceConfig();
+        service.initialize(kmsServiceConfig);
+        kms = service.buildKms();
         manager = facade.getTestKekManager();
 
         alias = "alias-" + UUID.randomUUID();
         resolvedKekId = createAndResolve(alias);
+    }
+
+    @AfterEach
+    void afterEach() {
+        Optional.ofNullable(service).ifPresent(KmsService::close);
     }
 
     @TestTemplate

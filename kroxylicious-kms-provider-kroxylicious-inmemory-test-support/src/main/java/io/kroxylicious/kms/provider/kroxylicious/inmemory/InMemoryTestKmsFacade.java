@@ -16,14 +16,20 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
 
     private final UUID kmsId = UUID.randomUUID();
     private InMemoryKms kms;
+    private IntegrationTestingKmsService service;
 
     @Override
     public void start() {
-        kms = IntegrationTestingKmsService.newInstance().buildKms(new Config(kmsId.toString()));
+        var config = new Config(kmsId.toString());
+
+        service = IntegrationTestingKmsService.newInstance();
+        service.initialize(config);
+        kms = service.buildKms();
     }
 
     @Override
     public void stop() {
+        Optional.ofNullable(service).ifPresent(IntegrationTestingKmsService::close);
         IntegrationTestingKmsService.delete(kmsId.toString());
     }
 

@@ -76,16 +76,19 @@ class VaultKmsTlsIT {
 
     @Test
     void tlsConnectionFailsWithoutClientTrust() {
-        var tlsConfig = vaultConfig(null, vaultContainer.getEndpoint());
-        var keyName = "mykey";
-        createKek(keyName);
-        VaultKms service = new VaultKmsService().buildKms(tlsConfig);
-        var resolved = service.resolveAlias(keyName);
-        assertThat(resolved)
-                .failsWithin(Duration.ofSeconds(5))
-                .withThrowableThat().havingCause()
-                .isInstanceOf(SSLHandshakeException.class)
-                .withMessageContaining("unable to find valid certification path to requested target");
+        try (VaultKmsService vaultKmsService = new VaultKmsService()) {
+            var tlsConfig = vaultConfig(null, vaultContainer.getEndpoint());
+            vaultKmsService.initialize(tlsConfig);
+            var keyName = "mykey";
+            createKek(keyName);
+            var kms = vaultKmsService.buildKms();
+            var resolved = kms.resolveAlias(keyName);
+            assertThat(resolved)
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableThat().havingCause()
+                    .isInstanceOf(SSLHandshakeException.class)
+                    .withMessageContaining("unable to find valid certification path to requested target");
+        }
     }
 
     @Test
@@ -126,13 +129,14 @@ class VaultKmsTlsIT {
     @ParameterizedTest(name = "{0}")
     @MethodSource("tlsConfigurations")
     void testArbitraryKmsOperationSucceedsWithTls(String kms, KmsCreator creator) {
-        VaultKms service = creator.createKms(vaultContainer.getEndpoint());
+        VaultKms vaultKms = creator.createKms(vaultContainer.getEndpoint());
         var keyName = "mykey";
         createKek(keyName);
-        var resolved = service.resolveAlias(keyName);
+        var resolved = vaultKms.resolveAlias(keyName);
         assertThat(resolved)
                 .succeedsWithin(Duration.ofSeconds(5))
                 .isEqualTo(keyName);
+
     }
 
     private ReadKeyData createKek(String keyId) {
@@ -151,7 +155,9 @@ class VaultKmsTlsIT {
 
     @NonNull
     private static VaultKms getTlsVaultKms(Tls tls, URI endpoint) {
-        return new VaultKmsService().buildKms(vaultConfig(tls, endpoint));
+        var vaultKmsService = new VaultKmsService();
+        vaultKmsService.initialize(vaultConfig(tls, endpoint));
+        return vaultKmsService.buildKms();
     }
 
     @NonNull
