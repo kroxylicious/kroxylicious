@@ -159,22 +159,6 @@ public class DeploymentUtils {
     }
 
     /**
-     * Wait for deployment to be restarted.
-     *
-     * @param namespaceName the namespace name
-     * @param podName the pod name
-     * @param timeout the timeout
-     */
-    public static void waitForDeploymentToBeRestarted(String namespaceName, String podName, Duration timeout) {
-        await().alias("await pod to be deleted or in non-running phase")
-                .atMost(timeout)
-                .pollInterval(Duration.ofMillis(500))
-                .until(() -> kubeClient().getPod(namespaceName, podName) == null
-                        || !kubeClient().isDeploymentRunning(namespaceName, podName));
-        DeploymentUtils.waitForDeploymentRunning(namespaceName, podName, timeout);
-    }
-
-    /**
      * Wait for deployment running.
      *
      * @param namespaceName the namespace name
