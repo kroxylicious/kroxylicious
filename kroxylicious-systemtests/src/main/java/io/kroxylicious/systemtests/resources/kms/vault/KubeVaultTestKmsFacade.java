@@ -18,8 +18,6 @@ import io.kroxylicious.systemtests.utils.VersionComparator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsTestUtils.VAULT_ROOT_TOKEN;
-
 /**
  * KMS Facade for Vault running inside Kube.
  */

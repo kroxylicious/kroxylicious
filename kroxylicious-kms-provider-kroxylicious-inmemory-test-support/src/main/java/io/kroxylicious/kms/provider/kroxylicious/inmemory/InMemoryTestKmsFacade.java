@@ -6,11 +6,15 @@
 
 package io.kroxylicious.kms.provider.kroxylicious.inmemory;
 
+import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.IntegrationTestingKmsService.Config;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.kms.service.UnknownAliasException;
 
 public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemoryEdek> {
 
@@ -35,7 +39,7 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
 
     @Override
     public TestKekManager getTestKekManager() {
-        return new InMemoryTestKekManager(getKms());
+        return new InMemoryTestKekManager();
     }
 
     @Override
@@ -51,5 +55,61 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
     @Override
     public Config getKmsServiceConfig() {
         return new Config(kmsId.toString());
+    }
+
+    private class InMemoryTestKekManager implements TestKekManager {
+
+        @Override
+        public UUID read(String alias) {
+            return kms.resolveAlias(alias).toCompletableFuture().join();
+        }
+
+        @Override
+        public void generateKek(String alias) {
+            Objects.requireNonNull(alias);
+
+            try {
+                var existing = read(alias);
+                if (existing != null) {
+                    throw new AlreadyExistsException(alias);
+                }
+            }
+            catch (CompletionException e) {
+                if (e.getCause() instanceof UnknownAliasException) {
+                    var kekId = kms.generateKey();
+                    kms.createAlias(kekId, alias);
+                }
+                else {
+                    throw unwrapRuntimeException(e);
+                }
+            }
+        }
+
+        @Override
+        public void deleteKek(String alias) {
+            Objects.requireNonNull(alias);
+            try {
+                var kekRef = read(alias);
+                kms.deleteAlias(alias);
+                kms.deleteKey(kekRef);
+            }
+            catch (CompletionException e) {
+                throw unwrapRuntimeException(e);
+            }
+        }
+
+        @Override
+        public void rotateKek(String alias) {
+            Objects.requireNonNull(alias);
+
+            try {
+                read(alias);
+                var kekId = kms.generateKey();
+                kms.createAlias(kekId, alias);
+            }
+            catch (CompletionException e) {
+                throw unwrapRuntimeException(e);
+            }
+        }
     }
 }
