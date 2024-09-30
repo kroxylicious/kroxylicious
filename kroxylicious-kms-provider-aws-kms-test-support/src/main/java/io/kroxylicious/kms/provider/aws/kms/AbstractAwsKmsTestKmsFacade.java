@@ -105,13 +105,6 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
 
     class AwsKmsTestKekManager implements TestKekManager {
         @Override
-        public DescribeKeyResponse read(String alias) {
-            final DescribeKeyRequest describeKey = new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + alias);
-            var request = createRequest(describeKey, TRENT_SERVICE_DESCRIBE_KEY);
-            return sendRequest(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF);
-        }
-
-        @Override
         public void generateKek(String alias) {
             final CreateKeyRequest createKey = new CreateKeyRequest("key for alias: " + alias);
             var createRequest = createRequest(createKey, TRENT_SERVICE_CREATE_KEY);
@@ -120,6 +113,13 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             final CreateAliasRequest createAlias = new CreateAliasRequest(createKeyResponse.keyMetadata().keyId(), AwsKms.ALIAS_PREFIX + alias);
             var aliasRequest = createRequest(createAlias, TRENT_SERVICE_CREATE_ALIAS);
             sendRequestExpectingNoResponse(aliasRequest);
+        }
+
+        @Override
+        public DescribeKeyResponse read(String alias) {
+            final DescribeKeyRequest describeKey = new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + alias);
+            var request = createRequest(describeKey, TRENT_SERVICE_DESCRIBE_KEY);
+            return sendRequest(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF);
         }
 
         @Override
