@@ -885,7 +885,7 @@ class InBandDecryptionManagerTest {
     }
 
     @Test
-    void shouldDestroyEvictedDeks() throws InterruptedException {
+    void shouldDestroyEvictedDeks() {
         // Given
         InMemoryKms kms = getInMemoryKms();
         var kek1 = kms.generateKey();
@@ -918,7 +918,7 @@ class InBandDecryptionManagerTest {
     }
 
     @Test
-    void shouldThrowExecutionExceptionIfRecordTooLarge() throws InterruptedException {
+    void shouldThrowExecutionExceptionIfRecordTooLarge() {
         // Given
         InMemoryKms kms = getInMemoryKms();
         var kek1 = kms.generateKey();
@@ -947,7 +947,7 @@ class InBandDecryptionManagerTest {
     }
 
     @Test
-    void shouldSucceedIfCanReallocateRecordBuffer() throws InterruptedException {
+    void shouldSucceedIfCanReallocateRecordBuffer() {
         // Given
         InMemoryKms kms = getInMemoryKms();
         var kek1 = kms.generateKey();
@@ -1007,7 +1007,7 @@ class InBandDecryptionManagerTest {
     @NonNull
     private static InBandDecryptionManager<UUID, InMemoryEdek> createDecryptionManager(InMemoryKms kms) {
 
-        DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, 1);
+        DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(kms, 1);
         var dekCache = new DecryptionDekCache<>(dekManager, directExecutor(), DecryptionDekCache.NO_MAX_CACHE_SIZE);
         return new InBandDecryptionManager<>(EncryptionResolver.ALL,
                 dekManager,
@@ -1031,7 +1031,7 @@ class InBandDecryptionManagerTest {
                                                                                        int recordBufferMaxBytes,
                                                                                        int maxCacheSize) {
 
-        DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(ignored -> kms, null, maxEncryptionsPerDek);
+        DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(kms, maxEncryptionsPerDek);
         var cache = new EncryptionDekCache<>(dekManager, directExecutor(), maxCacheSize, Duration.ofHours(1), Duration.ofHours(1));
         return new InBandEncryptionManager<>(Encryption.V2,
                 dekManager.edekSerde(),
@@ -1043,10 +1043,8 @@ class InBandDecryptionManagerTest {
 
     @NonNull
     private static Executor directExecutor() {
-        return command -> {
-            // Run cache evications on the test thread, avoiding the need for tests to sleep to observe cache evictions
-            command.run();
-        };
+        // Run cache evictions on the test thread, avoiding the need for tests to sleep to observe cache evictions
+        return Runnable::run;
     }
 
     @NonNull
@@ -1063,7 +1061,8 @@ class InBandDecryptionManagerTest {
     @NonNull
     private static InMemoryKms getInMemoryKms() {
         var kmsService = UnitTestingKmsService.newInstance();
-        return kmsService.buildKms(new UnitTestingKmsService.Config());
+        kmsService.initialize(new UnitTestingKmsService.Config());
+        return kmsService.buildKms();
     }
 
     @NonNull

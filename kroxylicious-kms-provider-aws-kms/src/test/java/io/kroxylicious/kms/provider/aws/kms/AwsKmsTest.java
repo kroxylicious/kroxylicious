@@ -150,7 +150,10 @@ class AwsKmsTest {
             var address = httpServer.getAddress();
             var awsAddress = "http://127.0.0.1:" + address.getPort();
             var config = new Config(URI.create(awsAddress), new InlinePassword("access"), new InlinePassword("secret"), "us-west-2", null);
-            var service = new AwsKmsService().buildKms(config);
+            @SuppressWarnings("resource")
+            var awsKmsService = new AwsKmsService();
+            awsKmsService.initialize(config);
+            var service = awsKmsService.buildKms();
             consumer.accept(service);
         }
         finally {

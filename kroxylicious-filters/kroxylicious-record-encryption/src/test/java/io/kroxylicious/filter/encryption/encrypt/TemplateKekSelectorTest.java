@@ -7,11 +7,14 @@
 package io.kroxylicious.filter.encryption.encrypt;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
@@ -33,6 +36,18 @@ import static org.mockito.Mockito.when;
 
 class TemplateKekSelectorTest {
 
+    private UnitTestingKmsService kmsService;
+
+    @BeforeEach
+    void beforeEach() {
+        kmsService = UnitTestingKmsService.newInstance();
+    }
+
+    @AfterEach
+    public void afterEach() {
+        Optional.ofNullable(kmsService).ifPresent(UnitTestingKmsService::close);
+    }
+
     @Test
     void shouldRejectUnknownPlaceholders() {
         assertThatThrownBy(() -> getSelector(null, "foo-${topicId}-bar"))
@@ -42,7 +57,8 @@ class TemplateKekSelectorTest {
 
     @Test
     void shouldResolveWhenAliasExists() {
-        var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
+        kmsService.initialize(new UnitTestingKmsService.Config());
+        var kms = kmsService.buildKms();
         var selector = getSelector(kms, "topic-${topicName}");
 
         var kek = kms.generateKey();
@@ -55,7 +71,8 @@ class TemplateKekSelectorTest {
 
     @Test
     void shouldNotThrowWhenAliasDoesNotExist() {
-        var kms = UnitTestingKmsService.newInstance().buildKms(new UnitTestingKmsService.Config());
+        kmsService.initialize(new UnitTestingKmsService.Config());
+        var kms = kmsService.buildKms();
         var selector = getSelector(kms, "topic-${topicName}");
 
         var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();

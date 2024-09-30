@@ -14,7 +14,6 @@ import javax.annotation.concurrent.ThreadSafe;
 import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
-import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.kms.service.Serde;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -32,8 +31,8 @@ public class DekManager<K, E> {
     private final Kms<K, E> kms;
     private final long maxEncryptionsPerDek;
 
-    public <C> DekManager(KmsService<C, K, E> kmsService, C config, long maxEncryptionsPerDek) {
-        this.kms = kmsService.buildKms(config);
+    public DekManager(Kms<K, E> kms, long maxEncryptionsPerDek) {
+        this.kms = kms;
         this.maxEncryptionsPerDek = maxEncryptionsPerDek;
     }
 
