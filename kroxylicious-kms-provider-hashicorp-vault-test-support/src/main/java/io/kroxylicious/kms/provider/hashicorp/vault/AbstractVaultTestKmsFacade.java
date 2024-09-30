@@ -186,16 +186,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
                 .header("Accept", "application/json");
     }
 
-    /**
-     * Send request.
-     *
-     * @param <R>  the type parameter
-     * @param key the key
-     * @param request the request
-     * @param valueTypeRef the value type ref
-     * @return the typeRef
-     */
-    public static <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
+    private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
         try {
             HttpResponse<byte[]> response = vaultClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
             if (response.statusCode() == 404) {
@@ -219,12 +210,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
-    /**
-     * Send request expecting no content response.
-     *
-     * @param request the request
-     */
-    public static void sendRequestExpectingNoContentResponse(HttpRequest request) {
+    private void sendRequestExpectingNoContentResponse(HttpRequest request) {
         try {
             var response = vaultClient.send(request, HttpResponse.BodyHandlers.discarding());
             if (response.statusCode() != 204) {
@@ -240,13 +226,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
-    /**
-     * Gets body json.
-     *
-     * @param obj the object
-     * @return the body
-     */
-    public static String encodeJson(Object obj) {
+    private String encodeJson(Object obj) {
         try {
             return OBJECT_MAPPER.writeValueAsString(obj);
         }
@@ -255,15 +235,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
-    /**
-     * Decode json
-     *
-     * @param <T>  the type parameter
-     * @param valueTypeRef the value type ref
-     * @param bytes the bytes
-     * @return the type ref
-     */
-    public static <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
+    private <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
         try {
             return OBJECT_MAPPER.readValue(bytes, valueTypeRef);
         }
