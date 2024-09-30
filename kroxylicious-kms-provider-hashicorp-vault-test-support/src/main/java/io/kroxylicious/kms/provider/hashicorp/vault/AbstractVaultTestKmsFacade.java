@@ -160,27 +160,27 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
-    private static HttpRequest createVaultGet(URI url) {
+    private HttpRequest createVaultGet(URI url) {
         return createVaultRequest()
                 .uri(url)
                 .GET()
                 .build();
     }
 
-    private static HttpRequest createVaultDelete(URI url) {
+    private HttpRequest createVaultDelete(URI url) {
         return createVaultRequest()
                 .uri(url)
                 .DELETE()
                 .build();
     }
 
-    private static HttpRequest createVaultPost(URI url, HttpRequest.BodyPublisher bodyPublisher) {
+    private HttpRequest createVaultPost(URI url, HttpRequest.BodyPublisher bodyPublisher) {
         return createVaultRequest()
                 .uri(url)
                 .POST(bodyPublisher).build();
     }
 
-    private static HttpRequest.Builder createVaultRequest() {
+    private HttpRequest.Builder createVaultRequest() {
         return HttpRequest.newBuilder()
                 .header("X-Vault-Token", VAULT_ROOT_TOKEN)
                 .header("Accept", "application/json");
