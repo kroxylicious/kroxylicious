@@ -35,5 +35,4 @@ class VaultTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, String, V
             assertThat(facade.getKmsServiceConfig()).isInstanceOf(Config.class);
         }
     }
-
 }
