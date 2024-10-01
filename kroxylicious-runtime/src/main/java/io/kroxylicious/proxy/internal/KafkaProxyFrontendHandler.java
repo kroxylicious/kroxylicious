@@ -524,12 +524,7 @@ public class KafkaProxyFrontendHandler
                       KafkaProxyBackendHandler backendHandler) {
         final Channel inboundChannel = clientCtx().channel();
         // Start the upstream connection attempt.
-        Bootstrap bootstrap = new Bootstrap();
-        bootstrap.group(inboundChannel.eventLoop())
-                .channel(inboundChannel.getClass())
-                .handler(backendHandler)
-                .option(ChannelOption.AUTO_READ, true)
-                .option(ChannelOption.TCP_NODELAY, true);
+        final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
 
         LOGGER.trace("Connecting to outbound {}", remote);
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
@@ -571,6 +566,18 @@ public class KafkaProxyFrontendHandler
                 closeServerAndClientChannels(errorResponseForServerException(future.cause()));
             }
         });
+    }
+
+    @NonNull
+    @VisibleForTesting
+    Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
+        Bootstrap bootstrap = new Bootstrap();
+        bootstrap.group(inboundChannel.eventLoop())
+                .channel(inboundChannel.getClass())
+                .handler(backendHandler)
+                .option(ChannelOption.AUTO_READ, true)
+                .option(ChannelOption.TCP_NODELAY, true);
+        return bootstrap;
     }
 
     /** Ugly hack used for testing */

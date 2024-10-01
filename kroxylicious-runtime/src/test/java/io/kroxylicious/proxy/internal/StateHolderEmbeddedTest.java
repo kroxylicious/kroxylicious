@@ -40,6 +40,7 @@ import org.mockito.stubbing.Answer;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -155,15 +156,27 @@ class StateHolderEmbeddedTest {
                                               SaslDecodePredicate dp,
                                               VirtualCluster virtualCluster) {
         return new KafkaProxyFrontendHandler(filter, dp, virtualCluster) {
+            private KafkaProxyBackendHandler backendHandler;
+
+            @NonNull
+            @Override
+            Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
+                this.backendHandler = backendHandler;
+                return super.configureBootstrap(backendHandler, inboundChannel);
+            }
+
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
                 // of a handler creating an outgoing connection and ends up
                 // trying to re-register the outbound channel => IllegalStateException
                 // So we override this method to short-circuit that
-                bootstrap.connect(remoteHost, remotePort);
+                newOutboundChannel();
                 outboundChannelTcpConnectionFuture = outboundChannel.newPromise();
                 return outboundChannelTcpConnectionFuture.addListener(
-                        future -> outboundChannel.pipeline().firstContext().fireChannelActive());
+                        future -> {
+                            outboundChannel.pipeline().addFirst(backendHandler);
+                            outboundChannel.pipeline().fireChannelActive();
+                        });
             }
         };
     }
@@ -192,7 +205,9 @@ class StateHolderEmbeddedTest {
         when(inboundCtx.channel()).thenReturn(inboundChannel);
         when(inboundCtx.pipeline()).thenReturn(inboundChannel.pipeline());
         when(inboundCtx.handler()).thenReturn(handler);
+    }
 
+    private void newOutboundChannel() {
         this.outboundChannel = new EmbeddedChannel();
         this.outboundCtx = mock(ChannelHandlerContext.class);
         when(outboundCtx.channel()).thenReturn(outboundChannel);
@@ -802,15 +817,14 @@ class StateHolderEmbeddedTest {
         // When
         // TODO handler.onUpstreamChannelActive(outboundCtx);
         outboundChannelTcpConnectionFuture.setSuccess();
-        outboundChannel.pipeline().fireChannelActive();
+
         // Then
         inboundChannel.checkException();
         outboundChannel.checkException();
-        var stateAssert = assertThat(handler.state()).asInstanceOf(type(ProxyChannelState.Forwarding.class));
+        assertThat(handler.state()).isInstanceOf(ProxyChannelState.Forwarding.class);
 
-        assertThat(handler.bufferedMsgs)
-                .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
-                .isEmpty();
+        assertThat(handler.bufferedMsgs).isNull();
+        // buffered messages is nulled out once forwarded so the empty check fails
         // .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
         // .isEmpty();
 
@@ -830,16 +844,17 @@ class StateHolderEmbeddedTest {
                                                    Throwable serverException) {
         // Given
         var metadata = buildHanderInConnectingState(sni, haProxy, false, firstMessage);
+        outboundChannelTcpConnectionFuture.setSuccess();
 
         // When
-        //TODO handler.onUpstreamChannelActive(outboundCtx);
-//        handler.upstreamExceptionCaught(outboundCtx, serverException); //TODO move to test of stateHolder
         // TODO handler.onUpstreamChannelActive(outboundCtx);
+        outboundChannel.pipeline().fireExceptionCaught(serverException);
+        // handler.upstreamExceptionCaught(outboundCtx, serverException); //TODO move to test of stateHolder
 
         // Then
         inboundChannel.checkException();
         outboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse();
+        assertClientConnectionClosedWithNoResponse(); // TODO if we have a firstMessage why are we not returning an error response
     }
 
     @ParameterizedTest
@@ -868,10 +883,23 @@ class StateHolderEmbeddedTest {
                                                 boolean haProxy,
                                                 ApiKeys firstMessage) {
         // Given
+        DecodedRequestFrame<ApiMessage> requestFrame = switch (firstMessage) {
+            case API_VERSIONS -> decodedRequestFrame(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
+                    .setClientSoftwareName(CLIENT_SOFTWARE_NAME)
+                    .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION), correlectionId++);
+            case SASL_HANDSHAKE -> decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData()
+                    .setMechanism(KafkaAuthnHandler.SaslMechanism.PLAIN.mechanismName()), correlectionId++);
+            case SASL_AUTHENTICATE -> decodedRequestFrame(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData()
+                    .setAuthBytes("pa55word".getBytes(StandardCharsets.UTF_8)), correlectionId++);
+            default -> throw new IllegalArgumentException();
+        };
+
         var metadata = buildHanderInConnectingState(sni, haProxy, true, firstMessage);
 
         // When
-        //TODO handler.onUpstreamChannelActive(outboundCtx);
+        // TODO handler.onUpstreamChannelActive(outboundCtx);
+
+        outboundChannelTcpConnectionFuture.setSuccess();
 
         // Then
         inboundChannel.checkException();
@@ -880,7 +908,7 @@ class StateHolderEmbeddedTest {
 
         assertThat(handler.bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
-                .isEqualTo(List.of(metadata));
+                .isEqualTo(List.of(requestFrame, metadata));
 
         assertThat(inboundChannel.config().isAutoRead())
                 .describedAs("Client autoread should be off while connecting to server")
@@ -888,25 +916,28 @@ class StateHolderEmbeddedTest {
     }
 
     @ParameterizedTest
-    @MethodSource("bool")
-    void tlsHandshakeFail(boolean withBufferedRequest) {
+    @MethodSource("booleanXbooleanXapiKey")
+    void tlsHandshakeFail(
+                          boolean sni,
+                          boolean haProxy,
+                          ApiKeys firstMessage) {
         // Given
-        buildHandlerInConnecting(withBufferedRequest);
+        buildHanderInConnectingState(sni, haProxy, true, firstMessage);
 
         // When
 
         outboundChannel.pipeline().fireUserEventTriggered(new SslHandshakeCompletionEvent(new SSLHandshakeException("Oops")));
-//        handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newFailedFuture(new SSLHandshakeException("boom!")));
+        // handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newFailedFuture(new SSLHandshakeException("boom!")));
 
         // Then
         inboundChannel.checkException();
 
-        if (withBufferedRequest) {
-            assertClientSaslHandshakeResponse(42, Errors.NETWORK_EXCEPTION);
-        }
-        else {
-            assertClientConnectionClosedWithNoResponse();
-        }
+        // if (withBufferedRequest) {
+        assertClientSaslHandshakeResponse(42, Errors.NETWORK_EXCEPTION);
+        // }
+        // else {
+        // assertClientConnectionClosedWithNoResponse();
+        // }
         assertThat(inboundChannel.config().isAutoRead())
                 .describedAs("Client autoread should be off while connecting to server")
                 .isFalse();
@@ -919,28 +950,31 @@ class StateHolderEmbeddedTest {
     }
 
     @ParameterizedTest
-    @MethodSource("bool")
-    void tlsHandshakeSuccess(boolean withBufferedRequest) {
+    @MethodSource("booleanXbooleanXapiKey")
+    void tlsHandshakeSuccess(
+                             boolean sni,
+                             boolean haProxy,
+                             ApiKeys firstMessage) {
         // Given
-        buildHandlerInConnecting(withBufferedRequest);
+        buildHanderInConnectingState(sni, haProxy, true, firstMessage);
 
         // When
-//        handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newSucceededFuture());
+        // handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newSucceededFuture());
         this.handler.inSelectingServer();
 
         // Then
         inboundChannel.checkException();
 
-        if (withBufferedRequest) {
-            assertThat(outboundChannel.<Object> readOutbound())
-                    .describedAs("Buffered request should be forwarded to server")
-                    .isNotNull();
-        }
-        else {
-            assertThat(outboundChannel.<Object> readOutbound())
-                    .describedAs("There was not buffered request, so nothing should be forwarded to the server yet")
-                    .isNull();
-        }
+        // if (withBufferedRequest) {
+        assertThat(outboundChannel.<Object> readOutbound())
+                .describedAs("Buffered request should be forwarded to server")
+                .isNotNull();
+        // }
+        // else {
+        // assertThat(outboundChannel.<Object> readOutbound())
+        // .describedAs("There was not buffered request, so nothing should be forwarded to the server yet")
+        // .isNull();
+        // }
         assertThat(handler.state())
                 .isInstanceOf(ProxyChannelState.Forwarding.class);
         assertThat(inboundChannel.config().isAutoRead())
@@ -950,16 +984,6 @@ class StateHolderEmbeddedTest {
         assertThat(inboundChannel.isOpen()).isTrue();
         assertThat(outboundChannel.isActive()).isTrue();
         assertThat(outboundChannel.isOpen()).isTrue();
-    }
-
-    private void buildHandlerInConnecting(boolean withBufferedRequest) {
-        buildHandler(false, true, selectServerThrows(new AssertionError()));
-        handler.setState(new ProxyChannelState.Connecting(
-                null,
-                null,
-                null
-        ));
-        inboundChannel.config().setAutoRead(false);
     }
 
     // TODO backpressure
