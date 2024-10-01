@@ -5,24 +5,22 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import io.kroxylicious.proxy.model.VirtualCluster;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
-
-import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.handler.ssl.SslContext;
-
-import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import java.util.Objects;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
-import java.util.Objects;
-import java.util.Optional;
+import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
