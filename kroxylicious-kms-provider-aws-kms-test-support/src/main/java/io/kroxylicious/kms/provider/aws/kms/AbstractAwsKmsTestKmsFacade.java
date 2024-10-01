@@ -199,7 +199,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
             if (!isHttpSuccess(statusCode)) {
                 if (statusCode == 501) {
-                    throw new AwsNotImplementException("AWS do not implement %s".formatted(uri));
+                    throw new AwsNotImplementException("AWS does not implement %s".formatted(uri));
                 }
                 try {
                     error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
