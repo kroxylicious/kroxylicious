@@ -80,7 +80,7 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
                     kms.createAlias(kekId, alias);
                 }
                 else {
-                    throw unwrapRuntimeException(e);
+                    throw toRuntimeException(e);
                 }
             }
         }
@@ -94,7 +94,7 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
                 kms.deleteKey(kekRef);
             }
             catch (CompletionException e) {
-                throw unwrapRuntimeException(e);
+                throw toRuntimeException(e);
             }
         }
 
@@ -108,7 +108,7 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
                 kms.createAlias(kekId, alias);
             }
             catch (CompletionException e) {
-                throw unwrapRuntimeException(e);
+                throw toRuntimeException(e);
             }
         }
     }
