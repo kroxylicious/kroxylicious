@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.extensions;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -22,6 +23,9 @@ import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
+import io.kroxylicious.systemtests.installation.kms.aws.LocalStack;
+import io.kroxylicious.systemtests.installation.kms.vault.Vault;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider {
 
@@ -61,7 +65,18 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                             return kmsFacade;
                         }
                     },
-                    (AfterEachCallback) extensionContext -> kmsFacade.stop());
+                    (AfterEachCallback) extensionContext -> {
+                        try {
+                            Optional<Throwable> exception = extensionContext.getExecutionException();
+                            exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
+                                DeploymentUtils.collectClusterInfo(String.join(",", Vault.VAULT_DEFAULT_NAMESPACE, LocalStack.LOCALSTACK_DEFAULT_NAMESPACE),
+                                        extensionContext.getRequiredTestClass().getSimpleName(), extensionContext.getRequiredTestMethod().getName());
+                            });
+                        }
+                        finally {
+                            kmsFacade.stop();
+                        }
+                    });
         }
     }
 }
