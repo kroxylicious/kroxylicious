@@ -106,8 +106,7 @@ class KafkaProxyFrontendHandlerTest {
                 .setClientId("client-id")
                 .setCorrelationId(downstreamCorrelationId);
 
-        DecodedRequestFrame<ApiMessage> apiMessageDecodedRequestFrame = new DecodedRequestFrame<>(apiVersion, corrId, true, header, body);
-        return apiMessageDecodedRequestFrame;
+        return new DecodedRequestFrame<>(apiVersion, corrId, true, header, body);
     }
 
     @BeforeEach
@@ -424,7 +423,7 @@ class KafkaProxyFrontendHandlerTest {
         //        handler.onUpstreamSslOutcome(outboundCtx, outboundChannel.newFailedFuture(new SSLHandshakeException(TLS_NEGOTIATION_ERROR)));
 
         // Then
-        assertThat(inboundChannel.<DecodedResponseFrame> readOutbound()).isNotNull()
+        assertThat(inboundChannel.<DecodedResponseFrame<?>> readOutbound()).isNotNull()
                 .extracting(DecodedFrame::body)
                 .asInstanceOf(InstanceOfAssertFactories.type(ApiVersionsResponseData.class))
                 .extracting(ApiVersionsResponseData::errorCode)
