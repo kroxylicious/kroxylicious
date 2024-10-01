@@ -200,7 +200,6 @@ class StateHolderEmbeddedTest {
         when(outboundCtx.voidPromise()).thenAnswer(in -> outboundChannel.voidPromise());
         when(outboundCtx.newFailedFuture(any())).thenAnswer(in -> outboundChannel.newFailedFuture(in.getArgument(0)));
         when(outboundCtx.newSucceededFuture()).thenAnswer(in -> outboundChannel.newSucceededFuture());
-
     }
 
     // transitions from each state
@@ -477,6 +476,7 @@ class StateHolderEmbeddedTest {
                 firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                 firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null));
         inboundChannel.config().setAutoRead(false);
+
         handler.inSelectingServer();
 
         if (tlsConfigured) {
@@ -700,9 +700,9 @@ class StateHolderEmbeddedTest {
 
         // When
         writeInboundApiVersionsRequest();
-//        assertThatThrownBy(() -> writeInboundApiVersionsRequest())
-//                .isExactlyInstanceOf(IllegalStateException.class)
-//                .hasMessage("NetFilter called NetFilterContext.initiateConnect() more than once");
+        // assertThatThrownBy(() -> writeInboundApiVersionsRequest())
+        // .isExactlyInstanceOf(IllegalStateException.class)
+        // .hasMessage("NetFilter called NetFilterContext.initiateConnect() more than once");
 
         // Then
         inboundChannel.checkException();
@@ -727,9 +727,9 @@ class StateHolderEmbeddedTest {
 
         // When
         writeSaslHandshake(KafkaAuthnHandler.SaslMechanism.PLAIN);
-//        assertThatThrownBy(() -> writeSaslHandshake(KafkaAuthnHandler.SaslMechanism.PLAIN))
-//                .isExactlyInstanceOf(IllegalStateException.class)
-//                .hasMessage("NetFilter called NetFilterContext.initiateConnect() more than once");
+        // assertThatThrownBy(() -> writeSaslHandshake(KafkaAuthnHandler.SaslMechanism.PLAIN))
+        // .isExactlyInstanceOf(IllegalStateException.class)
+        // .hasMessage("NetFilter called NetFilterContext.initiateConnect() more than once");
 
         // Then
         inboundChannel.checkException();
@@ -800,7 +800,7 @@ class StateHolderEmbeddedTest {
         var metadata = buildHanderInConnectingState(sni, haProxy, false, firstMessage);
 
         // When
-        //TODO handler.onUpstreamChannelActive(outboundCtx);
+        // TODO handler.onUpstreamChannelActive(outboundCtx);
         outboundChannelTcpConnectionFuture.setSuccess();
         outboundChannel.pipeline().fireChannelActive();
         // Then
@@ -811,6 +811,8 @@ class StateHolderEmbeddedTest {
         assertThat(handler.bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
                 .isEmpty();
+        // .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
+        // .isEmpty();
 
         assertBrokerMetadataResponse(metadata.correlationId());
         assertThat(inboundChannel.config().isAutoRead()).isTrue();
@@ -832,6 +834,7 @@ class StateHolderEmbeddedTest {
         // When
         //TODO handler.onUpstreamChannelActive(outboundCtx);
 //        handler.upstreamExceptionCaught(outboundCtx, serverException); //TODO move to test of stateHolder
+        // TODO handler.onUpstreamChannelActive(outboundCtx);
 
         // Then
         inboundChannel.checkException();
@@ -847,7 +850,7 @@ class StateHolderEmbeddedTest {
                                                   ApiKeys firstMessage) {
         // Given
         var metadata = buildHanderInConnectingState(sni, haProxy, false, firstMessage);
-        //TODO handler.onUpstreamChannelActive(outboundCtx);
+        // TODO handler.onUpstreamChannelActive(outboundCtx);
 
         // When
         handler.closeServerAndClientChannels(null);

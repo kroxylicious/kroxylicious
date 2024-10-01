@@ -27,7 +27,6 @@ import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPe
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 

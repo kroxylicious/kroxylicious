@@ -34,7 +34,6 @@ import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
@@ -220,7 +219,6 @@ class StateHolderTest {
         verify(frontendHandler).closeWithResponse(ArgumentMatchers.notNull(InvalidRequestException.class));
     }
 
-
     @Test
     void shouldCloseOnServerRuntimeException() {
         // Given
@@ -311,8 +309,7 @@ class StateHolderTest {
 
         // Then
         assertThat(stateHolder.state)
-                .isInstanceOf(ProxyChannelState.SelectingServer.class)
-                ;
+                .isInstanceOf(ProxyChannelState.SelectingServer.class);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
         verifyNoMoreInteractions(frontendHandler);
@@ -345,8 +342,7 @@ class StateHolderTest {
 
         // Then
         assertThat(stateHolder.state)
-                .isInstanceOf(ProxyChannelState.SelectingServer.class)
-                ;
+                .isInstanceOf(ProxyChannelState.SelectingServer.class);
         verifyNoInteractions(dp);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);

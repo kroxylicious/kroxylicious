@@ -28,8 +28,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyBackendHandler.class);
 
-    @VisibleForTesting final StateHolder stateHolder;
-    @VisibleForTesting final SslContext sslContext;
+    @VisibleForTesting
+    final StateHolder stateHolder;
+    @VisibleForTesting
+    final SslContext sslContext;
     ChannelHandlerContext serverCtx;
     private boolean pendingServerFlushes;
 
@@ -47,7 +49,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         // TODO you're here, and you need to change this to be in terms of
         // a stateHolder field
         // i.e. stateHolder.onServerBlocked/onServerUnblocked
-        //frontendHandler.upstreamWritabilityChanged(ctx);
+        // frontendHandler.upstreamWritabilityChanged(ctx);
         if (ctx.channel().isWritable()) {
             stateHolder.onServerWritable();
         }
@@ -70,8 +72,8 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void userEventTriggered(
             ChannelHandlerContext ctx,
-            Object evt
-    ) throws Exception {
+            Object evt)
+            throws Exception {
         if (evt instanceof SslHandshakeCompletionEvent sslEvt) {
             if (sslEvt.isSuccess()) {
                 stateHolder.onServerActive();

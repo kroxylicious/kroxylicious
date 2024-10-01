@@ -12,7 +12,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
-
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -420,7 +419,7 @@ class KafkaProxyFrontendHandlerTest {
                 .describedAs("Expect channel open before upstream failure")
                 .isTrue();
         // When
-        //        handler.onUpstreamSslOutcome(outboundCtx, outboundChannel.newFailedFuture(new SSLHandshakeException(TLS_NEGOTIATION_ERROR)));
+        // handler.onUpstreamSslOutcome(outboundCtx, outboundChannel.newFailedFuture(new SSLHandshakeException(TLS_NEGOTIATION_ERROR)));
 
         // Then
         assertThat(inboundChannel.<DecodedResponseFrame<?>> readOutbound()).isNotNull()
@@ -512,7 +511,7 @@ class KafkaProxyFrontendHandlerTest {
                 .describedAs("Expect channel open before upstream failure")
                 .isTrue();
         // When
-        //        handler.onUpstreamSslOutcome(outboundCtx, outboundChannel.newFailedFuture(new RuntimeException("t")));
+        // handler.onUpstreamSslOutcome(outboundCtx, outboundChannel.newFailedFuture(new RuntimeException("t")));
 
         // Then
         assertThat(inboundChannel.<ByteBuf> readOutbound()).isNotNull();

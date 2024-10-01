@@ -6,9 +6,18 @@
 
 package io.kroxylicious.proxy.internal;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import java.util.List;
+import java.util.Objects;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
+import org.apache.kafka.common.errors.ApiException;
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
+import org.slf4j.Logger;
+
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.DecoderException;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -19,18 +28,8 @@ import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
-
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.message.ApiVersionsRequestData;
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
-import org.slf4j.Logger;
-
-import java.util.List;
-import java.util.Objects;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -242,7 +241,7 @@ public class StateHolder {
                 }
                 else if (msg instanceof DecodedRequestFrame
                         && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
-                    //TODO this isn't really a stateHolder responsibility
+                    // TODO this isn't really a stateHolder responsibility
                     DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
                     if (dp.isAuthenticationOffloadEnabled()) {
                         toApiVersions(clientActive.toApiVersions(apiVersionsFrame), apiVersionsFrame);

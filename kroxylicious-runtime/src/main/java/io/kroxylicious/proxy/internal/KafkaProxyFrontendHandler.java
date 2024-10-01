@@ -97,7 +97,7 @@ public class KafkaProxyFrontendHandler
      * @return The response frame
      */
     ResponseFrame errorResponse(
-                                       @Nullable Throwable errorCodeEx) {
+                                @Nullable Throwable errorCodeEx) {
         ResponseFrame errorResponse;
         final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
         if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
@@ -117,7 +117,9 @@ public class KafkaProxyFrontendHandler
     private final StateHolder stateHolder;
 
     private @Nullable ChannelHandlerContext clientCtx;
-    @VisibleForTesting @Nullable List<Object> bufferedMsgs;
+    @VisibleForTesting
+    @Nullable
+    List<Object> bufferedMsgs;
     private boolean pendingClientFlushes;
     private @Nullable AuthenticationEvent authentication;
     private @Nullable String sniHostname;
@@ -135,11 +137,12 @@ public class KafkaProxyFrontendHandler
                               @NonNull VirtualCluster virtualCluster) {
         this(netFilter, dp, virtualCluster, new StateHolder());
     }
+
     KafkaProxyFrontendHandler(
-            @NonNull NetFilter netFilter,
-            @NonNull SaslDecodePredicate dp,
-            @NonNull VirtualCluster virtualCluster,
-            @NonNull StateHolder stateHolder) {
+                              @NonNull NetFilter netFilter,
+                              @NonNull SaslDecodePredicate dp,
+                              @NonNull VirtualCluster virtualCluster,
+                              @NonNull StateHolder stateHolder) {
         this.netFilter = netFilter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
@@ -516,9 +519,9 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link StateHolder} on entry to the {@link Connecting} state.
      */
     void inConnecting(
-            @NonNull HostPort remote,
-            @NonNull List<FilterAndInvoker> filters,
-            KafkaProxyBackendHandler backendHandler) {
+                      @NonNull HostPort remote,
+                      @NonNull List<FilterAndInvoker> filters,
+                      KafkaProxyBackendHandler backendHandler) {
         final Channel inboundChannel = clientCtx().channel();
         // Start the upstream connection attempt.
         Bootstrap bootstrap = new Bootstrap();
@@ -654,8 +657,8 @@ public class KafkaProxyFrontendHandler
     }
 
     void forwardToClient(Object msg) {
-//        assert blockedOutboundCtx == null;
-//        LOGGER.trace("Channel read {}", msg);
+        // assert blockedOutboundCtx == null;
+        // LOGGER.trace("Channel read {}", msg);
         final Channel inboundChannel = clientCtx().channel();
         if (inboundChannel.isWritable()) {
             inboundChannel.write(msg, clientCtx().voidPromise());
