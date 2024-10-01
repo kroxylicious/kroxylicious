@@ -9,7 +9,6 @@ package io.kroxylicious.systemtests.utils;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,7 +122,6 @@ public class KafkaUtils {
             throw new KubeClusterException.NotFound("Kafka cluster name not found!");
         }
         kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).withGracePeriod(0).delete();
-        kubeClient().getClient().pods().inNamespace(deployNamespace).withName(podName).waitUntilCondition(Objects::isNull, 5, TimeUnit.MINUTES);
         DeploymentUtils.waitForDeploymentRunning(deployNamespace, podName, Duration.ofMinutes(5));
         return !Objects.equals(podUid, getPodUid(deployNamespace, podName));
     }
