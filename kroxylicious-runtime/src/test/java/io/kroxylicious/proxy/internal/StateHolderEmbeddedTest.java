@@ -28,7 +28,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.assertj.core.api.ObjectAssert;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -60,7 +59,9 @@ import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -75,6 +76,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class StateHolderEmbeddedTest {
+    public static final DecodePredicate DECODE_EVERYTHING = new DecodePredicate() {
+        @Override
+        public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
+            return true;
+        }
+
+        @Override
+        public boolean shouldDecodeResponse(ApiKeys apiKey, short apiVersion) {
+            return true;
+        }
+    };
 
     public static final String SNI_HOSTNAME = "external.example.com";
     public static final String CLUSTER_HOST = "internal.example.org";
@@ -85,6 +97,7 @@ class StateHolderEmbeddedTest {
             "1.1.1.1", "2.2.2.2", 46421, 9092);
     public static final String CLIENT_SOFTWARE_NAME = "my-kafka-lib";
     public static final String CLIENT_SOFTWARE_VERSION = "1.0.0";
+    public static final int FRAME_MAX_SIZE = 345678;
     private EmbeddedChannel inboundChannel;
     private ChannelHandlerContext inboundCtx;
     private EmbeddedChannel outboundChannel;
@@ -107,9 +120,9 @@ class StateHolderEmbeddedTest {
 
     @NonNull
     private static DecodedRequestFrame<ApiMessage> decodedRequestFrame(
-                                                                       short apiVersion,
-                                                                       ApiMessage body,
-                                                                       int downstreamCorrelationId) {
+            short apiVersion,
+            ApiMessage body,
+            int downstreamCorrelationId) {
         var apiKey = ApiKeys.forId(body.apiKey());
 
         RequestHeaderData header = new RequestHeaderData()
@@ -152,9 +165,9 @@ class StateHolderEmbeddedTest {
     private KafkaProxyFrontendHandler handler;
 
     private KafkaProxyFrontendHandler handler(
-                                              NetFilter filter,
-                                              SaslDecodePredicate dp,
-                                              VirtualCluster virtualCluster) {
+            NetFilter filter,
+            SaslDecodePredicate dp,
+            VirtualCluster virtualCluster) {
         return new KafkaProxyFrontendHandler(filter, dp, virtualCluster) {
             private KafkaProxyBackendHandler backendHandler;
 
@@ -230,10 +243,10 @@ class StateHolderEmbeddedTest {
     }
 
     private static void netFilterContextAssertions(
-                                                   NetFilter.NetFilterContext context,
-                                                   boolean sni,
-                                                   boolean haProxy,
-                                                   boolean apiVersions) {
+            NetFilter.NetFilterContext context,
+            boolean sni,
+            boolean haProxy,
+            boolean apiVersions) {
         assertThat(context.sniHostname()).isEqualTo(sni ? SNI_HOSTNAME : null);
         assertThat(context.authorizedId()).isNull();
         assertThat(context.clientHost()).isEqualTo(haProxy ? HA_PROXY_MESSAGE.sourceAddress() : "embedded"); // hard-coded for EmbeddedChannel
@@ -258,9 +271,9 @@ class StateHolderEmbeddedTest {
 
     @NonNull
     private static Answer<Void> selectServerCallsInitiateConnectTwice(
-                                                                      boolean sni,
-                                                                      boolean haProxy,
-                                                                      boolean apiVersions) {
+            boolean sni,
+            boolean haProxy,
+            boolean apiVersions) {
         return invocation -> {
             NetFilter.NetFilterContext context = invocation.getArgument(0);
             netFilterContextAssertions(context, sni, haProxy, apiVersions);
@@ -272,9 +285,9 @@ class StateHolderEmbeddedTest {
 
     @NonNull
     private static Answer<Void> selectServerDoesNotCallInitiateConnect(
-                                                                       boolean sni,
-                                                                       boolean haProxy,
-                                                                       boolean apiVersions) {
+            boolean sni,
+            boolean haProxy,
+            boolean apiVersions) {
         return invocation -> {
             NetFilter.NetFilterContext context = invocation.getArgument(0);
             netFilterContextAssertions(context, sni, haProxy, apiVersions);
@@ -314,20 +327,21 @@ class StateHolderEmbeddedTest {
                                                              @NonNull Class<T> expectedResponseBodyClass,
                                                              @Nullable Function<T, Short> errorCodeFn,
                                                              @Nullable Errors expectedErrorCode) {
-        var responseAssert = assertThat(inboundChannel.<Object> readOutbound())
-                .describedAs("Response sent to client")
-                .asInstanceOf(InstanceOfAssertFactories.type(DecodedResponseFrame.class));
-        responseAssert.extracting(DecodedResponseFrame::correlationId).isEqualTo(expectedCorrId);
-        ObjectAssert<T> bodyAssert = responseAssert.extracting(DecodedResponseFrame::body)
-                .describedAs("Response body is a " + expectedResponseBodyClass.getSimpleName())
-                .asInstanceOf(type(expectedResponseBodyClass));
         if (errorCodeFn != null ^ expectedErrorCode != null) {
             throw new IllegalArgumentException("Either both, or neither, should be null");
         }
-        else if (errorCodeFn != null) {
-            bodyAssert.describedAs("Response error code is " + expectedErrorCode)
-                    .extracting(errorCodeFn).isEqualTo(expectedErrorCode.code());
-        }
+        assertThat(inboundChannel.<Object> readOutbound())
+                .describedAs("Response sent to client")
+                .asInstanceOf(InstanceOfAssertFactories.type(DecodedResponseFrame.class)) // asInstanceOf asserts the expected type internally
+                .satisfies(decodedResponseFrame -> {
+                    assertThat(decodedResponseFrame.correlationId()).isEqualTo(expectedCorrId);
+                    if (errorCodeFn != null) {
+                        assertThat(decodedResponseFrame.body())
+                                .asInstanceOf(type(expectedResponseBodyClass))
+                                .extracting(errorCodeFn)
+                                .isEqualTo(expectedErrorCode.code());
+                    }
+                });
     }
 
     private void assertClientApiVersionsResponse(int corrId, Errors error) {
@@ -335,14 +349,6 @@ class StateHolderEmbeddedTest {
                 corrId,
                 ApiVersionsResponseData.class,
                 ApiVersionsResponseData::errorCode,
-                error);
-    }
-
-    private void assertClientSaslHandshakeResponse(int corrId, Errors error) {
-        assertClientResponse(
-                corrId,
-                SaslHandshakeResponseData.class,
-                SaslHandshakeResponseData::errorCode,
                 error);
     }
 
@@ -354,6 +360,14 @@ class StateHolderEmbeddedTest {
                 error);
     }
 
+    private void assertClientSaslHandshakeResponse(int corrId, Errors error) {
+        assertClientResponse(
+                corrId,
+                SaslHandshakeResponseData.class,
+                SaslHandshakeResponseData::errorCode,
+                error);
+    }
+
     private void assertClientMetadataResponse(int corrId) {
         assertClientResponse(
                 corrId,
@@ -362,11 +376,16 @@ class StateHolderEmbeddedTest {
                 null);
     }
 
-    private void assertBrokerMetadataResponse(int corrId) {
-        var requestAssert = assertThat(outboundChannel.<Object> readOutbound())
+    private void assertRequestSentToBroker(DecodedRequestFrame<ApiMessage> expectedRequest) {
+        final Object actual = outboundChannel.readOutbound();
+        assertThat(actual)
                 .describedAs("Request sent to broker")
-                .asInstanceOf(InstanceOfAssertFactories.type(DecodedRequestFrame.class));
-        requestAssert.extracting(DecodedRequestFrame::correlationId).isEqualTo(corrId);
+                .isNotNull()
+                .isInstanceOf(ByteBuf.class);
+        var outboundBuffer = (ByteBuf) actual;
+        final ArrayList<Object> out = new ArrayList<>();
+        new KafkaRequestDecoder(DECODE_EVERYTHING, FRAME_MAX_SIZE).decode(null, outboundBuffer, out);
+        assertThat(out).hasToString(List.of(expectedRequest).toString()); //  yuck. Implementing equals on decodedFrame isn't a good move either.
     }
 
     private void assertHandlerInHaProxyState() {
@@ -384,8 +403,8 @@ class StateHolderEmbeddedTest {
     }
 
     private void assertHandlerInConnectingState(
-                                                boolean haProxy,
-                                                List<ApiKeys> expectedBufferedRequestTypes) {
+            boolean haProxy,
+            List<ApiKeys> expectedBufferedRequestTypes) {
         var stateAssert = assertThat(handler.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Connecting.class));
         stateAssert.extracting(ProxyChannelState.Connecting::haProxyMessage).isEqualTo(haProxy ? HA_PROXY_MESSAGE : null);
@@ -469,28 +488,25 @@ class StateHolderEmbeddedTest {
         return crossProduct(bool(), bool(), apiKey(), serverException());
     }
 
-    @NonNull
-    private DecodedRequestFrame<ApiMessage> buildHanderInConnectingState(
-                                                                         boolean sni,
-                                                                         boolean haProxy,
-                                                                         boolean tlsConfigured,
-                                                                         ApiKeys firstMessage) {
+    private DecodedRequestFrame<ApiMessage> buildHandlerInConnectingState(
+            boolean sni,
+            boolean haProxy,
+            boolean tlsConfigured,
+            ApiKeys firstMessage) {
         buildHandler(false, tlsConfigured, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
 
         hClientConnect(handler);
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
-        // int metadataCorrelationId = correlectionId++;
-        var metadata = decodedRequestFrame(
-                MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
-                new MetadataRequestData(),
-                correlectionId++);
         handler.setState(new ProxyChannelState.SelectingServer(
                 haProxy ? HA_PROXY_MESSAGE : null,
                 firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
                 firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null));
         inboundChannel.config().setAutoRead(false);
+
+        final DecodedRequestFrame<ApiMessage> firstRequest = apiKeyToMessage(firstMessage);
+        handler.bufferMsg(firstRequest);
 
         handler.inSelectingServer();
 
@@ -498,7 +514,23 @@ class StateHolderEmbeddedTest {
             SslHandler sslHandler = virtualCluster.getUpstreamSslContext().get().newHandler(ByteBufAllocator.DEFAULT);
             outboundChannel.pipeline().addFirst(sslHandler);
         }
-        return metadata;
+        return firstRequest;
+    }
+
+    @NonNull
+    private DecodedRequestFrame<ApiMessage> apiKeyToMessage(ApiKeys firstMessage) {
+        DecodedRequestFrame<ApiMessage> firstRequest = switch (firstMessage) {
+            case API_VERSIONS -> decodedRequestFrame(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
+                    .setClientSoftwareName(CLIENT_SOFTWARE_NAME)
+                    .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION), correlectionId++);
+            case SASL_HANDSHAKE -> decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData()
+                    .setMechanism(KafkaAuthnHandler.SaslMechanism.PLAIN.mechanismName()), correlectionId++);
+            case SASL_AUTHENTICATE -> decodedRequestFrame(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData()
+                    .setAuthBytes("pa55word".getBytes(StandardCharsets.UTF_8)), correlectionId++);
+            case METADATA -> decodedRequestFrame(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData(), correlectionId++);
+            default -> throw new IllegalArgumentException();
+        };
+        return firstRequest;
     }
 
     @Test
@@ -578,9 +610,9 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void clientActiveToConnectingWithoutSaslOffload(
-                                                    boolean sni,
-                                                    boolean haProxy,
-                                                    ApiKeys firstMessage) {
+            boolean sni,
+            boolean haProxy,
+            ApiKeys firstMessage) {
         // Given
         buildHandlerInClientActiveState(false, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS), sni);
 
@@ -610,8 +642,8 @@ class StateHolderEmbeddedTest {
     }
 
     private void buildHandlerInClientActiveState(
-                                                 boolean saslOffloadConfigured,
-                                                 Answer<Void> filterSelectServerBehaviour, boolean sni) {
+            boolean saslOffloadConfigured,
+            Answer<Void> filterSelectServerBehaviour, boolean sni) {
         buildHandler(saslOffloadConfigured, false, filterSelectServerBehaviour);
 
         hClientConnect(handler);
@@ -624,8 +656,8 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void clientActiveToConnectingWithSaslOffload(
-                                                 boolean sni,
-                                                 boolean haProxy) {
+            boolean sni,
+            boolean haProxy) {
         Assumptions.abort();
         // Given
         buildHandlerInClientActiveState(true, selectServerCallsInitiateConnect(sni, haProxy, true), sni);
@@ -649,7 +681,11 @@ class StateHolderEmbeddedTest {
         assertThat(true).isFalse();
         inboundChannel.checkException();
         assertThat(inboundChannel.isOpen()).isTrue();
-        assertClientSaslHandshakeResponse(saslHandshakeCorrId, Errors.NONE);
+        assertClientResponse(
+                saslHandshakeCorrId,
+                SaslHandshakeResponseData.class,
+                SaslHandshakeResponseData::errorCode,
+                Errors.NONE);
 
         assertThat(inboundChannel.config().isAutoRead()).isFalse();
         assertThat(inboundChannel.isWritable()).isTrue();
@@ -680,8 +716,8 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void filterNotCallingInitiateConnectIsAnErrorWithSaslOffload(
-                                                                 boolean sni,
-                                                                 boolean haProxy) {
+            boolean sni,
+            boolean haProxy) {
         // Given
         buildHandlerInClientActiveState(true, selectServerDoesNotCallInitiateConnect(sni, haProxy, true), sni);
 
@@ -704,8 +740,8 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void filterCallingInitiateConnectTwiceIsAnErrorWithoutSaslOffload(
-                                                                      boolean sni,
-                                                                      boolean haProxy) {
+            boolean sni,
+            boolean haProxy) {
         // Given
         buildHandlerInClientActiveState(false, selectServerCallsInitiateConnectTwice(sni, haProxy, true), sni);
 
@@ -727,8 +763,8 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void filterCallingInitiateConnectTwiceIsAnErrorWithSaslOffload(
-                                                                   boolean sni,
-                                                                   boolean haProxy) {
+            boolean sni,
+            boolean haProxy) {
         // Given
         buildHandlerInClientActiveState(true, selectServerCallsInitiateConnectTwice(sni, haProxy, true), sni);
 
@@ -755,8 +791,8 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void filterThrowingIsAnErrorWithoutSaslOffload(
-                                                   boolean sni,
-                                                   boolean haProxy) {
+            boolean sni,
+            boolean haProxy) {
         // Given
         buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), sni);
 
@@ -782,8 +818,8 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void filterThrowingIsAnErrorWithSaslOffload(
-                                                boolean sni,
-                                                boolean haProxy) {
+            boolean sni,
+            boolean haProxy) {
         Assumptions.abort();
         // Given
         buildHandlerInClientActiveState(true, selectServerThrows(new AssertionError()), sni);
@@ -808,11 +844,11 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void plainServerChannelActivationInConnecting(
-                                                  boolean sni,
-                                                  boolean haProxy,
-                                                  ApiKeys firstMessage) {
+            boolean sni,
+            boolean haProxy,
+            ApiKeys firstMessage) {
         // Given
-        var metadata = buildHanderInConnectingState(sni, haProxy, false, firstMessage);
+        var firstRequest = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
 
         // When
         // TODO handler.onUpstreamChannelActive(outboundCtx);
@@ -827,8 +863,9 @@ class StateHolderEmbeddedTest {
         // buffered messages is nulled out once forwarded so the empty check fails
         // .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
         // .isEmpty();
-
-        assertBrokerMetadataResponse(metadata.correlationId());
+        // TODO should we do inbound -> server? outbound -> client? argh that's the reverse of the naming in the stateHolder...
+        //  Or should we move state holder to inbound and outbound temrinology
+        assertRequestSentToBroker(firstRequest);
         assertThat(inboundChannel.config().isAutoRead()).isTrue();
 
         // TODO assert that _new_ messages get forwarded
@@ -838,12 +875,12 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKeyXserverException")
     void plainServerChannelActivationThenException(
-                                                   boolean sni,
-                                                   boolean haProxy,
-                                                   ApiKeys firstMessage,
-                                                   Throwable serverException) {
+            boolean sni,
+            boolean haProxy,
+            ApiKeys firstMessage,
+            Throwable serverException) {
         // Given
-        var metadata = buildHanderInConnectingState(sni, haProxy, false, firstMessage);
+        var metadata = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
         outboundChannelTcpConnectionFuture.setSuccess();
 
         // When
@@ -860,11 +897,11 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void plainServerChannelActivationThenInactive(
-                                                  boolean sni,
-                                                  boolean haProxy,
-                                                  ApiKeys firstMessage) {
+            boolean sni,
+            boolean haProxy,
+            ApiKeys firstMessage) {
         // Given
-        var metadata = buildHanderInConnectingState(sni, haProxy, false, firstMessage);
+        var metadata = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
         // TODO handler.onUpstreamChannelActive(outboundCtx);
 
         // When
@@ -879,22 +916,11 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void tlsServerChannelActivationInConnecting(
-                                                boolean sni,
-                                                boolean haProxy,
-                                                ApiKeys firstMessage) {
+            boolean sni,
+            boolean haProxy,
+            ApiKeys firstMessage) {
         // Given
-        DecodedRequestFrame<ApiMessage> requestFrame = switch (firstMessage) {
-            case API_VERSIONS -> decodedRequestFrame(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
-                    .setClientSoftwareName(CLIENT_SOFTWARE_NAME)
-                    .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION), correlectionId++);
-            case SASL_HANDSHAKE -> decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData()
-                    .setMechanism(KafkaAuthnHandler.SaslMechanism.PLAIN.mechanismName()), correlectionId++);
-            case SASL_AUTHENTICATE -> decodedRequestFrame(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData()
-                    .setAuthBytes("pa55word".getBytes(StandardCharsets.UTF_8)), correlectionId++);
-            default -> throw new IllegalArgumentException();
-        };
-
-        var metadata = buildHanderInConnectingState(sni, haProxy, true, firstMessage);
+        var firstRequest = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
 
         // When
         // TODO handler.onUpstreamChannelActive(outboundCtx);
@@ -908,7 +934,7 @@ class StateHolderEmbeddedTest {
 
         assertThat(handler.bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
-                .isEqualTo(List.of(requestFrame, metadata));
+                .isEqualTo(List.of(firstRequest));
 
         assertThat(inboundChannel.config().isAutoRead())
                 .describedAs("Client autoread should be off while connecting to server")
@@ -918,26 +944,24 @@ class StateHolderEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void tlsHandshakeFail(
-                          boolean sni,
-                          boolean haProxy,
-                          ApiKeys firstMessage) {
+            boolean sni,
+            boolean haProxy,
+            ApiKeys firstMessage) {
         // Given
-        buildHanderInConnectingState(sni, haProxy, true, firstMessage);
+        final DecodedRequestFrame<ApiMessage> requestFrame = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
+        outboundChannelTcpConnectionFuture.setSuccess();
 
         // When
 
         outboundChannel.pipeline().fireUserEventTriggered(new SslHandshakeCompletionEvent(new SSLHandshakeException("Oops")));
-        // handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newFailedFuture(new SSLHandshakeException("boom!")));
 
         // Then
         inboundChannel.checkException();
 
-        // if (withBufferedRequest) {
-        assertClientSaslHandshakeResponse(42, Errors.NETWORK_EXCEPTION);
-        // }
-        // else {
-        // assertClientConnectionClosedWithNoResponse();
-        // }
+        // TODO this isn't going to work. Calling close on the backend handler triggers channel inactive which calls stateHolder serverInactive which calls close again
+        //  with null for errorCodeEx which closes the inbound channel before the original exception has a chanse to wripple through.
+        asserClientSentErrorResponseFor(requestFrame);
+
         assertThat(inboundChannel.config().isAutoRead())
                 .describedAs("Client autoread should be off while connecting to server")
                 .isFalse();
@@ -949,14 +973,24 @@ class StateHolderEmbeddedTest {
         assertThat(outboundChannel.isOpen()).isFalse();
     }
 
+    private void asserClientSentErrorResponseFor(DecodedRequestFrame<ApiMessage> requestFrame) {
+        switch (requestFrame.apiKey()) {
+            case API_VERSIONS -> assertClientApiVersionsResponse(requestFrame.correlationId(), Errors.UNKNOWN_SERVER_ERROR);
+            case SASL_HANDSHAKE -> assertClientSaslHandshakeResponse(requestFrame.correlationId(), Errors.UNKNOWN_SERVER_ERROR);
+            case SASL_AUTHENTICATE -> assertClientSaslAuthenticateResponse(requestFrame.correlationId(), Errors.UNKNOWN_SERVER_ERROR);
+            case METADATA -> assertClientMetadataResponse(requestFrame.correlationId());
+            default -> throw new UnsupportedOperationException("unsupported apiKey: " + requestFrame.apiKey());
+        }
+    }
+
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void tlsHandshakeSuccess(
-                             boolean sni,
-                             boolean haProxy,
-                             ApiKeys firstMessage) {
+            boolean sni,
+            boolean haProxy,
+            ApiKeys firstMessage) {
         // Given
-        buildHanderInConnectingState(sni, haProxy, true, firstMessage);
+        buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
 
         // When
         // handler.onUpstreamSslOutcome(outboundCtx, outboundCtx.newSucceededFuture());
