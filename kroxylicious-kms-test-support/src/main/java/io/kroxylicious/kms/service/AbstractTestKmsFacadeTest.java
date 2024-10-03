@@ -10,10 +10,7 @@ import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.kms.service.TestKekManager.AlreadyExistsException;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Abstract
@@ -24,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SuppressWarnings("java:S5960") // this is test code, it exists in the main module to facilitate its use by concrete test cases
 public abstract class AbstractTestKmsFacadeTest<C, K, E> {
 
-    private static final String ALIAS = "myalias";
+    protected static final String ALIAS = "myalias";
     protected final TestKmsFacadeFactory<C, K, E> factory;
 
     protected AbstractTestKmsFacadeTest(TestKmsFacadeFactory<C, K, E> factory) {
@@ -54,18 +51,6 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
     }
 
     @Test
-    void generateKekFailsIfAliasExists() {
-        try (var facade = factory.build()) {
-            facade.start();
-            var manager = facade.getTestKekManager();
-            manager.generateKek(ALIAS);
-
-            assertThatThrownBy(() -> manager.generateKek(ALIAS))
-                    .isInstanceOf(AlreadyExistsException.class);
-        }
-    }
-
-    @Test
     void rotateKek() {
         try (var facade = factory.build()) {
             facade.start();
@@ -74,17 +59,6 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
             assertThat(manager.exists(ALIAS)).isTrue();
 
             manager.rotateKek(ALIAS);
-        }
-    }
-
-    @Test
-    void rotateKekFailsIfAliasDoesNotExist() {
-        try (var facade = factory.build()) {
-            facade.start();
-            var manager = facade.getTestKekManager();
-
-            assertThatThrownBy(() -> manager.rotateKek(ALIAS))
-                    .isInstanceOf(UnknownAliasException.class);
         }
     }
 
@@ -98,17 +72,6 @@ public abstract class AbstractTestKmsFacadeTest<C, K, E> {
 
             manager.deleteKek(ALIAS);
             assertThat(manager.exists(ALIAS)).isFalse();
-        }
-    }
-
-    @Test
-    void deleteKekFailsIfAliasDoesNotExist() {
-        try (var facade = factory.build()) {
-            facade.start();
-            var manager = facade.getTestKekManager();
-
-            assertThatThrownBy(() -> manager.deleteKek(ALIAS))
-                    .isInstanceOf(UnknownAliasException.class);
         }
     }
 }

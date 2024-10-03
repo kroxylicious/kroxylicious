@@ -58,13 +58,21 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
     }
 
     private class InMemoryTestKekManager implements TestKekManager {
+
+        @Override
+        public UUID read(String alias) {
+            return kms.resolveAlias(alias).toCompletableFuture().join();
+        }
+
         @Override
         public void generateKek(String alias) {
             Objects.requireNonNull(alias);
 
             try {
-                kms.resolveAlias(alias).toCompletableFuture().join();
-                throw new AlreadyExistsException(alias);
+                var existing = read(alias);
+                if (existing != null) {
+                    throw new AlreadyExistsException(alias);
+                }
             }
             catch (CompletionException e) {
                 if (e.getCause() instanceof UnknownAliasException) {
@@ -81,7 +89,7 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
         public void deleteKek(String alias) {
             Objects.requireNonNull(alias);
             try {
-                var kekRef = kms.resolveAlias(alias).toCompletableFuture().join();
+                var kekRef = read(alias);
                 kms.deleteAlias(alias);
                 kms.deleteKey(kekRef);
             }
@@ -95,7 +103,7 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
             Objects.requireNonNull(alias);
 
             try {
-                kms.resolveAlias(alias).toCompletableFuture().join();
+                read(alias);
                 var kekId = kms.generateKey();
                 kms.createAlias(kekId, alias);
             }
@@ -103,24 +111,5 @@ public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemo
                 throw unwrapRuntimeException(e);
             }
         }
-
-        @Override
-        public boolean exists(String alias) {
-            try {
-                kms.resolveAlias(alias).toCompletableFuture().join();
-                return true;
-            }
-            catch (CompletionException e) {
-                if (e.getCause() instanceof UnknownAliasException) {
-                    return false;
-                }
-                throw unwrapRuntimeException(e);
-            }
-        }
-
-        private RuntimeException unwrapRuntimeException(Exception e) {
-            return e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
-        }
-
     }
 }
