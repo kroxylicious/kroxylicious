@@ -21,6 +21,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.provider.hashicorp.vault.model.CreatePolicyRequest;
+import io.kroxylicious.kms.provider.hashicorp.vault.model.CreateTokenRequest;
+import io.kroxylicious.kms.provider.hashicorp.vault.model.CreateTokenResponse;
+import io.kroxylicious.kms.provider.hashicorp.vault.model.EnableEngineRequest;
+import io.kroxylicious.kms.provider.hashicorp.vault.model.UpdateKeyConfigRequest;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -33,15 +38,15 @@ import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config, String, VaultEdek> {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final TypeReference<VaultResponse<VaultResponse.ReadKeyData>> VAULT_RESPONSE_READ_KEY_DATA_TYPEREF = new TypeReference<>() {
-    };
     private static final TypeReference<CreateTokenResponse> VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF = new TypeReference<>() {
     };
+    private static final TypeReference<VaultResponse<VaultResponse.ReadKeyData>> VAULT_RESPONSE_READ_KEY_DATA_TYPEREF = new TypeReference<>() {
+    };
     private static final String KEYS_PATH = "v1/transit/keys/%s";
-    protected static final String VAULT_ROOT_TOKEN = "rootToken";
     private String kmsVaultToken;
-    private final HttpClient vaultClient = HttpClient.newHttpClient();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final HttpClient vaultClient = HttpClient.newHttpClient();
+    public static final String VAULT_ROOT_TOKEN = "rootToken";
 
     protected AbstractVaultTestKmsFacade() {
     }
@@ -74,8 +79,8 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
     protected void enableTransit() {
         var engine = new EnableEngineRequest("transit");
-        var body = getBody(engine);
-        var request = createVaultPost("v1/sys/mounts/transit", HttpRequest.BodyPublishers.ofString(body));
+        var body = encodeJson(engine);
+        var request = createVaultPost(getVaultUrl().resolve("v1/sys/mounts/transit"), HttpRequest.BodyPublishers.ofString(body));
 
         sendRequestExpectingNoContentResponse(request);
     }
@@ -83,16 +88,16 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
     protected void createPolicy(String policyName, InputStream policyStream) {
         Objects.requireNonNull(policyName);
         Objects.requireNonNull(policyStream);
-        var createPolicy = getBody(CreatePolicyRequest.fromInputStream(policyStream));
-        var request = createVaultPost("v1/sys/policy/%s".formatted(encode(policyName, UTF_8)), HttpRequest.BodyPublishers.ofString(createPolicy));
+        var createPolicy = encodeJson(CreatePolicyRequest.fromInputStream(policyStream));
+        var request = createVaultPost(getVaultUrl().resolve("v1/sys/policy/%s".formatted(encode(policyName, UTF_8))), HttpRequest.BodyPublishers.ofString(createPolicy));
 
         sendRequestExpectingNoContentResponse(request);
     }
 
     protected String createOrphanToken(String description, boolean noDefaultPolicy, Set<String> policies) {
         var token = new CreateTokenRequest(description, noDefaultPolicy, policies);
-        String body = getBody(token);
-        var request = createVaultPost("v1/auth/token/create-orphan", HttpRequest.BodyPublishers.ofString(body));
+        String body = encodeJson(token);
+        var request = createVaultPost(getVaultUrl().resolve("v1/auth/token/create-orphan"), HttpRequest.BodyPublishers.ofString(body));
 
         return sendRequest("dummy", request, VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF).auth().clientToken();
     }
@@ -122,100 +127,56 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
 
     @Override
     public TestKekManager getTestKekManager() {
-        return new VaultTestKekManager();
+        return new VaultKmsTestKekManager();
     }
 
-    class VaultTestKekManager implements TestKekManager {
+    class VaultKmsTestKekManager implements TestKekManager {
         @Override
-        public void generateKek(String alias) {
-            Objects.requireNonNull(alias);
-
-            if (exists(alias)) {
-                throw new AlreadyExistsException(alias);
-            }
-            else {
-                create(alias);
-            }
+        public void generateKek(String keyId) {
+            var request = createVaultPost(getVaultUrl().resolve(KEYS_PATH.formatted(encode(keyId, UTF_8))), HttpRequest.BodyPublishers.noBody());
+            sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
         }
 
         @Override
-        public void deleteKek(String alias) {
-            if (exists(alias)) {
-                delete(alias);
-            }
-            else {
-                throw new UnknownAliasException(alias);
-            }
-
-        }
-
-        @Override
-        public void rotateKek(String alias) {
-            Objects.requireNonNull(alias);
-
-            if (exists(alias)) {
-                rotate(alias);
-            }
-            else {
-                throw new UnknownAliasException(alias);
-            }
-        }
-
-        @Override
-        public boolean exists(String alias) {
-            try {
-                read(alias);
-                return true;
-            }
-            catch (UnknownAliasException uae) {
-                return false;
-            }
-        }
-
-        private VaultResponse.ReadKeyData create(String keyId) {
-            var request = createVaultPost(KEYS_PATH.formatted(encode(keyId, UTF_8)), HttpRequest.BodyPublishers.noBody());
-            return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
-        }
-
-        private void delete(String keyId) {
-            var update = createVaultPost((KEYS_PATH + "/config").formatted(encode(keyId, UTF_8)),
-                    HttpRequest.BodyPublishers.ofString(getBody(new UpdateKeyConfigRequest(true))));
+        public void deleteKek(String keyId) {
+            var update = createVaultPost(getVaultUrl().resolve((KEYS_PATH + "/config").formatted(encode(keyId, UTF_8))),
+                    HttpRequest.BodyPublishers.ofString(encodeJson(new UpdateKeyConfigRequest(true))));
             sendRequest(keyId, update, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
 
-            var delete = createVaultDelete(KEYS_PATH.formatted(encode(keyId, UTF_8)));
+            var delete = createVaultDelete(getVaultUrl().resolve(KEYS_PATH.formatted(encode(keyId, UTF_8))));
             sendRequestExpectingNoContentResponse(delete);
         }
 
-        private VaultResponse.ReadKeyData read(String keyId) {
-            var request = createVaultGet(KEYS_PATH.formatted(encode(keyId, UTF_8)));
+        @Override
+        public VaultResponse.ReadKeyData read(String keyId) {
+            var request = createVaultGet(getVaultUrl().resolve(KEYS_PATH.formatted(encode(keyId, UTF_8))));
             return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
         }
 
-        private VaultResponse.ReadKeyData rotate(String keyId) {
-            var request = createVaultPost((KEYS_PATH + "/rotate").formatted(encode(keyId, UTF_8)), HttpRequest.BodyPublishers.noBody());
-            return sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF).data();
+        @Override
+        public void rotateKek(String keyId) {
+            var request = createVaultPost(getVaultUrl().resolve((KEYS_PATH + "/rotate").formatted(encode(keyId, UTF_8))), HttpRequest.BodyPublishers.noBody());
+            sendRequest(keyId, request, VAULT_RESPONSE_READ_KEY_DATA_TYPEREF);
         }
-
     }
 
-    private HttpRequest createVaultGet(String path) {
+    private HttpRequest createVaultGet(URI url) {
         return createVaultRequest()
-                .uri(getVaultUrl().resolve(path))
+                .uri(url)
                 .GET()
                 .build();
     }
 
-    private HttpRequest createVaultDelete(String path) {
+    private HttpRequest createVaultDelete(URI url) {
         return createVaultRequest()
-                .uri(getVaultUrl().resolve(path))
+                .uri(url)
                 .DELETE()
                 .build();
     }
 
-    private HttpRequest createVaultPost(String path, HttpRequest.BodyPublisher bodyPublisher) {
-        URI resolve = getVaultUrl().resolve(path);
+    private HttpRequest createVaultPost(URI url, HttpRequest.BodyPublisher bodyPublisher) {
         return createVaultRequest()
-                .uri(resolve)
+                .uri(url)
                 .POST(bodyPublisher).build();
     }
 
@@ -234,8 +195,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
             else if (response.statusCode() != 200) {
                 throw new IllegalStateException("unexpected response %s for request: %s".formatted(response.statusCode(), request.uri()));
             }
-            byte[] body = response
-                    .body();
+            byte[] body = response.body();
             return decodeJson(valueTypeRef, body);
         }
         catch (IOException e) {
@@ -266,16 +226,16 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         }
     }
 
-    private String getBody(Object obj) {
+    private String encodeJson(Object obj) {
         try {
             return OBJECT_MAPPER.writeValueAsString(obj);
         }
         catch (JsonProcessingException e) {
-            throw new UncheckedIOException("Failed to create request body", e);
+            throw new UncheckedIOException("Failed to encode the request body", e);
         }
     }
 
-    private static <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
+    private <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
         try {
             return OBJECT_MAPPER.readValue(bytes, valueTypeRef);
         }

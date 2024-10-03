@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.hashicorp.vault;
+package io.kroxylicious.kms.provider.hashicorp.vault.model;
 
 import java.util.Objects;
 
@@ -12,15 +12,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-record CreateTokenResponse(Auth auth) {
+public record CreateTokenResponse(Auth auth) {
 
-    CreateTokenResponse {
+    public CreateTokenResponse {
         Objects.requireNonNull(auth);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record Auth(@JsonProperty("client_token") String clientToken) {
-        Auth {
+    public record Auth(@JsonProperty("client_token") String clientToken) {
+        public Auth {
             Objects.requireNonNull(clientToken);
         }
     }

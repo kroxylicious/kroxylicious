@@ -12,8 +12,10 @@ import org.testcontainers.DockerClientFactory;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.kms.service.AbstractTestKmsFacadeTest;
+import io.kroxylicious.kms.service.UnknownAliasException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 class AwsKmsTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, String, AwsKmsEdek> {
@@ -33,6 +35,41 @@ class AwsKmsTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, String, 
             facade.start();
             assertThat(facade.getKmsServiceClass()).isEqualTo(AwsKmsService.class);
             assertThat(facade.getKmsServiceConfig()).isInstanceOf(Config.class);
+        }
+    }
+
+    @Test
+    void generateKekFailsIfAliasExists() {
+        try (var facade = factory.build()) {
+            facade.start();
+            var manager = facade.getTestKekManager();
+            manager.generateKek(ALIAS);
+
+            assertThatThrownBy(() -> manager.generateKek(ALIAS))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("400");
+        }
+    }
+
+    @Test
+    void rotateKekFailsIfAliasDoesNotExist() {
+        try (var facade = factory.build()) {
+            facade.start();
+            var manager = facade.getTestKekManager();
+
+            assertThatThrownBy(() -> manager.rotateKek(ALIAS))
+                    .isInstanceOf(UnknownAliasException.class);
+        }
+    }
+
+    @Test
+    void deleteKekFailsIfAliasDoesNotExist() {
+        try (var facade = factory.build()) {
+            facade.start();
+            var manager = facade.getTestKekManager();
+
+            assertThatThrownBy(() -> manager.deleteKek(ALIAS))
+                    .isInstanceOf(UnknownAliasException.class);
         }
     }
 }
