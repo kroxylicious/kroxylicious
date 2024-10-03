@@ -16,6 +16,9 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
+import io.fabric8.openshift.client.OpenShiftClient;
+
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -105,7 +108,20 @@ public class Vault {
                 Optional.of(Environment.VAULT_CHART_VERSION),
                 Optional.of(Path.of(TestUtils.getResourcesURI("helm_vault_overrides.yaml"))),
                 Optional.of(Map.of("server.dev.devRootToken", vaultRootToken,
-                        "global.openshift", String.valueOf(openshiftCluster))));
+                        "global.openshift", String.valueOf(openshiftCluster),
+                        "server.route.enabled", String.valueOf(openshiftCluster),
+                        "server.route.host", VAULT_SERVICE_NAME + "." + getIngressDomain(openshiftCluster),
+                        "server.route.tls", "null")));
+    }
+
+    private String getIngressDomain(boolean openshiftCluster) {
+        String defaultDomain = "local";
+        if (openshiftCluster) {
+            OpenShiftClient openshiftClient = kubeClient().getClient().adapt(OpenShiftClient.class);
+            IngressControllerList pods = openshiftClient.operator().ingressControllers().inNamespace("openshift-ingress-operator").list();
+            return pods.getItems().stream().map(x -> x.getStatus().getDomain()).findFirst().orElse(defaultDomain);
+        }
+        return defaultDomain;
     }
 
     /**
@@ -124,6 +140,11 @@ public class Vault {
      * @return the vault url.
      */
     public URI getVaultUrl() {
-        return URI.create("http://" + DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, VAULT_SERVICE_NAME));
+        if (getInstance().isOpenshift()) {
+            return URI.create("http://" + DeploymentUtils.getOpenshiftRouteServiceAddress(deploymentNamespace, VAULT_SERVICE_NAME));
+        }
+        else {
+            return URI.create("http://" + DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, VAULT_SERVICE_NAME));
+        }
     }
 }

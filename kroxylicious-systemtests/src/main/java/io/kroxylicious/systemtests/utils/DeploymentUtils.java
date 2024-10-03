@@ -38,6 +38,8 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.openshift.api.model.Route;
+import io.fabric8.openshift.client.OpenShiftClient;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -304,6 +306,25 @@ public class DeploymentUtils {
                 .orElseThrow(() -> new KubeClusterException("Unable to get the service port of " + serviceName));
         String address = nodeIP + ":" + port;
         LOGGER.debug("Deduced nodeport address for service: {} as: {}", serviceName, address);
+        return address;
+    }
+
+    /**
+     * Gets openshift route service address.
+     *
+     * @param deploymentNamespace the deployment namespace
+     * @param serviceName the service name
+     * @return the openshift route service address
+     */
+    public static String getOpenshiftRouteServiceAddress(String deploymentNamespace, String serviceName) {
+        OpenShiftClient openshiftClient = kubeClient().getClient().adapt(OpenShiftClient.class);
+        Route route = openshiftClient.routes().inNamespace(deploymentNamespace).withName(serviceName).get();
+        if (route == null) {
+            throw new KubeClusterException.NotFound("Openshift Route in namespace" + deploymentNamespace + " with name " + serviceName + " not found!"
+                    + "Unable to get the service address");
+        }
+        String address = route.getSpec().getHost();
+        LOGGER.debug("Deduced route address for service: {} as: {}", serviceName, address);
         return address;
     }
 }
