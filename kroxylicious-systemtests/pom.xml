@@ -61,6 +61,10 @@
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
+            <artifactId>openshift-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-httpclient-jdk</artifactId>
             <scope>runtime</scope>
         </dependency>
