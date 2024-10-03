@@ -110,14 +110,18 @@ public class Vault {
                 Optional.of(Map.of("server.dev.devRootToken", vaultRootToken,
                         "global.openshift", String.valueOf(openshiftCluster),
                         "server.route.enabled", String.valueOf(openshiftCluster),
-                        "server.route.host", VAULT_SERVICE_NAME + "." + getIngressDomain(),
+                        "server.route.host", VAULT_SERVICE_NAME + "." + getIngressDomain(openshiftCluster),
                         "server.route.tls", "null")));
     }
 
-    private String getIngressDomain() {
-        OpenShiftClient openshiftClient = kubeClient().getClient().adapt(OpenShiftClient.class);
-        IngressControllerList pods = openshiftClient.operator().ingressControllers().inNamespace("openshift-ingress-operator").list();
-        return pods.getItems().stream().map(x -> x.getStatus().getDomain()).findFirst().orElse("local");
+    private String getIngressDomain(boolean openshiftCluster) {
+        String defaultDomain = "local";
+        if (openshiftCluster) {
+            OpenShiftClient openshiftClient = kubeClient().getClient().adapt(OpenShiftClient.class);
+            IngressControllerList pods = openshiftClient.operator().ingressControllers().inNamespace("openshift-ingress-operator").list();
+            return pods.getItems().stream().map(x -> x.getStatus().getDomain()).findFirst().orElse(defaultDomain);
+        }
+        return defaultDomain;
     }
 
     /**

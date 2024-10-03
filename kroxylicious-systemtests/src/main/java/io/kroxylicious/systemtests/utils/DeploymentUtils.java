@@ -39,7 +39,6 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.openshift.api.model.Route;
-import io.fabric8.openshift.api.model.RouteList;
 import io.fabric8.openshift.client.OpenShiftClient;
 
 import io.kroxylicious.systemtests.Constants;
@@ -319,11 +318,11 @@ public class DeploymentUtils {
      */
     public static String getOpenshiftRouteServiceAddress(String deploymentNamespace, String serviceName) {
         OpenShiftClient openshiftClient = kubeClient().getClient().adapt(OpenShiftClient.class);
-        RouteList routes = openshiftClient.routes().inNamespace(deploymentNamespace).list();
-        Route route2 = openshiftClient.routes().inNamespace(deploymentNamespace).withName(serviceName).get();
-        Route route = routes.getItems().stream().filter(x -> x.getMetadata().getName().equals(serviceName)).findFirst().orElse(null);
-        // if present
-        assert route != null;
+        Route route = openshiftClient.routes().inNamespace(deploymentNamespace).withName(serviceName).get();
+        if (route == null) {
+            throw new KubeClusterException.NotFound("Openshift Route in namespace" + deploymentNamespace + " with name " + serviceName + " not found!"
+                    + "Unable to get the service address");
+        }
         String address = route.getSpec().getHost();
         LOGGER.debug("Deduced route address for service: {} as: {}", serviceName, address);
         return address;
