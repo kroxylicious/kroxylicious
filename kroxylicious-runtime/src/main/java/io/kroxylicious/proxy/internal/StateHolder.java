@@ -23,6 +23,9 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
+import io.kroxylicious.proxy.internal.ProxyChannelState.Closing;
+import io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
@@ -62,11 +65,14 @@ import static org.slf4j.LoggerFactory.getLogger;
  *     {@link ProxyChannelState.Connecting Connecting} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *      │
  *      ↓
- *     {@link ProxyChannelState.Forwarding Forwarding} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
+ *     {@link Forwarding Forwarding} ╌╌╌╌⤍ <b>error</b> ╌╌╌╌⤍
  *      │ backend.{@link KafkaProxyBackendHandler#channelInactive(ChannelHandlerContext) channelInactive}
  *      │ or frontend.{@link KafkaProxyFrontendHandler#channelInactive(ChannelHandlerContext) channelInactive}
  *      ↓
- *     {@link ProxyChannelState.Closed Closed} ⇠╌╌╌╌ <b>error</b> ⇠╌╌╌╌
+ *     {@link Closing Closing} ⇠╌╌╌╌ <b>error</b> ⇠╌╌╌╌⤍
+ *      │
+ *      ↓
+ *     {@link Closed Closed} ⇠╌╌╌╌ <b>error</b> ⇠╌╌╌╌
  * </pre>
  *
  * <p>In addition to the "session state" this class also manages a second state machine for
@@ -89,24 +95,36 @@ public class StateHolder {
     /**
      * The current state. This can be changed via a call to one of the {@code on*()} methods.
      */
-    @VisibleForTesting @Nullable ProxyChannelState state;
+    @VisibleForTesting
+    @Nullable
+    ProxyChannelState state;
 
     /* The netty autoread flag is volatile =>
      * expensive to set in every call to channelRead.
      * So we track autoread states via these non-volatile fields,
      * allowing us to only touch the volatile when it needs to be changed
      */
-    @VisibleForTesting boolean serverReadsBlocked;
-    @VisibleForTesting boolean clientReadsBlocked;
+    @VisibleForTesting
+    boolean serverReadsBlocked;
+    @VisibleForTesting
+    boolean clientReadsBlocked;
+    @VisibleForTesting
+    boolean serverClosed = false;
+    @VisibleForTesting
+    boolean clientClosed = false;
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
      */
-    @VisibleForTesting @NonNull KafkaProxyFrontendHandler frontendHandler;
+    @VisibleForTesting
+    @NonNull
+    KafkaProxyFrontendHandler frontendHandler;
     /**
      * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualCluster, NetFilter)}
      * has been called
      */
-    @VisibleForTesting @Nullable KafkaProxyBackendHandler backendHandler;
+    @VisibleForTesting
+    @Nullable
+    KafkaProxyBackendHandler backendHandler;
 
     @VisibleForTesting
     ProxyChannelState state() {
@@ -205,16 +223,36 @@ public class StateHolder {
         }
     }
 
-    private void toForwarding(ProxyChannelState.Forwarding forwarding) {
+    void onServerClosed() {
+        LOGGER.info("server closed");
+        if (state() instanceof ProxyChannelState.Closing closing) {
+            setState(new Closing(closing.ErrorCode(), closing.clientClosed(), true).transition());
+        }
+        else {
+            illegalState("Server became closed while not in the closing state");
+        }
+    }
+
+    void onClientClosed() {
+        LOGGER.info("Client Closed");
+        if (state() instanceof ProxyChannelState.Closing closing) {
+            setState(new Closing(closing.ErrorCode(), true, closing.serverClosed()).transition());
+        }
+        else {
+            illegalState("Client became closed while not in the closing state");
+        }
+    }
+
+    private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
         Objects.requireNonNull(frontendHandler).inForwarding();
     }
 
     void illegalState(@NonNull String msg) {
-        if (!(state instanceof ProxyChannelState.Closed)) {
+        if (!(state instanceof Closed)) {
             IllegalStateException exception = new IllegalStateException("While in state " + state + ": " + msg);
             LOGGER.error("Illegal state, closing channels with no client response", exception);
-            toClosed(null);
+            toClosing(null);
         }
     }
 
@@ -229,7 +267,7 @@ public class StateHolder {
     void onClientRequest(@NonNull SaslDecodePredicate dp,
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
-        if (state() instanceof ProxyChannelState.Forwarding) { // post-backend connection
+        if (state() instanceof Forwarding) { // post-backend connection
             forwardToServer(msg);
         }
         else {
@@ -328,7 +366,7 @@ public class StateHolder {
     }
 
     void onServerInactive() {
-        toClosed(null);
+        toClosing(null);
     }
 
     void serverReadComplete() {
@@ -336,31 +374,34 @@ public class StateHolder {
     }
 
     void clientReadComplete() {
-        if (state instanceof ProxyChannelState.Forwarding) {
+        if (state instanceof Forwarding) {
             backendHandler.flushToServer();
         }
     }
 
-    private void toClosed(@Nullable Throwable errorCodeEx) {
+    private void toClosing(@Nullable Throwable errorCodeEx) {
+        if (state instanceof Closing || state instanceof Closed) {
+            return;
+        }
+        setState(new Closing(errorCodeEx, false, false));
         // Close the server connection
         if (backendHandler != null) {
-            backendHandler.close();
+            backendHandler.inClosing();
         }
 
         // Close the client connection with any error code
         if (frontendHandler != null) {
-            frontendHandler.closeWithResponse(errorCodeEx);
+            frontendHandler.inClosing(errorCodeEx);
         }
-
-        setState(new ProxyChannelState.Closed());
     }
+
 
     void onServerException(Throwable cause) {
         LOGGER.atWarn()
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .addArgument(cause != null ? cause.getMessage() : "")
                 .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
-        toClosed(cause);
+        toClosing(cause);
     }
 
     void onClientException(Throwable cause, boolean tlsEnabled) {
@@ -381,11 +422,11 @@ public class StateHolder {
                     .log("Exception from the client channel: {}. Increase log level to DEBUG for stacktrace");
             errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
-        toClosed(errorCodeEx);
+        toClosing(errorCodeEx);
     }
 
     void onClientInactive() {
-        toClosed(null);
+        toClosing(null);
     }
 
     @Override

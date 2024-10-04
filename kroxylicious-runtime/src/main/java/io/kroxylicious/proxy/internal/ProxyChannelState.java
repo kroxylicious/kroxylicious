@@ -23,6 +23,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.Closing;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
@@ -40,6 +41,7 @@ sealed interface ProxyChannelState
         SelectingServer,
         Connecting,
         Forwarding,
+        Closing,
         Closed {
 
     /**
@@ -62,7 +64,7 @@ sealed interface ProxyChannelState
          */
         @NonNull
         public ApiVersions toApiVersions(
-                                         DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
+                DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             // TODO check the format of the strings using a regex
             // Needed to reproduce the exact behaviour for how a broker handles this
             // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
@@ -93,7 +95,7 @@ sealed interface ProxyChannelState
      */
     record HaProxy(
 
-                   @NonNull HAProxyMessage haProxyMessage)
+            @NonNull HAProxyMessage haProxyMessage)
             implements ProxyChannelState {
 
         /**
@@ -218,9 +220,9 @@ sealed interface ProxyChannelState
         private final String clientSoftwareVersion;
 
         Forwarding(
-                   @Nullable HAProxyMessage haProxyMessage,
-                   @Nullable String clientSoftwareName,
-                   @Nullable String clientSoftwareVersion) {
+                @Nullable HAProxyMessage haProxyMessage,
+                @Nullable String clientSoftwareName,
+                @Nullable String clientSoftwareVersion) {
             this.haProxyMessage = haProxyMessage;
             this.clientSoftwareName = clientSoftwareName;
             this.clientSoftwareVersion = clientSoftwareVersion;
@@ -240,7 +242,6 @@ sealed interface ProxyChannelState
         public String clientSoftwareVersion() {
             return clientSoftwareVersion;
         }
-
 
         @Override
         public boolean equals(Object obj) {
@@ -269,6 +270,22 @@ sealed interface ProxyChannelState
                     "clientSoftwareVersion=" + clientSoftwareVersion + ']';
         }
 
+    }
+
+    /**
+     * Transitional state as the session is being torn down.
+     * This is principally used to prevent closing channels triggering other error handling and thus racing close calls.
+     */
+    record Closing(Throwable ErrorCode, boolean clientClosed, boolean serverClosed) implements ProxyChannelState {
+
+        ProxyChannelState transition() {
+            if (serverClosed && clientClosed) {
+                return new Closed();
+            }
+            else {
+                return this;
+            }
+        }
     }
 
     /**

@@ -563,7 +563,7 @@ public class KafkaProxyFrontendHandler
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }
             else {
-                closeServerAndClientChannels(errorResponseForServerException(future.cause()));
+                closeServerAndClientChannels(errorResponseForServerException(future.cause())); //TODO this should go via the StateHolder
             }
         });
     }
@@ -695,7 +695,7 @@ public class KafkaProxyFrontendHandler
         bufferedMsgs.add(msg);
     }
 
-    void closeWithResponse(@Nullable Throwable errorCodeEx) {
+    void inClosing(@Nullable Throwable errorCodeEx) {
         Channel inboundChannel = clientCtx().channel();
         if (inboundChannel.isActive()) {
             Object msg = null;
@@ -705,6 +705,7 @@ public class KafkaProxyFrontendHandler
             if (msg == null) {
                 msg = Unpooled.EMPTY_BUFFER;
             }
+            inboundChannel.closeFuture().addListener(c -> stateHolder.onClientClosed()); // notify when the channel is actually closed
             inboundChannel.writeAndFlush(msg)
                     .addListener(ChannelFutureListener.CLOSE);
         }

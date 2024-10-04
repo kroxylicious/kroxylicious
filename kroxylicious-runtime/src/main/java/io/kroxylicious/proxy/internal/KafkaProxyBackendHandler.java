@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -153,12 +154,13 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-    public void close() {
+    public void inClosing() {
         if (serverCtx != null) {
             Channel outboundChannel = serverCtx.channel();
             if (outboundChannel.isActive()) {
-                outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER)
-                        .addListener(ChannelFutureListener.CLOSE);
+                outboundChannel.closeFuture().addListener(c -> stateHolder.onServerClosed()); // notify when the channel is actually closed
+                outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+
             }
         }
     }
