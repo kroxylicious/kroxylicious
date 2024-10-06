@@ -8,6 +8,8 @@ package io.kroxylicious.kms.service;
 
 import java.util.concurrent.CompletionException;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * Exposes the ability to manage the KEKs on a KMS implementation.
  */
@@ -54,7 +56,7 @@ public interface TestKekManager {
             if (e.getCause() instanceof UnknownAliasException) {
                 return false;
             }
-            throw unwrapRuntimeException(e);
+            throw toRuntimeException(e);
         }
     }
 
@@ -72,7 +74,8 @@ public interface TestKekManager {
         }
     }
 
-    default RuntimeException unwrapRuntimeException(Exception e) {
-        return e.getCause() instanceof RuntimeException re ? re : new RuntimeException(e.getCause());
+    default RuntimeException toRuntimeException(@NonNull CompletionException e) {
+        var cause = e.getCause();
+        return cause instanceof RuntimeException re ? re : new RuntimeException(cause);
     }
 }
