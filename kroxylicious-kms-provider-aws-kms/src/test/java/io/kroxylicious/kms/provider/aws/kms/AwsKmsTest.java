@@ -23,6 +23,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
+import io.kroxylicious.kms.provider.aws.kms.config.FixedCredentialsProviderConfig;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.KmsException;
@@ -104,8 +105,8 @@ class AwsKmsTest {
         var plainTextBytes = BASE64_DECODER.decode("VdzKNHGzUAzJeRBVY+uUmofUGGiDzyB3+i9fVkh3piw=");
         var expectedKey = DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES");
 
-        withMockAwsWithSingleResponse(response, vaultKms -> {
-            var aliasStage = vaultKms.generateDekPair("alias");
+        withMockAwsWithSingleResponse(response, awsKms -> {
+            var aliasStage = awsKms.generateDekPair("alias");
             assertThat(aliasStage)
                     .succeedsWithin(Duration.ofSeconds(5))
                     .extracting(DekPair::edek)
@@ -149,8 +150,8 @@ class AwsKmsTest {
         try {
             var address = httpServer.getAddress();
             var awsAddress = "http://127.0.0.1:" + address.getPort();
-            var config = new Config(URI.create(awsAddress), new InlinePassword("access"), new InlinePassword("secret"), "us-west-2", null);
-            @SuppressWarnings("resource")
+            var credentialsProvider = new FixedCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret"));
+            var config = new Config(URI.create(awsAddress), credentialsProvider, "us-west-2", null);
             var awsKmsService = new AwsKmsService();
             awsKmsService.initialize(config);
             var service = awsKmsService.buildKms();

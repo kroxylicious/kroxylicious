@@ -26,6 +26,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProvider;
 import io.kroxylicious.kms.provider.aws.kms.model.DecryptRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.DecryptResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
@@ -72,8 +73,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
     static final String X_AMZ_TARGET_HEADER = "X-Amz-Target";
     public static final String ALIAS_PREFIX = "alias/";
 
-    private final String accessKey;
-    private final String secretKey;
+    private final CredentialsProvider credentialsProvider;
     private final String region;
     private final Duration timeout;
     private final HttpClient client;
@@ -83,14 +83,12 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     private final URI awsUrl;
 
-    AwsKms(URI awsUrl, String accessKey, String secretKey, String region, Duration timeout, SSLContext sslContext) {
+    AwsKms(URI awsUrl, CredentialsProvider credentialsProvider, String region, Duration timeout, SSLContext sslContext) {
+        this.credentialsProvider = credentialsProvider;
         Objects.requireNonNull(awsUrl);
-        Objects.requireNonNull(accessKey);
-        Objects.requireNonNull(secretKey);
+        Objects.requireNonNull(credentialsProvider);
         Objects.requireNonNull(region);
         this.awsUrl = awsUrl;
-        this.accessKey = accessKey;
-        this.secretKey = secretKey;
         this.region = region;
         this.timeout = timeout;
         client = createClient(sslContext);
@@ -116,12 +114,12 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
     @Override
     public CompletionStage<DekPair<AwsKmsEdek>> generateDekPair(@NonNull String kekRef) {
         final GenerateDataKeyRequest generateRequest = new GenerateDataKeyRequest(kekRef, "AES_256");
-        var request = createRequest(generateRequest, TRENT_SERVICE_GENERATE_DATA_KEY);
-        return sendAsync(kekRef, request, GENERATE_DATA_KEY_RESPONSE_TYPE_REF, UnknownKeyException::new)
+        var stage = createRequest(generateRequest, TRENT_SERVICE_GENERATE_DATA_KEY);
+        return stage.thenCompose(request -> sendAsync(kekRef, request, GENERATE_DATA_KEY_RESPONSE_TYPE_REF, UnknownKeyException::new)
                 .thenApply(response -> {
                     var key = DestroyableRawSecretKey.takeOwnershipOf(response.plaintext(), AES_KEY_ALGO);
                     return new DekPair<>(new AwsKmsEdek(kekRef, response.ciphertextBlob()), key);
-                });
+                }));
     }
 
     /**
@@ -133,9 +131,9 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
     @Override
     public CompletionStage<SecretKey> decryptEdek(@NonNull AwsKmsEdek edek) {
         final DecryptRequest decryptRequest = new DecryptRequest(edek.kekRef(), edek.edek());
-        var request = createRequest(decryptRequest, TRENT_SERVICE_DECRYPT);
-        return sendAsync(edek.kekRef(), request, DECRYPT_RESPONSE_TYPE_REF, UnknownKeyException::new)
-                .thenApply(response -> DestroyableRawSecretKey.takeOwnershipOf(response.plaintext(), AES_KEY_ALGO));
+        var stage = createRequest(decryptRequest, TRENT_SERVICE_DECRYPT);
+        return stage.thenCompose(request -> sendAsync(edek.kekRef(), request, DECRYPT_RESPONSE_TYPE_REF, UnknownKeyException::new)
+                .thenApply(response -> DestroyableRawSecretKey.takeOwnershipOf(response.plaintext(), AES_KEY_ALGO)));
     }
 
     /**
@@ -145,12 +143,12 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     @NonNull
     @Override
-    public CompletableFuture<String> resolveAlias(@NonNull String alias) {
+    public CompletionStage<String> resolveAlias(@NonNull String alias) {
         final DescribeKeyRequest resolveRequest = new DescribeKeyRequest(ALIAS_PREFIX + alias);
-        var request = createRequest(resolveRequest, TRENT_SERVICE_DESCRIBE_KEY);
-        return sendAsync(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF, UnknownAliasException::new)
+        var stage = createRequest(resolveRequest, TRENT_SERVICE_DESCRIBE_KEY);
+        return stage.thenCompose(request -> sendAsync(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF, UnknownAliasException::new)
                 .thenApply(DescribeKeyResponse::keyMetadata)
-                .thenApply(KeyMetadata::keyId);
+                .thenApply(KeyMetadata::keyId));
     }
 
     private <T> CompletableFuture<T> sendAsync(@NonNull String key, HttpRequest request,
@@ -208,16 +206,17 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
         return awsUrl;
     }
 
-    private HttpRequest createRequest(Object request, String target) {
-
+    private CompletionStage<HttpRequest> createRequest(Object request, String target) {
         var body = getBody(request).getBytes(UTF_8);
 
-        return AwsV4SigningHttpRequestBuilder.newBuilder(accessKey, secretKey, region, "kms", Instant.now())
-                .uri(getAwsUrl())
-                .header(CONTENT_TYPE_HEADER, APPLICATION_X_AMZ_JSON_1_1)
-                .header(X_AMZ_TARGET_HEADER, target)
-                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
-                .build();
+        return credentialsProvider.getCredentials()
+                .thenApply(c -> AwsV4SigningHttpRequestBuilder.newBuilder(c, region, "kms", Instant.now())
+                        .uri(getAwsUrl())
+                        .header(CONTENT_TYPE_HEADER, APPLICATION_X_AMZ_JSON_1_1)
+                        .header(X_AMZ_TARGET_HEADER, target)
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                        .build());
+
     }
 
     private String getBody(Object obj) {
