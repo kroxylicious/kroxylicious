@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 import javax.net.ssl.SSLException;
@@ -39,12 +40,11 @@ import org.mockito.stubbing.Answer;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
@@ -99,12 +99,12 @@ class StateHolderEmbeddedTest {
     public static final String CLIENT_SOFTWARE_NAME = "my-kafka-lib";
     public static final String CLIENT_SOFTWARE_VERSION = "1.0.0";
     public static final int FRAME_MAX_SIZE = 345678;
+    private static final Duration BACKGROUND_TASK_TIMEOUT = Duration.ofSeconds(1);
     private EmbeddedChannel inboundChannel;
     private ChannelHandlerContext inboundCtx;
     private EmbeddedChannel outboundChannel;
     private ChannelHandlerContext outboundCtx;
-
-    private ChannelPromise outboundChannelTcpConnectionFuture;
+    private final AtomicBoolean outboundClosed = new AtomicBoolean(false);
 
     int correlectionId = 0;
     private VirtualCluster virtualCluster;
@@ -176,21 +176,24 @@ class StateHolderEmbeddedTest {
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
                 this.backendHandler = backendHandler;
-                return super.configureBootstrap(backendHandler, inboundChannel);
+                newOutboundChannel();
+                Bootstrap bootstrap = new Bootstrap();
+                bootstrap.group(outboundChannel.eventLoop())
+                        .channel(outboundChannel.getClass())
+                        .handler(backendHandler)
+                        .option(ChannelOption.AUTO_READ, true)
+                        .option(ChannelOption.TCP_NODELAY, true);
+                return bootstrap;
             }
 
+            @Override
             ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
                 // This is ugly... basically the EmbeddedChannel doesn't seem to handle the case
                 // of a handler creating an outgoing connection and ends up
                 // trying to re-register the outbound channel => IllegalStateException
                 // So we override this method to short-circuit that
-                newOutboundChannel();
-                outboundChannelTcpConnectionFuture = outboundChannel.newPromise();
-                return outboundChannelTcpConnectionFuture.addListener(
-                        future -> {
-                            outboundChannel.pipeline().addFirst(backendHandler);
-                            outboundChannel.pipeline().fireChannelActive();
-                        });
+                outboundChannel.pipeline().addFirst(backendHandler);
+                return outboundChannel.newPromise();
             }
         };
     }
@@ -223,6 +226,7 @@ class StateHolderEmbeddedTest {
 
     private void newOutboundChannel() {
         this.outboundChannel = new EmbeddedChannel();
+        outboundChannel.closeFuture().addListener(future -> outboundClosed.set(true));
         this.outboundCtx = mock(ChannelHandlerContext.class);
         when(outboundCtx.channel()).thenReturn(outboundChannel);
         when(outboundCtx.pipeline()).thenReturn(outboundChannel.pipeline());
@@ -334,7 +338,6 @@ class StateHolderEmbeddedTest {
                 .describedAs("Response sent to client")
                 .asInstanceOf(InstanceOfAssertFactories.type(DecodedResponseFrame.class)) // asInstanceOf asserts the expected type internally
                 .satisfies(decodedResponseFrame -> {
-                    assertThat(decodedResponseFrame).isNotNull();
                     assertThat(decodedResponseFrame.correlationId()).isEqualTo(expectedCorrId);
                     if (errorCodeFn != null) {
                         assertThat(decodedResponseFrame.body())
@@ -511,10 +514,6 @@ class StateHolderEmbeddedTest {
 
         handler.inSelectingServer();
 
-        if (tlsConfigured) {
-            SslHandler sslHandler = virtualCluster.getUpstreamSslContext().get().newHandler(ByteBufAllocator.DEFAULT);
-            outboundChannel.pipeline().addFirst(sslHandler);
-        }
         return firstRequest;
     }
 
@@ -831,8 +830,7 @@ class StateHolderEmbeddedTest {
         var firstRequest = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
 
         // When
-        // TODO handler.onUpstreamChannelActive(outboundCtx);
-        outboundChannelTcpConnectionFuture.setSuccess();
+        outboundChannel.pipeline().fireChannelActive();
 
         // Then
         inboundChannel.checkException();
@@ -844,7 +842,7 @@ class StateHolderEmbeddedTest {
         // .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
         // .isEmpty();
         // TODO should we do inbound -> server? outbound -> client? argh that's the reverse of the naming in the stateHolder...
-        //  Or should we move state holder to inbound and outbound temrinology
+        // Or should we move state holder to inbound and outbound temrinology
         assertRequestSentToBroker(firstRequest);
         assertThat(inboundChannel.config().isAutoRead()).isTrue();
 
@@ -860,13 +858,11 @@ class StateHolderEmbeddedTest {
             ApiKeys firstMessage,
             Throwable serverException) {
         // Given
-        var metadata = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
-        outboundChannelTcpConnectionFuture.setSuccess();
+        buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
+        outboundChannel.pipeline().fireChannelActive();
 
         // When
-        // TODO handler.onUpstreamChannelActive(outboundCtx);
         outboundChannel.pipeline().fireExceptionCaught(serverException);
-        // handler.upstreamExceptionCaught(outboundCtx, serverException); //TODO move to test of stateHolder
 
         // Then
         inboundChannel.checkException();
@@ -881,11 +877,11 @@ class StateHolderEmbeddedTest {
             boolean haProxy,
             ApiKeys firstMessage) {
         // Given
-        var metadata = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
-        // TODO handler.onUpstreamChannelActive(outboundCtx);
+        buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
+        outboundChannel.pipeline().fireChannelActive();
 
         // When
-        handler.closeServerAndClientChannels(null);
+        outboundChannel.pipeline().fireChannelInactive();
 
         // Then
         inboundChannel.checkException();
@@ -903,9 +899,7 @@ class StateHolderEmbeddedTest {
         var firstRequest = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
 
         // When
-        // TODO handler.onUpstreamChannelActive(outboundCtx);
-
-        outboundChannelTcpConnectionFuture.setSuccess();
+        outboundChannel.pipeline().fireChannelActive();
 
         // Then
         inboundChannel.checkException();
@@ -929,12 +923,12 @@ class StateHolderEmbeddedTest {
             ApiKeys firstMessage) {
         // Given
         final DecodedRequestFrame<ApiMessage> requestFrame = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
-        outboundChannelTcpConnectionFuture.setSuccess();
 
         // When
         outboundChannel.pipeline().fireUserEventTriggered(new SslHandshakeCompletionEvent(new SSLHandshakeException("Oops")));
 
         // Then
+        outboundChannel.pipeline().get(SslHandler.class).closeOutbound();
         inboundChannel.checkException();
         outboundChannel.checkException();
 
@@ -955,7 +949,7 @@ class StateHolderEmbeddedTest {
             ApiKeys firstMessage) {
         // Given
         buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
-        outboundChannelTcpConnectionFuture.setSuccess();
+        outboundChannel.pipeline().fireChannelActive();
 
         // When
         outboundChannel.pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
@@ -1007,23 +1001,28 @@ class StateHolderEmbeddedTest {
 
     private void assertEverythingClosed() {
         assertThat(handler.state()).isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class);
-        //TODO this doesn't work reliably but I don't understand why the outboundChannel closeFuture doesn't complete reliably.
-//        if (handler.state() instanceof ProxyChannelState.Closing) {
-//            if (outboundChannel != null) {
-//                await().untilAsserted(() -> assertThat(outboundChannel.closeFuture().isSuccess()).isTrue());
-//            }
-//            await("transition to closed").atMost(BACKGROUND_TASK_TIMEOUT)
-//                    .failFast("State not closing or closed",
-//                            () -> assertThat(handler.state())
-//                                    .isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class))
-//                    .untilAsserted(() -> assertThat(handler.state()).isInstanceOf(ProxyChannelState.Closed.class));
-//        }
+        // TODO this doesn't work reliably but I don't understand why the outboundChannel closeFuture doesn't complete reliably.
+        // if (outboundChannel != null) {
+        // await("outboundClosed").atMost(Duration.ofSeconds(12)).untilTrue(outboundClosed);
+        // assertThat(outboundChannel.isActive()).isFalse();
+        // assertThat(outboundChannel.isOpen()).isFalse();
+        // }
+        // if (handler.state() instanceof ProxyChannelState.Closing) {
+        // if (outboundChannel != null) {
+        // await().untilAsserted(() -> assertThat(outboundChannel.closeFuture().isSuccess()).isTrue());
+        // }
+        // await("transition to closed").atMost(BACKGROUND_TASK_TIMEOUT)
+        // .failFast("State not closing or closed",
+        // () -> assertThat(handler.state())
+        // .isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class))
+        // .untilAsserted(() -> assertThat(handler.state()).isInstanceOf(ProxyChannelState.Closed.class));
+        // }
         assertThat(inboundChannel.isActive()).isFalse();
         assertThat(inboundChannel.isOpen()).isFalse();
-//        if (outboundChannel != null) {
-//            assertThat(outboundChannel.isActive()).isFalse();
-//            assertThat(outboundChannel.isOpen()).isFalse();
-//        }
+        // if (outboundChannel != null) {
+        // assertThat(outboundChannel.isActive()).isFalse();
+        // assertThat(outboundChannel.isOpen()).isFalse();
+        // }
     }
 
 }

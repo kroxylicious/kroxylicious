@@ -563,7 +563,7 @@ public class KafkaProxyFrontendHandler
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }
             else {
-                closeServerAndClientChannels(errorResponseForServerException(future.cause())); //TODO this should go via the StateHolder
+                closeServerAndClientChannels(errorResponseForServerException(future.cause())); // TODO this should go via the StateHolder
             }
         });
     }

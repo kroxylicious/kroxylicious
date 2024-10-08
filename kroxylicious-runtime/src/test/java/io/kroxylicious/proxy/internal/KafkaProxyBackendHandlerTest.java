@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal;
 
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.net.ssl.SSLHandshakeException;
 
@@ -16,8 +17,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
@@ -27,6 +29,8 @@ import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPe
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -41,15 +45,14 @@ class KafkaProxyBackendHandlerTest {
 
     private KafkaProxyBackendHandler kafkaProxyBackendHandler;
     private ChannelHandlerContext outboundContext;
+    private Channel outboundChannel;
 
     @BeforeEach
     void setUp() {
-        Channel inboundChannel = new EmbeddedChannel();
-        inboundChannel.pipeline().addFirst("dummy", new ChannelDuplexHandler());
-        Channel outboundChannel = new EmbeddedChannel();
-        outboundChannel.pipeline().addFirst("dummy", new ChannelDuplexHandler());
+        outboundChannel = new EmbeddedChannel();
         kafkaProxyBackendHandler = new KafkaProxyBackendHandler(stateHolder, new VirtualCluster("wibble", new TargetCluster("localhost:9090", Optional.empty()),
                 ADDRESS_CONFIG_PROVIDER, Optional.empty(), false, false));
+        outboundChannel.pipeline().addFirst(kafkaProxyBackendHandler);
         outboundContext = outboundChannel.pipeline().firstContext();
     }
 
@@ -99,5 +102,41 @@ class KafkaProxyBackendHandlerTest {
 
         // Then
         verify(stateHolder).onServerException(cause);
+    }
+
+    @Test
+    void shouldCloseDirectly() {
+        // Given
+        final AtomicBoolean flushed = new AtomicBoolean(false);
+        final AtomicBoolean closed = new AtomicBoolean(false);
+        outboundChannel.closeFuture().addListener(future -> closed.set(true));
+
+        // When
+        outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener((ChannelFutureListener) future -> {
+            flushed.set(true);
+            future.channel().close();
+        });
+
+        // Then
+        await().untilTrue(flushed);
+        await().untilTrue(closed);
+    }
+
+    @Test
+    void shouldCloseChannelWhenInClosingState() throws Exception {
+        // Given
+        final AtomicBoolean closed = new AtomicBoolean(false);
+        outboundChannel.closeFuture().addListener(future -> closed.set(true));
+        kafkaProxyBackendHandler.channelActive(outboundContext);
+
+        // When
+        kafkaProxyBackendHandler.inClosing();
+
+        // Then
+        await().untilTrue(closed);
+
+        verify(stateHolder).onServerClosed();
+        assertThat(outboundChannel.isActive()).isFalse();
+        assertThat(outboundChannel.isOpen()).isFalse();
     }
 }

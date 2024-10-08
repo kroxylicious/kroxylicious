@@ -99,7 +99,8 @@ public class StateHolder {
     @Nullable
     ProxyChannelState state;
 
-    /* The netty autoread flag is volatile =>
+    /*
+     * The netty autoread flag is volatile =>
      * expensive to set in every call to channelRead.
      * So we track autoread states via these non-volatile fields,
      * allowing us to only touch the volatile when it needs to be changed
@@ -108,10 +109,7 @@ public class StateHolder {
     boolean serverReadsBlocked;
     @VisibleForTesting
     boolean clientReadsBlocked;
-    @VisibleForTesting
-    boolean serverClosed = false;
-    @VisibleForTesting
-    boolean clientClosed = false;
+
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
      */
@@ -394,7 +392,6 @@ public class StateHolder {
             frontendHandler.inClosing(errorCodeEx);
         }
     }
-
 
     void onServerException(Throwable cause) {
         LOGGER.atWarn()
