@@ -195,9 +195,6 @@ public class ProxyChannelStateMachine {
             toConnecting(selectingServerState.toConnecting(remote), remote, filters, virtualCluster);
         }
         else {
-            // TODO why do we do the state change here, rather than
-            // throwing ISE like the other methods overridden from
-            // NFC, then just catch ISE in selectServer?
             String msg = "NetFilter called NetFilterContext.initiateConnect() more than once";
             illegalState(msg + " : filter='" + netFilter + "'");
         }
