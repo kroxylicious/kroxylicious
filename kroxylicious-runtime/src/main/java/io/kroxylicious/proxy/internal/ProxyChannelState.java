@@ -64,7 +64,7 @@ sealed interface ProxyChannelState
          */
         @NonNull
         public ApiVersions toApiVersions(
-                DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
+                                         DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             // TODO check the format of the strings using a regex
             // Needed to reproduce the exact behaviour for how a broker handles this
             // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
@@ -95,7 +95,7 @@ sealed interface ProxyChannelState
      */
     record HaProxy(
 
-            @NonNull HAProxyMessage haProxyMessage)
+                   @NonNull HAProxyMessage haProxyMessage)
             implements ProxyChannelState {
 
         /**
@@ -187,8 +187,7 @@ sealed interface ProxyChannelState
      */
     record Connecting(@Nullable HAProxyMessage haProxyMessage,
                       @Nullable String clientSoftwareName,
-                      @Nullable String clientSoftwareVersion
-    )
+                      @Nullable String clientSoftwareVersion)
             implements ProxyChannelState {
 
         /**
@@ -200,8 +199,7 @@ sealed interface ProxyChannelState
             return new Forwarding(
                     haProxyMessage,
                     clientSoftwareName,
-                    clientSoftwareVersion
-            );
+                    clientSoftwareVersion);
         }
 
     }
@@ -220,9 +218,9 @@ sealed interface ProxyChannelState
         private final String clientSoftwareVersion;
 
         Forwarding(
-                @Nullable HAProxyMessage haProxyMessage,
-                @Nullable String clientSoftwareName,
-                @Nullable String clientSoftwareVersion) {
+                   @Nullable HAProxyMessage haProxyMessage,
+                   @Nullable String clientSoftwareName,
+                   @Nullable String clientSoftwareVersion) {
             this.haProxyMessage = haProxyMessage;
             this.clientSoftwareName = clientSoftwareName;
             this.clientSoftwareVersion = clientSoftwareVersion;

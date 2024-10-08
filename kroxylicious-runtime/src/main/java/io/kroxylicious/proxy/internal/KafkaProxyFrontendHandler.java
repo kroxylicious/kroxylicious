@@ -321,7 +321,8 @@ public class KafkaProxyFrontendHandler
         // filter.initiateConnect() call's back on
         // our initiateConnect() method
         this.netFilter.selectServer(this);
-        this.proxyChannelStateMachine.assertIsConnecting("NetFilter.selectServer() did not callback on NetFilterContext.initiateConnect(): filter='" + this.netFilter + "'");
+        this.proxyChannelStateMachine
+                .assertIsConnecting("NetFilter.selectServer() did not callback on NetFilterContext.initiateConnect(): filter='" + this.netFilter + "'");
     }
 
     /**

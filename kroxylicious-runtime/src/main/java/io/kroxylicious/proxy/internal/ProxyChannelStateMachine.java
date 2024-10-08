@@ -180,17 +180,17 @@ public class ProxyChannelStateMachine {
     }
 
     private void toClientActive(
-            @NonNull ProxyChannelState.ClientActive clientActive,
-            @NonNull KafkaProxyFrontendHandler frontendHandler) {
+                                @NonNull ProxyChannelState.ClientActive clientActive,
+                                @NonNull KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
         frontendHandler.inClientActive();
     }
 
     void onNetFilterInitiateConnect(
-            @NonNull HostPort remote,
-            @NonNull List<FilterAndInvoker> filters,
-            VirtualCluster virtualCluster,
-            NetFilter netFilter) {
+                                    @NonNull HostPort remote,
+                                    @NonNull List<FilterAndInvoker> filters,
+                                    VirtualCluster virtualCluster,
+                                    NetFilter netFilter) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
             toConnecting(selectingServerState.toConnecting(remote), remote, filters, virtualCluster);
         }

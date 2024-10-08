@@ -149,8 +149,7 @@ class ProxyChannelStateMachineTest {
                 0,
                 false,
                 new RequestHeaderData(),
-                new MetadataRequestData()
-        );
+                new MetadataRequestData());
     }
 
     @NonNull
@@ -159,8 +158,7 @@ class ProxyChannelStateMachineTest {
                 MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
                 0,
                 new ResponseHeaderData(),
-                new MetadataResponseData()
-        );
+                new MetadataResponseData());
     }
 
     @Test
@@ -659,7 +657,8 @@ class ProxyChannelStateMachineTest {
         stateHolderInForwarding();
         final ApiException expectedException = Errors.UNKNOWN_SERVER_ERROR.exception();
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
-        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler).inClosing(expectedException);
+        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler)
+                .inClosing(expectedException);
         doNothing().when(backendHandler).inClosing();
 
         // When

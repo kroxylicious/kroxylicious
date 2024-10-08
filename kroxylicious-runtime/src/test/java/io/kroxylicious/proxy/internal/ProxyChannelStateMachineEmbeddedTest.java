@@ -121,9 +121,9 @@ class ProxyChannelStateMachineEmbeddedTest {
 
     @NonNull
     private static DecodedRequestFrame<ApiMessage> decodedRequestFrame(
-            short apiVersion,
-            ApiMessage body,
-            int downstreamCorrelationId) {
+                                                                       short apiVersion,
+                                                                       ApiMessage body,
+                                                                       int downstreamCorrelationId) {
         var apiKey = ApiKeys.forId(body.apiKey());
 
         RequestHeaderData header = new RequestHeaderData()
@@ -166,9 +166,9 @@ class ProxyChannelStateMachineEmbeddedTest {
     private KafkaProxyFrontendHandler handler;
 
     private KafkaProxyFrontendHandler handler(
-            NetFilter filter,
-            SaslDecodePredicate dp,
-            VirtualCluster virtualCluster) {
+                                              NetFilter filter,
+                                              SaslDecodePredicate dp,
+                                              VirtualCluster virtualCluster) {
         return new KafkaProxyFrontendHandler(filter, dp, virtualCluster) {
             private KafkaProxyBackendHandler backendHandler;
 
@@ -248,10 +248,10 @@ class ProxyChannelStateMachineEmbeddedTest {
     }
 
     private static void netFilterContextAssertions(
-            NetFilter.NetFilterContext context,
-            boolean sni,
-            boolean haProxy,
-            boolean apiVersions) {
+                                                   NetFilter.NetFilterContext context,
+                                                   boolean sni,
+                                                   boolean haProxy,
+                                                   boolean apiVersions) {
         assertThat(context.sniHostname()).isEqualTo(sni ? SNI_HOSTNAME : null);
         assertThat(context.authorizedId()).isNull();
         assertThat(context.clientHost()).isEqualTo(haProxy ? HA_PROXY_MESSAGE.sourceAddress() : "embedded"); // hard-coded for EmbeddedChannel
@@ -276,9 +276,9 @@ class ProxyChannelStateMachineEmbeddedTest {
 
     @NonNull
     private static Answer<Void> selectServerCallsInitiateConnectTwice(
-            boolean sni,
-            boolean haProxy,
-            boolean apiVersions) {
+                                                                      boolean sni,
+                                                                      boolean haProxy,
+                                                                      boolean apiVersions) {
         return invocation -> {
             NetFilter.NetFilterContext context = invocation.getArgument(0);
             netFilterContextAssertions(context, sni, haProxy, apiVersions);
@@ -290,9 +290,9 @@ class ProxyChannelStateMachineEmbeddedTest {
 
     @NonNull
     private static Answer<Void> selectServerDoesNotCallInitiateConnect(
-            boolean sni,
-            boolean haProxy,
-            boolean apiVersions) {
+                                                                       boolean sni,
+                                                                       boolean haProxy,
+                                                                       boolean apiVersions) {
         return invocation -> {
             NetFilter.NetFilterContext context = invocation.getArgument(0);
             netFilterContextAssertions(context, sni, haProxy, apiVersions);
@@ -389,7 +389,7 @@ class ProxyChannelStateMachineEmbeddedTest {
         var outboundBuffer = (ByteBuf) actual;
         final ArrayList<Object> out = new ArrayList<>();
         new KafkaRequestDecoder(DECODE_EVERYTHING, FRAME_MAX_SIZE).decode(null, outboundBuffer, out);
-        assertThat(out).hasToString(List.of(expectedRequest).toString()); //  yuck. Implementing equals on decodedFrame isn't a good move either.
+        assertThat(out).hasToString(List.of(expectedRequest).toString()); // yuck. Implementing equals on decodedFrame isn't a good move either.
     }
 
     private void assertHandlerInHaProxyState() {
@@ -407,8 +407,8 @@ class ProxyChannelStateMachineEmbeddedTest {
     }
 
     private void assertHandlerInConnectingState(
-            boolean haProxy,
-            List<ApiKeys> expectedBufferedRequestTypes) {
+                                                boolean haProxy,
+                                                List<ApiKeys> expectedBufferedRequestTypes) {
         var stateAssert = assertThat(handler.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Connecting.class));
         stateAssert.extracting(ProxyChannelState.Connecting::haProxyMessage).isEqualTo(haProxy ? HA_PROXY_MESSAGE : null);
@@ -493,10 +493,10 @@ class ProxyChannelStateMachineEmbeddedTest {
     }
 
     private DecodedRequestFrame<ApiMessage> buildHandlerInConnectingState(
-            boolean sni,
-            boolean haProxy,
-            boolean tlsConfigured,
-            ApiKeys firstMessage) {
+                                                                          boolean sni,
+                                                                          boolean haProxy,
+                                                                          boolean tlsConfigured,
+                                                                          ApiKeys firstMessage) {
         buildHandler(false, tlsConfigured, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
 
         hClientConnect(handler);
@@ -594,9 +594,9 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void clientActiveToConnectingWithoutSaslOffload(
-            boolean sni,
-            boolean haProxy,
-            ApiKeys firstMessage) {
+                                                    boolean sni,
+                                                    boolean haProxy,
+                                                    ApiKeys firstMessage) {
         // Given
         buildHandlerInClientActiveState(false, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS), sni);
 
@@ -626,8 +626,8 @@ class ProxyChannelStateMachineEmbeddedTest {
     }
 
     private void buildHandlerInClientActiveState(
-            boolean saslOffloadConfigured,
-            Answer<Void> filterSelectServerBehaviour, boolean sni) {
+                                                 boolean saslOffloadConfigured,
+                                                 Answer<Void> filterSelectServerBehaviour, boolean sni) {
         buildHandler(saslOffloadConfigured, false, filterSelectServerBehaviour);
 
         hClientConnect(handler);
@@ -640,8 +640,8 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void clientActiveToConnectingWithSaslOffload(
-            boolean sni,
-            boolean haProxy) {
+                                                 boolean sni,
+                                                 boolean haProxy) {
         Assumptions.abort();
         // Given
         buildHandlerInClientActiveState(true, selectServerCallsInitiateConnect(sni, haProxy, true), sni);
@@ -700,8 +700,8 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void filterNotCallingInitiateConnectIsAnErrorWithSaslOffload(
-            boolean sni,
-            boolean haProxy) {
+                                                                 boolean sni,
+                                                                 boolean haProxy) {
         // Given
         buildHandlerInClientActiveState(true, selectServerDoesNotCallInitiateConnect(sni, haProxy, true), sni);
 
@@ -724,8 +724,8 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void filterCallingInitiateConnectTwiceIsAnErrorWithoutSaslOffload(
-            boolean sni,
-            boolean haProxy) {
+                                                                      boolean sni,
+                                                                      boolean haProxy) {
         // Given
         buildHandlerInClientActiveState(false, selectServerCallsInitiateConnectTwice(sni, haProxy, true), sni);
 
@@ -747,8 +747,8 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void filterCallingInitiateConnectTwiceIsAnErrorWithSaslOffload(
-            boolean sni,
-            boolean haProxy) {
+                                                                   boolean sni,
+                                                                   boolean haProxy) {
         // Given
         buildHandlerInClientActiveState(true, selectServerCallsInitiateConnectTwice(sni, haProxy, true), sni);
 
@@ -775,8 +775,8 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void filterThrowingIsAnErrorWithoutSaslOffload(
-            boolean sni,
-            boolean haProxy) {
+                                                   boolean sni,
+                                                   boolean haProxy) {
         // Given
         buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), sni);
 
@@ -797,8 +797,8 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXboolean")
     void filterThrowingIsAnErrorWithSaslOffload(
-            boolean sni,
-            boolean haProxy) {
+                                                boolean sni,
+                                                boolean haProxy) {
         Assumptions.abort();
         // Given
         buildHandlerInClientActiveState(true, selectServerThrows(new AssertionError()), sni);
@@ -823,9 +823,9 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void plainServerChannelActivationInConnecting(
-            boolean sni,
-            boolean haProxy,
-            ApiKeys firstMessage) {
+                                                  boolean sni,
+                                                  boolean haProxy,
+                                                  ApiKeys firstMessage) {
         // Given
         var firstRequest = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
 
@@ -853,10 +853,10 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKeyXserverException")
     void plainServerChannelActivationThenException(
-            boolean sni,
-            boolean haProxy,
-            ApiKeys firstMessage,
-            Throwable serverException) {
+                                                   boolean sni,
+                                                   boolean haProxy,
+                                                   ApiKeys firstMessage,
+                                                   Throwable serverException) {
         // Given
         buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
         outboundChannel.pipeline().fireChannelActive();
@@ -873,9 +873,9 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void plainServerChannelActivationThenInactive(
-            boolean sni,
-            boolean haProxy,
-            ApiKeys firstMessage) {
+                                                  boolean sni,
+                                                  boolean haProxy,
+                                                  ApiKeys firstMessage) {
         // Given
         buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
         outboundChannel.pipeline().fireChannelActive();
@@ -892,9 +892,9 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void tlsServerChannelActivationInConnecting(
-            boolean sni,
-            boolean haProxy,
-            ApiKeys firstMessage) {
+                                                boolean sni,
+                                                boolean haProxy,
+                                                ApiKeys firstMessage) {
         // Given
         var firstRequest = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
 
@@ -918,9 +918,9 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void tlsHandshakeFail(
-            boolean sni,
-            boolean haProxy,
-            ApiKeys firstMessage) {
+                          boolean sni,
+                          boolean haProxy,
+                          ApiKeys firstMessage) {
         // Given
         final DecodedRequestFrame<ApiMessage> requestFrame = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
 
@@ -944,9 +944,9 @@ class ProxyChannelStateMachineEmbeddedTest {
     @ParameterizedTest
     @MethodSource("booleanXbooleanXapiKey")
     void tlsHandshakeSuccess(
-            boolean sni,
-            boolean haProxy,
-            ApiKeys firstMessage) {
+                             boolean sni,
+                             boolean haProxy,
+                             ApiKeys firstMessage) {
         // Given
         buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
         outboundChannel.pipeline().fireChannelActive();
