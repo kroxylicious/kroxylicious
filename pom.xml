@@ -36,7 +36,7 @@
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
         <freemarker.version>2.3.33</freemarker.version>
-        <guava.version>33.3.0-jre</guava.version>
+        <guava.version>33.3.1-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.17.2</jackson.version>
         <junit.version>5.10.3</junit.version>
