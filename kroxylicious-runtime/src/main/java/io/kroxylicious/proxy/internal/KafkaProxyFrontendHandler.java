@@ -167,58 +167,11 @@ public class KafkaProxyFrontendHandler
                 + '}';
     }
 
-    @VisibleForTesting
-    ProxyChannelState state() {
-        return proxyChannelStateMachine.state();
-    }
-
-    @VisibleForTesting
-    void setState(@NonNull ProxyChannelState state) {
-        this.proxyChannelStateMachine.setState(state);
-    }
-
     ChannelHandlerContext clientCtx() {
         if (this.clientCtx == null) {
-            throw new IllegalStateException("clientCtx was null while in state " + this.state());
+            throw new IllegalStateException("clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
         }
         return Objects.requireNonNull(this.clientCtx);
-    }
-
-    @VisibleForTesting
-    void toClosed() {
-        setState(new Closed());
-    }
-
-    /**
-     * Closes both upstream and downstream channels, optionally
-     * sending the client the given response.
-     * Called when the channel to the upstream broker is failed,
-     * or TODO when either channel gets closed by the peer.
-     * TODO what guarantees that the given response has the
-     * type and correlation id that the client is expecting?
-     */
-    @VisibleForTesting
-    void closeServerAndClientChannels(
-                                      @Nullable ResponseFrame clientResponse) {
-        // TODO this method is suspicious and should be removed
-        // Close the server connection
-        ChannelHandlerContext outboundCtx = proxyChannelStateMachine.backendHandler.serverCtx;
-        if (outboundCtx != null) {
-            Channel outboundChannel = outboundCtx.channel();
-            if (outboundChannel.isActive()) {
-                outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER)
-                        .addListener(ChannelFutureListener.CLOSE);
-            }
-        }
-
-        // Close the client connection with any error code
-        Channel inboundChannel = clientCtx().channel();
-        if (inboundChannel.isActive()) {
-            inboundChannel.writeAndFlush(clientResponse != null ? clientResponse : Unpooled.EMPTY_BUFFER)
-                    .addListener(ChannelFutureListener.CLOSE);
-        }
-
-        toClosed();
     }
 
     @Override
@@ -564,7 +517,7 @@ public class KafkaProxyFrontendHandler
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }
             else {
-                closeServerAndClientChannels(errorResponseForServerException(future.cause())); // TODO this should go via the StateHolder
+                proxyChannelStateMachine.onServerException(future.cause());
             }
         });
     }

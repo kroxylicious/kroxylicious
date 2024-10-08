@@ -32,6 +32,7 @@ import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -100,6 +101,7 @@ class ProxyChannelStateMachineEmbeddedTest {
     public static final String CLIENT_SOFTWARE_VERSION = "1.0.0";
     public static final int FRAME_MAX_SIZE = 345678;
     private static final Duration BACKGROUND_TASK_TIMEOUT = Duration.ofSeconds(1);
+
     private EmbeddedChannel inboundChannel;
     private ChannelHandlerContext inboundCtx;
     private EmbeddedChannel outboundChannel;
@@ -108,6 +110,14 @@ class ProxyChannelStateMachineEmbeddedTest {
 
     int correlectionId = 0;
     private VirtualCluster virtualCluster;
+    private ProxyChannelStateMachine proxyChannelStateMachine;
+    private KafkaProxyFrontendHandler handler;
+    private KafkaProxyBackendHandler backendHandler;
+
+    @BeforeEach
+    void setUp() {
+        proxyChannelStateMachine = new ProxyChannelStateMachine();
+    }
 
     @AfterEach
     public void closeChannel() {
@@ -154,33 +164,30 @@ class ProxyChannelStateMachineEmbeddedTest {
                 .setMechanism(mechanism.mechanismName()));
     }
 
-    private int writeSaslAuthenticate(byte[] authBytes) {
-        return writeRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData()
+    private void writeSaslAuthenticate(byte[] authBytes) {
+        writeRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData()
                 .setAuthBytes(authBytes));
     }
 
-    private int writeInboundMetadataRequest() {
-        return writeRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData());
+    private void writeInboundMetadataRequest() {
+        writeRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData());
     }
 
-    private KafkaProxyFrontendHandler handler;
 
     private KafkaProxyFrontendHandler handler(
                                               NetFilter filter,
                                               SaslDecodePredicate dp,
                                               VirtualCluster virtualCluster) {
-        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster) {
-            private KafkaProxyBackendHandler backendHandler;
-
+        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, proxyChannelStateMachine) {
             @NonNull
             @Override
-            Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
-                this.backendHandler = backendHandler;
+            Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
+                ProxyChannelStateMachineEmbeddedTest.this.backendHandler = capturedBackendHandler;
                 newOutboundChannel();
                 Bootstrap bootstrap = new Bootstrap();
                 bootstrap.group(outboundChannel.eventLoop())
                         .channel(outboundChannel.getClass())
-                        .handler(backendHandler)
+                        .handler(capturedBackendHandler)
                         .option(ChannelOption.AUTO_READ, true)
                         .option(ChannelOption.TCP_NODELAY, true);
                 return bootstrap;
@@ -242,9 +249,9 @@ class ProxyChannelStateMachineEmbeddedTest {
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
             pipeline.addLast(handler);
         }
-        assertThat(handler.state()).isNull();
+        assertThat(proxyChannelStateMachine.state()).isNull();
         pipeline.fireChannelActive();
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
     }
 
     private static void netFilterContextAssertions(
@@ -393,13 +400,13 @@ class ProxyChannelStateMachineEmbeddedTest {
     }
 
     private void assertHandlerInHaProxyState() {
-        assertThat(handler.state())
+        assertThat(proxyChannelStateMachine.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.HaProxy.class))
                 .extracting(ProxyChannelState.HaProxy::haProxyMessage).isSameAs(HA_PROXY_MESSAGE);
     }
 
     private void assertHandlerInApiVersionsState(boolean haProxy) {
-        var stateAssert = assertThat(handler.state())
+        var stateAssert = assertThat(proxyChannelStateMachine.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.ApiVersions.class));
         stateAssert.extracting(ProxyChannelState.ApiVersions::haProxyMessage).isEqualTo(haProxy ? HA_PROXY_MESSAGE : null);
         stateAssert.extracting(ProxyChannelState.ApiVersions::clientSoftwareName).isEqualTo(CLIENT_SOFTWARE_NAME);
@@ -409,7 +416,7 @@ class ProxyChannelStateMachineEmbeddedTest {
     private void assertHandlerInConnectingState(
                                                 boolean haProxy,
                                                 List<ApiKeys> expectedBufferedRequestTypes) {
-        var stateAssert = assertThat(handler.state())
+        var stateAssert = assertThat(proxyChannelStateMachine.state())
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.Connecting.class));
         stateAssert.extracting(ProxyChannelState.Connecting::haProxyMessage).isEqualTo(haProxy ? HA_PROXY_MESSAGE : null);
         stateAssert.extracting(ProxyChannelState.Connecting::clientSoftwareName)
@@ -503,10 +510,14 @@ class ProxyChannelStateMachineEmbeddedTest {
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
-        handler.setState(new ProxyChannelState.SelectingServer(
-                haProxy ? HA_PROXY_MESSAGE : null,
-                firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
-                firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null));
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.SelectingServer(
+                        haProxy ? HA_PROXY_MESSAGE : null,
+                        firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_NAME : null,
+                        firstMessage == ApiKeys.API_VERSIONS ? CLIENT_SOFTWARE_VERSION : null),
+                handler,
+                backendHandler);
+
         inboundChannel.config().setAutoRead(false);
 
         final DecodedRequestFrame<ApiMessage> firstRequest = apiKeyToMessage(firstMessage);
@@ -521,7 +532,7 @@ class ProxyChannelStateMachineEmbeddedTest {
     void toClientActive() {
         // Given
         buildHandler(false, false, selectServerThrows(new AssertionError()));
-        assertThat(handler.state()).isNull();
+        assertThat(proxyChannelStateMachine.state()).isNull();
 
         // When
         hClientConnect(handler);
@@ -531,7 +542,7 @@ class ProxyChannelStateMachineEmbeddedTest {
         assertThat(inboundChannel.config().isAutoRead()).isFalse();
         assertThat(inboundChannel.isWritable()).isTrue();
 
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
     }
 
     @ParameterizedTest
@@ -601,17 +612,20 @@ class ProxyChannelStateMachineEmbeddedTest {
         buildHandlerInClientActiveState(false, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS), sni);
 
         if (haProxy) {
-            handler.setState(new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE));
+            proxyChannelStateMachine.forceState(
+                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                    handler,
+                    backendHandler);
         }
 
         // When
-        int firstCorrId = switch (firstMessage) {
+        switch (firstMessage) {
             case API_VERSIONS -> writeInboundApiVersionsRequest();
             case SASL_HANDSHAKE -> writeSaslHandshake(KafkaAuthnHandler.SaslMechanism.PLAIN);
             case SASL_AUTHENTICATE -> writeSaslAuthenticate("pa55word".getBytes(StandardCharsets.UTF_8));
             case METADATA -> writeInboundMetadataRequest();
             default -> throw new IllegalArgumentException();
-        };
+        }
 
         // Then
         inboundChannel.checkException();
@@ -631,7 +645,7 @@ class ProxyChannelStateMachineEmbeddedTest {
         buildHandler(saslOffloadConfigured, false, filterSelectServerBehaviour);
 
         hClientConnect(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
         if (sni) {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
@@ -647,7 +661,10 @@ class ProxyChannelStateMachineEmbeddedTest {
         buildHandlerInClientActiveState(true, selectServerCallsInitiateConnect(sni, haProxy, true), sni);
 
         if (haProxy) {
-            handler.setState(new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE));
+            proxyChannelStateMachine.forceState(
+                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                    handler,
+                    backendHandler);
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
@@ -685,12 +702,15 @@ class ProxyChannelStateMachineEmbeddedTest {
         buildHandlerInClientActiveState(false, selectServerDoesNotCallInitiateConnect(sni, haProxy, true), sni);
 
         if (haProxy) {
-            handler.setState(new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE));
+            proxyChannelStateMachine.forceState(
+                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                    handler,
+                    backendHandler);
         }
 
         // When
 
-        int apiVersionsCorrId = writeInboundApiVersionsRequest();
+        writeInboundApiVersionsRequest();
 
         // Then
         inboundChannel.checkException();
@@ -706,7 +726,10 @@ class ProxyChannelStateMachineEmbeddedTest {
         buildHandlerInClientActiveState(true, selectServerDoesNotCallInitiateConnect(sni, haProxy, true), sni);
 
         if (haProxy) {
-            handler.setState(new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE));
+            proxyChannelStateMachine.forceState(
+                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                    handler,
+                    backendHandler);
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
@@ -714,7 +737,7 @@ class ProxyChannelStateMachineEmbeddedTest {
         assertHandlerInApiVersionsState(haProxy);
 
         // When
-        int saslHandshakeCorrId = writeSaslHandshake(KafkaAuthnHandler.SaslMechanism.PLAIN);
+        writeSaslHandshake(KafkaAuthnHandler.SaslMechanism.PLAIN);
 
         // Then
         inboundChannel.checkException();
@@ -730,7 +753,10 @@ class ProxyChannelStateMachineEmbeddedTest {
         buildHandlerInClientActiveState(false, selectServerCallsInitiateConnectTwice(sni, haProxy, true), sni);
 
         if (haProxy) {
-            handler.setState(new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE));
+            proxyChannelStateMachine.forceState(
+                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                    handler,
+                    backendHandler);
         }
 
         // When
@@ -753,7 +779,10 @@ class ProxyChannelStateMachineEmbeddedTest {
         buildHandlerInClientActiveState(true, selectServerCallsInitiateConnectTwice(sni, haProxy, true), sni);
 
         if (haProxy) {
-            handler.setState(new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE));
+            proxyChannelStateMachine.forceState(
+                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                    handler,
+                    backendHandler);
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
@@ -781,7 +810,10 @@ class ProxyChannelStateMachineEmbeddedTest {
         buildHandlerInClientActiveState(false, selectServerThrows(new AssertionError()), sni);
 
         if (haProxy) {
-            handler.setState(new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE));
+            proxyChannelStateMachine.forceState(
+                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                    handler,
+                    backendHandler);
         }
 
         // When
@@ -804,15 +836,18 @@ class ProxyChannelStateMachineEmbeddedTest {
         buildHandlerInClientActiveState(true, selectServerThrows(new AssertionError()), sni);
 
         if (haProxy) {
-            handler.setState(new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE));
+            proxyChannelStateMachine.forceState(
+                    new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                    handler,
+                    backendHandler);
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
         assertClientApiVersionsResponse(apiVersionsCorrId, Errors.NONE);
-        assertThat(handler.state()).isInstanceOf(ProxyChannelState.ApiVersions.class);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.ApiVersions.class);
 
         // When
-        int saslHandshakeCorrId = writeSaslHandshake(KafkaAuthnHandler.SaslMechanism.PLAIN);
+        writeSaslHandshake(KafkaAuthnHandler.SaslMechanism.PLAIN);
 
         // Then
         inboundChannel.checkException();
@@ -835,7 +870,7 @@ class ProxyChannelStateMachineEmbeddedTest {
         // Then
         inboundChannel.checkException();
         outboundChannel.checkException();
-        assertThat(handler.state()).isInstanceOf(ProxyChannelState.Forwarding.class);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Forwarding.class);
 
         assertThat(handler.bufferedMsgs).isNull();
         // buffered messages is nulled out once forwarded so the empty check fails
@@ -904,7 +939,7 @@ class ProxyChannelStateMachineEmbeddedTest {
         // Then
         inboundChannel.checkException();
 
-        assertThat(handler.state()).isInstanceOf(ProxyChannelState.Connecting.class);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Connecting.class);
 
         assertThat(handler.bufferedMsgs)
                 .asInstanceOf(InstanceOfAssertFactories.list(DecodedResponseFrame.class))
@@ -961,7 +996,7 @@ class ProxyChannelStateMachineEmbeddedTest {
                 .describedAs("Buffered request should be forwarded to server")
                 .isNotNull();
 
-        assertThat(handler.state())
+        assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.Forwarding.class);
         assertThat(inboundChannel.config().isAutoRead())
                 .describedAs("Client autoread should be on once connected to server")
@@ -1000,22 +1035,23 @@ class ProxyChannelStateMachineEmbeddedTest {
     }
 
     private void assertEverythingClosed() {
-        assertThat(handler.state()).isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class);
         // TODO this doesn't work reliably but I don't understand why the outboundChannel closeFuture doesn't complete reliably.
+        // The outbound channel gets stuck in SSL negotiation....
         // if (outboundChannel != null) {
         // await("outboundClosed").atMost(Duration.ofSeconds(12)).untilTrue(outboundClosed);
         // assertThat(outboundChannel.isActive()).isFalse();
         // assertThat(outboundChannel.isOpen()).isFalse();
         // }
-        // if (handler.state() instanceof ProxyChannelState.Closing) {
+        // if (proxyChannelStateMachine.state() instanceof ProxyChannelState.Closing) {
         // if (outboundChannel != null) {
         // await().untilAsserted(() -> assertThat(outboundChannel.closeFuture().isSuccess()).isTrue());
         // }
         // await("transition to closed").atMost(BACKGROUND_TASK_TIMEOUT)
         // .failFast("State not closing or closed",
-        // () -> assertThat(handler.state())
+        // () -> assertThat(proxyChannelStateMachine.state())
         // .isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class))
-        // .untilAsserted(() -> assertThat(handler.state()).isInstanceOf(ProxyChannelState.Closed.class));
+        // .untilAsserted(() -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class));
         // }
         assertThat(inboundChannel.isActive()).isFalse();
         assertThat(inboundChannel.isOpen()).isFalse();
@@ -1024,5 +1060,4 @@ class ProxyChannelStateMachineEmbeddedTest {
         // assertThat(outboundChannel.isOpen()).isFalse();
         // }
     }
-
 }

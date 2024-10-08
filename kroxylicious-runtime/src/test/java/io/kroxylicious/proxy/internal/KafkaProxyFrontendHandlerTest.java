@@ -81,6 +81,8 @@ class KafkaProxyFrontendHandlerTest {
 
     int corrId = 0;
     private final AtomicReference<NetFilter.NetFilterContext> connectContext = new AtomicReference<>();
+    private KafkaProxyBackendHandler backendHandler;
+    private ProxyChannelStateMachine proxyChannelStateMachine;
 
     private void writeRequest(short apiVersion, ApiMessage body) {
         int downstreamCorrelationId = corrId++;
@@ -106,6 +108,7 @@ class KafkaProxyFrontendHandlerTest {
     public void buildChannel() {
         inboundChannel = new EmbeddedChannel();
         corrId = 0;
+        proxyChannelStateMachine = new ProxyChannelStateMachine();
     }
 
     @AfterEach
@@ -178,7 +181,7 @@ class KafkaProxyFrontendHandlerTest {
         inboundChannel.writeInbound(unexpectedMessage);
 
         // Then
-        assertHandlerClosed(handler);
+        assertStateIsClosed();
     }
 
     @Test
@@ -234,7 +237,7 @@ class KafkaProxyFrontendHandlerTest {
         inboundChannel.writeInbound(unexpectedMessage);
 
         // Then
-        assertHandlerClosed(handler);
+        assertStateIsClosed();
     }
 
     private void writeInboundApiVersionsRequest(KafkaProxyFrontendHandler handler,
@@ -244,18 +247,17 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, VirtualCluster virtualCluster) {
-        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster) {
-            private KafkaProxyBackendHandler backendHandler;
+        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, proxyChannelStateMachine) {
 
             @NonNull
             @Override
-            Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
-                this.backendHandler = backendHandler;
+            Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
+                backendHandler = capturedBackendHandler;
                 outboundChannel = new EmbeddedChannel();
                 Bootstrap bootstrap = new Bootstrap();
                 bootstrap.group(outboundChannel.eventLoop())
                         .channel(outboundChannel.getClass())
-                        .handler(backendHandler)
+                        .handler(capturedBackendHandler)
                         .option(ChannelOption.AUTO_READ, true)
                         .option(ChannelOption.TCP_NODELAY, true);
                 return bootstrap;
@@ -339,20 +341,20 @@ class KafkaProxyFrontendHandlerTest {
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
         }
 
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
 
         if (haProxyConfigured) {
             // Simulate the HA proxy handler
             inboundChannel.writeInbound(new HAProxyMessage(HAProxyProtocolVersion.V1,
                     HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
                     "1.2.3.4", "5.6.7.8", 65535, CLUSTER_PORT));
-            assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.HaProxy.class);
+            assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.HaProxy.class);
         }
 
         if (sendApiVersions) {
             // Simulate the client doing ApiVersions
             writeInboundApiVersionsRequest(handler, "foo");
-            assertThat(handler.state())
+            assertThat(proxyChannelStateMachine.state())
                     .as("state in (ApiVersions, Connecting)")
                     .isInstanceOfAny(ProxyChannelState.ApiVersions.class, ProxyChannelState.Connecting.class);
             if (saslOffloadConfigured) {
@@ -361,7 +363,7 @@ class KafkaProxyFrontendHandlerTest {
             }
             else {
                 // We transition directly through selecting server, so can't observe the state.
-                assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
+                assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
                 // should cause connection to the backend cluster when not offloading SASL
                 handleConnect(filter, handler);
             }
@@ -413,7 +415,7 @@ class KafkaProxyFrontendHandlerTest {
         inboundChannel.pipeline().fireExceptionCaught(new DecoderException("boom"));
 
         // Then
-        assertHandlerClosed(handler);
+        assertStateIsClosed();
         assertThat(inboundChannel.<DecodedResponseFrame<?>> readOutbound()).satisfies(decodedResponseFrame -> {
             assertThat(decodedResponseFrame.apiKey()).isEqualTo(apiKey);
             assertThat(decodedResponseFrame.body()).isNotNull()
@@ -438,7 +440,7 @@ class KafkaProxyFrontendHandlerTest {
         inboundChannel.pipeline().fireExceptionCaught(new DecoderException(new FrameOversizedException(5, 6)));
 
         // Then
-        assertHandlerClosed(handler);
+        assertStateIsClosed();
         assertThat(inboundChannel.<DecodedResponseFrame<?>> readOutbound()).satisfies(decodedResponseFrame -> {
             assertThat(decodedResponseFrame.apiKey()).isEqualTo(apiKey);
             assertThat(decodedResponseFrame.body()).isNotNull()
@@ -457,15 +459,15 @@ class KafkaProxyFrontendHandlerTest {
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
             pipeline.addLast(handler);
         }
-        assertThat(handler.state()).isNull();
+        assertThat(proxyChannelStateMachine.state()).isNull();
         pipeline.fireChannelActive();
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
     }
 
     private void handleConnect(NetFilter filter, KafkaProxyFrontendHandler handler) {
-        // assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.SelectingServer.class);
+        // assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.SelectingServer.class);
         verify(filter).selectServer(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
         assertFalse(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound not yet active");
 
@@ -478,7 +480,7 @@ class KafkaProxyFrontendHandlerTest {
         outboundChannel.pipeline().fireChannelActive();
         assertTrue(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound now active");
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Forwarding.class);
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Forwarding.class);
     }
 
     private List<String> outboundClientSoftwareNames() {
@@ -510,9 +512,9 @@ class KafkaProxyFrontendHandlerTest {
 
     private void whenConnectedAndOutboundBecomesActive(KafkaProxyFrontendHandler handler) {
         // connectionInitiated(connectContext.get());
-        // assertThat(handler.state()).isExactlyInstanceOf(KafkaProxyFrontendHandler.Connecting.class);
+        // assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(KafkaProxyFrontendHandler.Connecting.class);
         outboundChannelBecomesActive(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Forwarding.class);
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Forwarding.class);
     }
 
     private void givenHandlerIsConnected(KafkaProxyFrontendHandler handler) {
@@ -526,7 +528,7 @@ class KafkaProxyFrontendHandlerTest {
     private void givenHandlerIsConnecting(KafkaProxyFrontendHandler handler, String initialClientSoftwareName) {
         initialiseInboundChannel(handler);
         writeInboundApiVersionsRequest(handler, initialClientSoftwareName);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
     }
 
     @NonNull
@@ -546,22 +548,21 @@ class KafkaProxyFrontendHandlerTest {
     void transitionsFromStart() {
         boolean saslOffloadConfigured = false;
         var dp = new SaslDecodePredicate(saslOffloadConfigured);
-        ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
         var filter = mock(NetFilter.class);
         var virtualCluster = mock(VirtualCluster.class);
         when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
 
         var handler = handler(filter, dp, virtualCluster);
         initialiseInboundChannel(handler);
-        assertThat(handler.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
 
         // Simulate the SSL handler
         inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
     }
 
-    private static void assertHandlerClosed(KafkaProxyFrontendHandler handler) {
+    private void assertStateIsClosed() {
         // As the embedded channels have their own threads we can't be certain which state we will be in here and it doesn't matter to this test
-        assertThat(handler.state()).isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class);
     }
 
     @NonNull
@@ -569,5 +570,4 @@ class KafkaProxyFrontendHandlerTest {
         connectContext.set(netFilterContext);
         netFilterContext.initiateConnect(new HostPort(CLUSTER_HOST, CLUSTER_PORT), List.of());
     }
-
 }

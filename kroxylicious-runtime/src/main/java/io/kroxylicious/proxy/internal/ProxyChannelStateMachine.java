@@ -95,9 +95,8 @@ public class ProxyChannelStateMachine {
     /**
      * The current state. This can be changed via a call to one of the {@code on*()} methods.
      */
-    @VisibleForTesting
     @Nullable
-    ProxyChannelState state;
+    private ProxyChannelState state;
 
     /*
      * The netty autoread flag is volatile =>
@@ -129,9 +128,12 @@ public class ProxyChannelStateMachine {
         return state;
     }
 
-    void setState(@NonNull ProxyChannelState state) {
+    @VisibleForTesting
+    void forceState(@NonNull ProxyChannelState state, @NonNull KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler) {
         LOGGER.trace("{} transitioning to {}", this, state);
         this.state = state;
+        this.frontendHandler = frontendHandler;
+        this.backendHandler = backendHandler;
     }
 
     void onClientUnwritable() {
@@ -432,5 +434,14 @@ public class ProxyChannelStateMachine {
                 ", frontendHandler=" + frontendHandler +
                 ", backendHandler=" + backendHandler +
                 '}';
+    }
+
+    private void setState(@NonNull ProxyChannelState state) {
+        LOGGER.trace("{} transitioning to {}", this, state);
+        this.state = state;
+    }
+
+    public String currentState() {
+        return this.state().getClass().getSimpleName(); // TODO give each state a name method.
     }
 }
