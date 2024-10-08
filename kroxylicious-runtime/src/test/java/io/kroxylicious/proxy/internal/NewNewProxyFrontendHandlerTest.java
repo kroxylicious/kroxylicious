@@ -38,7 +38,7 @@ public class NewNewProxyFrontendHandlerTest {
     ChannelHandlerContext clientCtx;
 
     @Mock
-    StateHolder stateHolder;
+    ProxyChannelStateMachine proxyChannelStateMachine;
 
     AutoCloseable closeable;
 
@@ -60,13 +60,13 @@ public class NewNewProxyFrontendHandlerTest {
                 netFilter,
                 dp,
                 vc,
-                stateHolder);
+                proxyChannelStateMachine);
 
         // When
         handler.channelActive(clientCtx);
 
         // Then
-        verify(stateHolder).onClientActive(handler);
+        verify(proxyChannelStateMachine).onClientActive(handler);
         verifyNoInteractions(netFilter);
     }
 
@@ -86,13 +86,13 @@ public class NewNewProxyFrontendHandlerTest {
                 netFilter,
                 dp,
                 vc,
-                stateHolder);
+                proxyChannelStateMachine);
 
         // When
         handler.channelRead(clientCtx, msg);
 
         // Then
-        verify(stateHolder).onClientRequest(dp, msg);
+        verify(proxyChannelStateMachine).onClientRequest(dp, msg);
         verifyNoInteractions(netFilter);
     }
 
@@ -104,13 +104,13 @@ public class NewNewProxyFrontendHandlerTest {
                 netFilter,
                 dp,
                 vc,
-                stateHolder);
+                proxyChannelStateMachine);
 
         // When
         handler.inSelectingServer();
 
         // Then
         verify(netFilter).selectServer(handler);
-        verify(stateHolder).assertIsConnecting(anyString());
+        verify(proxyChannelStateMachine).assertIsConnecting(anyString());
     }
 }

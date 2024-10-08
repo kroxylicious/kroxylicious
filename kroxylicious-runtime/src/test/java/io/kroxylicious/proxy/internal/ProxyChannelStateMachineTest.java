@@ -63,71 +63,71 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
-class StateHolderTest {
+class ProxyChannelStateMachineTest {
 
     public static final HostPort BROKER_ADDRESS = new HostPort("localhost", 9092);
     public static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             "1.1.1.1", "2.2.2.2", 46421, 9092);
-    private StateHolder stateHolder;
+    private ProxyChannelStateMachine proxyChannelStateMachine;
     private KafkaProxyBackendHandler backendHandler;
     private KafkaProxyFrontendHandler frontendHandler;
 
     @BeforeEach
     void setUp() {
-        stateHolder = new StateHolder();
+        proxyChannelStateMachine = new ProxyChannelStateMachine();
         backendHandler = mock(KafkaProxyBackendHandler.class);
         frontendHandler = mock(KafkaProxyFrontendHandler.class);
     }
 
     private void stateHolderInClientActive() {
-        stateHolder.state = new ProxyChannelState.ClientActive();
-        stateHolder.backendHandler = null;
-        stateHolder.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.state = new ProxyChannelState.ClientActive();
+        proxyChannelStateMachine.backendHandler = null;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
     }
 
     private void stateHolderInHaProxy() {
-        stateHolder.state = new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE);
-        stateHolder.backendHandler = null;
-        stateHolder.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.state = new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE);
+        proxyChannelStateMachine.backendHandler = null;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
     }
 
     private void stateHolderInApiVersionsState() {
-        stateHolder.state = new ProxyChannelState.ApiVersions(null, null, null);
-        stateHolder.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.state = new ProxyChannelState.ApiVersions(null, null, null);
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
     }
 
     private void stateHolderInSelectingServer() {
-        stateHolder.state = new ProxyChannelState.SelectingServer(null, null, null);
-        stateHolder.backendHandler = null;
-        stateHolder.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.state = new ProxyChannelState.SelectingServer(null, null, null);
+        proxyChannelStateMachine.backendHandler = null;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
     }
 
     private ProxyChannelState.Connecting stateHolderInConnecting() {
         ProxyChannelState.Connecting state = new ProxyChannelState.Connecting(null, null, null);
-        stateHolder.state = state;
-        stateHolder.backendHandler = backendHandler;
-        stateHolder.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.state = state;
+        proxyChannelStateMachine.backendHandler = backendHandler;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
         return state;
     }
 
     private ProxyChannelState.Forwarding stateHolderInForwarding() {
         var forwarding = new ProxyChannelState.Forwarding(null, null, null);
-        stateHolder.state = forwarding;
-        stateHolder.backendHandler = backendHandler;
-        stateHolder.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.state = forwarding;
+        proxyChannelStateMachine.backendHandler = backendHandler;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
         return forwarding;
     }
 
     private void stateHolderInClosing(Throwable cause) {
-        stateHolder.state = new ProxyChannelState.Closing(cause, false, false);
-        stateHolder.backendHandler = backendHandler;
-        stateHolder.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.state = new ProxyChannelState.Closing(cause, false, false);
+        proxyChannelStateMachine.backendHandler = backendHandler;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
     }
 
     private void stateHolderInClosed() {
-        stateHolder.state = new ProxyChannelState.Closed();
-        stateHolder.backendHandler = backendHandler;
-        stateHolder.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.state = new ProxyChannelState.Closed();
+        proxyChannelStateMachine.backendHandler = backendHandler;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
     }
 
     @NonNull
@@ -166,11 +166,11 @@ class StateHolderTest {
     @Test
     void shouldBlockClientReads() {
         // Given
-        stateHolder.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
 
         // When
-        stateHolder.onServerUnwritable();
-        stateHolder.onServerUnwritable();
+        proxyChannelStateMachine.onServerUnwritable();
+        proxyChannelStateMachine.onServerUnwritable();
 
         // Then
         verify(frontendHandler, times(1)).blockClientReads();
@@ -179,12 +179,12 @@ class StateHolderTest {
     @Test
     void shouldUnblockClientReads() {
         // Given
-        stateHolder.frontendHandler = frontendHandler;
-        stateHolder.clientReadsBlocked = true;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.clientReadsBlocked = true;
 
         // When
-        stateHolder.onServerWritable();
-        stateHolder.onServerWritable();
+        proxyChannelStateMachine.onServerWritable();
+        proxyChannelStateMachine.onServerWritable();
 
         // Then
         verify(frontendHandler, times(1)).unblockClientReads();
@@ -193,11 +193,11 @@ class StateHolderTest {
     @Test
     void shouldBlockServerReads() {
         // Given
-        stateHolder.backendHandler = backendHandler;
+        proxyChannelStateMachine.backendHandler = backendHandler;
 
         // When
-        stateHolder.onClientUnwritable();
-        stateHolder.onClientUnwritable();
+        proxyChannelStateMachine.onClientUnwritable();
+        proxyChannelStateMachine.onClientUnwritable();
 
         // Then
         verify(backendHandler, times(1)).blockServerReads();
@@ -206,15 +206,15 @@ class StateHolderTest {
     @Test
     void shouldCloseOnClientRuntimeException() {
         // Given
-        stateHolder.frontendHandler = frontendHandler;
-        stateHolder.backendHandler = backendHandler;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.backendHandler = backendHandler;
         RuntimeException cause = new RuntimeException("Oops!");
 
         // When
-        stateHolder.onClientException(cause, true);
+        proxyChannelStateMachine.onClientException(cause, true);
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
         verify(backendHandler).inClosing();
         verify(frontendHandler).inClosing(ArgumentMatchers.notNull(UnknownServerException.class));
     }
@@ -222,15 +222,15 @@ class StateHolderTest {
     @Test
     void shouldCloseOnClientFrameOversizedException() {
         // Given
-        stateHolder.frontendHandler = frontendHandler;
-        stateHolder.backendHandler = backendHandler;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.backendHandler = backendHandler;
         RuntimeException cause = new DecoderException(new FrameOversizedException(2, 1));
 
         // When
-        stateHolder.onClientException(cause, true);
+        proxyChannelStateMachine.onClientException(cause, true);
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
         verify(backendHandler).inClosing();
         verify(frontendHandler).inClosing(ArgumentMatchers.notNull(InvalidRequestException.class));
     }
@@ -238,15 +238,15 @@ class StateHolderTest {
     @Test
     void shouldCloseOnServerRuntimeException() {
         // Given
-        stateHolder.frontendHandler = frontendHandler;
-        stateHolder.backendHandler = backendHandler;
+        proxyChannelStateMachine.frontendHandler = frontendHandler;
+        proxyChannelStateMachine.backendHandler = backendHandler;
         RuntimeException cause = new RuntimeException("Oops!");
 
         // When
-        stateHolder.onServerException(cause);
+        proxyChannelStateMachine.onServerException(cause);
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
         verify(backendHandler).inClosing();
         verify(frontendHandler).inClosing(cause);
     }
@@ -254,12 +254,12 @@ class StateHolderTest {
     @Test
     void shouldUnblockServerReads() {
         // Given
-        stateHolder.backendHandler = backendHandler;
-        stateHolder.serverReadsBlocked = true;
+        proxyChannelStateMachine.backendHandler = backendHandler;
+        proxyChannelStateMachine.serverReadsBlocked = true;
 
         // When
-        stateHolder.onClientWritable();
-        stateHolder.onClientWritable();
+        proxyChannelStateMachine.onClientWritable();
+        proxyChannelStateMachine.onClientWritable();
 
         // Then
         verify(backendHandler, times(1)).unblockServerReads();
@@ -270,10 +270,10 @@ class StateHolderTest {
         // Given
 
         // When
-        stateHolder.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendHandler);
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.ClientActive.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.ClientActive.class);
         verify(frontendHandler, times(1)).inClientActive();
     }
 
@@ -284,10 +284,10 @@ class StateHolderTest {
         var dp = mock(SaslDecodePredicate.class);
 
         // When
-        stateHolder.onClientRequest(dp, HA_PROXY_MESSAGE);
+        proxyChannelStateMachine.onClientRequest(dp, HA_PROXY_MESSAGE);
 
         // Then
-        assertThat(stateHolder.state)
+        assertThat(proxyChannelStateMachine.state)
                 .asInstanceOf(InstanceOfAssertFactories.type(ProxyChannelState.HaProxy.class))
                 .extracting(ProxyChannelState.HaProxy::haProxyMessage)
                 .isSameAs(HA_PROXY_MESSAGE);
@@ -302,10 +302,10 @@ class StateHolderTest {
         var dp = mock(SaslDecodePredicate.class);
 
         // When
-        stateHolder.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(dp, msg);
 
         // Then
-        assertThat(stateHolder.state)
+        assertThat(proxyChannelStateMachine.state)
                 .isInstanceOf(ProxyChannelState.SelectingServer.class);
         verifyNoInteractions(dp);
         verify(frontendHandler).inSelectingServer();
@@ -321,10 +321,10 @@ class StateHolderTest {
         var dp = new SaslDecodePredicate(false);
 
         // When
-        stateHolder.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(dp, msg);
 
         // Then
-        assertThat(stateHolder.state)
+        assertThat(proxyChannelStateMachine.state)
                 .isInstanceOf(ProxyChannelState.SelectingServer.class);
         verify(frontendHandler).inSelectingServer();
         verify(frontendHandler).bufferMsg(msg);
@@ -338,10 +338,10 @@ class StateHolderTest {
         var dp = new SaslDecodePredicate(false);
 
         // When
-        stateHolder.onClientRequest(dp, HA_PROXY_MESSAGE);
+        proxyChannelStateMachine.onClientRequest(dp, HA_PROXY_MESSAGE);
 
         // Then
-        assertThat(stateHolder.state)
+        assertThat(proxyChannelStateMachine.state)
                 .isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(null);
     }
@@ -354,10 +354,10 @@ class StateHolderTest {
         var dp = mock(SaslDecodePredicate.class);
 
         // When
-        stateHolder.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(dp, msg);
 
         // Then
-        assertThat(stateHolder.state)
+        assertThat(proxyChannelStateMachine.state)
                 .isInstanceOf(ProxyChannelState.SelectingServer.class);
         verifyNoInteractions(dp);
         verify(frontendHandler).inSelectingServer();
@@ -371,10 +371,10 @@ class StateHolderTest {
         stateHolderInApiVersionsState();
 
         // When
-        stateHolder.onClientActive(frontendHandler);
+        proxyChannelStateMachine.onClientActive(frontendHandler);
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(null);
     }
 
@@ -386,10 +386,10 @@ class StateHolderTest {
         SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
 
         // When
-        stateHolder.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(dp, msg);
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.SelectingServer.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.SelectingServer.class);
         verify(frontendHandler).bufferMsg(msg);
     }
 
@@ -400,10 +400,10 @@ class StateHolderTest {
         var dp = mock(SaslDecodePredicate.class);
 
         // When
-        stateHolder.onClientRequest(dp, HA_PROXY_MESSAGE);
+        proxyChannelStateMachine.onClientRequest(dp, HA_PROXY_MESSAGE);
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(null);
         verifyNoInteractions(backendHandler);
         verifyNoInteractions(dp);
@@ -417,13 +417,13 @@ class StateHolderTest {
         var msg = apiVersionsRequest();
 
         // When
-        stateHolder.onClientRequest(
+        proxyChannelStateMachine.onClientRequest(
                 new SaslDecodePredicate(handlingSasl),
                 msg);
 
         // Then
         if (handlingSasl) {
-            var stateAssert = assertThat(stateHolder.state)
+            var stateAssert = assertThat(proxyChannelStateMachine.state)
                     .asInstanceOf(InstanceOfAssertFactories.type(ApiVersions.class));
             stateAssert
                     .extracting(ApiVersions::clientSoftwareName).isEqualTo("mykafkalib");
@@ -431,7 +431,7 @@ class StateHolderTest {
                     .extracting(ApiVersions::clientSoftwareVersion).isEqualTo("1.0.0");
         }
         else {
-            var stateAssert = assertThat(stateHolder.state)
+            var stateAssert = assertThat(proxyChannelStateMachine.state)
                     .asInstanceOf(InstanceOfAssertFactories.type(SelectingServer.class));
             stateAssert
                     .extracting(SelectingServer::clientSoftwareName).isEqualTo("mykafkalib");
@@ -453,13 +453,13 @@ class StateHolderTest {
         var nf = mock(NetFilter.class);
 
         // When
-        stateHolder.onNetFilterInitiateConnect(brokerAddress, filters, vc, nf);
+        proxyChannelStateMachine.onNetFilterInitiateConnect(brokerAddress, filters, vc, nf);
 
         // Then
-        assertThat(stateHolder.state)
+        assertThat(proxyChannelStateMachine.state)
                 .isInstanceOf(ProxyChannelState.Connecting.class);
         verify(frontendHandler).inConnecting(eq(brokerAddress), eq(filters), notNull(KafkaProxyBackendHandler.class));
-        assertThat(stateHolder.backendHandler).isNotNull();
+        assertThat(proxyChannelStateMachine.backendHandler).isNotNull();
     }
 
     @Test
@@ -472,13 +472,13 @@ class StateHolderTest {
         var nf = mock(NetFilter.class);
 
         // When
-        stateHolder.onNetFilterInitiateConnect(brokerAddress, filters, vc, nf);
+        proxyChannelStateMachine.onNetFilterInitiateConnect(brokerAddress, filters, vc, nf);
 
         // Then
-        assertThat(stateHolder.state)
+        assertThat(proxyChannelStateMachine.state)
                 .isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(null);
-        assertThat(stateHolder.backendHandler).isNull();
+        assertThat(proxyChannelStateMachine.backendHandler).isNull();
     }
 
     @Test
@@ -491,10 +491,10 @@ class StateHolderTest {
         var nf = mock(NetFilter.class);
 
         // When
-        stateHolder.onNetFilterInitiateConnect(BROKER_ADDRESS, filters, vc, nf);
+        proxyChannelStateMachine.onNetFilterInitiateConnect(BROKER_ADDRESS, filters, vc, nf);
 
         // Then
-        assertThat(stateHolder.state)
+        assertThat(proxyChannelStateMachine.state)
                 .isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(null);
         verify(backendHandler).inClosing();
@@ -506,10 +506,10 @@ class StateHolderTest {
         stateHolderInConnecting();
 
         // When
-        stateHolder.onServerActive();
+        proxyChannelStateMachine.onServerActive();
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Forwarding.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Forwarding.class);
 
         verify(frontendHandler).inForwarding();
         verifyNoInteractions(backendHandler);
@@ -522,11 +522,11 @@ class StateHolderTest {
 
         // When
         DecodedRequestFrame<MetadataRequestData> msg = metadataRequest();
-        stateHolder.onClientRequest(new SaslDecodePredicate(false), msg);
+        proxyChannelStateMachine.onClientRequest(new SaslDecodePredicate(false), msg);
 
         // Then
         verify(frontendHandler).bufferMsg(msg);
-        assertThat(stateHolder.state).isEqualTo(state);
+        assertThat(proxyChannelStateMachine.state).isEqualTo(state);
     }
 
     @Test
@@ -535,10 +535,10 @@ class StateHolderTest {
         stateHolderInClientActive();
 
         // When
-        stateHolder.onServerActive();
+        proxyChannelStateMachine.onServerActive();
 
         // Then
-        assertThat(stateHolder.state)
+        assertThat(proxyChannelStateMachine.state)
                 .isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(null);
     }
@@ -552,10 +552,10 @@ class StateHolderTest {
         var msg = metadataRequest();
 
         // When
-        stateHolder.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(dp, msg);
 
         // Then
-        assertThat(stateHolder.state).isSameAs(forwarding);
+        assertThat(proxyChannelStateMachine.state).isSameAs(forwarding);
         verifyNoInteractions(frontendHandler);
         verifyNoInteractions(dp);
         verifyNoInteractions(serverCtx);
@@ -571,10 +571,10 @@ class StateHolderTest {
         var msg = metadataResponse();
 
         // When
-        stateHolder.forwardToClient(msg);
+        proxyChannelStateMachine.forwardToClient(msg);
 
         // Then
-        assertThat(stateHolder.state).isSameAs(forwarding);
+        assertThat(proxyChannelStateMachine.state).isSameAs(forwarding);
         verify(frontendHandler).forwardToClient(msg);
         verifyNoInteractions(dp);
         verifyNoInteractions(serverCtx);
@@ -585,14 +585,14 @@ class StateHolderTest {
     void inForwardingShouldTransitionToClosingOnServerInactive() {
         // Given
         stateHolderInForwarding();
-        doAnswer(invocation -> assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler).inClosing(null);
+        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler).inClosing(null);
         doNothing().when(backendHandler).inClosing();
 
         // When
-        stateHolder.onServerInactive();
+        proxyChannelStateMachine.onServerInactive();
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(null);
         verify(backendHandler).inClosing();
     }
@@ -601,13 +601,13 @@ class StateHolderTest {
     void inForwardingShouldTransitionToClosingOnClientInactive() {
         // Given
         stateHolderInForwarding();
-        doAnswer(invocation -> assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler).inClosing(null);
+        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler).inClosing(null);
 
         // When
-        stateHolder.onClientInactive();
+        proxyChannelStateMachine.onClientInactive();
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(null);
         verify(backendHandler).inClosing();
     }
@@ -618,7 +618,7 @@ class StateHolderTest {
         stateHolderInClosing(null);
 
         // When
-        stateHolder.onServerInactive();
+        proxyChannelStateMachine.onServerInactive();
 
         // Then
         verifyNoInteractions(frontendHandler, backendHandler);
@@ -630,7 +630,7 @@ class StateHolderTest {
         stateHolderInClosed();
 
         // When
-        stateHolder.onServerInactive();
+        proxyChannelStateMachine.onServerInactive();
 
         // Then
         verifyNoInteractions(frontendHandler, backendHandler);
@@ -644,10 +644,10 @@ class StateHolderTest {
         doNothing().when(backendHandler).inClosing();
 
         // When
-        stateHolder.onServerException(illegalStateException);
+        proxyChannelStateMachine.onServerException(illegalStateException);
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(illegalStateException);
         verify(backendHandler).inClosing();
     }
@@ -659,14 +659,14 @@ class StateHolderTest {
         stateHolderInForwarding();
         final ApiException expectedException = Errors.UNKNOWN_SERVER_ERROR.exception();
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
-        doAnswer(invocation -> assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler).inClosing(expectedException);
+        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler).inClosing(expectedException);
         doNothing().when(backendHandler).inClosing();
 
         // When
-        stateHolder.onClientException(illegalStateException, tlsEnabled);
+        proxyChannelStateMachine.onClientException(illegalStateException, tlsEnabled);
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(expectedException);
         verify(backendHandler).inClosing();
     }
@@ -677,10 +677,10 @@ class StateHolderTest {
         stateHolderInClosing(null);
 
         // When
-        stateHolder.onServerClosed();
+        proxyChannelStateMachine.onServerClosed();
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
     }
 
     @Test
@@ -689,10 +689,10 @@ class StateHolderTest {
         stateHolderInClosing(null);
 
         // When
-        stateHolder.onClientClosed();
+        proxyChannelStateMachine.onClientClosed();
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closing.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closing.class);
     }
 
     @ParameterizedTest
@@ -706,15 +706,15 @@ class StateHolderTest {
         onClose(!serverFirst);
 
         // Then
-        assertThat(stateHolder.state).isInstanceOf(ProxyChannelState.Closed.class);
+        assertThat(proxyChannelStateMachine.state).isInstanceOf(ProxyChannelState.Closed.class);
     }
 
     private void onClose(boolean server) {
         if (server) {
-            stateHolder.onServerClosed();
+            proxyChannelStateMachine.onServerClosed();
         }
         else {
-            stateHolder.onClientClosed();
+            proxyChannelStateMachine.onClientClosed();
         }
     }
 }

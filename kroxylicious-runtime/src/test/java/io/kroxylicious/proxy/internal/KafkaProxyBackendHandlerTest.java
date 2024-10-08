@@ -41,7 +41,7 @@ class KafkaProxyBackendHandlerTest {
             new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("localhost", 9090), "broker-", 9190,
                     0, 10));
     @Mock
-    StateHolder stateHolder;
+    ProxyChannelStateMachine proxyChannelStateMachine;
 
     private KafkaProxyBackendHandler kafkaProxyBackendHandler;
     private ChannelHandlerContext outboundContext;
@@ -50,7 +50,7 @@ class KafkaProxyBackendHandlerTest {
     @BeforeEach
     void setUp() {
         outboundChannel = new EmbeddedChannel();
-        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(stateHolder, new VirtualCluster("wibble", new TargetCluster("localhost:9090", Optional.empty()),
+        kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine, new VirtualCluster("wibble", new TargetCluster("localhost:9090", Optional.empty()),
                 ADDRESS_CONFIG_PROVIDER, Optional.empty(), false, false));
         outboundChannel.pipeline().addFirst(kafkaProxyBackendHandler);
         outboundContext = outboundChannel.pipeline().firstContext();
@@ -64,7 +64,7 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.channelActive(outboundContext);
 
         // Then
-        verify(stateHolder).onServerActive();
+        verify(proxyChannelStateMachine).onServerActive();
     }
 
     @Test
@@ -76,7 +76,7 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.exceptionCaught(outboundContext, kaboom);
 
         // Then
-        verify(stateHolder).onServerException(kaboom);
+        verify(proxyChannelStateMachine).onServerException(kaboom);
     }
 
     @Test
@@ -88,7 +88,7 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.userEventTriggered(serverCtx, SslHandshakeCompletionEvent.SUCCESS);
 
         // Then
-        verify(stateHolder).onServerActive();
+        verify(proxyChannelStateMachine).onServerActive();
     }
 
     @Test
@@ -101,7 +101,7 @@ class KafkaProxyBackendHandlerTest {
         kafkaProxyBackendHandler.userEventTriggered(serverCtx, new SslHandshakeCompletionEvent(cause));
 
         // Then
-        verify(stateHolder).onServerException(cause);
+        verify(proxyChannelStateMachine).onServerException(cause);
     }
 
     @Test
@@ -135,7 +135,7 @@ class KafkaProxyBackendHandlerTest {
         // Then
         await().untilTrue(closed);
 
-        verify(stateHolder).onServerClosed();
+        verify(proxyChannelStateMachine).onServerClosed();
         assertThat(outboundChannel.isActive()).isFalse();
         assertThat(outboundChannel.isOpen()).isFalse();
     }

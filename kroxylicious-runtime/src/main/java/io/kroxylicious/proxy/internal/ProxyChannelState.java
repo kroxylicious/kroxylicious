@@ -31,7 +31,7 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 
 /**
- * Root of a sealed class hierarchy representing the states of the {@link StateHolder}.
+ * Root of a sealed class hierarchy representing the states of the {@link ProxyChannelStateMachine}.
  */
 @VisibleForTesting
 sealed interface ProxyChannelState

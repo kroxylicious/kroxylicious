@@ -114,7 +114,7 @@ public class KafkaProxyFrontendHandler
     private final VirtualCluster virtualCluster;
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
-    private final StateHolder stateHolder;
+    private final ProxyChannelStateMachine proxyChannelStateMachine;
 
     private @Nullable ChannelHandlerContext clientCtx;
     @VisibleForTesting
@@ -135,18 +135,18 @@ public class KafkaProxyFrontendHandler
                               @NonNull NetFilter netFilter,
                               @NonNull SaslDecodePredicate dp,
                               @NonNull VirtualCluster virtualCluster) {
-        this(netFilter, dp, virtualCluster, new StateHolder());
+        this(netFilter, dp, virtualCluster, new ProxyChannelStateMachine());
     }
 
     KafkaProxyFrontendHandler(
                               @NonNull NetFilter netFilter,
                               @NonNull SaslDecodePredicate dp,
                               @NonNull VirtualCluster virtualCluster,
-                              @NonNull StateHolder stateHolder) {
+                              @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
-        this.stateHolder = stateHolder;
+        this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualCluster.isLogNetwork();
         this.logFrames = virtualCluster.isLogFrames();
     }
@@ -169,12 +169,12 @@ public class KafkaProxyFrontendHandler
 
     @VisibleForTesting
     ProxyChannelState state() {
-        return stateHolder.state();
+        return proxyChannelStateMachine.state();
     }
 
     @VisibleForTesting
     void setState(@NonNull ProxyChannelState state) {
-        this.stateHolder.setState(state);
+        this.proxyChannelStateMachine.setState(state);
     }
 
     ChannelHandlerContext clientCtx() {
@@ -202,7 +202,7 @@ public class KafkaProxyFrontendHandler
                                       @Nullable ResponseFrame clientResponse) {
         // TODO this method is suspicious and should be removed
         // Close the server connection
-        ChannelHandlerContext outboundCtx = stateHolder.backendHandler.serverCtx;
+        ChannelHandlerContext outboundCtx = proxyChannelStateMachine.backendHandler.serverCtx;
         if (outboundCtx != null) {
             Channel outboundChannel = outboundCtx.channel();
             if (outboundChannel.isActive()) {
@@ -243,12 +243,12 @@ public class KafkaProxyFrontendHandler
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         this.clientCtx = ctx;
-        this.stateHolder.onClientActive(this);
+        this.proxyChannelStateMachine.onClientActive(this);
         super.channelActive(this.clientCtx);
     }
 
     /**
-     * Called by the {@link StateHolder} on entry to the {@link ClientActive} state.
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link ClientActive} state.
      */
     void inClientActive() {
         Channel clientChannel = clientCtx().channel();
@@ -262,7 +262,7 @@ public class KafkaProxyFrontendHandler
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         LOGGER.trace("INACTIVE on inbound {}", ctx.channel());
-        stateHolder.onClientInactive();
+        proxyChannelStateMachine.onClientInactive();
     }
 
     /**
@@ -277,10 +277,10 @@ public class KafkaProxyFrontendHandler
             throws Exception {
         super.channelWritabilityChanged(inboundCtx);
         if (inboundCtx.channel().isWritable()) {
-            this.stateHolder.onClientWritable();
+            this.proxyChannelStateMachine.onClientWritable();
         }
         else {
-            this.stateHolder.onClientUnwritable();
+            this.proxyChannelStateMachine.onClientUnwritable();
         }
     }
 
@@ -300,11 +300,11 @@ public class KafkaProxyFrontendHandler
     public void channelRead(
                             @NonNull ChannelHandlerContext ctx,
                             @NonNull Object msg) {
-        stateHolder.onClientRequest(dp, msg);
+        proxyChannelStateMachine.onClientRequest(dp, msg);
     }
 
     /**
-     * Called by the {@link StateHolder} on entry to the {@link ApiVersions} state.
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link ApiVersions} state.
      */
     void inApiVersions(DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
         // This handler can respond to ApiVersions itself
@@ -314,14 +314,14 @@ public class KafkaProxyFrontendHandler
     }
 
     /**
-     * Called by the {@link StateHolder} on entry to the {@link SelectingServer} state.
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link SelectingServer} state.
      */
     public void inSelectingServer() {
         // Pass this as the filter context, so that
         // filter.initiateConnect() call's back on
         // our initiateConnect() method
         this.netFilter.selectServer(this);
-        this.stateHolder.assertIsConnecting("NetFilter.selectServer() did not callback on NetFilterContext.initiateConnect(): filter='" + this.netFilter + "'");
+        this.proxyChannelStateMachine.assertIsConnecting("NetFilter.selectServer() did not callback on NetFilterContext.initiateConnect(): filter='" + this.netFilter + "'");
     }
 
     /**
@@ -347,29 +347,29 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void channelReadComplete(ChannelHandlerContext clientCtx) {
-        stateHolder.clientReadComplete();
+        proxyChannelStateMachine.clientReadComplete();
     }
 
     /**
      * Handles an exception in downstream/client pipeline by closing both
-     * channels and changing {@link #stateHolder} to {@link Closed}.
+     * channels and changing {@link #proxyChannelStateMachine} to {@link Closed}.
      * @param ctx The downstream context
      * @param cause The downstream exception
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        stateHolder.onClientException(cause, virtualCluster.getDownstreamSslContext().isPresent());
+        proxyChannelStateMachine.onClientException(cause, virtualCluster.getDownstreamSslContext().isPresent());
     }
 
     /**
      * Accessor exposing the client host to a {@link NetFilter}.
      * <p>Called by the {@link #netFilter}.</p>
      * @return The client host
-     * @throws IllegalStateException if {@link #stateHolder} is not {@link SelectingServer}.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
     public String clientHost() {
-        if (stateHolder.state() instanceof SelectingServer selectingServer) {
+        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
             if (selectingServer.haProxyMessage() != null) {
                 return selectingServer.haProxyMessage().sourceAddress();
             }
@@ -392,11 +392,11 @@ public class KafkaProxyFrontendHandler
      * Accessor exposing the client port to a {@link NetFilter}.
      * <p>Called by the {@link #netFilter}.</p>
      * @return The client port.
-     * @throws IllegalStateException if {@link #stateHolder} is not {@link SelectingServer}.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
     public int clientPort() {
-        if (stateHolder.state() instanceof SelectingServer selectingServer) {
+        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
             if (selectingServer.haProxyMessage() != null) {
                 return selectingServer.haProxyMessage().sourcePort();
             }
@@ -419,11 +419,11 @@ public class KafkaProxyFrontendHandler
      * Accessor exposing the source address to a {@link NetFilter}.
      * <p>Called by the {@link #netFilter}.</p>
      * @return The source address.
-     * @throws IllegalStateException if {@link #stateHolder} is not {@link SelectingServer}.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
     public SocketAddress srcAddress() {
-        stateHolder.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
         return clientCtx().channel().remoteAddress();
     }
 
@@ -431,11 +431,11 @@ public class KafkaProxyFrontendHandler
      * Accessor exposing the local address to a {@link NetFilter}.
      * <p>Called by the {@link #netFilter}.</p>
      * @return The local address.
-     * @throws IllegalStateException if {@link #stateHolder} is not {@link SelectingServer}.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
     public SocketAddress localAddress() {
-        stateHolder.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
         return clientCtx().channel().localAddress();
     }
 
@@ -443,11 +443,11 @@ public class KafkaProxyFrontendHandler
      * Accessor exposing the authorizedId to a {@link NetFilter}.
      * <p>Called by the {@link #netFilter}.</p>
      * @return The authorized id, or null.
-     * @throws IllegalStateException if {@link #stateHolder} is not {@link SelectingServer}.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
     public String authorizedId() {
-        stateHolder.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
         return authentication != null ? authentication.authorizationId() : null;
     }
 
@@ -455,11 +455,11 @@ public class KafkaProxyFrontendHandler
      * Accessor exposing the name of the client library to a {@link NetFilter}.
      * <p>Called by the {@link #netFilter}.</p>
      * @return The name of the client library, or null.
-     * @throws IllegalStateException if {@link #stateHolder} is not {@link SelectingServer}.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
     public String clientSoftwareName() {
-        if (stateHolder.state() instanceof SelectingServer selectingServer) {
+        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
             return selectingServer.clientSoftwareName();
         }
         else {
@@ -471,11 +471,11 @@ public class KafkaProxyFrontendHandler
      * Accessor exposing the version of the client library to a {@link NetFilter}.
      * <p>Called by the {@link #netFilter}.</p>
      * @return The version of the client library, or null.
-     * @throws IllegalStateException if {@link #stateHolder} is not {@link SelectingServer}.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
     public String clientSoftwareVersion() {
-        if (stateHolder.state() instanceof SelectingServer selectingServer) {
+        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
             return selectingServer.clientSoftwareVersion();
         }
         else {
@@ -487,17 +487,17 @@ public class KafkaProxyFrontendHandler
      * Accessor exposing the SNI host name to a {@link NetFilter}.
      * <p>Called by the {@link #netFilter}.</p>
      * @return The SNI host name, or null.
-     * @throws IllegalStateException if {@link #stateHolder} is not {@link SelectingServer}.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
     public String sniHostname() {
-        stateHolder.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
         return sniHostname;
     }
 
     /**
      * Initiates the connection to a server.
-     * Changes {@link #stateHolder} from {@link SelectingServer} to {@link Connecting}
+     * Changes {@link #proxyChannelStateMachine} from {@link SelectingServer} to {@link Connecting}
      * Initializes the {@code backendHandler} and configures its pipeline
      * with the given {@code filters}.
      * <p>Called by the {@link #netFilter}.</p>
@@ -512,11 +512,11 @@ public class KafkaProxyFrontendHandler
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
                     clientCtx().channel().id(), remote, filters);
         }
-        this.stateHolder.onNetFilterInitiateConnect(remote, filters, virtualCluster, netFilter);
+        this.proxyChannelStateMachine.onNetFilterInitiateConnect(remote, filters, virtualCluster, netFilter);
     }
 
     /**
-     * Called by the {@link StateHolder} on entry to the {@link Connecting} state.
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Connecting} state.
      */
     void inConnecting(
                       @NonNull HostPort remote,
@@ -596,7 +596,7 @@ public class KafkaProxyFrontendHandler
                     .setCause(LOGGER.isDebugEnabled() ? e : null)
                     .addArgument(clientCtx().channel().id())
                     // TODO what we use UPSTREAM_PEER_KEY and not `remote`??
-                    .addArgument(stateHolder.backendHandler.serverCtx.channel().remoteAddress())
+                    .addArgument(proxyChannelStateMachine.backendHandler.serverCtx.channel().remoteAddress())
                     .addArgument(e.getMessage())
                     .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
             errorCodeEx = ERROR_NEGOTIATING_SSL_CONNECTION;
@@ -605,7 +605,7 @@ public class KafkaProxyFrontendHandler
             LOGGER.atWarn()
                     .setCause(LOGGER.isDebugEnabled() ? serverException : null)
                     .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
-                            stateHolder.backendHandler.serverCtx.channel().remoteAddress(), serverException.getMessage());
+                            proxyChannelStateMachine.backendHandler.serverCtx.channel().remoteAddress(), serverException.getMessage());
             errorCodeEx = null;
         }
 
@@ -630,13 +630,13 @@ public class KafkaProxyFrontendHandler
     }
 
     /**
-     * Called by the {@link StateHolder} on entry to the {@link Forwarding} state.
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Forwarding} state.
      */
     void inForwarding() {
         // connection is complete, so first forward the buffered message
         if (bufferedMsgs != null) {
             for (Object bufferedMsg : bufferedMsgs) {
-                stateHolder.forwardToServer(bufferedMsg);
+                proxyChannelStateMachine.forwardToServer(bufferedMsg);
             }
             bufferedMsgs = null;
         }
@@ -648,7 +648,7 @@ public class KafkaProxyFrontendHandler
 
         LOGGER.trace("{}: onUpstreamChannelUsable: {}",
                 clientCtx().channel().id(),
-                stateHolder.backendHandler.serverCtx.channel().id());
+                proxyChannelStateMachine.backendHandler.serverCtx.channel().id());
         if (isClientBlocked) {
             // once buffered message has been forwarded we enable auto-read to start accepting further messages
             unblockClient();
@@ -660,7 +660,7 @@ public class KafkaProxyFrontendHandler
         isClientBlocked = false;
         var inboundChannel = clientCtx().channel();
         inboundChannel.config().setAutoRead(true);
-        stateHolder.onClientWritable();
+        proxyChannelStateMachine.onClientWritable();
     }
 
     void forwardToClient(Object msg) {
@@ -684,7 +684,7 @@ public class KafkaProxyFrontendHandler
             inboundChannel.flush();
         }
         if (!inboundChannel.isWritable()) {
-            stateHolder.onClientUnwritable();
+            proxyChannelStateMachine.onClientUnwritable();
         }
     }
 
@@ -705,7 +705,7 @@ public class KafkaProxyFrontendHandler
             if (msg == null) {
                 msg = Unpooled.EMPTY_BUFFER;
             }
-            inboundChannel.closeFuture().addListener(c -> stateHolder.onClientClosed()); // notify when the channel is actually closed
+            inboundChannel.closeFuture().addListener(c -> proxyChannelStateMachine.onClientClosed()); // notify when the channel is actually closed
             inboundChannel.writeAndFlush(msg)
                     .addListener(ChannelFutureListener.CLOSE);
         }

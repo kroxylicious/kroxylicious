@@ -27,16 +27,16 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyBackendHandler.class);
 
     @VisibleForTesting
-    final StateHolder stateHolder;
+    final ProxyChannelStateMachine proxyChannelStateMachine;
     @VisibleForTesting
     final SslContext sslContext;
     ChannelHandlerContext serverCtx;
     private boolean pendingServerFlushes;
 
     public KafkaProxyBackendHandler(
-            StateHolder stateHolder,
+            ProxyChannelStateMachine proxyChannelStateMachine,
             VirtualCluster virtualCluster) {
-        this.stateHolder = Objects.requireNonNull(stateHolder);
+        this.proxyChannelStateMachine = Objects.requireNonNull(proxyChannelStateMachine);
         Optional<SslContext> upstreamSslContext = virtualCluster.getUpstreamSslContext();
         this.sslContext = upstreamSslContext.orElse(null);
     }
@@ -49,10 +49,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         // i.e. stateHolder.onServerBlocked/onServerUnblocked
         // frontendHandler.upstreamWritabilityChanged(ctx);
         if (ctx.channel().isWritable()) {
-            stateHolder.onServerWritable();
+            proxyChannelStateMachine.onServerWritable();
         }
         else {
-            stateHolder.onServerUnwritable();
+            proxyChannelStateMachine.onServerUnwritable();
         }
     }
 
@@ -62,7 +62,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         LOGGER.trace("Channel active {}", ctx);
         serverCtx = ctx;
         if (sslContext == null) {
-            stateHolder.onServerActive();
+            proxyChannelStateMachine.onServerActive();
         }
         super.channelActive(ctx);
     }
@@ -74,10 +74,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
             throws Exception {
         if (evt instanceof SslHandshakeCompletionEvent sslEvt) {
             if (sslEvt.isSuccess()) {
-                stateHolder.onServerActive();
+                proxyChannelStateMachine.onServerActive();
             }
             else {
-                stateHolder.onServerException(sslEvt.cause());
+                proxyChannelStateMachine.onServerException(sslEvt.cause());
             }
         }
         super.userEventTriggered(ctx, evt);
@@ -85,12 +85,12 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
-        stateHolder.onServerInactive();
+        proxyChannelStateMachine.onServerInactive();
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        stateHolder.onServerException(cause);
+        proxyChannelStateMachine.onServerException(cause);
     }
 
     /**
@@ -104,13 +104,13 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) {
-        stateHolder.forwardToClient(msg);
+        proxyChannelStateMachine.forwardToClient(msg);
     }
 
     @Override
     public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
         super.channelReadComplete(ctx);
-        stateHolder.serverReadComplete();
+        proxyChannelStateMachine.serverReadComplete();
     }
 
     public void forwardToServer(Object msg) {
@@ -137,7 +137,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
             serverChannel.flush();
         }
         if (!serverChannel.isWritable()) {
-            stateHolder.onServerUnwritable();
+            proxyChannelStateMachine.onServerUnwritable();
         }
     }
 
@@ -157,7 +157,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         if (serverCtx != null) {
             Channel outboundChannel = serverCtx.channel();
             if (outboundChannel.isActive()) {
-                outboundChannel.closeFuture().addListener(c -> stateHolder.onServerClosed()); // notify when the channel is actually closed
+                outboundChannel.closeFuture().addListener(c -> proxyChannelStateMachine.onServerClosed()); // notify when the channel is actually closed
                 outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
 
             }

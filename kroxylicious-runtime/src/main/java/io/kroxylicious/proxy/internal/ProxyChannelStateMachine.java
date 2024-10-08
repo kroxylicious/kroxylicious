@@ -89,8 +89,8 @@ import static org.slf4j.LoggerFactory.getLogger;
  * session state machine: in general backpressure could happen in
  * several of the session states.</p>
  */
-public class StateHolder {
-    private static final Logger LOGGER = getLogger(StateHolder.class);
+public class ProxyChannelStateMachine {
+    private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
 
     /**
      * The current state. This can be changed via a call to one of the {@code on*()} methods.

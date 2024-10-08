@@ -76,7 +76,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class StateHolderEmbeddedTest {
+class ProxyChannelStateMachineEmbeddedTest {
     public static final DecodePredicate DECODE_EVERYTHING = new DecodePredicate() {
         @Override
         public boolean shouldDecodeRequest(ApiKeys apiKey, short apiVersion) {
