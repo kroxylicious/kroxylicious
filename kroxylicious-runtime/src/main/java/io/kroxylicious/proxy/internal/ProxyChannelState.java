@@ -23,8 +23,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Closing;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.Closing;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
