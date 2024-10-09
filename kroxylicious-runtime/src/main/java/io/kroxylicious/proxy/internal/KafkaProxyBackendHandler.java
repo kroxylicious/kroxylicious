@@ -44,10 +44,6 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
         super.channelWritabilityChanged(ctx);
-        // TODO you're here, and you need to change this to be in terms of
-        // a stateHolder field
-        // i.e. stateHolder.onServerBlocked/onServerUnblocked
-        // frontendHandler.upstreamWritabilityChanged(ctx);
         if (ctx.channel().isWritable()) {
             proxyChannelStateMachine.onServerWritable();
         }
