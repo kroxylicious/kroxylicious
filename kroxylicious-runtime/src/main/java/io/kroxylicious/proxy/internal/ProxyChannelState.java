@@ -191,7 +191,7 @@ sealed interface ProxyChannelState
             implements ProxyChannelState {
 
         /**
-         * Transition to {@link Forwarding}, in the case where TLS is not configured.
+         * Transition to {@link Forwarding}
          * @return The Forwarding state
          */
         @NonNull
