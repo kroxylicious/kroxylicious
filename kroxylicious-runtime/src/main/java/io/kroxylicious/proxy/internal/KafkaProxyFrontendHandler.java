@@ -13,8 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import javax.net.ssl.SSLHandshakeException;
-
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.NetworkException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -541,32 +539,6 @@ public class KafkaProxyFrontendHandler
         return bootstrap.connect(remoteHost, remotePort);
     }
 
-    @VisibleForTesting
-    ResponseFrame errorResponseForServerException(
-                                                  @NonNull Throwable serverException) {
-
-        ApiException errorCodeEx;
-        if (serverException instanceof SSLHandshakeException e) {
-            LOGGER.atInfo()
-                    .setCause(LOGGER.isDebugEnabled() ? e : null)
-                    .addArgument(clientCtx().channel().id())
-                    // TODO what we use UPSTREAM_PEER_KEY and not `remote`??
-                    .addArgument(proxyChannelStateMachine.backendHandler.serverCtx.channel().remoteAddress())
-                    .addArgument(e.getMessage())
-                    .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
-            errorCodeEx = ERROR_NEGOTIATING_SSL_CONNECTION;
-        }
-        else {
-            LOGGER.atWarn()
-                    .setCause(LOGGER.isDebugEnabled() ? serverException : null)
-                    .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
-                            proxyChannelStateMachine.backendHandler.serverCtx.channel().remoteAddress(), serverException.getMessage());
-            errorCodeEx = null;
-        }
-
-        return errorResponse(errorCodeEx);
-    }
-
     private void addFiltersToPipeline(
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
@@ -601,9 +573,6 @@ public class KafkaProxyFrontendHandler
             channelReadComplete(this.clientCtx);
         }
 
-        LOGGER.trace("{}: onUpstreamChannelUsable: {}",
-                clientCtx().channel().id(),
-                proxyChannelStateMachine.backendHandler.serverCtx.channel().id());
         if (isClientBlocked) {
             // once buffered message has been forwarded we enable auto-read to start accepting further messages
             unblockClient();

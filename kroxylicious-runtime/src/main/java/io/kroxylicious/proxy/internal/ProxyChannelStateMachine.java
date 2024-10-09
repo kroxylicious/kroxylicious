@@ -112,16 +112,16 @@ public class ProxyChannelStateMachine {
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
      */
-    @VisibleForTesting
     @NonNull
-    KafkaProxyFrontendHandler frontendHandler;
+    private KafkaProxyFrontendHandler frontendHandler;
+
     /**
      * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualCluster, NetFilter)}
      * has been called
      */
     @VisibleForTesting
     @Nullable
-    KafkaProxyBackendHandler backendHandler;
+    private KafkaProxyBackendHandler backendHandler;
 
     @VisibleForTesting
     ProxyChannelState state() {

@@ -79,102 +79,13 @@ class ProxyChannelStateMachineTest {
         frontendHandler = mock(KafkaProxyFrontendHandler.class);
     }
 
-    private void stateHolderInClientActive() {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.ClientActive(),
-                frontendHandler,
-                null);
-    }
-
-    private void stateHolderInHaProxy() {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
-                frontendHandler,
-                null);
-    }
-
-    private void stateHolderInApiVersionsState() {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.ApiVersions(null, null, null),
-                frontendHandler,
-                null);
-    }
-
-    private void stateHolderInSelectingServer() {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.SelectingServer(null, null, null),
-                frontendHandler,
-                null);
-    }
-
-    private void stateHolderInConnecting() {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.Connecting(null, null, null),
-                frontendHandler,
-                backendHandler);
-    }
-
-    private ProxyChannelState.Forwarding stateHolderInForwarding() {
-        var forwarding = new ProxyChannelState.Forwarding(null, null, null);
-        proxyChannelStateMachine.forceState(
-                forwarding,
-                frontendHandler,
-                backendHandler);
-        return forwarding;
-    }
-
-    private void stateHolderInClosing(Throwable cause) {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.Closing(cause, false, false),
-                frontendHandler,
-                backendHandler);
-    }
-
-    private void stateHolderInClosed() {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.Closed(),
-                frontendHandler,
-                backendHandler);
-    }
-
-    @NonNull
-    private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {
-        return new DecodedRequestFrame<>(
-                ApiVersionsResponseData.ApiVersion.HIGHEST_SUPPORTED_VERSION,
-                1,
-                false,
-                new RequestHeaderData(),
-                new ApiVersionsRequestData()
-                        .setClientSoftwareName("mykafkalib")
-                        .setClientSoftwareVersion("1.0.0"));
-    }
-
-    @NonNull
-    private static DecodedRequestFrame<MetadataRequestData> metadataRequest() {
-        return new DecodedRequestFrame<>(
-                MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
-                0,
-                false,
-                new RequestHeaderData(),
-                new MetadataRequestData());
-    }
-
-    @NonNull
-    private static DecodedResponseFrame<MetadataResponseData> metadataResponse() {
-        return new DecodedResponseFrame<>(
-                MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
-                0,
-                new ResponseHeaderData(),
-                new MetadataResponseData());
-    }
-
     @Test
     void shouldBlockClientReads() {
         // Given
-        proxyChannelStateMachine.frontendHandler = frontendHandler;
+        inClientActive();
+        proxyChannelStateMachine.onServerUnwritable();
 
         // When
-        proxyChannelStateMachine.onServerUnwritable();
         proxyChannelStateMachine.onServerUnwritable();
 
         // Then
@@ -184,11 +95,11 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldUnblockClientReads() {
         // Given
-        proxyChannelStateMachine.frontendHandler = frontendHandler;
+        inClientActive();
         proxyChannelStateMachine.clientReadsBlocked = true;
+        proxyChannelStateMachine.onServerWritable();
 
         // When
-        proxyChannelStateMachine.onServerWritable();
         proxyChannelStateMachine.onServerWritable();
 
         // Then
@@ -198,10 +109,10 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldBlockServerReads() {
         // Given
-        proxyChannelStateMachine.backendHandler = backendHandler;
+        inForwardingState();
+        proxyChannelStateMachine.onClientUnwritable();
 
         // When
-        proxyChannelStateMachine.onClientUnwritable();
         proxyChannelStateMachine.onClientUnwritable();
 
         // Then
@@ -211,8 +122,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldCloseOnClientRuntimeException() {
         // Given
-        proxyChannelStateMachine.frontendHandler = frontendHandler;
-        proxyChannelStateMachine.backendHandler = backendHandler;
+        inForwardingState();
         RuntimeException cause = new RuntimeException("Oops!");
 
         // When
@@ -227,8 +137,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldCloseOnClientFrameOversizedException() {
         // Given
-        proxyChannelStateMachine.frontendHandler = frontendHandler;
-        proxyChannelStateMachine.backendHandler = backendHandler;
+        inForwardingState();
         RuntimeException cause = new DecoderException(new FrameOversizedException(2, 1));
 
         // When
@@ -243,8 +152,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldCloseOnServerRuntimeException() {
         // Given
-        proxyChannelStateMachine.frontendHandler = frontendHandler;
-        proxyChannelStateMachine.backendHandler = backendHandler;
+        inForwardingState();
         RuntimeException cause = new RuntimeException("Oops!");
 
         // When
@@ -259,7 +167,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldUnblockServerReads() {
         // Given
-        proxyChannelStateMachine.backendHandler = backendHandler;
+        inForwardingState();
         proxyChannelStateMachine.serverReadsBlocked = true;
 
         // When
@@ -285,7 +193,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inClientActiveShouldCaptureHaProxyState() {
         // Given
-        stateHolderInClientActive();
+        inClientActive();
         var dp = mock(SaslDecodePredicate.class);
 
         // When
@@ -302,7 +210,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inClientActiveShouldBufferWhenOnClientMetadataRequest() {
         // Given
-        stateHolderInClientActive();
+        inClientActive();
         var msg = metadataRequest();
         var dp = mock(SaslDecodePredicate.class);
 
@@ -418,7 +326,7 @@ class ProxyChannelStateMachineTest {
     @ValueSource(booleans = { true, false })
     void inClientActiveShouldTransitionToApiVersionsOrSelectingServer(boolean handlingSasl) {
         // Given
-        stateHolderInClientActive();
+        inClientActive();
         var msg = apiVersionsRequest();
 
         // When
@@ -464,14 +372,14 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.Connecting.class);
         verify(frontendHandler).inConnecting(eq(brokerAddress), eq(filters), notNull(KafkaProxyBackendHandler.class));
-        assertThat(proxyChannelStateMachine.backendHandler).isNotNull();
+        assertThat(proxyChannelStateMachine).extracting("backendHandler").isNotNull();
     }
 
     @Test
     void inClientActiveShouldCloseWhenOnNetFilterInitiateConnectCalled() {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
-        stateHolderInClientActive();
+        inClientActive();
         var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualCluster.class);
         var nf = mock(NetFilter.class);
@@ -483,7 +391,7 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.Closing.class);
         verify(frontendHandler).inClosing(null);
-        assertThat(proxyChannelStateMachine.backendHandler).isNull();
+        assertThat(proxyChannelStateMachine).extracting("backendHandler").isNull();
     }
 
     @Test
@@ -537,7 +445,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inClientActiveShouldCloseWhenOnServerActiveCalled() {
         // Given
-        stateHolderInClientActive();
+        inClientActive();
 
         // When
         proxyChannelStateMachine.onServerActive();
@@ -722,5 +630,102 @@ class ProxyChannelStateMachineTest {
         else {
             proxyChannelStateMachine.onClientClosed();
         }
+    }
+
+    private void inForwardingState() {
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.Forwarding(null, null, null),
+                frontendHandler,
+                backendHandler);
+    }
+
+
+    private void inClientActive() {
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.ClientActive(),
+                frontendHandler,
+                null);
+    }
+
+    private void stateHolderInHaProxy() {
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
+                frontendHandler,
+                null);
+    }
+
+    private void stateHolderInApiVersionsState() {
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.ApiVersions(null, null, null),
+                frontendHandler,
+                null);
+    }
+
+    private void stateHolderInSelectingServer() {
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.SelectingServer(null, null, null),
+                frontendHandler,
+                null);
+    }
+
+    private void stateHolderInConnecting() {
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.Connecting(null, null, null),
+                frontendHandler,
+                backendHandler);
+    }
+
+    private ProxyChannelState.Forwarding stateHolderInForwarding() {
+        var forwarding = new ProxyChannelState.Forwarding(null, null, null);
+        proxyChannelStateMachine.forceState(
+                forwarding,
+                frontendHandler,
+                backendHandler);
+        return forwarding;
+    }
+
+    private void stateHolderInClosing(Throwable cause) {
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.Closing(cause, false, false),
+                frontendHandler,
+                backendHandler);
+    }
+
+    private void stateHolderInClosed() {
+        proxyChannelStateMachine.forceState(
+                new ProxyChannelState.Closed(),
+                frontendHandler,
+                backendHandler);
+    }
+
+    @NonNull
+    private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {
+        return new DecodedRequestFrame<>(
+                ApiVersionsResponseData.ApiVersion.HIGHEST_SUPPORTED_VERSION,
+                1,
+                false,
+                new RequestHeaderData(),
+                new ApiVersionsRequestData()
+                        .setClientSoftwareName("mykafkalib")
+                        .setClientSoftwareVersion("1.0.0"));
+    }
+
+    @NonNull
+    private static DecodedRequestFrame<MetadataRequestData> metadataRequest() {
+        return new DecodedRequestFrame<>(
+                MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
+                0,
+                false,
+                new RequestHeaderData(),
+                new MetadataRequestData());
+    }
+
+    @NonNull
+    private static DecodedResponseFrame<MetadataResponseData> metadataResponse() {
+        return new DecodedResponseFrame<>(
+                MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
+                0,
+                new ResponseHeaderData(),
+                new MetadataResponseData());
     }
 }
