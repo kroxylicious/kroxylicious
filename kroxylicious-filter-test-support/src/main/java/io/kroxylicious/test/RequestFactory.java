@@ -26,10 +26,12 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DeleteAclsRequestData;
 import org.apache.kafka.common.message.DeleteGroupsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsRequestData;
+import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DescribeAclsRequestData;
 import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
+import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -37,7 +39,11 @@ import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
+import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
+import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
 import org.apache.kafka.common.message.UpdateMetadataRequestData;
+import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.resource.PatternType;
@@ -82,6 +88,12 @@ public class RequestFactory {
         messagePopulators.put(ApiKeys.DESCRIBE_ACLS, RequestFactory::populateDescribeAclsRequest);
         messagePopulators.put(ApiKeys.DELETE_ACLS, RequestFactory::populateDeleteAclsRequest);
         messagePopulators.put(ApiKeys.OFFSET_FOR_LEADER_EPOCH, RequestFactory::populateOffsetForLeaderEpochRequest);
+        messagePopulators.put(ApiKeys.SHARE_GROUP_DESCRIBE, RequestFactory::populateShareGroupDescribeRequest);
+        messagePopulators.put(ApiKeys.INITIALIZE_SHARE_GROUP_STATE, RequestFactory::populateInitializeShareGroupStateRequest);
+        messagePopulators.put(ApiKeys.READ_SHARE_GROUP_STATE, RequestFactory::populateReadShareGroupStateRequest);
+        messagePopulators.put(ApiKeys.WRITE_SHARE_GROUP_STATE, RequestFactory::populateWriteShareGroupStateRequest);
+        messagePopulators.put(ApiKeys.DELETE_SHARE_GROUP_STATE, RequestFactory::populateDeleteShareGroupStateRequest);
+        messagePopulators.put(ApiKeys.READ_SHARE_GROUP_STATE_SUMMARY, RequestFactory::populateReadShareGroupStateSummaryRequest);
     }
 
     private RequestFactory() {
@@ -280,5 +292,45 @@ public class RequestFactory {
         offsetForLeaderTopic.setPartitions(List.of(p0));
         topicCollection.add(offsetForLeaderTopic);
         offsetForLeaderEpochRequestData.setTopics(topicCollection);
+    }
+
+    private static void populateShareGroupDescribeRequest(ApiMessage apiMessage) {
+        final ShareGroupDescribeRequestData shareGroupDescribeRequestData = (ShareGroupDescribeRequestData) apiMessage;
+        shareGroupDescribeRequestData.setGroupIds(List.of(MobyNamesGenerator.getRandomName()));
+    }
+
+    private static void populateInitializeShareGroupStateRequest(ApiMessage apiMessage) {
+        final InitializeShareGroupStateRequestData shareGroupDescribeRequestData = (InitializeShareGroupStateRequestData) apiMessage;
+        final InitializeShareGroupStateRequestData.InitializeStateData initializeStateData = new InitializeShareGroupStateRequestData.InitializeStateData();
+        initializeStateData.setPartitions(List.of(new InitializeShareGroupStateRequestData.PartitionData()));
+        shareGroupDescribeRequestData.setTopics(List.of(initializeStateData));
+    }
+
+    private static void populateReadShareGroupStateRequest(ApiMessage apiMessage) {
+        final ReadShareGroupStateRequestData readShareGroupStateRequestData = (ReadShareGroupStateRequestData) apiMessage;
+        final ReadShareGroupStateRequestData.ReadStateData readStateData = new ReadShareGroupStateRequestData.ReadStateData();
+        readStateData.setPartitions(List.of(new ReadShareGroupStateRequestData.PartitionData()));
+        readShareGroupStateRequestData.setTopics(List.of(readStateData));
+    }
+
+    private static void populateWriteShareGroupStateRequest(ApiMessage apiMessage) {
+        final WriteShareGroupStateRequestData writeShareGroupStateRequestData = (WriteShareGroupStateRequestData) apiMessage;
+        final WriteShareGroupStateRequestData.WriteStateData writeStateData = new WriteShareGroupStateRequestData.WriteStateData();
+        writeStateData.setPartitions(List.of(new WriteShareGroupStateRequestData.PartitionData()));
+        writeShareGroupStateRequestData.setTopics(List.of(writeStateData));
+    }
+
+    private static void populateDeleteShareGroupStateRequest(ApiMessage apiMessage) {
+        final DeleteShareGroupStateRequestData deleteShareGroupStateRequestData = (DeleteShareGroupStateRequestData) apiMessage;
+        final DeleteShareGroupStateRequestData.DeleteStateData deleteStateData = new DeleteShareGroupStateRequestData.DeleteStateData();
+        deleteStateData.setPartitions(List.of(new DeleteShareGroupStateRequestData.PartitionData()));
+        deleteShareGroupStateRequestData.setTopics(List.of(deleteStateData));
+    }
+
+    private static void populateReadShareGroupStateSummaryRequest(ApiMessage apiMessage) {
+        final ReadShareGroupStateSummaryRequestData readShareGroupStateSummaryRequestData = (ReadShareGroupStateSummaryRequestData) apiMessage;
+        final ReadShareGroupStateSummaryRequestData.ReadStateSummaryData readStateData = new ReadShareGroupStateSummaryRequestData.ReadStateSummaryData();
+        readStateData.setPartitions(List.of(new ReadShareGroupStateSummaryRequestData.PartitionData()));
+        readShareGroupStateSummaryRequestData.setTopics(List.of(readStateData));
     }
 }
