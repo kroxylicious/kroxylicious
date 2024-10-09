@@ -171,6 +171,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         // and we don't want a SOE.
         return "KafkaProxyBackendHandler{" +
                 ", serverCtx=" + serverCtx +
+                ", proxyChannelState=" + this.proxyChannelStateMachine.currentState() +
                 ", pendingServerFlushes=" + pendingServerFlushes +
                 '}';
     }

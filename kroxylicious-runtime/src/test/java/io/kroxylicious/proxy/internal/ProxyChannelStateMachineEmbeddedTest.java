@@ -173,7 +173,6 @@ class ProxyChannelStateMachineEmbeddedTest {
         writeRequest(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData());
     }
 
-
     private KafkaProxyFrontendHandler handler(
                                               NetFilter filter,
                                               SaslDecodePredicate dp,

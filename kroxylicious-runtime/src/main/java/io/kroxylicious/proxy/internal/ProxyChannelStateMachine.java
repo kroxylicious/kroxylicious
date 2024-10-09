@@ -130,7 +130,7 @@ public class ProxyChannelStateMachine {
 
     @VisibleForTesting
     void forceState(@NonNull ProxyChannelState state, @NonNull KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler) {
-        LOGGER.trace("{} transitioning to {}", this, state);
+        LOGGER.info("Forcing state to {} with {} and {}", state, frontendHandler, backendHandler);
         this.state = state;
         this.frontendHandler = frontendHandler;
         this.backendHandler = backendHandler;
@@ -442,6 +442,6 @@ public class ProxyChannelStateMachine {
     }
 
     public String currentState() {
-        return this.state().getClass().getSimpleName(); // TODO give each state a name method.
+        return this.state().getClass().getSimpleName();
     }
 }

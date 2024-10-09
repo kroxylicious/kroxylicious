@@ -158,6 +158,7 @@ public class KafkaProxyFrontendHandler
         // and we don't want a SOE.
         return "KafkaProxyFrontendHandler{"
                 + ", clientCtx=" + clientCtx
+                + ", proxyChannelState=" + this.proxyChannelStateMachine.currentState()
                 + ", number of bufferedMsgs=" + (bufferedMsgs == null ? 0 : bufferedMsgs.size())
                 + ", pendingClientFlushes=" + pendingClientFlushes
                 + ", authentication=" + authentication
