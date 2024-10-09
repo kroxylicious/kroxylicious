@@ -639,7 +639,6 @@ class ProxyChannelStateMachineTest {
                 backendHandler);
     }
 
-
     private void inClientActive() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.ClientActive(),
