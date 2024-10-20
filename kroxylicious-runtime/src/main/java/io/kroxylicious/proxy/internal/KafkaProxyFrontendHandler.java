@@ -11,9 +11,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-
-import javax.net.ssl.SSLHandshakeException;
+import java.util.Objects;
 
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.NetworkException;
@@ -21,7 +19,6 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,24 +33,19 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.DecoderException;
-import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
-import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
-import io.netty.util.AttributeKey;
-import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
-import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
+import io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
+import io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
-import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.model.VirtualCluster;
@@ -62,6 +54,11 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 
 public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter
@@ -72,7 +69,6 @@ public class KafkaProxyFrontendHandler
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
     public static final ApiException ERROR_NEGOTIATING_SSL_CONNECTION = new NetworkException("Error negotiating SSL connection");
-    public static final AttributeKey<Object> UPSTREAM_PEER_KEY = AttributeKey.valueOf("upstreamPeer");
 
     static {
         var objectMapper = new ObjectMapper();
@@ -84,231 +80,411 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    static @NonNull ResponseFrame buildErrorResponseFrame(
+                                                          @NonNull DecodedRequestFrame<?> triggerFrame,
+                                                          @NonNull Throwable error) {
+        var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
+        final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
+        responseHeaderData.setCorrelationId(triggerFrame.correlationId());
+        return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
+    }
+
+    /**
+     * Return an error response to send to the client, or null if no response should be sent.
+     * @param errorCodeEx The exception
+     * @return The response frame
+     */
+    ResponseFrame errorResponse(
+                                @Nullable Throwable errorCodeEx) {
+        ResponseFrame errorResponse;
+        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
+        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
+            errorResponse = buildErrorResponseFrame(triggerFrame, errorCodeEx);
+        }
+        else {
+            errorResponse = null;
+        }
+        return errorResponse;
+    }
+
     private final boolean logNetwork;
     private final boolean logFrames;
     private final VirtualCluster virtualCluster;
-
-    private ChannelHandlerContext outboundCtx;
-    private KafkaProxyBackendHandler backendHandler;
-    private boolean pendingFlushes;
-
-    private final NetFilter filter;
+    private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
-    private final KafkaProxyExceptionMapper exceptionHandler;
+    private final ProxyChannelStateMachine proxyChannelStateMachine;
 
-    private AuthenticationEvent authentication;
-    private String clientSoftwareName;
-    private String clientSoftwareVersion;
-    private String sniHostname;
-
-    private ChannelHandlerContext inboundCtx;
-
-    // Messages buffered while we connect to the outbound cluster
-    // The size should be limited because auto read is disabled until outbound
-    // channel activation
-    private List<Object> bufferedMsgs = new ArrayList<>();
+    private @Nullable ChannelHandlerContext clientCtx;
+    @VisibleForTesting
+    @Nullable
+    List<Object> bufferedMsgs;
+    private boolean pendingClientFlushes;
+    private @Nullable AuthenticationEvent authentication;
+    private @Nullable String sniHostname;
 
     // Flag if we receive a channelReadComplete() prior to outbound connection activation
     // so we can perform the channelReadComplete()/outbound flush & auto_read
     // once the outbound channel is active
     private boolean pendingReadComplete = true;
 
-    @VisibleForTesting
-    enum State {
-        /** The initial state */
-        START,
-        /** An HAProxy message has been received */
-        HA_PROXY,
-        /** A Kafka ApiVersions request has been received */
-        API_VERSIONS,
-        /** Some other Kafka request has been received and we're in the process of connecting to the outbound cluster */
-        CONNECTING,
-        /** The outbound connection is connected but not yet active */
-        CONNECTED,
-        /** The outbound connection is active */
-        OUTBOUND_ACTIVE,
-        /** The outbound is connected but still TLS is still being negotiated */
-        NEGOTIATING_TLS,
-        /** The connection to the outbound cluster failed */
-        FAILED
+    private boolean isClientBlocked = true;
+
+    KafkaProxyFrontendHandler(
+                              @NonNull NetFilter netFilter,
+                              @NonNull SaslDecodePredicate dp,
+                              @NonNull VirtualCluster virtualCluster) {
+        this(netFilter, dp, virtualCluster, new ProxyChannelStateMachine());
     }
 
-    /**
-     * The current state.
-     * Transitions:
-     * <code><pre>
-     *    START ──→ HA_PROXY ──→ API_VERSIONS ─╭─→ CONNECTING ──→ CONNECTED ────→ OUTBOUND_ACTIVE
-     *      ╰──────────╰──────────────╰────────╯        ⎸             ⎸                      ↑
-     *                                                  ⎸             ⎸                      ⎸
-     *                                                  ╰──→ FAILED  ╰──→ NEGOTIATING_TLS ──╯
-     *                                                         ↑              ⎸
-     *                                                         ╰──────────────╯
-     * </pre></code>
-     * Unexpected state transitions and exceptions also cause a
-     * transition to {@link State#FAILED} (via {@link #illegalState(String)}}
-     */
-    private State state = State.START;
-
-    private boolean isInboundBlocked = true;
-    private HAProxyMessage haProxyMessage;
-
-    KafkaProxyFrontendHandler(NetFilter filter,
-                              SaslDecodePredicate dp,
-                              VirtualCluster virtualCluster,
-                              KafkaProxyExceptionMapper exceptionHandler) {
-        this.filter = filter;
+    KafkaProxyFrontendHandler(
+                              @NonNull NetFilter netFilter,
+                              @NonNull SaslDecodePredicate dp,
+                              @NonNull VirtualCluster virtualCluster,
+                              @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
+        this.netFilter = netFilter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
+        this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualCluster.isLogNetwork();
         this.logFrames = virtualCluster.isLogFrames();
-        this.exceptionHandler = exceptionHandler;
     }
 
-    private IllegalStateException illegalState(String msg) {
-        String name = state.name();
-        state = State.FAILED;
-        return new IllegalStateException((msg == null ? "" : msg + ", ") + "state=" + name);
+    @Override
+    public String toString() {
+        // Don't include StateHolder's toString here
+        // because StateHolder's toString will include the frontend's toString
+        // and we don't want a SOE.
+        return "KafkaProxyFrontendHandler{"
+                + ", clientCtx=" + clientCtx
+                + ", proxyChannelState=" + this.proxyChannelStateMachine.currentState()
+                + ", number of bufferedMsgs=" + (bufferedMsgs == null ? 0 : bufferedMsgs.size())
+                + ", pendingClientFlushes=" + pendingClientFlushes
+                + ", authentication=" + authentication
+                + ", sniHostname='" + sniHostname + '\''
+                + ", pendingReadComplete=" + pendingReadComplete
+                + ", isClientBlocked=" + isClientBlocked
+                + '}';
     }
 
-    @VisibleForTesting
-    State state() {
-        return state;
+    ChannelHandlerContext clientCtx() {
+        if (this.clientCtx == null) {
+            throw new IllegalStateException("clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
+        }
+        return Objects.requireNonNull(this.clientCtx);
+    }
+
+    @Override
+    public void userEventTriggered(
+                                   @NonNull ChannelHandlerContext ctx,
+                                   @NonNull Object event)
+            throws Exception {
+        if (event instanceof SniCompletionEvent sniCompletionEvent) {
+            if (sniCompletionEvent.isSuccess()) {
+                this.sniHostname = sniCompletionEvent.hostname();
+            }
+            else {
+                throw new IllegalStateException("SNI failed", sniCompletionEvent.cause());
+            }
+        }
+        else if (event instanceof AuthenticationEvent authenticationEvent) {
+            this.authentication = authenticationEvent;
+        }
+        super.userEventTriggered(ctx, event);
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        this.clientCtx = ctx;
+        this.proxyChannelStateMachine.onClientActive(this);
+        super.channelActive(this.clientCtx);
     }
 
     /**
-     * Called when the outbound channel to the upstream broker becomes active
-     * @param upstreamCtx
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link ClientActive} state.
      */
-    void onUpstreamChannelActive(ChannelHandlerContext upstreamCtx) {
-        LOGGER.trace("{}: outboundChannelActive: {}", inboundCtx.channel().id(), upstreamCtx.channel().id());
-        this.outboundCtx = upstreamCtx;
-        this.state = State.CONNECTED;
-        virtualCluster.getUpstreamSslContext().ifPresentOrElse(
-                this::startUpstreamTlsNegotiation,
-                this::onUpstreamChannelUsable);
+    void inClientActive() {
+        Channel clientChannel = clientCtx().channel();
+        LOGGER.trace("{}: channelActive", clientChannel.id());
+        // Initially the channel is not auto reading, so read the first batch of requests
+        clientChannel.config().setAutoRead(false);
+        // TODO why doesn't the initializer set autoread to false so we don't have to set it here?
+        clientChannel.read();
     }
 
     @Override
-    public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
-        super.channelWritabilityChanged(ctx);
-        // this is key to propagate back-pressure changes
-        if (backendHandler != null) {
-            backendHandler.inboundChannelWritabilityChanged(ctx);
+    public void channelInactive(ChannelHandlerContext ctx) {
+        LOGGER.trace("INACTIVE on inbound {}", ctx.channel());
+        proxyChannelStateMachine.onClientInactive();
+    }
+
+    /**
+     * Relieves backpressure on the <em>server</em> connection by calling
+     * the {@link KafkaProxyBackendHandler#inboundChannelWritabilityChanged()}
+     * @param inboundCtx The inbound context
+     * @throws Exception If something went wrong
+     */
+    @Override
+    public void channelWritabilityChanged(
+                                          final ChannelHandlerContext inboundCtx)
+            throws Exception {
+        super.channelWritabilityChanged(inboundCtx);
+        if (inboundCtx.channel().isWritable()) {
+            this.proxyChannelStateMachine.onClientWritable();
+        }
+        else {
+            this.proxyChannelStateMachine.onClientUnwritable();
+        }
+    }
+
+    public void blockClientReads() {
+        if (clientCtx != null) {
+            this.clientCtx.channel().config().setAutoRead(false);
+        }
+    }
+
+    public void unblockClientReads() {
+        if (clientCtx != null) {
+            this.clientCtx.channel().config().setAutoRead(true);
         }
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) {
-        if (state == State.OUTBOUND_ACTIVE) { // post-backend connection
-            forwardOutbound(ctx, msg);
-        }
-        else {
-            handlePreOutboundActive(ctx, msg);
-        }
+    public void channelRead(
+                            @NonNull ChannelHandlerContext ctx,
+                            @NonNull Object msg) {
+        proxyChannelStateMachine.onClientRequest(dp, msg);
     }
 
-    private void handlePreOutboundActive(ChannelHandlerContext ctx, Object msg) {
-        if (isInitialHaProxyMessage(msg)) {
-            this.haProxyMessage = (HAProxyMessage) msg;
-            state = State.HA_PROXY;
-        }
-        else if (isInitialDecodedApiVersionsFrame(msg)) {
-            handleApiVersionsFrame(ctx, msg);
-        }
-        else if (isInitialRequestFrame(msg)) {
-            bufferMsgAndSelectServer(msg);
-        }
-        else if (isSubsequentRequestFrame(msg)) {
-            bufferMessage(msg);
-        }
-        else {
-            throw illegalState("Unexpected channelRead() message of " + msg.getClass());
-        }
+    /**
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link ApiVersions} state.
+     */
+    void inApiVersions(DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
+        // This handler can respond to ApiVersions itself
+        writeApiVersionsResponse(clientCtx(), apiVersionsFrame);
+        // Request to read the following request
+        this.clientCtx().channel().read();
     }
 
-    private void handleApiVersionsFrame(ChannelHandlerContext ctx, Object msg) {
-        state = State.API_VERSIONS;
-        DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
-        storeApiVersionsFeatures(apiVersionsFrame);
-        if (dp.isAuthenticationOffloadEnabled()) {
-            // This handler can respond to ApiVersions itself
-            writeApiVersionsResponse(ctx, apiVersionsFrame);
-            // Request to read the following request
-            ctx.channel().read();
-        }
-        else {
-            bufferMsgAndSelectServer(msg);
-        }
+    /**
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link SelectingServer} state.
+     */
+    public void inSelectingServer() {
+        // Pass this as the filter context, so that
+        // filter.initiateConnect() call's back on
+        // our initiateConnect() method
+        this.netFilter.selectServer(this);
+        this.proxyChannelStateMachine
+                .assertIsConnecting("NetFilter.selectServer() did not callback on NetFilterContext.initiateConnect(): filter='" + this.netFilter + "'");
     }
 
-    private boolean isSubsequentRequestFrame(Object msg) {
-        return (state == State.CONNECTING || state == State.CONNECTED) && msg instanceof RequestFrame;
+    /**
+     * Sends an ApiVersions response from this handler to the client
+     * if the proxy is handling authentication
+     * (i.e. prior to having a backend connection)
+     */
+    private void writeApiVersionsResponse(@NonNull ChannelHandlerContext ctx,
+                                          @NonNull DecodedRequestFrame<ApiVersionsRequestData> frame) {
+        short apiVersion = frame.apiVersion();
+        int correlationId = frame.correlationId();
+        ResponseHeaderData header = new ResponseHeaderData()
+                .setCorrelationId(correlationId);
+        LOGGER.debug("{}: Writing ApiVersions response", ctx.channel());
+        ctx.writeAndFlush(new DecodedResponseFrame<>(
+                apiVersion, correlationId, header, API_VERSIONS_RESPONSE));
     }
 
-    private boolean isInitialRequestFrame(Object msg) {
-        return (state == State.START
-                || state == State.HA_PROXY
-                || state == State.API_VERSIONS)
-                && msg instanceof RequestFrame;
-    }
-
-    private boolean isInitialHaProxyMessage(Object msg) {
-        return state == State.START
-                && msg instanceof HAProxyMessage;
-    }
-
-    private boolean isInitialDecodedApiVersionsFrame(Object msg) {
-        return (state == State.START
-                || state == State.HA_PROXY)
-                && msg instanceof DecodedRequestFrame
-                && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS;
-    }
-
-    private void bufferMsgAndSelectServer(Object msg) {
-        state = State.CONNECTING;
-        // But for any other request we'll need a backend connection
-        // (for which we need to ask the filter which cluster to connect to
-        // and with what filters)
-        bufferMessage(msg);
-        // TODO ensure that the filter makes exactly one upstream connection?
-        // Or not for the topic routing case
-
-        // Note filter.upstreamBroker will call back on the connect() method below
-        filter.selectServer(this);
-    }
-
-    private void bufferMessage(Object msg) {
-        this.bufferedMsgs.add(msg);
-    }
-
+    /**
+     * <p>Invoked when the last message read by the current read operation
+     * has been consumed by {@link #channelRead(ChannelHandlerContext, Object)}.</p>
+     * @param clientCtx The client context
+     */
     @Override
-    public void initiateConnect(HostPort remote, List<FilterAndInvoker> filters) {
-        if (backendHandler != null) {
+    public void channelReadComplete(ChannelHandlerContext clientCtx) {
+        proxyChannelStateMachine.clientReadComplete();
+    }
+
+    /**
+     * Handles an exception in downstream/client pipeline by closing both
+     * channels and changing {@link #proxyChannelStateMachine} to {@link Closed}.
+     * @param ctx The downstream context
+     * @param cause The downstream exception
+     */
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        proxyChannelStateMachine.onClientException(cause, virtualCluster.getDownstreamSslContext().isPresent());
+    }
+
+    /**
+     * Accessor exposing the client host to a {@link NetFilter}.
+     * <p>Called by the {@link #netFilter}.</p>
+     * @return The client host
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
+     */
+    @Override
+    public String clientHost() {
+        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
+            if (selectingServer.haProxyMessage() != null) {
+                return selectingServer.haProxyMessage().sourceAddress();
+            }
+            else {
+                SocketAddress socketAddress = clientCtx().channel().remoteAddress();
+                if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
+                    return inetSocketAddress.getAddress().getHostAddress();
+                }
+                else {
+                    return String.valueOf(socketAddress);
+                }
+            }
+        }
+        else {
             throw new IllegalStateException();
         }
+    }
+
+    /**
+     * Accessor exposing the client port to a {@link NetFilter}.
+     * <p>Called by the {@link #netFilter}.</p>
+     * @return The client port.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
+     */
+    @Override
+    public int clientPort() {
+        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
+            if (selectingServer.haProxyMessage() != null) {
+                return selectingServer.haProxyMessage().sourcePort();
+            }
+            else {
+                SocketAddress socketAddress = clientCtx().channel().remoteAddress();
+                if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
+                    return inetSocketAddress.getPort();
+                }
+                else {
+                    return -1;
+                }
+            }
+        }
+        else {
+            throw new IllegalStateException();
+        }
+    }
+
+    /**
+     * Accessor exposing the source address to a {@link NetFilter}.
+     * <p>Called by the {@link #netFilter}.</p>
+     * @return The source address.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
+     */
+    @Override
+    public SocketAddress srcAddress() {
+        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        return clientCtx().channel().remoteAddress();
+    }
+
+    /**
+     * Accessor exposing the local address to a {@link NetFilter}.
+     * <p>Called by the {@link #netFilter}.</p>
+     * @return The local address.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
+     */
+    @Override
+    public SocketAddress localAddress() {
+        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        return clientCtx().channel().localAddress();
+    }
+
+    /**
+     * Accessor exposing the authorizedId to a {@link NetFilter}.
+     * <p>Called by the {@link #netFilter}.</p>
+     * @return The authorized id, or null.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
+     */
+    @Override
+    public String authorizedId() {
+        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        return authentication != null ? authentication.authorizationId() : null;
+    }
+
+    /**
+     * Accessor exposing the name of the client library to a {@link NetFilter}.
+     * <p>Called by the {@link #netFilter}.</p>
+     * @return The name of the client library, or null.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
+     */
+    @Override
+    public String clientSoftwareName() {
+        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
+            return selectingServer.clientSoftwareName();
+        }
+        else {
+            throw new IllegalStateException();
+        }
+    }
+
+    /**
+     * Accessor exposing the version of the client library to a {@link NetFilter}.
+     * <p>Called by the {@link #netFilter}.</p>
+     * @return The version of the client library, or null.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
+     */
+    @Override
+    public String clientSoftwareVersion() {
+        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
+            return selectingServer.clientSoftwareVersion();
+        }
+        else {
+            throw new IllegalStateException();
+        }
+    }
+
+    /**
+     * Accessor exposing the SNI host name to a {@link NetFilter}.
+     * <p>Called by the {@link #netFilter}.</p>
+     * @return The SNI host name, or null.
+     * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
+     */
+    @Override
+    public String sniHostname() {
+        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        return sniHostname;
+    }
+
+    /**
+     * Initiates the connection to a server.
+     * Changes {@link #proxyChannelStateMachine} from {@link SelectingServer} to {@link Connecting}
+     * Initializes the {@code backendHandler} and configures its pipeline
+     * with the given {@code filters}.
+     * <p>Called by the {@link #netFilter}.</p>
+     * @param remote upstream broker target
+     * @param filters The protocol filters
+     */
+    @Override
+    public void initiateConnect(
+                                @NonNull HostPort remote,
+                                @NonNull List<FilterAndInvoker> filters) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
-                    inboundCtx.channel().id(), remote, filters);
+                    clientCtx().channel().id(), remote, filters);
         }
-        var correlationManager = new CorrelationManager();
+        this.proxyChannelStateMachine.onNetFilterInitiateConnect(remote, filters, virtualCluster, netFilter);
+    }
 
-        final Channel inboundChannel = inboundCtx.channel();
-
+    /**
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Connecting} state.
+     */
+    void inConnecting(
+                      @NonNull HostPort remote,
+                      @NonNull List<FilterAndInvoker> filters,
+                      KafkaProxyBackendHandler backendHandler) {
+        final Channel inboundChannel = clientCtx().channel();
         // Start the upstream connection attempt.
-        Bootstrap b = new Bootstrap();
-        backendHandler = new KafkaProxyBackendHandler(this, inboundCtx, exceptionHandler);
-        b.group(inboundChannel.eventLoop())
-                .channel(inboundChannel.getClass())
-                .handler(backendHandler)
-                .option(ChannelOption.AUTO_READ, true)
-                .option(ChannelOption.TCP_NODELAY, true);
+        final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
 
         LOGGER.trace("Connecting to outbound {}", remote);
-        ChannelFuture tcpConnectFuture = initConnection(remote.host(), remote.port(), b);
-        Channel outboundChannel = tcpConnectFuture.channel();
+        ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
+        Channel outboundChannel = serverTcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
-        outboundChannel.attr(UPSTREAM_PEER_KEY).set(remote);
+        var correlationManager = new CorrelationManager();
 
         // Note: Because we are acting as a client of the target cluster and are thus writing Request data to an outbound channel, the Request flows from the
         // last outbound handler in the pipeline to the first. When Responses are read from the cluster, the inbound handlers of the pipeline are invoked in
@@ -327,338 +503,135 @@ public class KafkaProxyFrontendHandler
         virtualCluster.getUpstreamSslContext().ifPresent(sslContext -> {
             final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
             pipeline.addFirst("ssl", handler);
-            exceptionHandler.registerExceptionResponse(SSLHandshakeException.class, this::onSslHandshakeException);
         });
 
-        tcpConnectFuture.addListener(future -> {
+        serverTcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
-                onTcpConnection(filters);
+                LOGGER.trace("{}: Outbound connected", clientCtx().channel().id());
+                // Now we know which filters are to be used we need to update the DecodePredicate
+                // so that the decoder starts decoding the messages that the filters want to intercept
+                dp.setDelegate(DecodePredicate.forFilters(filters));
+
+                // This branch does not cause the transition to Connected:
+                // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }
             else {
-                onUpstreamChannelFailed(remote, future, inboundChannel);
+                proxyChannelStateMachine.onServerException(future.cause());
             }
         });
     }
 
-    private @NonNull ResponseFrame buildErrorResponseFrame(DecodedRequestFrame<?> triggerFrame, Throwable error) {
-        var responseData = exceptionHandler.errorResponseMessage(triggerFrame, error);
-        final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
-        responseHeaderData.setCorrelationId(triggerFrame.correlationId());
-        return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
+    @NonNull
+    @VisibleForTesting
+    Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
+        Bootstrap bootstrap = new Bootstrap();
+        bootstrap.group(inboundChannel.eventLoop())
+                .channel(inboundChannel.getClass())
+                .handler(backendHandler)
+                .option(ChannelOption.AUTO_READ, true)
+                .option(ChannelOption.TCP_NODELAY, true);
+        return bootstrap;
+    }
+
+    /** Ugly hack used for testing */
+    @VisibleForTesting
+    ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
+        return bootstrap.connect(remoteHost, remotePort);
+    }
+
+    private void addFiltersToPipeline(
+                                      List<FilterAndInvoker> filters,
+                                      ChannelPipeline pipeline,
+                                      Channel inboundChannel) {
+        for (var protocolFilter : filters) {
+            // TODO configurable timeout
+            pipeline.addFirst(
+                    protocolFilter.toString(),
+                    new FilterHandler(
+                            protocolFilter,
+                            20000,
+                            sniHostname,
+                            virtualCluster,
+                            inboundChannel));
+        }
     }
 
     /**
-     * Called when the channel to the upstream broker is failed.
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Forwarding} state.
      */
-    @VisibleForTesting
-    void onUpstreamChannelFailed(HostPort remote, Future<?> future, Channel inboundChannel) {
-        state = State.FAILED;
-        // Close the connection if the connection attempt has failed.
-        Throwable failureCause = future.cause();
-        exceptionHandler.mapException(failureCause).ifPresentOrElse(
-                result -> closeWith(inboundChannel, result),
-                () -> {
-                    LOGGER.atWarn()
-                            .setCause(LOGGER.isDebugEnabled() ? failureCause : null)
-                            .log("Connection to target cluster on {} failed with: {}, closing inbound channel. Increase log level to DEBUG for stacktrace",
-                                    remote, failureCause.getMessage());
-                    closeNoResponse(inboundChannel);
-                });
-    }
+    void inForwarding() {
+        // connection is complete, so first forward the buffered message
+        if (bufferedMsgs != null) {
+            for (Object bufferedMsg : bufferedMsgs) {
+                proxyChannelStateMachine.forwardToServer(bufferedMsg);
+            }
+            bufferedMsgs = null;
+        }
 
-    private void onTcpConnection(List<FilterAndInvoker> filters) {
-        LOGGER.trace("{}: Outbound connected", inboundCtx.channel().id());
-        // Now we know which filters are to be used we need to update the DecodePredicate
-        // so that the decoder starts decoding the messages that the filters want to intercept
-        dp.setDelegate(DecodePredicate.forFilters(filters));
-    }
+        if (pendingReadComplete) {
+            pendingReadComplete = false;
+            channelReadComplete(this.clientCtx);
+        }
 
-    @VisibleForTesting
-    ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap b) {
-        return b.connect(remoteHost, remotePort);
-    }
-
-    private void addFiltersToPipeline(List<FilterAndInvoker> filters, ChannelPipeline pipeline, Channel inboundChannel) {
-        for (var filter : filters) {
-            // TODO configurable timeout
-            pipeline.addFirst(filter.toString(), new FilterHandler(filter, 20000, sniHostname, virtualCluster, inboundChannel));
+        if (isClientBlocked) {
+            // once buffered message has been forwarded we enable auto-read to start accepting further messages
+            unblockClient();
         }
     }
 
-    public void forwardOutbound(final ChannelHandlerContext ctx, Object msg) {
-        if (outboundCtx == null) {
-            LOGGER.trace("READ on inbound {} ignored because outbound is not active (msg: {})",
-                    ctx.channel(), msg);
-            return;
-        }
-        final Channel outboundChannel = outboundCtx.channel();
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("READ on inbound {} outbound {} (outbound.isWritable: {}, msg: {})",
-                    ctx.channel(), outboundChannel, outboundChannel.isWritable(), msg);
-            LOGGER.trace("Outbound bytesBeforeUnwritable: {}", outboundChannel.bytesBeforeUnwritable());
-            LOGGER.trace("Outbound config: {}", outboundChannel.config());
-            LOGGER.trace("Outbound is active, writing and flushing {}", msg);
-        }
-        if (outboundChannel.isWritable()) {
-            outboundChannel.write(msg, outboundCtx.voidPromise());
-            pendingFlushes = true;
+    private void unblockClient() {
+        // TODO suspicious
+        isClientBlocked = false;
+        var inboundChannel = clientCtx().channel();
+        inboundChannel.config().setAutoRead(true);
+        proxyChannelStateMachine.onClientWritable();
+    }
+
+    void forwardToClient(Object msg) {
+        // assert blockedOutboundCtx == null;
+        // LOGGER.trace("Channel read {}", msg);
+        final Channel inboundChannel = clientCtx().channel();
+        if (inboundChannel.isWritable()) {
+            inboundChannel.write(msg, clientCtx().voidPromise());
+            pendingClientFlushes = true;
         }
         else {
-            outboundChannel.writeAndFlush(msg, outboundCtx.voidPromise());
-            pendingFlushes = false;
-        }
-        LOGGER.trace("/READ");
-    }
-
-    /**
-     * Sends an ApiVersions response from this handler to the client
-     * (i.e. prior to having backend connection)
-     */
-    private void writeApiVersionsResponse(ChannelHandlerContext ctx, DecodedRequestFrame<ApiVersionsRequestData> frame) {
-
-        short apiVersion = frame.apiVersion();
-        int correlationId = frame.correlationId();
-        ResponseHeaderData header = new ResponseHeaderData()
-                .setCorrelationId(correlationId);
-        LOGGER.debug("{}: Writing ApiVersions response", ctx.channel());
-        ctx.writeAndFlush(new DecodedResponseFrame<>(
-                apiVersion, correlationId, header, API_VERSIONS_RESPONSE));
-    }
-
-    private void storeApiVersionsFeatures(DecodedRequestFrame<ApiVersionsRequestData> frame) {
-        // TODO check the format of the strings using a regex
-        // Needed to reproduce the exact behaviour for how a broker handles this
-        // see org.apache.kafka.common.requests.ApiVersionsRequest#isValid()
-        this.clientSoftwareName = frame.body().clientSoftwareName();
-        this.clientSoftwareVersion = frame.body().clientSoftwareVersion();
-    }
-
-    public void outboundWritabilityChanged(ChannelHandlerContext outboundCtx) {
-        if (this.outboundCtx != outboundCtx) {
-            throw illegalState("Mismatching outboundCtx");
-        }
-        if (isInboundBlocked && outboundCtx.channel().isWritable()) {
-            isInboundBlocked = false;
-            inboundCtx.channel().config().setAutoRead(true);
+            inboundChannel.writeAndFlush(msg, clientCtx().voidPromise());
+            pendingClientFlushes = false;
         }
     }
 
-    @Override
-    public void channelReadComplete(final ChannelHandlerContext ctx) {
-        if (outboundCtx == null) {
-            LOGGER.trace("READ_COMPLETE on inbound {}, ignored because outbound is not active",
-                    ctx.channel());
-            pendingReadComplete = true;
-            return;
+    void flushToClient() {
+        final Channel inboundChannel = clientCtx().channel();
+        if (pendingClientFlushes) {
+            pendingClientFlushes = false;
+            inboundChannel.flush();
         }
-        final Channel outboundChannel = outboundCtx.channel();
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("READ_COMPLETE on inbound {} outbound {} (pendingFlushes: {}, isInboundBlocked: {}, output.isWritable: {})",
-                    ctx.channel(), outboundChannel,
-                    pendingFlushes, isInboundBlocked, outboundChannel.isWritable());
-        }
-        if (pendingFlushes) {
-            pendingFlushes = false;
-            outboundChannel.flush();
-        }
-        if (!outboundChannel.isWritable()) {
-            ctx.channel().config().setAutoRead(false);
-            isInboundBlocked = true;
-        }
-
-    }
-
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) {
-        LOGGER.trace("INACTIVE on inbound {}", ctx.channel());
-        if (outboundCtx == null) {
-            return;
-        }
-        final Channel outboundChannel = outboundCtx.channel();
-        if (outboundChannel != null) {
-            closeNoResponse(outboundChannel);
+        if (!inboundChannel.isWritable()) {
+            proxyChannelStateMachine.onClientUnwritable();
         }
     }
 
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        LOGGER.warn("Netty caught exception from the frontend: {}", cause.getMessage(), cause);
-        if (cause instanceof DecoderException de && de.getCause() instanceof FrameOversizedException e) {
-            var tlsHint = virtualCluster.getDownstreamSslContext().isPresent() ? "" : " or an unexpected TLS handshake";
-            LOGGER.warn(
-                    "Received over-sized frame, max frame size bytes {}, received frame size bytes {} "
-                            + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
-                    e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
+    void bufferMsg(Object msg) {
+        if (bufferedMsgs == null) {
+            bufferedMsgs = new ArrayList<>();
         }
-        closeNoResponse(ctx.channel());
+        bufferedMsgs.add(msg);
     }
 
-    /**
-     * Closes the specified channel after all queued write requests are flushed.
-     */
-    void closeNoResponse(Channel ch) {
-        closeWith(ch, null);
-    }
-
-    /**
-     * Closes the specified channel after all queued write requests are flushed.
-     */
-    void closeWith(Channel ch, @Nullable ResponseFrame response) {
-        if (ch.isActive()) {
-            ch.writeAndFlush(response != null ? response : Unpooled.EMPTY_BUFFER)
+    void inClosing(@Nullable Throwable errorCodeEx) {
+        Channel inboundChannel = clientCtx().channel();
+        if (inboundChannel.isActive()) {
+            Object msg = null;
+            if (errorCodeEx != null) {
+                msg = errorResponse(errorCodeEx);
+            }
+            if (msg == null) {
+                msg = Unpooled.EMPTY_BUFFER;
+            }
+            inboundChannel.closeFuture().addListener(c -> proxyChannelStateMachine.onClientClosed()); // notify when the channel is actually closed
+            inboundChannel.writeAndFlush(msg)
                     .addListener(ChannelFutureListener.CLOSE);
         }
     }
-
-    @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object event) throws Exception {
-        if (event instanceof SniCompletionEvent sniCompletionEvent) {
-            if (sniCompletionEvent.isSuccess()) {
-                this.sniHostname = sniCompletionEvent.hostname();
-            }
-            // TODO handle the failure case
-        }
-        else if (event instanceof AuthenticationEvent) {
-            this.authentication = (AuthenticationEvent) event;
-        }
-        super.userEventTriggered(ctx, event);
-    }
-
-    @Override
-    public String clientHost() {
-        if (haProxyMessage != null) {
-            return haProxyMessage.sourceAddress();
-        }
-        else {
-            SocketAddress socketAddress = inboundCtx.channel().remoteAddress();
-            if (socketAddress instanceof InetSocketAddress) {
-                return ((InetSocketAddress) socketAddress).getAddress().getHostAddress();
-            }
-            else {
-                return String.valueOf(socketAddress);
-            }
-        }
-    }
-
-    @Override
-    public int clientPort() {
-        if (haProxyMessage != null) {
-            return haProxyMessage.sourcePort();
-        }
-        else {
-            SocketAddress socketAddress = inboundCtx.channel().remoteAddress();
-            if (socketAddress instanceof InetSocketAddress) {
-                return ((InetSocketAddress) socketAddress).getPort();
-            }
-            else {
-                return -1;
-            }
-        }
-    }
-
-    @Override
-    public SocketAddress srcAddress() {
-        return inboundCtx.channel().remoteAddress();
-    }
-
-    @Override
-    public SocketAddress localAddress() {
-        return inboundCtx.channel().localAddress();
-    }
-
-    @Override
-    public String authorizedId() {
-        return authentication != null ? authentication.authorizationId() : null;
-    }
-
-    @Override
-    public String clientSoftwareName() {
-        return clientSoftwareName;
-    }
-
-    @Override
-    public String clientSoftwareVersion() {
-        return clientSoftwareVersion;
-    }
-
-    @Override
-    public String sniHostname() {
-        return sniHostname;
-    }
-
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        this.inboundCtx = ctx;
-        LOGGER.trace("{}: channelActive", inboundCtx.channel().id());
-        // Initially the channel is not auto reading, so read the first batch of requests
-        ctx.channel().config().setAutoRead(false);
-        ctx.channel().read();
-        super.channelActive(ctx);
-    }
-
-    @Override
-    public String toString() {
-        return "KafkaProxyFrontendHandler{inbound = " + inboundCtx.channel() + ", state = " + state + "}";
-    }
-
-    /**
-     * Called when the channel to the upstream broker is ready for sending KRPC requests.
-     */
-    private void onUpstreamChannelUsable() {
-        if (state != State.CONNECTED && state != State.NEGOTIATING_TLS) {
-            throw illegalState(null);
-        }
-        LOGGER.trace("{}: onUpstreamChannelUsable: {}", inboundCtx.channel().id(), outboundCtx.channel().id());
-        // connection is complete, so first forward the buffered message
-        for (Object bufferedMsg : bufferedMsgs) {
-            forwardOutbound(outboundCtx, bufferedMsg);
-        }
-        bufferedMsgs = null; // don't pin in memory once we no longer need it
-        if (pendingReadComplete) {
-            pendingReadComplete = false;
-            channelReadComplete(outboundCtx);
-        }
-        state = State.OUTBOUND_ACTIVE;
-
-        var inboundChannel = this.inboundCtx.channel();
-        // once buffered message has been forwarded we enable auto-read to start accepting further messages
-        inboundChannel.config().setAutoRead(true);
-    }
-
-    /**
-     * Called when the upstream channel (to the broker) is active and TLS negotiation is starting.
-     * @param sslContext
-     */
-    private void startUpstreamTlsNegotiation(SslContext sslContext) {
-        this.state = State.NEGOTIATING_TLS;
-        final HostPort remote = (HostPort) outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get();
-        final SslHandler sslHandler = this.outboundCtx.pipeline().get(SslHandler.class);
-        sslHandler.handshakeFuture().addListener(handshakeFuture -> {
-            if (handshakeFuture.isSuccess()) {
-                this.onUpstreamChannelUsable();
-            }
-            else {
-                this.onUpstreamChannelFailed(remote, handshakeFuture, this.inboundCtx.channel());
-            }
-        });
-    }
-
-    private Optional<ResponseFrame> onSslHandshakeException(SSLHandshakeException throwable) {
-        ResponseFrame result;
-        final Object triggerMsg = bufferedMsgs != null ? bufferedMsgs.get(0) : null;
-        LOGGER.atInfo()
-                .setCause(LOGGER.isDebugEnabled() ? throwable : null)
-                .addArgument(inboundCtx.channel().id())
-                .addArgument(outboundCtx.channel().attr(UPSTREAM_PEER_KEY).get())
-                .addArgument(throwable.getMessage())
-                .log("{}: unable to complete TLS negotiation with {} due to: {} for further details enable debug logging");
-        if (triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-            result = buildErrorResponseFrame(triggerFrame, ERROR_NEGOTIATING_SSL_CONNECTION);
-        }
-        else {
-            result = null;
-        }
-        return Optional.ofNullable(result);
-    }
-
 }
