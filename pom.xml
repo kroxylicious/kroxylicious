@@ -38,7 +38,7 @@
         <freemarker.version>2.3.33</freemarker.version>
         <guava.version>33.3.1-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
-        <jackson.version>2.17.2</jackson.version>
+        <jackson.version>2.18.0</jackson.version>
         <junit.version>5.10.3</junit.version>
         <kafka.version>3.8.0</kafka.version>
         <kroxy.extension.version>0.9.0</kroxy.extension.version>
