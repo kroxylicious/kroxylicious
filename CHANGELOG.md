@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1557](https://github.com/kroxylicious/kroxylicious/pull/1557) Bump io.micrometer:micrometer-bom from 1.13.5 to 1.13.6
 * [#1554](https://github.com/kroxylicious/kroxylicious/pull/1554) Bump apicurio-registry.version from 2.6.4.Final to 2.6.5.Final
 * [#1522](https://github.com/kroxylicious/kroxylicious/pull/1522) Bump apicurio-registry.version from 2.6.3.Final to 2.6.4.Final
 * [#1498](https://github.com/kroxylicious/kroxylicious/pull/1498) Give KmsService lifecycle methods
