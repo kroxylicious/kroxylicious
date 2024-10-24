@@ -5,43 +5,50 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.Objects;
+import java.util.Optional;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
-import static java.util.Objects.requireNonNull;
+import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyBackendHandler.class);
 
-    private final KafkaProxyFrontendHandler frontendHandler;
-    private final ChannelHandlerContext inboundCtx;
-    private final KafkaProxyExceptionMapper exceptionMapper;
-    private ChannelHandlerContext blockedOutboundCtx;
-    private boolean unflushedWrites;
+    @VisibleForTesting
+    final ProxyChannelStateMachine proxyChannelStateMachine;
+    @VisibleForTesting
+    final SslContext sslContext;
+    ChannelHandlerContext serverCtx;
+    private boolean pendingServerFlushes;
 
-    public KafkaProxyBackendHandler(KafkaProxyFrontendHandler frontendHandler, ChannelHandlerContext inboundCtx, KafkaProxyExceptionMapper exceptionMapper) {
-        this.frontendHandler = frontendHandler;
-        this.inboundCtx = requireNonNull(inboundCtx);
-        this.exceptionMapper = exceptionMapper;
+    public KafkaProxyBackendHandler(
+                                    ProxyChannelStateMachine proxyChannelStateMachine,
+                                    VirtualCluster virtualCluster) {
+        this.proxyChannelStateMachine = Objects.requireNonNull(proxyChannelStateMachine);
+        Optional<SslContext> upstreamSslContext = virtualCluster.getUpstreamSslContext();
+        this.sslContext = upstreamSslContext.orElse(null);
     }
 
     @Override
     public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
         super.channelWritabilityChanged(ctx);
-        frontendHandler.outboundWritabilityChanged(ctx);
-    }
-
-    public void inboundChannelWritabilityChanged(ChannelHandlerContext inboundCtx) {
-        assert inboundCtx == this.inboundCtx;
-        final ChannelHandlerContext outboundCtx = blockedOutboundCtx;
-        if (outboundCtx != null && inboundCtx.channel().isWritable()) {
-            blockedOutboundCtx = null;
-            outboundCtx.channel().config().setAutoRead(true);
+        if (ctx.channel().isWritable()) {
+            proxyChannelStateMachine.onServerWritable();
+        }
+        else {
+            proxyChannelStateMachine.onServerUnwritable();
         }
     }
 
@@ -49,55 +56,119 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.trace("Channel active {}", ctx);
-        this.frontendHandler.onUpstreamChannelActive(ctx);
+        serverCtx = ctx;
+        if (sslContext == null) {
+            proxyChannelStateMachine.onServerActive();
+        }
         super.channelActive(ctx);
     }
 
     @Override
+    public void userEventTriggered(
+                                   ChannelHandlerContext ctx,
+                                   Object evt)
+            throws Exception {
+        if (evt instanceof SslHandshakeCompletionEvent sslEvt) {
+            if (sslEvt.isSuccess()) {
+                proxyChannelStateMachine.onServerActive();
+            }
+            else {
+                proxyChannelStateMachine.onServerException(sslEvt.cause());
+            }
+        }
+        super.userEventTriggered(ctx, evt);
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+        proxyChannelStateMachine.onServerInactive();
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        proxyChannelStateMachine.onServerException(cause);
+    }
+
+    /**
+     * Relieve backpressure on the server connection by turning on auto-read.
+     */
+    public void inboundChannelWritabilityChanged() {
+        if (serverCtx != null) {
+            serverCtx.channel().config().setAutoRead(true);
+        }
+    }
+
+    @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) {
-        assert blockedOutboundCtx == null;
-        LOGGER.trace("Channel read {}", msg);
-        final Channel inboundChannel = inboundCtx.channel();
-        if (inboundChannel.isWritable()) {
-            inboundChannel.write(msg, inboundCtx.voidPromise());
-            unflushedWrites = true;
-        }
-        else {
-            inboundChannel.writeAndFlush(msg, inboundCtx.voidPromise());
-            unflushedWrites = false;
-        }
+        proxyChannelStateMachine.forwardToClient(msg);
     }
 
     @Override
     public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
         super.channelReadComplete(ctx);
-        final Channel inboundChannel = inboundCtx.channel();
-        if (unflushedWrites) {
-            unflushedWrites = false;
-            inboundChannel.flush();
+        proxyChannelStateMachine.serverReadComplete();
+    }
+
+    public void forwardToServer(Object msg) {
+        if (serverCtx == null) {
+            LOGGER.trace("WRITE to server ignored because outbound is not active (msg: {})", msg);
+            return;
         }
-        if (!inboundChannel.isWritable()) {
-            ctx.channel().config().setAutoRead(false);
-            this.blockedOutboundCtx = ctx;
+        final Channel outboundChannel = serverCtx.channel();
+        if (outboundChannel.isWritable()) {
+            outboundChannel.write(msg, serverCtx.voidPromise());
+            pendingServerFlushes = true;
+        }
+        else {
+            outboundChannel.writeAndFlush(msg, serverCtx.voidPromise());
+            pendingServerFlushes = false;
+        }
+        LOGGER.trace("/READ");
+    }
+
+    public void flushToServer() {
+        final Channel serverChannel = serverCtx.channel();
+        if (pendingServerFlushes) {
+            pendingServerFlushes = false;
+            serverChannel.flush();
+        }
+        if (!serverChannel.isWritable()) {
+            proxyChannelStateMachine.onServerUnwritable();
+        }
+    }
+
+    public void blockServerReads() {
+        if (serverCtx != null) {
+            serverCtx.channel().config().setAutoRead(false);
+        }
+    }
+
+    public void unblockServerReads() {
+        if (serverCtx != null) {
+            serverCtx.channel().config().setAutoRead(true);
+        }
+    }
+
+    public void inClosing() {
+        if (serverCtx != null) {
+            Channel outboundChannel = serverCtx.channel();
+            if (outboundChannel.isActive()) {
+                outboundChannel.closeFuture().addListener(c -> proxyChannelStateMachine.onServerClosed()); // notify when the channel is actually closed
+                outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
+
+            }
         }
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) {
-        frontendHandler.closeNoResponse(inboundCtx.channel());
-    }
-
-    @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        // If the frontEnd has an exception handler for this exception
-        // it's likely to have already dealt with it.
-        // So only act here if its un-expected by the front end.
-        if (exceptionMapper.mapException(cause).isEmpty()) {
-            LOGGER.atWarn()
-                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                    .addArgument(cause != null ? cause.getMessage() : "")
-                    .log("Netty caught exception from the backend: {}. Increase log level to DEBUG for stacktrace");
-            frontendHandler.closeNoResponse(ctx.channel());
-        }
+    public String toString() {
+        // Don't include StateHolder's toString here
+        // because StateHolder's toString will include the backends's toString
+        // and we don't want a SOE.
+        return "KafkaProxyBackendHandler{" +
+                ", serverCtx=" + serverCtx +
+                ", proxyChannelState=" + this.proxyChannelStateMachine.currentState() +
+                ", pendingServerFlushes=" + pendingServerFlushes +
+                '}';
     }
 }

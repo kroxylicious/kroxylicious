@@ -81,7 +81,7 @@ public class KafkaAuthnHandlerTest {
     private void buildChannel(Map<SaslMechanism, AuthenticateCallbackHandler> mechanismHandlers) {
         channel = new EmbeddedChannel();
         kafkaAuthnHandler = new KafkaAuthnHandler(channel,
-                KafkaAuthnHandler.State.START, mechanismHandlers, new KafkaProxyExceptionMapper());
+                KafkaAuthnHandler.State.START, mechanismHandlers);
         channel.pipeline().addLast(kafkaAuthnHandler);
         userEventCollector = new UserEventCollector();
         channel.pipeline().addLast(userEventCollector);
