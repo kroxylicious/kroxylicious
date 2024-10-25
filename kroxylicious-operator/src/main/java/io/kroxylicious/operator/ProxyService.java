@@ -6,7 +6,6 @@
 package io.kroxylicious.operator;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.IntStream;
 
 import io.fabric8.kubernetes.api.model.IntOrString;
@@ -55,7 +54,7 @@ public class ProxyService
                                 .withNamespace(primary.getMetadata().getNamespace())
                                 .build())
                 .withNewSpec()
-                .withSelector(Map.of("app", "kroxylicious"));
+                .withSelector(ProxyDeployment.podLabels());
         if (enableAdminHttp) {
             serviceSpecBuilder = serviceSpecBuilder
                     .addNewPort()
