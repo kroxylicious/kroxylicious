@@ -6,46 +6,26 @@
 
 package io.kroxylicious.operator;
 
+import java.io.IOException;
+
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
-
 import io.fabric8.kubernetes.api.model.Service;
-
-import io.kroxylicious.crapi.v1alpha1.KafkaProxy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ProxyServiceTest {
 
-    public static final YAMLMapper YAML_MAPPER = new YAMLMapper()
-            .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER);
-
-    private static KafkaProxy kafkaProxyFromString(String yaml) throws JsonProcessingException {
-        // TODO should validate against the CRD schema, because the DependentResource
-        // should never see an invalid resource in production
-        return YAML_MAPPER.readValue(yaml, KafkaProxy.class);
-    }
-
     @Test
-    void test() throws JsonProcessingException {
+    void test() throws IOException {
         // Given
-        var kafkaProxy = kafkaProxyFromString("""
-                kind: KafkaProxy
-                apiVersion: kroxylicious.io/v1alpha1
-                metadata:
-                  name: my-example-proxy
-                spec:
-                  bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-                """);
+        var kafkaProxy = Util.kafkaProxyFromResource("/KafkaProxy-example.yaml");
 
         // When
         Service desired = new ProxyService().desired(kafkaProxy, null);
 
         // Then
-        assertThat(YAML_MAPPER.writeValueAsString(desired)).isEqualTo("""
+        assertThat(Util.YAML_MAPPER.writeValueAsString(desired)).isEqualTo("""
                 apiVersion: "v1"
                 kind: "Service"
                 metadata:
