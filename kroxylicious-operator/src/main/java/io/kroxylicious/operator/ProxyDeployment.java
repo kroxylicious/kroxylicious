@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.operator;
 
+import java.util.Map;
+
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
@@ -42,22 +44,34 @@ public class ProxyDeployment
                 .editOrNewMetadata()
                 .withName(deploymentName(primary))
                 .withNamespace(primary.getMetadata().getNamespace())
-                .addToLabels("app", "kroxylicious")
+                .withLabels(deploymentLabels())
                 .endMetadata()
                 .editOrNewSpec()
                 .withReplicas(1)
                 .editOrNewSelector()
-                .addToMatchLabels("app", "kroxylicious")
+                .withMatchLabels(deploymentSelector())
                 .endSelector()
                 .withTemplate(podTemplate(primary, configPathInContainer))
                 .endSpec()
                 .build();
     }
 
+    private static Map<String, String> deploymentSelector() {
+        return Map.of("app", "kroxylicious");
+    }
+
+    private static Map<String, String> deploymentLabels() {
+        return Map.of("app", "kroxylicious");
+    }
+
+    static Map<String, String> podLabels() {
+        return Map.of("app", "kroxylicious");
+    }
+
     private PodTemplateSpec podTemplate(KafkaProxy primary, String configPathInContainer) {
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
-                .addToLabels("app", "kroxylicious")
+                .withLabels(podLabels())
                 .endMetadata()
                 .editOrNewSpec()
                 .withContainers(proxyContainer(primary, configPathInContainer))
