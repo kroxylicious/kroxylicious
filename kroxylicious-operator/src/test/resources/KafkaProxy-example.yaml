@@ -1,0 +1,13 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: my-example-proxy
+spec:
+  bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
