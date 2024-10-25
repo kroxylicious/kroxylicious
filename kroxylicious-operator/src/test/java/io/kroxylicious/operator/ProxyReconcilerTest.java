@@ -11,14 +11,22 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.crapi.v1alpha1.KafkaProxy;
@@ -29,12 +37,39 @@ import static org.awaitility.Awaitility.await;
 
 class ProxyReconcilerTest {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconcilerTest.class);
+
     public static final String RESOURCE_NAME = "test-proxy";
     public static final String INITIAL_BOOTSTRAP = "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092";
     public static final String CHANGED_BOOTSTRAP = "your-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092";
 
+    static KubernetesClient client;
+
+    @BeforeAll
+    static void checkKubeAvailable() {
+        boolean haveKube;
+        try {
+            client = new KubernetesClientBuilder().build();
+            client.namespaces().list();
+            haveKube = true;
+        }
+        catch (KubernetesClientException e) {
+            haveKube = false;
+        }
+        Assumptions.assumeTrue(haveKube, "Test requires a viable kube client");
+    }
+
+    @AfterAll
+    static void closeKube() {
+        if (client != null) {
+            LOGGER.info("Kube client closed");
+            client.close();
+        }
+    }
+
     @RegisterExtension
     static LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
+            .withKubernetesClient(client)
             .withReconciler(ProxyReconciler.class)
             .build();
 
