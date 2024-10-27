@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious.operator;
+package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
 
@@ -11,7 +11,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
-import io.kroxylicious.crapi.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
 public class Util {
     public static final YAMLMapper YAML_MAPPER = new YAMLMapper()

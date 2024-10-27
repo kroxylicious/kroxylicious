@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.operator;
+package io.kroxylicious.kubernetes.operator;
 
 import java.util.Base64;
 import java.util.Map;
@@ -29,8 +29,8 @@ import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
-import io.kroxylicious.crapi.v1alpha1.KafkaProxy;
-import io.kroxylicious.crapi.v1alpha1.KafkaProxySpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;

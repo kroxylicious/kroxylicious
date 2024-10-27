@@ -203,7 +203,7 @@
                     <extraAnnotations>true</extraAnnotations>
                     <packageOverrides>
                         <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->
-                        <io.kroxylicious.v1alpha1>io.kroxylicious.crapi.v1alpha1</io.kroxylicious.v1alpha1>
+                        <io.kroxylicious.v1alpha1>io.kroxylicious.kubernetes.api.v1alpha1</io.kroxylicious.v1alpha1>
                     </packageOverrides>
                 </configuration>
             </plugin>
