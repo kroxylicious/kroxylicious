@@ -11,20 +11,16 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
@@ -35,9 +31,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
-class ProxyReconcilerTest {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconcilerTest.class);
+class ProxyReconcilerIT {
 
     public static final String RESOURCE_NAME = "test-proxy";
     public static final String INITIAL_BOOTSTRAP = "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092";
@@ -73,7 +67,7 @@ class ProxyReconcilerTest {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
             assertThat(secret)
                     .isNotNull()
-                    .extracting(ProxyReconcilerTest::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
+                    .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
                     .containsKey(ProxyConfigSecret.configYamlKey(cr))
                     .extracting(map -> map.get(ProxyConfigSecret.configYamlKey(cr)), InstanceOfAssertFactories.STRING)
                     .contains(INITIAL_BOOTSTRAP)
@@ -123,7 +117,7 @@ class ProxyReconcilerTest {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
             assertThat(secret)
                     .isNotNull()
-                    .extracting(ProxyReconcilerTest::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
+                    .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
                     .containsKey(ProxyConfigSecret.configYamlKey(changedCr))
                     .extracting(map -> map.get(ProxyConfigSecret.configYamlKey(changedCr)), InstanceOfAssertFactories.STRING)
                     .doesNotContain(INITIAL_BOOTSTRAP)
