@@ -43,6 +43,18 @@ class ProxyReconcilerTest {
     public static final String INITIAL_BOOTSTRAP = "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092";
     public static final String CHANGED_BOOTSTRAP = "your-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092";
 
+    @BeforeAll
+    static void checkKubeAvailable() {
+        boolean haveKube;
+        try (var client = new KubernetesClientBuilder().build()) {
+            client.namespaces().list();
+            haveKube = true;
+        }
+        catch (KubernetesClientException e) {
+            haveKube = false;
+        }
+        Assumptions.assumeTrue(haveKube, "Test requires a viable kube client");
+    }
 
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
