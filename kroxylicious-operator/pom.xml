@@ -31,10 +31,19 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- note, we're inheriting the jackson BOM from our parent pom -->
+
             <dependency>
                 <groupId>io.javaoperatorsdk</groupId>
                 <artifactId>operator-framework-bom</artifactId>
                 <version>${josdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.fabric8</groupId>
+                <artifactId>kubernetes-client-bom</artifactId>
+                <version>${kubernetes-client.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -45,38 +54,31 @@
         <dependency>
             <groupId>io.javaoperatorsdk</groupId>
             <artifactId>operator-framework-core</artifactId>
-            <version>${josdk.version}</version>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-client</artifactId>
-            <version>${kubernetes-client.version}</version>
             <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-client-api</artifactId>
-            <version>${kubernetes-client.version}</version>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-common</artifactId>
-            <version>${kubernetes-client.version}</version>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-core</artifactId>
-            <version>${kubernetes-client.version}</version>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-apps</artifactId>
-            <version>${kubernetes-client.version}</version>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>generator-annotations</artifactId>
-            <version>${fabric8-client.version}</version>
         </dependency>
 
         <!-- extraAnnotations requires these additional dependencies -->
@@ -142,7 +144,6 @@
         <dependency>
             <groupId>io.javaoperatorsdk</groupId>
             <artifactId>operator-framework-junit-5</artifactId>
-            <version>${josdk.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -160,11 +161,8 @@
             <artifactId>awaitility</artifactId>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
-
-
-
+    
     <build>
         <plugins>
             <plugin>
