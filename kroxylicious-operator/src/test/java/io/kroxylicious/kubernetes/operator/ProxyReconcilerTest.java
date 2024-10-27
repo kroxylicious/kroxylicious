@@ -43,38 +43,18 @@ class ProxyReconcilerTest {
     public static final String INITIAL_BOOTSTRAP = "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092";
     public static final String CHANGED_BOOTSTRAP = "your-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092";
 
-    static KubernetesClient client;
-
-    @BeforeAll
-    static void checkKubeAvailable() {
-        boolean haveKube;
-        try {
-            client = new KubernetesClientBuilder().build();
-            client.namespaces().list();
-            haveKube = true;
-        }
-        catch (KubernetesClientException e) {
-            haveKube = false;
-        }
-        Assumptions.assumeTrue(haveKube, "Test requires a viable kube client");
-    }
-
-    @AfterAll
-    static void closeKube() {
-        if (client != null) {
-            LOGGER.info("Kube client closed");
-            client.close();
-        }
-    }
 
     @RegisterExtension
-    static LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
-            .withKubernetesClient(client)
+    LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
             .withReconciler(ProxyReconciler.class)
             .build();
 
     @Test
-    void testCRUDOperations() {
+    void testCreate() {
+        doCreate();
+    }
+
+    KafkaProxy doCreate() {
         final var cr = extension.create(testResource());
 
         await().untilAsserted(() -> {
@@ -100,6 +80,29 @@ class ProxyReconcilerTest {
                     .describedAs("Service's selector should select proxy pods")
                     .isEqualTo(ProxyDeployment.podLabels());
         });
+        return cr;
+    }
+
+    @Test
+    void testDelete() {
+        var cr = doCreate();
+        extension.delete(cr);
+
+        await().untilAsserted(() -> {
+            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
+            assertThat(secret).isNull();
+
+            var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
+            assertThat(deployment).isNull();
+
+            var service = extension.get(Service.class, ProxyService.serviceName(cr));
+            assertThat(service).isNull();
+        });
+    }
+
+    @Test
+    void testUpdate() {
+        final var cr = doCreate();
 
         cr.getSpec().setBootstrapServers(CHANGED_BOOTSTRAP);
         final var changedCr = extension.replace(cr);
@@ -115,18 +118,6 @@ class ProxyReconcilerTest {
                     .contains(CHANGED_BOOTSTRAP);
         });
 
-        extension.delete(changedCr);
-
-        await().untilAsserted(() -> {
-            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
-            assertThat(secret).isNull();
-
-            var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
-            assertThat(deployment).isNull();
-
-            var service = extension.get(Service.class, ProxyService.serviceName(cr));
-            assertThat(service).isNull();
-        });
     }
 
     private static Map<String, String> decodeSecretData(Secret cm) {
