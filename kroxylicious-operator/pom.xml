@@ -186,6 +186,7 @@
                 </executions>
             </plugin>
             <plugin>
+                <!-- Our CRDs are the source of truth for the Kube API; Java code is derived -->
                 <groupId>io.fabric8</groupId>
                 <artifactId>java-generator-maven-plugin</artifactId>
                 <version>${fabric8-client.version}</version>
@@ -197,7 +198,11 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <source>src/main/resources/kubernetes</source>
+                    <!-- The LocallyRunOperatorExtension used in the tests depends on the
+                         CRDs being in this exact location.
+                         See https://github.com/operator-framework/java-operator-sdk/issues/2561
+                    -->
+                    <source>src/main/resources/META-INF/fabric8/kafka-proxies.kroxylicious.io-v1.yml</source>
                     <extraAnnotations>true</extraAnnotations>
                     <packageOverrides>
                         <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->
