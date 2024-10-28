@@ -29,6 +29,9 @@ public class ProxyService
         super(Service.class);
     }
 
+    /**
+     * @return The {@code metadata.name} of the desired {@code Service}.
+     */
     static String serviceName(KafkaProxy primary) {
         return primary.getMetadata().getName();
     }

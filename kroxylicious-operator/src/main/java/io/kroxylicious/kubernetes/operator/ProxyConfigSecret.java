@@ -24,16 +24,20 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 public class ProxyConfigSecret
         extends CRUDKubernetesDependentResource<Secret, KafkaProxy> {
 
+    /**
+     * The key of the {@code config.yaml} entry in the desired {@code Secret}.
+     */
+    public static final String CONFIG_YAML_KEY = "config.yaml";
+
     public ProxyConfigSecret() {
         super(Secret.class);
     }
 
+    /**
+     * @return The {@code metadata.name} of the desired Secret {@code Secret}.
+     */
     static String secretName(KafkaProxy primary) {
         return primary.getMetadata().getName();
-    }
-
-    static String configYamlKey() {
-        return "config.yaml";
     }
 
     @Override
@@ -46,7 +50,7 @@ public class ProxyConfigSecret
                 .withName(secretName(primary))
                 .withNamespace(primary.getMetadata().getNamespace())
                 .endMetadata()
-                .withStringData(Map.of(configYamlKey(),
+                .withStringData(Map.of(CONFIG_YAML_KEY,
                         """
                                 adminHttp:
                                   endpoints:
