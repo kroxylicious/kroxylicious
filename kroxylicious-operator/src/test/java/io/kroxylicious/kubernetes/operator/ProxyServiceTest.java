@@ -25,7 +25,7 @@ class ProxyServiceTest {
         Service desired = new ProxyService().desired(kafkaProxy, null);
 
         // Then
-        assertThat(Util.YAML_MAPPER.writeValueAsString(desired)).isEqualTo("""
+        assertThat(desired).isEqualTo(Util.YAML_MAPPER.readValue("""
                 apiVersion: "v1"
                 kind: "Service"
                 metadata:
@@ -54,7 +54,7 @@ class ProxyServiceTest {
                     targetPort: 9295
                   selector:
                     app: "kroxylicious"
-                """);
+                """, Service.class));
     }
 
 }

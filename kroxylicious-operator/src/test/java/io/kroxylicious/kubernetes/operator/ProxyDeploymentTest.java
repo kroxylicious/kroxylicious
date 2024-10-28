@@ -25,7 +25,7 @@ class ProxyDeploymentTest {
         Deployment desired = new ProxyDeployment().desired(kafkaProxy, null);
 
         // Then
-        assertThat(Util.YAML_MAPPER.writeValueAsString(desired)).isEqualTo("""
+        assertThat(desired).isEqualTo(Util.YAML_MAPPER.readValue("""
                 apiVersion: "apps/v1"
                 kind: "Deployment"
                 metadata:
@@ -43,11 +43,11 @@ class ProxyDeploymentTest {
                         app: "kroxylicious"
                     spec:
                       containers:
-                      - args:
+                      - name: "proxy"
+                        image: "quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT"
+                        args:
                         - "--config"
                         - "/opt/kroxylicious/config/config.yaml"
-                        image: "quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT"
-                        name: "kroxylicious"
                         ports:
                         - containerPort: 9190
                           name: "metrics"
@@ -63,7 +63,7 @@ class ProxyDeploymentTest {
                       - name: "config-volume"
                         secret:
                           secretName: "my-example-proxy"
-                """);
+                """, Deployment.class));
     }
 
 }

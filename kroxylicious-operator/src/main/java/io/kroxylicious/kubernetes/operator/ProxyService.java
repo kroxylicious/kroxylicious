@@ -33,11 +33,11 @@ public class ProxyService
         return primary.getMetadata().getName();
     }
 
-    static int metricsPort(KafkaProxy primary) {
+    static int metricsPort() {
         return 9190;
     }
 
-    static List<Integer> brokerPorts(KafkaProxy primary) {
+    static List<Integer> brokerPorts() {
         int startPort = 9292;
         int numBrokerPorts = 4;
         return IntStream.range(startPort, startPort + numBrokerPorts).boxed().toList();
@@ -59,12 +59,12 @@ public class ProxyService
             serviceSpecBuilder = serviceSpecBuilder
                     .addNewPort()
                     .withName("metrics")
-                    .withPort(metricsPort(primary))
-                    .withTargetPort(new IntOrString(metricsPort(primary)))
+                    .withPort(metricsPort())
+                    .withTargetPort(new IntOrString(metricsPort()))
                     .withProtocol("TCP")
                     .endPort();
         }
-        for (var portNum : brokerPorts(primary)) {
+        for (var portNum : brokerPorts()) {
             serviceSpecBuilder = serviceSpecBuilder
                     .addNewPort()
                     .withName("port-" + portNum)

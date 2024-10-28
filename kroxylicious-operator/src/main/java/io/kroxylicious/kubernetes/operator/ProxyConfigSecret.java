@@ -32,7 +32,7 @@ public class ProxyConfigSecret
         return primary.getMetadata().getName();
     }
 
-    static String configYamlKey(KafkaProxy primary) {
+    static String configYamlKey() {
         return "config.yaml";
     }
 
@@ -46,7 +46,7 @@ public class ProxyConfigSecret
                 .withName(secretName(primary))
                 .withNamespace(primary.getMetadata().getNamespace())
                 .endMetadata()
-                .withStringData(Map.of(configYamlKey(primary),
+                .withStringData(Map.of(configYamlKey(),
                         """
                                 adminHttp:
                                   endpoints:

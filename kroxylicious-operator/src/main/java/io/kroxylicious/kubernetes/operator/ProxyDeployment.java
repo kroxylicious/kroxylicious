@@ -27,6 +27,8 @@ public class ProxyDeployment
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 
     public static final String CONFIG_VOLUME = "config-volume";
+    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/config.yaml";
+    public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
 
     public ProxyDeployment() {
         super(Deployment.class);
@@ -39,7 +41,6 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
-        String configPathInContainer = "/opt/kroxylicious/config/config.yaml";
         return new DeploymentBuilder()
                 .editOrNewMetadata()
                 .withName(deploymentName(primary))
@@ -51,30 +52,30 @@ public class ProxyDeployment
                 .editOrNewSelector()
                 .withMatchLabels(deploymentSelector())
                 .endSelector()
-                .withTemplate(podTemplate(primary, configPathInContainer))
+                .withTemplate(podTemplate(primary))
                 .endSpec()
                 .build();
     }
 
     private static Map<String, String> deploymentSelector() {
-        return Map.of("app", "kroxylicious");
+        return APP_KROXY;
     }
 
     private static Map<String, String> deploymentLabels() {
-        return Map.of("app", "kroxylicious");
+        return APP_KROXY;
     }
 
     static Map<String, String> podLabels() {
-        return Map.of("app", "kroxylicious");
+        return APP_KROXY;
     }
 
-    private PodTemplateSpec podTemplate(KafkaProxy primary, String configPathInContainer) {
+    private PodTemplateSpec podTemplate(KafkaProxy primary) {
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
                 .withLabels(podLabels())
                 .endMetadata()
                 .editOrNewSpec()
-                .withContainers(proxyContainer(primary, configPathInContainer))
+                .withContainers(proxyContainer(primary, CONFIG_PATH_IN_CONTAINER))
                 .addNewVolume()
                 .withName(CONFIG_VOLUME)
                 .withNewSecret()
@@ -87,7 +88,7 @@ public class ProxyDeployment
 
     private static Container proxyContainer(KafkaProxy primary, String configPathInContainer) {
         var containerBuilder = new ContainerBuilder()
-                .withName("kroxylicious")
+                .withName("proxy")
                 .withImage("quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT")
                 .withArgs("--config", configPathInContainer);
         // volume mount
@@ -95,15 +96,15 @@ public class ProxyDeployment
                 .addNewVolumeMount()
                 .withName(CONFIG_VOLUME)
                 .withMountPath(configPathInContainer)
-                .withSubPath(ProxyConfigSecret.configYamlKey(primary))
+                .withSubPath(ProxyConfigSecret.configYamlKey())
                 .endVolumeMount();
         // metrics port
         containerBuilder.addNewPort()
-                .withContainerPort(ProxyService.metricsPort(primary))
+                .withContainerPort(ProxyService.metricsPort())
                 .withName("metrics")
                 .endPort();
         // broker ports
-        for (int portNum : ProxyService.brokerPorts(primary)) {
+        for (int portNum : ProxyService.brokerPorts()) {
             containerBuilder.addNewPort()
                     .withContainerPort(portNum)
                     .endPort();

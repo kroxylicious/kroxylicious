@@ -68,9 +68,8 @@ class ProxyReconcilerIT {
             assertThat(secret)
                     .isNotNull()
                     .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
-                    .containsKey(ProxyConfigSecret.configYamlKey(cr))
-                    .extracting(map -> map.get(ProxyConfigSecret.configYamlKey(cr)), InstanceOfAssertFactories.STRING)
-                    .contains(INITIAL_BOOTSTRAP)
+                    .containsKey(ProxyConfigSecret.configYamlKey())
+                    .extracting(map -> map.get(ProxyConfigSecret.configYamlKey()), InstanceOfAssertFactories.STRING).contains(INITIAL_BOOTSTRAP)
                     .doesNotContain(CHANGED_BOOTSTRAP);
 
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
@@ -118,8 +117,8 @@ class ProxyReconcilerIT {
             assertThat(secret)
                     .isNotNull()
                     .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
-                    .containsKey(ProxyConfigSecret.configYamlKey(changedCr))
-                    .extracting(map -> map.get(ProxyConfigSecret.configYamlKey(changedCr)), InstanceOfAssertFactories.STRING)
+                    .containsKey(ProxyConfigSecret.configYamlKey())
+                    .extracting(map -> map.get(ProxyConfigSecret.configYamlKey()), InstanceOfAssertFactories.STRING)
                     .doesNotContain(INITIAL_BOOTSTRAP)
                     .contains(CHANGED_BOOTSTRAP);
         });
