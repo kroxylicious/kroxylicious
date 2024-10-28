@@ -13,17 +13,14 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
+/**
+ * Constants and methods used by multiple other classes.
+ */
 public class Util {
-    public static final YAMLMapper YAML_MAPPER = new YAMLMapper()
+    static final YAMLMapper YAML_MAPPER = new YAMLMapper()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER);
 
     private Util() {
-    }
-
-    public static KafkaProxy kafkaProxyFromString(String yaml) throws JsonProcessingException {
-        // TODO should validate against the CRD schema, because the DependentResource
-        // should never see an invalid resource in production
-        return YAML_MAPPER.readValue(yaml, KafkaProxy.class);
     }
 
     public static KafkaProxy kafkaProxyFromResource(String name) throws IOException {
