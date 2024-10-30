@@ -22,6 +22,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -124,19 +126,39 @@ class KafkaProxyBackendHandlerTest {
     }
 
     @Test
-    void shouldCloseChannelWhenInClosingState() throws Exception {
+    void shouldCloseChannelWhenInClosedState() {
         // Given
         final AtomicBoolean closed = new AtomicBoolean(false);
         outboundChannel.closeFuture().addListener(future -> closed.set(true));
-        kafkaProxyBackendHandler.channelActive(outboundContext);
+        outboundChannel.pipeline().fireChannelRegistered();
+        outboundChannel.pipeline().fireChannelActive();
 
         // When
-        kafkaProxyBackendHandler.inClosing();
+        kafkaProxyBackendHandler.inClosed();
 
         // Then
         await().untilTrue(closed);
 
-        verify(proxyChannelStateMachine).onServerClosed();
+        assertThat(outboundChannel.isActive()).isFalse();
+        assertThat(outboundChannel.isOpen()).isFalse();
+    }
+
+    @Test
+    void shouldCloseChannelWhenInClosedStateUsingTls() throws Exception {
+        // Given
+        final AtomicBoolean closed = new AtomicBoolean(false);
+        final SslHandler sslHandler = SslContextBuilder.forClient().build().newHandler(outboundChannel.alloc());
+        outboundChannel.pipeline().addFirst(sslHandler);
+        outboundChannel.closeFuture().addListener(future -> closed.set(true));
+        outboundChannel.pipeline().fireChannelRegistered();
+        outboundChannel.pipeline().fireChannelActive();
+
+        // When
+        kafkaProxyBackendHandler.inClosed();
+
+        // Then
+        await().untilTrue(closed);
+
         assertThat(outboundChannel.isActive()).isFalse();
         assertThat(outboundChannel.isOpen()).isFalse();
     }

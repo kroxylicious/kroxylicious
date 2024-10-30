@@ -55,7 +55,6 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -72,6 +71,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -113,6 +113,7 @@ class ProxyChannelStateMachineEmbeddedTest {
     private ProxyChannelStateMachine proxyChannelStateMachine;
     private KafkaProxyFrontendHandler handler;
     private KafkaProxyBackendHandler backendHandler;
+    private boolean activateOutboundChannelAutomatically = true;
 
     @BeforeEach
     void setUp() {
@@ -198,7 +199,11 @@ class ProxyChannelStateMachineEmbeddedTest {
                 // of a handler creating an outgoing connection and ends up
                 // trying to re-register the outbound channel => IllegalStateException
                 // So we override this method to short-circuit that
-                outboundChannel.pipeline().addFirst(backendHandler);
+                outboundChannel.pipeline().addFirst(ProxyChannelStateMachineEmbeddedTest.this.backendHandler);
+                outboundChannel.pipeline().fireChannelRegistered();
+                if (ProxyChannelStateMachineEmbeddedTest.this.activateOutboundChannelAutomatically) {
+                    outboundChannel.pipeline().fireChannelActive();
+                }
                 return outboundChannel.newPromise();
             }
         };
@@ -354,7 +359,7 @@ class ProxyChannelStateMachineEmbeddedTest {
                 });
     }
 
-    private void assertClientApiVersionsResponse(int corrId, Errors error) {
+    private void assertNextClientResponseIsApiVersionsError(int corrId, Errors error) {
         assertClientResponse(
                 corrId,
                 ApiVersionsResponseData.class,
@@ -362,7 +367,7 @@ class ProxyChannelStateMachineEmbeddedTest {
                 error);
     }
 
-    private void assertClientSaslAuthenticateResponse(int corrId, Errors error) {
+    private void assertNextClientResponseIsSaslAuthenticateError(int corrId, Errors error) {
         assertClientResponse(
                 corrId,
                 SaslAuthenticateResponseData.class,
@@ -370,7 +375,7 @@ class ProxyChannelStateMachineEmbeddedTest {
                 error);
     }
 
-    private void assertClientSaslHandshakeResponse(int corrId, Errors error) {
+    private void assertNextClientResponseIsSaslHandshakeError(int corrId, Errors error) {
         assertClientResponse(
                 corrId,
                 SaslHandshakeResponseData.class,
@@ -378,7 +383,7 @@ class ProxyChannelStateMachineEmbeddedTest {
                 error);
     }
 
-    private void assertClientMetadataResponse(int corrId) {
+    private void assertNextClientResponseIsMetadataError(int corrId) {
         assertClientResponse(
                 corrId,
                 MetadataResponseData.class,
@@ -608,6 +613,8 @@ class ProxyChannelStateMachineEmbeddedTest {
                                                     boolean haProxy,
                                                     ApiKeys firstMessage) {
         // Given
+        // Keeps the statemachine from automatically progressing so we can assert intermediate state
+        activateOutboundChannelAutomatically = false;
         buildHandlerInClientActiveState(false, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS), sni);
 
         if (haProxy) {
@@ -667,7 +674,7 @@ class ProxyChannelStateMachineEmbeddedTest {
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
-        assertClientApiVersionsResponse(apiVersionsCorrId, Errors.NONE);
+        assertNextClientResponseIsApiVersionsError(apiVersionsCorrId, Errors.NONE);
         assertHandlerInApiVersionsState(haProxy);
 
         // When
@@ -732,7 +739,7 @@ class ProxyChannelStateMachineEmbeddedTest {
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
-        assertClientApiVersionsResponse(apiVersionsCorrId, Errors.NONE);
+        assertNextClientResponseIsApiVersionsError(apiVersionsCorrId, Errors.NONE);
         assertHandlerInApiVersionsState(haProxy);
 
         // When
@@ -785,7 +792,7 @@ class ProxyChannelStateMachineEmbeddedTest {
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
-        assertClientApiVersionsResponse(apiVersionsCorrId, Errors.NONE);
+        assertNextClientResponseIsApiVersionsError(apiVersionsCorrId, Errors.NONE);
         assertHandlerInApiVersionsState(haProxy);
 
         // When
@@ -820,7 +827,7 @@ class ProxyChannelStateMachineEmbeddedTest {
 
         // Then
         inboundChannel.checkException();
-        assertClientApiVersionsResponse(corrId, Errors.UNKNOWN_SERVER_ERROR);
+        assertNextClientResponseIsApiVersionsError(corrId, Errors.UNKNOWN_SERVER_ERROR);
 
         assertEverythingClosed();
     }
@@ -842,7 +849,7 @@ class ProxyChannelStateMachineEmbeddedTest {
         }
 
         int apiVersionsCorrId = writeInboundApiVersionsRequest();
-        assertClientApiVersionsResponse(apiVersionsCorrId, Errors.NONE);
+        assertNextClientResponseIsApiVersionsError(apiVersionsCorrId, Errors.NONE);
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.ApiVersions.class);
 
         // When
@@ -861,6 +868,7 @@ class ProxyChannelStateMachineEmbeddedTest {
                                                   boolean haProxy,
                                                   ApiKeys firstMessage) {
         // Given
+        activateOutboundChannelAutomatically = false;
         var firstRequest = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
 
         // When
@@ -892,8 +900,8 @@ class ProxyChannelStateMachineEmbeddedTest {
                                                    ApiKeys firstMessage,
                                                    Throwable serverException) {
         // Given
-        buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
-        outboundChannel.pipeline().fireChannelActive();
+        activateOutboundChannelAutomatically = false;
+        final DecodedRequestFrame<ApiMessage> requestFrame = buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
 
         // When
         outboundChannel.pipeline().fireExceptionCaught(serverException);
@@ -901,7 +909,14 @@ class ProxyChannelStateMachineEmbeddedTest {
         // Then
         inboundChannel.checkException();
         outboundChannel.checkException();
-        assertClientConnectionClosedWithNoResponse(); // TODO if we have a firstMessage why are we not returning an error response
+
+        assertNextClientResponseIsErrorFor(requestFrame);
+        assertNoMoreResponses();
+        assertEverythingClosed();
+    }
+
+    private void assertNoMoreResponses() {
+        assertThat((Object) this.inboundChannel.readInbound()).isNull();
     }
 
     @ParameterizedTest
@@ -912,7 +927,6 @@ class ProxyChannelStateMachineEmbeddedTest {
                                                   ApiKeys firstMessage) {
         // Given
         buildHandlerInConnectingState(sni, haProxy, false, firstMessage);
-        outboundChannel.pipeline().fireChannelActive();
 
         // When
         outboundChannel.pipeline().fireChannelInactive();
@@ -957,16 +971,16 @@ class ProxyChannelStateMachineEmbeddedTest {
                           ApiKeys firstMessage) {
         // Given
         final DecodedRequestFrame<ApiMessage> requestFrame = buildHandlerInConnectingState(sni, haProxy, true, firstMessage);
+        outboundChannel.pipeline().fireChannelActive();
 
         // When
         outboundChannel.pipeline().fireUserEventTriggered(new SslHandshakeCompletionEvent(new SSLHandshakeException("Oops")));
 
         // Then
-        outboundChannel.pipeline().get(SslHandler.class).closeOutbound();
         inboundChannel.checkException();
         outboundChannel.checkException();
 
-        asserClientSentErrorResponseFor(requestFrame);
+        assertNextClientResponseIsErrorFor(requestFrame);
 
         assertThat(inboundChannel.config().isAutoRead())
                 .describedAs("Client autoread should be off while connecting to server")
@@ -1023,40 +1037,28 @@ class ProxyChannelStateMachineEmbeddedTest {
         };
     }
 
-    private void asserClientSentErrorResponseFor(DecodedRequestFrame<ApiMessage> requestFrame) {
+    private void assertNextClientResponseIsErrorFor(DecodedRequestFrame<ApiMessage> requestFrame) {
         switch (requestFrame.apiKey()) {
-            case API_VERSIONS -> assertClientApiVersionsResponse(requestFrame.correlationId(), Errors.UNKNOWN_SERVER_ERROR);
-            case SASL_HANDSHAKE -> assertClientSaslHandshakeResponse(requestFrame.correlationId(), Errors.UNKNOWN_SERVER_ERROR);
-            case SASL_AUTHENTICATE -> assertClientSaslAuthenticateResponse(requestFrame.correlationId(), Errors.UNKNOWN_SERVER_ERROR);
-            case METADATA -> assertClientMetadataResponse(requestFrame.correlationId());
+            case API_VERSIONS -> assertNextClientResponseIsApiVersionsError(requestFrame.correlationId(), Errors.UNKNOWN_SERVER_ERROR);
+            case SASL_HANDSHAKE -> assertNextClientResponseIsSaslHandshakeError(requestFrame.correlationId(), Errors.UNKNOWN_SERVER_ERROR);
+            case SASL_AUTHENTICATE -> assertNextClientResponseIsSaslAuthenticateError(requestFrame.correlationId(), Errors.UNKNOWN_SERVER_ERROR);
+            case METADATA -> assertNextClientResponseIsMetadataError(requestFrame.correlationId());
             default -> throw new UnsupportedOperationException("unsupported apiKey: " + requestFrame.apiKey());
         }
     }
 
     private void assertEverythingClosed() {
-        assertThat(proxyChannelStateMachine.state()).isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class);
-        // TODO this doesn't work reliably but I don't understand why the outboundChannel closeFuture doesn't complete reliably.
-        // The outbound channel gets stuck in SSL negotiation....
-        // if (outboundChannel != null) {
-        // await("outboundClosed").atMost(Duration.ofSeconds(12)).untilTrue(outboundClosed);
-        // assertThat(outboundChannel.isActive()).isFalse();
-        // assertThat(outboundChannel.isOpen()).isFalse();
-        // }
-        // if (proxyChannelStateMachine.state() instanceof ProxyChannelState.Closing) {
-        // if (outboundChannel != null) {
-        // await().untilAsserted(() -> assertThat(outboundChannel.closeFuture().isSuccess()).isTrue());
-        // }
-        // await("transition to closed").atMost(BACKGROUND_TASK_TIMEOUT)
-        // .failFast("State not closing or closed",
-        // () -> assertThat(proxyChannelStateMachine.state())
-        // .isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class))
-        // .untilAsserted(() -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class));
-        // }
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        if (outboundChannel != null) {
+            await("outboundClosed").atMost(BACKGROUND_TASK_TIMEOUT).untilTrue(outboundClosed);
+            assertThat(outboundChannel.isActive()).isFalse();
+            assertThat(outboundChannel.isOpen()).isFalse();
+        }
         assertThat(inboundChannel.isActive()).isFalse();
         assertThat(inboundChannel.isOpen()).isFalse();
-        // if (outboundChannel != null) {
-        // assertThat(outboundChannel.isActive()).isFalse();
-        // assertThat(outboundChannel.isOpen()).isFalse();
-        // }
+
+        await("transition to closed").atMost(BACKGROUND_TASK_TIMEOUT)
+                .untilAsserted(() -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class));
     }
+
 }

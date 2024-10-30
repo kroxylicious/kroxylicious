@@ -24,7 +24,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Closing;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
@@ -41,7 +40,6 @@ sealed interface ProxyChannelState
         SelectingServer,
         Connecting,
         Forwarding,
-        Closing,
         Closed {
 
     /**
@@ -268,22 +266,6 @@ sealed interface ProxyChannelState
                     "clientSoftwareVersion=" + clientSoftwareVersion + ']';
         }
 
-    }
-
-    /**
-     * Transitional state as the session is being torn down.
-     * This is principally used to prevent closing channels triggering other error handling and thus racing close calls.
-     */
-    record Closing(Throwable ErrorCode, boolean clientClosed, boolean serverClosed) implements ProxyChannelState {
-
-        ProxyChannelState transition() {
-            if (serverClosed && clientClosed) {
-                return new Closed();
-            }
-            else {
-                return this;
-            }
-        }
     }
 
     /**

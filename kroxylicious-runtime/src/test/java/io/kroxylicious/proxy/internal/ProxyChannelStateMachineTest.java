@@ -129,9 +129,9 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onClientException(cause, true);
 
         // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-        verify(backendHandler).inClosing();
-        verify(frontendHandler).inClosing(ArgumentMatchers.notNull(UnknownServerException.class));
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(backendHandler).inClosed();
+        verify(frontendHandler).inClosed(ArgumentMatchers.notNull(UnknownServerException.class));
     }
 
     @Test
@@ -144,9 +144,9 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onClientException(cause, true);
 
         // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-        verify(backendHandler).inClosing();
-        verify(frontendHandler).inClosing(ArgumentMatchers.notNull(InvalidRequestException.class));
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(backendHandler).inClosed();
+        verify(frontendHandler).inClosed(ArgumentMatchers.notNull(InvalidRequestException.class));
     }
 
     @Test
@@ -159,9 +159,9 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onServerException(cause);
 
         // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-        verify(backendHandler).inClosing();
-        verify(frontendHandler).inClosing(cause);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(backendHandler).inClosed();
+        verify(frontendHandler).inClosed(cause);
     }
 
     @Test
@@ -255,8 +255,8 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(proxyChannelStateMachine.state())
-                .isInstanceOf(ProxyChannelState.Closing.class);
-        verify(frontendHandler).inClosing(null);
+                .isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
     }
 
     @Test
@@ -287,8 +287,8 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onClientActive(frontendHandler);
 
         // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-        verify(frontendHandler).inClosing(null);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
     }
 
     @Test
@@ -316,8 +316,8 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onClientRequest(dp, HA_PROXY_MESSAGE);
 
         // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-        verify(frontendHandler).inClosing(null);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
         verifyNoInteractions(backendHandler);
         verifyNoInteractions(dp);
     }
@@ -389,8 +389,8 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(proxyChannelStateMachine.state())
-                .isInstanceOf(ProxyChannelState.Closing.class);
-        verify(frontendHandler).inClosing(null);
+                .isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
         assertThat(proxyChannelStateMachine).extracting("backendHandler").isNull();
     }
 
@@ -408,9 +408,9 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(proxyChannelStateMachine.state())
-                .isInstanceOf(ProxyChannelState.Closing.class);
-        verify(frontendHandler).inClosing(null);
-        verify(backendHandler).inClosing();
+                .isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
+        verify(backendHandler).inClosed();
     }
 
     @Test
@@ -452,8 +452,8 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(proxyChannelStateMachine.state())
-                .isInstanceOf(ProxyChannelState.Closing.class);
-        verify(frontendHandler).inClosing(null);
+                .isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
     }
 
     @Test
@@ -495,50 +495,38 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inForwardingShouldTransitionToClosingOnServerInactive() {
+    void inForwardingShouldTransitionToClosedOnServerInactive() {
         // Given
         stateHolderInForwarding();
-        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler).inClosing(null);
-        doNothing().when(backendHandler).inClosing();
+        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler).inClosed(null);
+        doNothing().when(backendHandler).inClosed();
 
         // When
         proxyChannelStateMachine.onServerInactive();
 
         // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-        verify(frontendHandler).inClosing(null);
-        verify(backendHandler).inClosing();
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
+        verify(backendHandler).inClosed();
     }
 
     @Test
-    void inForwardingShouldTransitionToClosingOnClientInactive() {
+    void inForwardingShouldTransitionToClosedOnClientInactive() {
         // Given
         stateHolderInForwarding();
-        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler).inClosing(null);
+        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler).inClosed(null);
 
         // When
         proxyChannelStateMachine.onClientInactive();
 
         // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-        verify(frontendHandler).inClosing(null);
-        verify(backendHandler).inClosing();
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(null);
+        verify(backendHandler).inClosed();
     }
 
     @Test
-    void shouldNotTransitionToClosingMultipleTimes() {
-        // Given
-        stateHolderInClosing(null);
-
-        // When
-        proxyChannelStateMachine.onServerInactive();
-
-        // Then
-        verifyNoInteractions(frontendHandler, backendHandler);
-    }
-
-    @Test
-    void shouldNotTransitionFromClosedToClosing() {
+    void shouldNotTransitionToClosedMultipleTimes() {
         // Given
         stateHolderInClosed();
 
@@ -550,86 +538,39 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inForwardingShouldTransitionToClosingOnServerException() {
+    void inForwardingShouldTransitionToClosedOnServerException() {
         // Given
         stateHolderInForwarding();
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
-        doNothing().when(backendHandler).inClosing();
+        doNothing().when(backendHandler).inClosed();
 
         // When
         proxyChannelStateMachine.onServerException(illegalStateException);
 
         // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-        verify(frontendHandler).inClosing(illegalStateException);
-        verify(backendHandler).inClosing();
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
+        verify(frontendHandler).inClosed(illegalStateException);
+        verify(backendHandler).inClosed();
     }
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void inForwardingShouldTransitionToClosingOnClientException(boolean tlsEnabled) {
+    void inForwardingShouldTransitionToClosedOnClientException(boolean tlsEnabled) {
         // Given
         stateHolderInForwarding();
         final ApiException expectedException = Errors.UNKNOWN_SERVER_ERROR.exception();
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
-        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class)).when(frontendHandler)
-                .inClosing(expectedException);
-        doNothing().when(backendHandler).inClosing();
+        doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler)
+                .inClosed(expectedException);
+        doNothing().when(backendHandler).inClosed();
 
         // When
         proxyChannelStateMachine.onClientException(illegalStateException, tlsEnabled);
 
         // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-        verify(frontendHandler).inClosing(expectedException);
-        verify(backendHandler).inClosing();
-    }
-
-    @Test
-    void shouldNotTransitionFromClosingToClosedOnServerClosed() {
-        // Given
-        stateHolderInClosing(null);
-
-        // When
-        proxyChannelStateMachine.onServerClosed();
-
-        // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-    }
-
-    @Test
-    void shouldNotTransitionFromClosingToClosedOnClientClosed() {
-        // Given
-        stateHolderInClosing(null);
-
-        // When
-        proxyChannelStateMachine.onClientClosed();
-
-        // Then
-        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closing.class);
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = { true, false })
-    void shouldOnlyTransitionToClosedOnceBothClientAndServerAreClosed(boolean serverFirst) {
-        // Given
-        stateHolderInClosing(null);
-        onClose(serverFirst);
-
-        // When
-        onClose(!serverFirst);
-
-        // Then
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
-    }
-
-    private void onClose(boolean server) {
-        if (server) {
-            proxyChannelStateMachine.onServerClosed();
-        }
-        else {
-            proxyChannelStateMachine.onClientClosed();
-        }
+        verify(frontendHandler).inClosed(expectedException);
+        verify(backendHandler).inClosed();
     }
 
     private void inForwardingState() {
@@ -681,13 +622,6 @@ class ProxyChannelStateMachineTest {
                 frontendHandler,
                 backendHandler);
         return forwarding;
-    }
-
-    private void stateHolderInClosing(Throwable cause) {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.Closing(cause, false, false),
-                frontendHandler,
-                backendHandler);
     }
 
     private void stateHolderInClosed() {

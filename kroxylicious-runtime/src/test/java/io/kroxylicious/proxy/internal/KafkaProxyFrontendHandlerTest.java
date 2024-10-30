@@ -270,6 +270,7 @@ class KafkaProxyFrontendHandlerTest {
                 // trying to re-register the outbound channel => IllegalStateException
                 // So we override this method to short-circuit that
                 outboundChannel.pipeline().addFirst(backendHandler);
+                outboundChannel.pipeline().fireChannelRegistered();
                 return outboundChannel.newPromise();
             }
         };
@@ -562,7 +563,7 @@ class KafkaProxyFrontendHandlerTest {
 
     private void assertStateIsClosed() {
         // As the embedded channels have their own threads we can't be certain which state we will be in here and it doesn't matter to this test
-        assertThat(proxyChannelStateMachine.state()).isInstanceOfAny(ProxyChannelState.Closing.class, ProxyChannelState.Closed.class);
+        assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
     }
 
     @NonNull

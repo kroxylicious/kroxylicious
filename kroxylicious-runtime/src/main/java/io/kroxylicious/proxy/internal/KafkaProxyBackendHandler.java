@@ -52,11 +52,16 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        this.serverCtx = ctx;
+        super.channelRegistered(ctx);
+    }
+
     // Called when the outbound channel is active
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.trace("Channel active {}", ctx);
-        serverCtx = ctx;
         if (sslContext == null) {
             proxyChannelStateMachine.onServerActive();
         }
@@ -127,13 +132,15 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     }
 
     public void flushToServer() {
-        final Channel serverChannel = serverCtx.channel();
-        if (pendingServerFlushes) {
-            pendingServerFlushes = false;
-            serverChannel.flush();
-        }
-        if (!serverChannel.isWritable()) {
-            proxyChannelStateMachine.onServerUnwritable();
+        if (serverCtx != null) {
+            final Channel serverChannel = serverCtx.channel();
+            if (pendingServerFlushes) {
+                pendingServerFlushes = false;
+                serverChannel.flush();
+            }
+            if (!serverChannel.isWritable()) {
+                proxyChannelStateMachine.onServerUnwritable();
+            }
         }
     }
 
@@ -149,13 +156,11 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
-    public void inClosing() {
+    public void inClosed() {
         if (serverCtx != null) {
             Channel outboundChannel = serverCtx.channel();
             if (outboundChannel.isActive()) {
-                outboundChannel.closeFuture().addListener(c -> proxyChannelStateMachine.onServerClosed()); // notify when the channel is actually closed
                 outboundChannel.writeAndFlush(Unpooled.EMPTY_BUFFER).addListener(ChannelFutureListener.CLOSE);
-
             }
         }
     }

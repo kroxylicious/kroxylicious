@@ -12,6 +12,7 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.NetworkException;
@@ -502,6 +503,7 @@ public class KafkaProxyFrontendHandler
         }
         virtualCluster.getUpstreamSslContext().ifPresent(sslContext -> {
             final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
+            handler.setHandshakeTimeout(100, TimeUnit.MILLISECONDS);
             pipeline.addFirst("ssl", handler);
         });
 
@@ -619,7 +621,7 @@ public class KafkaProxyFrontendHandler
         bufferedMsgs.add(msg);
     }
 
-    void inClosing(@Nullable Throwable errorCodeEx) {
+    void inClosed(@Nullable Throwable errorCodeEx) {
         Channel inboundChannel = clientCtx().channel();
         if (inboundChannel.isActive()) {
             Object msg = null;
@@ -629,7 +631,6 @@ public class KafkaProxyFrontendHandler
             if (msg == null) {
                 msg = Unpooled.EMPTY_BUFFER;
             }
-            inboundChannel.closeFuture().addListener(c -> proxyChannelStateMachine.onClientClosed()); // notify when the channel is actually closed
             inboundChannel.writeAndFlush(msg)
                     .addListener(ChannelFutureListener.CLOSE);
         }
