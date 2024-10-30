@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -132,6 +133,21 @@ public class ProxyChannelStateMachine {
         this.backendHandler = backendHandler;
     }
 
+    @Override
+    public String toString() {
+        return "StateHolder{" +
+                "state=" + state +
+                ", serverReadsBlocked=" + serverReadsBlocked +
+                ", clientReadsBlocked=" + clientReadsBlocked +
+                ", frontendHandler=" + frontendHandler +
+                ", backendHandler=" + backendHandler +
+                '}';
+    }
+
+    public String currentState() {
+        return this.state().getClass().getSimpleName();
+    }
+
     void onClientUnwritable() {
         if (!serverReadsBlocked) {
             serverReadsBlocked = true;
@@ -177,17 +193,17 @@ public class ProxyChannelStateMachine {
     }
 
     private void toClientActive(
-                                @NonNull ProxyChannelState.ClientActive clientActive,
-                                @NonNull KafkaProxyFrontendHandler frontendHandler) {
+            @NonNull ProxyChannelState.ClientActive clientActive,
+            @NonNull KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
         frontendHandler.inClientActive();
     }
 
     void onNetFilterInitiateConnect(
-                                    @NonNull HostPort remote,
-                                    @NonNull List<FilterAndInvoker> filters,
-                                    VirtualCluster virtualCluster,
-                                    NetFilter netFilter) {
+            @NonNull HostPort remote,
+            @NonNull List<FilterAndInvoker> filters,
+            VirtualCluster virtualCluster,
+            NetFilter netFilter) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
             toConnecting(selectingServerState.toConnecting(remote), remote, filters, virtualCluster);
         }
@@ -243,70 +259,81 @@ public class ProxyChannelStateMachine {
             forwardToServer(msg);
         }
         else {
-            frontendHandler.bufferMsg(msg);
-            if (state() instanceof ProxyChannelState.ClientActive clientActive) {
-                if (msg instanceof HAProxyMessage haProxyMessage) {
-                    toHaProxy(clientActive.toHaProxy(haProxyMessage));
-                    return;
-                }
-                else if (msg instanceof DecodedRequestFrame
-                        && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
-                    // TODO this isn't really a stateHolder responsibility
-                    DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
-                    if (dp.isAuthenticationOffloadEnabled()) {
-                        toApiVersions(clientActive.toApiVersions(apiVersionsFrame), apiVersionsFrame);
-                    }
-                    else {
-                        toSelectingServer(clientActive.toSelectingServer(apiVersionsFrame));
-                    }
-                    return;
-                }
-                else if (msg instanceof RequestFrame) {
-                    toSelectingServer(clientActive.toSelectingServer(null));
-                    return;
-                }
+            if (onClientRequestBeforeForwarding(dp, msg)) {
+                return;
             }
-            else if (state() instanceof ProxyChannelState.HaProxy haProxy) {
-                if (msg instanceof DecodedRequestFrame
-                        && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS) {
-                    DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
-                    if (dp.isAuthenticationOffloadEnabled()) {
-                        toApiVersions(haProxy.toApiVersions(apiVersionsFrame), apiVersionsFrame);
-                    }
-                    else {
-                        toSelectingServer(haProxy.toSelectingServer(apiVersionsFrame));
-                    }
-                    return;
-                }
-                else if (msg instanceof RequestFrame) {
-                    toSelectingServer(haProxy.toSelectingServer(null));
-                    return;
-                }
-            }
-            else if (state() instanceof ProxyChannelState.ApiVersions apiVersions) {
-                if (msg instanceof RequestFrame) {
-                    if (dp.isAuthenticationOffloadEnabled()) {
-                        // TODO if dp.isAuthenticationOffloadEnabled() then we need to forward to that handler
-                        // TODO we only do the connection once we know the authenticated identity
-                        toSelectingServer(apiVersions.toSelectingServer());
-                    }
-                    else {
-                        toSelectingServer(apiVersions.toSelectingServer());
-                    }
-                    return;
-                }
-            }
-            else if (state() instanceof ProxyChannelState.SelectingServer) {
-                if (msg instanceof RequestFrame) {
-                    return;
-                }
-            }
-            else if (state() instanceof ProxyChannelState.Connecting) {
-                if (msg instanceof RequestFrame) {
-                    return;
-                }
-            }
+
             illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
+        }
+    }
+
+    private boolean onClientRequestBeforeForwarding(@NonNull SaslDecodePredicate dp, Object msg) {
+        frontendHandler.bufferMsg(msg);
+        if (state() instanceof ProxyChannelState.ClientActive clientActive) {
+            return onClientRequestInClientActiveState(dp, msg, clientActive);
+        }
+        else if (state() instanceof ProxyChannelState.HaProxy haProxy) {
+            return onClientRequestInHaProxyState(dp, msg, haProxy);
+        }
+        else if (state() instanceof ProxyChannelState.ApiVersions apiVersions) {
+            return onClientRequestInApiVersionsState(dp, msg, apiVersions);
+        }
+        else if (state() instanceof ProxyChannelState.SelectingServer) {
+            return msg instanceof RequestFrame;
+        }
+        else {
+            return state() instanceof ProxyChannelState.Connecting && msg instanceof RequestFrame;
+        }
+    }
+
+    private boolean onClientRequestInApiVersionsState(@NonNull SaslDecodePredicate dp, Object msg, ProxyChannelState.ApiVersions apiVersions) {
+        if (msg instanceof RequestFrame) {
+            if (dp.isAuthenticationOffloadEnabled()) {
+                // TODO if dp.isAuthenticationOffloadEnabled() then we need to forward to that handler
+                // TODO we only do the connection once we know the authenticated identity
+                toSelectingServer(apiVersions.toSelectingServer());
+            }
+            else {
+                toSelectingServer(apiVersions.toSelectingServer());
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private boolean onClientRequestInHaProxyState(@NonNull SaslDecodePredicate dp, Object msg, ProxyChannelState.HaProxy haProxy) {
+        return transitionClientRequest(dp, msg, haProxy::toApiVersions, haProxy::toSelectingServer);
+    }
+
+    private boolean transitionClientRequest(
+            @NonNull SaslDecodePredicate dp,
+            Object msg,
+            Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.ApiVersions> apiVersionsFactory,
+            Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.SelectingServer> selectingServerFactory) {
+        if (isMessageApiVersionsRequest(msg)) {
+            DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
+            if (dp.isAuthenticationOffloadEnabled()) {
+                toApiVersions(apiVersionsFactory.apply(apiVersionsFrame), apiVersionsFrame);
+            }
+            else {
+                toSelectingServer(selectingServerFactory.apply(apiVersionsFrame));
+            }
+            return true;
+        }
+        else if (msg instanceof RequestFrame) {
+            toSelectingServer(selectingServerFactory.apply(null));
+            return true;
+        }
+        return false;
+    }
+
+    private boolean onClientRequestInClientActiveState(@NonNull SaslDecodePredicate dp, Object msg, ProxyChannelState.ClientActive clientActive) {
+        if (msg instanceof HAProxyMessage haProxyMessage) {
+            toHaProxy(clientActive.toHaProxy(haProxyMessage));
+            return true;
+        }
+        else {
+            return transitionClientRequest(dp, msg, clientActive::toApiVersions, clientActive::toSelectingServer);
         }
     }
 
@@ -400,23 +427,13 @@ public class ProxyChannelStateMachine {
         toClosed(null);
     }
 
-    @Override
-    public String toString() {
-        return "StateHolder{" +
-                "state=" + state +
-                ", serverReadsBlocked=" + serverReadsBlocked +
-                ", clientReadsBlocked=" + clientReadsBlocked +
-                ", frontendHandler=" + frontendHandler +
-                ", backendHandler=" + backendHandler +
-                '}';
-    }
-
     private void setState(@NonNull ProxyChannelState state) {
         LOGGER.trace("{} transitioning to {}", this, state);
         this.state = state;
     }
 
-    public String currentState() {
-        return this.state().getClass().getSimpleName();
+    private static boolean isMessageApiVersionsRequest(Object msg) {
+        return msg instanceof DecodedRequestFrame
+                && ((DecodedRequestFrame<?>) msg).apiKey() == ApiKeys.API_VERSIONS;
     }
 }
