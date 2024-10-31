@@ -193,17 +193,17 @@ public class ProxyChannelStateMachine {
     }
 
     private void toClientActive(
-            @NonNull ProxyChannelState.ClientActive clientActive,
-            @NonNull KafkaProxyFrontendHandler frontendHandler) {
+                                @NonNull ProxyChannelState.ClientActive clientActive,
+                                @NonNull KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
         frontendHandler.inClientActive();
     }
 
     void onNetFilterInitiateConnect(
-            @NonNull HostPort remote,
-            @NonNull List<FilterAndInvoker> filters,
-            VirtualCluster virtualCluster,
-            NetFilter netFilter) {
+                                    @NonNull HostPort remote,
+                                    @NonNull List<FilterAndInvoker> filters,
+                                    VirtualCluster virtualCluster,
+                                    NetFilter netFilter) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
             toConnecting(selectingServerState.toConnecting(remote), remote, filters, virtualCluster);
         }
@@ -306,10 +306,10 @@ public class ProxyChannelStateMachine {
     }
 
     private boolean transitionClientRequest(
-            @NonNull SaslDecodePredicate dp,
-            Object msg,
-            Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.ApiVersions> apiVersionsFactory,
-            Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.SelectingServer> selectingServerFactory) {
+                                            @NonNull SaslDecodePredicate dp,
+                                            Object msg,
+                                            Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.ApiVersions> apiVersionsFactory,
+                                            Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.SelectingServer> selectingServerFactory) {
         if (isMessageApiVersionsRequest(msg)) {
             DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
             if (dp.isAuthenticationOffloadEnabled()) {
