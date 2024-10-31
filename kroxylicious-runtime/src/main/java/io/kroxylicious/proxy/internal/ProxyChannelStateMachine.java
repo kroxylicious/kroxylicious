@@ -120,7 +120,6 @@ public class ProxyChannelStateMachine {
     @Nullable
     private KafkaProxyBackendHandler backendHandler;
 
-    @VisibleForTesting
     ProxyChannelState state() {
         return state;
     }
