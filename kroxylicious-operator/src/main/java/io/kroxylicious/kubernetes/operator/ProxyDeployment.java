@@ -44,18 +44,19 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
+        // formatter=off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
-                .withName(deploymentName(primary))
-                .withNamespace(primary.getMetadata().getNamespace())
-                .withLabels(deploymentLabels())
+                    .withName(deploymentName(primary))
+                    .withNamespace(primary.getMetadata().getNamespace())
+                    .withLabels(deploymentLabels())
                 .endMetadata()
                 .editOrNewSpec()
-                .withReplicas(1)
-                .editOrNewSelector()
-                .withMatchLabels(deploymentSelector())
-                .endSelector()
-                .withTemplate(podTemplate(primary))
+                    .withReplicas(1)
+                    .editOrNewSelector()
+                        .withMatchLabels(deploymentSelector())
+                    .endSelector()
+                    .withTemplate(podTemplate(primary))
                 .endSpec()
                 .build();
     }
@@ -73,44 +74,48 @@ public class ProxyDeployment
     }
 
     private PodTemplateSpec podTemplate(KafkaProxy primary) {
+        // formatter=off
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
-                .withLabels(podLabels())
+                    .withLabels(podLabels())
                 .endMetadata()
                 .editOrNewSpec()
-                .withContainers(proxyContainer())
-                .addNewVolume()
-                .withName(CONFIG_VOLUME)
-                .withNewSecret()
-                .withSecretName(ProxyConfigSecret.secretName(primary))
-                .endSecret()
-                .endVolume()
+                    .withContainers(proxyContainer(primary))
+                    .addNewVolume()
+                        .withName(CONFIG_VOLUME)
+                        .withNewSecret()
+                            .withSecretName(ProxyConfigSecret.secretName(primary))
+                        .endSecret()
+                    .endVolume()
                 .endSpec()
                 .build();
     }
 
-    private static Container proxyContainer() {
+    private static Container proxyContainer(KafkaProxy primary) {
+        // formatter=off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
                 .withImage("quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT")
-                .withArgs("--config", ProxyDeployment.CONFIG_PATH_IN_CONTAINER);
-        // volume mount
-        containerBuilder
+                .withArgs("--config", ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
+                // volume mount
                 .addNewVolumeMount()
-                .withName(CONFIG_VOLUME)
-                .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
-                .withSubPath(ProxyConfigSecret.CONFIG_YAML_KEY)
-                .endVolumeMount();
-        // metrics port
-        containerBuilder.addNewPort()
-                .withContainerPort(ProxyService.metricsPort())
-                .withName("metrics")
+                    .withName(CONFIG_VOLUME)
+                    .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
+                    .withSubPath(ProxyConfigSecret.CONFIG_YAML_KEY)
+                .endVolumeMount()
+                // metrics port
+                .addNewPort()
+                    .withContainerPort(MetricsService.metricsPort())
+                    .withName("metrics")
                 .endPort();
         // broker ports
-        for (int portNum : ProxyService.brokerPorts()) {
-            containerBuilder.addNewPort()
-                    .withContainerPort(portNum)
-                    .endPort();
+        for (var cluster : primary.getSpec().getClusters()) {
+            for (var portEntry : ClusterService.clusterPorts(primary, cluster).entrySet()) {
+                containerBuilder.addNewPort()
+                        .withContainerPort(portEntry.getKey())
+                        // .withName(portEntry.getValue())
+                        .endPort();
+            }
         }
         return containerBuilder.build();
     }

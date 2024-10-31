@@ -33,11 +33,35 @@ spec:
         openAPIV3Schema:
           type: object
           properties:
-            spec:
+            metadata:
               type: object
               properties:
-                bootstrapServers:
+                name:
                   type: string
+                  pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?"
+                  maxLength: 53
+            spec:
+              type: object
+              required: ["clusters"]
+              properties:
+                clusters:
+                  type: array
+                  items:
+                    type: object
+                    required: ["name", "upstream"]
+                    properties:
+                      name:
+                        type: string
+                        # The name is used as a prefix to a Service name
+                        # and Service names must be RFC 1035 Label Names
+                        maxLength: 53
+                        pattern: "[a-z]([a-z0-9-]*[a-z0-9])?"
+                      upstream:
+                        type: object
+                        required: ["bootstrapServers"]
+                        properties:
+                          bootstrapServers:
+                            type: string
             status:
               type: object
               properties:

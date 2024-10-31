@@ -16,7 +16,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.Volume;
@@ -26,7 +25,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -79,7 +78,15 @@ class ProxyReconcilerIT {
                     .anyMatch(vol -> vol.getSecret() != null
                             && vol.getSecret().getSecretName().equals(ProxyConfigSecret.secretName(cr)));
 
-            var service = extension.get(Service.class, ProxyService.serviceName(cr));
+            // for (var cluster : cr.getSpec().getClusters()) {
+            // var service = extension.get(Service.class, ClusterService.serviceName(cr, cluster));
+            // assertThat(service).isNotNull()
+            // .extracting(svc -> svc.getSpec().getSelector())
+            // .describedAs("Service's selector should select proxy pods")
+            // .isEqualTo(ProxyDeployment.podLabels());
+            // }
+
+            var service = extension.get(Service.class, MetricsService.serviceName(cr));
             assertThat(service).isNotNull()
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
@@ -100,7 +107,12 @@ class ProxyReconcilerIT {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
             assertThat(deployment).isNull();
 
-            var service = extension.get(Service.class, ProxyService.serviceName(cr));
+            for (var cluster : cr.getSpec().getClusters()) {
+                var service = extension.get(Service.class, ClusterService.serviceName(cr, cluster));
+                assertThat(service).isNull();
+            }
+
+            var service = extension.get(Service.class, MetricsService.serviceName(cr));
             assertThat(service).isNull();
         });
     }
@@ -108,9 +120,18 @@ class ProxyReconcilerIT {
     @Test
     void testUpdate() {
         final var cr = doCreate();
-
-        cr.getSpec().setBootstrapServers(CHANGED_BOOTSTRAP);
-        extension.replace(cr);
+        // formatter=off
+        var changedCr = new KafkaProxyBuilder(cr)
+                .editSpec()
+                    .editFirstCluster()
+                        .editUpstream()
+                            .withBootstrapServers(CHANGED_BOOTSTRAP)
+                        .endUpstream()
+                    .endCluster()
+                .endSpec()
+                .build();
+        // formatter=on
+        extension.replace(changedCr);
 
         await().untilAsserted(() -> {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
@@ -132,12 +153,19 @@ class ProxyReconcilerIT {
     }
 
     KafkaProxy testResource() {
-        var resource = new KafkaProxy();
-        resource.setMetadata(new ObjectMetaBuilder()
-                .withName(RESOURCE_NAME)
-                .build());
-        resource.setSpec(new KafkaProxySpec());
-        resource.getSpec().setBootstrapServers(INITIAL_BOOTSTRAP);
-        return resource;
+        // formatter=off
+        return new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withName(RESOURCE_NAME)
+                .endMetadata()
+                .withNewSpec()
+                    .addNewCluster()
+                        .withName("foo")
+                        .withNewUpstream()
+                            .withBootstrapServers(INITIAL_BOOTSTRAP)
+                        .endUpstream()
+                    .endCluster()
+                .endSpec()
+                .build();
     }
 }

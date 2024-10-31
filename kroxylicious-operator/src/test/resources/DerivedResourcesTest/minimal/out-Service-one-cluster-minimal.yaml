@@ -1,0 +1,31 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "one-cluster-minimal"
+spec:
+  ports:
+    - name: "one-cluster-9292"
+      port: 9292
+      protocol: "TCP"
+      targetPort: 9292
+    - name: "one-cluster-9293"
+      port: 9293
+      protocol: "TCP"
+      targetPort: 9293
+    - name: "one-cluster-9294"
+      port: 9294
+      protocol: "TCP"
+      targetPort: 9294
+    - name: "one-cluster-9295"
+      port: 9295
+      protocol: "TCP"
+      targetPort: 9295
+  selector:
+    app: "kroxylicious"
