@@ -286,14 +286,9 @@ public class ProxyChannelStateMachine {
 
     private boolean onClientRequestInApiVersionsState(@NonNull SaslDecodePredicate dp, Object msg, ProxyChannelState.ApiVersions apiVersions) {
         if (msg instanceof RequestFrame) {
-            if (dp.isAuthenticationOffloadEnabled()) {
-                // TODO if dp.isAuthenticationOffloadEnabled() then we need to forward to that handler
-                // TODO we only do the connection once we know the authenticated identity
-                toSelectingServer(apiVersions.toSelectingServer());
-            }
-            else {
-                toSelectingServer(apiVersions.toSelectingServer());
-            }
+            // TODO if dp.isAuthenticationOffloadEnabled() then we need to forward to that handler
+            // TODO we only do the connection once we know the authenticated identity
+            toSelectingServer(apiVersions.toSelectingServer());
             return true;
         }
         return false;
