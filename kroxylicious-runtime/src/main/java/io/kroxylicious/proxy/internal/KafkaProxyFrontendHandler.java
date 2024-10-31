@@ -150,8 +150,8 @@ public class KafkaProxyFrontendHandler
 
     @Override
     public String toString() {
-        // Don't include StateHolder's toString here
-        // because StateHolder's toString will include the frontend's toString
+        // Don't include proxyChannelStateMachine's toString here
+        // because proxyChannelStateMachine's toString will include the frontend's toString
         // and we don't want a SOE.
         return "KafkaProxyFrontendHandler{"
                 + ", clientCtx=" + clientCtx
