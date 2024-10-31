@@ -95,7 +95,7 @@ public class KafkaProxyFrontendHandler
      * @param errorCodeEx The exception
      * @return The response frame
      */
-    ResponseFrame errorResponse(
+    private ResponseFrame errorResponse(
                                 @Nullable Throwable errorCodeEx) {
         ResponseFrame errorResponse;
         final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
