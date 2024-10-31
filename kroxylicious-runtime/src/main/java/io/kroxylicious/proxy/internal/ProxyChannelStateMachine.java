@@ -259,11 +259,9 @@ public class ProxyChannelStateMachine {
             forwardToServer(msg);
         }
         else {
-            if (onClientRequestBeforeForwarding(dp, msg)) {
-                return;
+            if (!onClientRequestBeforeForwarding(dp, msg)) {
+                illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
             }
-
-            illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
         }
     }
 
