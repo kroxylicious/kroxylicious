@@ -14,8 +14,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.kafka.common.errors.ApiException;
-import org.apache.kafka.common.errors.NetworkException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
@@ -69,44 +67,7 @@ public class KafkaProxyFrontendHandler
 
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
-    public static final ApiException ERROR_NEGOTIATING_SSL_CONNECTION = new NetworkException("Error negotiating SSL connection");
-
-    static {
-        var objectMapper = new ObjectMapper();
-        try (var parser = KafkaProxyFrontendHandler.class.getResourceAsStream("/ApiVersions-3.2.json")) {
-            API_VERSIONS_RESPONSE = ApiVersionsResponseDataJsonConverter.read(objectMapper.readTree(parser), (short) 3);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    static @NonNull ResponseFrame buildErrorResponseFrame(
-                                                          @NonNull DecodedRequestFrame<?> triggerFrame,
-                                                          @NonNull Throwable error) {
-        var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
-        final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
-        responseHeaderData.setCorrelationId(triggerFrame.correlationId());
-        return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
-    }
-
-    /**
-     * Return an error response to send to the client, or null if no response should be sent.
-     * @param errorCodeEx The exception
-     * @return The response frame
-     */
-    private ResponseFrame errorResponse(
-                                @Nullable Throwable errorCodeEx) {
-        ResponseFrame errorResponse;
-        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
-        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-            errorResponse = buildErrorResponseFrame(triggerFrame, errorCodeEx);
-        }
-        else {
-            errorResponse = null;
-        }
-        return errorResponse;
-    }
+    public static final String NET_FILTER_INVOKED_IN_WRONG_STATE = "NetFilter invoked NetFilterContext accessor outside SelectingServer state";
 
     private final boolean logNetwork;
     private final boolean logFrames;
@@ -130,24 +91,61 @@ public class KafkaProxyFrontendHandler
 
     private boolean isClientBlocked = true;
 
+    static {
+        var objectMapper = new ObjectMapper();
+        try (var parser = KafkaProxyFrontendHandler.class.getResourceAsStream("/ApiVersions-3.2.json")) {
+            API_VERSIONS_RESPONSE = ApiVersionsResponseDataJsonConverter.read(objectMapper.readTree(parser), (short) 3);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     KafkaProxyFrontendHandler(
-                              @NonNull NetFilter netFilter,
-                              @NonNull SaslDecodePredicate dp,
-                              @NonNull VirtualCluster virtualCluster) {
+            @NonNull NetFilter netFilter,
+            @NonNull SaslDecodePredicate dp,
+            @NonNull VirtualCluster virtualCluster) {
         this(netFilter, dp, virtualCluster, new ProxyChannelStateMachine());
     }
 
     KafkaProxyFrontendHandler(
-                              @NonNull NetFilter netFilter,
-                              @NonNull SaslDecodePredicate dp,
-                              @NonNull VirtualCluster virtualCluster,
-                              @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
+            @NonNull NetFilter netFilter,
+            @NonNull SaslDecodePredicate dp,
+            @NonNull VirtualCluster virtualCluster,
+            @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualCluster.isLogNetwork();
         this.logFrames = virtualCluster.isLogFrames();
+    }
+
+    static @NonNull ResponseFrame buildErrorResponseFrame(
+                                                          @NonNull DecodedRequestFrame<?> triggerFrame,
+                                                          @NonNull Throwable error) {
+        var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
+        final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
+        responseHeaderData.setCorrelationId(triggerFrame.correlationId());
+        return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
+    }
+
+    /**
+     * Return an error response to send to the client, or null if no response should be sent.
+     * @param errorCodeEx The exception
+     * @return The response frame
+     */
+    private ResponseFrame errorResponse(
+                                        @Nullable Throwable errorCodeEx) {
+        ResponseFrame errorResponse;
+        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
+        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
+            errorResponse = buildErrorResponseFrame(triggerFrame, errorCodeEx);
+        }
+        else {
+            errorResponse = null;
+        }
+        return errorResponse;
     }
 
     @Override
@@ -377,7 +375,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public SocketAddress srcAddress() {
-        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        proxyChannelStateMachine.assertIsSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         return clientCtx().channel().remoteAddress();
     }
 
@@ -389,7 +387,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public SocketAddress localAddress() {
-        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        proxyChannelStateMachine.assertIsSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         return clientCtx().channel().localAddress();
     }
 
@@ -401,7 +399,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String authorizedId() {
-        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        proxyChannelStateMachine.assertIsSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         return authentication != null ? authentication.authorizationId() : null;
     }
 
@@ -445,7 +443,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String sniHostname() {
-        proxyChannelStateMachine.assertIsSelectingServer("NetFilter invoked NetFilterContext accessor outside SelectingServer state");
+        proxyChannelStateMachine.assertIsSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         return sniHostname;
     }
 
@@ -582,7 +580,6 @@ public class KafkaProxyFrontendHandler
     }
 
     private void unblockClient() {
-        // TODO suspicious
         isClientBlocked = false;
         var inboundChannel = clientCtx().channel();
         inboundChannel.config().setAutoRead(true);
@@ -590,8 +587,6 @@ public class KafkaProxyFrontendHandler
     }
 
     void forwardToClient(Object msg) {
-        // assert blockedOutboundCtx == null;
-        // LOGGER.trace("Channel read {}", msg);
         final Channel inboundChannel = clientCtx().channel();
         if (inboundChannel.isWritable()) {
             inboundChannel.write(msg, clientCtx().voidPromise());
