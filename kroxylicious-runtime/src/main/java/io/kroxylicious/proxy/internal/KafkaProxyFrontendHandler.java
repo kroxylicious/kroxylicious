@@ -102,17 +102,17 @@ public class KafkaProxyFrontendHandler
     }
 
     KafkaProxyFrontendHandler(
-            @NonNull NetFilter netFilter,
-            @NonNull SaslDecodePredicate dp,
-            @NonNull VirtualCluster virtualCluster) {
+                              @NonNull NetFilter netFilter,
+                              @NonNull SaslDecodePredicate dp,
+                              @NonNull VirtualCluster virtualCluster) {
         this(netFilter, dp, virtualCluster, new ProxyChannelStateMachine());
     }
 
     KafkaProxyFrontendHandler(
-            @NonNull NetFilter netFilter,
-            @NonNull SaslDecodePredicate dp,
-            @NonNull VirtualCluster virtualCluster,
-            @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
+                              @NonNull NetFilter netFilter,
+                              @NonNull SaslDecodePredicate dp,
+                              @NonNull VirtualCluster virtualCluster,
+                              @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
