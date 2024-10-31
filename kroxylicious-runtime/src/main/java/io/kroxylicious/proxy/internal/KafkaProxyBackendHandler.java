@@ -33,9 +33,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     ChannelHandlerContext serverCtx;
     private boolean pendingServerFlushes;
 
-    public KafkaProxyBackendHandler(
-                                    ProxyChannelStateMachine proxyChannelStateMachine,
-                                    VirtualCluster virtualCluster) {
+    public KafkaProxyBackendHandler(ProxyChannelStateMachine proxyChannelStateMachine, VirtualCluster virtualCluster) {
         this.proxyChannelStateMachine = Objects.requireNonNull(proxyChannelStateMachine);
         Optional<SslContext> upstreamSslContext = virtualCluster.getUpstreamSslContext();
         this.sslContext = upstreamSslContext.orElse(null);
@@ -69,10 +67,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void userEventTriggered(
-                                   ChannelHandlerContext ctx,
-                                   Object evt)
-            throws Exception {
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         if (evt instanceof SslHandshakeCompletionEvent sslEvt) {
             if (sslEvt.isSuccess()) {
                 proxyChannelStateMachine.onServerActive();
@@ -116,17 +111,19 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     public void forwardToServer(Object msg) {
         if (serverCtx == null) {
-            LOGGER.trace("WRITE to server ignored because outbound is not active (msg: {})", msg);
-            return;
-        }
-        final Channel outboundChannel = serverCtx.channel();
-        if (outboundChannel.isWritable()) {
-            outboundChannel.write(msg, serverCtx.voidPromise());
-            pendingServerFlushes = true;
+            // TODO this shouldn't really be possible to reach. Delete in a releases time once we have more confidence in the StateMachine
+            proxyChannelStateMachine.illegalState("write without outbound active outbound channel");
         }
         else {
-            outboundChannel.writeAndFlush(msg, serverCtx.voidPromise());
-            pendingServerFlushes = false;
+            final Channel outboundChannel = serverCtx.channel();
+            if (outboundChannel.isWritable()) {
+                outboundChannel.write(msg, serverCtx.voidPromise());
+                pendingServerFlushes = true;
+            }
+            else {
+                outboundChannel.writeAndFlush(msg, serverCtx.voidPromise());
+                pendingServerFlushes = false;
+            }
         }
         LOGGER.trace("/READ");
     }
@@ -167,13 +164,10 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public String toString() {
-        // Don't include StateHolder's toString here
-        // because StateHolder's toString will include the backends's toString
+        // Don't include proxyChannelStateMachine's toString here
+        // because proxyChannelStateMachine's toString will include the backends's toString
         // and we don't want a SOE.
-        return "KafkaProxyBackendHandler{" +
-                ", serverCtx=" + serverCtx +
-                ", proxyChannelState=" + this.proxyChannelStateMachine.currentState() +
-                ", pendingServerFlushes=" + pendingServerFlushes +
-                '}';
+        return "KafkaProxyBackendHandler{" + ", serverCtx=" + serverCtx + ", proxyChannelState=" + this.proxyChannelStateMachine.currentState()
+                + ", pendingServerFlushes=" + pendingServerFlushes + '}';
     }
 }

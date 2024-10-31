@@ -238,7 +238,7 @@ public class ProxyChannelStateMachine {
 
     void illegalState(@NonNull String msg) {
         if (!(state instanceof Closed)) {
-            LOGGER.error("Unexpected proxy state  change while in {} message: {}, closing channels with no client response.", state, msg);
+            LOGGER.error("Unexpected event while in {} message: {}, closing channels with no client response.", state, msg);
             toClosed(null);
         }
     }
