@@ -166,10 +166,7 @@ public class KafkaProxyFrontendHandler
     }
 
     ChannelHandlerContext clientCtx() {
-        if (this.clientCtx == null) {
-            throw new IllegalStateException("clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
-        }
-        return Objects.requireNonNull(this.clientCtx);
+        return Objects.requireNonNull(this.clientCtx, "clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
     }
 
     @Override
