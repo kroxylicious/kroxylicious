@@ -26,7 +26,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-public class NewNewProxyFrontendHandlerTest {
+class NewNewProxyFrontendHandlerTest {
 
     @Mock
     NetFilter netFilter;
@@ -71,7 +71,7 @@ public class NewNewProxyFrontendHandlerTest {
     }
 
     @Test
-    void channelRead() throws Exception {
+    void channelRead() {
         // Given
         SaslDecodePredicate dp = new SaslDecodePredicate(false);
         HAProxyMessage msg = new HAProxyMessage(
@@ -97,7 +97,7 @@ public class NewNewProxyFrontendHandlerTest {
     }
 
     @Test
-    void inSelectingServer() throws Exception {
+    void inSelectingServer() {
         // Given
         SaslDecodePredicate dp = new SaslDecodePredicate(false);
         KafkaProxyFrontendHandler handler = new KafkaProxyFrontendHandler(

@@ -372,7 +372,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public SocketAddress srcAddress() {
-        proxyChannelStateMachine.assertIsSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
+        proxyChannelStateMachine.assertIsSelectingServer();
         return clientCtx().channel().remoteAddress();
     }
 
@@ -384,7 +384,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public SocketAddress localAddress() {
-        proxyChannelStateMachine.assertIsSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
+        proxyChannelStateMachine.assertIsSelectingServer();
         return clientCtx().channel().localAddress();
     }
 
@@ -396,7 +396,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String authorizedId() {
-        proxyChannelStateMachine.assertIsSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
+        proxyChannelStateMachine.assertIsSelectingServer();
         return authentication != null ? authentication.authorizationId() : null;
     }
 
@@ -440,7 +440,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String sniHostname() {
-        proxyChannelStateMachine.assertIsSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
+        proxyChannelStateMachine.assertIsSelectingServer();
         return sniHostname;
     }
 

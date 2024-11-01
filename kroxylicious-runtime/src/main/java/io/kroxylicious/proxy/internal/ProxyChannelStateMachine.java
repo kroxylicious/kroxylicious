@@ -110,8 +110,9 @@ public class ProxyChannelStateMachine {
     /**
      * The frontend handler. Non-null if we got as far as ClientActive.
      */
+    @SuppressWarnings({ "DataFlowIssue", "java:S2637" })
     @NonNull
-    private KafkaProxyFrontendHandler frontendHandler;
+    private KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
      * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualCluster, NetFilter)}
@@ -357,9 +358,9 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    void assertIsSelectingServer(String msg) {
+    void assertIsSelectingServer() {
         if (!(state instanceof ProxyChannelState.SelectingServer)) {
-            illegalState(msg);
+            illegalState(KafkaProxyFrontendHandler.NET_FILTER_INVOKED_IN_WRONG_STATE);
         }
     }
 
@@ -388,9 +389,7 @@ public class ProxyChannelStateMachine {
         }
 
         // Close the client connection with any error code
-        if (frontendHandler != null) {
-            frontendHandler.inClosed(errorCodeEx);
-        }
+        Objects.requireNonNull(frontendHandler).inClosed(errorCodeEx);
     }
 
     void onServerException(Throwable cause) {
