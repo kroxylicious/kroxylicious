@@ -147,10 +147,10 @@ class KafkaProxyFrontendHandlerTest {
         // Given
         KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), mock(VirtualCluster.class));
         givenHandlerIsConnecting(handler, "initial");
-        writeInboundApiVersionsRequest(handler, "post-connecting");
+        writeInboundApiVersionsRequest("post-connecting");
 
         // When
-        whenConnectedAndOutboundBecomesActive(handler);
+        whenConnectedAndOutboundBecomesActive();
 
         // Then
         assertThat(outboundClientSoftwareNames()).containsExactly("initial", "post-connecting");
@@ -161,10 +161,10 @@ class KafkaProxyFrontendHandlerTest {
         // Given
         KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), mock(VirtualCluster.class));
         givenHandlerIsConnected(handler);
-        writeInboundApiVersionsRequest(handler, "post-connected");
+        writeInboundApiVersionsRequest("post-connected");
 
         // When
-        outboundChannelBecomesActive(handler);
+        outboundChannelBecomesActive();
 
         // Then
         assertThat(outboundClientSoftwareNames()).containsExactly("initial", "post-connected");
@@ -240,8 +240,7 @@ class KafkaProxyFrontendHandlerTest {
         assertStateIsClosed();
     }
 
-    private void writeInboundApiVersionsRequest(KafkaProxyFrontendHandler handler,
-                                                String clientSoftwareName) {
+    private void writeInboundApiVersionsRequest(String clientSoftwareName) {
         writeRequest(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
                 .setClientSoftwareName(clientSoftwareName).setClientSoftwareVersion("1.0.0"));
     }
@@ -354,7 +353,7 @@ class KafkaProxyFrontendHandlerTest {
 
         if (sendApiVersions) {
             // Simulate the client doing ApiVersions
-            writeInboundApiVersionsRequest(handler, "foo");
+            writeInboundApiVersionsRequest("foo");
             assertThat(proxyChannelStateMachine.state())
                     .as("state in (ApiVersions, Connecting)")
                     .isInstanceOfAny(ProxyChannelState.ApiVersions.class, ProxyChannelState.Connecting.class);
@@ -460,7 +459,7 @@ class KafkaProxyFrontendHandlerTest {
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
             pipeline.addLast(handler);
         }
-        assertThat(proxyChannelStateMachine.state()).isNull();
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
         pipeline.fireChannelActive();
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
     }
@@ -472,12 +471,11 @@ class KafkaProxyFrontendHandlerTest {
         assertFalse(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound not yet active");
 
-        // handler.initiateConnect(new HostPort("", 12), List.of());
         // Simulate the backend handler receiving channel active and telling the frontend handler
-        outboundChannelBecomesActive(handler);
+        outboundChannelBecomesActive();
     }
 
-    private void outboundChannelBecomesActive(KafkaProxyFrontendHandler handler) {
+    private void outboundChannelBecomesActive() {
         outboundChannel.pipeline().fireChannelActive();
         assertTrue(inboundChannel.config().isAutoRead(),
                 "Expect inbound autoRead=true, since outbound now active");
@@ -485,15 +483,15 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     private List<String> outboundClientSoftwareNames() {
-        return outboundFrames(ApiVersionsRequestData.class).stream()
+        return outboundApiVersionsFrames().stream()
                 .map(DecodedFrame::body)
                 .map(ApiVersionsRequestData::clientSoftwareName)
                 .toList();
     }
 
-    private <T extends ApiMessage> List<DecodedRequestFrame<T>> outboundFrames(Class<T> ignored) {
+    private List<DecodedRequestFrame<ApiVersionsRequestData>> outboundApiVersionsFrames() {
         ByteBuf outboundMessage;
-        List<DecodedRequestFrame<T>> result = new ArrayList<>();
+        List<DecodedRequestFrame<ApiVersionsRequestData>> result = new ArrayList<>();
         while ((outboundMessage = outboundChannel.readOutbound()) != null) {
             assertThat(outboundMessage).isNotNull();
             ArrayList<Object> objects = new ArrayList<>();
@@ -502,7 +500,7 @@ class KafkaProxyFrontendHandlerTest {
             assertThat(objects).hasSize(1);
             if (objects.get(0) instanceof DecodedRequestFrame<?> f) {
                 // noinspection unchecked
-                result.add((DecodedRequestFrame<T>) f);
+                result.add((DecodedRequestFrame<ApiVersionsRequestData>) f);
             }
             else {
                 throw new IllegalStateException("message was not a DecodedRequestFrame");
@@ -511,10 +509,10 @@ class KafkaProxyFrontendHandlerTest {
         return result;
     }
 
-    private void whenConnectedAndOutboundBecomesActive(KafkaProxyFrontendHandler handler) {
+    private void whenConnectedAndOutboundBecomesActive() {
         // connectionInitiated(connectContext.get());
         // assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(KafkaProxyFrontendHandler.Connecting.class);
-        outboundChannelBecomesActive(handler);
+        outboundChannelBecomesActive();
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Forwarding.class);
     }
 
@@ -528,7 +526,7 @@ class KafkaProxyFrontendHandlerTest {
 
     private void givenHandlerIsConnecting(KafkaProxyFrontendHandler handler, String initialClientSoftwareName) {
         initialiseInboundChannel(handler);
-        writeInboundApiVersionsRequest(handler, initialClientSoftwareName);
+        writeInboundApiVersionsRequest(initialClientSoftwareName);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
     }
 

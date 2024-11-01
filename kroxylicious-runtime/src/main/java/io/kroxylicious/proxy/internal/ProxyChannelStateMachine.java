@@ -34,6 +34,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -92,8 +93,8 @@ public class ProxyChannelStateMachine {
     /**
      * The current state. This can be changed via a call to one of the {@code on*()} methods.
      */
-    @Nullable
-    private ProxyChannelState state;
+    @NonNull
+    private ProxyChannelState state = STARTING_STATE;
 
     /*
      * The netty autoread flag is volatile =>
@@ -182,9 +183,9 @@ public class ProxyChannelStateMachine {
     }
 
     void onClientActive(@NonNull KafkaProxyFrontendHandler frontendHandler) {
-        if (this.state == null) {
+        if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
-            toClientActive(new ProxyChannelState.ClientActive(), frontendHandler);
+            toClientActive(STARTING_STATE.toCLientActive(), frontendHandler);
         }
         else {
             illegalState("Client activation while not in the start state");

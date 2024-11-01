@@ -120,7 +120,7 @@ class ProxyChannelStateMachineEndToEndTest {
     void toClientActive() {
         // Given
         buildHandler(false, false, selectServerThrows(new AssertionError()));
-        assertThat(proxyChannelStateMachine.state()).isNull();
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
 
         // When
         hClientConnect(handler);
@@ -718,7 +718,7 @@ class ProxyChannelStateMachineEndToEndTest {
         if (pipeline.get(KafkaProxyFrontendHandler.class) == null) {
             pipeline.addLast(handler);
         }
-        assertThat(proxyChannelStateMachine.state()).isNull();
+        assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
         pipeline.fireChannelActive();
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
     }

@@ -28,19 +28,32 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.HaProxy;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
+import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup;
 
 /**
  * Root of a sealed class hierarchy representing the states of the {@link ProxyChannelStateMachine}.
  */
 @VisibleForTesting
-sealed interface ProxyChannelState
-        permits ClientActive,
+sealed interface ProxyChannelState permits
+        Startup,
+        ClientActive,
         HaProxy,
         ApiVersions,
         SelectingServer,
         Connecting,
         Forwarding,
         Closed {
+
+    /**
+     * The statemachine has just been created.
+     */
+    record Startup() implements ProxyChannelState {
+        public static final Startup STARTING_STATE = new Startup();
+
+        public ClientActive toCLientActive() {
+            return new ClientActive();
+        }
+    }
 
     /**
      * The initial state, when a client has connected, but no messages
