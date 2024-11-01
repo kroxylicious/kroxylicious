@@ -610,7 +610,7 @@ class ProxyChannelStateMachineTest {
 
     private void stateHolderInConnecting() {
         proxyChannelStateMachine.forceState(
-                new ProxyChannelState.Connecting(null, null, null),
+                new ProxyChannelState.Connecting(null, null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 backendHandler);
     }

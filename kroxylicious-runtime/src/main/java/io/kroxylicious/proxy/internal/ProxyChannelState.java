@@ -184,7 +184,7 @@ sealed interface ProxyChannelState permits
          */
         public Connecting toConnecting(@NonNull HostPort remote) {
             return new Connecting(haProxyMessage, clientSoftwareName,
-                    clientSoftwareVersion);
+                    clientSoftwareVersion, remote);
         }
     }
 
@@ -195,10 +195,12 @@ sealed interface ProxyChannelState permits
      * @param haProxyMessage
      * @param clientSoftwareName
      * @param clientSoftwareVersion
+     * @param remote
      */
     record Connecting(@Nullable HAProxyMessage haProxyMessage,
                       @Nullable String clientSoftwareName,
-                      @Nullable String clientSoftwareVersion)
+                      @Nullable String clientSoftwareVersion,
+                      @NonNull HostPort remote)
             implements ProxyChannelState {
 
         /**

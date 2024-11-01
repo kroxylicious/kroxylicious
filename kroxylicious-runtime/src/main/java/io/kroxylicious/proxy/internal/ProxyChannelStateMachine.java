@@ -205,7 +205,7 @@ public class ProxyChannelStateMachine {
                                     VirtualCluster virtualCluster,
                                     NetFilter netFilter) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
-            toConnecting(selectingServerState.toConnecting(remote), remote, filters, virtualCluster);
+            toConnecting(selectingServerState.toConnecting(remote), filters, virtualCluster);
         }
         else {
             String msg = "NetFilter called NetFilterContext.initiateConnect() more than once";
@@ -214,12 +214,11 @@ public class ProxyChannelStateMachine {
     }
 
     private void toConnecting(ProxyChannelState.Connecting connecting,
-                              @NonNull HostPort remote,
                               @NonNull List<FilterAndInvoker> filters,
                               VirtualCluster virtualCluster) {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this, virtualCluster);
-        frontendHandler.inConnecting(remote, filters, backendHandler);
+        frontendHandler.inConnecting(connecting.remote(), filters, backendHandler);
     }
 
     void onServerActive() {
@@ -283,6 +282,8 @@ public class ProxyChannelStateMachine {
         }
     }
 
+    @SuppressWarnings("java:S1172")
+    // We keep dp as we should need it and it gives consistency with the other onClientRequestIn methods (sue me)
     private boolean onClientRequestInApiVersionsState(@NonNull SaslDecodePredicate dp, Object msg, ProxyChannelState.ApiVersions apiVersions) {
         if (msg instanceof RequestFrame) {
             // TODO if dp.isAuthenticationOffloadEnabled() then we need to forward to that handler
@@ -303,6 +304,8 @@ public class ProxyChannelStateMachine {
                                             Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.ApiVersions> apiVersionsFactory,
                                             Function<DecodedRequestFrame<ApiVersionsRequestData>, ProxyChannelState.SelectingServer> selectingServerFactory) {
         if (isMessageApiVersionsRequest(msg)) {
+            // We know it's an API Versions request even if the compiler doesn't
+            @SuppressWarnings("unchecked")
             DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame = (DecodedRequestFrame<ApiVersionsRequestData>) msg;
             if (dp.isAuthenticationOffloadEnabled()) {
                 toApiVersions(apiVersionsFactory.apply(apiVersionsFrame), apiVersionsFrame);
