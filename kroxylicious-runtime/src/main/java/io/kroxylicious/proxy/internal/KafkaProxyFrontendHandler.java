@@ -333,7 +333,8 @@ public class KafkaProxyFrontendHandler
             }
         }
         else {
-            throw new IllegalStateException();
+            proxyChannelStateMachine.illegalState("Tried to get client host after netfilter has selected a server");
+            return null;
         }
     }
 
