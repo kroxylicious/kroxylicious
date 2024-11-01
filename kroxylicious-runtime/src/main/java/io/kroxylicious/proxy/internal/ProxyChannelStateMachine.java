@@ -125,6 +125,10 @@ public class ProxyChannelStateMachine {
         return state;
     }
 
+    /**
+     * Purely for tests DO NOT USE IN PRODUCTION code!!
+     * Sonar will complain if one uses this in prod code listen to it.
+     */
     @VisibleForTesting
     void forceState(@NonNull ProxyChannelState state, @NonNull KafkaProxyFrontendHandler frontendHandler, @Nullable KafkaProxyBackendHandler backendHandler) {
         LOGGER.info("Forcing state to {} with {} and {}", state, frontendHandler, backendHandler);
