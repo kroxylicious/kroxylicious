@@ -31,7 +31,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class NewNewProxyFrontendHandlerTest {
+class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
     public static final String SOURCE_ADDRESS = "1.1.1.1";
     public static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
