@@ -465,7 +465,6 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     private void handleConnect(NetFilter filter, KafkaProxyFrontendHandler handler) {
-        // assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.SelectingServer.class);
         verify(filter).selectServer(handler);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
         assertFalse(inboundChannel.config().isAutoRead(),
@@ -510,8 +509,6 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     private void whenConnectedAndOutboundBecomesActive() {
-        // connectionInitiated(connectContext.get());
-        // assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(KafkaProxyFrontendHandler.Connecting.class);
         outboundChannelBecomesActive();
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Forwarding.class);
     }
