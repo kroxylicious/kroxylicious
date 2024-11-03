@@ -89,6 +89,8 @@ class ProxyChannelStateMachineEndToEndTest {
     public static final String CLIENT_SOFTWARE_NAME = "my-kafka-lib";
     public static final String CLIENT_SOFTWARE_VERSION = "1.0.0";
     private static final Duration BACKGROUND_TASK_TIMEOUT = Duration.ofSeconds(1);
+    public static final String SNAPPY_KAFKA = "SnappyKafka";
+    public static final String SNAPPY_KAFKA_VERSION = "0.1.5";
 
     private EmbeddedChannel inboundChannel;
     private ChannelHandlerContext inboundCtx;
@@ -119,7 +121,7 @@ class ProxyChannelStateMachineEndToEndTest {
     @Test
     void toClientActive() {
         // Given
-        buildHandler(false, false, selectServerThrows(new AssertionError()));
+        buildFrontendHandler(false, false, selectServerThrows(new AssertionError()));
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Startup.class);
 
         // When
@@ -232,7 +234,7 @@ class ProxyChannelStateMachineEndToEndTest {
     private void buildHandlerInClientActiveState(
                                                  boolean saslOffloadConfigured,
                                                  Answer<Void> filterSelectServerBehaviour, boolean sni) {
-        buildHandler(saslOffloadConfigured, false, filterSelectServerBehaviour);
+        buildFrontendHandler(saslOffloadConfigured, false, filterSelectServerBehaviour);
 
         hClientConnect(handler);
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
@@ -578,6 +580,18 @@ class ProxyChannelStateMachineEndToEndTest {
         assertProxyActive();
     }
 
+//    @Test
+//    void shouldBlockServerChannelWhenClientNotWriteable() {
+//        // Given
+//        final ProxyChannelState.Forwarding forwarding = new ProxyChannelState.Forwarding(HA_PROXY_MESSAGE, SNAPPY_KAFKA, SNAPPY_KAFKA_VERSION);
+//        buildFrontendHandler(false, false, selectServerCallsInitiateConnect(true, false, false));
+//        proxyChannelStateMachine.forceState(forwarding, handler, );
+//
+//        // When
+//
+//        // Then
+//    }
+
     private void assertProxyActive() {
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.Forwarding.class);
@@ -674,9 +688,9 @@ class ProxyChannelStateMachineEndToEndTest {
         };
     }
 
-    void buildHandler(boolean saslOffloadConfigured,
-                      boolean tlsConfigured,
-                      Answer<Void> filterSelectServerBehaviour) {
+    void buildFrontendHandler(boolean saslOffloadConfigured,
+                              boolean tlsConfigured,
+                              Answer<Void> filterSelectServerBehaviour) {
         this.inboundChannel = new EmbeddedChannel();
         this.correlectionId = 0;
 
@@ -959,7 +973,7 @@ class ProxyChannelStateMachineEndToEndTest {
                                                                           boolean haProxy,
                                                                           boolean tlsConfigured,
                                                                           ApiKeys firstMessage) {
-        buildHandler(false, tlsConfigured, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
+        buildFrontendHandler(false, tlsConfigured, selectServerCallsInitiateConnect(sni, haProxy, firstMessage == ApiKeys.API_VERSIONS));
 
         hClientConnect(handler);
         if (sni) {

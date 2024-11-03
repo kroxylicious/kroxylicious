@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Answers;
@@ -36,6 +37,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     public static final String SOURCE_ADDRESS = "1.1.1.1";
     public static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             SOURCE_ADDRESS, "1.0.0.1", 18466, 9090);
+    public static final SaslDecodePredicate NO_SASL_DECODE_PREDICATE = new SaslDecodePredicate(false);
     @Mock
     NetFilter netFilter;
 
@@ -47,16 +49,20 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
     @Mock
     ProxyChannelStateMachine proxyChannelStateMachine;
+    private KafkaProxyFrontendHandler handler;
+
+    @BeforeEach
+    void setUp() {
+        handler = new KafkaProxyFrontendHandler(
+                netFilter,
+                NO_SASL_DECODE_PREDICATE,
+                vc,
+                proxyChannelStateMachine);
+    }
 
     @Test
     void channelActive() throws Exception {
         // Given
-        SaslDecodePredicate dp = new SaslDecodePredicate(false);
-        KafkaProxyFrontendHandler handler = new KafkaProxyFrontendHandler(
-                netFilter,
-                dp,
-                vc,
-                proxyChannelStateMachine);
 
         // When
         handler.channelActive(clientCtx);
@@ -69,7 +75,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Test
     void channelRead() {
         // Given
-        SaslDecodePredicate dp = new SaslDecodePredicate(false);
         HAProxyMessage msg = new HAProxyMessage(
                 HAProxyProtocolVersion.V2,
                 HAProxyCommand.PROXY,
@@ -78,29 +83,18 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
                 "2.2.2.2",
                 1234,
                 4567);
-        KafkaProxyFrontendHandler handler = new KafkaProxyFrontendHandler(
-                netFilter,
-                dp,
-                vc,
-                proxyChannelStateMachine);
 
         // When
         handler.channelRead(clientCtx, msg);
 
         // Then
-        verify(proxyChannelStateMachine).onClientRequest(dp, msg);
+        verify(proxyChannelStateMachine).onClientRequest(NO_SASL_DECODE_PREDICATE, msg);
         verifyNoInteractions(netFilter);
     }
 
     @Test
     void inSelectingServer() {
         // Given
-        SaslDecodePredicate dp = new SaslDecodePredicate(false);
-        KafkaProxyFrontendHandler handler = new KafkaProxyFrontendHandler(
-                netFilter,
-                dp,
-                vc,
-                proxyChannelStateMachine);
 
         // When
         handler.inSelectingServer();
@@ -113,12 +107,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Test
     void shouldReturnClientHostFromChannelInSelectingServer() throws Exception {
         // Given
-        SaslDecodePredicate dp = new SaslDecodePredicate(false);
-        KafkaProxyFrontendHandler handler = new KafkaProxyFrontendHandler(
-                netFilter,
-                dp,
-                vc,
-                proxyChannelStateMachine);
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
@@ -135,12 +123,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Test
     void shouldReturnClientHostFromHaProxyInSelectingServer() throws Exception {
         // Given
-        SaslDecodePredicate dp = new SaslDecodePredicate(false);
-        KafkaProxyFrontendHandler handler = new KafkaProxyFrontendHandler(
-                netFilter,
-                dp,
-                vc,
-                proxyChannelStateMachine);
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
@@ -157,12 +139,6 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @Test
     void shouldCloseConnectionOnClientHostOutsideOfSelectingServer() throws Exception {
         // Given
-        SaslDecodePredicate dp = new SaslDecodePredicate(false);
-        KafkaProxyFrontendHandler handler = new KafkaProxyFrontendHandler(
-                netFilter,
-                dp,
-                vc,
-                proxyChannelStateMachine);
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
@@ -174,5 +150,35 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         // Then
         assertThat(actualClientHost).isNull();
         verify(proxyChannelStateMachine).illegalState(anyString());
+    }
+
+    @Test
+    void shouldNotifyStateMachineWhenChannelBecomesUnWriteable() throws Exception {
+        // Given
+        handler.channelActive(clientCtx);
+        final Channel channel = mock(Channel.class);
+        when(clientCtx.channel()).thenReturn(channel);
+        when(channel.isWritable()).thenReturn(false);
+
+        // When
+        handler.channelWritabilityChanged(clientCtx);
+
+        // Then
+        verify(proxyChannelStateMachine).onClientUnwritable();
+    }
+
+    @Test
+    void shouldNotifyStateMachineWhenChannelBecomesWriteable() throws Exception {
+        // Given
+        handler.channelActive(clientCtx);
+        final Channel channel = mock(Channel.class);
+        when(clientCtx.channel()).thenReturn(channel);
+        when(channel.isWritable()).thenReturn(true);
+
+        // When
+        handler.channelWritabilityChanged(clientCtx);
+
+        // Then
+        verify(proxyChannelStateMachine).onClientWritable();
     }
 }

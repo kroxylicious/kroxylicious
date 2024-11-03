@@ -35,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyBackendHandlerTest {
@@ -161,5 +162,36 @@ class KafkaProxyBackendHandlerTest {
 
         assertThat(outboundChannel.isActive()).isFalse();
         assertThat(outboundChannel.isOpen()).isFalse();
+    }
+
+    @Test
+    void shouldNotifyStateMachineWhenChannelBecomesUnWriteable() throws Exception {
+        // Given
+        // Using a mock as we can't influence the writeability of an embedded channel
+        final ChannelHandlerContext handlerContext = mock(ChannelHandlerContext.class);
+        final Channel channel = mock(Channel.class);
+        when(handlerContext.channel()).thenReturn(channel);
+        when(channel.isWritable()).thenReturn(false);
+
+        // When
+        kafkaProxyBackendHandler.channelWritabilityChanged(handlerContext);
+
+        // Then
+        verify(proxyChannelStateMachine).onServerUnwritable();
+    }
+
+    @Test
+    void shouldNotifyStateMachineWhenChannelBecomesWriteable() throws Exception {
+        // Given
+        final ChannelHandlerContext handlerContext = mock(ChannelHandlerContext.class);
+        final Channel channel = mock(Channel.class);
+        when(handlerContext.channel()).thenReturn(channel);
+        when(channel.isWritable()).thenReturn(true);
+
+        // When
+        kafkaProxyBackendHandler.channelWritabilityChanged(handlerContext);
+
+        // Then
+        verify(proxyChannelStateMachine).onServerWritable();
     }
 }
