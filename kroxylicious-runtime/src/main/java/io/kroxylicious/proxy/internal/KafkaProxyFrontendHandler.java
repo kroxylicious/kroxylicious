@@ -333,8 +333,8 @@ public class KafkaProxyFrontendHandler
             }
         }
         else {
-            proxyChannelStateMachine.illegalState("Tried to get client host after netfilter has selected a server");
-            return null;
+            proxyChannelStateMachine.illegalState("Net Filter tried to get client host after netfilter has selected a server");
+            throw new IllegalStateException("Net Filters cannot act while proxy channel in " + proxyChannelStateMachine.currentState() );
         }
     }
 
@@ -361,7 +361,8 @@ public class KafkaProxyFrontendHandler
             }
         }
         else {
-            throw new IllegalStateException();
+            proxyChannelStateMachine.illegalState("Net Filter tried to get client port after netfilter has selected a server");
+            throw new IllegalStateException("Net Filters cannot act while proxy channel in " + proxyChannelStateMachine.currentState() );
         }
     }
 
