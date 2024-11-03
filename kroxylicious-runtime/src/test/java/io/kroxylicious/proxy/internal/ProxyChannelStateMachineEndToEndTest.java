@@ -580,18 +580,6 @@ class ProxyChannelStateMachineEndToEndTest {
         assertProxyActive();
     }
 
-//    @Test
-//    void shouldBlockServerChannelWhenClientNotWriteable() {
-//        // Given
-//        final ProxyChannelState.Forwarding forwarding = new ProxyChannelState.Forwarding(HA_PROXY_MESSAGE, SNAPPY_KAFKA, SNAPPY_KAFKA_VERSION);
-//        buildFrontendHandler(false, false, selectServerCallsInitiateConnect(true, false, false));
-//        proxyChannelStateMachine.forceState(forwarding, handler, );
-//
-//        // When
-//
-//        // Then
-//    }
-
     private void assertProxyActive() {
         assertThat(proxyChannelStateMachine.state())
                 .isInstanceOf(ProxyChannelState.Forwarding.class);

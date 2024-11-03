@@ -165,7 +165,8 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         when(proxyChannelStateMachine.state()).thenReturn(new ProxyChannelState.Forwarding(HA_PROXY_MESSAGE, "SnappyKafka", "0.1.5"));
 
         // When
-        assertThatThrownBy(() -> handler.clientHost()).isInstanceOf(IllegalStateException.class).hasMessageContaining("Net Filters cannot act while proxy channel in ");
+        assertThatThrownBy(() -> handler.clientHost()).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("NetFilterContext cannot be used when proxy channel is in");
 
         // Then
         verify(proxyChannelStateMachine).illegalState(anyString());
@@ -228,12 +229,12 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         when(proxyChannelStateMachine.state()).thenReturn(new ProxyChannelState.Forwarding(HA_PROXY_MESSAGE, "SnappyKafka", "0.1.5"));
 
         // When
-        assertThatThrownBy(() -> handler.clientPort()).isInstanceOf(IllegalStateException.class).hasMessageContaining("Net Filters cannot act while proxy channel in ");
+        assertThatThrownBy(() -> handler.clientPort()).isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("NetFilterContext cannot be used when proxy channel is in");
 
         // Then
         verify(proxyChannelStateMachine).illegalState(anyString());
     }
-
 
     @Test
     void shouldNotifyStateMachineWhenChannelBecomesUnWriteable() throws Exception {
