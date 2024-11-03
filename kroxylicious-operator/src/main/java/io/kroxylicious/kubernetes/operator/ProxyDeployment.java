@@ -109,7 +109,7 @@ public class ProxyDeployment
                     .withName("metrics")
                 .endPort();
         // broker ports
-        for (var cluster : primary.getSpec().getClusters()) {
+        for (var cluster : ClustersUtil.distinctClusters(primary)) {
             for (var portEntry : ClusterService.clusterPorts(primary, cluster).entrySet()) {
                 containerBuilder.addNewPort()
                         .withContainerPort(portEntry.getKey())

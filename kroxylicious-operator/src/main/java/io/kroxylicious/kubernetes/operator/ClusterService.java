@@ -8,9 +8,9 @@ package io.kroxylicious.kubernetes.operator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -29,14 +29,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
  * The Kube {@code Service} for a single virtual cluster.
  * This is named like {@code ${cluster.name}-cluster-${KafkaProxy.metadata.name}}.
  */
-@KubernetesDependent(genericFilter = ClusterFilter.class)
+@KubernetesDependent
 public class ClusterService
         extends CRUDKubernetesDependentResource<Service, KafkaProxy>
         implements BulkDependentResource<Service, KafkaProxy> {
 
     public ClusterService() {
         super(Service.class);
-        useEventSourceWithName("clusters");
     }
 
     /**
@@ -45,11 +44,16 @@ public class ClusterService
     static String serviceName(KafkaProxy primary, Clusters cluster) {
         Objects.requireNonNull(primary);
         Objects.requireNonNull(cluster);
-        return cluster.getName() + "-cluster-" + primary.getMetadata().getName();
+        String serviceName = cluster.getName() + "-cluster-" + primary.getMetadata().getName();
+        if (serviceName.length() > 63) {
+            throw new SchemaValidatedInvalidResourceException(
+                    "For each spec.cluster[], the total length of its name and the metadata.name must be at most 54 characters");
+        }
+        return serviceName;
     }
 
     static Map<Integer, String> clusterPorts(KafkaProxy primary, Clusters cluster) {
-        var clusters = primary.getSpec().getClusters();
+        var clusters = ClustersUtil.distinctClusters(primary);
         for (int clusterNum = 0; clusterNum < clusters.size(); clusterNum++) {
             if (clusters.get(clusterNum).getName().equals(cluster.getName())) {
                 int startPort = 9292 + (100 * clusterNum);
@@ -97,9 +101,8 @@ public class ClusterService
     public Map<String, Service> desiredResources(
                                                  KafkaProxy primary,
                                                  Context<KafkaProxy> context) {
-        var clusters = primary.getSpec().getClusters();
+        var clusters = ClustersUtil.distinctClusters(primary);
         var result = new HashMap<String, Service>(1 + (int) ((clusters.size() + 1) / 0.75f));
-
         for (var cluster : clusters) {
             result.put(cluster.getName(), clusterService(primary, cluster, context));
         }
@@ -111,9 +114,15 @@ public class ClusterService
     public Map<String, Service> getSecondaryResources(
                                                       KafkaProxy primary,
                                                       Context<KafkaProxy> context) {
-        return context.getSecondaryResources(Service.class).stream()
+        Set<Service> secondaryResources = context.eventSourceRetriever().getResourceEventSourceFor(Service.class, "io.kroxylicious.kubernetes.operator.ClusterService")
+                .getSecondaryResources(primary);
+        return secondaryResources.stream()
+                .filter(svc1 -> svc1.getMetadata().getName().contains("-cluster-"))
                 .collect(Collectors.toMap(
-                        svc -> svc.getMetadata().getName(),
+                        svc -> {
+                            String name = svc.getMetadata().getName();
+                            return name.substring(0, name.indexOf("-cluster-"));
+                        },
                         Function.identity()));
     }
 }

@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.Optional;
+
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
@@ -18,13 +20,20 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
  * The Kube {@code Service} for exposing the proxy metrics.
  * This is named like {@code metrics-${KafkaProxy.metadata.name}}.
  */
-@KubernetesDependent(genericFilter = MetricsFilter.class)
+@KubernetesDependent
 public class MetricsService
         extends CRUDKubernetesDependentResource<Service, KafkaProxy> {
 
     public MetricsService() {
         super(Service.class);
-        useEventSourceWithName("metrics");
+    }
+
+    @Override
+    public Optional<Service> getSecondaryResource(KafkaProxy primary, Context<KafkaProxy> context) {
+        String serviceName = serviceName(primary);
+        Optional<Service> first = context.eventSourceRetriever().getResourceEventSourceFor(Service.class, "io.kroxylicious.kubernetes.operator.MetricsService")
+                .getSecondaryResources(primary).stream().filter(svc -> serviceName.equals(svc.getMetadata().getName())).findFirst();
+        return first;
     }
 
     /**

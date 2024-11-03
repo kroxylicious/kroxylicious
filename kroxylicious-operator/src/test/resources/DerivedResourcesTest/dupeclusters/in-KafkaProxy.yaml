@@ -11,6 +11,12 @@ metadata:
   name: minimal
 spec:
   clusters:
-  - name: "one"
+  - name: "dupe"
+    upstream:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+  - name: "dupe"
+    upstream:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+  - name: "notadupe"
     upstream:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092

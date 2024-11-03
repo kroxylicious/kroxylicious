@@ -74,29 +74,17 @@ public class ProxyConfigSecret
 
     String generateProxyConfig(KafkaProxy primary) {
 
-        var clusters = primary.getSpec().getClusters().stream()
+        List<Clusters> clusters = ClustersUtil.distinctClusters(primary);
+        var virtualClusters = clusters.stream()
                 .collect(Collectors.toMap(
                         Clusters::getName,
                         cluster -> getVirtualCluster(primary, cluster),
-                        (v1, v2) -> {
-                            throw new IllegalStateException();
-                        },
+                        (v1, v2) -> v1, // Dupes handled below
                         LinkedHashMap::new));
 
-        if (clusters.size() != primary.getSpec().getClusters().size()) {
-            var dupes = primary.getSpec().getClusters().stream()
-                    .collect(Collectors.groupingBy(Clusters::getName))
-                    .entrySet()
-                    .stream()
-                    .filter(entry -> entry.getValue().size() > 1)
-                    .map(Map.Entry::getKey)
-                    .sorted()
-                    .toList();
-            throw new RuntimeException("Duplicate cluster names in spec.clusters: " + dupes);
-        }
         Configuration configuration = new Configuration(
                 new AdminHttpConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())),
-                clusters,
+                virtualClusters,
                 List.of(),
                 List.of(),
                 false);

@@ -11,6 +11,6 @@ metadata:
   name: minimal
 spec:
   clusters:
-  - name: "one"
+  - name: a0000000011111111112222222222333333333344444444445555555555
     upstream:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
