@@ -82,7 +82,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldBlockClientReads() {
         // Given
-        inClientActive();
+        stateMachineInClientActive();
         proxyChannelStateMachine.onServerUnwritable();
 
         // When
@@ -95,7 +95,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldUnblockClientReads() {
         // Given
-        inClientActive();
+        stateMachineInClientActive();
         proxyChannelStateMachine.clientReadsBlocked = true;
         proxyChannelStateMachine.onServerWritable();
 
@@ -109,7 +109,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldBlockServerReads() {
         // Given
-        inForwardingState();
+        stateMachineInForwarding();
         proxyChannelStateMachine.onClientUnwritable();
 
         // When
@@ -122,7 +122,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldCloseOnClientRuntimeException() {
         // Given
-        inForwardingState();
+        stateMachineInForwarding();
         RuntimeException cause = new RuntimeException("Oops!");
 
         // When
@@ -137,7 +137,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldCloseOnClientFrameOversizedException() {
         // Given
-        inForwardingState();
+        stateMachineInForwarding();
         RuntimeException cause = new DecoderException(new FrameOversizedException(2, 1));
 
         // When
@@ -152,7 +152,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldCloseOnServerRuntimeException() {
         // Given
-        inForwardingState();
+        stateMachineInForwarding();
         RuntimeException cause = new RuntimeException("Oops!");
 
         // When
@@ -167,7 +167,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldUnblockServerReads() {
         // Given
-        inForwardingState();
+        stateMachineInForwarding();
         proxyChannelStateMachine.serverReadsBlocked = true;
 
         // When
@@ -193,7 +193,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inClientActiveShouldCaptureHaProxyState() {
         // Given
-        inClientActive();
+        stateMachineInClientActive();
         var dp = mock(SaslDecodePredicate.class);
 
         // When
@@ -210,7 +210,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inClientActiveShouldBufferWhenOnClientMetadataRequest() {
         // Given
-        inClientActive();
+        stateMachineInClientActive();
         var msg = metadataRequest();
         var dp = mock(SaslDecodePredicate.class);
 
@@ -229,7 +229,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inHaProxyShouldBufferWhenOnClientApiVersionsRequest() {
         // Given
-        stateHolderInHaProxy();
+        stateMachineInHaProxy();
         var msg = apiVersionsRequest();
         var dp = new SaslDecodePredicate(false);
 
@@ -247,7 +247,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inHaProxyShouldCloseOnHaProxyMsg() {
         // Given
-        stateHolderInHaProxy();
+        stateMachineInHaProxy();
         var dp = new SaslDecodePredicate(false);
 
         // When
@@ -262,7 +262,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inHaProxyShouldBufferWhenOnClientMetadataRequest() {
         // Given
-        stateHolderInHaProxy();
+        stateMachineInHaProxy();
         var msg = metadataRequest();
         var dp = mock(SaslDecodePredicate.class);
 
@@ -281,7 +281,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inApiVersionsShouldCloseOnClientActive() {
         // Given
-        stateHolderInApiVersionsState();
+        stateMachineInApiVersionsState();
 
         // When
         proxyChannelStateMachine.onClientActive(frontendHandler);
@@ -294,7 +294,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inApiVersionsShouldBuffer() {
         // Given
-        stateHolderInApiVersionsState();
+        stateMachineInApiVersionsState();
         var msg = metadataRequest();
         SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
 
@@ -309,7 +309,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inApiVersionsShouldCloseOnHaProxyMessage() {
         // Given
-        stateHolderInApiVersionsState();
+        stateMachineInApiVersionsState();
         var dp = mock(SaslDecodePredicate.class);
 
         // When
@@ -326,7 +326,7 @@ class ProxyChannelStateMachineTest {
     @ValueSource(booleans = { true, false })
     void inClientActiveShouldTransitionToApiVersionsOrSelectingServer(boolean handlingSasl) {
         // Given
-        inClientActive();
+        stateMachineInClientActive();
         var msg = apiVersionsRequest();
 
         // When
@@ -359,7 +359,7 @@ class ProxyChannelStateMachineTest {
     void inSelectingServerShouldTransitionToConnectingWhenOnNetFilterInitiateConnectCalled(boolean configureSsl) throws SSLException {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
-        stateHolderInSelectingServer();
+        stateMachineInSelectingServer();
         var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualCluster.class);
         doReturn(configureSsl ? Optional.of(SslContextBuilder.forClient().build()) : Optional.empty()).when(vc).getUpstreamSslContext();
@@ -379,7 +379,7 @@ class ProxyChannelStateMachineTest {
     void inClientActiveShouldCloseWhenOnNetFilterInitiateConnectCalled() {
         // Given
         HostPort brokerAddress = new HostPort("localhost", 9092);
-        inClientActive();
+        stateMachineInClientActive();
         var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualCluster.class);
         var nf = mock(NetFilter.class);
@@ -397,7 +397,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inConnectingShouldCloseWhenOnNetFilterInitiateConnect() {
         // Given
-        stateHolderInConnecting();
+        stateMachineInConnecting();
 
         var filters = List.<FilterAndInvoker> of();
         var vc = mock(VirtualCluster.class);
@@ -416,7 +416,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inConnectingShouldTransitionWhenOnServerActiveCalled() {
         // Given
-        stateHolderInConnecting();
+        stateMachineInConnecting();
 
         // When
         proxyChannelStateMachine.onServerActive();
@@ -431,7 +431,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inConnectingShouldBufferRequests() {
         // Given
-        stateHolderInConnecting();
+        stateMachineInConnecting();
 
         // When
         DecodedRequestFrame<MetadataRequestData> msg = metadataRequest();
@@ -445,7 +445,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inClientActiveShouldCloseWhenOnServerActiveCalled() {
         // Given
-        inClientActive();
+        stateMachineInClientActive();
 
         // When
         proxyChannelStateMachine.onServerActive();
@@ -461,7 +461,7 @@ class ProxyChannelStateMachineTest {
         // Given
         var serverCtx = mock(ChannelHandlerContext.class);
         SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
-        var forwarding = stateHolderInForwarding();
+        var forwarding = stateMachineInForwarding();
         var msg = metadataRequest();
 
         // When
@@ -480,7 +480,7 @@ class ProxyChannelStateMachineTest {
         // Given
         var serverCtx = mock(ChannelHandlerContext.class);
         SaslDecodePredicate dp = mock(SaslDecodePredicate.class);
-        var forwarding = stateHolderInForwarding();
+        var forwarding = stateMachineInForwarding();
         var msg = metadataResponse();
 
         // When
@@ -497,7 +497,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inForwardingShouldTransitionToClosedOnServerInactive() {
         // Given
-        stateHolderInForwarding();
+        stateMachineInForwarding();
         doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler).inClosed(null);
         doNothing().when(backendHandler).inClosed();
 
@@ -513,7 +513,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inForwardingShouldTransitionToClosedOnClientInactive() {
         // Given
-        stateHolderInForwarding();
+        stateMachineInForwarding();
         doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler).inClosed(null);
 
         // When
@@ -528,7 +528,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void shouldNotTransitionToClosedMultipleTimes() {
         // Given
-        stateHolderInClosed();
+        stateMachineInClosed();
 
         // When
         proxyChannelStateMachine.onServerInactive();
@@ -540,7 +540,7 @@ class ProxyChannelStateMachineTest {
     @Test
     void inForwardingShouldTransitionToClosedOnServerException() {
         // Given
-        stateHolderInForwarding();
+        stateMachineInForwarding();
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
         doNothing().when(backendHandler).inClosed();
 
@@ -557,7 +557,7 @@ class ProxyChannelStateMachineTest {
     @ValueSource(booleans = { true, false })
     void inForwardingShouldTransitionToClosedOnClientException(boolean tlsEnabled) {
         // Given
-        stateHolderInForwarding();
+        stateMachineInForwarding();
         final ApiException expectedException = Errors.UNKNOWN_SERVER_ERROR.exception();
         final IllegalStateException illegalStateException = new IllegalStateException("She canny take it any more, captain");
         doAnswer(invocation -> assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class)).when(frontendHandler)
@@ -573,49 +573,42 @@ class ProxyChannelStateMachineTest {
         verify(backendHandler).inClosed();
     }
 
-    private void inForwardingState() {
-        proxyChannelStateMachine.forceState(
-                new ProxyChannelState.Forwarding(null, null, null),
-                frontendHandler,
-                backendHandler);
-    }
-
-    private void inClientActive() {
+    private void stateMachineInClientActive() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.ClientActive(),
                 frontendHandler,
                 null);
     }
 
-    private void stateHolderInHaProxy() {
+    private void stateMachineInHaProxy() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.HaProxy(HA_PROXY_MESSAGE),
                 frontendHandler,
                 null);
     }
 
-    private void stateHolderInApiVersionsState() {
+    private void stateMachineInApiVersionsState() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.ApiVersions(null, null, null),
                 frontendHandler,
                 null);
     }
 
-    private void stateHolderInSelectingServer() {
+    private void stateMachineInSelectingServer() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.SelectingServer(null, null, null),
                 frontendHandler,
                 null);
     }
 
-    private void stateHolderInConnecting() {
+    private void stateMachineInConnecting() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Connecting(null, null, null, new HostPort("localhost", 9089)),
                 frontendHandler,
                 backendHandler);
     }
 
-    private ProxyChannelState.Forwarding stateHolderInForwarding() {
+    private ProxyChannelState.Forwarding stateMachineInForwarding() {
         var forwarding = new ProxyChannelState.Forwarding(null, null, null);
         proxyChannelStateMachine.forceState(
                 forwarding,
@@ -624,7 +617,7 @@ class ProxyChannelStateMachineTest {
         return forwarding;
     }
 
-    private void stateHolderInClosed() {
+    private void stateMachineInClosed() {
         proxyChannelStateMachine.forceState(
                 new ProxyChannelState.Closed(),
                 frontendHandler,
