@@ -99,12 +99,14 @@ public class ProxyConfigSecret
     }
 
     private static VirtualCluster getVirtualCluster(KafkaProxy primary, Clusters cluster) {
+        var o = ClustersUtil.distinctClusters(primary);
+        var clusterNum = o.indexOf(cluster);
         return new VirtualCluster(
                 new TargetCluster(cluster.getUpstream().getBootstrapServers(), Optional.empty()),
                 new ClusterNetworkAddressConfigProviderDefinition(
                         "PortPerBrokerClusterNetworkAddressConfigProvider",
                         new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
-                                new HostPort("localhost", 9292),
+                                new HostPort("localhost", 9292 + (100 * clusterNum)),
                                 ClusterService.serviceName(primary, cluster),
                                 null,
                                 null,

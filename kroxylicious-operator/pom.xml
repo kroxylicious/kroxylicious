@@ -133,6 +133,8 @@
         </dependency>
 
         <dependency>
+            <!-- This dep is because the operator uses the type safe API for generating proxy config
+                 it should be replaced with a dependency on some kind of runtime-config-api module -->
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-runtime</artifactId>
             <scope>compile</scope>

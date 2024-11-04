@@ -72,8 +72,7 @@ public class ClusterService
     }
 
     protected Service clusterService(KafkaProxy primary,
-                                     Clusters cluster,
-                                     Context<KafkaProxy> context) {
+                                     Clusters cluster) {
         // formatter=off
         var serviceSpecBuilder = new ServiceBuilder()
                 .withNewMetadata()
@@ -104,7 +103,7 @@ public class ClusterService
         var clusters = ClustersUtil.distinctClusters(primary);
         var result = new HashMap<String, Service>(1 + (int) ((clusters.size() + 1) / 0.75f));
         for (var cluster : clusters) {
-            result.put(cluster.getName(), clusterService(primary, cluster, context));
+            result.put(cluster.getName(), clusterService(primary, cluster));
         }
 
         return result;
