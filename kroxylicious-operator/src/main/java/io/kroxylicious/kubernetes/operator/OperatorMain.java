@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Duration;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,8 +21,15 @@ public class OperatorMain {
 
     public static void main(String[] args) {
         Operator operator = new Operator();
+        operator.installShutdownHook(Duration.ofSeconds(10));
         operator.register(new ProxyReconciler());
-        operator.start();
-        LOGGER.info("Operator started.");
+        try {
+            operator.start();
+            LOGGER.info("Operator started.");
+        }
+        catch (Exception e) {
+            LOGGER.error("Operator has thrown exception '{}' during startup. Will now exit.", e.toString());
+            System.exit(1);
+        }
     }
 }
