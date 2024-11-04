@@ -25,9 +25,7 @@ public class ClustersUtil {
     static List<Clusters> distinctClusters(List<Clusters> clusters) {
         return new ArrayList<>(clusters.stream().collect(Collector.of(
                 () -> new LinkedHashMap<String, Clusters>(),
-                (set, cluster) -> {
-                    set.putIfAbsent(cluster.getName(), cluster);
-                },
+                (set, cluster) -> set.putIfAbsent(cluster.getName(), cluster),
                 (setA, setB) -> {
                     setA.putAll(setB);
                     return setA;

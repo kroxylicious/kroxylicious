@@ -194,11 +194,10 @@ public class ProxyReconciler implements
      * <strong>if the condition had has a state transition</strong>.
      */
     private static Conditions newReadyCondition(KafkaProxy primary, @Nullable Exception exception) {
-        if (exception instanceof AggregatedOperatorException aoe) {
-            if (aoe.getAggregatedExceptions().size() == 1) {
-                exception = aoe.getAggregatedExceptions().values().iterator().next();
-            }
+        if (exception instanceof AggregatedOperatorException aoe && aoe.getAggregatedExceptions().size() == 1) {
+            exception = aoe.getAggregatedExceptions().values().iterator().next();
         }
+
         return new ConditionsBuilder()
                 .withLastTransitionTime(ZonedDateTime.now(ZoneId.of("Z")))
                 .withMessage(exception == null ? "" : exception.getMessage())

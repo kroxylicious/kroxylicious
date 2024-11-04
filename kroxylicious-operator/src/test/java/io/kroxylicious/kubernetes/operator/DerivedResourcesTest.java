@@ -271,7 +271,6 @@ class DerivedResourcesTest {
                         },
                         error -> {
                             var errorStruct = YAML_MAPPER.readValue(testDir.resolve(resourceOrError.filenameOfExpectedFile()).toFile(), ErrorStruct.class);
-                            var expectedMsg = new String(Files.readAllBytes(testDir.resolve(resourceOrError.filenameOfExpectedFile())));
                             assertThat(error.getClass().getName()).isEqualTo(errorStruct.type());
                             assertThat(error.getMessage()).isEqualTo(errorStruct.message());
                         });

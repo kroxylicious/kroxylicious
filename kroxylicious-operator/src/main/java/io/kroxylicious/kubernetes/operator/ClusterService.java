@@ -34,6 +34,8 @@ public class ClusterService
         extends CRUDKubernetesDependentResource<Service, KafkaProxy>
         implements BulkDependentResource<Service, KafkaProxy> {
 
+    public static final String CLUSTER_INFIX = "-cluster-";
+
     public ClusterService() {
         super(Service.class);
     }
@@ -44,7 +46,7 @@ public class ClusterService
     static String serviceName(KafkaProxy primary, Clusters cluster) {
         Objects.requireNonNull(primary);
         Objects.requireNonNull(cluster);
-        String serviceName = cluster.getName() + "-cluster-" + primary.getMetadata().getName();
+        String serviceName = cluster.getName() + CLUSTER_INFIX + primary.getMetadata().getName();
         if (serviceName.length() > 63) {
             throw new SchemaValidatedInvalidResourceException(
                     "For each spec.cluster[], the total length of its name and the metadata.name must be at most 54 characters");
@@ -61,7 +63,7 @@ public class ClusterService
                 return IntStream.range(startPort, startPort + numBrokerPorts).boxed()
                         .collect(Collectors.<Integer, Integer, String, TreeMap<Integer, String>> toMap(
                                 portNum -> portNum,
-                                portNum -> cluster.getName() + "-cluster-" + portNum,
+                                portNum -> cluster.getName() + CLUSTER_INFIX + portNum,
                                 (v1, v2) -> {
                                     throw new IllegalStateException();
                                 },
@@ -116,11 +118,11 @@ public class ClusterService
         Set<Service> secondaryResources = context.eventSourceRetriever().getResourceEventSourceFor(Service.class, "io.kroxylicious.kubernetes.operator.ClusterService")
                 .getSecondaryResources(primary);
         return secondaryResources.stream()
-                .filter(svc1 -> svc1.getMetadata().getName().contains("-cluster-"))
+                .filter(svc1 -> svc1.getMetadata().getName().contains(CLUSTER_INFIX))
                 .collect(Collectors.toMap(
                         svc -> {
                             String name = svc.getMetadata().getName();
-                            return name.substring(0, name.indexOf("-cluster-"));
+                            return name.substring(0, name.indexOf(CLUSTER_INFIX));
                         },
                         Function.identity()));
     }

@@ -31,9 +31,11 @@ public class MetricsService
     @Override
     public Optional<Service> getSecondaryResource(KafkaProxy primary, Context<KafkaProxy> context) {
         String serviceName = serviceName(primary);
-        Optional<Service> first = context.eventSourceRetriever().getResourceEventSourceFor(Service.class, "io.kroxylicious.kubernetes.operator.MetricsService")
-                .getSecondaryResources(primary).stream().filter(svc -> serviceName.equals(svc.getMetadata().getName())).findFirst();
-        return first;
+        return context.eventSourceRetriever()
+                .getResourceEventSourceFor(Service.class, "io.kroxylicious.kubernetes.operator.MetricsService")
+                .getSecondaryResources(primary).stream()
+                .filter(svc -> serviceName.equals(svc.getMetadata().getName()))
+                .findFirst();
     }
 
     /**
