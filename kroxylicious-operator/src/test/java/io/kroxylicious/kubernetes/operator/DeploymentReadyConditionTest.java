@@ -22,7 +22,6 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.DependentResource;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.doReturn;
 
 class DeploymentReadyConditionTest {
@@ -38,12 +37,12 @@ class DeploymentReadyConditionTest {
 
     @BeforeEach
     public void openMocks() {
-        closeable = MockitoAnnotations. openMocks(this);
+        closeable = MockitoAnnotations.openMocks(this);
     }
 
     @AfterEach
     public void releaseMocks() throws Exception {
-        closeable. close();
+        closeable.close();
     }
 
     @Test
