@@ -18,6 +18,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.assertj.core.api.Assertions;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicTest;
@@ -259,14 +260,14 @@ class DerivedResourcesTest {
                             if (!expected.equals(resource)) {
                                 // Failing with a String-based assert makes it **much** easier to understand what the diffs are
                                 // because we're comparing YAML strings, rather than the resources.toString()
-                                // which is not normally YAML
+                                // which is not normally YAML. It also means you can use copy&paste to update expected YAML.
                                 assertThat(YAML_MAPPER.writeValueAsString(resource))
                                         .describedAs("Expect returned resource to match expected")
                                         .isEqualTo(YAML_MAPPER.writeValueAsString(expected));
                                 // We add this assertion just in case the String-based YAML assertion above didn't fail
                                 // If this assertion fails then it means that (weirdly) the YAML strings are the same
                                 // but the resources were not .equals() => probably a bug in the resources .equals(Object)
-                                assertThat(false).isTrue();
+                                Assertions.fail();
                             }
                         },
                         error -> {
