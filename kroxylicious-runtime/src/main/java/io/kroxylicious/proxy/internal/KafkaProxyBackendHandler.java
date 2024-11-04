@@ -39,6 +39,12 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         this.sslContext = upstreamSslContext.orElse(null);
     }
 
+    /**
+     * Propagates backpressure to the <em>downstream/client</em> connection by notifying the {@link ProxyChannelStateMachine} when the <em>upstream/server</em> connection
+     * blocks or unblocks.
+     * @param ctx the handler context for upstream/server channel
+     * @throws Exception If something went wrong
+     */
     @Override
     public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
         super.channelWritabilityChanged(ctx);
@@ -50,13 +56,25 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
+    /**
+     * Netty callback that resources have been allocated for the channel.
+     * This is the first point at which we become aware of the upstream/server channel.
+     * @param ctx the context for the upstream/server channel.
+     * @throws Exception If something went wrong.
+     */
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         this.serverCtx = ctx;
         super.channelRegistered(ctx);
     }
 
-    // Called when the outbound channel is active
+
+    /**
+     * Netty callback that upstream/server channel has successfully connected to the remote peer.
+     * This does not mean that the channel is usable by the proxy as TLS negotiation, if required, is still in progress.
+     * @param ctx the context for the upstream/server channel.
+     * @throws Exception If something went wrong.
+     */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         LOGGER.trace("Channel active {}", ctx);
@@ -66,9 +84,19 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         super.channelActive(ctx);
     }
 
+    /**
+     * Netty callback. Used to notify us of custom events.
+     * Events such as the SSL Handshake completing.
+     * <br>
+     * This method is called for <em>every</em> custom event, so its up to us to filter out the ones we care about.
+     *
+     * @param ctx the channel handler context on which the event was triggered.
+     * @param event the information being notified
+     * @throws Exception any errors in processing.
+     */
     @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof SslHandshakeCompletionEvent sslEvt) {
+    public void userEventTriggered(ChannelHandlerContext ctx, Object event) throws Exception {
+        if (event instanceof SslHandshakeCompletionEvent sslEvt) {
             if (sslEvt.isSuccess()) {
                 proxyChannelStateMachine.onServerActive();
             }
@@ -76,39 +104,55 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
                 proxyChannelStateMachine.onServerException(sslEvt.cause());
             }
         }
-        super.userEventTriggered(ctx, evt);
+        super.userEventTriggered(ctx, event);
     }
 
+    /**
+     * Netty callback to notify that the <em>upstream/server</em> channel TCP connection has disconnected.
+     * @param ctx The context for the upstream/server channel.
+     */
     @Override
     public void channelInactive(ChannelHandlerContext ctx) {
         proxyChannelStateMachine.onServerInactive();
     }
 
+    /**
+     * Netty callback indicating that an exception reached it.
+     * Which means the proxy should give up as all hope for this connection is lost.
+     * @param ctx The context for the upstream/server channel.
+     * @param cause The exception which reached netty.
+     */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         proxyChannelStateMachine.onServerException(cause);
     }
 
     /**
-     * Relieve backpressure on the server connection by turning on auto-read.
+     * Netty callback that something has been read from the <em>upstream/server</em> channel.
+     * @param ctx The context for the upstream/server channel.
+     * @param msg the message read from the channel.
      */
-    public void inboundChannelWritabilityChanged() {
-        if (serverCtx != null) {
-            serverCtx.channel().config().setAutoRead(true);
-        }
-    }
-
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) {
         proxyChannelStateMachine.forwardToClient(msg);
     }
 
+    /**
+     * <p>Invoked when the last message read by the current read operation
+     * has been consumed by {@link #channelRead(ChannelHandlerContext, Object)}.</p>
+     * This allows the proxy to batch requests.
+     * @param ctx The upstream/server context
+     */
     @Override
     public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
         super.channelReadComplete(ctx);
         proxyChannelStateMachine.serverReadComplete();
     }
 
+    /**
+     * Called by the {@link ProxyChannelStateMachine} to propagate an RPC to the upstream node.
+     * @param msg the RPC to forward.
+     */
     public void forwardToServer(Object msg) {
         if (serverCtx == null) {
             // TODO this shouldn't really be possible to reach. Delete in a releases time once we have more confidence in the StateMachine
@@ -128,6 +172,9 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         LOGGER.trace("/READ");
     }
 
+    /**
+     * Called by the {@link ProxyChannelStateMachine} when the bach from the downstream/client side is complete.
+     */
     public void flushToServer() {
         if (serverCtx != null) {
             final Channel serverChannel = serverCtx.channel();
@@ -141,18 +188,27 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         }
     }
 
+    /**
+     * Callback from the {@link ProxyChannelStateMachine} triggered when it wants to apply backpressure to the <em>upstream/server</em> connection
+     */
     public void blockServerReads() {
         if (serverCtx != null) {
             serverCtx.channel().config().setAutoRead(false);
         }
     }
 
+    /**
+     * Callback from the {@link ProxyChannelStateMachine} triggered when it wants to remove backpressure from the <em>upstream/server</em> connection
+     */
     public void unblockServerReads() {
         if (serverCtx != null) {
             serverCtx.channel().config().setAutoRead(true);
         }
     }
 
+    /**
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link ProxyChannelState.Closed} state.
+     */
     public void inClosed() {
         if (serverCtx != null) {
             Channel outboundChannel = serverCtx.channel();

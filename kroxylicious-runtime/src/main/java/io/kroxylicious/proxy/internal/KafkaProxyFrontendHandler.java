@@ -209,6 +209,11 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    /**
+     * Netty callback that something has been read from the downstream/client channel.
+     * @param ctx The context for the downstream/client channel.
+     * @param msg the message read from the channel.
+     */
     @Override
     public void channelRead(
             @NonNull ChannelHandlerContext ctx,
