@@ -1072,6 +1072,7 @@
                                 </goals>
                                 <phase>process-sources</phase>
                                 <configuration>
+                                    <javaExclusionPattern>(?sm)^[ \t]*// *formatter=off.*?^[ \t]*(return.*?;|// *formatter=on)</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.sourceDirectory}</directory>
                                     </directories>
@@ -1084,6 +1085,7 @@
                                 </goals>
                                 <phase>process-test-sources</phase>
                                 <configuration>
+                                    <javaExclusionPattern>(?sm)^[ \t]*// *formatter=off.*?^[ \t]*(return.*?;|// *formatter=on)</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.testSourceDirectory}</directory>
                                     </directories>
