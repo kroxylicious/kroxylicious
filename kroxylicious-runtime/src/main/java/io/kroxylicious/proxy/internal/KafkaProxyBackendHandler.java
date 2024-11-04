@@ -165,7 +165,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public String toString() {
         // Don't include proxyChannelStateMachine's toString here
-        // because proxyChannelStateMachine's toString will include the backends's toString
+        // because proxyChannelStateMachine's toString will include the backends toString
         // and we don't want a SOE.
         return "KafkaProxyBackendHandler{" + ", serverCtx=" + serverCtx + ", proxyChannelState=" + this.proxyChannelStateMachine.currentState()
                 + ", pendingServerFlushes=" + pendingServerFlushes + '}';

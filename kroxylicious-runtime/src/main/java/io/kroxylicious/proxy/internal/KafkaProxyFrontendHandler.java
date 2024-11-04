@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
+import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
@@ -54,7 +55,6 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import static io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
@@ -102,50 +102,23 @@ public class KafkaProxyFrontendHandler
     }
 
     KafkaProxyFrontendHandler(
-                              @NonNull NetFilter netFilter,
-                              @NonNull SaslDecodePredicate dp,
-                              @NonNull VirtualCluster virtualCluster) {
+            @NonNull NetFilter netFilter,
+            @NonNull SaslDecodePredicate dp,
+            @NonNull VirtualCluster virtualCluster) {
         this(netFilter, dp, virtualCluster, new ProxyChannelStateMachine());
     }
 
     KafkaProxyFrontendHandler(
-                              @NonNull NetFilter netFilter,
-                              @NonNull SaslDecodePredicate dp,
-                              @NonNull VirtualCluster virtualCluster,
-                              @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
+            @NonNull NetFilter netFilter,
+            @NonNull SaslDecodePredicate dp,
+            @NonNull VirtualCluster virtualCluster,
+            @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
         this.virtualCluster = virtualCluster;
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualCluster.isLogNetwork();
         this.logFrames = virtualCluster.isLogFrames();
-    }
-
-    static @NonNull ResponseFrame buildErrorResponseFrame(
-                                                          @NonNull DecodedRequestFrame<?> triggerFrame,
-                                                          @NonNull Throwable error) {
-        var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
-        final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
-        responseHeaderData.setCorrelationId(triggerFrame.correlationId());
-        return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
-    }
-
-    /**
-     * Return an error response to send to the client, or null if no response should be sent.
-     * @param errorCodeEx The exception
-     * @return The response frame
-     */
-    private ResponseFrame errorResponse(
-                                        @Nullable Throwable errorCodeEx) {
-        ResponseFrame errorResponse;
-        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
-        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
-            errorResponse = buildErrorResponseFrame(triggerFrame, errorCodeEx);
-        }
-        else {
-            errorResponse = null;
-        }
-        return errorResponse;
     }
 
     @Override
@@ -165,20 +138,27 @@ public class KafkaProxyFrontendHandler
                 + '}';
     }
 
-    ChannelHandlerContext clientCtx() {
-        return Objects.requireNonNull(this.clientCtx, "clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
-    }
-
+    /**
+     * Netty callback. Used to notify us of custom events.
+     * Events such as ServerNameIndicator (SNI) resolution completing.
+     * <br>
+     * This method is called for <em>every</em> custom event, so its up to us to filter out the ones we care about.
+     *
+     * @param ctx the channel handler context on which the event was triggered.
+     * @param event the information being notified
+     * @throws Exception any errors in processing.
+     */
     @Override
     public void userEventTriggered(
-                                   @NonNull ChannelHandlerContext ctx,
-                                   @NonNull Object event)
+            @NonNull ChannelHandlerContext ctx,
+            @NonNull Object event)
             throws Exception {
         if (event instanceof SniCompletionEvent sniCompletionEvent) {
             if (sniCompletionEvent.isSuccess()) {
                 this.sniHostname = sniCompletionEvent.hostname();
             }
             else {
+                //TODO should this throw or should it call `illegalState` first /instead?
                 throw new IllegalStateException("SNI failed", sniCompletionEvent.cause());
             }
         }
@@ -188,11 +168,70 @@ public class KafkaProxyFrontendHandler
         super.userEventTriggered(ctx, event);
     }
 
+    /**
+     * Netty callback to notify that the downstream/client channel has an active TCP connection.
+     * @param ctx the handler context for downstream/client channel
+     * @throws Exception if we object to the client...
+     */
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         this.clientCtx = ctx;
         this.proxyChannelStateMachine.onClientActive(this);
         super.channelActive(this.clientCtx);
+    }
+
+    /**
+     * Netty callback to notify that the downstream/client channel TCP connection has disconnected.
+     * @param ctx The context for the downstream/client channel.
+     */
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) {
+        LOGGER.trace("INACTIVE on inbound {}", ctx.channel());
+        proxyChannelStateMachine.onClientInactive();
+    }
+
+    /**
+     * Propagates backpressure to the <em>upstream/server</em> connection by notifying the {@link ProxyChannelStateMachine} when the <em>downstream/client</em> connection
+     * blocks or unblocks.
+     * @param ctx the handler context for downstream/client channel
+     * @throws Exception If something went wrong
+     */
+    @Override
+    public void channelWritabilityChanged(
+            final ChannelHandlerContext ctx)
+            throws Exception {
+        super.channelWritabilityChanged(ctx);
+        if (ctx.channel().isWritable()) {
+            this.proxyChannelStateMachine.onClientWritable();
+        }
+        else {
+            this.proxyChannelStateMachine.onClientUnwritable();
+        }
+    }
+
+    @Override
+    public void channelRead(
+            @NonNull ChannelHandlerContext ctx,
+            @NonNull Object msg) {
+        proxyChannelStateMachine.onClientRequest(dp, msg);
+    }
+
+    /**
+     * Callback from the {@link ProxyChannelStateMachine} triggered when it wants to apply backpressure to the <em>downstream/client</em> connection
+     */
+    void blockClientReads() {
+        if (clientCtx != null) {
+            this.clientCtx.channel().config().setAutoRead(false);
+        }
+    }
+
+    /**
+     * Callback from the {@link ProxyChannelStateMachine} triggered when it wants to remove backpressure from the <em>downstream/client</em> connection
+     */
+    void unblockClientReads() {
+        if (clientCtx != null) {
+            this.clientCtx.channel().config().setAutoRead(true);
+        }
     }
 
     /**
@@ -205,50 +244,6 @@ public class KafkaProxyFrontendHandler
         clientChannel.config().setAutoRead(false);
         // TODO why doesn't the initializer set autoread to false so we don't have to set it here?
         clientChannel.read();
-    }
-
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) {
-        LOGGER.trace("INACTIVE on inbound {}", ctx.channel());
-        proxyChannelStateMachine.onClientInactive();
-    }
-
-    /**
-     * Relieves backpressure on the <em>server</em> connection by calling
-     * the {@link KafkaProxyBackendHandler#inboundChannelWritabilityChanged()}
-     * @param inboundCtx The inbound context
-     * @throws Exception If something went wrong
-     */
-    @Override
-    public void channelWritabilityChanged(
-                                          final ChannelHandlerContext inboundCtx)
-            throws Exception {
-        super.channelWritabilityChanged(inboundCtx);
-        if (inboundCtx.channel().isWritable()) {
-            this.proxyChannelStateMachine.onClientWritable();
-        }
-        else {
-            this.proxyChannelStateMachine.onClientUnwritable();
-        }
-    }
-
-    public void blockClientReads() {
-        if (clientCtx != null) {
-            this.clientCtx.channel().config().setAutoRead(false);
-        }
-    }
-
-    public void unblockClientReads() {
-        if (clientCtx != null) {
-            this.clientCtx.channel().config().setAutoRead(true);
-        }
-    }
-
-    @Override
-    public void channelRead(
-                            @NonNull ChannelHandlerContext ctx,
-                            @NonNull Object msg) {
-        proxyChannelStateMachine.onClientRequest(dp, msg);
     }
 
     /**
@@ -264,7 +259,7 @@ public class KafkaProxyFrontendHandler
     /**
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link SelectingServer} state.
      */
-    public void inSelectingServer() {
+    void inSelectingServer() {
         // Pass this as the filter context, so that
         // filter.initiateConnect() call's back on
         // our initiateConnect() method
@@ -292,6 +287,7 @@ public class KafkaProxyFrontendHandler
     /**
      * <p>Invoked when the last message read by the current read operation
      * has been consumed by {@link #channelRead(ChannelHandlerContext, Object)}.</p>
+     * This allows the proxy to batch requests.
      * @param clientCtx The client context
      */
     @Override
@@ -300,8 +296,7 @@ public class KafkaProxyFrontendHandler
     }
 
     /**
-     * Handles an exception in downstream/client pipeline by closing both
-     * channels and changing {@link #proxyChannelStateMachine} to {@link Closed}.
+     * Handles an exception in downstream/client pipeline by notifying {@link #proxyChannelStateMachine} of the issue.
      * @param ctx The downstream context
      * @param cause The downstream exception
      */
@@ -439,8 +434,8 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void initiateConnect(
-                                @NonNull HostPort remote,
-                                @NonNull List<FilterAndInvoker> filters) {
+            @NonNull HostPort remote,
+            @NonNull List<FilterAndInvoker> filters) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
                     clientCtx().channel().id(), remote, filters);
@@ -452,9 +447,9 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Connecting} state.
      */
     void inConnecting(
-                      @NonNull HostPort remote,
-                      @NonNull List<FilterAndInvoker> filters,
-                      KafkaProxyBackendHandler backendHandler) {
+            @NonNull HostPort remote,
+            @NonNull List<FilterAndInvoker> filters,
+            KafkaProxyBackendHandler backendHandler) {
         final Channel inboundChannel = clientCtx().channel();
         // Start the upstream connection attempt.
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
@@ -502,6 +497,7 @@ public class KafkaProxyFrontendHandler
         });
     }
 
+    /** Ugly hack used for testing */
     @NonNull
     @VisibleForTesting
     Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
@@ -518,23 +514,6 @@ public class KafkaProxyFrontendHandler
     @VisibleForTesting
     ChannelFuture initConnection(String remoteHost, int remotePort, Bootstrap bootstrap) {
         return bootstrap.connect(remoteHost, remotePort);
-    }
-
-    private void addFiltersToPipeline(
-                                      List<FilterAndInvoker> filters,
-                                      ChannelPipeline pipeline,
-                                      Channel inboundChannel) {
-        for (var protocolFilter : filters) {
-            // TODO configurable timeout
-            pipeline.addFirst(
-                    protocolFilter.toString(),
-                    new FilterHandler(
-                            protocolFilter,
-                            20000,
-                            sniHostname,
-                            virtualCluster,
-                            inboundChannel));
-        }
     }
 
     /**
@@ -560,43 +539,9 @@ public class KafkaProxyFrontendHandler
         }
     }
 
-    private void unblockClient() {
-        isClientBlocked = false;
-        var inboundChannel = clientCtx().channel();
-        inboundChannel.config().setAutoRead(true);
-        proxyChannelStateMachine.onClientWritable();
-    }
-
-    void forwardToClient(Object msg) {
-        final Channel inboundChannel = clientCtx().channel();
-        if (inboundChannel.isWritable()) {
-            inboundChannel.write(msg, clientCtx().voidPromise());
-            pendingClientFlushes = true;
-        }
-        else {
-            inboundChannel.writeAndFlush(msg, clientCtx().voidPromise());
-            pendingClientFlushes = false;
-        }
-    }
-
-    void flushToClient() {
-        final Channel inboundChannel = clientCtx().channel();
-        if (pendingClientFlushes) {
-            pendingClientFlushes = false;
-            inboundChannel.flush();
-        }
-        if (!inboundChannel.isWritable()) {
-            proxyChannelStateMachine.onClientUnwritable();
-        }
-    }
-
-    void bufferMsg(Object msg) {
-        if (bufferedMsgs == null) {
-            bufferedMsgs = new ArrayList<>();
-        }
-        bufferedMsgs.add(msg);
-    }
-
+    /**
+     * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Closed} state.
+     */
     void inClosed(@Nullable Throwable errorCodeEx) {
         Channel inboundChannel = clientCtx().channel();
         if (inboundChannel.isActive()) {
@@ -610,5 +555,103 @@ public class KafkaProxyFrontendHandler
             inboundChannel.writeAndFlush(msg)
                     .addListener(ChannelFutureListener.CLOSE);
         }
+    }
+
+    /**
+     * Called by the {@link ProxyChannelStateMachine} to propagate an RPC to the downstream client.
+     * @param msg the RPC to forward.
+     */
+    void forwardToClient(Object msg) {
+        final Channel inboundChannel = clientCtx().channel();
+        if (inboundChannel.isWritable()) {
+            inboundChannel.write(msg, clientCtx().voidPromise());
+            pendingClientFlushes = true;
+        }
+        else {
+            inboundChannel.writeAndFlush(msg, clientCtx().voidPromise());
+            pendingClientFlushes = false;
+        }
+    }
+
+    /**
+     * Called by the {@link ProxyChannelStateMachine} when the bach from the upstream/server side is complete.
+     */
+    void flushToClient() {
+        final Channel inboundChannel = clientCtx().channel();
+        if (pendingClientFlushes) {
+            pendingClientFlushes = false;
+            inboundChannel.flush();
+        }
+        if (!inboundChannel.isWritable()) {
+            // TODO does duplicate the writeability change notification from netty? If it does is that a problem?
+            proxyChannelStateMachine.onClientUnwritable();
+        }
+    }
+
+    /**
+     * Called by the {@link ProxyChannelStateMachine} when there is a requirement to buffer RPC's prior to forwarding to the upstream/server.
+     * Generally this is expected to be when client requests are received before we have a connection to the upstream node.
+     * @param msg the RPC to buffer.
+     */
+    void bufferMsg(Object msg) {
+        if (bufferedMsgs == null) {
+            bufferedMsgs = new ArrayList<>();
+        }
+        bufferedMsgs.add(msg);
+    }
+
+    private void addFiltersToPipeline(
+            List<FilterAndInvoker> filters,
+            ChannelPipeline pipeline,
+            Channel inboundChannel) {
+        for (var protocolFilter : filters) {
+            // TODO configurable timeout
+            pipeline.addFirst(
+                    protocolFilter.toString(),
+                    new FilterHandler(
+                            protocolFilter,
+                            20000,
+                            sniHostname,
+                            virtualCluster,
+                            inboundChannel));
+        }
+    }
+
+    private void unblockClient() {
+        isClientBlocked = false;
+        var inboundChannel = clientCtx().channel();
+        inboundChannel.config().setAutoRead(true);
+        proxyChannelStateMachine.onClientWritable();
+    }
+
+    private ChannelHandlerContext clientCtx() {
+        return Objects.requireNonNull(this.clientCtx, "clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
+    }
+
+    private static @NonNull ResponseFrame buildErrorResponseFrame(
+            @NonNull DecodedRequestFrame<?> triggerFrame,
+            @NonNull Throwable error) {
+        var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
+        final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
+        responseHeaderData.setCorrelationId(triggerFrame.correlationId());
+        return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
+    }
+
+    /**
+     * Return an error response to send to the client, or null if no response should be sent.
+     * @param errorCodeEx The exception
+     * @return The response frame
+     */
+    private ResponseFrame errorResponse(
+            @Nullable Throwable errorCodeEx) {
+        ResponseFrame errorResponse;
+        final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
+        if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {
+            errorResponse = buildErrorResponseFrame(triggerFrame, errorCodeEx);
+        }
+        else {
+            errorResponse = null;
+        }
+        return errorResponse;
     }
 }
