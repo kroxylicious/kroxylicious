@@ -38,7 +38,7 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
- * <p>The state machine for a single client's connection to a server.
+ * <p>The state machine for a single client's proxy session.
  * The "session state" is held in the {@link #state} field and is represented by an immutable
  * subclass of {@link ProxyChannelState} which contains state-specific data.
  * Events which cause state transitions are represented by the {@code on*()} family of methods.
@@ -83,11 +83,17 @@ import static org.slf4j.LoggerFactory.getLogger;
  *         ↓                                ↓
  *    clientBlocked ←───────────────→ neitherBlocked
  * </pre>
- * <p>Note that this backpressure state machine is not related to the
+ * <p>Note that this backpressure state machine is not tied to the
  * session state machine: in general backpressure could happen in
- * several of the session states.</p>
+ * several of the session states and is independent of them.</p>
+ *
+ * <p>
+ *     When either side of the proxy stats applying back pressure the proxy should propagate that fact to teh other peer.
+ *     Thus when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
+ * </p>
  */
 public class ProxyChannelStateMachine {
+    private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "NetFilter called NetFilterContext.initiateConnect() more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
 
     /**
@@ -153,14 +159,20 @@ public class ProxyChannelStateMachine {
         return this.state().getClass().getSimpleName();
     }
 
-    void onClientUnwritable() {
+    /**
+     * Notify the state machine when the client applies back pressure.
+     */
+    public void onClientUnwritable() {
         if (!serverReadsBlocked) {
             serverReadsBlocked = true;
             Objects.requireNonNull(backendHandler).blockServerReads();
         }
     }
 
-    void onClientWritable() {
+    /**
+     * Notify the state machine when the client stops applying back pressure
+     */
+    public void onClientWritable() {
         if (serverReadsBlocked) {
             serverReadsBlocked = false;
             Objects.requireNonNull(backendHandler).unblockServerReads();
@@ -168,9 +180,9 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * The channel to the server is no longer writable
+     * Notify the state machine when the server applies back pressure
      */
-    void onServerUnwritable() {
+    public void onServerUnwritable() {
         if (!clientReadsBlocked) {
             clientReadsBlocked = true;
             frontendHandler.blockClientReads();
@@ -178,15 +190,19 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * The channel to the server is now writable
+     * Notify the state machine when the server stops applying back pressure
      */
-    void onServerWritable() {
+    public void onServerWritable() {
         if (clientReadsBlocked) {
             clientReadsBlocked = false;
             frontendHandler.unblockClientReads();
         }
     }
 
+    /**
+     * Notify the statemachine that the client channel has an active TCP connection.
+     * @param frontendHandler with active connection
+     */
     void onClientActive(@NonNull KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
@@ -197,35 +213,29 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    private void toClientActive(
-                                @NonNull ProxyChannelState.ClientActive clientActive,
-                                @NonNull KafkaProxyFrontendHandler frontendHandler) {
-        setState(clientActive);
-        frontendHandler.inClientActive();
-    }
-
+    /**
+     * Notify the statemachine that the netfilter has chosen an outbound peer.
+     * @param peer the upstream host to connect to.
+     * @param filters the set of filters to be applied to the session
+     * @param virtualCluster the virtual cluster the client is connecting too
+     * @param netFilter the netFilter which selected the upstream peer.
+     */
     void onNetFilterInitiateConnect(
-                                    @NonNull HostPort remote,
+                                    @NonNull HostPort peer,
                                     @NonNull List<FilterAndInvoker> filters,
                                     VirtualCluster virtualCluster,
                                     NetFilter netFilter) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
-            toConnecting(selectingServerState.toConnecting(remote), filters, virtualCluster);
+            toConnecting(selectingServerState.toConnecting(peer), filters, virtualCluster);
         }
         else {
-            String msg = "NetFilter called NetFilterContext.initiateConnect() more than once";
-            illegalState(msg + " : filter='" + netFilter + "'");
+            illegalState(DUPLICATE_INITIATE_CONNECT_ERROR + " : netFilter='" + netFilter + "'");
         }
     }
 
-    private void toConnecting(ProxyChannelState.Connecting connecting,
-                              @NonNull List<FilterAndInvoker> filters,
-                              VirtualCluster virtualCluster) {
-        setState(connecting);
-        backendHandler = new KafkaProxyBackendHandler(this, virtualCluster);
-        frontendHandler.inConnecting(connecting.remote(), filters, backendHandler);
-    }
-
+    /**
+     * Notify the statemachine that the upstream connection is ready for RPC calls.
+     */
     void onServerActive() {
         if (state() instanceof ProxyChannelState.Connecting connectedState) {
             toForwarding(connectedState.toForwarding());
@@ -235,11 +245,15 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    private void toForwarding(Forwarding forwarding) {
-        setState(forwarding);
-        Objects.requireNonNull(frontendHandler).inForwarding();
-    }
-
+    /**
+     * <p>Notify the state machine of an unexpected event.
+     * The definition of unexpected events is up to the callers.
+     * An example would be trying to forward an event upstream before the upstream connection is established.
+     * </p>
+     * <p>illegalState implies termination of the proxy session. As this really represents a programming error NO error messages are propagated to clients.</p>
+     *
+     * @param msg the message to be <em>logged</em> in explanation of the error condition
+     */
     void illegalState(@NonNull String msg) {
         if (!(state instanceof Closed)) {
             LOGGER.error("Unexpected event while in {} message: {}, closing channels with no client response.", state, msg);
@@ -247,14 +261,43 @@ public class ProxyChannelStateMachine {
         }
     }
 
+    /**
+     * A message has been received from the upstream node which should be passed to the downstream client
+     * @param msg the object received from the upstream
+     */
     void forwardToClient(Object msg) {
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
     }
 
+    /**
+     * Called to notify the state machine that reading the upstream batch is complete.
+     */
+    void serverReadComplete() {
+        Objects.requireNonNull(frontendHandler).flushToClient();
+    }
+
+    /**
+     * A message has been received from the downstream client which should be passed to the upstream node
+     * @param msg the RPC received from the upstream
+     */
     void forwardToServer(Object msg) {
         Objects.requireNonNull(backendHandler).forwardToServer(msg);
     }
 
+    /**
+     * Called to notify the state machine that reading the downstream the batch is complete.
+     */
+    void clientReadComplete() {
+        if (state instanceof Forwarding) {
+            Objects.requireNonNull(backendHandler).flushToServer();
+        }
+    }
+
+    /**
+     * The proxy has received something from the client. The current state of the session determines what happens to it.
+     * @param dp the decode predicate to be used if the session is still being negotiated
+     * @param msg the RPC received from the downstream client
+     */
     void onClientRequest(@NonNull SaslDecodePredicate dp,
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
@@ -266,6 +309,102 @@ public class ProxyChannelStateMachine {
                 illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
             }
         }
+    }
+
+    /**
+     * ensure the state machine is in the connecting state.
+     * @param msg to be logged if in another state.
+     */
+    void assertIsConnecting(String msg) {
+        if (!(state instanceof ProxyChannelState.Connecting)) {
+            illegalState(msg);
+        }
+    }
+
+    /**
+     * ensure the state machine is in the selecting server state.
+     */
+    void assertIsSelectingServer() {
+        if (!(state instanceof ProxyChannelState.SelectingServer)) {
+            illegalState(KafkaProxyFrontendHandler.NET_FILTER_INVOKED_IN_WRONG_STATE);
+        }
+    }
+
+    /**
+     * Notify the statemachine that the connection to the upstream node has been disconnected.
+     * <p>
+     * This will result in the proxy session being torn down.
+     * </p>
+     */
+    void onServerInactive() {
+        toClosed(null);
+    }
+
+    /**
+     * Notify the statemachine that the connection to the downstream client has been disconnected.
+     * <p>
+     * This will result in the proxy session being torn down.
+     * </p>
+     */
+    void onClientInactive() {
+        toClosed(null);
+    }
+
+    /**
+     * Notify the state machine that something exceptional and un-recoverable has happened on the upstream side.
+     * @param cause the exception that triggered the issue
+     */
+    void onServerException(Throwable cause) {
+        LOGGER.atWarn()
+                .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                .addArgument(cause != null ? cause.getMessage() : "")
+                .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
+        toClosed(cause);
+    }
+
+    /**
+     * Notify the state machine that something exceptional and un-recoverable has happened on the downstream side.
+     * @param cause the exception that triggered the issue
+     */
+    void onClientException(Throwable cause, boolean tlsEnabled) {
+        ApiException errorCodeEx;
+        if (cause instanceof DecoderException de
+                && de.getCause() instanceof FrameOversizedException e) {
+            var tlsHint = tlsEnabled ? "" : " or an unexpected TLS handshake";
+            LOGGER.warn(
+                    "Received over-sized frame from the client, max frame size bytes {}, received frame size bytes {} "
+                            + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
+                    e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
+            errorCodeEx = Errors.INVALID_REQUEST.exception();
+        }
+        else {
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                    .addArgument(cause != null ? cause.getMessage() : "")
+                    .log("Exception from the client channel: {}. Increase log level to DEBUG for stacktrace");
+            errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
+        }
+        toClosed(errorCodeEx);
+    }
+
+    private void toClientActive(
+                                @NonNull ProxyChannelState.ClientActive clientActive,
+                                @NonNull KafkaProxyFrontendHandler frontendHandler) {
+        setState(clientActive);
+        frontendHandler.inClientActive();
+    }
+
+    private void toConnecting(ProxyChannelState.Connecting connecting,
+                              @NonNull List<FilterAndInvoker> filters,
+                              VirtualCluster virtualCluster) {
+        setState(connecting);
+        backendHandler = new KafkaProxyBackendHandler(this, virtualCluster);
+        frontendHandler.inConnecting(connecting.remote(), filters, backendHandler);
+    }
+
+    private void toForwarding(Forwarding forwarding) {
+        setState(forwarding);
+        Objects.requireNonNull(frontendHandler).inForwarding();
     }
 
     private boolean onClientRequestBeforeForwarding(@NonNull SaslDecodePredicate dp, Object msg) {
@@ -352,32 +491,6 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).inSelectingServer();
     }
 
-    void assertIsConnecting(String msg) {
-        if (!(state instanceof ProxyChannelState.Connecting)) {
-            illegalState(msg);
-        }
-    }
-
-    void assertIsSelectingServer() {
-        if (!(state instanceof ProxyChannelState.SelectingServer)) {
-            illegalState(KafkaProxyFrontendHandler.NET_FILTER_INVOKED_IN_WRONG_STATE);
-        }
-    }
-
-    void onServerInactive() {
-        toClosed(null);
-    }
-
-    void serverReadComplete() {
-        Objects.requireNonNull(frontendHandler).flushToClient();
-    }
-
-    void clientReadComplete() {
-        if (state instanceof Forwarding) {
-            Objects.requireNonNull(backendHandler).flushToServer();
-        }
-    }
-
     private void toClosed(@Nullable Throwable errorCodeEx) {
         if (state instanceof Closed) {
             return;
@@ -390,39 +503,6 @@ public class ProxyChannelStateMachine {
 
         // Close the client connection with any error code
         Objects.requireNonNull(frontendHandler).inClosed(errorCodeEx);
-    }
-
-    void onServerException(Throwable cause) {
-        LOGGER.atWarn()
-                .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                .addArgument(cause != null ? cause.getMessage() : "")
-                .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
-        toClosed(cause);
-    }
-
-    void onClientException(Throwable cause, boolean tlsEnabled) {
-        ApiException errorCodeEx;
-        if (cause instanceof DecoderException de
-                && de.getCause() instanceof FrameOversizedException e) {
-            var tlsHint = tlsEnabled ? "" : " or an unexpected TLS handshake";
-            LOGGER.warn(
-                    "Received over-sized frame from the client, max frame size bytes {}, received frame size bytes {} "
-                            + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
-                    e.getMaxFrameSizeBytes(), e.getReceivedFrameSizeBytes(), tlsHint);
-            errorCodeEx = Errors.INVALID_REQUEST.exception();
-        }
-        else {
-            LOGGER.atWarn()
-                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
-                    .addArgument(cause != null ? cause.getMessage() : "")
-                    .log("Exception from the client channel: {}. Increase log level to DEBUG for stacktrace");
-            errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
-        }
-        toClosed(errorCodeEx);
-    }
-
-    void onClientInactive() {
-        toClosed(null);
     }
 
     private void setState(@NonNull ProxyChannelState state) {
