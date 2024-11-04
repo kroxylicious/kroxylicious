@@ -63,11 +63,11 @@ public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter
         implements NetFilter.NetFilterContext {
 
+    private static final String NET_FILTER_INVOKED_IN_WRONG_STATE = "NetFilterContext cannot be used when proxy channel is in ";
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
-    public static final String NET_FILTER_INVOKED_IN_WRONG_STATE = "NetFilter invoked NetFilterContext accessor outside SelectingServer state";
 
     private final boolean logNetwork;
     private final boolean logFrames;
@@ -318,22 +318,19 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String clientHost() {
-        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
-            if (selectingServer.haProxyMessage() != null) {
-                return selectingServer.haProxyMessage().sourceAddress();
-            }
-            else {
-                SocketAddress socketAddress = clientCtx().channel().remoteAddress();
-                if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
-                    return inetSocketAddress.getAddress().getHostAddress();
-                }
-                else {
-                    return String.valueOf(socketAddress);
-                }
-            }
+        final SelectingServer selectingServer = proxyChannelStateMachine
+                .enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
+        if (selectingServer.haProxyMessage() != null) {
+            return selectingServer.haProxyMessage().sourceAddress();
         }
         else {
-            throw netFilterContextInvokedInWrongState();
+            SocketAddress socketAddress = clientCtx().channel().remoteAddress();
+            if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
+                return inetSocketAddress.getAddress().getHostAddress();
+            }
+            else {
+                return String.valueOf(socketAddress);
+            }
         }
     }
 
@@ -345,22 +342,19 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public int clientPort() {
-        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
-            if (selectingServer.haProxyMessage() != null) {
-                return selectingServer.haProxyMessage().sourcePort();
-            }
-            else {
-                SocketAddress socketAddress = clientCtx().channel().remoteAddress();
-                if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
-                    return inetSocketAddress.getPort();
-                }
-                else {
-                    return -1;
-                }
-            }
+        final SelectingServer selectingServer = proxyChannelStateMachine
+                .enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
+        if (selectingServer.haProxyMessage() != null) {
+            return selectingServer.haProxyMessage().sourcePort();
         }
         else {
-            throw netFilterContextInvokedInWrongState();
+            SocketAddress socketAddress = clientCtx().channel().remoteAddress();
+            if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
+                return inetSocketAddress.getPort();
+            }
+            else {
+                return -1;
+            }
         }
     }
 
@@ -372,7 +366,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public SocketAddress srcAddress() {
-        proxyChannelStateMachine.assertIsSelectingServer();
+        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
         return clientCtx().channel().remoteAddress();
     }
 
@@ -384,7 +378,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public SocketAddress localAddress() {
-        proxyChannelStateMachine.assertIsSelectingServer();
+        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
         return clientCtx().channel().localAddress();
     }
 
@@ -396,7 +390,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String authorizedId() {
-        proxyChannelStateMachine.assertIsSelectingServer();
+        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
         return authentication != null ? authentication.authorizationId() : null;
     }
 
@@ -408,12 +402,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String clientSoftwareName() {
-        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
-            return selectingServer.clientSoftwareName();
-        }
-        else {
-            throw new IllegalStateException();
-        }
+        return proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState()).clientSoftwareName();
     }
 
     /**
@@ -424,12 +413,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String clientSoftwareVersion() {
-        if (proxyChannelStateMachine.state() instanceof SelectingServer selectingServer) {
-            return selectingServer.clientSoftwareVersion();
-        }
-        else {
-            throw new IllegalStateException();
-        }
+        return proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState()).clientSoftwareVersion();
     }
 
     /**
@@ -440,7 +424,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String sniHostname() {
-        proxyChannelStateMachine.assertIsSelectingServer();
+        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
         return sniHostname;
     }
 
@@ -626,10 +610,5 @@ public class KafkaProxyFrontendHandler
             inboundChannel.writeAndFlush(msg)
                     .addListener(ChannelFutureListener.CLOSE);
         }
-    }
-
-    private IllegalStateException netFilterContextInvokedInWrongState() {
-        proxyChannelStateMachine.illegalState(NET_FILTER_INVOKED_IN_WRONG_STATE);
-        return new IllegalStateException("NetFilterContext cannot be used when proxy channel is in" + proxyChannelStateMachine.currentState());
     }
 }

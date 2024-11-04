@@ -323,10 +323,17 @@ public class ProxyChannelStateMachine {
 
     /**
      * ensure the state machine is in the selecting server state.
+     *
+     * @return the SelectingServer state
+     * @throws IllegalStateException if the state is not {@link ProxyChannelState.SelectingServer}.
      */
-    void assertIsSelectingServer() {
-        if (!(state instanceof ProxyChannelState.SelectingServer)) {
-            illegalState(KafkaProxyFrontendHandler.NET_FILTER_INVOKED_IN_WRONG_STATE);
+    ProxyChannelState.SelectingServer enforceInSelectingServer(String errorMessage) {
+        if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
+            return selectingServerState;
+        }
+        else {
+            illegalState(errorMessage);
+            throw new IllegalStateException(errorMessage);
         }
     }
 

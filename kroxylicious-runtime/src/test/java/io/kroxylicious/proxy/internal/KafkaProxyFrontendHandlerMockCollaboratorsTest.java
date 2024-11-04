@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Answers;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -114,7 +115,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.state()).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
+        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
         when(channel.remoteAddress()).thenReturn(new LocalAddress("127.0.0.1"));
 
         // When
@@ -130,7 +131,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.state()).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
+        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
         when(channel.remoteAddress()).thenReturn(new InetSocketAddress(SOURCE_ADDRESS, SOURCE_PORT));
 
         // When
@@ -146,7 +147,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.state()).thenReturn(new ProxyChannelState.SelectingServer(HA_PROXY_MESSAGE, "SnappyKafka", "0.1.5"));
+        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(HA_PROXY_MESSAGE, "SnappyKafka", "0.1.5"));
 
         // When
         final String actualClientHost = handler.clientHost();
@@ -162,14 +163,17 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.state()).thenReturn(new ProxyChannelState.Forwarding(HA_PROXY_MESSAGE, "SnappyKafka", "0.1.5"));
+        final ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        when(proxyChannelStateMachine.enforceInSelectingServer(messageCaptor.capture())).thenAnswer(invocation -> {
+            throw new IllegalStateException(messageCaptor.getValue());
+        });
 
         // When
         assertThatThrownBy(() -> handler.clientHost()).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("NetFilterContext cannot be used when proxy channel is in");
 
         // Then
-        verify(proxyChannelStateMachine).illegalState(anyString());
+        verify(proxyChannelStateMachine).enforceInSelectingServer(anyString());
     }
 
     @Test
@@ -178,7 +182,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.state()).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
+        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
         when(channel.remoteAddress()).thenReturn(new LocalAddress("127.0.0.1"));
 
         // When
@@ -194,7 +198,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.state()).thenReturn(new ProxyChannelState.SelectingServer(HA_PROXY_MESSAGE, "SnappyKafka", "0.1.5"));
+        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(HA_PROXY_MESSAGE, "SnappyKafka", "0.1.5"));
 
         // When
         final int actualClientPort = handler.clientPort();
@@ -210,7 +214,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.state()).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
+        when(proxyChannelStateMachine.enforceInSelectingServer(anyString())).thenReturn(new ProxyChannelState.SelectingServer(null, "SnappyKafka", "0.1.5"));
         when(channel.remoteAddress()).thenReturn(new InetSocketAddress(SOURCE_ADDRESS, SOURCE_PORT));
 
         // When
@@ -226,14 +230,17 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler.channelActive(clientCtx);
         final Channel channel = mock(Channel.class);
         when(clientCtx.channel()).thenReturn(channel);
-        when(proxyChannelStateMachine.state()).thenReturn(new ProxyChannelState.Forwarding(HA_PROXY_MESSAGE, "SnappyKafka", "0.1.5"));
+        final ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        when(proxyChannelStateMachine.enforceInSelectingServer(messageCaptor.capture())).thenAnswer(invocation -> {
+            throw new IllegalStateException(messageCaptor.getValue());
+        });
 
         // When
         assertThatThrownBy(() -> handler.clientPort()).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("NetFilterContext cannot be used when proxy channel is in");
 
         // Then
-        verify(proxyChannelStateMachine).illegalState(anyString());
+        verify(proxyChannelStateMachine).enforceInSelectingServer(messageCaptor.capture());
     }
 
     @Test

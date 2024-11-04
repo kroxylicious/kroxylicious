@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import javax.net.ssl.SSLException;
 
@@ -24,8 +25,10 @@ import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -51,6 +54,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doAnswer;
@@ -63,6 +67,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ProxyChannelStateMachineTest {
 
     public static final HostPort BROKER_ADDRESS = new HostPort("localhost", 9092);
@@ -571,6 +576,42 @@ class ProxyChannelStateMachineTest {
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
         verify(frontendHandler).inClosed(expectedException);
         verify(backendHandler).inClosed();
+    }
+
+    @Test
+    void shouldReturnStateWhenInSelectingServer() {
+        // Given
+        stateMachineInSelectingServer();
+
+        // When
+        final SelectingServer actualSelectingServer = proxyChannelStateMachine.enforceInSelectingServer("wibble");
+
+        // Then
+        assertThat(actualSelectingServer).isNotNull();
+    }
+
+    @ParameterizedTest
+    @MethodSource("givenStates")
+    void shouldThrowWhenStateWhenIsNotSelectingServer(Runnable givenState) {
+        // Given
+        givenState.run();
+
+        // When
+        assertThatThrownBy(() -> proxyChannelStateMachine.enforceInSelectingServer("wibble"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("wibble");
+
+        // Then
+    }
+
+    public Stream<Runnable> givenStates() {
+        return Stream.of(
+                this::stateMachineInApiVersionsState,
+                this::stateMachineInHaProxy,
+                this::stateMachineInConnecting,
+                this::stateMachineInClientActive,
+                this::stateMachineInForwarding,
+                this::stateMachineInClosed);
     }
 
     private void stateMachineInClientActive() {
