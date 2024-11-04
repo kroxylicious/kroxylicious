@@ -938,12 +938,19 @@
                         <artifactId>formatter-maven-plugin</artifactId>
                         <executions>
                             <execution>
+                                <!--
+                                The formatter messes up using indentation to convey the tree structures
+                                we construct using fluent builders so we use `// formatter=off` and
+                                `// formatter=on` comments to disable the formatter over some regions of code.
+                                If you don't use `// formatter=on` it will be turned on at the next return statement.
+                                -->
                                 <id>format-sources</id>
                                 <goals>
                                     <goal>format</goal>
                                 </goals>
                                 <phase>process-sources</phase>
-                                <configuration combine.children="append">
+                                <configuration>
+                                    <javaExclusionPattern>(?sm)^[ \t]*// *formatter=off.*?^[ \t]*(return.*?;|// *formatter=on)</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.sourceDirectory}</directory>
                                     </directories>
@@ -956,8 +963,10 @@
                                 </goals>
                                 <phase>process-test-sources</phase>
                                 <configuration>
+                                    <javaExclusionPattern>(?sm)^[ \t]*// *formatter=off.*?^[ \t]*(return.*?;|// *formatter=on)</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.testSourceDirectory}</directory>
+
                                     </directories>
                                 </configuration>
                             </execution>

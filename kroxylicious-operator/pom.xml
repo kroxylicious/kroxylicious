@@ -180,30 +180,6 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>net.revelc.code.formatter</groupId>
-                <artifactId>formatter-maven-plugin</artifactId>
-                <!--
-                The formatter messes up using indentation to convey the tree structures
-                we construct using fluent builders so we use `// formatter=off` and
-                `// formatter=on` comments to disable the formatter over some regions of code.
-                If you don't use `// formatter=on` it will be turned on at the next return statement.
-                -->
-                <executions>
-                    <execution>
-                        <id>format-sources</id>
-                        <configuration>
-                            <javaExclusionPattern>(?sm)^[ \t]*// *formatter=off.*?^[ \t]*(return.*?;|// *formatter=on)</javaExclusionPattern>
-                    </configuration>
-                    </execution>
-                    <execution>
-                        <id>format-test-sources</id>
-                        <configuration>
-                            <javaExclusionPattern>(?sm)^[ \t]*// *formatter=off.*?^[ \t]*(return.*?;|// *formatter=on)</javaExclusionPattern>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
