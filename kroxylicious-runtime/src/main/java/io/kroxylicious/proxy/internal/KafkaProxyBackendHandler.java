@@ -68,7 +68,6 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
         super.channelRegistered(ctx);
     }
 
-
     /**
      * Netty callback that upstream/server channel has successfully connected to the remote peer.
      * This does not mean that the channel is usable by the proxy as TLS negotiation, if required, is still in progress.
