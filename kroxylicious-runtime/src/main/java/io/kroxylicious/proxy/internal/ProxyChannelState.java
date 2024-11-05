@@ -16,7 +16,6 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -33,7 +32,6 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup;
 /**
  * Root of a sealed class hierarchy representing the states of the {@link ProxyChannelStateMachine}.
  */
-@VisibleForTesting
 sealed interface ProxyChannelState permits
         Startup,
         ClientActive,
