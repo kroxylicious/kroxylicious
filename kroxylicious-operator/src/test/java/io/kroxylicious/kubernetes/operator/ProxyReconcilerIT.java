@@ -121,8 +121,8 @@ class ProxyReconcilerIT {
         extension.delete(cr);
 
         await().alias("Secret was deleted").untilAsserted(() -> {
-                    var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
-                    assertThat(secret).isNull();
+            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
+            assertThat(secret).isNull();
         });
         await().alias("Deployment was deleted").untilAsserted(() -> {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
@@ -161,10 +161,10 @@ class ProxyReconcilerIT {
         });
 
         await().untilAsserted(() -> {
-                var service = extension.get(Service.class, CLUSTER_FOO);
-                assertThat(service)
-                        .describedAs("Expect Service for cluster 'foo' to have been deleted")
-                        .isNull();
+            var service = extension.get(Service.class, CLUSTER_FOO);
+            assertThat(service)
+                    .describedAs("Expect Service for cluster 'foo' to have been deleted")
+                    .isNull();
         });
 
         await().untilAsserted(() -> {

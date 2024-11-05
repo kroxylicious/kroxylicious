@@ -122,7 +122,6 @@ public class ClusterService
         Set<Service> secondaryResources = context.eventSourceRetriever().getResourceEventSourceFor(Service.class)
                 .getSecondaryResources(primary);
         return secondaryResources.stream()
-                //.filter(svc1 -> svc1.getMetadata().getOName().contains(CLUSTER_INFIX))
                 .collect(Collectors.toMap(
                         svc -> clusterName(svc),
                         Function.identity()));
