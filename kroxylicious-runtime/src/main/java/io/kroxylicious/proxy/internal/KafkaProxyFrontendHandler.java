@@ -158,7 +158,6 @@ public class KafkaProxyFrontendHandler
                 this.sniHostname = sniCompletionEvent.hostname();
             }
             else {
-                // TODO should this throw or should it call `illegalState` first /instead?
                 throw new IllegalStateException("SNI failed", sniCompletionEvent.cause());
             }
         }
