@@ -305,10 +305,8 @@ public class ProxyChannelStateMachine {
         if (state() instanceof Forwarding) { // post-backend connection
             messageFromClient(msg);
         }
-        else {
-            if (!onClientRequestBeforeForwarding(dp, msg)) {
-                illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
-            }
+        else if (!onClientRequestBeforeForwarding(dp, msg)) {
+            illegalState("Unexpected message received: " + (msg == null ? "null" : "message class=" + msg.getClass()));
         }
     }
 
@@ -421,6 +419,12 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).inForwarding();
     }
 
+    /**
+     * handle a message received from the client prior to connecting to the upstream node
+     * @param dp DecodePredicate to cope with SASL offload
+     * @param msg Message received from the downstream client.
+     * @return <code>false</code> for unsupported message types
+     */
     private boolean onClientRequestBeforeForwarding(@NonNull SaslDecodePredicate dp, Object msg) {
         frontendHandler.bufferMsg(msg);
         if (state() instanceof ProxyChannelState.ClientActive clientActive) {
