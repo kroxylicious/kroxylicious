@@ -186,6 +186,9 @@
                                 <include>**/ST*.java</include>
                                 <include>**/*ST.java</include>
                             </includes>
+                            <excludes>
+                                <exclude>**/*Test.java</exclude>
+                            </excludes>
                         </configuration>
                     </execution>
                 </executions>
