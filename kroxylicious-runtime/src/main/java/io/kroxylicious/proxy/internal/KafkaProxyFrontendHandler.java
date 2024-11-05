@@ -528,7 +528,7 @@ public class KafkaProxyFrontendHandler
         // connection is complete, so first forward the buffered message
         if (bufferedMsgs != null) {
             for (Object bufferedMsg : bufferedMsgs) {
-                proxyChannelStateMachine.forwardToServer(bufferedMsg);
+                proxyChannelStateMachine.messageFromClient(bufferedMsg);
             }
             bufferedMsgs = null;
         }

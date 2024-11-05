@@ -135,7 +135,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
      */
     @Override
     public void channelRead(final ChannelHandlerContext ctx, Object msg) {
-        proxyChannelStateMachine.forwardToClient(msg);
+        proxyChannelStateMachine.messageFromServer(msg);
     }
 
     /**

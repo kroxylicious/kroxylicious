@@ -265,7 +265,7 @@ public class ProxyChannelStateMachine {
      * A message has been received from the upstream node which should be passed to the downstream client
      * @param msg the object received from the upstream
      */
-    void forwardToClient(Object msg) {
+    void messageFromServer(Object msg) {
         Objects.requireNonNull(frontendHandler).forwardToClient(msg);
     }
 
@@ -280,7 +280,7 @@ public class ProxyChannelStateMachine {
      * A message has been received from the downstream client which should be passed to the upstream node
      * @param msg the RPC received from the upstream
      */
-    void forwardToServer(Object msg) {
+    void messageFromClient(Object msg) {
         Objects.requireNonNull(backendHandler).forwardToServer(msg);
     }
 
@@ -302,7 +302,7 @@ public class ProxyChannelStateMachine {
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
         if (state() instanceof Forwarding) { // post-backend connection
-            forwardToServer(msg);
+            messageFromClient(msg);
         }
         else {
             if (!onClientRequestBeforeForwarding(dp, msg)) {

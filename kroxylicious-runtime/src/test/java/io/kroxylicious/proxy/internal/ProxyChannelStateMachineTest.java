@@ -489,7 +489,7 @@ class ProxyChannelStateMachineTest {
         var msg = metadataResponse();
 
         // When
-        proxyChannelStateMachine.forwardToClient(msg);
+        proxyChannelStateMachine.messageFromServer(msg);
 
         // Then
         assertThat(proxyChannelStateMachine.state()).isSameAs(forwarding);

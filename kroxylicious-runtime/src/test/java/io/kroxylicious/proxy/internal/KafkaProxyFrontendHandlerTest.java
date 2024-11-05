@@ -329,7 +329,7 @@ class KafkaProxyFrontendHandlerTest {
                 assertNull(ctx.authorizedId());
             }
 
-            connectionInitiated(ctx); // here!
+            connectionInitiated(ctx);
             return null;
         }).when(filter).selectServer(valueCapture.capture());
 
