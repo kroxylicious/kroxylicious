@@ -1,8 +1,0 @@
-#
-# Copyright Kroxylicious Authors.
-#
-# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
-#
-
-type: io.kroxylicious.kubernetes.operator.SchemaValidatedInvalidResourceException
-message: For each spec.cluster[], the total length of its name and the metadata.name must be at most 54 characters

@@ -41,8 +41,10 @@ class ProxyReconcilerIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconcilerIT.class);
 
     public static final String RESOURCE_NAME = "test-proxy";
-    public static final String INITIAL_BOOTSTRAP = "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092";
-    public static final String CHANGED_BOOTSTRAP = "your-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092";
+    public static final String CLUSTER_FOO = "foo";
+    public static final String CLUSTER_FOO_BOOTSTRAP = "my-cluster-kafka-bootstrap.foo.svc.cluster.local:9092";
+    public static final String CLUSTER_BAR = "bar";
+    public static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
 
     static KubernetesClient client;
 
@@ -89,8 +91,8 @@ class ProxyReconcilerIT {
                     .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
                     .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
                     .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING)
-                    .contains(INITIAL_BOOTSTRAP)
-                    .doesNotContain(CHANGED_BOOTSTRAP);
+                    .contains(CLUSTER_FOO_BOOTSTRAP)
+                    .contains(CLUSTER_BAR_BOOTSTRAP);
         });
         Awaitility.await().alias("Deployment as expected").untilAsserted(() -> {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
@@ -102,7 +104,7 @@ class ProxyReconcilerIT {
         });
         Awaitility.await().alias("cluster Services as expected").untilAsserted(() -> {
             for (var cluster : cr.getSpec().getClusters()) {
-                var service = extension.get(Service.class, ClusterService.serviceName(cr, cluster));
+                var service = extension.get(Service.class, ClusterService.serviceName(cluster));
                 assertThat(service).isNotNull()
                         .extracting(svc -> svc.getSpec().getSelector())
                         .describedAs("Service's selector should select proxy pods")
@@ -118,15 +120,17 @@ class ProxyReconcilerIT {
         var cr = doCreate();
         extension.delete(cr);
 
-        await().alias("Secret as expected").untilAsserted(() -> {
-            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
-            assertThat(secret).isNull();
-
+        await().alias("Secret was deleted").untilAsserted(() -> {
+                    var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
+                    assertThat(secret).isNull();
+        });
+        await().alias("Deployment was deleted").untilAsserted(() -> {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
             assertThat(deployment).isNull();
-
+        });
+        await().alias("Services were deleted").untilAsserted(() -> {
             for (var cluster : cr.getSpec().getClusters()) {
-                var service = extension.get(Service.class, ClusterService.serviceName(cr, cluster));
+                var service = extension.get(Service.class, ClusterService.serviceName(cluster));
                 assertThat(service).isNull();
             }
         });
@@ -139,11 +143,7 @@ class ProxyReconcilerIT {
         // @formatter:off
         var changedCr = new KafkaProxyBuilder(cr)
                 .editSpec()
-                    .editFirstCluster()
-                        .editUpstream()
-                            .withBootstrapServers(CHANGED_BOOTSTRAP)
-                        .endUpstream()
-                    .endCluster()
+                    .removeMatchingFromClusters(cluster -> CLUSTER_FOO.equals(cluster.getName()))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -156,8 +156,25 @@ class ProxyReconcilerIT {
                     .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
                     .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
                     .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING)
-                    .doesNotContain(INITIAL_BOOTSTRAP)
-                    .contains(CHANGED_BOOTSTRAP);
+                    .doesNotContain(CLUSTER_FOO_BOOTSTRAP)
+                    .contains(CLUSTER_BAR_BOOTSTRAP);
+        });
+
+        await().untilAsserted(() -> {
+                var service = extension.get(Service.class, CLUSTER_FOO);
+                assertThat(service)
+                        .describedAs("Expect Service for cluster 'foo' to have been deleted")
+                        .isNull();
+        });
+
+        await().untilAsserted(() -> {
+            var service = extension.get(Service.class, CLUSTER_BAR);
+            assertThat(service)
+                    .describedAs("Expect Service for cluster 'bar' to still exist")
+                    .isNotNull()
+                    .extracting(svc -> svc.getSpec().getSelector())
+                    .describedAs("Service's selector should select proxy pods")
+                    .isEqualTo(ProxyDeployment.podLabels());
         });
         LOGGER.atInfo().log("Test finished");
     }
@@ -176,9 +193,15 @@ class ProxyReconcilerIT {
                 .endMetadata()
                 .withNewSpec()
                     .addNewCluster()
-                        .withName("foo")
+                        .withName(CLUSTER_FOO)
                         .withNewUpstream()
-                            .withBootstrapServers(INITIAL_BOOTSTRAP)
+                            .withBootstrapServers(CLUSTER_FOO_BOOTSTRAP)
+                        .endUpstream()
+                    .endCluster()
+                    .addNewCluster()
+                        .withName(CLUSTER_BAR)
+                        .withNewUpstream()
+                            .withBootstrapServers(CLUSTER_BAR_BOOTSTRAP)
                         .endUpstream()
                     .endCluster()
                 .endSpec()

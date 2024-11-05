@@ -50,6 +50,7 @@ public class ProxyDeployment
                 .editOrNewMetadata()
                     .withName(deploymentName(primary))
                     .withNamespace(primary.getMetadata().getNamespace())
+                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
                     .withLabels(deploymentLabels())
                 .endMetadata()
                 .editOrNewSpec()
@@ -112,7 +113,7 @@ public class ProxyDeployment
                     .withName("metrics")
                 .endPort();
         // broker ports
-        for (var cluster : ClustersUtil.distinctClusters(primary)) {
+        for (var cluster : ResourcesUtil.distinctClusters(primary)) {
             for (var portEntry : ClusterService.clusterPorts(primary, cluster).entrySet()) {
                 containerBuilder.addNewPort()
                         .withContainerPort(portEntry.getKey())

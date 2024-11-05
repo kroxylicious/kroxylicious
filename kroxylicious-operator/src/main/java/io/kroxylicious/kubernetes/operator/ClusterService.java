@@ -27,14 +27,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 
 /**
  * The Kube {@code Service} for a single virtual cluster.
- * This is named like {@code ${cluster.name}-cluster-${KafkaProxy.metadata.name}}.
+ * This is named like {@code ${cluster.name}}, which allows clusters to migrate between proxy
+ * instances in the same namespace without impacts clients using the Service's DNS name.
  */
 @KubernetesDependent
 public class ClusterService
         extends CRUDKubernetesDependentResource<Service, KafkaProxy>
         implements BulkDependentResource<Service, KafkaProxy> {
-
-    public static final String CLUSTER_INFIX = "-cluster-";
 
     public ClusterService() {
         super(Service.class);
@@ -43,19 +42,22 @@ public class ClusterService
     /**
      * @return The {@code metadata.name} of the desired {@code Service}.
      */
-    static String serviceName(KafkaProxy primary, Clusters cluster) {
-        Objects.requireNonNull(primary);
+    static String serviceName(Clusters cluster) {
         Objects.requireNonNull(cluster);
-        String serviceName = cluster.getName() + CLUSTER_INFIX + primary.getMetadata().getName();
-        if (serviceName.length() > 63) {
-            throw new SchemaValidatedInvalidResourceException(
-                    "For each spec.cluster[], the total length of its name and the metadata.name must be at most 54 characters");
-        }
-        return serviceName;
+        return cluster.getName();
+    }
+
+    /**
+     * The inverse of {@link #serviceName(Clusters)}
+     * @param service A service
+     * @return  The name of the cluster corresponding to the given Service
+     */
+    static String clusterName(Service service) {
+        return service.getMetadata().getName();
     }
 
     static Map<Integer, String> clusterPorts(KafkaProxy primary, Clusters cluster) {
-        var clusters = ClustersUtil.distinctClusters(primary);
+        var clusters = ResourcesUtil.distinctClusters(primary);
         for (int clusterNum = 0; clusterNum < clusters.size(); clusterNum++) {
             if (clusters.get(clusterNum).getName().equals(cluster.getName())) {
                 int startPort = 9292 + (100 * clusterNum);
@@ -63,7 +65,7 @@ public class ClusterService
                 return IntStream.range(startPort, startPort + numBrokerPorts).boxed()
                         .collect(Collectors.<Integer, Integer, String, TreeMap<Integer, String>> toMap(
                                 portNum -> portNum,
-                                portNum -> cluster.getName() + CLUSTER_INFIX + portNum,
+                                portNum -> cluster.getName() + "-" + portNum,
                                 (v1, v2) -> {
                                     throw new IllegalStateException();
                                 },
@@ -78,8 +80,9 @@ public class ClusterService
         // @formatter:off
         var serviceSpecBuilder = new ServiceBuilder()
                 .withNewMetadata()
-                    .withName(serviceName(primary, cluster))
+                    .withName(serviceName(cluster))
                     .withNamespace(primary.getMetadata().getNamespace())
+                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
                 .withNewSpec()
                     .withSelector(ProxyDeployment.podLabels());
@@ -103,7 +106,7 @@ public class ClusterService
     public Map<String, Service> desiredResources(
                                                  KafkaProxy primary,
                                                  Context<KafkaProxy> context) {
-        var clusters = ClustersUtil.distinctClusters(primary);
+        var clusters = ResourcesUtil.distinctClusters(primary);
         var result = new HashMap<String, Service>(1 + (int) ((clusters.size() + 1) / 0.75f));
         for (var cluster : clusters) {
             result.put(cluster.getName(), clusterService(primary, cluster));
@@ -119,12 +122,9 @@ public class ClusterService
         Set<Service> secondaryResources = context.eventSourceRetriever().getResourceEventSourceFor(Service.class)
                 .getSecondaryResources(primary);
         return secondaryResources.stream()
-                .filter(svc1 -> svc1.getMetadata().getName().contains(CLUSTER_INFIX))
+                //.filter(svc1 -> svc1.getMetadata().getOName().contains(CLUSTER_INFIX))
                 .collect(Collectors.toMap(
-                        svc -> {
-                            String name = svc.getMetadata().getName();
-                            return name.substring(0, name.indexOf(CLUSTER_INFIX));
-                        },
+                        svc -> clusterName(svc),
                         Function.identity()));
     }
 }

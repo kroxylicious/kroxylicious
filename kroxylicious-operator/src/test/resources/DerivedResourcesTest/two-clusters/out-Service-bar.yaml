@@ -8,22 +8,26 @@
 apiVersion: "v1"
 kind: "Service"
 metadata:
-  name: "bar-cluster-twocluster"
+  name: "bar"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "twocluster"
 spec:
   ports:
-    - name: "bar-cluster-9392"
+    - name: "bar-9392"
       port: 9392
       protocol: "TCP"
       targetPort: 9392
-    - name: "bar-cluster-9393"
+    - name: "bar-9393"
       port: 9393
       protocol: "TCP"
       targetPort: 9393
-    - name: "bar-cluster-9394"
+    - name: "bar-9394"
       port: 9394
       protocol: "TCP"
       targetPort: 9394
-    - name: "bar-cluster-9395"
+    - name: "bar-9395"
       port: 9395
       protocol: "TCP"
       targetPort: 9395

@@ -11,6 +11,10 @@ metadata:
   labels:
     app: "kroxylicious"
   name: "minimal"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "minimal"
 spec:
   replicas: 1
   selector:

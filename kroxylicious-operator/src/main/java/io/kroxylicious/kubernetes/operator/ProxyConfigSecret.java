@@ -67,6 +67,7 @@ public class ProxyConfigSecret
                 .editOrNewMetadata()
                     .withName(secretName(primary))
                     .withNamespace(primary.getMetadata().getNamespace())
+                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
                 .withStringData(Map.of(CONFIG_YAML_KEY, generateProxyConfig(primary)))
                 .build();
@@ -75,7 +76,7 @@ public class ProxyConfigSecret
 
     String generateProxyConfig(KafkaProxy primary) {
 
-        List<Clusters> clusters = ClustersUtil.distinctClusters(primary);
+        List<Clusters> clusters = ResourcesUtil.distinctClusters(primary);
         var virtualClusters = clusters.stream()
                 .collect(Collectors.toMap(
                         Clusters::getName,
@@ -100,7 +101,7 @@ public class ProxyConfigSecret
     }
 
     private static VirtualCluster getVirtualCluster(KafkaProxy primary, Clusters cluster) {
-        var o = ClustersUtil.distinctClusters(primary);
+        var o = ResourcesUtil.distinctClusters(primary);
         var clusterNum = o.indexOf(cluster);
         return new VirtualCluster(
                 new TargetCluster(cluster.getUpstream().getBootstrapServers(), Optional.empty()),
@@ -108,7 +109,7 @@ public class ProxyConfigSecret
                         "PortPerBrokerClusterNetworkAddressConfigProvider",
                         new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                                 new HostPort("localhost", 9292 + (100 * clusterNum)),
-                                ClusterService.serviceName(primary, cluster),
+                                ClusterService.serviceName(cluster),
                                 null,
                                 null,
                                 null)),

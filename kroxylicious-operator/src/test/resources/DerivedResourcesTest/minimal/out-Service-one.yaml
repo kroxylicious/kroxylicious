@@ -8,22 +8,26 @@
 apiVersion: "v1"
 kind: "Service"
 metadata:
-  name: "one-cluster-minimal"
+  name: "one"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "minimal"
 spec:
   ports:
-    - name: "one-cluster-9292"
+    - name: "one-9292"
       port: 9292
       protocol: "TCP"
       targetPort: 9292
-    - name: "one-cluster-9293"
+    - name: "one-9293"
       port: 9293
       protocol: "TCP"
       targetPort: 9293
-    - name: "one-cluster-9294"
+    - name: "one-9294"
       port: 9294
       protocol: "TCP"
       targetPort: 9294
-    - name: "one-cluster-9295"
+    - name: "one-9295"
       port: 9295
       protocol: "TCP"
       targetPort: 9295

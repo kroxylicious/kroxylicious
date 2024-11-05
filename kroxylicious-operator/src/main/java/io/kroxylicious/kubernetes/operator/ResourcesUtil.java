@@ -11,11 +11,24 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Collector;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.OwnerReference;
+import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
+
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 
-public class ClustersUtil {
-    private ClustersUtil() {
+public class ResourcesUtil {
+    private ResourcesUtil() {
+    }
+
+    static <O extends HasMetadata> OwnerReference ownerReferenceTo(O owner) {
+        return new OwnerReferenceBuilder()
+                .withKind(owner.getKind())
+                .withApiVersion(owner.getApiVersion())
+                .withName(owner.getMetadata().getName())
+                .withUid(owner.getMetadata().getUid())
+                .build();
     }
 
     static List<Clusters> distinctClusters(KafkaProxy primary) {

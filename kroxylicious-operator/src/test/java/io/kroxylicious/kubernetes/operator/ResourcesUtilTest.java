@@ -14,14 +14,14 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.ClustersBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ClustersUtilTest {
+class ResourcesUtilTest {
 
     @Test
     void distinctClustersShouldFilterDupes() {
         var foo = new ClustersBuilder().withName("foo").build();
         var bar = new ClustersBuilder().withName("bar").build();
         var foo2 = new ClustersBuilder(foo).build();
-        assertThat(ClustersUtil.distinctClusters(List.of(foo, bar, foo2))).isEqualTo(List.of(foo, bar));
+        assertThat(ResourcesUtil.distinctClusters(List.of(foo, bar, foo2))).isEqualTo(List.of(foo, bar));
     }
 
 }
