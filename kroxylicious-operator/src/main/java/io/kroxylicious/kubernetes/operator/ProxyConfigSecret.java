@@ -62,7 +62,7 @@ public class ProxyConfigSecret
     @Override
     protected Secret desired(KafkaProxy primary,
                              Context<KafkaProxy> context) {
-        // formatter=off
+        // @formatter:off
         return new SecretBuilder()
                 .editOrNewMetadata()
                     .withName(secretName(primary))
@@ -70,6 +70,7 @@ public class ProxyConfigSecret
                 .endMetadata()
                 .withStringData(Map.of(CONFIG_YAML_KEY, generateProxyConfig(primary)))
                 .build();
+        // @formatter:on
     }
 
     String generateProxyConfig(KafkaProxy primary) {

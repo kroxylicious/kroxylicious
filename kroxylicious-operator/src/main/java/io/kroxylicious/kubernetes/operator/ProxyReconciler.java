@@ -36,7 +36,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ConditionsBuilde
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-// formatter=off
+// @formatter:off
 @ControllerConfiguration(dependents = {
         @Dependent(
                 name = ProxyReconciler.CONFIG_DEP,
@@ -60,7 +60,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
                 //useEventSourceWithName = ProxyReconciler.CLUSTERS_DEP
         )
 })
-// formatter=on
+// @formatter:on
 public class ProxyReconciler implements
         Reconciler<KafkaProxy>,
         ErrorStatusHandler<KafkaProxy>,
@@ -99,13 +99,14 @@ public class ProxyReconciler implements
 
     private static KafkaProxy buildStatus(KafkaProxy primary,
                                           @Nullable Exception exception) {
-        // formatter=off
+        // @formatter:off
         return new KafkaProxyBuilder(primary)
                 .editOrNewStatus()
                     .withObservedGeneration(primary.getMetadata().getGeneration())
                     .withConditions(effectiveReadyCondition(primary, exception))
                 .endStatus()
             .build();
+        // @formatter:on
     }
 
     /**

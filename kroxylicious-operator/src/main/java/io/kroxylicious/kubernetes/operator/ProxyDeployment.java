@@ -44,7 +44,7 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
-        // formatter=off
+        // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
                     .withName(deploymentName(primary))
@@ -59,6 +59,7 @@ public class ProxyDeployment
                     .withTemplate(podTemplate(primary))
                 .endSpec()
                 .build();
+        // @formatter:on
     }
 
     private static Map<String, String> deploymentSelector() {
@@ -74,7 +75,7 @@ public class ProxyDeployment
     }
 
     private PodTemplateSpec podTemplate(KafkaProxy primary) {
-        // formatter=off
+        // @formatter:off
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
                     .withLabels(podLabels())
@@ -89,10 +90,11 @@ public class ProxyDeployment
                     .endVolume()
                 .endSpec()
                 .build();
+        // @formatter:on
     }
 
     private static Container proxyContainer(KafkaProxy primary) {
-        // formatter=off
+        // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
                 .withImage("quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT")
@@ -118,5 +120,6 @@ public class ProxyDeployment
             }
         }
         return containerBuilder.build();
+        // @formatter:on
     }
 }

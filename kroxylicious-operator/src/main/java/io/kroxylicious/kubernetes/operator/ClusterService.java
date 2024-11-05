@@ -75,7 +75,7 @@ public class ClusterService
 
     protected Service clusterService(KafkaProxy primary,
                                      Clusters cluster) {
-        // formatter=off
+        // @formatter:off
         var serviceSpecBuilder = new ServiceBuilder()
                 .withNewMetadata()
                     .withName(serviceName(primary, cluster))
@@ -96,6 +96,7 @@ public class ClusterService
         return serviceSpecBuilder
                 .endSpec()
                 .build();
+        // @formatter:on
     }
 
     @Override

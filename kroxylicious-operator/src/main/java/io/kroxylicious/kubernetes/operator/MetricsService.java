@@ -53,7 +53,7 @@ public class MetricsService
     public Service desired(
                            KafkaProxy primary,
                            Context<KafkaProxy> context) {
-        // formatter=off
+        // @formatter:off
         return new ServiceBuilder()
                 .withNewMetadata()
                     .withName(serviceName(primary))
@@ -69,5 +69,6 @@ public class MetricsService
                     .endPort()
                 .endSpec()
                 .build();
+        // @formatter:on
     }
 }
