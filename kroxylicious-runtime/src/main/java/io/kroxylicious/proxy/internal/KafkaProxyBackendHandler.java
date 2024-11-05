@@ -174,7 +174,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     }
 
     /**
-     * Called by the {@link ProxyChannelStateMachine} when the bach from the downstream/client side is complete.
+     * Called by the {@link ProxyChannelStateMachine} when the batch from the downstream/client side is complete.
      */
     public void flushToServer() {
         if (serverCtx != null) {
@@ -222,7 +222,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @Override
     public String toString() {
         // Don't include proxyChannelStateMachine's toString here
-        // because proxyChannelStateMachine's toString will include the backends toString
+        // because proxyChannelStateMachine's toString will include the backend's toString
         // and we don't want a SOE.
         return "KafkaProxyBackendHandler{" + ", serverCtx=" + serverCtx + ", proxyChannelState=" + this.proxyChannelStateMachine.currentState()
                 + ", pendingServerFlushes=" + pendingServerFlushes + '}';
