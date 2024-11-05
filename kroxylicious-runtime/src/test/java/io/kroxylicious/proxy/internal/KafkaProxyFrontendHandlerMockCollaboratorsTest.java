@@ -170,7 +170,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // When
         assertThatThrownBy(() -> handler.clientHost()).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("NetFilterContext cannot be used when proxy channel is in");
+                .hasMessageContaining("NetFilterContext invoked in wrong session state");
 
         // Then
         verify(proxyChannelStateMachine).enforceInSelectingServer(anyString());
@@ -237,7 +237,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
 
         // When
         assertThatThrownBy(() -> handler.clientPort()).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("NetFilterContext cannot be used when proxy channel is in");
+                .hasMessageContaining("NetFilterContext invoked in wrong session state");
 
         // Then
         verify(proxyChannelStateMachine).enforceInSelectingServer(messageCaptor.capture());

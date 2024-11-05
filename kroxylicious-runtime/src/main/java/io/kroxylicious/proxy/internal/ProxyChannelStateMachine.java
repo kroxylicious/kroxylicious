@@ -298,7 +298,8 @@ public class ProxyChannelStateMachine {
      * @param dp the decode predicate to be used if the session is still being negotiated
      * @param msg the RPC received from the downstream client
      */
-    void onClientRequest(@NonNull SaslDecodePredicate dp,
+    void onClientRequest(
+                         @NonNull SaslDecodePredicate dp,
                          Object msg) {
         Objects.requireNonNull(frontendHandler);
         if (state() instanceof Forwarding) { // post-backend connection
@@ -333,7 +334,12 @@ public class ProxyChannelStateMachine {
         }
         else {
             illegalState(errorMessage);
-            throw new IllegalStateException(errorMessage);
+            throw new IllegalStateException("State required to be "
+                    + ProxyChannelState.SelectingServer.class.getSimpleName()
+                    + " but was "
+                    + currentState()
+                    + ":"
+                    + errorMessage);
         }
     }
 
@@ -401,7 +407,8 @@ public class ProxyChannelStateMachine {
         frontendHandler.inClientActive();
     }
 
-    private void toConnecting(ProxyChannelState.Connecting connecting,
+    private void toConnecting(
+                              ProxyChannelState.Connecting connecting,
                               @NonNull List<FilterAndInvoker> filters,
                               VirtualCluster virtualCluster) {
         setState(connecting);
@@ -487,7 +494,8 @@ public class ProxyChannelStateMachine {
         setState(haProxy);
     }
 
-    private void toApiVersions(ProxyChannelState.ApiVersions apiVersions,
+    private void toApiVersions(
+                               ProxyChannelState.ApiVersions apiVersions,
                                DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
         setState(apiVersions);
         Objects.requireNonNull(frontendHandler).inApiVersions(apiVersionsFrame);

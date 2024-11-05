@@ -128,7 +128,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * Netty callback that something has been read from the <em>upstream/server</em> channel.
-     * There may be further calls to this method before a call to {@code channelReadComplete()} 
+     * There may be further calls to this method before a call to {@code channelReadComplete()}
      * signals the end of the current read operation.
      * @param ctx The context for the upstream/server channel.
      * @param msg the message read from the channel.

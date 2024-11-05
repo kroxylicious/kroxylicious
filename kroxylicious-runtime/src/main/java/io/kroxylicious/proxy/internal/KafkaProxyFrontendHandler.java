@@ -63,7 +63,7 @@ public class KafkaProxyFrontendHandler
         extends ChannelInboundHandlerAdapter
         implements NetFilter.NetFilterContext {
 
-    private static final String NET_FILTER_INVOKED_IN_WRONG_STATE = "NetFilterContext cannot be used when proxy channel is in ";
+    private static final String NET_FILTER_INVOKED_IN_WRONG_STATE = "NetFilterContext invoked in wrong session state";
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
 
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
@@ -319,7 +319,7 @@ public class KafkaProxyFrontendHandler
     @Override
     public String clientHost() {
         final SelectingServer selectingServer = proxyChannelStateMachine
-                .enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
+                .enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         if (selectingServer.haProxyMessage() != null) {
             return selectingServer.haProxyMessage().sourceAddress();
         }
@@ -343,7 +343,7 @@ public class KafkaProxyFrontendHandler
     @Override
     public int clientPort() {
         final SelectingServer selectingServer = proxyChannelStateMachine
-                .enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
+                .enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         if (selectingServer.haProxyMessage() != null) {
             return selectingServer.haProxyMessage().sourcePort();
         }
@@ -366,7 +366,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public SocketAddress srcAddress() {
-        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
+        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         return clientCtx().channel().remoteAddress();
     }
 
@@ -378,7 +378,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public SocketAddress localAddress() {
-        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
+        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         return clientCtx().channel().localAddress();
     }
 
@@ -390,7 +390,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String authorizedId() {
-        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
+        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         return authentication != null ? authentication.authorizationId() : null;
     }
 
@@ -402,7 +402,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String clientSoftwareName() {
-        return proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState()).clientSoftwareName();
+        return proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE).clientSoftwareName();
     }
 
     /**
@@ -413,7 +413,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String clientSoftwareVersion() {
-        return proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState()).clientSoftwareVersion();
+        return proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE).clientSoftwareVersion();
     }
 
     /**
@@ -424,7 +424,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public String sniHostname() {
-        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE + proxyChannelStateMachine.currentState());
+        proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         return sniHostname;
     }
 

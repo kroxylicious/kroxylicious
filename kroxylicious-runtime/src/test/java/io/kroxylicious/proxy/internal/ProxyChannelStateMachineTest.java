@@ -599,7 +599,7 @@ class ProxyChannelStateMachineTest {
         // When
         assertThatThrownBy(() -> proxyChannelStateMachine.enforceInSelectingServer("wibble"))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("wibble");
+                .hasMessageEndingWith("wibble");
 
         // Then
     }
