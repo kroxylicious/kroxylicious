@@ -100,13 +100,6 @@ class ProxyReconcilerIT {
                     .anyMatch(vol -> vol.getSecret() != null
                             && vol.getSecret().getSecretName().equals(ProxyConfigSecret.secretName(cr)));
         });
-        Awaitility.await().alias("metrics Service as expected").untilAsserted(() -> {
-            var service = extension.get(Service.class, MetricsService.serviceName(cr));
-            assertThat(service).isNotNull()
-                    .extracting(svc -> svc.getSpec().getSelector())
-                    .describedAs("Service's selector should select proxy pods")
-                    .isEqualTo(ProxyDeployment.podLabels());
-        });
         Awaitility.await().alias("cluster Services as expected").untilAsserted(() -> {
             for (var cluster : cr.getSpec().getClusters()) {
                 var service = extension.get(Service.class, ClusterService.serviceName(cr, cluster));
@@ -136,9 +129,6 @@ class ProxyReconcilerIT {
                 var service = extension.get(Service.class, ClusterService.serviceName(cr, cluster));
                 assertThat(service).isNull();
             }
-
-            var service = extension.get(Service.class, MetricsService.serviceName(cr));
-            assertThat(service).isNull();
         });
         LOGGER.atInfo().log("Test finished");
     }
@@ -146,7 +136,7 @@ class ProxyReconcilerIT {
     @Test
     void testUpdate() {
         final var cr = doCreate();
-        // formatter=off
+        // @formatter:off
         var changedCr = new KafkaProxyBuilder(cr)
                 .editSpec()
                     .editFirstCluster()
@@ -156,7 +146,7 @@ class ProxyReconcilerIT {
                     .endCluster()
                 .endSpec()
                 .build();
-        // formatter=on
+        // @formatter:on
         extension.replace(changedCr);
 
         await().untilAsserted(() -> {
@@ -179,7 +169,7 @@ class ProxyReconcilerIT {
     }
 
     KafkaProxy testResource() {
-        // formatter=off
+        // @formatter:off
         return new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withName(RESOURCE_NAME)
@@ -193,5 +183,6 @@ class ProxyReconcilerIT {
                     .endCluster()
                 .endSpec()
                 .build();
+        // @formatter:on
     }
 }

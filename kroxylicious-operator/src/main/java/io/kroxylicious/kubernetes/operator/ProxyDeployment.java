@@ -29,6 +29,7 @@ public class ProxyDeployment
     public static final String CONFIG_VOLUME = "config-volume";
     public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/config.yaml";
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
+    public static final int METRICS_PORT = 9190;
 
     public ProxyDeployment() {
         super(Deployment.class);
@@ -107,7 +108,7 @@ public class ProxyDeployment
                 .endVolumeMount()
                 // metrics port
                 .addNewPort()
-                    .withContainerPort(MetricsService.METRICS_PORT)
+                    .withContainerPort(METRICS_PORT)
                     .withName("metrics")
                 .endPort();
         // broker ports

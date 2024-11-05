@@ -8,26 +8,19 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.spi.LoggingEventBuilder;
 
-import io.fabric8.kubernetes.api.model.Service;
 import io.javaoperatorsdk.operator.AggregatedOperatorException;
-import io.javaoperatorsdk.operator.api.config.informer.InformerConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusHandler;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
-import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
-import io.javaoperatorsdk.operator.api.reconciler.EventSourceInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.Dependent;
-import io.javaoperatorsdk.operator.processing.event.source.EventSource;
-import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
@@ -48,12 +41,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
                 readyPostcondition = DeploymentReadyCondition.class
         ),
         @Dependent(
-                name = ProxyReconciler.METRICS_DEP,
-                type = MetricsService.class,
-                dependsOn = { ProxyReconciler.DEPLOYMENT_DEP }
-                //useEventSourceWithName = ProxyReconciler.METRICS_DEP
-        ),
-        @Dependent(
                 name = ProxyReconciler.CLUSTERS_DEP,
                 type = ClusterService.class,
                 dependsOn = { ProxyReconciler.DEPLOYMENT_DEP }
@@ -63,14 +50,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 // @formatter:on
 public class ProxyReconciler implements
         Reconciler<KafkaProxy>,
-        ErrorStatusHandler<KafkaProxy>,
-        EventSourceInitializer<KafkaProxy> {
+        ErrorStatusHandler<KafkaProxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconciler.class);
 
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
-    public static final String METRICS_DEP = "metrics";
     public static final String CLUSTERS_DEP = "clusters";
 
     @Override
@@ -207,23 +192,5 @@ public class ProxyReconciler implements
                 .withStatus(exception == null ? Conditions.Status.TRUE : Conditions.Status.FALSE)
                 .withType("Ready")
                 .build();
-    }
-
-    @Override
-    public Map<String, EventSource> prepareEventSources(
-                                                        EventSourceContext<KafkaProxy> context) {
-
-        InformerEventSource<Service, KafkaProxy> ies1 = new InformerEventSource<>(
-                InformerConfiguration.from(Service.class, context)
-                        .build(),
-                context);
-
-        InformerEventSource<Service, KafkaProxy> ies2 = new InformerEventSource<>(
-                InformerConfiguration.from(Service.class, context)
-                        .build(),
-                context);
-
-        return Map.of(ClusterService.class.getName(), ies1,
-                MetricsService.class.getName(), ies2);
     }
 }

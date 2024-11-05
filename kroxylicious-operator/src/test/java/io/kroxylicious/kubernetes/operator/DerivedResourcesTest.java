@@ -121,7 +121,7 @@ class DerivedResourcesTest {
      * Specialization of {@link DesiredFn} for KubernetesDependentResource
      * (i.e. where the desired() method returns an R).
      */
-    // formatter=off
+    // @formatter:off
     record SingletonDependentResourceDesiredFn<
             D extends KubernetesDependentResource<R, P>,
             P extends HasMetadata,
@@ -132,7 +132,7 @@ class DerivedResourcesTest {
                 TriFunction<D, P, Context<P>, R> fn
             )
             implements DesiredFn<P, R> {
-        // formatter=on
+        // @formatter:on
         @Override
         public Map<Path, ResourceOrError<R>> invokeDesired(P primary, Context<P> context) {
             ResourceOrError<R> resource;
@@ -151,7 +151,7 @@ class DerivedResourcesTest {
      * Specialization of {@link DesiredFn} for BulkDependentResource
      * (i.e. where the desired() method returns a Map<String, R>).
      */
-    // formatter=off
+    // @formatter:off
     record BulkDependentResourceDesiredFn<
             D extends KubernetesDependentResource<R, P> & BulkDependentResource<R, P>,
             P extends HasMetadata,
@@ -162,7 +162,7 @@ class DerivedResourcesTest {
                 TriFunction<D, P, Context<P>, Map<String, R>> fn
             )
             implements DesiredFn<P, R> {
-        // formatter=on
+        // @formatter:on
         @Override
         public Map<Path, ResourceOrError<R>> invokeDesired(P primary, Context<P> context) {
             try {
@@ -182,8 +182,7 @@ class DerivedResourcesTest {
         var list = List.<DesiredFn<KafkaProxy, ?>> of(
                 new SingletonDependentResourceDesiredFn<>(new ProxyConfigSecret(), "Secret", ProxyConfigSecret::desired),
                 new SingletonDependentResourceDesiredFn<>(new ProxyDeployment(), "Deployment", ProxyDeployment::desired),
-                new BulkDependentResourceDesiredFn<>(new ClusterService(), "Service", ClusterService::desiredResources),
-                new SingletonDependentResourceDesiredFn<>(new MetricsService(), "Service", MetricsService::desired));
+                new BulkDependentResourceDesiredFn<>(new ClusterService(), "Service", ClusterService::desiredResources));
         return dependentResourcesShouldEqual(list);
     }
 

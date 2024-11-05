@@ -116,7 +116,7 @@ public class ClusterService
     public Map<String, Service> getSecondaryResources(
                                                       KafkaProxy primary,
                                                       Context<KafkaProxy> context) {
-        Set<Service> secondaryResources = context.eventSourceRetriever().getResourceEventSourceFor(Service.class, "io.kroxylicious.kubernetes.operator.ClusterService")
+        Set<Service> secondaryResources = context.eventSourceRetriever().getResourceEventSourceFor(Service.class)
                 .getSecondaryResources(primary);
         return secondaryResources.stream()
                 .filter(svc1 -> svc1.getMetadata().getName().contains(CLUSTER_INFIX))
