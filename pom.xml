@@ -665,11 +665,6 @@
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-site-plugin</artifactId>
-                    <version>3.20.0</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>3.5.1</version>
                     <configuration>
@@ -1017,7 +1012,8 @@
                                             <banLatest>true</banLatest>
                                             <banRelease>true</banRelease>
                                             <banSnapshots>false</banSnapshots>
-                                            <phases>clean,deploy,site</phases>
+                                            <phases>clean,deploy</phases>
+                                            <unCheckedPluginList>org.apache.maven.plugins:maven-site-plugin</unCheckedPluginList>
                                         </requirePluginVersions>
                                     </rules>
                                 </configuration>
