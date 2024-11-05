@@ -6,13 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.Collections;
-import java.util.IdentityHashMap;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.ElectionType;
@@ -185,7 +178,6 @@ import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.security.auth.KafkaPrincipal;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
-import io.kroxylicious.proxy.frame.ResponseFrame;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
@@ -197,57 +189,15 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  */
 public class KafkaProxyExceptionMapper {
 
-    private final ConcurrentMap<Class<? extends Throwable>, Function<? extends Throwable, Optional<ResponseFrame>>> responsesByExceptionType;
-
-    public KafkaProxyExceptionMapper() {
-        responsesByExceptionType = new ConcurrentHashMap<>();
+    private KafkaProxyExceptionMapper() {
     }
 
-    /**
-     * Register a function to be invoked when the particular throwable is encountered.
-     * @param throwableClass the target class to register
-     * @param responseFunction the function to invoke when the throwable is encountered
-     */
-    public <E extends Throwable> void registerExceptionResponse(Class<E> throwableClass,
-                                                                Function<E, Optional<ResponseFrame>> responseFunction) {
-        responsesByExceptionType.put(throwableClass, responseFunction);
-    }
-
-    /**
-     * Maps a given throwable by applying the function registered for the shallowest cause.
-     * @param throwable to have its cause chain searched.
-     * @return empty if the connection should be closed without any response,
-     * otherwise a non-empty (and not null) response to send to the client.
-     */
-    @SuppressWarnings("java:S1452")
-    public Optional<ResponseFrame> mapException(Throwable throwable) {
-        var candidate = throwable;
-        Set<Throwable> visitedExceptions = Collections.newSetFromMap(new IdentityHashMap<>());
-        while (candidate != null
-                && visitedExceptions.add(candidate)) { // Exit the loop when we see an exception we saw already
-
-            final var mappedFunction = containsMapping(candidate);
-            if (mappedFunction.isPresent()) {
-                return mappedFunction.get().apply(candidate);
-            }
-            candidate = candidate.getCause();
-        }
-        return Optional.empty();
-    }
-
-    private <E extends Throwable> Optional<? extends Function<? super E, Optional<ResponseFrame>>> containsMapping(E localCause) {
-        return responsesByExceptionType.entrySet().stream()
-                .filter(entry -> entry.getKey().isInstance(localCause))
-                .map(entry -> (Function<? super E, Optional<ResponseFrame>>) entry.getValue())
-                .findFirst();
-    }
-
-    public ApiMessage errorResponseMessage(DecodedRequestFrame<?> frame, Throwable error) {
+    public static ApiMessage errorResponseMessage(DecodedRequestFrame<?> frame, Throwable error) {
         return errorResponse(frame, error).data();
     }
 
     @VisibleForTesting
-    AbstractResponse errorResponse(DecodedRequestFrame<?> frame, Throwable error) {
+    static AbstractResponse errorResponse(DecodedRequestFrame<?> frame, Throwable error) {
         /*
          * This monstrosity is needed because there isn't any _nicely_ abstracted code we can borrow from Kafka
          * which creates and response with error codes set appropriately.

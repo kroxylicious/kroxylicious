@@ -55,9 +55,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
 
-    public KafkaProxyInitializer(FilterChainFactory filterChainFactory, PluginFactoryRegistry pfr, boolean tls,
-                                 VirtualClusterBindingResolver virtualClusterBindingResolver, EndpointReconciler endpointReconciler,
-                                 boolean haproxyProtocol, Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
+    public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
+                                 PluginFactoryRegistry pfr,
+                                 boolean tls,
+                                 VirtualClusterBindingResolver virtualClusterBindingResolver,
+                                 EndpointReconciler endpointReconciler,
+                                 boolean haproxyProtocol,
+                                 Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
@@ -159,7 +163,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
         var virtualCluster = binding.virtualCluster();
         ChannelPipeline pipeline = ch.pipeline();
-        final KafkaProxyExceptionMapper exceptionHandler = new KafkaProxyExceptionMapper();
         if (virtualCluster.isLogNetwork()) {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
@@ -184,12 +187,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         if (!authnHandlers.isEmpty()) {
             LOGGER.debug("Adding authn handler for handlers {}", authnHandlers);
-            pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers, exceptionHandler));
+            pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers));
         }
 
         ApiVersionsServiceImpl apiVersionService = new ApiVersionsServiceImpl();
         final NetFilter netFilter = new InitalizerNetFilter(dp, apiVersionService, ch, binding, pfr, filterChainFactory, endpointReconciler);
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster, exceptionHandler);
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster);
 
         pipeline.addLast("netHandler", frontendHandler);
 
