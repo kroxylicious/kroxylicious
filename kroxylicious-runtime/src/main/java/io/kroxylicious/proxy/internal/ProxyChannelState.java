@@ -48,7 +48,7 @@ sealed interface ProxyChannelState permits
     record Startup() implements ProxyChannelState {
         public static final Startup STARTING_STATE = new Startup();
 
-        public ClientActive toCLientActive() {
+        public ClientActive toClientActive() {
             return new ClientActive();
         }
     }

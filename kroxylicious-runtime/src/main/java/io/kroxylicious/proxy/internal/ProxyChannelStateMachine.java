@@ -206,7 +206,7 @@ public class ProxyChannelStateMachine {
     void onClientActive(@NonNull KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
-            toClientActive(STARTING_STATE.toCLientActive(), frontendHandler);
+            toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
         else {
             illegalState("Client activation while not in the start state");
