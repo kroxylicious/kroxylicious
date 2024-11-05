@@ -184,7 +184,7 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void inStartStateShouldCallInClientActive() {
+    void shouldNotifyHandlerOnTransitionFromStartToClientActive() {
         // Given
 
         // When
