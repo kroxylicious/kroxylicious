@@ -107,7 +107,7 @@ public class ProxyDeployment
                 .endVolumeMount()
                 // metrics port
                 .addNewPort()
-                    .withContainerPort(MetricsService.metricsPort())
+                    .withContainerPort(MetricsService.METRICS_PORT)
                     .withName("metrics")
                 .endPort();
         // broker ports

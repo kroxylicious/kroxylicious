@@ -24,6 +24,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 public class MetricsService
         extends CRUDKubernetesDependentResource<Service, KafkaProxy> {
 
+    public static final int METRICS_PORT = 9190;
+
     public MetricsService() {
         super(Service.class);
     }
@@ -45,10 +47,6 @@ public class MetricsService
         return "metrics-" + primary.getMetadata().getName();
     }
 
-    static int metricsPort() {
-        return 9190;
-    }
-
     @Override
     public Service desired(
                            KafkaProxy primary,
@@ -63,8 +61,8 @@ public class MetricsService
                     .withSelector(ProxyDeployment.podLabels())
                     .addNewPort()
                         .withName("metrics")
-                        .withPort(metricsPort())
-                        .withTargetPort(new IntOrString(metricsPort()))
+                        .withPort(METRICS_PORT)
+                        .withTargetPort(new IntOrString(METRICS_PORT))
                         .withProtocol("TCP")
                     .endPort()
                 .endSpec()
