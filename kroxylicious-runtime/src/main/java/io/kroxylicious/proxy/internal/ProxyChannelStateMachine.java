@@ -165,7 +165,7 @@ public class ProxyChannelStateMachine {
     public void onClientUnwritable() {
         if (!serverReadsBlocked) {
             serverReadsBlocked = true;
-            Objects.requireNonNull(backendHandler).blockServerReads();
+            Objects.requireNonNull(backendHandler).applyBackpressure();
         }
     }
 
@@ -175,7 +175,7 @@ public class ProxyChannelStateMachine {
     public void onClientWritable() {
         if (serverReadsBlocked) {
             serverReadsBlocked = false;
-            Objects.requireNonNull(backendHandler).unblockServerReads();
+            Objects.requireNonNull(backendHandler).relieveBackpressure();
         }
     }
 
@@ -185,7 +185,7 @@ public class ProxyChannelStateMachine {
     public void onServerUnwritable() {
         if (!clientReadsBlocked) {
             clientReadsBlocked = true;
-            frontendHandler.blockClientReads();
+            frontendHandler.applyBackpressure();
         }
     }
 
@@ -195,7 +195,7 @@ public class ProxyChannelStateMachine {
     public void onServerWritable() {
         if (clientReadsBlocked) {
             clientReadsBlocked = false;
-            frontendHandler.unblockClientReads();
+            frontendHandler.relieveBackpressure();
         }
     }
 

@@ -94,7 +94,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onServerUnwritable();
 
         // Then
-        verify(frontendHandler, times(1)).blockClientReads();
+        verify(frontendHandler, times(1)).applyBackpressure();
     }
 
     @Test
@@ -108,7 +108,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onServerWritable();
 
         // Then
-        verify(frontendHandler, times(1)).unblockClientReads();
+        verify(frontendHandler, times(1)).relieveBackpressure();
     }
 
     @Test
@@ -121,7 +121,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onClientUnwritable();
 
         // Then
-        verify(backendHandler, times(1)).blockServerReads();
+        verify(backendHandler, times(1)).applyBackpressure();
     }
 
     @Test
@@ -180,7 +180,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onClientWritable();
 
         // Then
-        verify(backendHandler, times(1)).unblockServerReads();
+        verify(backendHandler, times(1)).relieveBackpressure();
     }
 
     @Test

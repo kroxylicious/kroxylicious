@@ -192,7 +192,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     /**
      * Callback from the {@link ProxyChannelStateMachine} triggered when it wants to apply backpressure to the <em>upstream/server</em> connection
      */
-    public void blockServerReads() {
+    public void applyBackpressure() {
         if (serverCtx != null) {
             serverCtx.channel().config().setAutoRead(false);
         }
@@ -201,7 +201,7 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     /**
      * Callback from the {@link ProxyChannelStateMachine} triggered when it wants to remove backpressure from the <em>upstream/server</em> connection
      */
-    public void unblockServerReads() {
+    public void relieveBackpressure() {
         if (serverCtx != null) {
             serverCtx.channel().config().setAutoRead(true);
         }

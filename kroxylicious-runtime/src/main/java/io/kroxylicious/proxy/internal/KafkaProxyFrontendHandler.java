@@ -224,7 +224,7 @@ public class KafkaProxyFrontendHandler
     /**
      * Callback from the {@link ProxyChannelStateMachine} triggered when it wants to apply backpressure to the <em>downstream/client</em> connection
      */
-    void blockClientReads() {
+    void applyBackpressure() {
         if (clientCtx != null) {
             this.clientCtx.channel().config().setAutoRead(false);
         }
@@ -233,7 +233,7 @@ public class KafkaProxyFrontendHandler
     /**
      * Callback from the {@link ProxyChannelStateMachine} triggered when it wants to remove backpressure from the <em>downstream/client</em> connection
      */
-    void unblockClientReads() {
+    void relieveBackpressure() {
         if (clientCtx != null) {
             this.clientCtx.channel().config().setAutoRead(true);
         }
