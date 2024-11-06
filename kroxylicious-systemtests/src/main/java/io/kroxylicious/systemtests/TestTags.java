@@ -6,9 +6,12 @@
 
 package io.kroxylicious.systemtests;
 
-public interface TestTags {
+public final class TestTags {
+
+    private TestTags() {}
+
     /**
      * Tag for unit tests located in system tests package.
      */
-    String UNIT = "unit";
+    public static final String UNIT = "unit";
 }
