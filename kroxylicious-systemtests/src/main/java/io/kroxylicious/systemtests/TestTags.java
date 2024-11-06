@@ -8,7 +8,8 @@ package io.kroxylicious.systemtests;
 
 public final class TestTags {
 
-    private TestTags() {}
+    private TestTags() {
+    }
 
     /**
      * Tag for unit tests located in system tests package.
