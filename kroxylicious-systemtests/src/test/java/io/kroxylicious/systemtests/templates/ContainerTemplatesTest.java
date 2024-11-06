@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests.templates;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -19,8 +20,10 @@ import io.kroxylicious.systemtests.Constants;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.systemtests.TestTags.UNIT;
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Tag(UNIT)
 class ContainerTemplatesTest {
 
     public static final String CONTAINER_NAME = "test";
@@ -67,5 +70,4 @@ class ContainerTemplatesTest {
         assertThat(test2.getImage()).isEqualTo(image);
         assertThat(test2.getImagePullPolicy()).isEqualTo(Constants.PULL_IMAGE_IF_NOT_PRESENT);
     }
-
 }
