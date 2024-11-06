@@ -47,8 +47,7 @@
         <log4j.version>2.24.3</log4j.version>
         <caffeine.version>3.2.0</caffeine.version>
         <picocli.version>4.7.6</picocli.version>
-        <netty.version>4.2.0.Alpha4</netty.version>
-        <netty.io_uring.version>0.0.25.Final</netty.io_uring.version>
+        <netty.version>4.2.0.Beta1</netty.version>
         <netty.epoll.architecture>linux-x86_64</netty.epoll.architecture>
         <netty.io_uring.architecture>linux-x86_64</netty.io_uring.architecture>
         <netty.kqueue.architecture>osx-x86_64</netty.kqueue.architecture>
