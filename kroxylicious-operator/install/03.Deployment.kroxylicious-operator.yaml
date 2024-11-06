@@ -1,0 +1,39 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+# The Deployment for the operator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kroxylicious-operator
+  namespace: kroxylicious-operator
+  labels:
+    app.kubernetes.io/name: kroxylicious
+    app.kubernetes.io/component: operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kroxylicious
+  template:
+    metadata:
+      labels:
+        app: kroxylicious
+    spec:
+      serviceAccountName: kroxylicious-operator
+      containers:
+        - name: operator
+          image: quay.io/kroxylicious/operator:latest
+          imagePullPolicy: IfNotPresent
+          args: [ ]
+          resources:
+            limits:
+              memory: 300M
+              cpu: 1
+            requests:
+              memory: 300M
+              cpu: 1
