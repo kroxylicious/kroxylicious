@@ -12,7 +12,7 @@ public final class TestTags {
     }
 
     /**
-     * Tag for unit tests located in system tests package.
+     * Tag for test suites that do not depend on the kafka client used.
      */
     public static final String KAFKA_CLIENT_INDEPENDENT = "kafkaClientIndependent";
 }
