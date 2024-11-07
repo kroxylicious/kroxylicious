@@ -29,6 +29,7 @@ public class ProxyDeployment
     public static final String CONFIG_VOLUME = "config-volume";
     public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/config.yaml";
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
+    public static final int METRICS_PORT = 9190;
 
     public ProxyDeployment() {
         super(Deployment.class);
@@ -44,20 +45,23 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
+        // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
-                .withName(deploymentName(primary))
-                .withNamespace(primary.getMetadata().getNamespace())
-                .withLabels(deploymentLabels())
+                    .withName(deploymentName(primary))
+                    .withNamespace(primary.getMetadata().getNamespace())
+                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
+                    .withLabels(deploymentLabels())
                 .endMetadata()
                 .editOrNewSpec()
-                .withReplicas(1)
-                .editOrNewSelector()
-                .withMatchLabels(deploymentSelector())
-                .endSelector()
-                .withTemplate(podTemplate(primary))
+                    .withReplicas(1)
+                    .editOrNewSelector()
+                        .withMatchLabels(deploymentSelector())
+                    .endSelector()
+                    .withTemplate(podTemplate(primary))
                 .endSpec()
                 .build();
+        // @formatter:on
     }
 
     private static Map<String, String> deploymentSelector() {
@@ -73,45 +77,51 @@ public class ProxyDeployment
     }
 
     private PodTemplateSpec podTemplate(KafkaProxy primary) {
+        // @formatter:off
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
-                .withLabels(podLabels())
+                    .withLabels(podLabels())
                 .endMetadata()
                 .editOrNewSpec()
-                .withContainers(proxyContainer())
-                .addNewVolume()
-                .withName(CONFIG_VOLUME)
-                .withNewSecret()
-                .withSecretName(ProxyConfigSecret.secretName(primary))
-                .endSecret()
-                .endVolume()
+                    .withContainers(proxyContainer(primary))
+                    .addNewVolume()
+                        .withName(CONFIG_VOLUME)
+                        .withNewSecret()
+                            .withSecretName(ProxyConfigSecret.secretName(primary))
+                        .endSecret()
+                    .endVolume()
                 .endSpec()
                 .build();
+        // @formatter:on
     }
 
-    private static Container proxyContainer() {
+    private static Container proxyContainer(KafkaProxy primary) {
+        // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
                 .withImage("quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT")
-                .withArgs("--config", ProxyDeployment.CONFIG_PATH_IN_CONTAINER);
-        // volume mount
-        containerBuilder
+                .withArgs("--config", ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
+                // volume mount
                 .addNewVolumeMount()
-                .withName(CONFIG_VOLUME)
-                .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
-                .withSubPath(ProxyConfigSecret.CONFIG_YAML_KEY)
-                .endVolumeMount();
-        // metrics port
-        containerBuilder.addNewPort()
-                .withContainerPort(ProxyService.metricsPort())
-                .withName("metrics")
+                    .withName(CONFIG_VOLUME)
+                    .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
+                    .withSubPath(ProxyConfigSecret.CONFIG_YAML_KEY)
+                .endVolumeMount()
+                // metrics port
+                .addNewPort()
+                    .withContainerPort(METRICS_PORT)
+                    .withName("metrics")
                 .endPort();
         // broker ports
-        for (int portNum : ProxyService.brokerPorts()) {
-            containerBuilder.addNewPort()
-                    .withContainerPort(portNum)
-                    .endPort();
+        for (var cluster : ResourcesUtil.distinctClusters(primary)) {
+            for (var portEntry : ClusterService.clusterPorts(primary, cluster).entrySet()) {
+                containerBuilder.addNewPort()
+                        .withContainerPort(portEntry.getKey())
+                        // .withName(portEntry.getValue())
+                        .endPort();
+            }
         }
         return containerBuilder.build();
+        // @formatter:on
     }
 }

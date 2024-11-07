@@ -72,7 +72,7 @@
         <awaitility.version>4.2.2</awaitility.version>
         <commons.io.version>2.17.0</commons.io.version>
         <testcontainers.version>1.20.1</testcontainers.version>
-        <bouncycastle.version>1.78.1</bouncycastle.version>
+        <bouncycastle.version>1.79</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.0.5</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.9.2</wiremock.version>
         <docker-java.version>3.4.0</docker-java.version>
@@ -465,7 +465,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.10.1</version>
+                    <version>3.11.1</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -938,12 +938,18 @@
                         <artifactId>formatter-maven-plugin</artifactId>
                         <executions>
                             <execution>
+                                <!--
+                                The formatter messes up using indentation to convey the tree structures
+                                we construct using fluent builders so we use `// @formatter:off` and
+                                `// @formatter:on` comments to disable the formatter over some regions of code.
+                                -->
                                 <id>format-sources</id>
                                 <goals>
                                     <goal>format</goal>
                                 </goals>
                                 <phase>process-sources</phase>
                                 <configuration>
+                                    <javaExclusionPattern>(?sm)^[ \t]*// *@formatter:off.*?^[ \t]*// *@formatter:on</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.sourceDirectory}</directory>
                                     </directories>
@@ -956,8 +962,10 @@
                                 </goals>
                                 <phase>process-test-sources</phase>
                                 <configuration>
+                                    <javaExclusionPattern>(?sm)^[ \t]*// *@formatter:off.*?^[ \t]*// *@formatter:on</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.testSourceDirectory}</directory>
+
                                     </directories>
                                 </configuration>
                             </execution>
@@ -1063,6 +1071,7 @@
                                 </goals>
                                 <phase>process-sources</phase>
                                 <configuration>
+                                    <javaExclusionPattern>(?sm)^[ \t]*// *@formatter:off.*?^[ \t]*// *@formatter:on</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.sourceDirectory}</directory>
                                     </directories>
@@ -1075,6 +1084,7 @@
                                 </goals>
                                 <phase>process-test-sources</phase>
                                 <configuration>
+                                    <javaExclusionPattern>(?sm)^[ \t]*// *@formatter:off.*?^[ \t]*// *@formatter:on</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.testSourceDirectory}</directory>
                                     </directories>
