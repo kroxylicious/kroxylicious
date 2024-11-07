@@ -186,7 +186,6 @@
                                 <include>**/ST*.java</include>
                                 <include>**/*ST.java</include>
                             </includes>
-                            <excludedGroups>unit</excludedGroups>
                         </configuration>
                     </execution>
                 </executions>
