@@ -44,15 +44,17 @@ class ProxyReconcilerTest {
     }
 
     @Test
-    void successfulReconciliationShouldResultInReadyTrueCondition() {
+    void successfulInitialReconciliationShouldResultInReadyTrueCondition() {
         // Given
+        // @formatter:off
         long generation = 42L;
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
-                .withGeneration(generation)
-                .withName("my-proxy")
+                    .withGeneration(generation)
+                    .withName("my-proxy")
                 .endMetadata()
                 .build();
+        // @formatter:on
 
         // When
         var updateControl = new ProxyReconciler().reconcile(primary, context);
@@ -73,23 +75,59 @@ class ProxyReconcilerTest {
     }
 
     @Test
-    void anotherSuccessfulReconciliationShouldNotChangeTransitionTime() {
+    void failedInitialReconciliationShouldResultInReadyTrueCondition() {
         // Given
+        // @formatter:off
         long generation = 42L;
-        var time = ZonedDateTime.now(ZoneId.of("Z"));
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
                 .withGeneration(generation)
                 .withName("my-proxy")
                 .endMetadata()
-                .withNewStatus().addNewCondition()
-                .withType("Ready")
-                .withStatus(Conditions.Status.TRUE)
-                .withMessage("")
-                .withReason("")
-                .withLastTransitionTime(time)
-                .endCondition().endStatus()
                 .build();
+        // @formatter:on
+
+        // When
+        var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+
+        // Then
+        assertThat(updateControl.isPatch()).isTrue();
+        var statusAssert = assertThat(updateControl.getResource()).isNotNull()
+                .isPresent().get()
+                .extracting(KafkaProxy::getStatus);
+        statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
+        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+                .first();
+        first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
+        first.extracting(Conditions::getLastTransitionTime).isNotNull();
+        first.extracting(Conditions::getType).isEqualTo("Ready");
+        first.extracting(Conditions::getStatus).isEqualTo(Conditions.Status.FALSE);
+        first.extracting(Conditions::getMessage).isEqualTo("Resource was terrible");
+        first.extracting(Conditions::getReason).isEqualTo("InvalidResourceException");
+    }
+
+    @Test
+    void remainInReadyTrueShouldRetainTransitionTime() {
+        // Given
+        long generation = 42L;
+        var time = ZonedDateTime.now(ZoneId.of("Z"));
+        // @formatter:off
+        var primary = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withGeneration(generation)
+                    .withName("my-proxy")
+                .endMetadata()
+                .withNewStatus()
+                    .addNewCondition()
+                        .withType("Ready")
+                        .withStatus(Conditions.Status.TRUE)
+                        .withMessage("")
+                        .withReason("")
+                        .withLastTransitionTime(time)
+                    .endCondition()
+                .endStatus()
+                .build();
+        // @formatter:on
 
         // When
         var updateControl = new ProxyReconciler().reconcile(primary, context);
@@ -114,19 +152,23 @@ class ProxyReconcilerTest {
         // Given
         long generation = 42L;
         var time = ZonedDateTime.now(ZoneId.of("Z"));
+        // @formatter:off
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
-                .withGeneration(generation)
-                .withName("my-proxy")
+                    .withGeneration(generation)
+                    .withName("my-proxy")
                 .endMetadata()
-                .withNewStatus().addNewCondition()
-                .withType("Ready")
-                .withStatus(Conditions.Status.TRUE)
-                .withMessage("")
-                .withReason("")
-                .withLastTransitionTime(time)
-                .endCondition().endStatus()
+                .withNewStatus()
+                    .addNewCondition()
+                        .withType("Ready")
+                        .withStatus(Conditions.Status.TRUE)
+                        .withMessage("")
+                        .withReason("")
+                        .withLastTransitionTime(time)
+                    .endCondition()
+                .endStatus()
                 .build();
+        // @formatter:on
 
         // When
         var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
@@ -147,23 +189,27 @@ class ProxyReconcilerTest {
     }
 
     @Test
-    void remainInReadyFalseShouldChangeTransitionTime() {
+    void remainInReadyFalseShouldRetainTransitionTime() {
         // Given
         long generation = 42L;
         var time = ZonedDateTime.now(ZoneId.of("Z"));
+        // @formatter:off
         var primary = new KafkaProxyBuilder()
-                .withNewMetadata()
-                .withGeneration(generation)
-                .withName("my-proxy")
+                 .withNewMetadata()
+                    .withGeneration(generation)
+                    .withName("my-proxy")
                 .endMetadata()
-                .withNewStatus().addNewCondition()
-                .withType("Ready")
-                .withStatus(Conditions.Status.FALSE)
-                .withMessage("Resource was terrible")
-                .withReason(InvalidResourceException.class.getSimpleName())
-                .withLastTransitionTime(time)
-                .endCondition().endStatus()
+                .withNewStatus()
+                    .addNewCondition()
+                        .withType("Ready")
+                        .withStatus(Conditions.Status.FALSE)
+                        .withMessage("Resource was terrible")
+                        .withReason(InvalidResourceException.class.getSimpleName())
+                        .withLastTransitionTime(time)
+                    .endCondition()
+                .endStatus()
                 .build();
+        // @formatter:on
 
         // When
         var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
@@ -188,19 +234,23 @@ class ProxyReconcilerTest {
         // Given
         long generation = 42L;
         var time = ZonedDateTime.now(ZoneId.of("Z"));
+        // @formatter:off
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
-                .withGeneration(generation)
-                .withName("my-proxy")
+                    .withGeneration(generation)
+                    .withName("my-proxy")
                 .endMetadata()
-                .withNewStatus().addNewCondition()
-                .withType("Ready")
-                .withStatus(Conditions.Status.FALSE)
-                .withMessage("Resource was terrible")
-                .withReason(InvalidResourceException.class.getSimpleName())
-                .withLastTransitionTime(time)
-                .endCondition().endStatus()
+                .withNewStatus()
+                    .addNewCondition()
+                        .withType("Ready")
+                        .withStatus(Conditions.Status.FALSE)
+                        .withMessage("Resource was terrible")
+                        .withReason(InvalidResourceException.class.getSimpleName())
+                        .withLastTransitionTime(time)
+                    .endCondition()
+                .endStatus()
                 .build();
+        // @formatter:on
 
         // When
         var updateControl = new ProxyReconciler().reconcile(primary, context);

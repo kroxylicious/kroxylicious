@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ConditionsBuilder;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 // @formatter:off
@@ -96,7 +98,7 @@ public class ProxyReconciler implements
 
     /**
      * Determines whether the {@code Ready} condition has had a state transition,
-     * and returns an appropriate {@code Ready} condition.
+     * and returns an appropriate new {@code Ready} condition.
      * @param primary The primary.
      * @param exception An exception, or null if the reconciliation was successful.
      * @return The {@code Ready} condition to use in {@code status.conditions}.
@@ -107,40 +109,12 @@ public class ProxyReconciler implements
                 ? null
                 : primary.getStatus().getConditions().stream().filter(c -> "Ready".equals(c.getType())).findFirst().orElse(null);
 
-        Conditions newReady = newReadyCondition(primary, exception);
-
-        final boolean useNew;
-
-        if (oldReady == null) {
-            useNew = true;
-        }
-        else if (Conditions.Status.TRUE.equals(oldReady.getStatus()) && exception == null) {
-            // Both Ready=True
-            useNew = false;
-        }
-        else if (Conditions.Status.TRUE.equals(oldReady.getStatus()) && exception != null) {
-            // Ready=True transition to Ready=False
-            useNew = true;
-        }
-        else if (exception == null) {
-            // Ready=False transition to Ready=True
-            useNew = true;
-        }
-        else {
-            // Both Ready=False
-            // Count it as a transition if the exception or message are different
-            // Otherwise just update the observedGeneration
-            useNew = !oldReady.getReason().equals(newReady.getReason())
-                    || !oldReady.getMessage().equals(newReady.getMessage());
-        }
-
-        if (exception != null && (oldReady == null || useNew)) {
+        if (isTransition(oldReady, exception)) {
             // reduce verbosity by only logging if we're making a transition
-            logException(primary, exception);
-        }
-
-        if (useNew) {
-            return newReady;
+            if (exception != null) {
+                logException(primary, exception);
+            }
+            return newReadyCondition(primary, exception);
         }
         else {
             oldReady.setObservedGeneration(primary.getMetadata().getGeneration());
@@ -164,7 +138,7 @@ public class ProxyReconciler implements
         }
         else if (exception instanceof InvalidResourceException) {
             addResourceKeys(primary, LOGGER.atWarn())
-                    .log("Operator observed an invalid resource");
+                    .log("Operator observed an invalid resource: {}", exception.toString());
         }
         else {
             addResourceKeys(primary, LOGGER.atError())
@@ -186,11 +160,43 @@ public class ProxyReconciler implements
 
         return new ConditionsBuilder()
                 .withLastTransitionTime(ZonedDateTime.now(ZoneId.of("Z")))
-                .withMessage(exception == null ? "" : exception.getMessage())
+                .withMessage(conditionMessage(exception))
                 .withObservedGeneration(primary.getMetadata().getGeneration())
-                .withReason(exception == null ? "" : exception.getClass().getSimpleName())
+                .withReason(conditionReason(exception))
                 .withStatus(exception == null ? Conditions.Status.TRUE : Conditions.Status.FALSE)
                 .withType("Ready")
                 .build();
+    }
+
+    private static boolean isTransition(@Nullable Conditions oldReady, @Nullable Exception exception) {
+        if (oldReady == null) {
+            return true;
+        }
+        else if (isReadyEqualsTrue(oldReady)) {
+            return exception != null; // a transition iff there's now an error
+        }
+        else { // there was a previous error
+            if (exception == null) {
+                return true; // => a previous error has been fixed
+            }
+            else {
+                // => a transition iff the errors are different
+                return !Objects.equals(oldReady.getMessage(), conditionMessage(exception))
+                        || !Objects.equals(oldReady.getReason(), conditionReason(exception));
+            }
+        }
+    }
+
+    private static String conditionMessage(@Nullable Exception exception) {
+        return exception == null ? "" : exception.getMessage();
+    }
+
+    @NonNull
+    private static String conditionReason(@Nullable Exception exception) {
+        return exception == null ? "" : exception.getClass().getSimpleName();
+    }
+
+    private static boolean isReadyEqualsTrue(Conditions oldReady) {
+        return Conditions.Status.TRUE.equals(oldReady.getStatus());
     }
 }

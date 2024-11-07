@@ -6,13 +6,11 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.time.Duration;
 import java.util.Base64;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
@@ -84,7 +82,7 @@ class ProxyReconcilerIT {
     KafkaProxy doCreate() {
         final var cr = extension.create(testResource());
 
-        Awaitility.waitAtMost(Duration.ofSeconds(30)).logging().alias("Secret as expected").untilAsserted(() -> {
+        await().alias("Secret as expected").untilAsserted(() -> {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
             assertThat(secret)
                     .isNotNull()
@@ -94,7 +92,7 @@ class ProxyReconcilerIT {
                     .contains(CLUSTER_FOO_BOOTSTRAP)
                     .contains(CLUSTER_BAR_BOOTSTRAP);
         });
-        Awaitility.await().alias("Deployment as expected").untilAsserted(() -> {
+        await().alias("Deployment as expected").untilAsserted(() -> {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
             assertThat(deployment).isNotNull()
                     .extracting(dep -> dep.getSpec().getTemplate().getSpec().getVolumes(), InstanceOfAssertFactories.list(Volume.class))
@@ -102,7 +100,7 @@ class ProxyReconcilerIT {
                     .anyMatch(vol -> vol.getSecret() != null
                             && vol.getSecret().getSecretName().equals(ProxyConfigSecret.secretName(cr)));
         });
-        Awaitility.await().alias("cluster Services as expected").untilAsserted(() -> {
+        await().alias("cluster Services as expected").untilAsserted(() -> {
             for (var cluster : cr.getSpec().getClusters()) {
                 var service = extension.get(Service.class, ClusterService.serviceName(cluster));
                 assertThat(service).isNotNull()
