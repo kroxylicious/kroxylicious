@@ -14,5 +14,5 @@ public final class TestTags {
     /**
      * Tag for unit tests located in system tests package.
      */
-    public static final String UNIT = "unit";
+    public static final String KAFKA_CLIENT_INDEPENDENT = "kafkaClientIndependent";
 }
