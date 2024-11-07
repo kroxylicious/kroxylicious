@@ -8,6 +8,9 @@
 kind: KafkaProxy
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: my-example-proxy
+  name: minimal
 spec:
-  bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+  clusters:
+  - name: "one"
+    upstream:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
