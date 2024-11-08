@@ -10,6 +10,8 @@ kind: "Deployment"
 metadata:
   labels:
     app: "kroxylicious"
+    app.kubernetes.io/part-of: "twocluster"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
   name: "twocluster"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"

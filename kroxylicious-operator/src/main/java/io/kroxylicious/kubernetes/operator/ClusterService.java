@@ -25,12 +25,14 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 
+import static io.kroxylicious.kubernetes.operator.StandardLabels.addStandardLabels;
+
 /**
  * The Kube {@code Service} for a single virtual cluster.
  * This is named like {@code ${cluster.name}}, which allows clusters to migrate between proxy
  * instances in the same namespace without impacts clients using the Service's DNS name.
  */
-@KubernetesDependent
+@KubernetesDependent(labelSelector = "app.kubernetes.io/managed-by=kroxylicious-operator")
 public class ClusterService
         extends CRUDKubernetesDependentResource<Service, KafkaProxy>
         implements BulkDependentResource<Service, KafkaProxy> {
@@ -78,11 +80,11 @@ public class ClusterService
     protected Service clusterService(KafkaProxy primary,
                                      Clusters cluster) {
         // @formatter:off
-        var serviceSpecBuilder = new ServiceBuilder()
+        var serviceSpecBuilder = addStandardLabels(primary, new ServiceBuilder()
                 .withNewMetadata()
                     .withName(serviceName(cluster))
                     .withNamespace(primary.getMetadata().getNamespace())
-                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
+                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference())
                 .endMetadata()
                 .withNewSpec()
                     .withSelector(ProxyDeployment.podLabels());

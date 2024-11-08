@@ -8,6 +8,9 @@
 apiVersion: "v1"
 kind: "Service"
 metadata:
+  labels:
+    app.kubernetes.io/part-of: "twocluster"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
   name: "foo"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"

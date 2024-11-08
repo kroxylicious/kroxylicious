@@ -34,12 +34,14 @@ import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static io.kroxylicious.kubernetes.operator.StandardLabels.addStandardLabels;
+
 /**
  * A Kube {@code Secret} containing the proxy config YAML.
  * We use a {@code Secret} (rather than a {@code ConfigMap})
  * because the config might contain sensitive settings like passwords
  */
-@KubernetesDependent
+@KubernetesDependent(labelSelector = "app.kubernetes.io/managed-by=kroxylicious-operator")
 public class ProxyConfigSecret
         extends CRUDKubernetesDependentResource<Secret, KafkaProxy> {
 
@@ -63,11 +65,11 @@ public class ProxyConfigSecret
     protected Secret desired(KafkaProxy primary,
                              Context<KafkaProxy> context) {
         // @formatter:off
-        return new SecretBuilder()
+        return addStandardLabels(primary, new SecretBuilder()
                 .editOrNewMetadata()
                     .withName(secretName(primary))
                     .withNamespace(primary.getMetadata().getNamespace())
-                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
+                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference())
                 .endMetadata()
                 .withStringData(Map.of(CONFIG_YAML_KEY, generateProxyConfig(primary)))
                 .build();
