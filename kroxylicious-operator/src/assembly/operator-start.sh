@@ -31,6 +31,6 @@ fi
 export JAVA_OPTIONS="${KROXYLICIOUS_LOGGING_OPTIONS} ${JAVA_OPTIONS:-}"
 JAVA_CLASSPATH="$(classpath)"
 export JAVA_CLASSPATH
-export JAVA_MAIN_CLASS=io.kroxylicious.app.Kroxylicious
+export JAVA_MAIN_CLASS=io.kroxylicious.kubernetes.operator.OperatorMain
 exec "$(script_dir)"/run-java.sh "$@"
 
