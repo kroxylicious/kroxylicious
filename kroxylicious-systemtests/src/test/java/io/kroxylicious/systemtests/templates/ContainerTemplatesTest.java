@@ -67,5 +67,4 @@ class ContainerTemplatesTest {
         assertThat(test2.getImage()).isEqualTo(image);
         assertThat(test2.getImagePullPolicy()).isEqualTo(Constants.PULL_IMAGE_IF_NOT_PRESENT);
     }
-
 }

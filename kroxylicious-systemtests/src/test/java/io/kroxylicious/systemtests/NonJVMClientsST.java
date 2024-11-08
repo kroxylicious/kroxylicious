@@ -11,6 +11,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -27,6 +28,7 @@ import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
+import static io.kroxylicious.systemtests.TestTags.EXTERNAL_KAFKA_CLIENTS;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -34,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The non-JVM clients system tests.
  */
 @ExtendWith(KroxyliciousExtension.class)
+@Tag(EXTERNAL_KAFKA_CLIENTS)
 class NonJVMClientsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(NonJVMClientsST.class);
     private final String clusterName = "my-cluster";
