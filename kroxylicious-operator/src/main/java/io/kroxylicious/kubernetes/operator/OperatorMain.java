@@ -23,12 +23,13 @@ public class OperatorMain {
         Operator operator = new Operator();
         operator.installShutdownHook(Duration.ofSeconds(10));
         operator.register(new ProxyReconciler());
+        operator.register(new FilterReconciler());
         try {
             operator.start();
             LOGGER.info("Operator started.");
         }
         catch (Exception e) {
-            LOGGER.error("Operator has thrown exception '{}' during startup. Will now exit.", e.toString());
+            LOGGER.error("Operator has thrown exception during startup. Will now exit.", e);
             System.exit(1);
         }
     }

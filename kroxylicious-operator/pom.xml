@@ -158,7 +158,7 @@
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <scope>provided</scope>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -234,11 +234,12 @@
                          CRDs being in this exact location.
                          See https://github.com/operator-framework/java-operator-sdk/issues/2561
                     -->
-                    <source>src/main/resources/META-INF/fabric8/kafka-proxies.kroxylicious.io-v1.yml</source>
+                    <source>src/main/resources/META-INF/fabric8</source>
                     <extraAnnotations>true</extraAnnotations>
                     <packageOverrides>
                         <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->
                         <io.kroxylicious.v1alpha1>io.kroxylicious.kubernetes.api.v1alpha1</io.kroxylicious.v1alpha1>
+                        <io.kroxylicious.filter.v1alpha1>io.kroxylicious.kubernetes.filter.api.v1alpha1</io.kroxylicious.filter.v1alpha1>
                     </packageOverrides>
                 </configuration>
             </plugin>

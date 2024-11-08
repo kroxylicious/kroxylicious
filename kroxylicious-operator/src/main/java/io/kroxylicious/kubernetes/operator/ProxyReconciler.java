@@ -10,6 +10,8 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.RecordEncryption;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.spi.LoggingEventBuilder;
@@ -35,7 +37,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @ControllerConfiguration(dependents = {
         @Dependent(
                 name = ProxyReconciler.CONFIG_DEP,
-                type = ProxyConfigSecret.class),
+                type = ProxyConfigSecret.class
+        ),
         @Dependent(
                 name = ProxyReconciler.DEPLOYMENT_DEP,
                 type = ProxyDeployment.class,
@@ -63,6 +66,9 @@ public class ProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
+        var l = context.getSecondaryResourcesAsStream(RecordEncryption.class).toList();
+        LOGGER.info("Reconciled the PROXY {}, found associated filters {}", primary, l);
+        LOGGER.info("Completed reconciliation of {}/{}", primary.getMetadata().getNamespace(), primary.getMetadata().getName());
         return UpdateControl.patchStatus(
                 buildStatus(primary, null));
     }
@@ -199,4 +205,6 @@ public class ProxyReconciler implements
     private static boolean isReadyEqualsTrue(Conditions oldReady) {
         return Conditions.Status.TRUE.equals(oldReady.getStatus());
     }
+
+
 }

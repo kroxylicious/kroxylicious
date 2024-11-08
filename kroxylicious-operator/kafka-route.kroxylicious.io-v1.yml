@@ -11,17 +11,17 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   # name must match the spec fields below, and be in the form: <plural>.<group>
-  name: kafka-proxies.kroxylicious.io
+  name: kafka-routes.kroxylicious.io
 spec:
   # group name to use for REST API: /apis/<group>/<version>
   group: kroxylicious.io
   scope: Namespaced
   names:
-    plural: kafka-proxies
-    singular: kafka-proxy
-    kind: KafkaProxy
+    plural: kafka-routes
+    singular: kafka-route
+    kind: KafkaRoute
     shortNames:
-      - kp
+      - kr
   # list of versions supported by this CustomResourceDefinition
   versions:
     - name: v1alpha1
@@ -32,54 +32,42 @@ spec:
       schema:
         openAPIV3Schema:
           type: object
+          required: ["name", "upstream"]
           properties:
             metadata:
-              type: object
-              properties:
-                name:
-                  type: string
-                  maxLength: 63
-                  pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?"
+              name:
+                type: string
+                # The name is used as a prefix to a Service name
+                # and Service names must be RFC 1035 Label Names
+                maxLength: 63
+                pattern: "[a-z]([a-z0-9-]*[a-z0-9])?"
             spec:
               type: object
-              required: ["clusters"]
               properties:
-                clusters:
+                parentsRefs:
+                  description:
                   type: array
-                  x-kubernetes-list-type: map
-                  x-kubernetes-list-map-keys: ["name"]
                   items:
                     type: object
-                    required: ["name", "upstream"]
                     properties:
+                      group:
+                        type: string
+                      kind:
+                        type: string
+                      namespace:
+                        type: string
                       name:
                         type: string
-                        # The name is used as a prefix to a Service name
-                        # and Service names must be RFC 1035 Label Names
-                        maxLength: 63
-                        pattern: "[a-z]([a-z0-9-]*[a-z0-9])?"
-                      upstream:
-                        type: object
-                        required: ["bootstrapServers"]
-                        properties:
-                          bootstrapServers:
-                            description: |
-                              A comma separated list of Kafka broker addresses, e.g. "host1:port1,host2:port2".
-                              This could be a single address if the cluster has a highly available (loadbalanced) bootstrap address. 
-                              Otherwise you should list addresses for several brokers, so that a broker being down does not prevent bootstrapping.
-                            type: string
-                      filters:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            group:
-                              type: string
-                            kind:
-                              type: string
-                            name:
-                              type: string
-
+                upstream:
+                  type: object
+                  required: ["bootstrapServers"]
+                  properties:
+                    bootstrapServers:
+                      description: |
+                        A comma separated list of Kafka broker addresses, e.g. "host1:port1,host2:port2".
+                        This could be a single address if the cluster has a highly available (loadbalanced) bootstrap address. 
+                        Otherwise you should list addresses for several brokers, so that a broker being down does not prevent bootstrapping.
+                      type: string
             status:
               type: object
               properties:
