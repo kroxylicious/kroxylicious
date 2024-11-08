@@ -15,7 +15,7 @@ You should now be able to run the tests using `mvn`.
 If you want to run the `OperatorMain` (e.g. from your IDE, maybe for dubugging) then you'll need to install the CRD:
 
 ```bash
-kubectl install -f src/main/resources/META-INF/fabric8
+kubectl apply -f src/main/resources/META-INF/fabric8
 ```
 
 You should now be able to play around with `KafkaProxy` CRs; read the "Creating a `KafkaProxy`" section.
