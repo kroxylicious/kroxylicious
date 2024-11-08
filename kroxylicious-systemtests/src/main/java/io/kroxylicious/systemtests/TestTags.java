@@ -12,7 +12,7 @@ public final class TestTags {
     }
 
     /**
-     * Tag for test suites that do not depend on the kafka client used.
+     * Tag for test suites that ignores the KAFKA_CLIENT environmental variable.
      */
-    public static final String KAFKA_CLIENT_INDEPENDENT = "kafkaClientIndependent";
+    public static final String EXTERNAL_KAFKA_CLIENTS = "externalKafkaClients";
 }
