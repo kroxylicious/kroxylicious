@@ -17,5 +17,7 @@
     <suppress checks=".*"
               files="io[/\\]kroxylicious[/\\]kubernetes[/\\]api[/\\].*\.java"/>
     <suppress checks=".*"
+              files="io[/\\]kroxylicious[/\\]kubernetes[/\\]filter[/\\]api[/\\].*\.java"/>
+    <suppress checks=".*"
               files="io[/\\]kroxylicious[/\\]microbenchmarks[/\\]jmh_generated[/\\].*"/>
 </suppressions>

@@ -22,7 +22,7 @@ public class OperatorMain {
     public static void main(String[] args) {
         Operator operator = new Operator();
         operator.installShutdownHook(Duration.ofSeconds(10));
-        operator.register(new ProxyReconciler());
+        operator.register(new ProxyReconciler(operator));
         operator.register(new FilterReconciler());
         try {
             operator.start();
