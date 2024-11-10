@@ -19,13 +19,12 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
-import static io.kroxylicious.kubernetes.operator.Labels.MANAGED_BY_SELECTOR;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 
 /**
  * The Kube {@code Deployment} for the proxy
  */
-@KubernetesDependent(labelSelector = MANAGED_BY_SELECTOR)
+@KubernetesDependent
 public class ProxyDeployment
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 

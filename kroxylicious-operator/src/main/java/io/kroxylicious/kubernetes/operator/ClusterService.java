@@ -32,7 +32,7 @@ import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
  * This is named like {@code ${cluster.name}}, which allows clusters to migrate between proxy
  * instances in the same namespace without impacts clients using the Service's DNS name.
  */
-@KubernetesDependent(labelSelector = Labels.MANAGED_BY_SELECTOR)
+@KubernetesDependent
 public class ClusterService
         extends CRUDKubernetesDependentResource<Service, KafkaProxy>
         implements BulkDependentResource<Service, KafkaProxy> {

@@ -41,7 +41,7 @@ import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
  * We use a {@code Secret} (rather than a {@code ConfigMap})
  * because the config might contain sensitive settings like passwords
  */
-@KubernetesDependent(labelSelector = Labels.MANAGED_BY_SELECTOR)
+@KubernetesDependent
 public class ProxyConfigSecret
         extends CRUDKubernetesDependentResource<Secret, KafkaProxy> {
 
