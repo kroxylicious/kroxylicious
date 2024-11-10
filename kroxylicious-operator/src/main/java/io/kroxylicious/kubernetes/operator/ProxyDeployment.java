@@ -19,12 +19,13 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
-import static io.kroxylicious.kubernetes.operator.StandardLabels.addStandardLabels;
+import static io.kroxylicious.kubernetes.operator.Labels.MANAGED_BY_SELECTOR;
+import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 
 /**
  * The Kube {@code Deployment} for the proxy
  */
-@KubernetesDependent(labelSelector = "app.kubernetes.io/managed-by=kroxylicious-operator")
+@KubernetesDependent(labelSelector = MANAGED_BY_SELECTOR)
 public class ProxyDeployment
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 
@@ -48,12 +49,13 @@ public class ProxyDeployment
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
         // @formatter:off
-        return addStandardLabels(primary, new DeploymentBuilder()
+        return new DeploymentBuilder()
                 .editOrNewMetadata()
                     .withName(deploymentName(primary))
                     .withNamespace(primary.getMetadata().getNamespace())
                     .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
-                    .addToLabels(APP_KROXY))
+                    .addToLabels(APP_KROXY)
+                    .addToLabels(standardLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
                     .withReplicas(1)
