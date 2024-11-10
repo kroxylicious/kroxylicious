@@ -27,7 +27,6 @@ Configuration:
         AppenderRef:
           - ref: STDOUT
       - name: io.javaoperatorsdk
-        level: DEBUG
         additivity: false
         AppenderRef:
           - ref: STDOUT

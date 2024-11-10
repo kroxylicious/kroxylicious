@@ -69,8 +69,10 @@ spec:
                               Otherwise you should list addresses for several brokers, so that a broker being down does not prevent bootstrapping.
                             type: string
                       filters:
+                        description: The filters to be used for this cluster. Each filter is a separate resource.
                         type: array
                         items:
+                          # This is basically (Local)ObjectReference
                           type: object
                           properties:
                             group:

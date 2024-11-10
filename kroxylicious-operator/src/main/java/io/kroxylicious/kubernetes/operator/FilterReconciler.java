@@ -30,6 +30,7 @@ public class FilterReconciler implements // EventSourceInitializer<RecordEncrypt
             RecordEncryption resource,
             Context<RecordEncryption> context
     ) throws Exception {
+        // TODO Update the status
         List<KafkaProxy> proxies = context.getSecondaryResourcesAsStream(KafkaProxy.class).toList();
         LOGGER.info("Reconciled the filter {}, found associated proxies {}", resource, proxies);
         return UpdateControl.noUpdate();

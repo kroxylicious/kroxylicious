@@ -8,12 +8,13 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.HashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
+
 import io.javaoperatorsdk.operator.processing.GroupVersionKind;
 
 import org.slf4j.Logger;
@@ -22,18 +23,18 @@ import org.slf4j.spi.LoggingEventBuilder;
 
 import io.javaoperatorsdk.operator.AggregatedOperatorException;
 import io.javaoperatorsdk.operator.Operator;
-import io.javaoperatorsdk.operator.RegisteredController;
 import io.javaoperatorsdk.operator.api.config.informer.InformerConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusHandler;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
+import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
+import io.javaoperatorsdk.operator.api.reconciler.EventSourceInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.Dependent;
-import io.javaoperatorsdk.operator.processing.Controller;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
+import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
@@ -42,7 +43,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ConditionsBuilder;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.RecordEncryption;
+//import io.kroxylicious.kubernetes.filter.api.v1alpha1.RecordEncryption;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -67,8 +68,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
         )
 })
 // @formatter:on
-public class ProxyReconciler implements //EventSourceInitializer<KafkaProxy>,
-        ContextInitializer<KafkaProxy>,
+public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
+        //ContextInitializer<KafkaProxy>,
         Reconciler<KafkaProxy>,
         ErrorStatusHandler<KafkaProxy> {
 
@@ -86,8 +87,8 @@ public class ProxyReconciler implements //EventSourceInitializer<KafkaProxy>,
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        var l = context.getSecondaryResourcesAsStream(RecordEncryption.class).toList();
-        LOGGER.info("Reconciled the PROXY {}, found associated filters {}", primary, l);
+//        var l = context.getSecondaryResourcesAsStream(RecordEncryption.class).toList();
+//        LOGGER.info("Reconciled the PROXY {}, found associated filters {}", primary, l);
         LOGGER.info("Completed reconciliation of {}/{}", primary.getMetadata().getNamespace(), primary.getMetadata().getName());
         return UpdateControl.patchStatus(
                 buildStatus(primary, null));
@@ -226,92 +227,94 @@ public class ProxyReconciler implements //EventSourceInitializer<KafkaProxy>,
         return Conditions.Status.TRUE.equals(oldReady.getStatus());
     }
 
-//    @Override
-//    public Map<String, EventSource> prepareEventSources(EventSourceContext<KafkaProxy> context) {
-//        PrimaryToSecondaryMapper<KafkaProxy> proxyToFilters = (KafkaProxy proxy) -> {
-//
-//            var stream = proxy.getSpec().getClusters().stream().toList();
-//            LOGGER.info("Event source SecondaryToPrimaryMapper got {}", stream);
-//            Set<ResourceID> collect = stream.stream()
-//                    .flatMap(cluster -> cluster.getFilters().stream())
-//                    .map(filter -> {
-//                        ResourceID resourceID = new ResourceID(filter.getName(), proxy.getMetadata().getNamespace());
-//                        context.getPrimaryCache().get(resourceID);
-//                        return resourceID;
-//                    })
-//                    .collect(Collectors.toSet());
-//            LOGGER.info("Event source PrimaryToSecondaryMapper returning {}", collect);
-//            return collect;
-//        };
-//
-//        SecondaryToPrimaryMapper<RecordEncryption> filterToProxy = (RecordEncryption filter) -> {
-//
-//            var list = context.getClient().resources(KafkaProxy.class).inNamespace(filter.getMetadata().getNamespace()).list().getItems();
-//            //            List<RecordEncryption> list = context.getPrimaryCache().list(filter.getMetadata().getNamespace()).toList();
-//            LOGGER.info("Event source SecondaryToPrimaryMapper got {}", list);
-//            return list.stream()
-//                    .map(proxy -> new ResourceID(proxy.getMetadata().getName(), filter.getMetadata().getNamespace()))
-//                    .collect(Collectors.toSet());
-//        };
-//
-//        var configuration =
-//                InformerConfiguration.from(RecordEncryption.class, context)
-//                        .withSecondaryToPrimaryMapper(filterToProxy)
-//                        .withPrimaryToSecondaryMapper(proxyToFilters)
-//                        .build();
-//        return EventSourceInitializer.nameEventSources(new InformerEventSource<>(configuration, context));
-//    }
-
-    Set<ResourceID> reg = new HashSet<>(); // TODO should be concurrent
-
     @Override
-    public void initContext(
-            KafkaProxy primary,
-            Context<KafkaProxy> context
-    ) {
-        // TODO Do this for each filter resource
-        var stream = primary.getSpec().getClusters().stream().toList();
-        LOGGER.info("Event source SecondaryToPrimaryMapper got {}", stream);
-        stream.stream()
-                .flatMap(cluster -> cluster.getFilters().stream()).forEach(filter1 -> {
-                    if (!reg.add(ResourceID.fromResource(primary))) {
-                        // TODO Need to diff currently registed with
-                        return;
-                    }
+    public Map<String, EventSource> prepareEventSources(EventSourceContext<KafkaProxy> context) {
+        PrimaryToSecondaryMapper<KafkaProxy> proxyToFilters = (KafkaProxy proxy) -> {
 
-                    SecondaryToPrimaryMapper<GenericKubernetesResource> filterToProxy = (GenericKubernetesResource filter) -> {
+            var list = proxy.getSpec().getClusters().stream().toList();
+            LOGGER.info("Event source SecondaryToPrimaryMapper got {}", list);
+            Set<ResourceID> collect = list.stream()
+                    .flatMap(cluster -> cluster.getFilters().stream())
+                    .map(filter -> {
+                        ResourceID resourceID = new ResourceID(filter.getName(), proxy.getMetadata().getNamespace());
+                        context.getPrimaryCache().get(resourceID);
+                        return resourceID;
+                    })
+                    .collect(Collectors.toSet());
+            LOGGER.info("Event source PrimaryToSecondaryMapper returning {}", collect);
+            return collect;
+        };
 
-                        var list = context.getClient().resources(KafkaProxy.class)
-                                .inNamespace(filter.getMetadata().getNamespace())
-                                .list()
-                                .getItems();
-                        //            List<RecordEncryption> list = context.getPrimaryCache().list(filter.getMetadata().getNamespace()).toList();
-                        LOGGER.info("Event source SecondaryToPrimaryMapper got {}", list);
-                        return list.stream()
-                                .map(proxy -> new ResourceID(proxy.getMetadata().getName(), filter.getMetadata().getNamespace()))
-                                .collect(Collectors.toSet());
-                    };
-                    // TODO this feels dodgy! We're having to jump through hoops (passing the operator, and downcasting to Controller)
-                    //   in order to get hold of an EventSourceContext.
-                    //   Is this really how it's supposed to work?
-                    Set<RegisteredController> registeredControllers = operator.getRegisteredControllers();
-                    LOGGER.info("Controllers: {}", registeredControllers);
-                    var esc = ((Controller<KafkaProxy>) operator.getRegisteredController("proxyreconciler").get()).eventSourceContext();
+        SecondaryToPrimaryMapper<GenericKubernetesResource> filterToProxy = (GenericKubernetesResource filter) -> {
+            // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
+            // so when a filter changes we reconcile all the proxies in the same namespace
+            Set<ResourceID> proxiesInFilterNamespace = context.getClient().resources(KafkaProxy.class)
+                    .inNamespace(filter.getMetadata().getNamespace())
+                    .list().getItems().stream()
+                    .map(ResourceID::fromResource)
+                    .collect(Collectors.toSet());
+            LOGGER.info("Event source SecondaryToPrimaryMapper got {}", proxiesInFilterNamespace);
+            return proxiesInFilterNamespace;
+        };
 
-                    InformerConfiguration<GenericKubernetesResource> configuration =
-                            InformerConfiguration.from(new GroupVersionKind(filter1.getGroup(), "v1alpha1", filter1.getKind()), esc) // TODO version!!
-                                    .withSecondaryToPrimaryMapper(filterToProxy)
-                                    // TODO in general it's not a predicate on the name
-                                    //   because we might have a filter chain with the same kind of filter included multiple times
-                                    //   with different names and we only really want to register a single event source
-                                    .withGenericFilter(resource -> Objects.equals(resource.getMetadata().getName(), filter1.getName()))
-                                    // TODO do we also want to narrow by namespace?
-                                    //.withPrimaryToSecondaryMapper(proxyToFilters)
-                                    .build();
-
-                    context.eventSourceRetriever().dynamicallyRegisterEventSource("", new InformerEventSource<>(configuration, esc)); // TODO naming the event source
-
-                });
-
+        var configuration =
+                InformerConfiguration.from(new GroupVersionKind("filter.kroxylicious.io", "v1alpha1", "RecordEncryption"), context)
+                        .withSecondaryToPrimaryMapper(filterToProxy)
+                        .withPrimaryToSecondaryMapper(proxyToFilters)
+                        .build();
+        return EventSourceInitializer.nameEventSources(new InformerEventSource<>(configuration, context));
     }
+
+//    Set<ResourceID> reg = new HashSet<>(); // TODO should be concurrent
+//
+//    @Override
+//    public void initContext(
+//            KafkaProxy primary,
+//            Context<KafkaProxy> context
+//    ) {
+//        // TODO Do this for each filter resource
+//        var stream = primary.getSpec().getClusters().stream().toList();
+//        LOGGER.info("Event source SecondaryToPrimaryMapper got {}", stream);
+//        stream.stream()
+//                .flatMap(cluster -> cluster.getFilters().stream()).forEach(filter1 -> {
+//                    if (!reg.add(ResourceID.fromResource(primary))) {
+//                        // TODO Need to diff currently registed with
+//                        return;
+//                    }
+//
+//                    SecondaryToPrimaryMapper<GenericKubernetesResource> filterToProxy = (GenericKubernetesResource filter) -> {
+//
+//                        var list = context.getClient().resources(KafkaProxy.class)
+//                                .inNamespace(filter.getMetadata().getNamespace())
+//                                .list()
+//                                .getItems();
+//
+//                        LOGGER.info("Event source SecondaryToPrimaryMapper got {}", list);
+//                        return list.stream()
+//                                .map(proxy -> new ResourceID(proxy.getMetadata().getName(), filter.getMetadata().getNamespace()))
+//                                .collect(Collectors.toSet());
+//                    };
+//                    // TODO this feels dodgy! We're having to jump through hoops (passing the operator, and downcasting to Controller)
+//                    //   in order to get hold of an EventSourceContext.
+//                    //   Is this really how it's supposed to work?
+//                    Set<RegisteredController> registeredControllers = operator.getRegisteredControllers();
+//                    LOGGER.info("Controllers: {}", registeredControllers);
+//                    var esc = ((Controller<KafkaProxy>) operator.getRegisteredController("proxyreconciler").get()).eventSourceContext();
+//
+//                    InformerConfiguration<GenericKubernetesResource> configuration =
+//                            InformerConfiguration.from(new GroupVersionKind(filter1.getGroup(), "v1alpha1", filter1.getKind()), esc) // TODO version!!
+//                                    .withSecondaryToPrimaryMapper(filterToProxy)
+//                                    // TODO in general it's not a predicate on the name
+//                                    //   because we might have a filter chain with the same kind of filter included multiple times
+//                                    //   with different names and we only really want to register a single event source
+//                                    .withGenericFilter(resource -> Objects.equals(resource.getMetadata().getName(), filter1.getName()))
+//                                    // TODO do we also want to narrow by namespace?
+//                                    //.withPrimaryToSecondaryMapper(proxyToFilters)
+//                                    .build();
+//
+//                    context.eventSourceRetriever().dynamicallyRegisterEventSource("", new InformerEventSource<>(configuration, esc)); // TODO naming the event source
+//
+//                });
+//
+//    }
 }
