@@ -28,7 +28,6 @@ import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
-import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -59,8 +58,8 @@ class ConfigParserTest {
 
     public static Stream<Arguments> yamlDeserializeSerializeFidelity() {
         return Stream.of(Arguments.of("Top level flags", """
-                useIoUring: true
-                """),
+                        useIoUring: true
+                        """),
                 Arguments.of("Virtual cluster (PortPerBroker)", """
                         virtualClusters:
                           demo1:
@@ -191,10 +190,14 @@ class ConfigParserTest {
     void testDeserializeFromYaml() {
         Configuration configuration = configParser.parseConfiguration(this.getClass().getClassLoader().getResourceAsStream("config.yaml"));
         assertThat(configuration.isUseIoUring()).isTrue();
-        AdminHttpConfiguration adminHttpConfiguration = configuration.adminHttpConfig();
-        assertThat(adminHttpConfiguration.host()).isEqualTo("kroxy");
-        assertThat(adminHttpConfiguration.port()).isEqualTo(9093);
-        assertThat(adminHttpConfiguration.endpoints().maybePrometheus()).isPresent();
+        assertThat(configuration.adminHttpConfig())
+                .isNotNull()
+                .satisfies(ahc -> {
+                    assertThat(ahc.host()).isEqualTo("kroxy");
+                    assertThat(ahc.port()).isEqualTo(9093);
+                    assertThat(ahc.endpoints().maybePrometheus()).isPresent();
+                });
+
         assertThat(configuration.virtualClusters()).hasSize(1);
         assertThat(configuration.virtualClusters().keySet()).containsExactly("demo");
         VirtualCluster cluster = configuration.virtualClusters().values().iterator().next();
@@ -215,6 +218,7 @@ class ConfigParserTest {
         assertThat(exception.getMessage()).contains("Couldn't parse configuration");
     }
 
+    @SuppressWarnings("resource")
     @Test
     void testConfigParserIoException() {
         InputStream mockInputStream = new InputStream() {
@@ -255,30 +259,30 @@ class ConfigParserTest {
     void shouldDetectDuplicateClusterNodeNames() {
         // Given
         assertThatThrownBy(() ->
-        // When
-        configParser.parseConfiguration("""
-                virtualClusters:
-                  demo1:
-                    targetCluster:
-                      bootstrap_servers: kafka.example:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
-                        bootstrapAddress: cluster1:9192
-                        numberOfBrokerPorts: 1
-                        brokerAddressPattern: localhost
-                        brokerStartPort: 9193
-                  demo1:
-                    targetCluster:
-                      bootstrap_servers: magic-kafka.example:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
-                        bootstrapAddress: cluster2:9193
-                        numberOfBrokerPorts: 1
-                        brokerAddressPattern: localhost
-                        brokerStartPort: 10193
-                """))
+                // When
+                configParser.parseConfiguration("""
+                        virtualClusters:
+                          demo1:
+                            targetCluster:
+                              bootstrap_servers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: PortPerBrokerClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: cluster1:9192
+                                numberOfBrokerPorts: 1
+                                brokerAddressPattern: localhost
+                                brokerStartPort: 9193
+                          demo1:
+                            targetCluster:
+                              bootstrap_servers: magic-kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: PortPerBrokerClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: cluster2:9193
+                                numberOfBrokerPorts: 1
+                                brokerAddressPattern: localhost
+                                brokerStartPort: 10193
+                        """))
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
@@ -318,18 +322,19 @@ class ConfigParserTest {
                 - type: NestedPluginConfigFactory
                   config:
                     examplePlugin: NotAKnownPlugin
-
+                
                 """));
         var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
         var upie = assertInstanceOf(UnknownPluginInstanceException.class, vie.getCause());
         assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ExamplePluginFactory plugin instance for "
-                + "name 'NotAKnownPlugin'. "
-                + "Known plugin instances are [ExamplePluginInstance, io.kroxylicious.proxy.internal.filter.ExamplePluginInstance]. "
-                + "Plugins must be loadable by java.util.ServiceLoader and annotated with "
-                + "@Plugin.",
+                        + "name 'NotAKnownPlugin'. "
+                        + "Known plugin instances are [ExamplePluginInstance, io.kroxylicious.proxy.internal.filter.ExamplePluginInstance]. "
+                        + "Plugins must be loadable by java.util.ServiceLoader and annotated with "
+                        + "@Plugin.",
                 upie.getMessage());
     }
 
+    @SuppressWarnings("unchecked")
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void shouldWorkWithDifferentConfigCreators(String name, String yaml, Class<?> expectedConfigType) {
@@ -341,7 +346,7 @@ class ConfigParserTest {
 
         // Then
         for (FilterDefinition fd : config.filters()) {
-            var pluginFactory = cp.pluginFactory((Class<FilterFactory<? super Object, ? super Object>>) (Class) FilterFactory.class);
+            var pluginFactory = cp.pluginFactory((Class<FilterFactory<? super Object, ? super Object>>) (Class<?>) FilterFactory.class);
             var filterFactory = pluginFactory.pluginInstance(fd.type());
             Class<?> configType = pluginFactory.configType(fd.type());
             assertEquals(expectedConfigType, configType);
@@ -352,13 +357,13 @@ class ConfigParserTest {
 
     public static Stream<Arguments> shouldWorkWithDifferentConfigCreators() {
         return Stream.of(Arguments.of("constructor injection",
-                """
-                        filters:
-                        - type: ConstructorInjection
-                          config:
-                            str: hello, world
-                        """,
-                ConstructorInjectionConfig.class),
+                        """
+                                filters:
+                                - type: ConstructorInjection
+                                  config:
+                                    str: hello, world
+                                """,
+                        ConstructorInjectionConfig.class),
                 Arguments.of("factory method",
                         """
                                 filters:
