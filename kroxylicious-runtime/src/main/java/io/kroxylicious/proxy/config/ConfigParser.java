@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.KeyDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationConfig;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.cfg.ConstructorDetector;
 import com.fasterxml.jackson.databind.cfg.HandlerInstantiator;
 import com.fasterxml.jackson.databind.cfg.MapperConfig;
@@ -91,9 +92,10 @@ public class ConfigParser implements PluginFactoryRegistry {
                 .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
                 .setVisibility(PropertyAccessor.CREATOR, Visibility.ANY)
                 .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .configure(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY, false)
-                .configure(JsonParser.Feature.STRICT_DUPLICATE_DETECTION, true)
+                .enable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY)
+                .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
                 .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT)
                 .registerModule(new PluginModule())
                 .setHandlerInstantiator(new PluginHandlerInstantiator());

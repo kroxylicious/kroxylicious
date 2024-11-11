@@ -20,6 +20,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +46,7 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -293,7 +295,7 @@ class ConfigParserTest {
                 - type: NestedPluginConfigFactory
                   config:
                     examplePlugin: ExamplePluginInstance
-                      """);
+                """);
         assertThat(config.filters()).hasSize(1);
 
         FilterDefinition fd = config.filters().get(0);
@@ -317,7 +319,7 @@ class ConfigParserTest {
                   config:
                     examplePlugin: NotAKnownPlugin
 
-                      """));
+                """));
         var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
         var upie = assertInstanceOf(UnknownPluginInstanceException.class, vie.getCause());
         assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ExamplePluginFactory plugin instance for "
@@ -355,7 +357,7 @@ class ConfigParserTest {
                         - type: ConstructorInjection
                           config:
                             str: hello, world
-                              """,
+                        """,
                 ConstructorInjectionConfig.class),
                 Arguments.of("factory method",
                         """
@@ -363,7 +365,7 @@ class ConfigParserTest {
                                 - type: FactoryMethod
                                   config:
                                     str: hello, world
-                                      """,
+                                """,
                         FactoryMethodConfig.class),
                 Arguments.of("field injection",
                         """
@@ -371,7 +373,7 @@ class ConfigParserTest {
                                 - type: FieldInjection
                                   config:
                                     str: hello, world
-                                      """,
+                                """,
                         FieldInjectionConfig.class),
                 Arguments.of("record",
                         """
@@ -379,7 +381,7 @@ class ConfigParserTest {
                                 - type: Record
                                   config:
                                     str: hello, world
-                                      """,
+                                """,
                         RecordConfig.class),
                 Arguments.of("setter injection",
                         """
@@ -387,16 +389,21 @@ class ConfigParserTest {
                                 - type: SetterInjection
                                   config:
                                     str: hello, world
-                                      """,
+                                """,
                         SetterInjectionConfig.class));
     }
 
     @Test
     void shouldThrowWhenSerializingUnserializableObject() {
-        var config = new Configuration(null, null, List.of(new FilterDefinition("", new Object())), null, false);
+        var config = new Configuration(null, null, List.of(new FilterDefinition("", new UnseriasliseableConfig(""))), null, false);
 
         ConfigParser cp = new ConfigParser();
-        assertThrows(IllegalArgumentException.class, () -> cp.toYaml(config));
+        assertThatThrownBy(() -> {
+            final String yaml = cp.toYaml(config);
+            fail("generated YAML:\n %s", yaml);
+        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .withFailMessage("Failed to encode configuration as YAML");
     }
 
     @Test
@@ -451,4 +458,11 @@ class ConfigParserTest {
                 .isEqualTo(password);
     }
 
+    private record UnseriasliseableConfig(String id) {
+        @Override
+        @JsonGetter
+        public String id() {
+            throw new UnsupportedOperationException("boom. haha fooled you jackson");
+        }
+    }
 }
