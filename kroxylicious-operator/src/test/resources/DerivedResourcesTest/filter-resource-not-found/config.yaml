@@ -1,0 +1,7 @@
+filterApis:
+  - apiVersion: "org.example.one/v1"
+    kind: "One"
+    class: "org.example.some.java.Class"
+  - apiVersion: "com.example.two/v1beta42"
+    kind: "Two"
+    class: "com.example.what.Ever"

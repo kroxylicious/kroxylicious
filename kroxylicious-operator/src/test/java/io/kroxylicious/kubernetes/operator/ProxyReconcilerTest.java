@@ -10,6 +10,8 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
 import org.junit.jupiter.api.AfterEach;

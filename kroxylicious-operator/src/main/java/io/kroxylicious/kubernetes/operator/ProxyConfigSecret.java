@@ -30,6 +30,8 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.clusters.Filters;
+import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
+import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinition;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
@@ -149,13 +151,13 @@ public class ProxyConfigSecret
         }
         return filters.stream().map(filterRef -> {
             RuntimeDecl runtimeDecl = SharedKafkaProxyContext.runtimeDecl(context);
-            FilterKindDecl matchingKind = runtimeDecl.filterKindDecls().stream()
+            FilterApiDecl matchingFilterApi = runtimeDecl.filterApis().stream()
                     .filter(decl -> matches(decl, filterRef))
                     .findFirst()
                     .orElseThrow(() -> unknownFilterKind(cluster, filterRef));
 
             var filt = filterResourceFromRef(cluster, context, filterRef);
-            return filterDefFromFilterResource(matchingKind.klass(), filt);
+            return filterDefFromFilterResource(matchingFilterApi.className(), filt);
         }).toList();
     }
 
@@ -172,13 +174,13 @@ public class ProxyConfigSecret
     private static InvalidClusterException resourceNotFound(Clusters cluster, Filters filterRef) {
         return new InvalidClusterException(cluster.getName(),
                 "ResourceNotFound",
-                "Resource in API group " + filterRef.getGroup()
-                        + " with kind " + filterRef.getKind()
-                        + " and name " + filterRef.getName()
-                        + " was not found by this operator");
+                "Resource in API group \"" + filterRef.getGroup()
+                        + "\" with kind \"" + filterRef.getKind()
+                        + "\" and name \"" + filterRef.getName()
+                        + "\" was not found by this operator");
     }
 
-    private static boolean matches(FilterKindDecl decl, Filters filterRef) {
+    private static boolean matches(FilterApiDecl decl, Filters filterRef) {
         return decl.kind().equals(filterRef.getKind())
                 && decl.group().equals(filterRef.getGroup());
     }

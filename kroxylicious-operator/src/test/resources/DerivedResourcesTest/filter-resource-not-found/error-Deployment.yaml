@@ -1,0 +1,2 @@
+type: io.kroxylicious.kubernetes.operator.InvalidClusterException
+message: 'Cluster "one": Filter in API group com.example.two with kind Two is not known to this operator'

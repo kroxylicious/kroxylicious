@@ -43,6 +43,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ConditionsBuilder;
+import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
+import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -244,8 +246,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
 
     @Override
     public Map<String, EventSource> prepareEventSources(EventSourceContext<KafkaProxy> context) {
-        var eventSources = new ArrayList<InformerEventSource<GenericKubernetesResource, KafkaProxy>>(this.runtimeDecl.filterKindDecls().size());
-        for (var filterKind : this.runtimeDecl.filterKindDecls()) {
+        var eventSources = new ArrayList<InformerEventSource<GenericKubernetesResource, KafkaProxy>>(this.runtimeDecl.filterApis().size());
+        for (var filterKind : this.runtimeDecl.filterApis()) {
             try {
                 eventSources.add(eventSourceForFilter(context, filterKind));
             }
@@ -264,7 +266,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     @NonNull
     private static InformerEventSource<GenericKubernetesResource, KafkaProxy> eventSourceForFilter(
                                                                                                    EventSourceContext<KafkaProxy> context,
-                                                                                                   FilterKindDecl filterKindDecl) {
+                                                                                                   FilterApiDecl filterApiDecl) {
 
         SecondaryToPrimaryMapper<GenericKubernetesResource> filterToProxy = (GenericKubernetesResource filter) -> {
             // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
@@ -278,7 +280,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             return proxiesInFilterNamespace;
         };
 
-        var configuration = InformerConfiguration.from(filterKindDecl.groupVersionKind(), context)
+        var configuration = InformerConfiguration.from(filterApiDecl.groupVersionKind(), context)
                 .withSecondaryToPrimaryMapper(filterToProxy)
                 .withPrimaryToSecondaryMapper((KafkaProxy proxy) -> proxyToFilterRefs(proxy, context))
                 .build();

@@ -15,21 +15,28 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedDependentResourceContext;
+
+import io.kroxylicious.kubernetes.operator.config.FilterKindDecl;
+
+import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.opentest4j.AssertionFailedError;
 
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.DefaultContext;
 import io.javaoperatorsdk.operator.api.reconciler.RetryInfo;
 import io.javaoperatorsdk.operator.processing.Controller;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
@@ -41,6 +48,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 class DerivedResourcesTest {
@@ -54,6 +62,17 @@ class DerivedResourcesTest {
         // should never see an invalid resource in production
         try {
             return YAML_MAPPER.readValue(path.toFile(), KafkaProxy.class);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    public static RuntimeDecl configFromFile(Path path) {
+        // TODO should validate against the Config schema, because the DependentResource
+        // should never see an invalid config in production
+        try {
+            return YAML_MAPPER.readValue(path.toFile(), RuntimeDecl.class);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -221,8 +240,9 @@ class DerivedResourcesTest {
                 .map(testDir::relativize)
                 .collect(Collectors.toCollection(HashSet::new));
 
-        var dr = list.stream().map(r -> r.invokeDesired(kafkaProxy, new DefaultContext<KafkaProxy>(
-                mock(RetryInfo.class), mock(Controller.class), kafkaProxy))).toList();
+        Context<KafkaProxy> context = buildContext(kafkaProxy, testDir.resolve("config.yaml"));
+
+        var dr = list.stream().map(r -> r.invokeDesired(kafkaProxy, context)).toList();
         var allReturnedExpectedFilenames = dr.stream().flatMap(m -> m.entrySet().stream()).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         var groupedByFile = dr.stream().flatMap(m -> m.entrySet().stream()).collect(Collectors.groupingBy(Map.Entry::getKey));
         var collisions = groupedByFile.entrySet().stream().filter(entry -> entry.getValue().size() >= 2).map(Map.Entry::getKey).toList();
@@ -271,15 +291,40 @@ class DerivedResourcesTest {
                         },
                         error -> {
                             var errorStruct = YAML_MAPPER.readValue(testDir.resolve(resourceOrError.filenameOfExpectedFile()).toFile(), ErrorStruct.class);
-                            assertThat(error.getClass().getName()).isEqualTo(errorStruct.type());
-                            assertThat(error.getMessage()).isEqualTo(errorStruct.message());
+                            String actualClassName = error.getClass().getName();
+                            String expectedClassName = errorStruct.type();
+                            if (!actualClassName.equals(expectedClassName)) {
+                                throw new AssertionFailedError("Exception had unexpected type", expectedClassName, actualClassName, error);
+                            }
+                            String actualMessage = error.getMessage();
+                            String expectedMessage = errorStruct.message();
+                            if (!actualMessage.equals(expectedMessage)) {
+                                throw new AssertionFailedError("Exception had unexpected message", expectedMessage, actualMessage, error);
+                            }
                         });
             }));
         }
         return tests;
     }
 
-    static record ErrorStruct(String type, String message) {}
+
+    @NonNull
+    private static Context<KafkaProxy> buildContext(KafkaProxy kafkaProxy, Path configFile) {
+        Context<KafkaProxy> context = mock(Context.class);
+        RetryInfo retryInfo = mock(RetryInfo.class);
+        Controller controller = mock(Controller.class);
+
+        var c = new DefaultManagedDependentResourceContext();
+
+        doReturn(Optional.empty()).when(context).getRetryInfo();
+        doReturn(c).when(context).managedDependentResourceContext();
+
+        var runtimeDecl = configFromFile(configFile);
+        SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
+        return context;
+    }
+
+    record ErrorStruct(String type, String message) {}
 
     private static String fileName(Path testDir) {
         return testDir.getName(testDir.getNameCount() - 1).toString();

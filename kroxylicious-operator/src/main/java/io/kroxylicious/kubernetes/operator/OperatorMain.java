@@ -13,6 +13,9 @@ import org.slf4j.LoggerFactory;
 
 import io.javaoperatorsdk.operator.Operator;
 
+import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
+import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+
 /**
  * The {@code main} method entrypoint for the operator
  */
@@ -23,8 +26,8 @@ public class OperatorMain {
     public static void main(String[] args) {
         // TODO read these from some configuration CR
         var runtimeDecl = new RuntimeDecl(List.of(
-                new FilterKindDecl("filter.kroxylicious.io", "v1alpha1", "RecordEncryption", "io.kroxylicious.filter.encryption.RecordEncryption"),
-                new FilterKindDecl("filter.kroxylicious.io", "v1alpha1", "RecordValidation", "io.kroxylicious.filter.validation.RecordValidation")));
+                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "RecordEncryption", "io.kroxylicious.filter.encryption.RecordEncryption"),
+                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "RecordValidation", "io.kroxylicious.filter.validation.RecordValidation")));
         Operator operator = new Operator();
         operator.installShutdownHook(Duration.ofSeconds(10));
         try {

@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -17,6 +18,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
+import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 /**
  * Encapsulates access to the mutable state in the {@link Context<KafkaProxy>} shared between
@@ -66,6 +68,15 @@ public class SharedKafkaProxyContext {
     static List<Exception> clusterErrors(Context<KafkaProxy> context, Clusters cluster) {
         Optional<Map<String, List<Exception>>> map = (Optional) context.managedDependentResourceContext().get(ERROR_KEY, Map.class);
         return map.orElse(Map.of()).getOrDefault(cluster.getName(), List.of());
+    }
+
+    static List<Exception> allErrors(Context<KafkaProxy> context) {
+        Optional<Map<String, List<Exception>>> map = (Optional) context.managedDependentResourceContext().get(ERROR_KEY, Map.class);
+        return map.orElse(Map.of())
+                .values()
+                .stream()
+                .flatMap(Collection::stream)
+                .toList();
     }
 
 }
