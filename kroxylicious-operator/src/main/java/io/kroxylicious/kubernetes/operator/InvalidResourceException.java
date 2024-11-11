@@ -6,6 +6,9 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+/**
+ * A KafkaProxy resource that this not valid
+ */
 public class InvalidResourceException extends RuntimeException {
 
     public InvalidResourceException(String message) {

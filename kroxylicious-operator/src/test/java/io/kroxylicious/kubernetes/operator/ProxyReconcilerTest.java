@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
@@ -57,7 +58,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().reconcile(primary, context);
+        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -88,7 +89,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         assertThat(updateControl.isPatch()).isTrue();
@@ -130,7 +131,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().reconcile(primary, context);
+        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -171,7 +172,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         assertThat(updateControl.isPatch()).isTrue();
@@ -212,7 +213,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         assertThat(updateControl.isPatch()).isTrue();
@@ -253,7 +254,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().reconcile(primary, context);
+        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();

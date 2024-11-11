@@ -19,7 +19,7 @@ spec:
     namespace:
 ---
 apiVersion: gateway.networking.k8s.io/v1
-kind: Gateway
+kind: Gateway # Proxy
 metadata:
   name: my-kafka-gateway
 spec:
@@ -53,7 +53,7 @@ spec:
     ???
 ---
 apiVersion: kroxylicious.io/v1alpha1
-kind: KafkaRoute
+kind: KafkaRoute # Like our Cluster
 metadata:
   name: my-route
 spec:

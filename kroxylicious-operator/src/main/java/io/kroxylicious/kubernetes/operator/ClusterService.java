@@ -28,7 +28,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 
 /**
- * The Kube {@code Service} for a single virtual cluster.
+ * Generates the Kube {@code Service} for a single virtual cluster.
  * This is named like {@code ${cluster.name}}, which allows clusters to migrate between proxy
  * instances in the same namespace without impacts clients using the Service's DNS name.
  */

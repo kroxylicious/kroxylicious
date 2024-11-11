@@ -22,7 +22,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 
 /**
- * The Kube {@code Deployment} for the proxy
+ * Generates the Kube {@code Deployment} for the proxy
  */
 @KubernetesDependent
 public class ProxyDeployment
