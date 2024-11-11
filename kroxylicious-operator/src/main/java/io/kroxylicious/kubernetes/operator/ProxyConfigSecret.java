@@ -125,7 +125,6 @@ public class ProxyConfigSecret
                         (v1, v2) -> v1, // Dupes handled below
                         LinkedHashMap::new));
 
-
         Configuration configuration = new Configuration(
                 new AdminHttpConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())),
                 virtualClusters,
@@ -144,10 +143,10 @@ public class ProxyConfigSecret
     @NonNull
     private static List<FilterDefinition> filterDefinitions(Clusters cluster, Context<KafkaProxy> context)
             throws InvalidClusterException {
-         List<Filters> filters = cluster.getFilters();
-         if (filters == null) {
-             return List.of();
-         }
+        List<Filters> filters = cluster.getFilters();
+        if (filters == null) {
+            return List.of();
+        }
         return filters.stream().map(filterRef -> {
             RuntimeDecl runtimeDecl = SharedKafkaProxyContext.runtimeDecl(context);
             FilterKindDecl matchingKind = runtimeDecl.filterKindDecls().stream()

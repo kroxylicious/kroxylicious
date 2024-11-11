@@ -24,7 +24,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
  */
 public class SharedKafkaProxyContext {
 
-    private SharedKafkaProxyContext() {}
+    private SharedKafkaProxyContext() {
+    }
 
     private static final String RUNTIME_DECL_KEY = "runtime";
     private static final String ERROR_KEY = "error";
@@ -66,6 +67,5 @@ public class SharedKafkaProxyContext {
         Optional<Map<String, List<Exception>>> map = (Optional) context.managedDependentResourceContext().get(ERROR_KEY, Map.class);
         return map.orElse(Map.of()).getOrDefault(cluster.getName(), List.of());
     }
-
 
 }

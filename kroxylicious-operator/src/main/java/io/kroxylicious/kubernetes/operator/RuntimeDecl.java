@@ -13,5 +13,4 @@ import java.util.List;
  * which the operator to knows by configuration.
  * @param filterKindDecls The filter kinds which this operator instance knows about.
  */
-public record RuntimeDecl(List<FilterKindDecl> filterKindDecls) {
-}
+public record RuntimeDecl(List<FilterKindDecl> filterKindDecls) {}

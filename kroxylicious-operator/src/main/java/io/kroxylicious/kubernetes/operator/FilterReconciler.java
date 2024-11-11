@@ -27,48 +27,48 @@ public class FilterReconciler implements // EventSourceInitializer<RecordEncrypt
 
     @Override
     public UpdateControl<RecordEncryption> reconcile(
-            RecordEncryption resource,
-            Context<RecordEncryption> context
-    ) throws Exception {
+                                                     RecordEncryption resource,
+                                                     Context<RecordEncryption> context)
+            throws Exception {
         // TODO Update the status
         List<KafkaProxy> proxies = context.getSecondaryResourcesAsStream(KafkaProxy.class).toList();
         LOGGER.info("Reconciled the filter {}, found associated proxies {}", resource, proxies);
         return UpdateControl.noUpdate();
     }
-//
-//    @Override
-//    public Map<String, EventSource> prepareEventSources(EventSourceContext<RecordEncryption> context) {
-//        SecondaryToPrimaryMapper<KafkaProxy> proxyToFilters = (KafkaProxy proxy) -> {
-//
-//            var stream = proxy.getSpec().getClusters().stream().toList();
-//            LOGGER.info("Event source SecondaryToPrimaryMapper got {}", stream);
-//            Set<ResourceID> collect = stream.stream()
-//                    .flatMap(cluster -> cluster.getFilters().stream())
-//                    .map(filter -> {
-//                        ResourceID resourceID = new ResourceID(filter.getName(), proxy.getMetadata().getNamespace());
-//                        context.getPrimaryCache().get(resourceID);
-//                        return resourceID;
-//                    })
-//                    .collect(Collectors.toSet());
-//            LOGGER.info("Event source SecondaryToPrimaryMapper returning {}", collect);
-//            return collect;
-//        };
-//
-//        PrimaryToSecondaryMapper<RecordEncryption> filterToProxy = (RecordEncryption filter) -> {
-//
-//            var list = context.getClient().resources(KafkaProxy.class).inNamespace(filter.getMetadata().getNamespace()).list().getItems();
-////            List<RecordEncryption> list = context.getPrimaryCache().list(filter.getMetadata().getNamespace()).toList();
-//            LOGGER.info("Event source PrimaryToSecondaryMapper got {}", list);
-//            return list.stream()
-//                    .map(proxy -> new ResourceID(proxy.getMetadata().getName(), filter.getMetadata().getNamespace()))
-//                    .collect(Collectors.toSet());
-//        };
-//
-//        var configuration =
-//                InformerConfiguration.from(KafkaProxy.class, context)
-//                        .withSecondaryToPrimaryMapper(proxyToFilters)
-//                        .withPrimaryToSecondaryMapper(filterToProxy)
-//                        .build();
-//        return EventSourceInitializer.nameEventSources(new InformerEventSource<>(configuration, context));
-//    }
+    //
+    // @Override
+    // public Map<String, EventSource> prepareEventSources(EventSourceContext<RecordEncryption> context) {
+    // SecondaryToPrimaryMapper<KafkaProxy> proxyToFilters = (KafkaProxy proxy) -> {
+    //
+    // var stream = proxy.getSpec().getClusters().stream().toList();
+    // LOGGER.info("Event source SecondaryToPrimaryMapper got {}", stream);
+    // Set<ResourceID> collect = stream.stream()
+    // .flatMap(cluster -> cluster.getFilters().stream())
+    // .map(filter -> {
+    // ResourceID resourceID = new ResourceID(filter.getName(), proxy.getMetadata().getNamespace());
+    // context.getPrimaryCache().get(resourceID);
+    // return resourceID;
+    // })
+    // .collect(Collectors.toSet());
+    // LOGGER.info("Event source SecondaryToPrimaryMapper returning {}", collect);
+    // return collect;
+    // };
+    //
+    // PrimaryToSecondaryMapper<RecordEncryption> filterToProxy = (RecordEncryption filter) -> {
+    //
+    // var list = context.getClient().resources(KafkaProxy.class).inNamespace(filter.getMetadata().getNamespace()).list().getItems();
+    //// List<RecordEncryption> list = context.getPrimaryCache().list(filter.getMetadata().getNamespace()).toList();
+    // LOGGER.info("Event source PrimaryToSecondaryMapper got {}", list);
+    // return list.stream()
+    // .map(proxy -> new ResourceID(proxy.getMetadata().getName(), filter.getMetadata().getNamespace()))
+    // .collect(Collectors.toSet());
+    // };
+    //
+    // var configuration =
+    // InformerConfiguration.from(KafkaProxy.class, context)
+    // .withSecondaryToPrimaryMapper(proxyToFilters)
+    // .withPrimaryToSecondaryMapper(filterToProxy)
+    // .build();
+    // return EventSourceInitializer.nameEventSources(new InformerEventSource<>(configuration, context));
+    // }
 }

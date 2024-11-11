@@ -16,10 +16,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
-
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.spi.LoggingEventBuilder;
@@ -28,6 +24,7 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.javaoperatorsdk.operator.AggregatedOperatorException;
 import io.javaoperatorsdk.operator.api.config.informer.InformerConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusHandler;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -43,6 +40,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ConditionsBuilder;
 
@@ -89,8 +87,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-//        var l = context.getSecondaryResourcesAsStream(RecordEncryption.class).toList();
-//        LOGGER.info("Reconciled the PROXY {}, found associated filters {}", primary, l);
+        // var l = context.getSecondaryResourcesAsStream(RecordEncryption.class).toList();
+        // LOGGER.info("Reconciled the PROXY {}, found associated filters {}", primary, l);
         LOGGER.info("Completed reconciliation of {}/{}", primary.getMetadata().getNamespace(), primary.getMetadata().getName());
         return UpdateControl.patchStatus(
                 buildStatus(primary, context, null));
@@ -265,8 +263,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
 
     @NonNull
     private static InformerEventSource<GenericKubernetesResource, KafkaProxy> eventSourceForFilter(
-            EventSourceContext<KafkaProxy> context, FilterKindDecl filterKindDecl) {
-
+                                                                                                   EventSourceContext<KafkaProxy> context,
+                                                                                                   FilterKindDecl filterKindDecl) {
 
         SecondaryToPrimaryMapper<GenericKubernetesResource> filterToProxy = (GenericKubernetesResource filter) -> {
             // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
@@ -280,11 +278,10 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             return proxiesInFilterNamespace;
         };
 
-        var configuration =
-                InformerConfiguration.from(filterKindDecl.groupVersionKind(), context)
-                        .withSecondaryToPrimaryMapper(filterToProxy)
-                        .withPrimaryToSecondaryMapper((KafkaProxy proxy) -> proxyToFilterRefs(proxy, context))
-                        .build();
+        var configuration = InformerConfiguration.from(filterKindDecl.groupVersionKind(), context)
+                .withSecondaryToPrimaryMapper(filterToProxy)
+                .withPrimaryToSecondaryMapper((KafkaProxy proxy) -> proxyToFilterRefs(proxy, context))
+                .build();
 
         return new InformerEventSource<>(configuration, context);
     }
@@ -297,7 +294,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
                 .flatMap(cluster -> cluster.getFilters().stream())
                 .map(filter -> {
                     ResourceID resourceID = new ResourceID(filter.getName(), proxy.getMetadata().getNamespace());
-                    //context.getPrimaryCache().get(resourceID);
+                    // context.getPrimaryCache().get(resourceID);
                     return resourceID;
                 })
                 .collect(Collectors.toSet());
@@ -307,9 +304,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
 
     @Override
     public void initContext(
-            KafkaProxy primary,
-            Context<KafkaProxy> context
-    ) {
+                            KafkaProxy primary,
+                            Context<KafkaProxy> context) {
         SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
     }
 }

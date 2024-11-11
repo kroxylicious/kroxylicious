@@ -24,8 +24,7 @@ public class OperatorMain {
         // TODO read these from some configuration CR
         var runtimeDecl = new RuntimeDecl(List.of(
                 new FilterKindDecl("filter.kroxylicious.io", "v1alpha1", "RecordEncryption", "io.kroxylicious.filter.encryption.RecordEncryption"),
-                new FilterKindDecl("filter.kroxylicious.io", "v1alpha1", "RecordValidation", "io.kroxylicious.filter.validation.RecordValidation")
-        ));
+                new FilterKindDecl("filter.kroxylicious.io", "v1alpha1", "RecordValidation", "io.kroxylicious.filter.validation.RecordValidation")));
         Operator operator = new Operator();
         operator.installShutdownHook(Duration.ofSeconds(10));
         try {
