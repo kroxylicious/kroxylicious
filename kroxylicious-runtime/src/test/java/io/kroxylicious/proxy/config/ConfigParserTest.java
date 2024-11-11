@@ -403,7 +403,7 @@ class ConfigParserTest {
             fail("generated YAML:\n %s", yaml);
         })
                 .isInstanceOf(IllegalArgumentException.class)
-                .withFailMessage("Failed to encode configuration as YAML");
+                .hasMessage("Failed to encode configuration as YAML");
     }
 
     @Test
