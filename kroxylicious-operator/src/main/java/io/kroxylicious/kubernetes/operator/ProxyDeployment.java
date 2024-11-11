@@ -77,10 +77,12 @@ public class ProxyDeployment
 
     private PodTemplateSpec podTemplate(KafkaProxy primary,
                                         Context<KafkaProxy> context) {
+        PodTemplateSpec podTemplate = primary.getSpec().getPodTemplate();
+        PodTemplateSpecBuilder builder = podTemplate != null ? podTemplate.edit() : new PodTemplateSpecBuilder();
         // @formatter:off
-        return new PodTemplateSpecBuilder()
+        return builder
                 .editOrNewMetadata()
-                    .withLabels(podLabels())
+                    .addToLabels(podLabels())
                 .endMetadata()
                 .editOrNewSpec()
                     .withContainers(proxyContainer(primary, context))
