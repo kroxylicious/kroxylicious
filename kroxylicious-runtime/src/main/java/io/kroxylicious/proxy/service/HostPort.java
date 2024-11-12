@@ -86,7 +86,7 @@ public final class HostPort {
      * @param address stringified form of the host port, separated by colon (:).
      * @return a {@link HostPort}
      */
-    @JsonCreator
+    @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
     @SuppressWarnings("java:S2583") // java:S2583 warns that the address null check can never fail. This is untrue as the NonNull constraint is advisory.
     public static HostPort parse(@NonNull String address) {
         var exceptionText = ("unexpected address formation '%s'." +

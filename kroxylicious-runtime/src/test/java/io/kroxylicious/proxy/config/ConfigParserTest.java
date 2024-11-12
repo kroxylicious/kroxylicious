@@ -20,6 +20,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -27,7 +28,6 @@ import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
-import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -45,6 +45,7 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -189,10 +190,14 @@ class ConfigParserTest {
     void testDeserializeFromYaml() {
         Configuration configuration = configParser.parseConfiguration(this.getClass().getClassLoader().getResourceAsStream("config.yaml"));
         assertThat(configuration.isUseIoUring()).isTrue();
-        AdminHttpConfiguration adminHttpConfiguration = configuration.adminHttpConfig();
-        assertThat(adminHttpConfiguration.host()).isEqualTo("kroxy");
-        assertThat(adminHttpConfiguration.port()).isEqualTo(9093);
-        assertThat(adminHttpConfiguration.endpoints().maybePrometheus()).isPresent();
+        assertThat(configuration.adminHttpConfig())
+                .isNotNull()
+                .satisfies(ahc -> {
+                    assertThat(ahc.host()).isEqualTo("kroxy");
+                    assertThat(ahc.port()).isEqualTo(9093);
+                    assertThat(ahc.endpoints().maybePrometheus()).isPresent();
+                });
+
         assertThat(configuration.virtualClusters()).hasSize(1);
         assertThat(configuration.virtualClusters().keySet()).containsExactly("demo");
         VirtualCluster cluster = configuration.virtualClusters().values().iterator().next();
@@ -213,6 +218,7 @@ class ConfigParserTest {
         assertThat(exception.getMessage()).contains("Couldn't parse configuration");
     }
 
+    @SuppressWarnings("resource")
     @Test
     void testConfigParserIoException() {
         InputStream mockInputStream = new InputStream() {
@@ -293,7 +299,7 @@ class ConfigParserTest {
                 - type: NestedPluginConfigFactory
                   config:
                     examplePlugin: ExamplePluginInstance
-                      """);
+                """);
         assertThat(config.filters()).hasSize(1);
 
         FilterDefinition fd = config.filters().get(0);
@@ -317,7 +323,7 @@ class ConfigParserTest {
                   config:
                     examplePlugin: NotAKnownPlugin
 
-                      """));
+                """));
         var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
         var upie = assertInstanceOf(UnknownPluginInstanceException.class, vie.getCause());
         assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ExamplePluginFactory plugin instance for "
@@ -328,6 +334,7 @@ class ConfigParserTest {
                 upie.getMessage());
     }
 
+    @SuppressWarnings("unchecked")
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void shouldWorkWithDifferentConfigCreators(String name, String yaml, Class<?> expectedConfigType) {
@@ -339,7 +346,7 @@ class ConfigParserTest {
 
         // Then
         for (FilterDefinition fd : config.filters()) {
-            var pluginFactory = cp.pluginFactory((Class<FilterFactory<? super Object, ? super Object>>) (Class) FilterFactory.class);
+            var pluginFactory = cp.pluginFactory((Class<FilterFactory<? super Object, ? super Object>>) (Class<?>) FilterFactory.class);
             var filterFactory = pluginFactory.pluginInstance(fd.type());
             Class<?> configType = pluginFactory.configType(fd.type());
             assertEquals(expectedConfigType, configType);
@@ -355,7 +362,7 @@ class ConfigParserTest {
                         - type: ConstructorInjection
                           config:
                             str: hello, world
-                              """,
+                        """,
                 ConstructorInjectionConfig.class),
                 Arguments.of("factory method",
                         """
@@ -363,7 +370,7 @@ class ConfigParserTest {
                                 - type: FactoryMethod
                                   config:
                                     str: hello, world
-                                      """,
+                                """,
                         FactoryMethodConfig.class),
                 Arguments.of("field injection",
                         """
@@ -371,7 +378,7 @@ class ConfigParserTest {
                                 - type: FieldInjection
                                   config:
                                     str: hello, world
-                                      """,
+                                """,
                         FieldInjectionConfig.class),
                 Arguments.of("record",
                         """
@@ -379,7 +386,7 @@ class ConfigParserTest {
                                 - type: Record
                                   config:
                                     str: hello, world
-                                      """,
+                                """,
                         RecordConfig.class),
                 Arguments.of("setter injection",
                         """
@@ -387,16 +394,21 @@ class ConfigParserTest {
                                 - type: SetterInjection
                                   config:
                                     str: hello, world
-                                      """,
+                                """,
                         SetterInjectionConfig.class));
     }
 
     @Test
     void shouldThrowWhenSerializingUnserializableObject() {
-        var config = new Configuration(null, null, List.of(new FilterDefinition("", new Object())), null, false);
+        var config = new Configuration(null, null, List.of(new FilterDefinition("", new NonSerializableConfig(""))), null, false);
 
         ConfigParser cp = new ConfigParser();
-        assertThrows(IllegalArgumentException.class, () -> cp.toYaml(config));
+        assertThatThrownBy(() -> {
+            final String yaml = cp.toYaml(config);
+            fail("generated YAML:\n %s", yaml);
+        })
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Failed to encode configuration as YAML");
     }
 
     @Test
@@ -449,6 +461,14 @@ class ConfigParserTest {
                 .extracting(KeyStore::storePasswordProvider)
                 .extracting(PasswordProvider::getProvidedPassword)
                 .isEqualTo(password);
+
     }
 
+    private record NonSerializableConfig(String id) {
+        @Override
+        @JsonGetter
+        public String id() {
+            throw new UnsupportedOperationException("boom. haha fooled you jackson");
+        }
+    }
 }
