@@ -400,7 +400,7 @@ class ConfigParserTest {
 
     @Test
     void shouldThrowWhenSerializingUnserializableObject() {
-        var config = new Configuration(null, null, List.of(new FilterDefinition("", new UnseriasliseableConfig(""))), null, false);
+        var config = new Configuration(null, null, List.of(new FilterDefinition("", new NonSerializableConfig(""))), null, false);
 
         ConfigParser cp = new ConfigParser();
         assertThatThrownBy(() -> {
@@ -461,9 +461,10 @@ class ConfigParserTest {
                 .extracting(KeyStore::storePasswordProvider)
                 .extracting(PasswordProvider::getProvidedPassword)
                 .isEqualTo(password);
+
     }
 
-    private record UnseriasliseableConfig(String id) {
+    private record NonSerializableConfig(String id) {
         @Override
         @JsonGetter
         public String id() {
