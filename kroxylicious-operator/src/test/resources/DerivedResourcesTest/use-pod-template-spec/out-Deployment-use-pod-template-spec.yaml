@@ -16,6 +16,7 @@ metadata:
     app.kubernetes.io/instance: "use-pod-template-spec"
     app.kubernetes.io/component: "proxy"
   name: "use-pod-template-spec"
+  namespace: proxy-ns
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
@@ -28,7 +29,7 @@ spec:
   template:
     metadata:
       labels:
-        environment: "production"
+        environment: "production-from-podTemplate"
         app: "kroxylicious"
     spec:
       containers:
@@ -36,7 +37,7 @@ spec:
           image: "quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT"
           args:
             - "--config"
-            - "/opt/kroxylicious/config/config.yaml"
+            - "/opt/kroxylicious/config/proxy-config.yaml"
           ports:
             - containerPort: 9190
               name: "metrics"
@@ -45,9 +46,9 @@ spec:
             - containerPort: 9294
             - containerPort: 9295
           volumeMounts:
-            - mountPath: "/opt/kroxylicious/config/config.yaml"
+            - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
-              subPath: "config.yaml"
+              subPath: "proxy-config.yaml"
       volumes:
         - name: "config-volume"
           secret:

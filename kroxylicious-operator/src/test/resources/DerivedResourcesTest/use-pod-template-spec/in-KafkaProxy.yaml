@@ -9,6 +9,7 @@ kind: KafkaProxy
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: use-pod-template-spec
+  namespace: proxy-ns
 spec:
   clusters:
   - name: "one"
@@ -17,4 +18,4 @@ spec:
   podTemplate:
     metadata:
       labels:
-        environment: "production"
+        environment: "production-from-podTemplate"

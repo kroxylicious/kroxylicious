@@ -35,6 +35,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
@@ -47,6 +48,7 @@ import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
@@ -195,75 +197,84 @@ class DerivedResourcesTest {
     private static List<DynamicTest> testsForDir(List<DesiredFn<KafkaProxy, ?>> dependentResources,
                                                  Path testDir)
             throws IOException {
-        var unusedFiles = childFilesMatching(testDir, "*");
-        Path input = testDir.resolve("in-KafkaProxy.yaml");
-        KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
-        assertMinimalMetadataPresent(kafkaProxy);
-        unusedFiles.remove(input);
-        unusedFiles.remove(testDir.resolve("operator-config.yaml"));
-        unusedFiles.removeAll(childFilesMatching(testDir, "in-*"));
-
-        Context<KafkaProxy> context;
         try {
-            context = buildContext(kafkaProxy, testDir);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+            var unusedFiles = childFilesMatching(testDir, "*");
+            String inFileName = "in-KafkaProxy.yaml";
+            Path input = testDir.resolve(inFileName);
+            KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
+            assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
 
-        List<DynamicTest> tests = new ArrayList<>();
+            unusedFiles.remove(input);
+            unusedFiles.remove(testDir.resolve("operator-config.yaml"));
+            unusedFiles.removeAll(childFilesMatching(testDir, "in-*"));
 
-        var dr = dependentResources.stream()
-                .flatMap(r -> r.invokeDesired(kafkaProxy, context).values().stream().map(x -> Map.entry(r.resourceType(), x)))
-                .collect(Collectors.groupingBy(Map.Entry::getKey))
-                .entrySet()
-                .stream()
-                .collect(Collectors.toMap(Map.Entry::getKey,
-                        e -> e.getValue().stream().map(Map.Entry::getValue).collect(Collectors.toCollection(() -> new TreeSet<>(
-                                Comparator.comparing(hasMetadata -> hasMetadata.getMetadata().getName()))))));
-        for (var entry : dr.entrySet()) {
-            var resourceType = entry.getKey();
-            var actualResources = entry.getValue();
-            for (var actualResource : actualResources) {
-                String kind = resourceType.getSimpleName();
-                String name = actualResource.getMetadata().getName();
-                var expectedFile = testDir.resolve("out-" + kind + "-" + name + ".yaml");
-                tests.add(DynamicTest.dynamicTest(kind + " '" + name + "' should have the same content as " + testDir.relativize(expectedFile),
-                        () -> {
-                            assertThat(Files.exists(expectedFile)).isTrue();
-                            var expected = loadExpected(expectedFile, resourceType);
-                            assertSameYaml(actualResource, expected);
-                            unusedFiles.remove(expectedFile);
-                        }));
+            Context<KafkaProxy> context;
+            try {
+                context = buildContext(kafkaProxy, testDir);
             }
-            for (var cluster : kafkaProxy.getSpec().getClusters()) {
-                ClusterCondition actualClusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
-                if (actualClusterCondition.type() == ConditionType.Accepted && actualClusterCondition.status().equals(Conditions.Status.TRUE)) {
-                    continue;
-                }
-                else {
-                    var expectedFile = testDir.resolve("cond-" + actualClusterCondition.type() + "-" + actualClusterCondition.cluster() + ".yaml");
-                    tests.add(DynamicTest.dynamicTest(
-                            "Condition " + actualClusterCondition.type() + " for cluster " + actualClusterCondition.cluster() + " matches contents of expected file "
-                                    + expectedFile,
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+
+            List<DynamicTest> tests = new ArrayList<>();
+
+            var dr = dependentResources.stream()
+                    .flatMap(r -> r.invokeDesired(kafkaProxy, context).values().stream().map(x -> Map.entry(r.resourceType(), x)))
+                    .collect(Collectors.groupingBy(Map.Entry::getKey))
+                    .entrySet()
+                    .stream()
+                    .collect(Collectors.toMap(Map.Entry::getKey,
+                            e -> e.getValue().stream().map(Map.Entry::getValue).collect(Collectors.toCollection(() -> new TreeSet<>(
+                                    Comparator.comparing(hasMetadata -> hasMetadata.getMetadata().getName()))))));
+            for (var entry : dr.entrySet()) {
+                var resourceType = entry.getKey();
+                var actualResources = entry.getValue();
+                for (var actualResource : actualResources) {
+                    String kind = resourceType.getSimpleName();
+                    String name = actualResource.getMetadata().getName();
+                    var expectedFile = testDir.resolve("out-" + kind + "-" + name + ".yaml");
+                    tests.add(DynamicTest.dynamicTest(kind + " '" + name + "' should have the same content as " + testDir.relativize(expectedFile),
                             () -> {
-                                var expected = loadExpected(expectedFile, ClusterCondition.class);
-                                assertSameYaml(actualClusterCondition, expected);
+                                assertThat(Files.exists(expectedFile)).isTrue();
+                                var expected = loadExpected(expectedFile, resourceType);
+                                assertSameYaml(actualResource, expected);
                                 unusedFiles.remove(expectedFile);
                             }));
                 }
+                for (var cluster : kafkaProxy.getSpec().getClusters()) {
+                    ClusterCondition actualClusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
+                    if (actualClusterCondition.type() == ConditionType.Accepted && actualClusterCondition.status().equals(Conditions.Status.TRUE)) {
+                        continue;
+                    }
+                    else {
+                        var expectedFile = testDir.resolve("cond-" + actualClusterCondition.type() + "-" + actualClusterCondition.cluster() + ".yaml");
+                        tests.add(DynamicTest.dynamicTest(
+                                "Condition " + actualClusterCondition.type() + " for cluster " + actualClusterCondition.cluster() + " matches contents of expected file "
+                                        + expectedFile,
+                                () -> {
+                                    var expected = loadExpected(expectedFile, ClusterCondition.class);
+                                    assertSameYaml(actualClusterCondition, expected);
+                                    unusedFiles.remove(expectedFile);
+                                }));
+                    }
+                }
             }
-        }
 
-        tests.add(DynamicTest.dynamicTest("There should be no unused files in " + testDir,
-                () -> assertThat(unusedFiles).isEmpty()));
-        return tests;
+            tests.add(DynamicTest.dynamicTest("There should be no unused files in " + testDir,
+                    () -> assertThat(unusedFiles).isEmpty()));
+            return tests;
+        }
+        catch (AssertionError e) {
+            return List.of(DynamicTest.dynamicTest("failed to initialize test", () -> {
+                throw e;
+            }));
+        }
     }
 
-    // sanity check since we can omit fields that the k8s API will ensure are present in reality
-    private static void assertMinimalMetadataPresent(HasMetadata resource) {
-        assertThat(resource.getMetadata().getName()).isNotNull().isNotEmpty();
-        assertThat(resource.getMetadata().getNamespace()).isNotNull().isNotEmpty();
+    private static void assertMinimalMetadata(ObjectMeta metadata, String inFileName) {
+        // sanity check since we can omit fields that the k8s API will ensure are present in reality
+        assertThat(metadata.getName()).describedAs("metadata.name in " + inFileName).isNotNull().isNotEmpty();
+        assertThat(metadata.getNamespace()).describedAs("metadata.namespace in " + inFileName).isNotNull().isNotEmpty();
     }
 
     private static <T> void assertSameYaml(T actualResource, T expected) throws JsonProcessingException {
@@ -305,10 +316,11 @@ class DerivedResourcesTest {
         var runtimeDecl = Files.exists(configFile) ? configFromFile(configFile) : new RuntimeDecl(List.of());
         Set<GenericKubernetesResource> filterInstances = new HashSet<>();
         for (var filterApi : runtimeDecl.filterApis()) {
-            try (var dirStream = Files.newDirectoryStream(testDir, "in-" + filterApi.kind() + "-*.yaml")) {
+            String fileName = "in-" + filterApi.kind() + "-*.yaml";
+            try (var dirStream = Files.newDirectoryStream(testDir, fileName)) {
                 for (Path p : dirStream) {
                     GenericKubernetesResource resource = YAML_MAPPER.readValue(p.toFile(), GenericKubernetesResource.class);
-                    assertMinimalMetadataPresent(resource);
+                    assertMinimalMetadata(resource.getMetadata(), fileName);
                     filterInstances.add(resource);
                 }
             }

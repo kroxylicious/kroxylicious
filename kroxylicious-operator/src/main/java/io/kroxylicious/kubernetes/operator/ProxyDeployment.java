@@ -6,9 +6,11 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.Map;
+import java.util.Optional;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -77,11 +79,14 @@ public class ProxyDeployment
 
     private PodTemplateSpec podTemplate(KafkaProxy primary,
                                         Context<KafkaProxy> context) {
-        PodTemplateSpec podTemplate = primary.getSpec().getPodTemplate();
-        PodTemplateSpecBuilder builder = podTemplate != null ? podTemplate.edit() : new PodTemplateSpecBuilder();
+        Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec().getPodTemplate())
+                .map(PodTemplateSpec::getMetadata)
+                .map(ObjectMeta::getLabels)
+                .orElse(Map.of());
         // @formatter:off
-        return builder
+        return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
+                    .addToLabels(labelsFromSpec)
                     .addToLabels(podLabels())
                 .endMetadata()
                 .editOrNewSpec()
