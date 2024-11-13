@@ -19,6 +19,8 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
+import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
+
 /**
  * The Kube {@code Deployment} for the proxy
  */
@@ -51,7 +53,8 @@ public class ProxyDeployment
                     .withName(deploymentName(primary))
                     .withNamespace(primary.getMetadata().getNamespace())
                     .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
-                    .withLabels(deploymentLabels())
+                    .addToLabels(APP_KROXY)
+                    .addToLabels(standardLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
                     .withReplicas(1)
@@ -65,10 +68,6 @@ public class ProxyDeployment
     }
 
     private static Map<String, String> deploymentSelector() {
-        return APP_KROXY;
-    }
-
-    private static Map<String, String> deploymentLabels() {
         return APP_KROXY;
     }
 

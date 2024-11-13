@@ -25,6 +25,8 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 
+import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
+
 /**
  * The Kube {@code Service} for a single virtual cluster.
  * This is named like {@code ${cluster.name}}, which allows clusters to migrate between proxy
@@ -82,6 +84,7 @@ public class ClusterService
                 .withNewMetadata()
                     .withName(serviceName(cluster))
                     .withNamespace(primary.getMetadata().getNamespace())
+                    .addToLabels(standardLabels(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
                 .withNewSpec()

@@ -34,6 +34,8 @@ import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
+
 /**
  * A Kube {@code Secret} containing the proxy config YAML.
  * We use a {@code Secret} (rather than a {@code ConfigMap})
@@ -67,6 +69,7 @@ public class ProxyConfigSecret
                 .editOrNewMetadata()
                     .withName(secretName(primary))
                     .withNamespace(primary.getMetadata().getNamespace())
+                    .addToLabels(standardLabels(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
                 .withStringData(Map.of(CONFIG_YAML_KEY, generateProxyConfig(primary)))
