@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
@@ -55,6 +54,15 @@ public class ProxyConfigSecret
         extends CRUDKubernetesDependentResource<Secret, KafkaProxy> {
 
     private static final ObjectMapper OBJECT_MAPPER = ConfigParser.createObjectMapper();
+
+    private static String toYaml(Object filterDefs) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(filterDefs);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
 
     /**
      * The key of the {@code config.yaml} entry in the desired {@code Secret}.
@@ -103,14 +111,7 @@ public class ProxyConfigSecret
                 SharedKafkaProxyContext.addClusterCondition(context, cluster, e.accepted());
             }
         }
-        if (filterDefinitionses.stream().map(filterDefs -> {
-            try {
-                return OBJECT_MAPPER.writeValueAsString(filterDefs);
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }).distinct().count() > 1) {
+        if (filterDefinitionses.stream().map(ProxyConfigSecret::toYaml).distinct().count() > 1) {
             throw new InvalidResourceException("Currently the proxy only supports a single, global, filter chain");
         }
         List<FilterDefinition> filterDefinitions = filterDefinitionses.isEmpty() ? List.of() : filterDefinitionses.get(0);
@@ -130,12 +131,7 @@ public class ProxyConfigSecret
                 List.of(),
                 false);
 
-        try {
-            return OBJECT_MAPPER.writeValueAsString(configuration);
-        }
-        catch (JsonProcessingException e) {
-            throw new UncheckedIOException(e);
-        }
+        return toYaml(configuration);
     }
 
     @NonNull
