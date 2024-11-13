@@ -41,10 +41,9 @@ import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
-import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
-
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 
 /**
  * Generates a Kube {@code Secret} containing the proxy config YAML.

@@ -12,7 +12,7 @@ metadata:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
     app.kubernetes.io/part-of: "kafka"
-    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
   name: "bar"
   ownerReferences:
