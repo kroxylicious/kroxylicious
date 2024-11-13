@@ -14,9 +14,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -58,14 +55,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class ProxyConfigSecret
         extends CRUDKubernetesDependentResource<Secret, KafkaProxy> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyConfigSecret.class);
-
     private static final ObjectMapper OBJECT_MAPPER = ConfigParser.createObjectMapper();
 
     /**
      * The key of the {@code config.yaml} entry in the desired {@code Secret}.
      */
-    public static final String CONFIG_YAML_KEY = "config.yaml";
+    public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
 
     public ProxyConfigSecret() {
         super(Secret.class);
@@ -98,6 +93,7 @@ public class ProxyConfigSecret
                                Context<KafkaProxy> context) {
 
         List<Clusters> clusters = ResourcesUtil.distinctClusters(primary);
+        // TODO handle dupes here
 
         List<List<FilterDefinition>> filterDefinitionses = new ArrayList<>(clusters.size());
         for (Clusters cluster : clusters) {
@@ -105,7 +101,7 @@ public class ProxyConfigSecret
                 filterDefinitionses.add(filterDefinitions(cluster, context));
             }
             catch (InvalidClusterException e) {
-                SharedKafkaProxyContext.addClusterError(context, cluster, e);
+                SharedKafkaProxyContext.addClusterCondition(context, cluster, e.accepted());
             }
         }
         if (filterDefinitionses.stream().map(filterDefs -> {
@@ -121,6 +117,7 @@ public class ProxyConfigSecret
         List<FilterDefinition> filterDefinitions = filterDefinitionses.isEmpty() ? List.of() : filterDefinitionses.get(0);
 
         var virtualClusters = clusters.stream()
+                .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
                 .collect(Collectors.toMap(
                         Clusters::getName,
                         cluster -> getVirtualCluster(primary, cluster),
@@ -163,21 +160,15 @@ public class ProxyConfigSecret
 
     @NonNull
     private static InvalidClusterException unknownFilterKind(Clusters cluster, Filters filterRef) {
-        return new InvalidClusterException(cluster.getName(),
-                "UnknownKind",
-                "Filter in API group " + filterRef.getGroup()
-                        + " with kind " + filterRef.getKind()
-                        + " is not known to this operator");
+        return new InvalidClusterException(ClusterCondition.filterKindNotKnown(
+                cluster.getName(),
+                filterRef.getName(),
+                filterRef.getKind()));
     }
 
     @NonNull
     private static InvalidClusterException resourceNotFound(Clusters cluster, Filters filterRef) {
-        return new InvalidClusterException(cluster.getName(),
-                "ResourceNotFound",
-                "Resource in API group \"" + filterRef.getGroup()
-                        + "\" with kind \"" + filterRef.getKind()
-                        + "\" and name \"" + filterRef.getName()
-                        + "\" was not found by this operator");
+        return new InvalidClusterException(ClusterCondition.filterNotExists(cluster.getName(), filterRef.getName()));
     }
 
     private static boolean matches(FilterApiDecl decl, Filters filterRef) {

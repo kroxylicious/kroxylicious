@@ -65,7 +65,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
                 name = ProxyReconciler.CLUSTERS_DEP,
                 type = ClusterService.class,
                 dependsOn = { ProxyReconciler.DEPLOYMENT_DEP }
-                //useEventSourceWithName = ProxyReconciler.CLUSTERS_DEP
         )
 })
 // @formatter:on
@@ -87,15 +86,26 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     }
 
     @Override
+    public void initContext(
+                            KafkaProxy primary,
+                            Context<KafkaProxy> context) {
+        SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
+    }
+
+    /**
+     * The happy path, where all the dependent resources expressed a desired
+     */
+    @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        // var l = context.getSecondaryResourcesAsStream(RecordEncryption.class).toList();
-        // LOGGER.info("Reconciled the PROXY {}, found associated filters {}", primary, l);
         LOGGER.info("Completed reconciliation of {}/{}", primary.getMetadata().getNamespace(), primary.getMetadata().getName());
         return UpdateControl.patchStatus(
                 buildStatus(primary, context, null));
     }
 
+    /**
+     * The unhappy path, where some dependent resource threw an exception
+     */
     @Override
     public ErrorStatusUpdateControl<KafkaProxy> updateErrorStatus(KafkaProxy primary,
                                                                   Context<KafkaProxy> context,
@@ -119,18 +129,19 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         if (exception instanceof AggregatedOperatorException aoe && aoe.getAggregatedExceptions().size() == 1) {
             exception = aoe.getAggregatedExceptions().values().iterator().next();
         }
+        Stream<Clusters> clustersStream = primary.getSpec() == null || primary.getSpec().getClusters() == null ? Stream.empty()
+                : primary.getSpec().getClusters().stream();
         // @formatter:off
-        List<Conditions> conditions = (primary.getSpec() == null || primary.getSpec().getClusters() == null ? Stream.<Clusters>empty() : primary.getSpec().getClusters().stream()).flatMap(cluster -> {
-            return SharedKafkaProxyContext.clusterErrors(context, cluster).stream().map(ex ->
-                    newCondition("InvalidCluster", primary, ex));
-        }).collect(Collectors.toCollection(ArrayList::new));
-
-        conditions.add(0, effectiveReadyCondition(primary, exception));
-
         return new KafkaProxyBuilder(primary)
                 .editOrNewStatus()
                     .withObservedGeneration(primary.getMetadata().getGeneration())
-                    .withConditions(conditions)
+                    .withConditions(effectiveReadyCondition(primary, exception))
+                    .withClusters(clustersStream.map(
+                            cluster -> new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ClustersBuilder()
+                                    .withName(cluster.getName())
+                                    .withConditions(List.of(newCondition(primary, SharedKafkaProxyContext.clusterCondition(context, cluster))))
+                                    .build()
+                    ).toList())
                 .endStatus()
             .build();
         // @formatter:on
@@ -154,7 +165,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             if (exception != null) {
                 logException(primary, exception);
             }
-            return newCondition("Ready", primary, exception);
+            return newCondition(ConditionType.Ready, primary, exception);
         }
         else {
             oldReady.setObservedGeneration(primary.getMetadata().getGeneration());
@@ -193,14 +204,27 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
      * @return The {@code Ready} condition to use in {@code status.conditions}
      * <strong>if the condition had has a state transition</strong>.
      */
-    private static Conditions newCondition(String conditionType, KafkaProxy primary, @Nullable Exception exception) {
+    private static Conditions newCondition(
+                                           ConditionType conditionType, KafkaProxy primary, @Nullable Exception exception) {
         return new ConditionsBuilder()
                 .withLastTransitionTime(ZonedDateTime.now(ZoneId.of("Z")))
                 .withMessage(conditionMessage(exception))
                 .withObservedGeneration(primary.getMetadata().getGeneration())
                 .withReason(conditionReason(exception))
                 .withStatus(exception == null ? Conditions.Status.TRUE : Conditions.Status.FALSE)
-                .withType(conditionType)
+                .withType(conditionType.getValue())
+                .build();
+    }
+
+    private static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions newCondition(
+                                                                                                             KafkaProxy primary, ClusterCondition clusterCondition) {
+        return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.ConditionsBuilder()
+                .withLastTransitionTime(ZonedDateTime.now(ZoneId.of("Z")))
+                .withMessage(clusterCondition.message())
+                .withObservedGeneration(primary.getMetadata().getGeneration())
+                .withReason(clusterCondition.reason())
+                .withStatus(clusterCondition.status())
+                .withType(clusterCondition.type().getValue())
                 .build();
     }
 
@@ -231,9 +255,6 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     private static String conditionReason(@Nullable Exception exception) {
         if (exception == null) {
             return "";
-        }
-        else if (exception instanceof InvalidClusterException ice) {
-            return ice.reason();
         }
         else {
             return exception.getClass().getSimpleName();
@@ -304,10 +325,4 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         return filterReferences;
     }
 
-    @Override
-    public void initContext(
-                            KafkaProxy primary,
-                            Context<KafkaProxy> context) {
-        SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
-    }
 }

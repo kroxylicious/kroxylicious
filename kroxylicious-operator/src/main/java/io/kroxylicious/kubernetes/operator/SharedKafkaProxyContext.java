@@ -6,11 +6,8 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -47,16 +44,20 @@ public class SharedKafkaProxyContext {
     }
 
     /**
-     * Add some error specific to a cluster
+     * Associate an Accepted condition with a specific cluster.
      */
-    static void addClusterError(Context<KafkaProxy> context, Clusters cluster, Exception error) {
-        Map<String, List<Exception>> map = context.managedDependentResourceContext().get(ERROR_KEY, Map.class).orElse(null);
+    static void addClusterCondition(Context<KafkaProxy> context, Clusters cluster, ClusterCondition clusterCondition) {
+        Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(ERROR_KEY, Map.class).orElse(null);
         if (map == null) {
             map = Collections.synchronizedMap(new HashMap<>());
             context.managedDependentResourceContext().put(ERROR_KEY, map);
         }
-        var exceptions = map.computeIfAbsent(cluster.getName(), k -> Collections.synchronizedList(new ArrayList<>()));
-        exceptions.add(error);
+        map.put(cluster.getName(), clusterCondition);
+    }
+
+    static boolean isBroken(Context<KafkaProxy> context, Clusters cluster) {
+        Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(ERROR_KEY, Map.class).orElse(Map.of());
+        return map.containsKey(cluster.getName());
     }
 
     /**
@@ -65,18 +66,9 @@ public class SharedKafkaProxyContext {
      * @param cluster The cluster
      * @return The errors specific to the given cluster; or empty if there were none.
      */
-    static List<Exception> clusterErrors(Context<KafkaProxy> context, Clusters cluster) {
-        Optional<Map<String, List<Exception>>> map = (Optional) context.managedDependentResourceContext().get(ERROR_KEY, Map.class);
-        return map.orElse(Map.of()).getOrDefault(cluster.getName(), List.of());
-    }
-
-    static List<Exception> allErrors(Context<KafkaProxy> context) {
-        Optional<Map<String, List<Exception>>> map = (Optional) context.managedDependentResourceContext().get(ERROR_KEY, Map.class);
-        return map.orElse(Map.of())
-                .values()
-                .stream()
-                .flatMap(Collection::stream)
-                .toList();
+    static ClusterCondition clusterCondition(Context<KafkaProxy> context, Clusters cluster) {
+        Optional<Map<String, ClusterCondition>> map = (Optional) context.managedDependentResourceContext().get(ERROR_KEY, Map.class);
+        return map.orElse(Map.of()).getOrDefault(cluster.getName(), ClusterCondition.accepted(cluster.getName()));
     }
 
 }

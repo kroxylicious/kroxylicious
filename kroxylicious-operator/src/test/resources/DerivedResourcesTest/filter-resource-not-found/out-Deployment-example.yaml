@@ -10,16 +10,11 @@ kind: "Deployment"
 metadata:
   labels:
     app: "kroxylicious"
-    app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/part-of: "kafka"
-    app.kubernetes.io/instance: "twocluster"
-    app.kubernetes.io/component: "proxy"
-  name: "twocluster"
+  name: "example"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "twocluster"
+      name: "example"
 spec:
   replicas: 1
   selector:
@@ -39,10 +34,6 @@ spec:
           ports:
             - containerPort: 9190
               name: "metrics"
-            - containerPort: 9292
-            - containerPort: 9293
-            - containerPort: 9294
-            - containerPort: 9295
             - containerPort: 9392
             - containerPort: 9393
             - containerPort: 9394
@@ -54,4 +45,4 @@ spec:
       volumes:
         - name: "config-volume"
           secret:
-            secretName: "twocluster"
+            secretName: "example"

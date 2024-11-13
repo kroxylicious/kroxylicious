@@ -5,9 +5,8 @@
 #
 
 ---
-kind: One
-apiVersion: org.example.one/v1
-metadata:
-  name: filter-one
-spec:
-  filterOneConfig: true
+cluster: "foo"
+type: "Accepted"
+status: "False"
+reason: "Invalid"
+message: "Filter \"missing\" does not exist."

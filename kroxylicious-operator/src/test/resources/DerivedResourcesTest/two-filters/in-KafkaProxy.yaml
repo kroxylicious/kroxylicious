@@ -11,7 +11,7 @@ metadata:
   name: example
 spec:
   clusters:
-  - name: "one"
+  - name: "foo"
     upstream:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
     filters:

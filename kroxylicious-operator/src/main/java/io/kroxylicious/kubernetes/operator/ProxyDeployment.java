@@ -29,7 +29,7 @@ public class ProxyDeployment
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 
     public static final String CONFIG_VOLUME = "config-volume";
-    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/config.yaml";
+    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     public static final int METRICS_PORT = 9190;
 
@@ -61,7 +61,7 @@ public class ProxyDeployment
                     .editOrNewSelector()
                         .withMatchLabels(deploymentSelector())
                     .endSelector()
-                    .withTemplate(podTemplate(primary))
+                    .withTemplate(podTemplate(primary, context))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -75,14 +75,15 @@ public class ProxyDeployment
         return APP_KROXY;
     }
 
-    private PodTemplateSpec podTemplate(KafkaProxy primary) {
+    private PodTemplateSpec podTemplate(KafkaProxy primary,
+                                        Context<KafkaProxy> context) {
         // @formatter:off
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
                     .withLabels(podLabels())
                 .endMetadata()
                 .editOrNewSpec()
-                    .withContainers(proxyContainer(primary))
+                    .withContainers(proxyContainer(primary, context))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewSecret()
@@ -94,7 +95,8 @@ public class ProxyDeployment
         // @formatter:on
     }
 
-    private static Container proxyContainer(KafkaProxy primary) {
+    private static Container proxyContainer(KafkaProxy primary,
+                                            Context<KafkaProxy> context) {
         // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
@@ -112,12 +114,14 @@ public class ProxyDeployment
                     .withName("metrics")
                 .endPort();
         // broker ports
-        for (var cluster : ResourcesUtil.distinctClusters(primary)) {
-            for (var portEntry : ClusterService.clusterPorts(primary, cluster).entrySet()) {
-                containerBuilder.addNewPort()
-                        .withContainerPort(portEntry.getKey())
-                        // .withName(portEntry.getValue())
-                        .endPort();
+        for (var cluster : primary.getSpec().getClusters()) {
+            if (!SharedKafkaProxyContext.isBroken(context, cluster)) {
+                for (var portEntry : ClusterService.clusterPorts(primary, context, cluster).entrySet()) {
+                    containerBuilder.addNewPort()
+                            .withContainerPort(portEntry.getKey())
+                            // .withName(portEntry.getValue())
+                            .endPort();
+                }
             }
         }
         return containerBuilder.build();

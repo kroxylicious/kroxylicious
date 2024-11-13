@@ -5,9 +5,9 @@
 #
 
 ---
-kind: One
-apiVersion: org.example.one/v1
-metadata:
-  name: filter-one
-spec:
-  filterOneConfig: true
+
+type: "Accepted"
+cluster: "foo"
+status: "False"
+reason: "Invalid"
+message: 'Filter "oops" has a kind "Missing" that is not known to this operator.'

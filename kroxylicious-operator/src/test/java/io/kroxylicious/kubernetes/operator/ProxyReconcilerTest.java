@@ -10,8 +10,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 
-import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
-
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
 import org.junit.jupiter.api.AfterEach;
@@ -26,6 +24,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
+import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

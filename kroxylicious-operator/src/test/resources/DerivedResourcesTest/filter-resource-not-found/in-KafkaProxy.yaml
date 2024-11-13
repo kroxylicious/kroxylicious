@@ -11,13 +11,25 @@ metadata:
   name: example
 spec:
   clusters:
-  - name: "one"
-    upstream:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-    filters:
-      - group: org.example.one
-        kind: One
-        name: filter-one
-      - group: com.example.two
-        kind: Two
-        name: filter-two
+    - name: "foo"
+      # This cluster should be absent from the output proxy-operator-operator-operator-config.yaml, because there is no Two with name missing
+      upstream:
+        bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+      filters:
+        - group: org.example.one
+          kind: One
+          name: filter-one
+        - group: com.example.two
+          kind: Two
+          name: missing # this does not exist
+    - name: "bar"
+      # This cluster should be present in the output proxy-operator-operator-operator-config.yaml, because both these filters exist
+      upstream:
+        bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+      filters:
+        - group: org.example.one
+          kind: One
+          name: filter-one
+        - group: com.example.two
+          kind: Two
+          name: filter-two
