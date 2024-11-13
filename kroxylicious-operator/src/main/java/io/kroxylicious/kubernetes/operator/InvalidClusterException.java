@@ -10,7 +10,7 @@ package io.kroxylicious.kubernetes.operator;
  * An exception specific to a cluster within a proxy.
  */
 public class InvalidClusterException extends RuntimeException {
-    private final ClusterCondition accepted;
+    private final transient ClusterCondition accepted;
 
     public InvalidClusterException(ClusterCondition accepted) {
         super();

@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +39,6 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ConditionsBuilder;
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
@@ -129,33 +127,46 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         if (exception instanceof AggregatedOperatorException aoe && aoe.getAggregatedExceptions().size() == 1) {
             exception = aoe.getAggregatedExceptions().values().iterator().next();
         }
-        Stream<Clusters> clustersStream = primary.getSpec() == null || primary.getSpec().getClusters() == null ? Stream.empty()
-                : primary.getSpec().getClusters().stream();
+        var now = ZonedDateTime.now(ZoneId.of("Z"));
         // @formatter:off
         return new KafkaProxyBuilder(primary)
                 .editOrNewStatus()
                     .withObservedGeneration(primary.getMetadata().getGeneration())
-                    .withConditions(effectiveReadyCondition(primary, exception))
-                    .withClusters(clustersStream.map(
-                            cluster -> new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ClustersBuilder()
-                                    .withName(cluster.getName())
-                                    .withConditions(List.of(newCondition(primary, SharedKafkaProxyContext.clusterCondition(context, cluster))))
-                                    .build()
-                    ).toList())
+                    .withConditions(effectiveReadyCondition(primary, exception, now))
+                    .withClusters(clusterConditions(primary, context, now))
                 .endStatus()
             .build();
         // @formatter:on
     }
 
+    private static List<io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters> clusterConditions(KafkaProxy primary,
+                                                                                                             Context<KafkaProxy> context,
+                                                                                                             ZonedDateTime now) {
+        if (primary.getSpec() == null
+                || primary.getSpec().getClusters() == null) {
+            return List.of();
+        }
+        return primary.getSpec().getClusters().stream().map(cluster -> {
+            ClusterCondition clusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
+            var conditions = newClusterCondition(primary, clusterCondition, now);
+            return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ClustersBuilder()
+                    .withName(cluster.getName())
+                    .withConditions(conditions).build();
+        }).toList();
+    }
+
     /**
      * Determines whether the {@code Ready} condition has had a state transition,
      * and returns an appropriate new {@code Ready} condition.
+     *
      * @param primary The primary.
      * @param exception An exception, or null if the reconciliation was successful.
+     * @param now
      * @return The {@code Ready} condition to use in {@code status.conditions}.
      */
     private static Conditions effectiveReadyCondition(KafkaProxy primary,
-                                                      @Nullable Exception exception) {
+                                                      @Nullable Exception exception,
+                                                      ZonedDateTime now) {
         final var oldReady = primary.getStatus() == null || primary.getStatus().getConditions() == null
                 ? null
                 : primary.getStatus().getConditions().stream().filter(c -> "Ready".equals(c.getType())).findFirst().orElse(null);
@@ -165,7 +176,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             if (exception != null) {
                 logException(primary, exception);
             }
-            return newCondition(ConditionType.Ready, primary, exception);
+            return newCondition(ConditionType.Ready, primary, exception, now);
         }
         else {
             oldReady.setObservedGeneration(primary.getMetadata().getGeneration());
@@ -201,13 +212,17 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     /**
      * @param primary The primary.
      * @param exception An exception, or null if the reconciliation was successful.
+     * @param now
      * @return The {@code Ready} condition to use in {@code status.conditions}
-     * <strong>if the condition had has a state transition</strong>.
+     *         <strong>if the condition had has a state transition</strong>.
      */
     private static Conditions newCondition(
-                                           ConditionType conditionType, KafkaProxy primary, @Nullable Exception exception) {
+                                           ConditionType conditionType,
+                                           KafkaProxy primary,
+                                           @Nullable Exception exception,
+                                           ZonedDateTime now) {
         return new ConditionsBuilder()
-                .withLastTransitionTime(ZonedDateTime.now(ZoneId.of("Z")))
+                .withLastTransitionTime(now)
                 .withMessage(conditionMessage(exception))
                 .withObservedGeneration(primary.getMetadata().getGeneration())
                 .withReason(conditionReason(exception))
@@ -216,10 +231,12 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
                 .build();
     }
 
-    private static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions newCondition(
-                                                                                                             KafkaProxy primary, ClusterCondition clusterCondition) {
+    private static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions newClusterCondition(
+                                                                                                                    KafkaProxy primary,
+                                                                                                                    ClusterCondition clusterCondition,
+                                                                                                                    ZonedDateTime now) {
         return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.ConditionsBuilder()
-                .withLastTransitionTime(ZonedDateTime.now(ZoneId.of("Z")))
+                .withLastTransitionTime(now)
                 .withMessage(clusterCondition.message())
                 .withObservedGeneration(primary.getMetadata().getGeneration())
                 .withReason(clusterCondition.reason())
@@ -316,9 +333,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         Set<ResourceID> filterReferences = list.stream()
                 .flatMap(cluster -> cluster.getFilters().stream())
                 .map(filter -> {
-                    ResourceID resourceID = new ResourceID(filter.getName(), proxy.getMetadata().getNamespace());
-                    // context.getPrimaryCache().get(resourceID);
-                    return resourceID;
+                    return new ResourceID(filter.getName(), proxy.getMetadata().getNamespace());
                 })
                 .collect(Collectors.toSet());
         LOGGER.info("KafkaProxy {} has references to filters {}", ResourceID.fromResource(proxy), filterReferences);

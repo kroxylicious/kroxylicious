@@ -292,7 +292,6 @@ class DerivedResourcesTest {
 
         var resourceContext = new DefaultManagedDependentResourceContext();
 
-        // doReturn(Optional.empty()).when(context).getRetryInfo();
         doReturn(resourceContext).when(context).managedDependentResourceContext();
 
         var configFile = testDir.resolve("operator-config.yaml");

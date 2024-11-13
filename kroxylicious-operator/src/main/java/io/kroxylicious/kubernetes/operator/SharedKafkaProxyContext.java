@@ -26,8 +26,8 @@ public class SharedKafkaProxyContext {
     private SharedKafkaProxyContext() {
     }
 
-    private static final String RUNTIME_DECL_KEY = "runtime";
-    private static final String ERROR_KEY = "error";
+    static final String RUNTIME_DECL_KEY = "runtime";
+    static final String ERROR_KEY = "error";
 
     /**
      * Set the RuntimeDecl
