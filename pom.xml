@@ -40,7 +40,7 @@
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.18.1</jackson.version>
         <junit.version>5.11.3</junit.version>
-        <kafka.version>3.8.0</kafka.version>
+        <kafka.version>3.9.0</kafka.version>
         <kroxy.extension.version>0.9.1</kroxy.extension.version>
         <log4j.version>2.24.1</log4j.version>
         <caffeine.version>3.1.8</caffeine.version>
