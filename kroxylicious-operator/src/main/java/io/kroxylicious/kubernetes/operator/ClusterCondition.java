@@ -14,10 +14,6 @@ public record ClusterCondition(String cluster, ConditionType type, Status status
         return new ClusterCondition(cluster, ConditionType.Accepted, Status.TRUE, null, null);
     }
 
-    static ClusterCondition unknown(String cluster) {
-        return new ClusterCondition(cluster, ConditionType.Accepted, Status.UNKNOWN, null, null);
-    }
-
     static ClusterCondition filterNotExists(String cluster, String filterName) {
         return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, "Invalid",
                 "Filter \"" + filterName + "\" does not exist.");

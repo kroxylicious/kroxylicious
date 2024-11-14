@@ -129,7 +129,7 @@ public class ClusterService
                 .getSecondaryResources(primary);
         return secondaryResources.stream()
                 .collect(Collectors.toMap(
-                        svc -> clusterName(svc),
+                        ClusterService::clusterName,
                         Function.identity()));
     }
 }

@@ -5,12 +5,12 @@
  */
 
 /**
- * Kubernetes operator for the Kroxylicious Proxy.
+ * Classes comprising the operator's configuration model.
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)
-package io.kroxylicious.kubernetes.operator;
+package io.kroxylicious.kubernetes.operator.config;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
 import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;

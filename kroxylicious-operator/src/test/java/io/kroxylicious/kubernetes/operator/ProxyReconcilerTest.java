@@ -309,7 +309,8 @@ class ProxyReconcilerTest {
                 .build();
         // @formatter:on
         doReturn(mdrc).when(context).managedDependentResourceContext();
-        doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.filterNotExists("my-cluster", "MissingFilter")))).when(mdrc).get(SharedKafkaProxyContext.ERROR_KEY,
+        doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.filterNotExists("my-cluster", "MissingFilter")))).when(mdrc).get(
+                SharedKafkaProxyContext.CLUSTER_CONDITIONS_KEY,
                 Map.class);
         doReturn(new RuntimeDecl(List.of())).when(mdrc).getMandatory(SharedKafkaProxyContext.RUNTIME_DECL_KEY, Map.class);
 

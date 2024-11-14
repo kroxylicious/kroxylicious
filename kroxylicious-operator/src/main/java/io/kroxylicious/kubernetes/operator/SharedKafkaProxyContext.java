@@ -27,7 +27,7 @@ public class SharedKafkaProxyContext {
     }
 
     static final String RUNTIME_DECL_KEY = "runtime";
-    static final String ERROR_KEY = "error";
+    static final String CLUSTER_CONDITIONS_KEY = "cluster_conditions";
 
     /**
      * Set the RuntimeDecl
@@ -44,30 +44,30 @@ public class SharedKafkaProxyContext {
     }
 
     /**
-     * Associate an Accepted condition with a specific cluster.
+     * Associate a condition with a specific cluster.
      */
     static void addClusterCondition(Context<KafkaProxy> context, Clusters cluster, ClusterCondition clusterCondition) {
-        Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(ERROR_KEY, Map.class).orElse(null);
+        Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(null);
         if (map == null) {
             map = Collections.synchronizedMap(new HashMap<>());
-            context.managedDependentResourceContext().put(ERROR_KEY, map);
+            context.managedDependentResourceContext().put(CLUSTER_CONDITIONS_KEY, map);
         }
         map.put(cluster.getName(), clusterCondition);
     }
 
     static boolean isBroken(Context<KafkaProxy> context, Clusters cluster) {
-        Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(ERROR_KEY, Map.class).orElse(Map.of());
+        Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(Map.of());
         return map.containsKey(cluster.getName());
     }
 
     /**
-     * Get the errors specific to a cluster
+     * Get the conditions specific to a cluster
      * @param context The context
      * @param cluster The cluster
-     * @return The errors specific to the given cluster; or empty if there were none.
+     * @return The conditions specific to the given cluster; or empty if there were none.
      */
     static ClusterCondition clusterCondition(Context<KafkaProxy> context, Clusters cluster) {
-        Optional<Map<String, ClusterCondition>> map = (Optional) context.managedDependentResourceContext().get(ERROR_KEY, Map.class);
+        Optional<Map<String, ClusterCondition>> map = (Optional) context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class);
         return map.orElse(Map.of()).getOrDefault(cluster.getName(), ClusterCondition.accepted(cluster.getName()));
     }
 

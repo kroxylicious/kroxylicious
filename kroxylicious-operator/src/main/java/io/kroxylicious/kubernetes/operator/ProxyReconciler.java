@@ -132,23 +132,23 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         return new KafkaProxyBuilder(primary)
                 .editOrNewStatus()
                     .withObservedGeneration(primary.getMetadata().getGeneration())
-                    .withConditions(effectiveReadyCondition(primary, exception, now))
-                    .withClusters(clusterConditions(primary, context, now))
+                    .withConditions(effectiveReadyCondition(now, primary, exception ))
+                    .withClusters(clusterConditions(now, primary, context ))
                 .endStatus()
             .build();
         // @formatter:on
     }
 
-    private static List<io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters> clusterConditions(KafkaProxy primary,
-                                                                                                             Context<KafkaProxy> context,
-                                                                                                             ZonedDateTime now) {
+    private static List<io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters> clusterConditions(ZonedDateTime now,
+                                                                                                             KafkaProxy primary,
+                                                                                                             Context<KafkaProxy> context) {
         if (primary.getSpec() == null
                 || primary.getSpec().getClusters() == null) {
             return List.of();
         }
         return primary.getSpec().getClusters().stream().map(cluster -> {
             ClusterCondition clusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
-            var conditions = newClusterCondition(primary, clusterCondition, now);
+            var conditions = newClusterCondition(now, primary, clusterCondition);
             return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ClustersBuilder()
                     .withName(cluster.getName())
                     .withConditions(conditions).build();
@@ -159,14 +159,14 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
      * Determines whether the {@code Ready} condition has had a state transition,
      * and returns an appropriate new {@code Ready} condition.
      *
+     * @param now
      * @param primary The primary.
      * @param exception An exception, or null if the reconciliation was successful.
-     * @param now
      * @return The {@code Ready} condition to use in {@code status.conditions}.
      */
-    private static Conditions effectiveReadyCondition(KafkaProxy primary,
-                                                      @Nullable Exception exception,
-                                                      ZonedDateTime now) {
+    private static Conditions effectiveReadyCondition(ZonedDateTime now,
+                                                      KafkaProxy primary,
+                                                      @Nullable Exception exception) {
         final var oldReady = primary.getStatus() == null || primary.getStatus().getConditions() == null
                 ? null
                 : primary.getStatus().getConditions().stream().filter(c -> "Ready".equals(c.getType())).findFirst().orElse(null);
@@ -176,7 +176,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             if (exception != null) {
                 logException(primary, exception);
             }
-            return newCondition(ConditionType.Ready, primary, exception, now);
+            return newCondition(now, ConditionType.Ready, primary, exception);
         }
         else {
             oldReady.setObservedGeneration(primary.getMetadata().getGeneration());
@@ -210,17 +210,16 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     }
 
     /**
+     * @param now
      * @param primary The primary.
      * @param exception An exception, or null if the reconciliation was successful.
-     * @param now
      * @return The {@code Ready} condition to use in {@code status.conditions}
      *         <strong>if the condition had has a state transition</strong>.
      */
     private static Conditions newCondition(
-                                           ConditionType conditionType,
+                                           ZonedDateTime now, ConditionType conditionType,
                                            KafkaProxy primary,
-                                           @Nullable Exception exception,
-                                           ZonedDateTime now) {
+                                           @Nullable Exception exception) {
         return new ConditionsBuilder()
                 .withLastTransitionTime(now)
                 .withMessage(conditionMessage(exception))
@@ -232,9 +231,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     }
 
     private static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions newClusterCondition(
-                                                                                                                    KafkaProxy primary,
-                                                                                                                    ClusterCondition clusterCondition,
-                                                                                                                    ZonedDateTime now) {
+                                                                                                                    ZonedDateTime now, KafkaProxy primary,
+                                                                                                                    ClusterCondition clusterCondition) {
         return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.ConditionsBuilder()
                 .withLastTransitionTime(now)
                 .withMessage(clusterCondition.message())
@@ -314,7 +312,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
                     .list().getItems().stream()
                     .map(ResourceID::fromResource)
                     .collect(Collectors.toSet());
-            LOGGER.info("Event source SecondaryToPrimaryMapper got {}", proxiesInFilterNamespace);
+            LOGGER.debug("Event source SecondaryToPrimaryMapper got {}", proxiesInFilterNamespace);
             return proxiesInFilterNamespace;
         };
 
@@ -329,14 +327,14 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     @NonNull
     private static Set<ResourceID> proxyToFilterRefs(KafkaProxy proxy, EventSourceContext<KafkaProxy> context) {
         var list = proxy.getSpec().getClusters().stream().toList();
-        LOGGER.info("Event source PrimaryToSecondaryMapper got {}", list);
+        LOGGER.debug("Event source PrimaryToSecondaryMapper got {}", list);
         Set<ResourceID> filterReferences = list.stream()
                 .flatMap(cluster -> cluster.getFilters().stream())
                 .map(filter -> {
                     return new ResourceID(filter.getName(), proxy.getMetadata().getNamespace());
                 })
                 .collect(Collectors.toSet());
-        LOGGER.info("KafkaProxy {} has references to filters {}", ResourceID.fromResource(proxy), filterReferences);
+        LOGGER.debug("KafkaProxy {} has references to filters {}", ResourceID.fromResource(proxy), filterReferences);
         return filterReferences;
     }
 
