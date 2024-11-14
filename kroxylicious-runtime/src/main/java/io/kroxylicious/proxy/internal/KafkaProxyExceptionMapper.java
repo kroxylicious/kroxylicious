@@ -223,8 +223,7 @@ public class KafkaProxyExceptionMapper {
                 ListOffsetsRequestData listOffsetsRequestData = (ListOffsetsRequestData) reqBody;
                 if (listOffsetsRequestData.replicaId() == ListOffsetsRequest.CONSUMER_REPLICA_ID) {
                     req = ListOffsetsRequest.Builder.forConsumer(true,
-                            IsolationLevel.forId(listOffsetsRequestData.isolationLevel()),
-                            true)
+                            IsolationLevel.forId(listOffsetsRequestData.isolationLevel()))
                             .setTargetTimes(listOffsetsRequestData.topics())
                             .build(apiVersion);
                 }
