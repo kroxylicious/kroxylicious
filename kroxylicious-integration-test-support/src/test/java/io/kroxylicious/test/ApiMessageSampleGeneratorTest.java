@@ -26,6 +26,7 @@ import org.apache.kafka.common.utils.AbstractIterator;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -95,4 +96,16 @@ class ApiMessageSampleGeneratorTest {
         assertTrue(new String(valueBytes, StandardCharsets.UTF_8).startsWith("value-"));
     }
 
+    @Test
+    void allProduceRequestAllowReply() {
+        var prdRequests = ApiMessageSampleGenerator.createRequestSamples().entrySet().stream()
+                .map(Map.Entry::getValue)
+                .filter(ProduceRequestData.class::isInstance)
+                .map(ProduceRequestData.class::cast)
+                .toList();
+
+        assertThat(prdRequests)
+                .hasSizeGreaterThan(0)
+                .allMatch(p -> p.acks() != 0);
+    }
 }
