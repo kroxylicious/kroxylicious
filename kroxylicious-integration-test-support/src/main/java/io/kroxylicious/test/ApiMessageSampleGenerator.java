@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
+import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Message;
@@ -44,6 +45,10 @@ import org.apache.kafka.common.utils.ImplicitLinkedHashCollection;
  * from the same random seed and the ApiKeys and methods are iterated over
  * in a deterministic order so the output of `createRequestSamples` should
  * be consistent.
+ * <br/>
+ * The ApiMessageSampleGenerator gives the guarantee that all generated request
+ * samples would require Kafka response (in concrete terms, this means that
+ * the {@link ProduceRequestData} instances have an acks value != 0.
  */
 public class ApiMessageSampleGenerator {
 
@@ -62,7 +67,7 @@ public class ApiMessageSampleGenerator {
      * Generates a sample request ApiMessage for all ApiKeys
      * @return ApiKeys to message
      */
-    static public Map<ApiAndVersion, ApiMessage> createRequestSamples() {
+    public static Map<ApiAndVersion, ApiMessage> createRequestSamples() {
         Random random = new Random(0);
         return instantiateAll(DataClasses.getRequestClasses(), random);
     }
@@ -71,7 +76,7 @@ public class ApiMessageSampleGenerator {
      * Generates a sample response ApiMessage for all ApiKeys
      * @return ApiKeys to message
      */
-    static public Map<ApiAndVersion, ApiMessage> createResponseSamples() {
+    public static Map<ApiAndVersion, ApiMessage> createResponseSamples() {
         Random random = new Random(0);
         return instantiateAll(DataClasses.getResponseClasses(), random);
     }
@@ -111,7 +116,7 @@ public class ApiMessageSampleGenerator {
         }
     }
 
-    static private Message instantiate(Class<? extends Message> clazz, Random random, Schema schema) {
+    private static Message instantiate(Class<? extends Message> clazz, Random random, Schema schema) {
         try {
             Message instance = clazz.getConstructor().newInstance();
             Map<String, org.apache.kafka.common.protocol.types.Field> fieldsForVersion = Arrays.stream(schema.fields())
@@ -124,8 +129,14 @@ public class ApiMessageSampleGenerator {
                     .sorted(Comparator.comparing(Method::getName));
             sortedMethods.forEach(method -> {
                 try {
-                    Object o = instantiateArg(method, random, fieldsForVersion.get(method.getName()).type);
-                    method.invoke(instance, o);
+                    if (instance instanceof ProduceRequestData prd && "setAcks".equals(method.getName())) {
+                        // Produce request is a special case in Kafka in that if acks == 0 no reply is to be sent.
+                        prd.setAcks((short) 1);
+                    }
+                    else {
+                        Object o = instantiateArg(method, random, fieldsForVersion.get(method.getName()).type);
+                        method.invoke(instance, o);
+                    }
                 }
                 catch (Exception e) {
                     throw new RuntimeException(e);
@@ -260,7 +271,7 @@ public class ApiMessageSampleGenerator {
         return objects;
     }
 
-    static private Object instantiateArg(Method method, Random random, org.apache.kafka.common.protocol.types.Type type) {
+    private static Object instantiateArg(Method method, Random random, org.apache.kafka.common.protocol.types.Type type) {
         int parameterCount = method.getParameterCount();
         if (parameterCount != 1) {
             throw new IllegalArgumentException("setter takes more than one arg!");
