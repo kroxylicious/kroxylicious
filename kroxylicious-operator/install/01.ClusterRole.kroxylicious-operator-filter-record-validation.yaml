@@ -17,7 +17,7 @@ rules:
   - apiGroups:
       - "filter.kroxylicious.io"
     resources:
-      - record-validations
+      - recordvalidations
     verbs:
       - get
       - list

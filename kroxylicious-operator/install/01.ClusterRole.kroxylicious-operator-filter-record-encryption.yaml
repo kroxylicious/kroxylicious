@@ -17,7 +17,7 @@ rules:
   - apiGroups:
       - "filter.kroxylicious.io"
     resources:
-      - record-encryptions
+      - recordencryptions
     verbs:
       - get
       - list

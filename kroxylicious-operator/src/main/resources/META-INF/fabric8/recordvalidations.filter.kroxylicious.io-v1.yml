@@ -11,19 +11,19 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   # name must match the spec fields below, and be in the form: <plural>.<group>
-  name: record-encryptions.filter.kroxylicious.io
+  name: recordvalidations.filter.kroxylicious.io
 spec:
   # group name to use for REST API: /apis/<group>/<version>
   group: filter.kroxylicious.io
   scope: Namespaced
   names:
     categories:
-      - kroxylicious-plugins
-    plural: record-encryptions
-    singular: record-encryption
-    kind: RecordEncryption
+    - kroxylicious-plugins
+    plural: recordvalidations
+    singular: recordvalidation
+    kind: RecordValidation
     shortNames:
-      - kre
+      - krv
   # list of versions supported by this CustomResourceDefinition
   versions:
     - name: v1alpha1
@@ -43,33 +43,7 @@ spec:
             spec:
               type: object
               properties:
-                kms:
-                  type: string
-                kmsConfig:
-                  type: object
-                selector:
-                  type: string
-                selectorConfig:
-                  type: object
-                experimental:
-                  type: object
-                  properties:
-                    decryptedDekCacheSize:
-                      type: integer
-                    decryptedDekExpireAfterAccessSeconds:
-                      type: integer
-                    resolvedAliasCacheSize:
-                      type: integer
-                    resolvedAliasExpireAfterWriteSeconds:
-                      type: integer
-                    resolvedAliasRefreshAfterWriteSeconds:
-                      type: integer
-                    notFoundAliasExpireAfterWriteSeconds:
-                      type: integer
-                    encryptionDekRefreshAfterWriteSeconds:
-                      type: integer
-                    encryptionDekExpireAfterWriteSeconds:
-                      type: integer
+
             status:
               type: object
               properties:

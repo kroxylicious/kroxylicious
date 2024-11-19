@@ -63,13 +63,13 @@ kubectl logs -n kroxylicious-operator pods/kroxylicious-operator-7cd88454c8-fjcx
 
 # Creating a `KafkaProxy`
 
-```
+```bash
 kubectl apply -f examples/simple/
 ```
 
 You can check that worked with something like
 
-```
+```bash
 kubectl logs -n my-proxy pods/simple-647d99d9b5-hkwt2 proxy 
 ```
 
