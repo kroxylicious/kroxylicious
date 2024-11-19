@@ -16,6 +16,7 @@ metadata:
     app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
   name: "example"
+  namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"

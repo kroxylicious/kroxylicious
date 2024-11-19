@@ -9,5 +9,6 @@ kind: Two
 apiVersion: com.example.two/v1beta42
 metadata:
   name: filter-two
+  namespace: proxy-ns
 spec:
   filterTwoConfig: 42

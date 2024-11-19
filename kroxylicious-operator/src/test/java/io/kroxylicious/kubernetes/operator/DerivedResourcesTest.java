@@ -198,6 +198,7 @@ class DerivedResourcesTest {
         var unusedFiles = childFilesMatching(testDir, "*");
         Path input = testDir.resolve("in-KafkaProxy.yaml");
         KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
+        assertMinimalMetadataPresent(kafkaProxy);
         unusedFiles.remove(input);
         unusedFiles.remove(testDir.resolve("operator-config.yaml"));
         unusedFiles.removeAll(childFilesMatching(testDir, "in-*"));
@@ -259,6 +260,12 @@ class DerivedResourcesTest {
         return tests;
     }
 
+    // sanity check since we can omit fields that the k8s API will ensure are present in reality
+    private static void assertMinimalMetadataPresent(HasMetadata resource) {
+        assertThat(resource.getMetadata().getName()).isNotNull().isNotEmpty();
+        assertThat(resource.getMetadata().getNamespace()).isNotNull().isNotEmpty();
+    }
+
     private static <T> void assertSameYaml(T actualResource, T expected) throws JsonProcessingException {
         if (!expected.equals(actualResource)) {
             // Failing with a String-based assert makes it **much** easier to understand what the diffs are
@@ -300,7 +307,9 @@ class DerivedResourcesTest {
         for (var filterApi : runtimeDecl.filterApis()) {
             try (var dirStream = Files.newDirectoryStream(testDir, "in-" + filterApi.kind() + "-*.yaml")) {
                 for (Path p : dirStream) {
-                    filterInstances.add(YAML_MAPPER.readValue(p.toFile(), GenericKubernetesResource.class));
+                    GenericKubernetesResource resource = YAML_MAPPER.readValue(p.toFile(), GenericKubernetesResource.class);
+                    assertMinimalMetadataPresent(resource);
+                    filterInstances.add(resource);
                 }
             }
         }
