@@ -5,10 +5,13 @@
 #
 
 ---
-kind: RecordValidation
+kind: RecordEncryption
 apiVersion: filter.kroxylicious.io/v1alpha1
 metadata:
-  name: validation
+  name: encryption
   namespace: my-proxy
 spec:
-  # ...
+  kms: Foo
+  kmsConfig: {}
+  selector: Bar
+  selectorConfig: {}
