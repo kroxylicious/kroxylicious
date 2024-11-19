@@ -1,0 +1,9 @@
+$schema: https://json-schema.org/draft-04/schema
+id: Bar.yaml
+description: This is an example which will compile to the Java class `Bar`
+type: object
+properties:
+  someInts:
+    type: array
+    items:
+      type: integer

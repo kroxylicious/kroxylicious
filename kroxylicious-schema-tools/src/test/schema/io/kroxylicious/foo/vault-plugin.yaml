@@ -1,0 +1,21 @@
+# from this thing we derive the vault-schema and the vault-crd
+# we need two processors one to generate the CRD and the CRD java classes
+# and another to generate the config schema and config java classes
+#
+class: VaultKms
+schema:
+  #$schema: https://json-schema.org/draft-04/schema
+  #id: vault-schema.yaml
+  description: The schema for the vault KMS plugin
+  type: object
+  required:
+    - vaultUrl
+    - vaultToken
+  properties:
+    vaultUrl:
+      type: string
+      format: uri
+    vaultToken:
+      $ref: kroxylicious-common.yaml/#/definitions/SecretReference
+    timeout:
+      $ref: kroxylicious-common.yaml/#/definitions/Duration

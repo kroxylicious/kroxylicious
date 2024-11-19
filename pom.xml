@@ -455,6 +455,7 @@
         <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
         <module>kroxylicious-operator</module>
+        <module>kroxylicious-schema-tools</module>
     </modules>
 
 

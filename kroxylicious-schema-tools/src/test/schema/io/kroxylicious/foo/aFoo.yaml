@@ -1,0 +1,7 @@
+$schema: Foo.yaml
+aString: hello
+foo:
+  someInts:
+    - 42
+anonymousObject:
+  aBoolean: bob

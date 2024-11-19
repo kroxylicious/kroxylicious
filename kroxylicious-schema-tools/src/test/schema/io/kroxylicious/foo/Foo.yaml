@@ -1,0 +1,24 @@
+$schema: https://json-schema.org/draft-04/schema
+id: Foo.yaml
+description: This is an example which will compile to the Java class `Foo`
+type: object
+required:
+  - aString
+  - foo
+#  - anonymousObject
+properties:
+  aString:
+    type: string
+  foo:
+    $ref: Bar.yaml
+  innerObject:
+    id: Inner
+    type: object
+    properties:
+      aBoolean:
+        type: boolean
+#  anonymousObject:
+#    type: object
+#    properties:
+#      aBoolean:
+#        type: boolean

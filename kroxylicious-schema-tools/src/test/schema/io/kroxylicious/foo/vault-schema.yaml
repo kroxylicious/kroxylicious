@@ -1,0 +1,15 @@
+$schema: https://json-schema.org/draft-04/schema
+id: vault-schema.yaml
+description: The schema for the vault KMS plugin
+type: object
+required:
+  - vaultUrl
+  - vaultToken
+properties:
+  vaultUrl:
+    type: string
+    format: uri
+  vaultToken:
+    $ref: kroxylicious-common.yaml/#/definitions/SecretReference
+  timeout:
+    $ref: kroxylicious-common.yaml/#/definitions/Duration

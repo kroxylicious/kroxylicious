@@ -1,0 +1,7 @@
+$schema: https://json-schema.org/draft-04/schema
+id: recordencryption.yaml
+description: The schema for record encryption filter
+type: object
+properties:
+  kms:
+    $ref: kroxylicious-common.yaml#/ObjectReference
