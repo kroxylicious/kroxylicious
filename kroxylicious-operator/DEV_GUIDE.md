@@ -24,6 +24,15 @@ Alternatively you can build the operator properly and run it within Kube...
 
 # Building & installing the operator
 
+There is a convenience script to clean build the operator and install it into minikube. The script will attempt to clean out any installed operator resources and CRDs
+while preserving expensive resources like a Strimzi kafka cluster.
+
+```
+../scripts/run-operator.sh
+```
+
+If you need more control, the following steps explain how to manually build and install.
+
 ## Building
 
 Note: The Integration Tests will only run if your kubectl context is pointing at a cluster. For development, we recommend using  `minikube`, for example:
