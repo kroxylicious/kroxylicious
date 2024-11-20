@@ -4,6 +4,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+---
 apiVersion: "v1"
 kind: "Service"
 metadata:
@@ -11,28 +12,28 @@ metadata:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
     app.kubernetes.io/part-of: "kafka"
-    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
-  name: "dupe"
+  name: "foo"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "minimal"
+      name: "example"
 spec:
   ports:
-    - name: "dupe-9292"
+    - name: "foo-9292"
       port: 9292
       protocol: "TCP"
       targetPort: 9292
-    - name: "dupe-9293"
+    - name: "foo-9293"
       port: 9293
       protocol: "TCP"
       targetPort: 9293
-    - name: "dupe-9294"
+    - name: "foo-9294"
       port: 9294
       protocol: "TCP"
       targetPort: 9294
-    - name: "dupe-9295"
+    - name: "foo-9295"
       port: 9295
       protocol: "TCP"
       targetPort: 9295

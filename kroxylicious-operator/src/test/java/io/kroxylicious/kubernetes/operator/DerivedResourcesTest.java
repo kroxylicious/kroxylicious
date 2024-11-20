@@ -6,41 +6,48 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.assertj.core.api.Assertions;
-import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.mockito.stubbing.Answer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
+import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.DefaultContext;
-import io.javaoperatorsdk.operator.api.reconciler.RetryInfo;
-import io.javaoperatorsdk.operator.processing.Controller;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
+import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 class DerivedResourcesTest {
@@ -60,46 +67,20 @@ class DerivedResourcesTest {
         }
     }
 
+    public static RuntimeDecl configFromFile(Path path) {
+        // TODO should validate against the Config schema, because the DependentResource
+        // should never see an invalid config in production
+        try {
+            return YAML_MAPPER.readValue(path.toFile(), RuntimeDecl.class);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     @FunctionalInterface
     interface TriFunction<X, Y, Z, R> {
         R apply(X x, Y y, Z z);
-    }
-
-    record ResourceOrError<R extends HasMetadata>(
-                                                  @Nullable R resource,
-                                                  @Nullable Exception error,
-                                                  @NonNull String kind) {
-        ResourceOrError {
-            if ((resource != null) == (error != null)) {
-                throw new IllegalArgumentException();
-            }
-            Objects.requireNonNull(kind);
-        }
-
-        public void withResult(ThrowingConsumer<R> resourceFn,
-                               ThrowingConsumer<Exception> errorFn) {
-            if (resource != null) {
-                resourceFn.accept(resource);
-            }
-            if (error != null) {
-                errorFn.accept(error);
-            }
-        }
-
-        static <R extends HasMetadata> ResourceOrError<R> resource(R resource) {
-            return new ResourceOrError<>(resource, null, resource.getKind());
-        }
-
-        static <R extends HasMetadata> ResourceOrError<R> error(Exception error, String kind) {
-            return new ResourceOrError<>(null, error, kind);
-        }
-
-        public Path filenameOfExpectedFile() {
-            if (resource != null) {
-                return Path.of("out-" + resource.getKind() + "-" + resource.getMetadata().getName() + ".yaml");
-            }
-            return Path.of("error-" + kind + /* "-" + resource.getMetadata().getName() + */".yaml");
-        }
     }
 
     /**
@@ -109,11 +90,13 @@ class DerivedResourcesTest {
      * @param <R> The resource type of the dependent resource (e.g. Service)
      */
     interface DesiredFn<P extends HasMetadata, R extends HasMetadata> {
+        Class<R> resourceType();
+
         /**
          * @return A map of expected file name (i.e. a classpath resource which contains the YAML for the expected resource)
          * to actual resource
          */
-        Map<Path, ResourceOrError<R>> invokeDesired(P primary, Context<P> context);
+        Map<String, R> invokeDesired(P primary, Context<P> context);
 
     }
 
@@ -121,29 +104,20 @@ class DerivedResourcesTest {
      * Specialization of {@link DesiredFn} for KubernetesDependentResource
      * (i.e. where the desired() method returns an R).
      */
-    // @formatter:off
-    record SingletonDependentResourceDesiredFn<
-            D extends KubernetesDependentResource<R, P>,
-            P extends HasMetadata,
-            R extends HasMetadata>
-            (
-                D dependentResource,
-                String dependentResourceKind,
-                TriFunction<D, P, Context<P>, R> fn
-            )
+    record SingletonDependentResourceDesiredFn<D extends KubernetesDependentResource<R, P>, P extends HasMetadata, R extends HasMetadata>(
+                                                                                                                                          D dependentResource,
+                                                                                                                                          String dependentResourceKind,
+                                                                                                                                          TriFunction<D, P, Context<P>, R> fn)
             implements DesiredFn<P, R> {
-        // @formatter:on
         @Override
-        public Map<Path, ResourceOrError<R>> invokeDesired(P primary, Context<P> context) {
-            ResourceOrError<R> resource;
-            try {
-                resource = ResourceOrError.resource(fn.apply(dependentResource, primary, context));
-            }
-            catch (Exception e) {
-                resource = ResourceOrError.error(e, dependentResourceKind);
-            }
-            return Map.of(resource.filenameOfExpectedFile(), resource);
+        public Class<R> resourceType() {
+            return dependentResource.resourceType();
+        }
 
+        @Override
+        public Map<String, R> invokeDesired(P primary, Context<P> context) {
+            R apply = fn.apply(dependentResource, primary, context);
+            return Map.of(apply.getMetadata().getName(), apply);
         }
     }
 
@@ -151,34 +125,28 @@ class DerivedResourcesTest {
      * Specialization of {@link DesiredFn} for BulkDependentResource
      * (i.e. where the desired() method returns a Map<String, R>).
      */
-    // @formatter:off
-    record BulkDependentResourceDesiredFn<
-            D extends KubernetesDependentResource<R, P> & BulkDependentResource<R, P>,
-            P extends HasMetadata,
-            R extends HasMetadata>
-            (
-                D dependentResource,
-                String dependentResourceKind,
-                TriFunction<D, P, Context<P>, Map<String, R>> fn
-            )
+    record BulkDependentResourceDesiredFn<D extends KubernetesDependentResource<R, P> & BulkDependentResource<R, P>, P extends HasMetadata, R extends HasMetadata>(
+                                                                                                                                                                   D dependentResource,
+                                                                                                                                                                   String dependentResourceKind,
+                                                                                                                                                                   TriFunction<D, P, Context<P>, Map<String, R>> fn)
             implements DesiredFn<P, R> {
-        // @formatter:on
+
         @Override
-        public Map<Path, ResourceOrError<R>> invokeDesired(P primary, Context<P> context) {
-            try {
-                return fn.apply(dependentResource, primary, context).entrySet().stream().collect(Collectors.toMap(
-                        entry -> ResourceOrError.resource(entry.getValue()).filenameOfExpectedFile(),
-                        entry -> ResourceOrError.resource(entry.getValue())));
-            }
-            catch (Exception e) {
-                ResourceOrError<R> error = ResourceOrError.error(e, dependentResourceKind);
-                return Map.of(error.filenameOfExpectedFile(), error);
-            }
+        public Class<R> resourceType() {
+            return dependentResource.resourceType();
+        }
+
+        @Override
+        public Map<String, R> invokeDesired(P primary, Context<P> context) {
+            return fn.apply(dependentResource, primary, context);
         }
     }
 
     @TestFactory
     Stream<DynamicContainer> dependentResourcesShouldEqual() {
+        // Note that the order in this list should reflect the dependency order declared in the ProxyReconciler's
+        // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that
+        // later DependentResource can depend on Context state created by earlier DependentResources.
         var list = List.<DesiredFn<KafkaProxy, ?>> of(
                 new SingletonDependentResourceDesiredFn<>(new ProxyConfigSecret(), "Secret", ProxyConfigSecret::desired),
                 new SingletonDependentResourceDesiredFn<>(new ProxyDeployment(), "Deployment", ProxyDeployment::desired),
@@ -186,9 +154,9 @@ class DerivedResourcesTest {
         return dependentResourcesShouldEqual(list);
     }
 
-    static List<Path> filesInDir(Path dir, String glob) {
+    static List<Path> filesInDir(Path dir, Pattern pattern) {
         var result = new ArrayList<Path>();
-        try (var expected = Files.newDirectoryStream(dir, glob)) {
+        try (var expected = Files.newDirectoryStream(dir, path -> pattern.matcher(path.getFileName().toString()).matches())) {
             for (Path f : expected) {
                 result.add(f);
             }
@@ -201,99 +169,160 @@ class DerivedResourcesTest {
 
     Stream<DynamicContainer> dependentResourcesShouldEqual(List<DesiredFn<KafkaProxy, ?>> list) {
         var dir = Path.of("src", "test", "resources", DerivedResourcesTest.class.getSimpleName());
-        return filesInDir(dir, "*").stream()
+        return filesInDir(dir, Pattern.compile(".*")).stream()
                 .map(testDir -> {
                     String testCase = fileName(testDir);
-                    List<DynamicTest> tests = testsForDir(list, testDir);
-                    return DynamicContainer.dynamicContainer(testCase, tests);
+                    try {
+                        return DynamicContainer.dynamicContainer(testCase, testsForDir(list, testDir));
+                    }
+                    catch (IOException e) {
+                        throw new UncheckedIOException("For test directory " + testDir, e);
+                    }
+
                 });
 
     }
 
+    record ConditionStruct(ConditionType type,
+                           String cluster,
+                           String status,
+                           String reason,
+                           String message) {
+
+    }
+
     @NonNull
-    private static List<DynamicTest> testsForDir(List<DesiredFn<KafkaProxy, ?>> list, Path testDir) {
-        Path kafkaProxyYaml = testDir.resolve("in-KafkaProxy.yaml");
-        KafkaProxy kafkaProxy = kafkaProxyFromFile(kafkaProxyYaml);
+    private static List<DynamicTest> testsForDir(List<DesiredFn<KafkaProxy, ?>> dependentResources,
+                                                 Path testDir)
+            throws IOException {
+        var unusedFiles = childFilesMatching(testDir, "*");
+        Path input = testDir.resolve("in-KafkaProxy.yaml");
+        KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
+        unusedFiles.remove(input);
+        unusedFiles.remove(testDir.resolve("operator-config.yaml"));
+        unusedFiles.removeAll(childFilesMatching(testDir, "in-*"));
 
-        List<DynamicTest> tests = new ArrayList<>();
-
-        var allPresentExpectedFilenames = filesInDir(testDir, "out-*").stream()
-                .map(testDir::relativize)
-                .collect(Collectors.toCollection(HashSet::new));
-
-        var dr = list.stream().map(r -> r.invokeDesired(kafkaProxy, new DefaultContext<KafkaProxy>(
-                mock(RetryInfo.class), mock(Controller.class), kafkaProxy))).toList();
-        var allReturnedExpectedFilenames = dr.stream().flatMap(m -> m.entrySet().stream()).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        var groupedByFile = dr.stream().flatMap(m -> m.entrySet().stream()).collect(Collectors.groupingBy(Map.Entry::getKey));
-        var collisions = groupedByFile.entrySet().stream().filter(entry -> entry.getValue().size() >= 2).map(Map.Entry::getKey).toList();
-        tests.add(DynamicTest.dynamicTest("Dep resources return distinct resources", () -> {
-            assertThat(collisions)
-                    .describedAs("Distinct KubernetesDependentResources returned the same Kubernetes resource")
-                    .isEmpty();
-        }));
-
-        // assert that the returned expected file all exist
-        var missingFiles = allReturnedExpectedFilenames.keySet().stream().filter(expectedEntry -> !Files.exists(testDir.resolve(expectedEntry))).toList();
-        tests.add(DynamicTest.dynamicTest("Each resource returned from a dep resource has an expected YAML", () -> {
-            assertThat(missingFiles)
-                    .describedAs("Expected resource YAML file(s) do not exist")
-                    .isEmpty();
-        }));
-
-        // assert that no other files exist
-        allPresentExpectedFilenames.removeAll(allReturnedExpectedFilenames.keySet());
-        tests.add(DynamicTest.dynamicTest("All expected YAMLs correspond to a resource returned from a dep resource", () -> {
-            assertThat(allPresentExpectedFilenames)
-                    .describedAs(testDir + " contained expected resource YAML files which are not produced by any KubernetesDependentResources")
-                    .isEmpty();
-        }));
-
-        for (var returnedEntry : allReturnedExpectedFilenames.entrySet()) {
-            // assert the contents of the returned resources match the expected resources
-            Path expectedFilename = returnedEntry.getKey();
-            var resourceOrError = returnedEntry.getValue();
-            tests.add(DynamicTest.dynamicTest("Contents match " + expectedFilename, () -> {
-                resourceOrError.withResult(
-                        resource -> {
-                            var expected = loadExpected(testDir, expectedFilename, resource.getClass());
-                            if (!expected.equals(resource)) {
-                                // Failing with a String-based assert makes it **much** easier to understand what the diffs are
-                                // because we're comparing YAML strings, rather than the resources.toString()
-                                // which is not normally YAML. It also means you can use copy&paste to update expected YAML.
-                                assertThat(YAML_MAPPER.writeValueAsString(resource))
-                                        .describedAs("Expect returned resource to match expected")
-                                        .isEqualTo(YAML_MAPPER.writeValueAsString(expected));
-                                // We add this assertion just in case the String-based YAML assertion above didn't fail
-                                // If this assertion fails then it means that (weirdly) the YAML strings are the same
-                                // but the resources were not .equals() => probably a bug in the resources .equals(Object)
-                                Assertions.fail();
-                            }
-                        },
-                        error -> {
-                            var errorStruct = YAML_MAPPER.readValue(testDir.resolve(resourceOrError.filenameOfExpectedFile()).toFile(), ErrorStruct.class);
-                            assertThat(error.getClass().getName()).isEqualTo(errorStruct.type());
-                            assertThat(error.getMessage()).isEqualTo(errorStruct.message());
-                        });
-            }));
-        }
-        return tests;
-    }
-
-    static record ErrorStruct(String type, String message) {}
-
-    private static String fileName(Path testDir) {
-        return testDir.getName(testDir.getNameCount() - 1).toString();
-    }
-
-    private static <R extends HasMetadata> R loadExpected(Path testDir, Path expectedYamlFile, Class<R> derivedResourceType) {
-        R expected;
+        Context<KafkaProxy> context;
         try {
-            expected = YAML_MAPPER.readValue(testDir.resolve(expectedYamlFile).toFile(), derivedResourceType);
+            context = buildContext(kafkaProxy, testDir);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return expected;
+
+        List<DynamicTest> tests = new ArrayList<>();
+
+        var dr = dependentResources.stream()
+                .flatMap(r -> r.invokeDesired(kafkaProxy, context).values().stream().map(x -> Map.entry(r.resourceType(), x)))
+                .collect(Collectors.groupingBy(Map.Entry::getKey))
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey,
+                        e -> e.getValue().stream().map(Map.Entry::getValue).collect(Collectors.toCollection(() -> new TreeSet<>(
+                                Comparator.comparing(hasMetadata -> hasMetadata.getMetadata().getName()))))));
+        for (var entry : dr.entrySet()) {
+            var resourceType = entry.getKey();
+            var actualResources = entry.getValue();
+            for (var actualResource : actualResources) {
+                String kind = resourceType.getSimpleName();
+                String name = actualResource.getMetadata().getName();
+                var expectedFile = testDir.resolve("out-" + kind + "-" + name + ".yaml");
+                tests.add(DynamicTest.dynamicTest(kind + " '" + name + "' should have the same content as " + testDir.relativize(expectedFile),
+                        () -> {
+                            assertThat(Files.exists(expectedFile)).isTrue();
+                            var expected = loadExpected(expectedFile, resourceType);
+                            assertSameYaml(actualResource, expected);
+                            unusedFiles.remove(expectedFile);
+                        }));
+            }
+            for (var cluster : kafkaProxy.getSpec().getClusters()) {
+                ClusterCondition actualClusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
+                if (actualClusterCondition.type() == ConditionType.Accepted && actualClusterCondition.status().equals(Conditions.Status.TRUE)) {
+                    continue;
+                }
+                else {
+                    var expectedFile = testDir.resolve("cond-" + actualClusterCondition.type() + "-" + actualClusterCondition.cluster() + ".yaml");
+                    tests.add(DynamicTest.dynamicTest(
+                            "Condition " + actualClusterCondition.type() + " for cluster " + actualClusterCondition.cluster() + " matches contents of expected file "
+                                    + expectedFile,
+                            () -> {
+                                var expected = loadExpected(expectedFile, ClusterCondition.class);
+                                assertSameYaml(actualClusterCondition, expected);
+                                unusedFiles.remove(expectedFile);
+                            }));
+                }
+            }
+        }
+
+        tests.add(DynamicTest.dynamicTest("There should be no unused files in " + testDir,
+                () -> assertThat(unusedFiles).isEmpty()));
+        return tests;
+    }
+
+    private static <T> void assertSameYaml(T actualResource, T expected) throws JsonProcessingException {
+        if (!expected.equals(actualResource)) {
+            // Failing with a String-based assert makes it **much** easier to understand what the diffs are
+            // because we're comparing YAML strings, rather than the resources.toString()
+            // which is not normally YAML. It also means you can use copy&paste to update expected YAML.
+            assertThat(YAML_MAPPER.writeValueAsString(actualResource))
+                    .describedAs("Expect YAML match expected")
+                    .isEqualTo(YAML_MAPPER.writeValueAsString(expected));
+            // We add this assertion just in case the String-based YAML assertion above didn't fail
+            // If this assertion fails then it means that (weirdly) the YAML strings are the same
+            // but the resources were not .equals() => probably a bug in the resources .equals(Object)
+            Assertions.fail();
+        }
+    }
+
+    @NonNull
+    private static HashSet<Path> childFilesMatching(
+                                                    Path testDir,
+                                                    String glob)
+            throws IOException {
+        return StreamSupport.stream(Files.newDirectoryStream(testDir, glob).spliterator(), false)
+                .collect(Collectors.toCollection(HashSet::new));
+    }
+
+    @NonNull
+    private static Context<KafkaProxy> buildContext(KafkaProxy kafkaProxy, Path testDir) throws IOException {
+        Answer throwOnUnmockedInvocation = invocation -> {
+            throw new RuntimeException("Unmocked method: " + invocation.getMethod());
+        };
+        Context<KafkaProxy> context = mock(Context.class, throwOnUnmockedInvocation);
+
+        var resourceContext = new DefaultManagedDependentResourceContext();
+
+        doReturn(resourceContext).when(context).managedDependentResourceContext();
+
+        var configFile = testDir.resolve("operator-config.yaml");
+        var runtimeDecl = Files.exists(configFile) ? configFromFile(configFile) : new RuntimeDecl(List.of());
+        Set<GenericKubernetesResource> filterInstances = new HashSet<>();
+        for (var filterApi : runtimeDecl.filterApis()) {
+            try (var dirStream = Files.newDirectoryStream(testDir, "in-" + filterApi.kind() + "-*.yaml")) {
+                for (Path p : dirStream) {
+                    filterInstances.add(YAML_MAPPER.readValue(p.toFile(), GenericKubernetesResource.class));
+                }
+            }
+        }
+        doReturn(filterInstances).when(context).getSecondaryResources(GenericKubernetesResource.class);
+        SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
+        return context;
+    }
+
+    record ErrorStruct(String type, String message) {}
+
+    private static String fileName(Path testDir) {
+        return testDir.getFileName().toString();
+    }
+
+    private static <T> T loadExpected(Path path, Class<T> type) {
+        File file = path.toFile();
+        try {
+            return YAML_MAPPER.readValue(file, type);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Reading " + file + " as YAML for type " + type, e);
+        }
     }
 
 }

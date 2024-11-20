@@ -8,15 +8,16 @@
 kind: KafkaProxy
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: minimal
+  name: example
 spec:
   clusters:
-  - name: "dupe"
+  - name: "foo"
     upstream:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-  - name: "dupe"
-    upstream:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-  - name: "notadupe"
-    upstream:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+    filters:
+      - group: org.example.one
+        kind: One
+        name: filter-one
+      - group: com.example.two
+        kind: Two
+        name: filter-two

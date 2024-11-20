@@ -12,28 +12,28 @@ metadata:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
     app.kubernetes.io/part-of: "kafka"
-    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
-  name: "notadupe"
+  name: "bar"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "minimal"
+      name: "example"
 spec:
   ports:
-    - name: "notadupe-9392"
+    - name: "bar-9392"
       port: 9392
       protocol: "TCP"
       targetPort: 9392
-    - name: "notadupe-9393"
+    - name: "bar-9393"
       port: 9393
       protocol: "TCP"
       targetPort: 9393
-    - name: "notadupe-9394"
+    - name: "bar-9394"
       port: 9394
       protocol: "TCP"
       targetPort: 9394
-    - name: "notadupe-9395"
+    - name: "bar-9395"
       port: 9395
       protocol: "TCP"
       targetPort: 9395

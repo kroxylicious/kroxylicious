@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -28,7 +27,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 
 /**
- * The Kube {@code Service} for a single virtual cluster.
+ * Generates the Kube {@code Service} for a single virtual cluster.
  * This is named like {@code ${cluster.name}}, which allows clusters to migrate between proxy
  * instances in the same namespace without impacts clients using the Service's DNS name.
  */
@@ -58,10 +57,13 @@ public class ClusterService
         return service.getMetadata().getName();
     }
 
-    static Map<Integer, String> clusterPorts(KafkaProxy primary, Clusters cluster) {
-        var clusters = ResourcesUtil.distinctClusters(primary);
+    static Map<Integer, String> clusterPorts(KafkaProxy primary, Context<KafkaProxy> context, Clusters cluster) {
+        var clusters = primary.getSpec().getClusters();
         for (int clusterNum = 0; clusterNum < clusters.size(); clusterNum++) {
             if (clusters.get(clusterNum).getName().equals(cluster.getName())) {
+                if (SharedKafkaProxyContext.isBroken(context, cluster)) {
+                    return Map.of();
+                }
                 int startPort = 9292 + (100 * clusterNum);
                 int numBrokerPorts = 4;
                 return IntStream.range(startPort, startPort + numBrokerPorts).boxed()
@@ -78,6 +80,7 @@ public class ClusterService
     }
 
     protected Service clusterService(KafkaProxy primary,
+                                     Context<KafkaProxy> context,
                                      Clusters cluster) {
         // @formatter:off
         var serviceSpecBuilder = new ServiceBuilder()
@@ -89,7 +92,7 @@ public class ClusterService
                 .endMetadata()
                 .withNewSpec()
                     .withSelector(ProxyDeployment.podLabels());
-        for (var portNumEntry : clusterPorts(primary, cluster).entrySet()) {
+        for (var portNumEntry : clusterPorts(primary, context, cluster).entrySet()) {
             serviceSpecBuilder = serviceSpecBuilder
                     .addNewPort()
                         .withName(portNumEntry.getValue())
@@ -110,12 +113,12 @@ public class ClusterService
                                                  KafkaProxy primary,
                                                  Context<KafkaProxy> context) {
         var clusters = ResourcesUtil.distinctClusters(primary);
-        var result = new HashMap<String, Service>(1 + (int) ((clusters.size() + 1) / 0.75f));
-        for (var cluster : clusters) {
-            result.put(cluster.getName(), clusterService(primary, cluster));
-        }
 
-        return result;
+        return clusters.stream()
+                .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
+                .collect(Collectors.toMap(
+                        Clusters::getName,
+                        cluster -> clusterService(primary, context, cluster)));
     }
 
     @Override
@@ -126,7 +129,7 @@ public class ClusterService
                 .getSecondaryResources(primary);
         return secondaryResources.stream()
                 .collect(Collectors.toMap(
-                        svc -> clusterName(svc),
+                        ClusterService::clusterName,
                         Function.identity()));
     }
 }
