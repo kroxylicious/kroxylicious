@@ -5,9 +5,11 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +70,11 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             ResponseHeaderData header = readHeader(headerVersion, accessor);
             log().trace("{}: Header: {}", ctx, header);
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
+            if (body instanceof ApiVersionsResponseData apiBody && apiBody.errorCode() == Errors.UNSUPPORTED_VERSION.code()) {
+                // Supports KIP-511.  Ensure we behave like the Broker does when it signals that it
+                // can't support version of the ApiVersion RPC.
+                apiVersion = 0;
+            }
             log().trace("{}: Body: {}", ctx, body);
             Filter recipient = correlation.recipient();
             Metrics.payloadSizeBytesDownstreamSummary(apiKey, apiVersion).record(length);
