@@ -102,7 +102,7 @@ public class RecordEncryptionFilter<K>
                 }).exceptionallyCompose(throwable -> {
                     log.atWarn().setMessage("failed to encrypt records, cause message: {}")
                             .addArgument(throwable.getMessage())
-                            .setCause(log.isDebugEnabled() ? throwable : null)
+                            .setCause(log.isDebugEnabled() ? throwable.getCause() : null)
                             .log();
                     return CompletableFuture.failedStage(throwable);
                 });
@@ -115,7 +115,7 @@ public class RecordEncryptionFilter<K>
                 .exceptionallyCompose(throwable -> {
                     log.atWarn().setMessage("failed to decrypt records, cause message: {}")
                             .addArgument(throwable.getMessage())
-                            .setCause(log.isDebugEnabled() ? throwable : null)
+                            .setCause(log.isDebugEnabled() ? throwable.getCause() : null)
                             .log();
                     return CompletableFuture.failedStage(throwable);
                 });
