@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -24,6 +26,7 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestDecoder.class);
+    public static final String UNSUPPORTED_VERSION_REMOVE_BEFORE_FORWARD = "UNSUPPORTED_VERSION_REMOVE_BEFORE_FORWARD";
 
     private final DecodePredicate decodePredicate;
 
@@ -86,11 +89,25 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         final RequestFrame frame;
         if (decodeRequest) {
             ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, accessor);
+
             if (log().isTraceEnabled()) {
                 log().trace("{}: body {}", ctx, body);
             }
-
-            frame = new DecodedRequestFrame<>(apiVersion, correlationId, decodeResponse, header, body);
+            if (body instanceof ApiVersionsRequestData && apiVersion > ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION) {
+                log().info("unknown api version encountered, downgrading to v0");
+                ApiVersionsRequestData apiVersionsRequestData = new ApiVersionsRequestData();
+                // absolute hackery to tell a later filter to remember this correlationId and set an error code on the response
+                apiVersionsRequestData.setClientSoftwareName(UNSUPPORTED_VERSION_REMOVE_BEFORE_FORWARD);
+                RequestHeaderData requestHeaderData = new RequestHeaderData();
+                requestHeaderData.setCorrelationId(header.correlationId());
+                requestHeaderData.setRequestApiKey(apiKey.id);
+                requestHeaderData.setRequestApiVersion((short) 0);
+                log().info("requestHeaderData: {}", requestHeaderData);
+                log().info("apiVersionsRequestData: {}", apiVersionsRequestData);
+                frame = new DecodedRequestFrame<>((short) 0, correlationId, true, requestHeaderData, apiVersionsRequestData);
+            } else {
+                frame = new DecodedRequestFrame<>(apiVersion, correlationId, decodeResponse, header, body);
+            }
             if (log().isTraceEnabled()) {
                 log().trace("{}: frame {}", ctx, frame);
             }
