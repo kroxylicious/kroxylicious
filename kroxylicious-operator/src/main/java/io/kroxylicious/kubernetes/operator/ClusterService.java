@@ -49,6 +49,13 @@ public class ClusterService
     }
 
     /**
+     * @return the fully qualified service hostname
+     */
+    static String absoluteServiceHost(KafkaProxy primary, Clusters cluster) {
+        return serviceName(cluster) + "." + primary.getMetadata().getNamespace() + ".svc.cluster.local";
+    }
+
+    /**
      * The inverse of {@link #serviceName(Clusters)}
      * @param service A service
      * @return  The name of the cluster corresponding to the given Service

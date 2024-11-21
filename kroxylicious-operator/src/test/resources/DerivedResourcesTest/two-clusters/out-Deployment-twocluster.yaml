@@ -16,6 +16,7 @@ metadata:
     app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"
   name: "twocluster"
+  namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"

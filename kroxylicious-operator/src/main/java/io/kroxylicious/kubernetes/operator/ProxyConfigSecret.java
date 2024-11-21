@@ -200,7 +200,7 @@ public class ProxyConfigSecret
                         "PortPerBrokerClusterNetworkAddressConfigProvider",
                         new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                                 new HostPort("localhost", 9292 + (100 * clusterNum)),
-                                ClusterService.serviceName(cluster),
+                                ClusterService.absoluteServiceHost(primary, cluster),
                                 null,
                                 null,
                                 null)),

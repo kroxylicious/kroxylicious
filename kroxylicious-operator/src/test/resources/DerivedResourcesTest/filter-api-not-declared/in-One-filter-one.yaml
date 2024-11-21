@@ -9,5 +9,6 @@ kind: One
 apiVersion: org.example.one/v1
 metadata:
   name: filter-one
+  namespace: proxy-ns
 spec:
   filterOneConfig: true
