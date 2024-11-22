@@ -70,7 +70,7 @@
         <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.9</maven.core.version>
         <awaitility.version>4.2.2</awaitility.version>
-        <commons.io.version>2.17.0</commons.io.version>
+        <commons.io.version>2.18.0</commons.io.version>
         <testcontainers.version>1.20.1</testcontainers.version>
         <bouncycastle.version>1.79</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.0.5</netty-leak-detector-junit-extension.version>
