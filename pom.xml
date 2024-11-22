@@ -927,8 +927,9 @@
                         <artifactId>license-maven-plugin</artifactId>
                         <executions>
                             <execution>
+                                <id>license-format</id>
                                 <goals>
-                                    <goal>check</goal>
+                                    <goal>format</goal>
                                 </goals>
                             </execution>
                         </executions>
@@ -1101,6 +1102,22 @@
                             <execution>
                                 <id>format-generated</id>
                                 <phase>none</phase>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.mycila</groupId>
+                        <artifactId>license-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>license-format</id>
+                                <phase>none</phase>
+                            </execution>
+                            <execution>
+                                <id>license-check</id>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
                             </execution>
                         </executions>
                     </plugin>
