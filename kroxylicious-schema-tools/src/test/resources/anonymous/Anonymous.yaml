@@ -1,0 +1,31 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+$schema: http://json-schema.org/draft-04/schema#
+id: https://schema.kroxylicious.io/this.is.Test.yaml
+description: An object with anonymous typed properties
+definitions:
+  ViaRef:
+    type: object
+    properties:
+      bar:
+        type: string
+type: object
+properties:
+  obj:
+    type: object
+    properties:
+      foo:
+        type: string
+  weasels:
+    type: array
+    items:
+      type: object
+      properties:
+        baz:
+          type: string
+  ref:
+    $ref: "#/definitions/ViaRef"

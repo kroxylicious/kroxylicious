@@ -7,7 +7,6 @@
 package io.kroxylicious.tools.schema.model;
 
 import java.io.IOException;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,7 +29,7 @@ public class ListOrSingleSerde {
             this.elementTypeReference = elementTypeReference;
             this.listTypeReference = new TypeReference<List<T>>() {
                 @Override
-                public Type getType() {
+                public java.lang.reflect.Type getType() {
                     TypeFactory typeFactory = TypeFactory.defaultInstance();
                     JavaType javaType = typeFactory.constructType(elementTypeReference);
                     return typeFactory.constructCollectionType(List.class, javaType);
@@ -57,6 +56,13 @@ public class ListOrSingleSerde {
     public static class String extends ListOrSingleDeserializer<java.lang.String> {
         public String() {
             super(new TypeReference<java.lang.String>() {
+            });
+        }
+    }
+
+    public static class SchemaType extends ListOrSingleDeserializer<io.kroxylicious.tools.schema.model.SchemaType> {
+        public SchemaType() {
+            super(new TypeReference<io.kroxylicious.tools.schema.model.SchemaType>() {
             });
         }
     }

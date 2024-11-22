@@ -4,10 +4,6 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-$schema: Foo.yaml
-aString: hello
-foo:
-  someInts:
-    - 42
-anonymousObject:
-  aBoolean: bob
+$schema: http://json-schema.org/draft-04/schema#
+id: https://schema.kroxylicious.io/this.is.Test.yaml
+type: object

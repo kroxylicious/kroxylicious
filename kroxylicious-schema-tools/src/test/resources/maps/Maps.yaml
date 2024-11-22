@@ -1,0 +1,35 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+$schema: http://json-schema.org/draft-04/schema#
+id: https://schema.kroxylicious.io/this.is.Test.yaml
+description: An class with properties mapped from the array type.
+type: object
+definitions:
+  FooBarBaz:
+    type: object
+    properties:
+      foo:
+        type: string
+      bar:
+        type: string
+      baz:
+        type: integer
+properties:
+  keyedOnFoo:
+    description: An array of FooBars
+    type: array
+    x-kubernetes-list-type: map
+    x-kubernetes-list-map-keys: [ "foo" ]
+    items:
+      $ref: "#/definitions/FooBarBaz"
+#  keyedOnFooAndBaz:
+#    description: An array of FooBars
+#    type: array
+#    x-kubernetes-list-type: map
+#    x-kubernetes-list-map-keys: [ "foo", "baz" ]
+#    items:
+#      $ref: "#/definitions/FooBarBaz"

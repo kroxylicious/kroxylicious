@@ -6,7 +6,11 @@
 
 package io.kroxylicious.tools.schema.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public enum XKubeMapType {
+    @JsonProperty("granular")
     GRANULAR,
+    @JsonProperty("atomic")
     ATOMIC
 }

@@ -1,0 +1,17 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+$schema: http://json-schema.org/draft-04/schema#
+id: https://schema.kroxylicious.io/Xref.yaml
+description: A class with scalar properties
+type: object
+properties:
+  myBoolean:
+    $ref: Boolean.yaml
+  myList:
+    $ref: List.yaml
+  myObject:
+    $ref: Object.yaml

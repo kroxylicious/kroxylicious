@@ -6,8 +6,13 @@
 
 package io.kroxylicious.tools.schema.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public enum XKubeListType {
+    @JsonProperty("atomic")
     ATOMIC,
+    @JsonProperty("set")
     SET,
+    @JsonProperty("map")
     MAP
 }

@@ -6,8 +6,12 @@
 
 package io.kroxylicious.tools.schema;
 
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.annotation.Nullable;
 
@@ -46,71 +50,92 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 
 import io.kroxylicious.tools.schema.model.SchemaObject;
+import io.kroxylicious.tools.schema.model.SchemaObjectBuilder;
+import io.kroxylicious.tools.schema.model.SchemaType;
 import io.kroxylicious.tools.schema.model.XKubeListType;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class CodeGen {
 
-    Type genTypeName(String pkg, SchemaObject schema) {
-        List<String> type = schema.type();
+    private final Namer namer;
+    private final Diagnostics diagnostics;
+
+    public CodeGen(Diagnostics diagnostics,
+                   Namer namer) {
+        this.diagnostics = Objects.requireNonNull(diagnostics);
+        this.namer = Objects.requireNonNull(namer);
+    }
+
+    SchemaObject resolveRef(SchemaObject root, SchemaObject schema) {
+        var ref = schema.getRef() == null ? null : URI.create(schema.getRef());
+        if (ref != null) {
+            if (ref.isAbsolute()) {
+                diagnostics.reportFatal("Use of an absolute URI in $ref is not supported");
+                return new SchemaObject();
+            }
+            else if (ref.getPath() == null
+                    || ref.getPath().isEmpty()) {
+                if (ref.getFragment() != null) {
+                    return resolveInternalFragmentRef(root, ref);
+                }
+            }
+            // Two possibilities: a local ref point to a file which we should be compiling
+            // or a local ref pointing to a file which we should _not be compiling_
+            // In the _not compiling_ case the referring file depends on decls which we won't emit
+            // If the java for the referred to file is out of date then we'll likely generate the wrong thing
+
+            URI sought = URI.create(root.getId()).resolve(ref);
+            var resolved = namer.resolve(sought);
+            if (resolved != null) {
+                return resolved;
+            }
+            else {
+                diagnostics.reportError("Canot resolve $ref (but $ref not fully supported) {}", ref);
+                return new SchemaObject();
+            }
+        }
+        else {
+            return schema;
+        }
+    }
+
+    @NonNull
+    private SchemaObject resolveInternalFragmentRef(SchemaObject root, URI ref) {
+        if (ref.getFragment().startsWith("/definitions/")) {
+            Map<String, SchemaObject> defs = root.getDefinitions();
+            if (defs != null) {
+                String name = ref.getFragment().substring("/definitions/".length());
+                SchemaObject object = defs.get(name);
+                if (object != null) {
+                    return new SchemaObjectBuilder(object).withJavaType(name).build();
+                }
+            }
+            diagnostics.reportFatal("Couldn't resolve $ref " + ref);
+            return new SchemaObject();
+        }
+        diagnostics.reportFatal("$ref not fully supported");
+        return new SchemaObject();
+    }
+
+    Type genTypeName(String pkg, SchemaObject root, SchemaObject schema) {
+        Objects.requireNonNull(schema);
+        List<SchemaType> type = schema.getType();
         if (type == null) {
-            type = List.of();
+            type = Arrays.asList(SchemaType.values());
         }
         if (type.size() == 1) {
-            switch (type.get(0)) {
-                case "null":
-                    return new ClassOrInterfaceType(null, "whatever.runtime.Null");
-                case "boolean":
-                    return new ClassOrInterfaceType(null, "java.lang.Boolean");
-                case "integer":
-                    return new ClassOrInterfaceType(null, "java.lang.Long");
-                case "number":
-                    return new ClassOrInterfaceType(null, "java.lang.Double");
-                case "string":
-                    return new ClassOrInterfaceType(null, "java.lang.String");
-                case "array":
-                    // TODO pkg needn't be the same as this type
-                    SchemaObject itemSchema = schema.items().get(0);
-                    var itemType = genTypeName(pkg, itemSchema);
-                    XKubeListType xKubeListType = schema.xKubernetesListType();
-                    if (xKubeListType == null
-                            || xKubeListType == XKubeListType.ATOMIC) {
-                        return new ClassOrInterfaceType(null, new SimpleName("java.util.List"),
-                                new NodeList<>(itemType));
-                    }
-                    else if (xKubeListType == XKubeListType.SET) {
-                        return new ClassOrInterfaceType(null, new SimpleName("java.util.Set"),
-                                new NodeList<>(itemType));
-                    }
-                    else if (xKubeListType == XKubeListType.MAP) {
-                        List<String> keyPropertyNames = schema.xKubernetesListMapKeys();
-                        if (keyPropertyNames == null
-                                || keyPropertyNames.size() == 0) {
-                            throw new InvalidSchemaException("'x-kubernetes-list-map-keys' property is required when 'x-kubernetes-list-type: map'");
-                        }
-                        if (keyPropertyNames.size() == 1) {
-                            SchemaObject keySchema = itemSchema.properties().get(keyPropertyNames.get(0));
-                            var keyType = genTypeName(pkg, keySchema);
-                            return new ClassOrInterfaceType(null, new SimpleName("java.util.Map"),
-                                    new NodeList<>(keyType, itemType));
-                        }
-                        else {
-                            // x-kubernetes-list-map-keys=['foo', 'bar'] should result in an inner class to represent the compound key
-                            throw new InvalidSchemaException("'x-kubernetes-list-map-keys' property with multiple values is not yet supported");
-                        }
-                    }
-                    else {
-                        throw new InvalidSchemaException("Unsupported 'x-kubernetes-list-type': " + xKubeListType);
-                    }
-
-                case "object":
-                    // TODO Java class or record
-                    // TODO or Map or ObjectNode if x-kubernetes-preserve-unknown-keys
-                    return new ClassOrInterfaceType(null, pkg + "." + className(schema));
-                default:
-                    throw new InvalidSchemaException("Unsupported type: " + type.get(0));
-            }
+            return switch (type.get(0)) {
+                case NULL -> new ClassOrInterfaceType(null, "java.lang.Object");
+                case BOOLEAN -> new ClassOrInterfaceType(null, "java.lang.Boolean");
+                case INTEGER -> new ClassOrInterfaceType(null, "java.lang.Long");
+                case NUMBER -> new ClassOrInterfaceType(null, "java.lang.Double");
+                case STRING -> new ClassOrInterfaceType(null, "java.lang.String");
+                case ARRAY -> genCollectionOrMapType(pkg, root, schema);
+                case OBJECT ->
+                        // TODO or Map or ObjectNode if x-kubernetes-preserve-unknown-keys
+                        new ClassOrInterfaceType(null, pkg + "." + className(schema));
+            };
         }
         else {
             if (type.isEmpty()) {
@@ -121,6 +146,84 @@ public class CodeGen {
         }
     }
 
+    @NonNull
+    private ClassOrInterfaceType genCollectionOrMapType(String pkg, SchemaObject root, SchemaObject schema) {
+        SchemaObject itemSchema = resolveRef(root, schema.getItems().get(0));
+        var itemType = genTypeName(pkg, root, itemSchema);
+        XKubeListType xKubeListType = schema.getXKubernetesListType();
+        if (xKubeListType == null
+                || xKubeListType == XKubeListType.ATOMIC) {
+            return new ClassOrInterfaceType(null, new SimpleName("java.util.List"),
+                    new NodeList<>(itemType));
+        }
+        else if (xKubeListType == XKubeListType.SET) {
+            return new ClassOrInterfaceType(null, new SimpleName("java.util.Set"),
+                    new NodeList<>(itemType));
+        }
+        else if (xKubeListType == XKubeListType.MAP) {
+            List<String> keyPropertyNames = schema.getXKubernetesListMapKeys();
+            Type keyType;
+            if (keyPropertyNames == null
+                    || keyPropertyNames.isEmpty()) {
+                diagnostics.reportError("'x-kubernetes-list-map-keys' property is required when 'x-kubernetes-list-type: map'");
+                // Use some type so we can keep going, even though the Java won't compile
+                keyType = genErrorType();
+            }
+            else if (keyPropertyNames.size() > 1) {
+                // x-kubernetes-list-map-keys=['foo', 'bar'] should result in an inner class to represent the compound key
+                diagnostics.reportError("'x-kubernetes-list-map-keys' property with multiple values is not yet supported");
+                // Use some type so we can keep going, even though the Java won't compile
+                keyType = genErrorType();
+            }
+            else {
+                SchemaObject keySchema = itemSchema.getProperties().get(keyPropertyNames.get(0));
+                keyType = genTypeName(pkg, root, keySchema);
+            }
+            return new ClassOrInterfaceType(null, new SimpleName("java.util.Map"),
+                    new NodeList<>(keyType, itemType));
+        }
+        else {
+            diagnostics.reportError("Unsupported 'x-kubernetes-list-type': " + xKubeListType);
+            return genErrorType();
+        }
+    }
+
+    /**
+     * Sometimes it's better to generate a type, even in the presence of an invalid schema,
+     * so we can at least generate some java code and report more errors to the user.
+     * @return
+     */
+    @NonNull
+    private static ClassOrInterfaceType genErrorType() {
+        return new ClassOrInterfaceType(null, "code.generation.Error");
+    }
+
+    List<CompilationUnit> genDecls(Input input) {
+        var result = new ArrayList<CompilationUnit>();
+        // TODO visit the subschemas given them javaType names if they don't have them already.
+        // If loaded from URI ending /x or /x.yaml or /X or /X.yaml
+        // root schema = X
+        // definions = the name
+        // subschema of root via property foo = XFoo
+        // subschema of root via item of array foos = XFoo
+        SchemaObject root = input.rootSchema();
+        root.visitSchemas(null, new SchemaObject.Visitor() {
+            @Override
+            public void enterSchema(URI base, String path, SchemaObject schema) {
+                if (schema.getRef() == null) {
+                    // We don't generate code for a ref, on the basis that we've already generated code for it
+                    // (e.g. when we visited the schemas in /definitions).
+                    // This means even if multiple refs point to the same thing, that thing should only get code gen'd once.
+                    CompilationUnit value = genDecl(input.pkg(), schema);
+                    if (value != null) {
+                        result.add(value);
+                    }
+                }
+            }
+        });
+        return result;
+    }
+
     /**
      * Generate a type declaration for the given schema, or null if the type is declared externally
      *
@@ -129,36 +232,37 @@ public class CodeGen {
      */
     @Nullable
     CompilationUnit genDecl(String pkg, SchemaObject schema) {
-        List<String> type = schema.type();
+        // TODO A schema is recursive => This should return a Map<String, CompilationUnit>
+        List<SchemaType> type = schema.getType();
+        if (type == null) {
+            type = SchemaType.all();
+        }
         if (type.size() == 1) {
-            switch (type.get(0)) {
-                case "object":
-                    // TODO Java class or record
-                    // TODO or Map or ObjectNode
-                    return genClass(pkg, schema);
-                case "array", "string", "integer", "number", "boolean", "null":
-                    return null;
-                default:
-                    throw new InvalidSchemaException("'type' property in schema object has unsupported value '" +
-                            type.get(0) + "' supported values are: 'null', 'boolean', 'integer', 'number', 'string', 'array', 'object'.");
-            }
+            return switch (type.get(0)) {
+                case OBJECT -> genClass(pkg, schema, schema);
+                case ARRAY, STRING, INTEGER, NUMBER, BOOLEAN, NULL -> null;
+            };
         }
         else {
             throw new UnsupportedOperationException("Can't handle union types yet");
         }
     }
 
+    public static boolean isTypeGenerated(SchemaObject schemaObject) {
+        return List.of(SchemaType.OBJECT).equals(schemaObject.getType());
+    }
+
     @NonNull
-    private CompilationUnit genClass(String pkg, SchemaObject schema) {
-        assert (schema.type().equals(List.of("object")));
-        Map<String, SchemaObject> properties = schema.properties() == null ? Map.of() : schema.properties();
+    private CompilationUnit genClass(String pkg, SchemaObject root, SchemaObject schema) {
+        assert (isTypeGenerated(schema));
+        Map<String, SchemaObject> properties = schema.getProperties() == null ? Map.of() : schema.getProperties();
         CompilationUnit cu = new CompilationUnit();
         cu.setPackageDeclaration(new PackageDeclaration(new Name(pkg)));
         // TODO annotations
         ClassOrInterfaceDeclaration clz = cu.addClass(className(schema),
                 Modifier.Keyword.PUBLIC);
-        if (schema.description() != null) {
-            clz.setJavadocComment(schema.description());
+        if (schema.getDescription() != null) {
+            clz.setJavadocComment(schema.getDescription());
         }
 
         // @javax.annotation.processing.Generated("...")
@@ -182,31 +286,31 @@ public class CodeGen {
 
         for (var entry : properties.entrySet()) {
             String propName = entry.getKey();
-            var propSchema = entry.getValue();
-            var propType = genTypeName(pkg, propSchema);
+            var propSchema = resolveRef(root, entry.getValue());
+            var propType = genTypeName(pkg, root, propSchema);
             addPropertyField(clz, propName, propType);
         }
         for (var entry : properties.entrySet()) {
             String propName = entry.getKey();
-            var propSchema = entry.getValue();
-            var propType = genTypeName(pkg, propSchema);
-            addPropertyGetter(clz, propSchema.description(), propName, propType);
-            addPropertySetter(clz, propSchema.description(), propName, propType);
+            var propSchema = resolveRef(root, entry.getValue());
+            var propType = genTypeName(pkg, root, propSchema);
+            addPropertyGetter(clz, propSchema.getDescription(), propName, propType);
+            addPropertySetter(clz, propSchema.getDescription(), propName, propType);
         }
 
         addToStringMethod(clz, properties);
         addHashCodeMethod(clz, properties);
-        addEqualsMethod(clz, properties);
+        addEqualsMethod(pkg, clz, properties);
         return cu;
     }
 
     @NonNull
     private static String className(SchemaObject schema) {
-        if (schema.javaType() != null) {
-            return schema.javaType();
+        if (schema.getJavaType() != null) {
+            return schema.getJavaType();
         }
         else {
-            return schema.id().replaceAll("\\.(ya?ml|json)$", "");
+            throw new IllegalStateException("Schema lacks explicit or generated $javaType");
         }
     }
 
@@ -252,7 +356,10 @@ public class CodeGen {
                         .setArguments(args)))));
     }
 
-    private static void addEqualsMethod(ClassOrInterfaceDeclaration clz, Map<String, SchemaObject> properties) {
+    private static void addEqualsMethod(
+                                        String pkg,
+                                        ClassOrInterfaceDeclaration clz,
+                                        Map<String, SchemaObject> properties) {
         // if (this == other) {
         // return true;
         // } else if (other instanceof Bob otherBob) {
@@ -296,7 +403,7 @@ public class CodeGen {
                 new IfStmt(new InstanceOfExpr(
                         new NameExpr(otherParamName),
                         new ClassOrInterfaceType(null, className),
-                        new TypePatternExpr(new NodeList<>(), new ClassOrInterfaceType(null, className), new SimpleName(narrowedOtherName))),
+                        new TypePatternExpr(new NodeList<>(), new ClassOrInterfaceType(null, pkg + "." + className), new SimpleName(narrowedOtherName))),
                         new ReturnStmt(expr),
                         new ReturnStmt(new BooleanLiteralExpr(false))));
 
@@ -386,14 +493,11 @@ public class CodeGen {
         }
         String ident = builder.toString();
         return switch (ident) {
+            // TODO check we got them all
             case "null", "boolean", "int", "byte", "short", "long", "float", "double", "char" -> ident + "_";
             case "class", "interface", "enum", "public", "private", "protected", "final", "transient", "package", "module" -> ident + "_";
             case "return", "break", "continue", "for", "while", "switch", "case", "default", "if", "else" -> ident + "_";
             default -> ident;
         };
-    }
-
-    public static void main(String[] a) {
-
     }
 }

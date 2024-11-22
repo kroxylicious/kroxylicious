@@ -11,7 +11,6 @@ import java.nio.file.Path;
 import io.kroxylicious.tools.schema.model.SchemaObject;
 
 public record Input(
-                    Path srcPath,
-                    Path relPath,
+                    Path schemaPath,
                     String pkg,
-                    SchemaObject root) {}
+                    SchemaObject rootSchema) {}

@@ -244,6 +244,12 @@
                 <scope>provided</scope>
             </dependency>
             <dependency>
+                <groupId>io.sundr</groupId>
+                <artifactId>sundr-core</artifactId>
+                <version>${sundr-builder-annotations.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka-clients</artifactId>
                 <version>${kafka.version}</version>
@@ -900,7 +906,7 @@
                                 <goals>
                                     <goal>analyze-only</goal>
                                 </goals>
-                                <configuration>
+                                <configuration combine.children="append">
                                     <failOnWarning>true</failOnWarning>
                                     <ignoreUnusedRuntime>true</ignoreUnusedRuntime>
                                     <ignoredUsedUndeclaredDependencies>
