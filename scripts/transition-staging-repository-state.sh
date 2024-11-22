@@ -72,7 +72,7 @@ elif [[ ${STATE} ]]; then
     close|drop|release)
       # Workaround for https://issues.sonatype.org/browse/OSSRH-66257
       MAVEN_OPTS="--add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang.reflect=ALL-UNNAMED --add-opens=java.base/java.text=ALL-UNNAMED --add-opens=java.desktop/java.awt.font=ALL-UNNAMED" \
-        mvn ${PLUGIN}:${STATE} "${MVN_ARGS[@]}" -DstagingRepositoryId=${STAGING_REPO_IDS} -DstagingProgressTimeoutMinutes=10
+        mvn ${PLUGIN}:${STATE} "${MVN_ARGS[@]}" -DstagingRepositoryId=${STAGING_REPO_IDS} -DstagingProgressTimeoutMinutes=20
       ;;
     *)
       usage
