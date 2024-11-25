@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.tools.schema;
+package io.kroxylicious.tools.schema.compiler;
 
 import java.io.File;
 import java.io.IOException;
@@ -101,8 +101,12 @@ class CodeGenTest {
                 .toList();
         var units = schemaCompiler.gen(trees).toList();
         Map<String, List<CompilationUnit>> collect = units.stream().collect(Collectors.groupingBy(SchemaCompiler::javaFileName));
-        assertThat(collect).hasKeySatisfying(new Condition<>(filename -> filename.matches("[A-Z][a-zA-Z0-9_$]*\\.java"), "Valid .java filename"));
-        assertThat(collect).hasValueSatisfying(new Condition<>(unitsForFile -> unitsForFile.size() == 1, "No colliding units"));
+        assertThat(collect).hasKeySatisfying(new Condition<>(
+                filename -> filename.matches("[A-Z][a-zA-Z0-9_$]*\\.java"),
+                "Valid .java filename"));
+        assertThat(collect).hasValueSatisfying(new Condition<>(
+                unitsForFile -> unitsForFile.size() == 1,
+                "No colliding units"));
         collect.forEach((javaFilename, cus) -> {
             File expectedJavaFile = new File(src.getParentFile(), javaFilename);
             assertThat(expectedJavaFile)

@@ -9,7 +9,7 @@ package anonymous;
 /**
  * An object with anonymous typed properties
  */
-@javax.annotation.processing.Generated("io.kroxylicious.tools.schema.CodeGen")
+@javax.annotation.processing.Generated("io.kroxylicious.tools.schema.compiler.CodeGen")
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
 @com.fasterxml.jackson.annotation.JsonPropertyOrder({ "obj", "weasels", "ref" })
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
