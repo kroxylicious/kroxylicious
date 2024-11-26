@@ -14,6 +14,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.RequestResponseState;
 
 class ResponseEncoderTest extends AbstractCodecTest {
     @ParameterizedTest
@@ -23,6 +24,7 @@ class ResponseEncoderTest extends AbstractCodecTest {
         ApiVersionsResponseData exampleBody = exampleApiVersionsResponse();
         short headerVersion = ApiKeys.API_VERSIONS.responseHeaderVersion(apiVersion);
         ByteBuffer expected = serializeUsingKafkaApis(headerVersion, exampleHeader, apiVersion, exampleBody);
-        testEncode(expected, new DecodedResponseFrame<>(apiVersion, exampleHeader.correlationId(), exampleHeader, exampleBody), new KafkaResponseEncoder());
+        testEncode(expected, new DecodedResponseFrame<>(apiVersion, exampleHeader.correlationId(), exampleHeader, exampleBody, RequestResponseState.empty()),
+                new KafkaResponseEncoder());
     }
 }

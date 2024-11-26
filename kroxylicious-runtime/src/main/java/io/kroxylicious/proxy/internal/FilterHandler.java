@@ -348,7 +348,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                         "Attempt to respond with ApiMessage of type " + ApiKeys.forId(message.apiKey()) + " but request is of type " + decodedFrame.apiKey());
             }
             DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(),
-                    header, message);
+                    header, message, decodedFrame.requestResponseState());
             decodedFrame.transferBuffersTo(responseFrame);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);

@@ -22,6 +22,7 @@ import io.netty.buffer.Unpooled;
 
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.frame.RequestResponseState;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -46,7 +47,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     void testApiVersionsExactlyOneFrame_decoded(short apiVersion) {
-        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, true);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, true, RequestResponseState.empty());
         assertEquals(52, exactlyOneFrame_decoded(apiVersion,
                 ApiKeys.API_VERSIONS::responseHeaderVersion,
                 v -> AbstractCodecTest.exampleResponseHeader(),
@@ -62,7 +63,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
-        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, false);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, false, RequestResponseState.empty());
         assertEquals(52, exactlyOneFrame_encoded(apiVersion,
                 ApiKeys.API_VERSIONS::responseHeaderVersion,
                 v -> AbstractCodecTest.exampleResponseHeader(),
@@ -132,7 +133,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
 
     @Test
     void supportsFallbackToApiResponseV0() {
-        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true, RequestResponseState.empty());
 
         // given
         ByteBuf buffer = Unpooled.wrappedBuffer(serializeUsingKafkaApis((short) 0,

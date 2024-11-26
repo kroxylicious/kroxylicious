@@ -45,6 +45,7 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.RequestResponseState;
 import io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
@@ -693,6 +694,6 @@ class ProxyChannelStateMachineTest {
                 MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
                 0,
                 new ResponseHeaderData(),
-                new MetadataResponseData());
+                new MetadataResponseData(), RequestResponseState.empty());
     }
 }

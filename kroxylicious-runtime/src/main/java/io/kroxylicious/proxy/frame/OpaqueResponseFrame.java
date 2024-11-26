@@ -8,8 +8,12 @@ package io.kroxylicious.proxy.frame;
 import io.netty.buffer.ByteBuf;
 
 public class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
-    public OpaqueResponseFrame(ByteBuf buf, int correlationId, int length) {
+
+    private final RequestResponseState requestResponseState;
+
+    public OpaqueResponseFrame(ByteBuf buf, int correlationId, int length, RequestResponseState requestResponseState) {
         super(buf, correlationId, length);
+        this.requestResponseState = requestResponseState;
     }
 
     @Override
@@ -26,5 +30,10 @@ public class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
         finally {
             buf.readerIndex(index);
         }
+    }
+
+    @Override
+    public RequestResponseState requestResponseState() {
+        return requestResponseState;
     }
 }

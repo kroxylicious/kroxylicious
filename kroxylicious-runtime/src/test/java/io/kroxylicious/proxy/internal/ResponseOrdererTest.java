@@ -14,6 +14,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.kroxylicious.proxy.frame.ByteBufAccessor;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.frame.RequestResponseState;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,6 +40,11 @@ class ResponseOrdererTest {
             return correlationId;
         }
 
+        @Override
+        public RequestResponseState requestResponseState() {
+            return RequestResponseState.empty();
+        }
+
     }
 
     record TestRequestFrame(int correlationId, boolean hasResponse) implements RequestFrame {
@@ -56,6 +62,11 @@ class ResponseOrdererTest {
         @Override
         public int correlationId() {
             return correlationId;
+        }
+
+        @Override
+        public RequestResponseState requestResponseState() {
+            return RequestResponseState.empty();
         }
 
         @Override

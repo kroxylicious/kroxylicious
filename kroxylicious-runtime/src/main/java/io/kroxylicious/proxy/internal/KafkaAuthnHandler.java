@@ -373,7 +373,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                         data.apiVersion(),
                         data.correlationId(),
                         new ResponseHeaderData().setCorrelationId(data.correlationId()),
-                        body));
+                        body, data.requestResponseState()));
     }
 
     private byte[] doEvaluateResponse(ChannelHandlerContext ctx,

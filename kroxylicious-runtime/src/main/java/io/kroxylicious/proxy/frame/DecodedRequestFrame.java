@@ -9,6 +9,7 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
+import static io.kroxylicious.proxy.frame.LazyRequestResponseState.lazyRequestResponseState;
 import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
 
 /**
@@ -19,6 +20,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
         implements RequestFrame {
 
     private final boolean decodeResponse;
+    private final RequestResponseState requestResponseState = lazyRequestResponseState();
 
     public DecodedRequestFrame(short apiVersion,
                                int correlationId,
@@ -48,4 +50,8 @@ public class DecodedRequestFrame<B extends ApiMessage>
         return apiKey() == PRODUCE && ((ProduceRequestData) body).acks() == 0;
     }
 
+    @Override
+    public RequestResponseState requestResponseState() {
+        return requestResponseState;
+    }
 }

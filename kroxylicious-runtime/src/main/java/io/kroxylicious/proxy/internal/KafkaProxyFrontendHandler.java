@@ -285,7 +285,7 @@ public class KafkaProxyFrontendHandler
                 .setCorrelationId(correlationId);
         LOGGER.debug("{}: Writing ApiVersions response", ctx.channel());
         ctx.writeAndFlush(new DecodedResponseFrame<>(
-                apiVersion, correlationId, header, API_VERSIONS_RESPONSE));
+                apiVersion, correlationId, header, API_VERSIONS_RESPONSE, frame.requestResponseState()));
     }
 
     /**
@@ -638,7 +638,7 @@ public class KafkaProxyFrontendHandler
         var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
         final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
         responseHeaderData.setCorrelationId(triggerFrame.correlationId());
-        return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData);
+        return new DecodedResponseFrame<>(triggerFrame.apiVersion(), triggerFrame.correlationId(), responseHeaderData, responseData, triggerFrame.requestResponseState());
     }
 
     /**

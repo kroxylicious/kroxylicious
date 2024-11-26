@@ -15,11 +15,19 @@ public class DecodedResponseFrame<B extends ApiMessage>
         extends DecodedFrame<ResponseHeaderData, B>
         implements ResponseFrame {
 
-    public DecodedResponseFrame(short apiVersion, int correlationId, ResponseHeaderData header, B body) {
+    private final RequestResponseState requestResponseState;
+
+    public DecodedResponseFrame(short apiVersion, int correlationId, ResponseHeaderData header, B body, RequestResponseState requestResponseState) {
         super(apiVersion, correlationId, header, body);
+        this.requestResponseState = requestResponseState;
     }
 
     public short headerVersion() {
         return apiKey().messageType.responseHeaderVersion(apiVersion);
+    }
+
+    @Override
+    public RequestResponseState requestResponseState() {
+        return requestResponseState;
     }
 }

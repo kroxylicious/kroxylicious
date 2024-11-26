@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.frame;
 
+import static io.kroxylicious.proxy.frame.LazyRequestResponseState.lazyRequestResponseState;
+
 /**
  * Ancient versions of Kafka implemented SASL/GSSAPI by sending the response
  * on the wire as length prefixed bytes (no Kafka protocol header).
@@ -13,6 +15,7 @@ package io.kroxylicious.proxy.frame;
 public class BareSaslResponse implements ResponseFrame {
 
     private final byte[] bytes;
+    private final RequestResponseState requestResponseState = lazyRequestResponseState();
 
     public BareSaslResponse(byte[] bytes) {
         this.bytes = bytes;
@@ -31,6 +34,11 @@ public class BareSaslResponse implements ResponseFrame {
     @Override
     public int correlationId() {
         return 0;
+    }
+
+    @Override
+    public RequestResponseState requestResponseState() {
+        return requestResponseState;
     }
 
     public byte[] bytes() {

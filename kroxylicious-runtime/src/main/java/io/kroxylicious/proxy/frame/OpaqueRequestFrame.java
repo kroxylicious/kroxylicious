@@ -9,10 +9,13 @@ import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.netty.buffer.ByteBuf;
 
+import static io.kroxylicious.proxy.frame.LazyRequestResponseState.lazyRequestResponseState;
+
 public class OpaqueRequestFrame extends OpaqueFrame implements RequestFrame {
 
     private final boolean decodeResponse;
     private boolean hasResponse;
+    private final RequestResponseState requestResponseState = lazyRequestResponseState();
 
     /**
      * @param buf The message buffer (excluding the frame size)
@@ -59,5 +62,10 @@ public class OpaqueRequestFrame extends OpaqueFrame implements RequestFrame {
         finally {
             buf.readerIndex(index);
         }
+    }
+
+    @Override
+    public RequestResponseState requestResponseState() {
+        return requestResponseState;
     }
 }

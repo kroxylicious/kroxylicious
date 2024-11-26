@@ -36,6 +36,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.frame.RequestResponseState;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -132,7 +133,7 @@ public abstract class FilterHarness {
      * @return the opaque frame written to the channel
      */
     protected OpaqueResponseFrame writeArbitraryOpaqueResponse() {
-        OpaqueResponseFrame frame = new OpaqueResponseFrame(Unpooled.buffer(), 55, 0);
+        OpaqueResponseFrame frame = new OpaqueResponseFrame(Unpooled.buffer(), 55, 0, RequestResponseState.empty());
         channel.writeOneInbound(frame);
         return frame;
     }
@@ -148,7 +149,7 @@ public abstract class FilterHarness {
         var header = new ResponseHeaderData();
         int correlationId = 42;
         header.setCorrelationId(correlationId);
-        var frame = new DecodedResponseFrame<>(apiKey.latestVersion(), correlationId, header, data);
+        var frame = new DecodedResponseFrame<>(apiKey.latestVersion(), correlationId, header, data, RequestResponseState.empty());
         channel.writeInbound(frame);
         return frame;
     }
@@ -171,7 +172,8 @@ public abstract class FilterHarness {
         if (correlation == null) {
             throw new IllegalStateException("No corresponding internal request known " + requestCorrelationId);
         }
-        var frame = new InternalResponseFrame<>(correlation.recipient(), apiKey.latestVersion(), requestCorrelationId, header, data, correlation.promise());
+        var frame = new InternalResponseFrame<>(correlation.recipient(), apiKey.latestVersion(), requestCorrelationId, header, data, correlation.promise(),
+                RequestResponseState.empty());
         channel.writeInbound(frame);
         return frame;
 

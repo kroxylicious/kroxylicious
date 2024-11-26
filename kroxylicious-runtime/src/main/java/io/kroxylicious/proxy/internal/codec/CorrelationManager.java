@@ -7,14 +7,13 @@ package io.kroxylicious.proxy.internal.codec;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.Filter;
+import io.kroxylicious.proxy.frame.RequestResponseState;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 /**
@@ -56,13 +55,14 @@ public class CorrelationManager {
                                 boolean hasResponse,
                                 Filter recipient,
                                 CompletableFuture<?> promise,
-                                boolean decodeResponse) {
+                                boolean decodeResponse,
+                                RequestResponseState state) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
         LOGGER.trace("Allocated upstream id {} for downstream id {}", upstreamCorrelationId, downstreamCorrelationId);
         if (hasResponse) {
             Correlation existing = this.brokerRequests.put(upstreamCorrelationId,
-                    new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise));
+                    new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise, state));
             if (existing != null) {
                 LOGGER.error("Duplicate upstream correlation id {}", upstreamCorrelationId);
             }
@@ -83,82 +83,11 @@ public class CorrelationManager {
      * A record for which responses should be decoded, together with their
      * API key and version.
      */
-    // TODO a perfect value type
-    public static class Correlation {
-        private final short apiKey;
-        private final short apiVersion;
-
-        private final int downstreamCorrelationId;
-        private final boolean decodeResponse;
-        private final Filter recipient;
-        private final CompletableFuture<?> promise;
-
-        private Correlation(short apiKey,
-                            short apiVersion,
-                            int downstreamCorrelationId,
-                            boolean decodeResponse,
-                            Filter recipient,
-                            CompletableFuture<?> promise) {
-            this.apiKey = apiKey;
-            this.apiVersion = apiVersion;
-            this.downstreamCorrelationId = downstreamCorrelationId;
-            this.decodeResponse = decodeResponse;
-            this.recipient = recipient;
-            this.promise = promise;
-        }
-
-        public int downstreamCorrelationId() {
-            return downstreamCorrelationId;
-        }
-
-        @Override
-        public String toString() {
-            return "Correlation(" +
-                    "apiKey=" + ApiKeys.forId(apiKey) +
-                    ", apiVersion=" + apiVersion +
-                    ", downstreamCorrelationId=" + downstreamCorrelationId +
-                    ", decodeResponse=" + decodeResponse +
-                    ", recipient=" + recipient +
-                    ", promise=" + promise +
-                    ')';
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) {
-                return true;
-            }
-            if (o == null || getClass() != o.getClass()) {
-                return false;
-            }
-            Correlation that = (Correlation) o;
-            return apiKey == that.apiKey && apiVersion == that.apiVersion && downstreamCorrelationId == that.downstreamCorrelationId
-                    && decodeResponse == that.decodeResponse;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(apiKey, apiVersion, downstreamCorrelationId, decodeResponse);
-        }
-
-        public short apiKey() {
-            return apiKey;
-        }
-
-        public short apiVersion() {
-            return apiVersion;
-        }
-
-        public boolean decodeResponse() {
-            return decodeResponse;
-        }
-
-        public Filter recipient() {
-            return recipient;
-        }
-
-        public CompletableFuture<?> promise() {
-            return promise;
-        }
-    }
+    public record Correlation(short apiKey,
+                              short apiVersion,
+                              int downstreamCorrelationId,
+                              boolean decodeResponse,
+                              Filter recipient,
+                              CompletableFuture<?> promise,
+                              RequestResponseState state) {};
 }

@@ -13,6 +13,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.RequestResponseState;
 
 public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponseFrame<B> {
 
@@ -20,8 +21,9 @@ public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponse
 
     private final CompletableFuture<?> future;
 
-    public InternalResponseFrame(Filter recipient, short apiVersion, int correlationId, ResponseHeaderData header, B body, CompletableFuture<?> future) {
-        super(apiVersion, correlationId, header, body);
+    public InternalResponseFrame(Filter recipient, short apiVersion, int correlationId, ResponseHeaderData header, B body, CompletableFuture<?> future,
+                                 RequestResponseState requestResponseState) {
+        super(apiVersion, correlationId, header, body, requestResponseState);
         this.recipient = Objects.requireNonNull(recipient);
         this.future = future;
     }

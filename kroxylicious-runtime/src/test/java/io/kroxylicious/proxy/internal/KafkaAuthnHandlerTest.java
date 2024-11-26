@@ -57,6 +57,7 @@ import io.kroxylicious.proxy.frame.ByteBufAccessor;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
+import io.kroxylicious.proxy.frame.RequestResponseState;
 import io.kroxylicious.proxy.internal.KafkaAuthnHandler.SaslMechanism;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 
@@ -216,7 +217,7 @@ public class KafkaAuthnHandlerTest {
 
                 return null;
             }
-        }, new CompletableFuture<>(), true);
+        }, new CompletableFuture<>(), true, RequestResponseState.empty());
 
         channel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
     }
@@ -576,6 +577,11 @@ public class KafkaAuthnHandlerTest {
 
         @Override
         public void encode(ByteBufAccessor out) {
+        }
+
+        @Override
+        public RequestResponseState requestResponseState() {
+            return RequestResponseState.empty();
         }
 
         @Override

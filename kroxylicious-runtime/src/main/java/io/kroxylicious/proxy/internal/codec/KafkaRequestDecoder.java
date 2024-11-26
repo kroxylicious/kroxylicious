@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -21,9 +22,12 @@ import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.util.Metrics;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestDecoder.class);
+    public static final String CLIENT_AHEAD_OF_PROXY = "CLIENT_AHEAD_OF_PROXY";
 
     private final DecodePredicate decodePredicate;
 
@@ -54,7 +58,6 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         final int startOfMessage = in.readerIndex();
         int correlationId = in.readInt();
         LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
-
         RequestHeaderData header = null;
         final ByteBufAccessorImpl accessor;
         Metrics.inboundDownstreamMessagesCounter().increment();
@@ -85,6 +88,17 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         }
         final RequestFrame frame;
         if (decodeRequest) {
+            short highestProxyVersion = apiKey.latestVersion(true);
+            boolean clientAheadOfProxy = apiVersion > highestProxyVersion;
+            if (clientAheadOfProxy) {
+                if (apiKey == ApiKeys.API_VERSIONS) {
+                    return createV0ApiVersionRequestFrame(ctx, correlationId);
+                }
+                else {
+                    log().error("{}: apiVersion {} for {} ahead of proxy maximum: {}", ctx, apiVersion, apiKey, highestProxyVersion);
+                    throw new IllegalStateException("client apiVersion " + apiVersion + "  ahead of proxy maximum " + highestProxyVersion + " for api key: " + apiKey);
+                }
+            }
             ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, accessor);
             if (log().isTraceEnabled()) {
                 log().trace("{}: body {}", ctx, body);
@@ -105,7 +119,24 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             frame = opaqueFrame(in, correlationId, decodeResponse, length, hasResponse);
             in.readerIndex(sof + length);
         }
+        return frame;
+    }
 
+    // we make the smallest assumption we can that the message starts with apiKey + apiVersion + correlationId
+    private @NonNull DecodedRequestFrame<ApiVersionsRequestData> createV0ApiVersionRequestFrame(ChannelHandlerContext ctx,
+                                                                                                int correlationId) {
+        if (log().isTraceEnabled()) { // avoid boxing
+            log().trace("{}: downgrading apiVersion request to v0", ctx);
+        }
+        RequestHeaderData requestHeaderData = new RequestHeaderData();
+        requestHeaderData.setCorrelationId(correlationId);
+        requestHeaderData.setRequestApiKey(ApiKeys.API_VERSIONS.id);
+        requestHeaderData.setRequestApiVersion((short) 0);
+        ApiVersionsRequestData apiVersionsRequestData = new ApiVersionsRequestData();
+        DecodedRequestFrame<ApiVersionsRequestData> frame = new DecodedRequestFrame<>(
+                (short) 0, correlationId, true, requestHeaderData, apiVersionsRequestData);
+        // additional state to correlate the response and downgrade to v0 if required
+        frame.requestResponseState().putState(CLIENT_AHEAD_OF_PROXY, true);
         return frame;
     }
 

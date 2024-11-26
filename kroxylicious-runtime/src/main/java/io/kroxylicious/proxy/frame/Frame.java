@@ -28,4 +28,10 @@ public interface Frame {
      */
     int correlationId();
 
+    /**
+     * State for the request-response pair this frame is a part of
+     * @return the state
+     */
+    RequestResponseState requestResponseState();
+
 }
