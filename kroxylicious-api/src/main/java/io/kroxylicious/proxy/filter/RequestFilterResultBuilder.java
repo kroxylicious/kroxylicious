@@ -44,4 +44,15 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      */
     CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull ApiMessage message) throws IllegalArgumentException;
 
+    /**
+     * Generate a short-circuit error response towards the client.
+     *
+     * @param header the headers from the request
+     * @param message the api message to generate an error in response too.
+     * @param throwable the exception that triggered the error response. Note Kafka will map the exception to an {@see org.apache.kafka.common.requests.ApiError} so callers may wish to supply choose their exception to trigger the appropriate error code
+     * @return next stage in the fluent builder API
+     * @throws IllegalArgumentException header or message do not meet criteria described above.
+     */
+    CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage message, @NonNull Throwable throwable) throws IllegalArgumentException;
+
 }

@@ -32,6 +32,7 @@ import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
+import io.kroxylicious.filter.encryption.encrypt.RequestNotSatisfiable;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
@@ -71,7 +72,17 @@ public class RecordEncryptionFilter<K>
                                                                  ProduceRequestData request,
                                                                  FilterContext context) {
         return maybeEncodeProduce(request, context)
-                .thenCompose(yy -> context.forwardRequest(header, request));
+                .thenCompose(yy -> context.forwardRequest(header, request))
+                .exceptionallyCompose(throwable -> {
+                    if (throwable instanceof RequestNotSatisfiable || throwable.getCause() instanceof RequestNotSatisfiable) {
+                        return context.requestFilterResultBuilder()
+                                .errorResponse(header, request, throwable)
+                                .completed();
+                    }
+                    else {
+                        return CompletableFuture.failedStage(throwable);
+                    }
+                });
     }
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {

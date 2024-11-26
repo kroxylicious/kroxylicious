@@ -9,10 +9,12 @@ package io.kroxylicious.proxy.internal.filter;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.requests.AbstractResponse;
 
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
+import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -45,6 +47,19 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull ApiMessage message) {
         validateShortCircuitResponse(message);
         this.shortCircuitResponse = message;
+        return this;
+    }
+
+    @Override
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage request, @NonNull Throwable throwable)
+            throws IllegalArgumentException {
+        final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(request, throwable);
+        validateShortCircuitResponse(errorResponseMessage.data());
+        final ResponseHeaderData responseHeaders = new ResponseHeaderData();
+        responseHeaders.setCorrelationId(header.correlationId());
+        this.shortCircuitHeader = responseHeaders;
+        this.shortCircuitResponse = errorResponseMessage.data();
+        this.drop();
         return this;
     }
 

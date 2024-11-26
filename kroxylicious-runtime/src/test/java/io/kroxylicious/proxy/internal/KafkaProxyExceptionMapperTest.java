@@ -44,6 +44,19 @@ class KafkaProxyExceptionMapperTest {
                 .hasErrorCount(Errors.BROKER_NOT_AVAILABLE, 1);
     }
 
+    @ParameterizedTest
+    @MethodSource({ "decodedFrameSourceLatestVersion", "decodedFrameSourceOldestVersion" })
+    void shouldGenerateErrorMessage(DecodedRequestFrame<?> request) {
+        // Given
+        // When
+        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponseForMessage(request.body(), new RuntimeException("Bailing out!"));
+
+        // Then
+        assertThat(response)
+                .hasApiKey(request.apiKey())
+                .hasErrorCount(Errors.UNKNOWN_SERVER_ERROR, 1);
+    }
+
     public static Stream<Arguments> decodedFrameSourceLatestVersion() {
         return RequestFactory
                 .apiMessageFor(ApiKeys::latestVersion)

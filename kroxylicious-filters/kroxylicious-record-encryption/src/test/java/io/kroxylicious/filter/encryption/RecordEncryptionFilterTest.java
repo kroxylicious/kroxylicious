@@ -54,9 +54,12 @@ import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
+import io.kroxylicious.filter.encryption.encrypt.RequestNotSatisfiable;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.test.record.RecordTestUtils;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -222,6 +225,28 @@ class RecordEncryptionFilterTest {
     }
 
     @Test
+    void shouldRespondWithErrorOnRequestNotSatisfiableExceptions() {
+        // Given
+        final RequestFilterResultBuilder resultBuilder = stubErrorResponse();
+
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(ENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        final RequestNotSatisfiable failure = new RequestNotSatisfiable("could not acquire a DEK");
+        when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.failedFuture(failure));
+
+        // When
+        CompletionStage<RequestFilterResult> stage = encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(), produceRequestData, context);
+
+        // Then
+        assertThat(stage)
+                .succeedsWithin(Duration.ofSeconds(10));
+        verify(context).requestFilterResultBuilder();
+        verify(resultBuilder).errorResponse(any(), any(), argThat(throwable -> assertThat(throwable).cause().isEqualTo(failure)));
+    }
+
+    @Test
     void shouldPropagateResponseExceptions() {
         // Given
         var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
@@ -280,6 +305,18 @@ class RecordEncryptionFilterTest {
         // Then
         verify(context).forwardRequest(any(), argThat(request -> assertThat(request)
                 .has(produceRequestMatching(pr -> pr.topicData().stream().anyMatch(td -> ENCRYPTED_TOPIC.equals(td.name()))))));
+    }
+
+    @NonNull
+    @SuppressWarnings("unchecked")
+    private RequestFilterResultBuilder stubErrorResponse() {
+        final RequestFilterResultBuilder resultBuilder = mock(RequestFilterResultBuilder.class);
+        final CloseOrTerminalStage<RequestFilterResult> errorResponseBuilder = mock(CloseOrTerminalStage.class);
+        final RequestFilterResult errorResult = mock(RequestFilterResult.class);
+        when(context.requestFilterResultBuilder()).thenReturn(resultBuilder);
+        when(resultBuilder.errorResponse(any(), any(), any())).thenReturn(errorResponseBuilder);
+        when(errorResponseBuilder.completed()).thenReturn(CompletableFuture.completedStage(errorResult));
+        return resultBuilder;
     }
 
     private static FetchResponseData buildFetchResponseData(FetchableTopicResponse... topicResponses) {

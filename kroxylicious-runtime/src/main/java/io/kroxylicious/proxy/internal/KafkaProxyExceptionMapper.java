@@ -220,16 +220,26 @@ public class KafkaProxyExceptionMapper {
         return errorResponse(frame, error).data();
     }
 
+    public static AbstractResponse errorResponseForMessage(ApiMessage message, Throwable error) {
+        final short apiKey = message.apiKey();
+        return errorResponse(ApiKeys.forId(apiKey), message, message.highestSupportedVersion()).getErrorResponse(error);
+    }
+
     @VisibleForTesting
     static AbstractResponse errorResponse(DecodedRequestFrame<?> frame, Throwable error) {
-        /*
-         * This monstrosity is needed because there isn't any _nicely_ abstracted code we can borrow from Kafka
-         * which creates and response with error codes set appropriately.
-         */
-        final AbstractRequest req;
         ApiMessage reqBody = frame.body();
         short apiVersion = frame.apiVersion();
         final ApiKeys apiKey = frame.apiKey();
+        final AbstractRequest req = errorResponse(apiKey, reqBody, apiVersion);
+        return req.getErrorResponse(error);
+    }
+
+    /*
+     * This monstrosity is needed because there isn't any _nicely_ abstracted code we can borrow from Kafka
+     * which creates and response with error codes set appropriately.
+     */
+    private static AbstractRequest errorResponse(ApiKeys apiKey, ApiMessage reqBody, short apiVersion) {
+        final AbstractRequest req;
         switch (apiKey) {
             case SASL_HANDSHAKE:
                 req = new SaslHandshakeRequest((SaslHandshakeRequestData) reqBody, apiVersion);
@@ -603,6 +613,6 @@ public class KafkaProxyExceptionMapper {
             default:
                 throw new IllegalStateException();
         }
-        return req.getErrorResponse(error);
+        return req;
     }
 }
