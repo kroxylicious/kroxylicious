@@ -16,6 +16,7 @@ import org.apache.kafka.common.acl.AccessControlEntryFilter;
 import org.apache.kafka.common.acl.AclBindingFilter;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
+import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddRaftVoterRequestData;
@@ -221,9 +222,9 @@ public class KafkaProxyExceptionMapper {
         return errorResponse(frame, error).data();
     }
 
-    public static AbstractResponse errorResponseForMessage(RequestHeaderData requestHeaders, ApiMessage message, Throwable error) {
+    public static AbstractResponse errorResponseForMessage(RequestHeaderData requestHeaders, ApiMessage message, ApiException apiException) {
         final short apiKey = message.apiKey();
-        return errorResponse(ApiKeys.forId(apiKey), message, requestHeaders.requestApiVersion()).getErrorResponse(error);
+        return errorResponse(ApiKeys.forId(apiKey), message, requestHeaders.requestApiVersion()).getErrorResponse(apiException);
     }
 
     @VisibleForTesting

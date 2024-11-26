@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -51,9 +52,9 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage request, @NonNull Throwable throwable)
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage request, @NonNull ApiException apiException)
             throws IllegalArgumentException {
-        final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, request, throwable);
+        final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, request, apiException);
         validateShortCircuitResponse(errorResponseMessage.data());
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();
         responseHeaders.setCorrelationId(header.correlationId());

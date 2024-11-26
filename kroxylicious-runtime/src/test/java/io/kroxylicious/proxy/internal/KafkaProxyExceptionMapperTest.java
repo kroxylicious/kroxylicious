@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 import javax.net.ssl.SSLHandshakeException;
 
 import org.apache.kafka.common.errors.BrokerNotAvailableException;
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -49,7 +50,7 @@ class KafkaProxyExceptionMapperTest {
     void shouldGenerateErrorMessage(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), new RuntimeException("Bailing out!"));
+        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), new UnknownServerException("Bailing out!"));
 
         // Then
         assertThat(response)

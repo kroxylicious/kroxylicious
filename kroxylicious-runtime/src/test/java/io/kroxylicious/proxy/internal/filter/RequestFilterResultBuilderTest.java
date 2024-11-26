@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal.filter;
 import java.time.Duration;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -30,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RequestFilterResultBuilderTest {
 
-    private static final IllegalStateException FILTER_RUNTIME_EXCEPTION = new IllegalStateException("Filter says yeah, nah!");
+    private static final UnknownServerException FILTER_RUNTIME_EXCEPTION = new UnknownServerException("Filter says yeah, nah!");
     private final RequestFilterResultBuilder builder = new RequestFilterResultBuilderImpl();
 
     @Test

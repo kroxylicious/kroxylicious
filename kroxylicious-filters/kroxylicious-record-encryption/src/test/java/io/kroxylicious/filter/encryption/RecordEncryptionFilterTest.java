@@ -22,6 +22,7 @@ import java.util.function.Function;
 import java.util.stream.LongStream;
 
 import org.apache.kafka.common.compress.Compression;
+import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
@@ -243,7 +244,7 @@ class RecordEncryptionFilterTest {
         assertThat(stage)
                 .succeedsWithin(Duration.ofSeconds(10));
         verify(context).requestFilterResultBuilder();
-        verify(resultBuilder).errorResponse(any(), any(), argThat(throwable -> assertThat(throwable).cause().isEqualTo(failure)));
+        verify(resultBuilder).errorResponse(any(), any(), argThat(throwable -> assertThat(throwable.getClass()).isAssignableTo(ApiException.class)));
     }
 
     @Test

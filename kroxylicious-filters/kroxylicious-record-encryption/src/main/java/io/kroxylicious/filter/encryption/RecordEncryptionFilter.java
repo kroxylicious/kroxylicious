@@ -15,6 +15,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
@@ -76,10 +77,11 @@ public class RecordEncryptionFilter<K>
                 .exceptionallyCompose(throwable -> {
                     if (throwable instanceof RequestNotSatisfiable || throwable.getCause() instanceof RequestNotSatisfiable) {
                         return context.requestFilterResultBuilder()
-                                .errorResponse(header, request, throwable)
+                                .errorResponse(header, request, new UnknownServerException(throwable))
                                 .completed();
                     }
                     else {
+                        // returning a failed stage is effectively asking the runtime to kill the connection.
                         return CompletableFuture.failedStage(throwable);
                     }
                 });
