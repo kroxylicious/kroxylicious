@@ -49,7 +49,7 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      *
      * @param header the headers from the request
      * @param message the api message to generate an error in response too.
-     * @param throwable the exception that triggered the error response. Note Kafka will map the exception to an {@see org.apache.kafka.common.requests.ApiError} so callers may wish to supply choose their exception to trigger the appropriate error code
+     * @param throwable the exception that triggered the error response. Note Kafka will map the exception to an {@see org.apache.kafka.common.requests.ApiError} using {@see org.apache.kafka.common.protocol.Errors#forException(java.lang.Throwable)} so callers may wish to supply choose their exception to trigger the appropriate error code
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
