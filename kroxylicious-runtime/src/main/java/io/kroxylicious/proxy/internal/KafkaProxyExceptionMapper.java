@@ -88,6 +88,7 @@ import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
 import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
 import org.apache.kafka.common.message.RemoveRaftVoterRequestData;
 import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.ShareAcknowledgeRequestData;
@@ -220,9 +221,9 @@ public class KafkaProxyExceptionMapper {
         return errorResponse(frame, error).data();
     }
 
-    public static AbstractResponse errorResponseForMessage(ApiMessage message, Throwable error) {
+    public static AbstractResponse errorResponseForMessage(RequestHeaderData requestHeaders, ApiMessage message, Throwable error) {
         final short apiKey = message.apiKey();
-        return errorResponse(ApiKeys.forId(apiKey), message, message.highestSupportedVersion()).getErrorResponse(error);
+        return errorResponse(ApiKeys.forId(apiKey), message, requestHeaders.requestApiVersion()).getErrorResponse(error);
     }
 
     @VisibleForTesting

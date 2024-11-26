@@ -53,7 +53,7 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     @Override
     public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage request, @NonNull Throwable throwable)
             throws IllegalArgumentException {
-        final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(request, throwable);
+        final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, request, throwable);
         validateShortCircuitResponse(errorResponseMessage.data());
         final ResponseHeaderData responseHeaders = new ResponseHeaderData();
         responseHeaders.setCorrelationId(header.correlationId());

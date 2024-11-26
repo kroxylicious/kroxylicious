@@ -49,7 +49,7 @@ class KafkaProxyExceptionMapperTest {
     void shouldGenerateErrorMessage(DecodedRequestFrame<?> request) {
         // Given
         // When
-        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponseForMessage(request.body(), new RuntimeException("Bailing out!"));
+        final AbstractResponse response = KafkaProxyExceptionMapper.errorResponseForMessage(request.header(), request.body(), new RuntimeException("Bailing out!"));
 
         // Then
         assertThat(response)
