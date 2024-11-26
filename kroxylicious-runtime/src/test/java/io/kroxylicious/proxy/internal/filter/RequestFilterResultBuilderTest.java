@@ -179,7 +179,8 @@ class RequestFilterResultBuilderTest {
         assertThat(future)
                 .succeedsWithin(Duration.ofSeconds(10))
                 .satisfies(result -> {
-                    assertThat(result.drop()).describedAs("request dropped").isTrue();
+                    assertThat(result.shortCircuitResponse()).describedAs("request did not short circuit").isTrue();
+                    assertThat(result.drop()).describedAs("request dropped").isFalse();
                 });
     }
 

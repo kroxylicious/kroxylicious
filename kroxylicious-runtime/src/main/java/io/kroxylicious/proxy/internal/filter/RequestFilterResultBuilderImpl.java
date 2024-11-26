@@ -59,7 +59,6 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
         responseHeaders.setCorrelationId(header.correlationId());
         this.shortCircuitHeader = responseHeaders;
         this.shortCircuitResponse = errorResponseMessage.data();
-        this.drop();
         return this;
     }
 
