@@ -611,7 +611,7 @@ public class KafkaProxyExceptionMapper {
                 req = new ReadShareGroupStateSummaryRequest((ReadShareGroupStateSummaryRequestData) reqBody, apiVersion);
                 break;
             default:
-                throw new IllegalStateException();
+                throw new IllegalStateException("Unable to generate error for APIKey: " + apiKey);
         }
         return req;
     }
