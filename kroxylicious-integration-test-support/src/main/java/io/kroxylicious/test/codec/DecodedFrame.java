@@ -134,6 +134,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         final ObjectSerializationCache cache = serializationCache;
         header.write(out, cache, headerVersion());
         body.write(out, cache, apiVersion());
+
         assert (out.writerIndex() - initialIndex) == encodedSize;
     }
 

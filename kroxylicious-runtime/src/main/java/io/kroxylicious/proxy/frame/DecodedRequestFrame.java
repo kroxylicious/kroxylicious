@@ -30,6 +30,11 @@ public class DecodedRequestFrame<B extends ApiMessage>
     }
 
     @Override
+    public short apiVersion() {
+        return header.requestApiVersion();
+    }
+
+    @Override
     public short headerVersion() {
         return apiKey().messageType.requestHeaderVersion(apiVersion);
     }

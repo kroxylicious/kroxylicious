@@ -19,7 +19,7 @@ import io.netty.buffer.ByteBufUtil;
  * {@code *ResponseData} classes as-is.
  * This isn't completely ideal because the Kafka APIs for decoding of Records
  * depends on NIO ByteBuffer, so copying between ByteBuffer and ByteBuf cannot
- * always be avoided.
+ * always be avoided.ø
  */
 public class ByteBufAccessorImpl implements ByteBufAccessor, Readable {
 
@@ -178,6 +178,16 @@ public class ByteBufAccessorImpl implements ByteBufAccessor, Readable {
     @Override
     public int remaining() {
         return buf.writerIndex() - buf.readerIndex();
+    }
+
+    @Override
+    public int readerIndex() {
+        return buf.readerIndex();
+    }
+
+    @Override
+    public void readerIndex(int readerIndex) {
+        buf.readerIndex(readerIndex);
     }
 
     @Override

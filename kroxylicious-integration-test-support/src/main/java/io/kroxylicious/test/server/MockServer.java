@@ -8,6 +8,7 @@ package io.kroxylicious.test.server;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.hamcrest.Matcher;
 
@@ -50,7 +51,7 @@ public final class MockServer implements AutoCloseable {
      */
     public void addMockResponseForApiKey(ResponsePayload response) {
         Objects.requireNonNull(response);
-        serverHandler.setMockResponseForApiKey(response.apiKeys(), response.message());
+        serverHandler.setMockResponseForApiKey(response.apiKeys(), response.message(), response.apiVersion());
     }
 
     /**
@@ -60,7 +61,7 @@ public final class MockServer implements AutoCloseable {
     public void addMockResponse(Matcher<Request> requestMatcher, ResponsePayload response) {
         Objects.requireNonNull(response);
         Objects.requireNonNull(requestMatcher);
-        serverHandler.addMockResponse(requestMatcher, Action.respond(response.message()));
+        serverHandler.addMockResponse(requestMatcher, Action.respond(response.apiVersion(), response.message()));
     }
 
     public void dropWhen(Matcher<Request> requestMatcher) {
@@ -109,7 +110,7 @@ public final class MockServer implements AutoCloseable {
         final EventGroupConfig eventGroupConfig = EventGroupConfig.create();
         bossGroup = eventGroupConfig.newBossGroup();
         workerGroup = eventGroupConfig.newWorkerGroup();
-        serverHandler = new MockHandler(response == null ? null : response.message());
+        serverHandler = Optional.ofNullable(response).map(r -> new MockHandler(r.message(), r.apiVersion())).orElse(new MockHandler(null, (short) 0));
         ServerBootstrap b = new ServerBootstrap();
         b.group(bossGroup, workerGroup)
                 .channel(eventGroupConfig.serverChannelClass())

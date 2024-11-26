@@ -22,10 +22,11 @@ interface Action {
         };
     }
 
-    static Action respond(ApiMessage message) {
+    static Action respond(short apiVersion, ApiMessage response) {
         return (ctx, frame) -> {
-            DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(frame.apiVersion(),
-                    frame.correlationId(), new ResponseHeaderData().setCorrelationId(frame.correlationId()), message);
+
+            DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(apiVersion,
+                    frame.correlationId(), new ResponseHeaderData().setCorrelationId(frame.correlationId()), response);
             ctx.write(responseFrame);
         };
     }

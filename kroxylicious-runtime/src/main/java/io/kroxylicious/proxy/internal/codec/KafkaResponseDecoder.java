@@ -70,8 +70,10 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             ResponseHeaderData header = readHeader(headerVersion, accessor);
             log().trace("{}: Header: {}", ctx, header);
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
+            // TODO: ugly - think it would be better if decodeResponse returned the actual apiVersion
+            // used to decode the response
             if (body instanceof ApiVersionsResponseData apiBody && apiBody.errorCode() == Errors.UNSUPPORTED_VERSION.code()) {
-                // Supports KIP-511.  Ensure we behave like the Broker does when it signals that it
+                // Supports KIP-511. Ensure we behave like the Broker does when it signals that it
                 // can't support version of the ApiVersion RPC.
                 apiVersion = 0;
             }

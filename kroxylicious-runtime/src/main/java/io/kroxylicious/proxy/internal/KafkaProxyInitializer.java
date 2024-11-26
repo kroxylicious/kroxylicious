@@ -32,6 +32,7 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
+import io.kroxylicious.proxy.internal.filter.ApiVersionsFilter;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
@@ -230,6 +231,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
             List<FilterAndInvoker> customProtocolFilters = filterChainFactory.createFilters(filterContext);
+            List<FilterAndInvoker> apiVersionsFilters = FilterAndInvoker.build(new ApiVersionsFilter());
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(customProtocolFilters);
@@ -237,6 +239,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 filters.addAll(FilterAndInvoker.build(new EagerMetadataLearner()));
             }
             filters.addAll(brokerAddressFilters);
+            filters.addAll(apiVersionsFilters);
 
             var target = binding.upstreamTarget();
             if (target == null) {

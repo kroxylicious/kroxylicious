@@ -51,11 +51,13 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * Create mockhandler with initial message to serve
+     *
      * @param message message to respond with, nullable
+     * @param apiVersion
      */
-    public MockHandler(ApiMessage message) {
+    public MockHandler(ApiMessage message, short apiVersion) {
         if (message != null) {
-            setMockResponseForApiKey(ApiKeys.forId(message.apiKey()), message);
+            setMockResponseForApiKey(ApiKeys.forId(message.apiKey()), message, apiVersion);
         }
     }
 
@@ -86,9 +88,11 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * Set the response
+     *
      * @param response response
+     * @param apiVersion apiVersion of the response
      */
-    public void setMockResponseForApiKey(ApiKeys keys, ApiMessage response) {
+    public void setMockResponseForApiKey(ApiKeys keys, ApiMessage response, short apiVersion) {
         addMockResponse(new TypeSafeMatcher<>() {
             @Override
             protected boolean matchesSafely(Request request) {
@@ -99,7 +103,7 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
             public void describeTo(Description description) {
                 description.appendText("has key " + keys);
             }
-        }, Action.respond(response));
+        }, Action.respond(apiVersion, response));
     }
 
     public void addMockResponse(Matcher<Request> matcher, Action action) {
