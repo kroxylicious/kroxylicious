@@ -1,0 +1,37 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+$schema: http://json-schema.org/draft-04/schema#
+id: https://example.org/schema/Thing.yaml
+description: A CRD SChema for a Thing
+definitions:
+  ThingSpec:
+    type: object
+    properties:
+      stateOfBeing:
+        description: |
+          The nature of this Thing. Valid values are:
+          * 'exists', if this thing is *A Thing*. 
+          * 'not_a_thing' if this thing is not really *A Thing*.
+          Other valid values may be added in the future.
+        type: string
+type: object
+properties:
+  metadata:
+    type: object
+    properties:
+      name:
+        description: The name of the thing
+        type: string
+  spec:
+    $ref: "#/definitions/ThingSpec"
+  status:
+    type: object
+    properties:
+      conditions:
+        type: array
+        items:
+          $ref: https://example.org/schema/#Condition

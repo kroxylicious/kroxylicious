@@ -1,0 +1,95 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+$schema: http://json-schema.org/draft-04/schema#
+id: https://schema.kroxylicious.io/Crd.yaml
+description: The Kubernetes CRD model, described
+type: object
+required:
+  - apiVersion
+  - kind
+properties:
+  metadata:
+    type: object
+    $javaType: ObjectMeta
+  apiVersion:
+    type: string
+  kind:
+    description: The kind of the CRD API (not the kind of the CR API being defined)
+    type: string
+  spec:
+    description: API being defined
+    type: object
+    properties:
+      group:
+        description: The group of the API being defined
+        type: string
+      scope:
+        description: The scope of the API being defined
+        type: string
+        # TODO enum: [ "Namespaced", "Cluster"]
+      names:
+        description: The names of the API being defined
+        type: object
+        $javaType: CrdNames
+        properties:
+          kind:
+            description: The kind of the API being defined
+            type: string
+          plural:
+            description: The plural name of the API being defined
+            type: string
+          singular:
+            description: The singular name of the API being defined
+            type: string
+          shortNames:
+            description: The short name(s) of the API being defined for use with tools. E.g. `kubectl get ...`
+            type: array
+            items:
+              type: string
+      versions:
+        description: The versions of the API being defined
+        type: array
+        items:
+          description: An API Version
+          type: object
+          properties:
+            name:
+              description: The version name. E.g. `v1alpha1`
+              type: string
+            served:
+              description: Whether the API Server should serve this API
+              type: boolean
+            storage:
+              description: |
+                Whether this version should be used for storage (in etcd).
+                Only a single version may have `storage: true`.
+              type: boolean
+            subresources:
+              type: object
+              $javaType: CrdSubresources
+              properties:
+                status:
+                  $javaType: CrdStatusSubresource
+                  type: object
+                scale:
+                  $javaType: CrdScaleSubresource
+                  type: object
+                  properties:
+                    labelSelectorPath:
+                      type: string
+                    specReplicasPath:
+                      type: string
+                    statusReplicasPath:
+                      type: string
+            schema:
+              $javaType: CrdSchema
+              description: The schema of this version
+              type: object
+              properties:
+                openAPIV3Schema:
+                  type: object
+
