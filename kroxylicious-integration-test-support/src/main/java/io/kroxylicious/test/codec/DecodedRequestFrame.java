@@ -19,7 +19,7 @@ import io.kroxylicious.test.client.SequencedResponse;
  */
 public class DecodedRequestFrame<B extends ApiMessage>
         extends DecodedFrame<RequestHeaderData, B>
-        implements Frame {
+        implements RequestFrame {
 
     private final CompletableFuture<SequencedResponse> responseFuture = new CompletableFuture<>();
 

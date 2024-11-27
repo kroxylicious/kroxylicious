@@ -24,9 +24,20 @@ interface Action {
 
     static Action respond(ApiMessage message) {
         return (ctx, frame) -> {
-            DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(frame.apiVersion(),
-                    frame.correlationId(), new ResponseHeaderData().setCorrelationId(frame.correlationId()), message);
-            ctx.write(responseFrame);
+            writeResponse(message, ctx, frame, frame.apiVersion());
         };
     }
+
+    static Action respond(ApiMessage message, short apiVersion) {
+        return (ctx, frame) -> {
+            writeResponse(message, ctx, frame, apiVersion);
+        };
+    }
+
+    private static void writeResponse(ApiMessage message, ChannelHandlerContext ctx, DecodedRequestFrame<?> frame, short apiVersion) {
+        DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(apiVersion,
+                frame.correlationId(), new ResponseHeaderData().setCorrelationId(frame.correlationId()), message);
+        ctx.write(responseFrame);
+    }
+
 }

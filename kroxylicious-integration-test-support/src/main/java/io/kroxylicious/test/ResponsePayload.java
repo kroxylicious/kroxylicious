@@ -11,4 +11,17 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 public record ResponsePayload(ApiKeys apiKeys,
                               short apiVersion,
-                              ApiMessage message) {}
+                              ApiMessage message,
+                              short responseApiVersion) {
+
+    public ResponsePayload(ApiKeys apiKeys, short apiVersion, ApiMessage message) {
+        this(apiKeys, apiVersion, message, apiVersion);
+    }
+
+    public ResponsePayload(ApiKeys apiKeys, short apiVersion, ApiMessage message, short responseApiVersion) {
+        this.apiKeys = apiKeys;
+        this.apiVersion = apiVersion;
+        this.message = message;
+        this.responseApiVersion = responseApiVersion;
+    }
+}
