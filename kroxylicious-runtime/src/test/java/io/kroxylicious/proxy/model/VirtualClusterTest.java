@@ -42,6 +42,7 @@ class VirtualClusterTest {
                 false);
 
         // Then
+        assertThat(virtualCluster).isNotNull().extracting("downstreamSslContext").isNotNull();
         assertThat(virtualCluster).isNotNull().extracting("upstreamSslContext").isNotNull();
     }
 }

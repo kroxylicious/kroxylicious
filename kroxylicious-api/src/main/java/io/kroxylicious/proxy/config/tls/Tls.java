@@ -18,7 +18,11 @@ import java.util.Locale;
  * TODO ability to restrict by TLS protocol and cipher suite.
  */
 public record Tls(KeyProvider key,
-                  TrustProvider trust) {
+                  TrustProvider trust,
+                  String clientAuth) {
+    public Tls(KeyProvider key, TrustProvider trust) {
+        this(key, trust, null);
+    }
 
     public static final String PEM = "PEM";
 
@@ -28,5 +32,24 @@ public record Tls(KeyProvider key,
 
     public boolean definesKey() {
         return key != null;
+    }
+
+    public boolean definesClientAuth() {
+        return trust != null && clientAuth != null;
+    }
+
+    public String getClientAuth() {
+        if (definesClientAuth() && clientAuth.equals(TlsClientAuth.REQUIRED.getClientAuth())) {
+            return TlsClientAuth.REQUIRED.getNettyClientAuth();
+        }
+        else if (definesClientAuth() && clientAuth.equals(TlsClientAuth.REQUESTED.getClientAuth())) {
+            return TlsClientAuth.REQUESTED.getNettyClientAuth();
+        }
+        else if (definesClientAuth() && clientAuth.equals(TlsClientAuth.NONE.getClientAuth())) {
+            return TlsClientAuth.NONE.getNettyClientAuth();
+        }
+        else {
+            return TlsClientAuth.NONE.getNettyClientAuth();
+        }
     }
 }

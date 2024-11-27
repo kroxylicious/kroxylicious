@@ -16,6 +16,7 @@ import javax.net.ssl.SSLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
@@ -180,7 +181,16 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private Optional<SslContext> buildDownstreamSslContext() {
         return tls.map(tlsConfiguration -> {
             try {
-                return Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer).orElseThrow().build();
+                var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
+                        .orElseThrow();
+
+                if (tlsConfiguration.definesClientAuth()) {
+                    return new NettyTrustProvider(tlsConfiguration.trust()).apply(sslContextBuilder.clientAuth(ClientAuth.valueOf(tlsConfiguration.getClientAuth())))
+                            .build();
+                }
+                else {
+                    return sslContextBuilder.build();
+                }
             }
             catch (SSLException e) {
                 throw new UncheckedIOException(e);

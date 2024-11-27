@@ -423,6 +423,17 @@ class TlsParseTest {
         assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", new FilePassword("/tmp/pass"), null, null), null));
     }
 
+    @Test
+    void testClientAuthSettingsParsed() throws IOException {
+        String json = """
+                {
+                    "clientAuth": "clientauthsetting"
+                }
+                """;
+        Tls tls = readTls(json);
+        assertThat(tls).isEqualTo(new Tls(null, null, "clientauthsetting"));
+    }
+
     private Tls readTls(String json) throws IOException {
         return mapper.reader().readValue(json, Tls.class);
     }
