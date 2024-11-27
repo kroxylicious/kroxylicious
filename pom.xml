@@ -443,6 +443,7 @@
     <modules>
         <module>kroxylicious-annotations</module>
         <module>kroxylicious-kafka-message-tools</module>
+        <module>kroxylicious-schema-tools</module>
         <module>kroxylicious-kms</module>
         <module>kroxylicious-kms-test-support</module>
         <module>kroxylicious-kms-provider-aws-kms</module>
@@ -461,7 +462,6 @@
         <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
         <module>kroxylicious-operator</module>
-        <module>kroxylicious-schema-tools</module>
     </modules>
 
 
