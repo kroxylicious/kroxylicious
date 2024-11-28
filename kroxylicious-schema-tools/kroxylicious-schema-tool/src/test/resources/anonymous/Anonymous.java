@@ -16,18 +16,12 @@ package anonymous;
 public class Anonymous {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "obj")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private anonymous.AnonymousObj obj;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "weasels")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.util.List<anonymous.AnonymousWeasel> weasels;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "ref")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private anonymous.ViaRef ref;
 
     /**
@@ -54,7 +48,8 @@ public class Anonymous {
      * @return The value of this object's obj.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public anonymous.AnonymousObj getObj() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "obj")
+    public anonymous.AnonymousObj obj() {
         return this.obj;
     }
 
@@ -63,7 +58,9 @@ public class Anonymous {
      *
      *  @param obj The new value for this object's obj.
      */
-    public void setObj(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.AnonymousObj obj) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "obj")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void obj(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.AnonymousObj obj) {
         this.obj = obj;
     }
 
@@ -73,7 +70,8 @@ public class Anonymous {
      * @return The value of this object's weasels.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.util.List<anonymous.AnonymousWeasel> getWeasels() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "weasels")
+    public java.util.List<anonymous.AnonymousWeasel> weasels() {
         return this.weasels;
     }
 
@@ -82,7 +80,9 @@ public class Anonymous {
      *
      *  @param weasels The new value for this object's weasels.
      */
-    public void setWeasels(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<anonymous.AnonymousWeasel> weasels) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "weasels")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void weasels(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<anonymous.AnonymousWeasel> weasels) {
         this.weasels = weasels;
     }
 
@@ -92,7 +92,8 @@ public class Anonymous {
      * @return The value of this object's ref.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public anonymous.ViaRef getRef() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "ref")
+    public anonymous.ViaRef ref() {
         return this.ref;
     }
 
@@ -101,7 +102,9 @@ public class Anonymous {
      *
      *  @param ref The new value for this object's ref.
      */
-    public void setRef(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.ViaRef ref) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "ref")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void ref(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.ViaRef ref) {
         this.ref = ref;
     }
 

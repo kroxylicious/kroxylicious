@@ -43,7 +43,9 @@ class CodeGenTest {
 
     {
         Diagnostics diagnostics = new Diagnostics();
-        codeGen = new CodeGen(diagnostics, new Namer(diagnostics), Map.of(), true, true);
+        codeGen = new CodeGen(diagnostics, new Namer(diagnostics), Map.of(),
+                "edu.umd.cs.findbugs.annotations.Nullable",
+                "edu.umd.cs.findbugs.annotations.NonNull");
     }
 
     SchemaObject emptyTypes = new SchemaObjectBuilder().withType().build();

@@ -5,8 +5,8 @@
 #
 
 $schema: http://json-schema.org/draft-04/schema#
-id: https://kroxylicious.io/schema/kms/AwsKmsConfig.yaml
-description: The AWS KMS configuration schema
+id: https://kroxylicious.io/schema/kms/HashicorpVaultConfig.yaml
+description: The Hashicorp Vault KMS configuration schema
 definitions:
   PasswordProvider:
     description: Specification of a password
@@ -59,20 +59,13 @@ definitions:
 type: object
 $javaType: Config
 required:
-  - endpointUrl
-  - accessKey
-  - secretKey
-  - region
+  - vaultTransitEngineUrl
+  - vaultToken
 properties:
-  endpointUrl:
+  vaultTransitEngineUrl:
     type: string
     format: uri
-  accessKey:
+  vaultToken:
     $ref: "#/definitions/PasswordProvider"
-  secretKey:
-    $ref: "#/definitions/PasswordProvider"
-  region:
-    description: AWS region
-    type: string
   tls:
     $ref: "#/definitions/Tls"

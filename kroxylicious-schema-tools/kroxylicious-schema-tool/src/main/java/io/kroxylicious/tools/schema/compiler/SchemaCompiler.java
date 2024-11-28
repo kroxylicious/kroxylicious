@@ -62,7 +62,11 @@ public class SchemaCompiler {
         this.diagnostics = new Diagnostics();
         this.mapper = new YAMLMapper();
         this.namer = new Namer(diagnostics);
-        this.codeGen = new CodeGen(diagnostics, namer, existingClasses, true, true);
+        this.codeGen = new CodeGen(diagnostics,
+                namer,
+                existingClasses,
+                "edu.umd.cs.findbugs.annotations.Nullable",
+                "edu.umd.cs.findbugs.annotations.NonNull");
     }
 
     @NonNull

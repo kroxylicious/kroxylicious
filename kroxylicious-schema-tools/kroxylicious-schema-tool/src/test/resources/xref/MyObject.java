@@ -16,8 +16,6 @@ package xref;
 public class MyObject {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Double foo;
 
     /**
@@ -40,7 +38,8 @@ public class MyObject {
      * @return The value of this object's foo.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.Double getFoo() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
+    public java.lang.Double foo() {
         return this.foo;
     }
 
@@ -49,7 +48,9 @@ public class MyObject {
      *
      *  @param foo The new value for this object's foo.
      */
-    public void setFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Double foo) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void foo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Double foo) {
         this.foo = foo;
     }
 

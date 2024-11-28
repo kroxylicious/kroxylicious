@@ -16,28 +16,18 @@ package xref;
 public class Config {
 
     @edu.umd.cs.findbugs.annotations.NonNull()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "endpointUrl", required = true)
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String endpointUrl;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "accessKey")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.PasswordProvider accessKey;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "secretKey")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.PasswordProvider secretKey;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "region")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String region;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "tls")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.Tls tls;
 
     /**
@@ -76,7 +66,8 @@ public class Config {
      * @return The value of this object's endpointUrl.
      */
     @edu.umd.cs.findbugs.annotations.NonNull()
-    public java.lang.String getEndpointUrl() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "endpointUrl", required = true)
+    public java.lang.String endpointUrl() {
         return this.endpointUrl;
     }
 
@@ -85,7 +76,9 @@ public class Config {
      *
      *  @param endpointUrl The new value for this object's endpointUrl.
      */
-    public void setEndpointUrl(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String endpointUrl) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "endpointUrl", required = true)
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void endpointUrl(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String endpointUrl) {
         this.endpointUrl = endpointUrl;
     }
 
@@ -94,7 +87,8 @@ public class Config {
      * @return The value of this object's accessKey.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public xref.PasswordProvider getAccessKey() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "accessKey")
+    public xref.PasswordProvider accessKey() {
         return this.accessKey;
     }
 
@@ -102,7 +96,9 @@ public class Config {
      * Specification of a password
      *  @param accessKey The new value for this object's accessKey.
      */
-    public void setAccessKey(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider accessKey) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "accessKey")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void accessKey(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider accessKey) {
         this.accessKey = accessKey;
     }
 
@@ -111,7 +107,8 @@ public class Config {
      * @return The value of this object's secretKey.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public xref.PasswordProvider getSecretKey() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "secretKey")
+    public xref.PasswordProvider secretKey() {
         return this.secretKey;
     }
 
@@ -119,7 +116,9 @@ public class Config {
      * Specification of a password
      *  @param secretKey The new value for this object's secretKey.
      */
-    public void setSecretKey(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider secretKey) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "secretKey")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void secretKey(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider secretKey) {
         this.secretKey = secretKey;
     }
 
@@ -128,7 +127,8 @@ public class Config {
      * @return The value of this object's region.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.String getRegion() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "region")
+    public java.lang.String region() {
         return this.region;
     }
 
@@ -136,7 +136,9 @@ public class Config {
      * AWS region
      *  @param region The new value for this object's region.
      */
-    public void setRegion(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String region) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "region")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void region(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String region) {
         this.region = region;
     }
 
@@ -146,7 +148,8 @@ public class Config {
      * @return The value of this object's tls.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public xref.Tls getTls() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "tls")
+    public xref.Tls tls() {
         return this.tls;
     }
 
@@ -155,7 +158,9 @@ public class Config {
      *
      *  @param tls The new value for this object's tls.
      */
-    public void setTls(@edu.umd.cs.findbugs.annotations.Nullable() xref.Tls tls) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "tls")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void tls(@edu.umd.cs.findbugs.annotations.Nullable() xref.Tls tls) {
         this.tls = tls;
     }
 

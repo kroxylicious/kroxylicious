@@ -105,13 +105,13 @@ public class CrdTool {
 
         // find schemas (ie. resolve the $ref)
         // TODO flatten the schemas
-        for (var version : crd.getSpec().getVersions()) {
+        for (var version : crd.spec().versions()) {
             // Base url is the CRD YAML file itself.
             // visit the schema, resolving files in preorder
             // and replacing with the loaded file in post order
             URI base = input.src().toUri();
             Flattener visitor = new Flattener();
-            SchemaObject openApiv3Schema = version.getSchema().getOpenAPIV3Schema();
+            SchemaObject openApiv3Schema = version.schema().openAPIV3Schema();
             flattenSchema(base, openApiv3Schema, visitor);
         }
         return crd;

@@ -16,18 +16,12 @@ package xref;
 public class Xref {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "myBoolean")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Boolean myBoolean;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "myList")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.util.List<java.lang.Long> myList;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "myObject")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.MyObject myObject;
 
     /**
@@ -53,7 +47,8 @@ public class Xref {
      * @return The value of this object's myBoolean.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.Boolean getMyBoolean() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "myBoolean")
+    public java.lang.Boolean myBoolean() {
         return this.myBoolean;
     }
 
@@ -61,7 +56,9 @@ public class Xref {
      * A class with scalar properties
      *  @param myBoolean The new value for this object's myBoolean.
      */
-    public void setMyBoolean(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean myBoolean) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "myBoolean")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void myBoolean(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean myBoolean) {
         this.myBoolean = myBoolean;
     }
 
@@ -70,7 +67,8 @@ public class Xref {
      * @return The value of this object's myList.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.util.List<java.lang.Long> getMyList() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "myList")
+    public java.util.List<java.lang.Long> myList() {
         return this.myList;
     }
 
@@ -78,7 +76,9 @@ public class Xref {
      * A class with scalar properties
      *  @param myList The new value for this object's myList.
      */
-    public void setMyList(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<java.lang.Long> myList) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "myList")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void myList(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<java.lang.Long> myList) {
         this.myList = myList;
     }
 
@@ -87,7 +87,8 @@ public class Xref {
      * @return The value of this object's myObject.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public xref.MyObject getMyObject() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "myObject")
+    public xref.MyObject myObject() {
         return this.myObject;
     }
 
@@ -95,7 +96,9 @@ public class Xref {
      * A class with scalar properties
      *  @param myObject The new value for this object's myObject.
      */
-    public void setMyObject(@edu.umd.cs.findbugs.annotations.Nullable() xref.MyObject myObject) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "myObject")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void myObject(@edu.umd.cs.findbugs.annotations.Nullable() xref.MyObject myObject) {
         this.myObject = myObject;
     }
 

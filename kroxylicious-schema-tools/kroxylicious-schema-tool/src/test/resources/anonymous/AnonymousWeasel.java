@@ -16,8 +16,6 @@ package anonymous;
 public class AnonymousWeasel {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String baz;
 
     /**
@@ -40,7 +38,8 @@ public class AnonymousWeasel {
      * @return The value of this object's baz.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.String getBaz() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
+    public java.lang.String baz() {
         return this.baz;
     }
 
@@ -49,7 +48,9 @@ public class AnonymousWeasel {
      *
      *  @param baz The new value for this object's baz.
      */
-    public void setBaz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String baz) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void baz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String baz) {
         this.baz = baz;
     }
 

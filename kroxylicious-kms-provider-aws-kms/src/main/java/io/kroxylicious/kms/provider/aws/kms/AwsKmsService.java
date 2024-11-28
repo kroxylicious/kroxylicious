@@ -55,11 +55,11 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
     @Override
     public AwsKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");
-        SSLContext sslContext = sslContext(config.getTls());
-        return new AwsKms(config.getEndpointUrl(),
-                config.getAccessKey().getProvidedPassword(),
-                config.getSecretKey().getProvidedPassword(),
-                config.getRegion(),
+        SSLContext sslContext = sslContext(config.tls());
+        return new AwsKms(config.endpointUrl(),
+                config.accessKey().getProvidedPassword(),
+                config.secretKey().getProvidedPassword(),
+                config.region(),
                 Duration.ofSeconds(20), sslContext);
     }
 }

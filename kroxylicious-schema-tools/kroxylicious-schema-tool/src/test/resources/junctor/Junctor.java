@@ -16,23 +16,15 @@ package junctor;
 public class Junctor {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "oneOf")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private junctor.JunctorOneOf oneOf;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "anyOf")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private junctor.JunctorAnyOf anyOf;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "allOf")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private junctor.JunctorAllOf allOf;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "not")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private junctor.JunctorNot not;
 
     /**
@@ -61,7 +53,8 @@ public class Junctor {
      * @return The value of this object's oneOf.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public junctor.JunctorOneOf getOneOf() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "oneOf")
+    public junctor.JunctorOneOf oneOf() {
         return this.oneOf;
     }
 
@@ -70,7 +63,9 @@ public class Junctor {
      *
      *  @param oneOf The new value for this object's oneOf.
      */
-    public void setOneOf(@edu.umd.cs.findbugs.annotations.Nullable() junctor.JunctorOneOf oneOf) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "oneOf")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void oneOf(@edu.umd.cs.findbugs.annotations.Nullable() junctor.JunctorOneOf oneOf) {
         this.oneOf = oneOf;
     }
 
@@ -80,7 +75,8 @@ public class Junctor {
      * @return The value of this object's anyOf.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public junctor.JunctorAnyOf getAnyOf() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "anyOf")
+    public junctor.JunctorAnyOf anyOf() {
         return this.anyOf;
     }
 
@@ -89,7 +85,9 @@ public class Junctor {
      *
      *  @param anyOf The new value for this object's anyOf.
      */
-    public void setAnyOf(@edu.umd.cs.findbugs.annotations.Nullable() junctor.JunctorAnyOf anyOf) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "anyOf")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void anyOf(@edu.umd.cs.findbugs.annotations.Nullable() junctor.JunctorAnyOf anyOf) {
         this.anyOf = anyOf;
     }
 
@@ -99,7 +97,8 @@ public class Junctor {
      * @return The value of this object's allOf.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public junctor.JunctorAllOf getAllOf() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "allOf")
+    public junctor.JunctorAllOf allOf() {
         return this.allOf;
     }
 
@@ -108,7 +107,9 @@ public class Junctor {
      *
      *  @param allOf The new value for this object's allOf.
      */
-    public void setAllOf(@edu.umd.cs.findbugs.annotations.Nullable() junctor.JunctorAllOf allOf) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "allOf")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void allOf(@edu.umd.cs.findbugs.annotations.Nullable() junctor.JunctorAllOf allOf) {
         this.allOf = allOf;
     }
 
@@ -118,7 +119,8 @@ public class Junctor {
      * @return The value of this object's not.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public junctor.JunctorNot getNot() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "not")
+    public junctor.JunctorNot not() {
         return this.not;
     }
 
@@ -127,7 +129,9 @@ public class Junctor {
      *
      *  @param not The new value for this object's not.
      */
-    public void setNot(@edu.umd.cs.findbugs.annotations.Nullable() junctor.JunctorNot not) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "not")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void not(@edu.umd.cs.findbugs.annotations.Nullable() junctor.JunctorNot not) {
         this.not = not;
     }
 

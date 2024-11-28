@@ -16,13 +16,9 @@ package junctor;
 public class JunctorNot {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Boolean foo;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Boolean bar;
 
     /**
@@ -47,7 +43,8 @@ public class JunctorNot {
      * @return The value of this object's foo.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.Boolean getFoo() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
+    public java.lang.Boolean foo() {
         return this.foo;
     }
 
@@ -56,7 +53,9 @@ public class JunctorNot {
      *
      *  @param foo The new value for this object's foo.
      */
-    public void setFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean foo) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void foo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean foo) {
         this.foo = foo;
     }
 
@@ -66,7 +65,8 @@ public class JunctorNot {
      * @return The value of this object's bar.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.Boolean getBar() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
+    public java.lang.Boolean bar() {
         return this.bar;
     }
 
@@ -75,7 +75,9 @@ public class JunctorNot {
      *
      *  @param bar The new value for this object's bar.
      */
-    public void setBar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean bar) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void bar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean bar) {
         this.bar = bar;
     }
 

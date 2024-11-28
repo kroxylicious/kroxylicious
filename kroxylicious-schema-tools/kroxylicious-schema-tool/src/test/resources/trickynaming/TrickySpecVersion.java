@@ -16,23 +16,15 @@ package trickynaming;
 public class TrickySpecVersion {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String name;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "served")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Boolean served;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "storage")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Boolean storage;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "schema")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private trickynaming.CrdSchema schema;
 
     /**
@@ -60,7 +52,8 @@ public class TrickySpecVersion {
      * @return The value of this object's name.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.String getName() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
+    public java.lang.String name() {
         return this.name;
     }
 
@@ -68,7 +61,9 @@ public class TrickySpecVersion {
      * The version name. E.g. `v1alpha1`
      *  @param name The new value for this object's name.
      */
-    public void setName(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String name) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void name(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String name) {
         this.name = name;
     }
 
@@ -77,7 +72,8 @@ public class TrickySpecVersion {
      * @return The value of this object's served.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.Boolean getServed() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "served")
+    public java.lang.Boolean served() {
         return this.served;
     }
 
@@ -85,7 +81,9 @@ public class TrickySpecVersion {
      * Whether the API Server should serve this API
      *  @param served The new value for this object's served.
      */
-    public void setServed(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean served) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "served")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void served(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean served) {
         this.served = served;
     }
 
@@ -96,7 +94,8 @@ public class TrickySpecVersion {
      * @return The value of this object's storage.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.Boolean getStorage() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "storage")
+    public java.lang.Boolean storage() {
         return this.storage;
     }
 
@@ -106,7 +105,9 @@ public class TrickySpecVersion {
      *
      *  @param storage The new value for this object's storage.
      */
-    public void setStorage(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean storage) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "storage")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void storage(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean storage) {
         this.storage = storage;
     }
 
@@ -115,7 +116,8 @@ public class TrickySpecVersion {
      * @return The value of this object's schema.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public trickynaming.CrdSchema getSchema() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "schema")
+    public trickynaming.CrdSchema schema() {
         return this.schema;
     }
 
@@ -123,7 +125,9 @@ public class TrickySpecVersion {
      * The schema of this version
      *  @param schema The new value for this object's schema.
      */
-    public void setSchema(@edu.umd.cs.findbugs.annotations.Nullable() trickynaming.CrdSchema schema) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "schema")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void schema(@edu.umd.cs.findbugs.annotations.Nullable() trickynaming.CrdSchema schema) {
         this.schema = schema;
     }
 

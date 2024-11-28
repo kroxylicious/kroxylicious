@@ -16,8 +16,6 @@ package anonymous;
 public class AnonymousObj {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String foo;
 
     /**
@@ -40,7 +38,8 @@ public class AnonymousObj {
      * @return The value of this object's foo.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.String getFoo() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
+    public java.lang.String foo() {
         return this.foo;
     }
 
@@ -49,7 +48,9 @@ public class AnonymousObj {
      *
      *  @param foo The new value for this object's foo.
      */
-    public void setFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void foo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo) {
         this.foo = foo;
     }
 

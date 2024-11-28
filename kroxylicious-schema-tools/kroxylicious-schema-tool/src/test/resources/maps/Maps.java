@@ -16,8 +16,6 @@ package maps;
 public class Maps {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "keyedOnFoo")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo;
 
     /**
@@ -39,7 +37,8 @@ public class Maps {
      * @return The value of this object's keyedOnFoo.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.util.Map<java.lang.String, maps.FooBarBaz> getKeyedOnFoo() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "keyedOnFoo")
+    public java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo() {
         return this.keyedOnFoo;
     }
 
@@ -47,7 +46,9 @@ public class Maps {
      * An array of FooBars
      *  @param keyedOnFoo The new value for this object's keyedOnFoo.
      */
-    public void setKeyedOnFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "keyedOnFoo")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void keyedOnFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo) {
         this.keyedOnFoo = keyedOnFoo;
     }
 

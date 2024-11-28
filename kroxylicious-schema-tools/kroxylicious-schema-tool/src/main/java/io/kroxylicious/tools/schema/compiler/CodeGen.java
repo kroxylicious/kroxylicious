@@ -70,17 +70,19 @@ public class CodeGen {
     private final Namer namer;
     private final Diagnostics diagnostics;
     private final Map<String, String> existingClasses;
-    private final boolean allCtor;
-    private final boolean allRequiredCtor;
+    private final String nullableAnnotation;
+    private final String nonNullAnnotation;
 
     public CodeGen(Diagnostics diagnostics,
                    Namer namer,
-                   Map<String, String> existingClasses, boolean allCtor, boolean allRequiredCtor) {
+                   Map<String, String> existingClasses,
+                   String nullableAnnotation,
+                   String nonNullAnnotation) {
         this.diagnostics = Objects.requireNonNull(diagnostics);
         this.namer = Objects.requireNonNull(namer);
         this.existingClasses = existingClasses;
-        this.allCtor = allCtor;
-        this.allRequiredCtor = allRequiredCtor;
+        this.nullableAnnotation = nullableAnnotation;
+        this.nonNullAnnotation = nonNullAnnotation;
     }
 
     SchemaObject resolveRef(SchemaObject root, SchemaObject schema) {
@@ -411,14 +413,8 @@ public class CodeGen {
                 .map(entry -> {
                     var propSchema = resolveRef(root, entry.getValue());
                     var propType = genTypeName(pkg, root, propSchema);
-                    Parameter parameter = new Parameter(propType, fieldName(entry.getKey()));
-                    if (required.contains(entry.getKey())) {
-                        parameter.addAnnotation("edu.umd.cs.findbugs.annotations.NonNull");
-                    }
-                    else {
-                        parameter.addAnnotation("edu.umd.cs.findbugs.annotations.Nullable");
-                    }
-                    return parameter;
+                    return new Parameter(propType, fieldName(entry.getKey()))
+                            .addAnnotation(nullableAnnotationName(required.contains(entry.getKey())));
                 }).toList();
         ctor.setParameters(NodeList.nodeList(pl));
 
@@ -549,27 +545,32 @@ public class CodeGen {
         var fieldName = fieldName(propName);
         FieldDeclaration fieldDeclaration = new FieldDeclaration();
         fieldDeclaration.addAnnotation(nullableAnnotationName(required));
+        // fieldDeclaration.addAnnotation(mkAtJsonProperty(propName, required));
+        // fieldDeclaration.addAnnotation(mkAtJsonSetter());
         VariableDeclarator variable = new VariableDeclarator(propType, fieldName);
         fieldDeclaration.getVariables().add(variable);
         fieldDeclaration.setModifiers(Modifier.Keyword.PRIVATE);
+        return fieldDeclaration;
+    }
 
-        // @com.fasterxml.jackson.annotation.JsonProperty("name")
-        // @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    // @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    @NonNull
+    private static NormalAnnotationExpr mkAtJsonSetter() {
+        return new NormalAnnotationExpr(new Name("com.fasterxml.jackson.annotation.JsonSetter"),
+                NodeList.nodeList(new MemberValuePair("nulls", new FieldAccessExpr(new TypeExpr(
+                        new ClassOrInterfaceType(null, "com.fasterxml.jackson.annotation.Nulls")), "SKIP"))));
+    }
+
+    // @com.fasterxml.jackson.annotation.JsonProperty(value = "name", required = )
+    private static NormalAnnotationExpr mkAtJsonProperty(String propName, boolean required) {
         NodeList<MemberValuePair> jsonPropertyMembers = NodeList.nodeList(
                 new MemberValuePair("value", new StringLiteralExpr(propName)));
         if (required) {
             jsonPropertyMembers.add(new MemberValuePair("required", new BooleanLiteralExpr(true)));
         }
-        fieldDeclaration.addAnnotation(
-                new NormalAnnotationExpr(new Name("com.fasterxml.jackson.annotation.JsonProperty"),
-                        jsonPropertyMembers));
-        // new SingleMemberAnnotationExpr(new Name("com.fasterxml.jackson.annotation.JsonProperty"),
-        // new StringLiteralExpr(propName)));
-        fieldDeclaration.addAnnotation(new NormalAnnotationExpr(new Name("com.fasterxml.jackson.annotation.JsonSetter"),
-                NodeList.nodeList(new MemberValuePair("nulls", new FieldAccessExpr(new TypeExpr(
-                        new ClassOrInterfaceType(null, "com.fasterxml.jackson.annotation.Nulls")), "SKIP")))));
-
-        return fieldDeclaration;
+        return new NormalAnnotationExpr(
+                new Name("com.fasterxml.jackson.annotation.JsonProperty"),
+                jsonPropertyMembers);
     }
 
     @NonNull
@@ -593,6 +594,8 @@ public class CodeGen {
         methodDeclaration.setJavadocComment(description);
         methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
         methodDeclaration.addAnnotation(nullableAnnotationName(required));
+        methodDeclaration.addAnnotation(mkAtJsonProperty(propName, required));
+        // fieldDeclaration.addAnnotation(mkAtJsonSetter());
         methodDeclaration.setType(propType);
         methodDeclaration.setName(getterName);
         methodDeclaration.setBody(new BlockStmt(new NodeList<>(new ReturnStmt(new FieldAccessExpr(new ThisExpr(), fieldName)))));
@@ -616,11 +619,12 @@ public class CodeGen {
 
         MethodDeclaration methodDeclaration = new MethodDeclaration();
         methodDeclaration.setJavadocComment(description);
+        methodDeclaration.addAnnotation(mkAtJsonProperty(propName, required));
+        methodDeclaration.addAnnotation(mkAtJsonSetter());
         methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
         methodDeclaration.setType(new VoidType());
         methodDeclaration.setName(setterName(propName));
-        Parameter parameter = new Parameter(propType, fieldName);
-        parameter.addAnnotation(nullableAnnotationName(required));
+        Parameter parameter = new Parameter(propType, fieldName).addAnnotation(nullableAnnotationName(required));
         methodDeclaration
                 .setParameters(new NodeList<>(parameter))
                 .setBody(new BlockStmt(new NodeList<>(new ExpressionStmt(new AssignExpr(
@@ -633,14 +637,12 @@ public class CodeGen {
 
     @NonNull
     private static String setterName(String propName) {
-        String propName1 = Character.toUpperCase(propName.charAt(0)) + propName.substring(1);
-        return quoteMember("set" + propName1);
+        return fieldName(propName);
     }
 
     @NonNull
     private static String getterName(String propName) {
-        String propName1 = Character.toUpperCase(propName.charAt(0)) + propName.substring(1);
-        return quoteMember("get" + propName1);
+        return fieldName(propName);
     }
 
     private static String quoteMember(String memberName) {

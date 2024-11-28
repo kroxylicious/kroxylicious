@@ -49,7 +49,7 @@ public class CrdCodeGen {
         CompilationUnit cu = new CompilationUnit();
         cu.setPackageDeclaration(new PackageDeclaration(new Name(pkg)));
 
-        String kind = crdTypeName(crd.getSpec().getNames());
+        String kind = crdTypeName(crd.spec().names());
         ClassOrInterfaceDeclaration clz = cu.addClass(kind, Modifier.Keyword.PUBLIC);
         /*
          * TODO @io.fabric8.kubernetes.model.annotation.Version(value = "v1alpha1" , storage = true , served = true)
@@ -75,14 +75,14 @@ public class CrdCodeGen {
          * @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.VolumeMount.class)
          * })
          */
-        if (crd.getSpec() != null) {
+        if (crd.spec() != null) {
             clz.addSingleMemberAnnotation("javax.annotation.processing.Generated", new StringLiteralExpr(getClass().getName()));
-            clz.addSingleMemberAnnotation("io.fabric8.kubernetes.model.annotation.Group", new StringLiteralExpr(crd.getSpec().getGroup()));
-            if (crd.getSpec().getNames() != null) {
-                clz.addSingleMemberAnnotation("io.fabric8.kubernetes.model.annotation.Singular", new StringLiteralExpr(crd.getSpec().getNames().getSingular()));
-                clz.addSingleMemberAnnotation("io.fabric8.kubernetes.model.annotation.Plural", new StringLiteralExpr(crd.getSpec().getNames().getPlural()));
-                if (!crd.getSpec().getNames().getShortNames().isEmpty()) {
-                    clz.addAnnotation(mkAtShortNames(crd.getSpec().getNames().getShortNames()));
+            clz.addSingleMemberAnnotation("io.fabric8.kubernetes.model.annotation.Group", new StringLiteralExpr(crd.spec().group()));
+            if (crd.spec().names() != null) {
+                clz.addSingleMemberAnnotation("io.fabric8.kubernetes.model.annotation.Singular", new StringLiteralExpr(crd.spec().names().singular()));
+                clz.addSingleMemberAnnotation("io.fabric8.kubernetes.model.annotation.Plural", new StringLiteralExpr(crd.spec().names().plural()));
+                if (!crd.spec().names().shortNames().isEmpty()) {
+                    clz.addAnnotation(mkAtShortNames(crd.spec().names().shortNames()));
                 }
             }
         }
@@ -95,7 +95,7 @@ public class CrdCodeGen {
                         mkSpecTypeExpr(pkg, kind),
                         mkStatusTypeExpr(pkg, kind)))));
         // implements io.fabric8.kubernetes.api.model.Namespaced
-        if (crd.getSpec().getScope().equalsIgnoreCase("Namespaced")) {
+        if (crd.spec().scope().equalsIgnoreCase("Namespaced")) {
             clz.addImplementedType("io.fabric8.kubernetes.api.model.Namespaced");
         }
         boolean editable = true;
@@ -106,9 +106,9 @@ public class CrdCodeGen {
             clz.addMember(mkEditMethod(pkg, kind));
         }
 
-        clz.addMember(mkToStringMethod(crd.getSpec().getNames()));
-        clz.addMember(mkHashCodeMethod(crd.getSpec().getNames()));
-        clz.addMember(mkEqualsMethod(pkg, crd.getSpec().getNames()));
+        clz.addMember(mkToStringMethod(crd.spec().names()));
+        clz.addMember(mkHashCodeMethod(crd.spec().names()));
+        clz.addMember(mkEqualsMethod(pkg, crd.spec().names()));
 
         return cu;
     }
@@ -125,7 +125,7 @@ public class CrdCodeGen {
     }
 
     private static String crdTypeName(CrdNames names) {
-        return names.getKind();
+        return names.kind();
     }
 
     private static ClassOrInterfaceType mkCrdTypeExpr(String pkg, CrdNames names) {

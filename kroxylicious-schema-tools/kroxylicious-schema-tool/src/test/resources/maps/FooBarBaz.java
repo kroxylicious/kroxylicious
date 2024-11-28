@@ -16,18 +16,12 @@ package maps;
 public class FooBarBaz {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String foo;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String bar;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Long baz;
 
     /**
@@ -54,7 +48,8 @@ public class FooBarBaz {
      * @return The value of this object's foo.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.String getFoo() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
+    public java.lang.String foo() {
         return this.foo;
     }
 
@@ -63,7 +58,9 @@ public class FooBarBaz {
      *
      *  @param foo The new value for this object's foo.
      */
-    public void setFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void foo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo) {
         this.foo = foo;
     }
 
@@ -73,7 +70,8 @@ public class FooBarBaz {
      * @return The value of this object's bar.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.String getBar() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
+    public java.lang.String bar() {
         return this.bar;
     }
 
@@ -82,7 +80,9 @@ public class FooBarBaz {
      *
      *  @param bar The new value for this object's bar.
      */
-    public void setBar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String bar) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void bar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String bar) {
         this.bar = bar;
     }
 
@@ -92,7 +92,8 @@ public class FooBarBaz {
      * @return The value of this object's baz.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.Long getBaz() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
+    public java.lang.Long baz() {
         return this.baz;
     }
 
@@ -101,7 +102,9 @@ public class FooBarBaz {
      *
      *  @param baz The new value for this object's baz.
      */
-    public void setBaz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Long baz) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void baz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Long baz) {
         this.baz = baz;
     }
 

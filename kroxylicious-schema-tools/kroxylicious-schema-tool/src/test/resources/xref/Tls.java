@@ -16,13 +16,9 @@ package xref;
 public class Tls {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "key")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.ConfigKey key;
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "trust")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.ConfigTrust trust;
 
     /**
@@ -47,7 +43,8 @@ public class Tls {
      * @return The value of this object's key.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public xref.ConfigKey getKey() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "key")
+    public xref.ConfigKey key() {
         return this.key;
     }
 
@@ -56,7 +53,9 @@ public class Tls {
      *
      *  @param key The new value for this object's key.
      */
-    public void setKey(@edu.umd.cs.findbugs.annotations.Nullable() xref.ConfigKey key) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "key")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void key(@edu.umd.cs.findbugs.annotations.Nullable() xref.ConfigKey key) {
         this.key = key;
     }
 
@@ -66,7 +65,8 @@ public class Tls {
      * @return The value of this object's trust.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public xref.ConfigTrust getTrust() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "trust")
+    public xref.ConfigTrust trust() {
         return this.trust;
     }
 
@@ -75,7 +75,9 @@ public class Tls {
      *
      *  @param trust The new value for this object's trust.
      */
-    public void setTrust(@edu.umd.cs.findbugs.annotations.Nullable() xref.ConfigTrust trust) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "trust")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void trust(@edu.umd.cs.findbugs.annotations.Nullable() xref.ConfigTrust trust) {
         this.trust = trust;
     }
 

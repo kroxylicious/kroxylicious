@@ -16,8 +16,6 @@ package anonymous;
 public class ViaRef {
 
     @edu.umd.cs.findbugs.annotations.Nullable()
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String bar;
 
     /**
@@ -40,7 +38,8 @@ public class ViaRef {
      * @return The value of this object's bar.
      */
     @edu.umd.cs.findbugs.annotations.Nullable()
-    public java.lang.String getBar() {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
+    public java.lang.String bar() {
         return this.bar;
     }
 
@@ -49,7 +48,9 @@ public class ViaRef {
      *
      *  @param bar The new value for this object's bar.
      */
-    public void setBar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String bar) {
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    public void bar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String bar) {
         this.bar = bar;
     }
 
