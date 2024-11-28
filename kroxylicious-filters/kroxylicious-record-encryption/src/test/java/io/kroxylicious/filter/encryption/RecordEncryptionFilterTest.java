@@ -315,7 +315,7 @@ class RecordEncryptionFilterTest {
         final CloseOrTerminalStage<RequestFilterResult> errorResponseBuilder = mock(CloseOrTerminalStage.class);
         final RequestFilterResult errorResult = mock(RequestFilterResult.class);
         when(context.requestFilterResultBuilder()).thenReturn(resultBuilder);
-        when(resultBuilder.errorResponse(any(), any(), any())).thenReturn(errorResponseBuilder);
+        when(resultBuilder.errorResponse(any(), any(), any(ApiException.class))).thenReturn(errorResponseBuilder);
         when(errorResponseBuilder.completed()).thenReturn(CompletableFuture.completedStage(errorResult));
         return resultBuilder;
     }

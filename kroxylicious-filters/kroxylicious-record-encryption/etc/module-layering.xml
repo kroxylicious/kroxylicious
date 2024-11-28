@@ -22,6 +22,7 @@
     <!-- top level package (these are all local-only=true)  -->
     <allow pkg="org.apache.kafka.common.message" local-only="true"/>
     <allow pkg="org.apache.kafka.common.record" local-only="true"/>
+    <allow pkg="org.apache.kafka.common.errors" local-only="true"/>
     <allow pkg="io.kroxylicious.proxy.filter" local-only="true"/> <!-- the filter api -->
     <allow pkg="io.kroxylicious.proxy.plugin" local-only="true"/> <!-- the plugin api -->
     <allow pkg="io.kroxylicious.kms.service" local-only="true"/> <!-- the kms api -->

@@ -15,7 +15,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.errors.UnknownServerException;
+import org.apache.kafka.common.errors.NetworkException;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
@@ -26,6 +26,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.slf4j.Logger;
 
+import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
 import io.kroxylicious.filter.encryption.config.RecordField;
@@ -33,7 +34,6 @@ import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
-import io.kroxylicious.filter.encryption.encrypt.RequestNotSatisfiable;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
@@ -75,9 +75,10 @@ public class RecordEncryptionFilter<K>
         return maybeEncodeProduce(request, context)
                 .thenCompose(yy -> context.forwardRequest(header, request))
                 .exceptionallyCompose(throwable -> {
-                    if (throwable instanceof RequestNotSatisfiable || throwable.getCause() instanceof RequestNotSatisfiable) {
+                    if (isEncryptionException(throwable) || isEncryptionException(throwable.getCause())) {
                         return context.requestFilterResultBuilder()
-                                .errorResponse(header, request, new UnknownServerException(throwable))
+                                .errorResponse(header, request, new NetworkException(throwable))
+                                // Respond with a NetworkException as that is Retryable and UnknownServerException is not.
                                 .completed();
                     }
                     else {
@@ -170,4 +171,7 @@ public class RecordEncryptionFilter<K>
                 .thenApply(fpr::setRecords);
     }
 
+    private static boolean isEncryptionException(Throwable throwable) {
+        return EncryptionException.class.isAssignableFrom(throwable.getClass());
+    }
 }
