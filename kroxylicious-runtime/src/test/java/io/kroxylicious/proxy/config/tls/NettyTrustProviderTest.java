@@ -15,7 +15,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
@@ -96,29 +95,5 @@ class NettyTrustProviderTest {
 
         // Then
         assertThat(sslContextBuilder).extracting("endpointIdentificationAlgorithm").isEqualTo("HTTPS");
-    }
-
-    @Test
-    void shouldDisableClientAuthRequiredByDefault() {
-        // Given
-        var trustStore = new NettyTrustProvider(PlatformTrustProvider.INSTANCE);
-
-        // When
-        trustStore.apply(sslContextBuilder);
-
-        // Then
-        assertThat(sslContextBuilder).extracting("clientAuth").isEqualTo(ClientAuth.NONE);
-    }
-
-    @Test
-    void shouldEnableClientAuthRequiredWhenSet() {
-        // Given
-        var trustStore = new NettyTrustProvider(PlatformTrustProvider.INSTANCE);
-
-        // When
-        trustStore.apply(sslContextBuilder.clientAuth(ClientAuth.REQUIRE));
-
-        // Then
-        assertThat(sslContextBuilder).extracting("clientAuth").isEqualTo(ClientAuth.REQUIRE);
     }
 }

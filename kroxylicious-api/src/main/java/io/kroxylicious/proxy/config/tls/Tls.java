@@ -12,8 +12,9 @@ import java.util.Locale;
 /**
  * Provides TLS configuration for this peer.  This class is designed to be used for both TLS server and client roles.
  *
- * @param key   specifies a key provider that provides the certificate/key used to identify this peer.
- * @param trust specifies a trust provider used by this peer to determine whether to trust the peer. If omitted platform trust is used instead.
+ * @param key        specifies a key provider that provides the certificate/key used to identify this peer.
+ * @param trust      specifies a trust provider used by this peer to determine whether to trust the peer. If omitted platform trust is used instead.
+ * @param clientAuth specifies the level of authentication required by a client if this tls connection is to be used as a server role.
  *
  * TODO ability to restrict by TLS protocol and cipher suite.
  */
