@@ -15,19 +15,38 @@ package junctor;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class JunctorOneOf {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Boolean foo;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Boolean bar;
+
+    /**
+     * Required properties constructor.
+     */
+    public JunctorOneOf() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param foo The value of the {@code foo} property. This is an optional property.
+     * @param bar The value of the {@code bar} property. This is an optional property.
+     */
+    public JunctorOneOf(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean foo, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean bar) {
+        this.foo = foo;
+        this.bar = bar;
+    }
 
     /**
      * Return the foo.
      *
      * @return The value of this object's foo.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.Boolean getFoo() {
         return this.foo;
     }
@@ -37,7 +56,7 @@ public class JunctorOneOf {
      *
      *  @param foo The new value for this object's foo.
      */
-    public void setFoo(java.lang.Boolean foo) {
+    public void setFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean foo) {
         this.foo = foo;
     }
 
@@ -46,6 +65,7 @@ public class JunctorOneOf {
      *
      * @return The value of this object's bar.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.Boolean getBar() {
         return this.bar;
     }
@@ -55,7 +75,7 @@ public class JunctorOneOf {
      *
      *  @param bar The new value for this object's bar.
      */
-    public void setBar(java.lang.Boolean bar) {
+    public void setBar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean bar) {
         this.bar = bar;
     }
 

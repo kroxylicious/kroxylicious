@@ -14,6 +14,12 @@ package trickynaming;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class TrickySpecVersionSchemaOpenAPIV3Schema {
 
+    /**
+     * All properties constructor.
+     */
+    public TrickySpecVersionSchemaOpenAPIV3Schema() {
+    }
+
     @java.lang.Override()
     public java.lang.String toString() {
         return "TrickySpecVersionSchemaOpenAPIV3Schema[" + "]";

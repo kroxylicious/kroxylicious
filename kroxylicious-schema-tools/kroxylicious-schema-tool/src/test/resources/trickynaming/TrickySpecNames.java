@@ -15,26 +15,51 @@ package trickynaming;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class TrickySpecNames {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "kind")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String kind;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "plural")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String plural;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "singular")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String singular;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "shortNames")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.util.List<java.lang.String> shortNames;
 
     /**
+     * Required properties constructor.
+     */
+    public TrickySpecNames() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param kind The value of the {@code kind} property. This is an optional property.
+     * @param plural The value of the {@code plural} property. This is an optional property.
+     * @param singular The value of the {@code singular} property. This is an optional property.
+     * @param shortNames The value of the {@code shortNames} property. This is an optional property.
+     */
+    public TrickySpecNames(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String kind, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String plural, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String singular, @edu.umd.cs.findbugs.annotations.Nullable() java.util.List<java.lang.String> shortNames) {
+        this.kind = kind;
+        this.plural = plural;
+        this.singular = singular;
+        this.shortNames = shortNames;
+    }
+
+    /**
      * The kind of the API being defined
      * @return The value of this object's kind.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getKind() {
         return this.kind;
     }
@@ -43,7 +68,7 @@ public class TrickySpecNames {
      * The kind of the API being defined
      *  @param kind The new value for this object's kind.
      */
-    public void setKind(java.lang.String kind) {
+    public void setKind(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String kind) {
         this.kind = kind;
     }
 
@@ -51,6 +76,7 @@ public class TrickySpecNames {
      * The plural name of the API being defined
      * @return The value of this object's plural.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getPlural() {
         return this.plural;
     }
@@ -59,7 +85,7 @@ public class TrickySpecNames {
      * The plural name of the API being defined
      *  @param plural The new value for this object's plural.
      */
-    public void setPlural(java.lang.String plural) {
+    public void setPlural(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String plural) {
         this.plural = plural;
     }
 
@@ -67,6 +93,7 @@ public class TrickySpecNames {
      * The singular name of the API being defined
      * @return The value of this object's singular.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getSingular() {
         return this.singular;
     }
@@ -75,7 +102,7 @@ public class TrickySpecNames {
      * The singular name of the API being defined
      *  @param singular The new value for this object's singular.
      */
-    public void setSingular(java.lang.String singular) {
+    public void setSingular(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String singular) {
         this.singular = singular;
     }
 
@@ -83,6 +110,7 @@ public class TrickySpecNames {
      * The short name(s) of the API being defined for use with tools. E.g. `kubectl get ...`
      * @return The value of this object's shortNames.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.util.List<java.lang.String> getShortNames() {
         return this.shortNames;
     }
@@ -91,7 +119,7 @@ public class TrickySpecNames {
      * The short name(s) of the API being defined for use with tools. E.g. `kubectl get ...`
      *  @param shortNames The new value for this object's shortNames.
      */
-    public void setShortNames(java.util.List<java.lang.String> shortNames) {
+    public void setShortNames(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<java.lang.String> shortNames) {
         this.shortNames = shortNames;
     }
 

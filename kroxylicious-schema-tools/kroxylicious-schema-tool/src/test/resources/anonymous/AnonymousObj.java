@@ -15,15 +15,31 @@ package anonymous;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class AnonymousObj {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String foo;
+
+    /**
+     * Required properties constructor.
+     */
+    public AnonymousObj() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param foo The value of the {@code foo} property. This is an optional property.
+     */
+    public AnonymousObj(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo) {
+        this.foo = foo;
+    }
 
     /**
      * Return the foo.
      *
      * @return The value of this object's foo.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getFoo() {
         return this.foo;
     }
@@ -33,7 +49,7 @@ public class AnonymousObj {
      *
      *  @param foo The new value for this object's foo.
      */
-    public void setFoo(java.lang.String foo) {
+    public void setFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo) {
         this.foo = foo;
     }
 

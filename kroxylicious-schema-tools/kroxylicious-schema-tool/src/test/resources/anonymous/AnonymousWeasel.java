@@ -15,15 +15,31 @@ package anonymous;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class AnonymousWeasel {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String baz;
+
+    /**
+     * Required properties constructor.
+     */
+    public AnonymousWeasel() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param baz The value of the {@code baz} property. This is an optional property.
+     */
+    public AnonymousWeasel(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String baz) {
+        this.baz = baz;
+    }
 
     /**
      * Return the baz.
      *
      * @return The value of this object's baz.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getBaz() {
         return this.baz;
     }
@@ -33,7 +49,7 @@ public class AnonymousWeasel {
      *
      *  @param baz The new value for this object's baz.
      */
-    public void setBaz(java.lang.String baz) {
+    public void setBaz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String baz) {
         this.baz = baz;
     }
 

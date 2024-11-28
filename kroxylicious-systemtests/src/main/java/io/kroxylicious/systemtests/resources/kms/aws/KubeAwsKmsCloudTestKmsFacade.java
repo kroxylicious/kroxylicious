@@ -57,12 +57,7 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
 
     @Override
     public final Config getKmsServiceConfig() {
-        Config config = new Config();
-        config.setEndpointUrl(getAwsUrl());
-        config.setAccessKey(new InlinePassword(getKroxyliciousAccessKey()));
-        config.setSecretKey(new InlinePassword(getKroxyliciousSecretKey()));
-        config.setRegion(getRegion());
-        return config;
+        return new Config(getAwsUrl(), new InlinePassword(getKroxyliciousAccessKey()), new InlinePassword(getKroxyliciousSecretKey()), getRegion(), null);
     }
 
     @Override

@@ -15,31 +15,67 @@ package xref;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class Config {
 
+    @edu.umd.cs.findbugs.annotations.NonNull()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "endpointUrl", required = true)
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String endpointUrl;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "accessKey")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.PasswordProvider accessKey;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "secretKey")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.PasswordProvider secretKey;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "region")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String region;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "tls")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.Tls tls;
+
+    /**
+     * Nullary constructor (used for deserialization).
+     */
+    public Config() {
+    }
+
+    /**
+     * Required properties constructor.
+     * @param endpointUrl The value of the {@code endpointUrl} property. This is a required property.
+     */
+    public Config(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String endpointUrl) {
+        this.endpointUrl = endpointUrl;
+    }
+
+    /**
+     * All properties constructor.
+     * @param endpointUrl The value of the {@code endpointUrl} property. This is a required property.
+     * @param accessKey The value of the {@code accessKey} property. This is an optional property.
+     * @param secretKey The value of the {@code secretKey} property. This is an optional property.
+     * @param region The value of the {@code region} property. This is an optional property.
+     * @param tls The value of the {@code tls} property. This is an optional property.
+     */
+    public Config(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String endpointUrl, @edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider accessKey, @edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider secretKey, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String region, @edu.umd.cs.findbugs.annotations.Nullable() xref.Tls tls) {
+        this.endpointUrl = endpointUrl;
+        this.accessKey = accessKey;
+        this.secretKey = secretKey;
+        this.region = region;
+        this.tls = tls;
+    }
 
     /**
      * Return the endpointUrl.
      *
      * @return The value of this object's endpointUrl.
      */
+    @edu.umd.cs.findbugs.annotations.NonNull()
     public java.lang.String getEndpointUrl() {
         return this.endpointUrl;
     }
@@ -49,7 +85,7 @@ public class Config {
      *
      *  @param endpointUrl The new value for this object's endpointUrl.
      */
-    public void setEndpointUrl(java.lang.String endpointUrl) {
+    public void setEndpointUrl(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String endpointUrl) {
         this.endpointUrl = endpointUrl;
     }
 
@@ -57,6 +93,7 @@ public class Config {
      * Specification of a password
      * @return The value of this object's accessKey.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public xref.PasswordProvider getAccessKey() {
         return this.accessKey;
     }
@@ -65,7 +102,7 @@ public class Config {
      * Specification of a password
      *  @param accessKey The new value for this object's accessKey.
      */
-    public void setAccessKey(xref.PasswordProvider accessKey) {
+    public void setAccessKey(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider accessKey) {
         this.accessKey = accessKey;
     }
 
@@ -73,6 +110,7 @@ public class Config {
      * Specification of a password
      * @return The value of this object's secretKey.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public xref.PasswordProvider getSecretKey() {
         return this.secretKey;
     }
@@ -81,7 +119,7 @@ public class Config {
      * Specification of a password
      *  @param secretKey The new value for this object's secretKey.
      */
-    public void setSecretKey(xref.PasswordProvider secretKey) {
+    public void setSecretKey(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider secretKey) {
         this.secretKey = secretKey;
     }
 
@@ -89,6 +127,7 @@ public class Config {
      * AWS region
      * @return The value of this object's region.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getRegion() {
         return this.region;
     }
@@ -97,7 +136,7 @@ public class Config {
      * AWS region
      *  @param region The new value for this object's region.
      */
-    public void setRegion(java.lang.String region) {
+    public void setRegion(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String region) {
         this.region = region;
     }
 
@@ -106,6 +145,7 @@ public class Config {
      *
      * @return The value of this object's tls.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public xref.Tls getTls() {
         return this.tls;
     }
@@ -115,7 +155,7 @@ public class Config {
      *
      *  @param tls The new value for this object's tls.
      */
-    public void setTls(xref.Tls tls) {
+    public void setTls(@edu.umd.cs.findbugs.annotations.Nullable() xref.Tls tls) {
         this.tls = tls;
     }
 

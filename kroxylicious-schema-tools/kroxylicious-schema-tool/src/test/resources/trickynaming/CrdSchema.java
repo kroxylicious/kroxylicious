@@ -15,15 +15,31 @@ package trickynaming;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class CrdSchema {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "openAPIV3Schema")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private trickynaming.TrickySpecVersionSchemaOpenAPIV3Schema openAPIV3Schema;
+
+    /**
+     * Required properties constructor.
+     */
+    public CrdSchema() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param openAPIV3Schema The value of the {@code openAPIV3Schema} property. This is an optional property.
+     */
+    public CrdSchema(@edu.umd.cs.findbugs.annotations.Nullable() trickynaming.TrickySpecVersionSchemaOpenAPIV3Schema openAPIV3Schema) {
+        this.openAPIV3Schema = openAPIV3Schema;
+    }
 
     /**
      * Return the openAPIV3Schema.
      *
      * @return The value of this object's openAPIV3Schema.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public trickynaming.TrickySpecVersionSchemaOpenAPIV3Schema getOpenAPIV3Schema() {
         return this.openAPIV3Schema;
     }
@@ -33,7 +49,7 @@ public class CrdSchema {
      *
      *  @param openAPIV3Schema The new value for this object's openAPIV3Schema.
      */
-    public void setOpenAPIV3Schema(trickynaming.TrickySpecVersionSchemaOpenAPIV3Schema openAPIV3Schema) {
+    public void setOpenAPIV3Schema(@edu.umd.cs.findbugs.annotations.Nullable() trickynaming.TrickySpecVersionSchemaOpenAPIV3Schema openAPIV3Schema) {
         this.openAPIV3Schema = openAPIV3Schema;
     }
 

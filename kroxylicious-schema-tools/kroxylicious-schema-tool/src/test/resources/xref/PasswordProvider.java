@@ -15,18 +15,37 @@ package xref;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class PasswordProvider {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "password")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String password;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "filePath")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String filePath;
 
     /**
+     * Required properties constructor.
+     */
+    public PasswordProvider() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param password The value of the {@code password} property. This is an optional property.
+     * @param filePath The value of the {@code filePath} property. This is an optional property.
+     */
+    public PasswordProvider(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String password, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String filePath) {
+        this.password = password;
+        this.filePath = filePath;
+    }
+
+    /**
      * DEPRECATED. The password.
      * @return The value of this object's password.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getPassword() {
         return this.password;
     }
@@ -35,7 +54,7 @@ public class PasswordProvider {
      * DEPRECATED. The password.
      *  @param password The new value for this object's password.
      */
-    public void setPassword(java.lang.String password) {
+    public void setPassword(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String password) {
         this.password = password;
     }
 
@@ -43,6 +62,7 @@ public class PasswordProvider {
      * A file path pointing to a UTF-8 encoded file containing the password
      * @return The value of this object's filePath.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getFilePath() {
         return this.filePath;
     }
@@ -51,7 +71,7 @@ public class PasswordProvider {
      * A file path pointing to a UTF-8 encoded file containing the password
      *  @param filePath The new value for this object's filePath.
      */
-    public void setFilePath(java.lang.String filePath) {
+    public void setFilePath(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String filePath) {
         this.filePath = filePath;
     }
 

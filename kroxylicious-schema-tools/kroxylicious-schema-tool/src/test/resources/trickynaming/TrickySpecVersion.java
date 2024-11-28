@@ -15,26 +15,51 @@ package trickynaming;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class TrickySpecVersion {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String name;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "served")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Boolean served;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "storage")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Boolean storage;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "schema")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private trickynaming.CrdSchema schema;
 
     /**
+     * Required properties constructor.
+     */
+    public TrickySpecVersion() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param name The value of the {@code name} property. This is an optional property.
+     * @param served The value of the {@code served} property. This is an optional property.
+     * @param storage The value of the {@code storage} property. This is an optional property.
+     * @param schema The value of the {@code schema} property. This is an optional property.
+     */
+    public TrickySpecVersion(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String name, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean served, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean storage, @edu.umd.cs.findbugs.annotations.Nullable() trickynaming.CrdSchema schema) {
+        this.name = name;
+        this.served = served;
+        this.storage = storage;
+        this.schema = schema;
+    }
+
+    /**
      * The version name. E.g. `v1alpha1`
      * @return The value of this object's name.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getName() {
         return this.name;
     }
@@ -43,7 +68,7 @@ public class TrickySpecVersion {
      * The version name. E.g. `v1alpha1`
      *  @param name The new value for this object's name.
      */
-    public void setName(java.lang.String name) {
+    public void setName(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String name) {
         this.name = name;
     }
 
@@ -51,6 +76,7 @@ public class TrickySpecVersion {
      * Whether the API Server should serve this API
      * @return The value of this object's served.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.Boolean getServed() {
         return this.served;
     }
@@ -59,7 +85,7 @@ public class TrickySpecVersion {
      * Whether the API Server should serve this API
      *  @param served The new value for this object's served.
      */
-    public void setServed(java.lang.Boolean served) {
+    public void setServed(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean served) {
         this.served = served;
     }
 
@@ -69,6 +95,7 @@ public class TrickySpecVersion {
      *
      * @return The value of this object's storage.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.Boolean getStorage() {
         return this.storage;
     }
@@ -79,7 +106,7 @@ public class TrickySpecVersion {
      *
      *  @param storage The new value for this object's storage.
      */
-    public void setStorage(java.lang.Boolean storage) {
+    public void setStorage(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean storage) {
         this.storage = storage;
     }
 
@@ -87,6 +114,7 @@ public class TrickySpecVersion {
      * The schema of this version
      * @return The value of this object's schema.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public trickynaming.CrdSchema getSchema() {
         return this.schema;
     }
@@ -95,7 +123,7 @@ public class TrickySpecVersion {
      * The schema of this version
      *  @param schema The new value for this object's schema.
      */
-    public void setSchema(trickynaming.CrdSchema schema) {
+    public void setSchema(@edu.umd.cs.findbugs.annotations.Nullable() trickynaming.CrdSchema schema) {
         this.schema = schema;
     }
 

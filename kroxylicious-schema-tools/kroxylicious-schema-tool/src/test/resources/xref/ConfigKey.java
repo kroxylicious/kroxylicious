@@ -15,34 +15,65 @@ package xref;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class ConfigKey {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "privateKeyFile")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String privateKeyFile;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "certificateFile")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String certificateFile;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "storeFile")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String storeFile;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "storePassword")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.PasswordProvider storePassword;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "keyPassword")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private xref.PasswordProvider keyPassword;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "storeType")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String storeType;
 
     /**
+     * Required properties constructor.
+     */
+    public ConfigKey() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param privateKeyFile The value of the {@code privateKeyFile} property. This is an optional property.
+     * @param certificateFile The value of the {@code certificateFile} property. This is an optional property.
+     * @param storeFile The value of the {@code storeFile} property. This is an optional property.
+     * @param storePassword The value of the {@code storePassword} property. This is an optional property.
+     * @param keyPassword The value of the {@code keyPassword} property. This is an optional property.
+     * @param storeType The value of the {@code storeType} property. This is an optional property.
+     */
+    public ConfigKey(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String privateKeyFile, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String certificateFile, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String storeFile, @edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider storePassword, @edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider keyPassword, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String storeType) {
+        this.privateKeyFile = privateKeyFile;
+        this.certificateFile = certificateFile;
+        this.storeFile = storeFile;
+        this.storePassword = storePassword;
+        this.keyPassword = keyPassword;
+        this.storeType = storeType;
+    }
+
+    /**
      * location of a file containing the private key.
      * @return The value of this object's privateKeyFile.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getPrivateKeyFile() {
         return this.privateKeyFile;
     }
@@ -51,7 +82,7 @@ public class ConfigKey {
      * location of a file containing the private key.
      *  @param privateKeyFile The new value for this object's privateKeyFile.
      */
-    public void setPrivateKeyFile(java.lang.String privateKeyFile) {
+    public void setPrivateKeyFile(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String privateKeyFile) {
         this.privateKeyFile = privateKeyFile;
     }
 
@@ -59,6 +90,7 @@ public class ConfigKey {
      * location of a file containing the certificate and intermediates.
      * @return The value of this object's certificateFile.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getCertificateFile() {
         return this.certificateFile;
     }
@@ -67,7 +99,7 @@ public class ConfigKey {
      * location of a file containing the certificate and intermediates.
      *  @param certificateFile The new value for this object's certificateFile.
      */
-    public void setCertificateFile(java.lang.String certificateFile) {
+    public void setCertificateFile(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String certificateFile) {
         this.certificateFile = certificateFile;
     }
 
@@ -75,6 +107,7 @@ public class ConfigKey {
      * location of a key store, or reference to a PEM file containing both private-key and certificate/intermediates.
      * @return The value of this object's storeFile.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getStoreFile() {
         return this.storeFile;
     }
@@ -83,7 +116,7 @@ public class ConfigKey {
      * location of a key store, or reference to a PEM file containing both private-key and certificate/intermediates.
      *  @param storeFile The new value for this object's storeFile.
      */
-    public void setStoreFile(java.lang.String storeFile) {
+    public void setStoreFile(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String storeFile) {
         this.storeFile = storeFile;
     }
 
@@ -91,6 +124,7 @@ public class ConfigKey {
      * Specification of a password
      * @return The value of this object's storePassword.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public xref.PasswordProvider getStorePassword() {
         return this.storePassword;
     }
@@ -99,7 +133,7 @@ public class ConfigKey {
      * Specification of a password
      *  @param storePassword The new value for this object's storePassword.
      */
-    public void setStorePassword(xref.PasswordProvider storePassword) {
+    public void setStorePassword(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider storePassword) {
         this.storePassword = storePassword;
     }
 
@@ -107,6 +141,7 @@ public class ConfigKey {
      * Specification of a password
      * @return The value of this object's keyPassword.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public xref.PasswordProvider getKeyPassword() {
         return this.keyPassword;
     }
@@ -115,7 +150,7 @@ public class ConfigKey {
      * Specification of a password
      *  @param keyPassword The new value for this object's keyPassword.
      */
-    public void setKeyPassword(xref.PasswordProvider keyPassword) {
+    public void setKeyPassword(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider keyPassword) {
         this.keyPassword = keyPassword;
     }
 
@@ -126,6 +161,7 @@ public class ConfigKey {
      *
      * @return The value of this object's storeType.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getStoreType() {
         return this.storeType;
     }
@@ -137,7 +173,7 @@ public class ConfigKey {
      *
      *  @param storeType The new value for this object's storeType.
      */
-    public void setStoreType(java.lang.String storeType) {
+    public void setStoreType(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String storeType) {
         this.storeType = storeType;
     }
 

@@ -10,10 +10,13 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -22,9 +25,11 @@ import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.PackageDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.BinaryExpr;
@@ -48,8 +53,10 @@ import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.type.VoidType;
 
 import io.kroxylicious.tools.schema.model.SchemaObject;
 import io.kroxylicious.tools.schema.model.SchemaObjectBuilder;
@@ -63,13 +70,17 @@ public class CodeGen {
     private final Namer namer;
     private final Diagnostics diagnostics;
     private final Map<String, String> existingClasses;
+    private final boolean allCtor;
+    private final boolean allRequiredCtor;
 
     public CodeGen(Diagnostics diagnostics,
                    Namer namer,
-                   Map<String, String> existingClasses) {
+                   Map<String, String> existingClasses, boolean allCtor, boolean allRequiredCtor) {
         this.diagnostics = Objects.requireNonNull(diagnostics);
         this.namer = Objects.requireNonNull(namer);
         this.existingClasses = existingClasses;
+        this.allCtor = allCtor;
+        this.allRequiredCtor = allRequiredCtor;
     }
 
     SchemaObject resolveRef(SchemaObject root, SchemaObject schema) {
@@ -312,20 +323,113 @@ public class CodeGen {
             String propName = entry.getKey();
             var propSchema = resolveRef(root, entry.getValue());
             var propType = genTypeName(pkg, root, propSchema);
-            addPropertyField(clz, propName, required.contains(propName), propType);
+            clz.addMember(mkPropertyField(propName, required.contains(propName), propType));
         }
+
+        mkConstructors(pkg, root, properties, required, clz);
+
         for (var entry : properties.entrySet()) {
             String propName = entry.getKey();
             var propSchema = resolveRef(root, entry.getValue());
             var propType = genTypeName(pkg, root, propSchema);
-            addPropertyGetter(clz, propSchema.getDescription(), propName, propType);
-            addPropertySetter(clz, propSchema.getDescription(), propName, propType);
+            clz.addMember(mkPropertyGetterMethod(propSchema.getDescription(), propName, propType, required.contains(propName)));
+            clz.addMember(mkPropertySetterMethod(propSchema.getDescription(), propName, propType, required.contains(propName)));
         }
 
         addToStringMethod(clz, properties);
         addHashCodeMethod(clz, properties);
         addEqualsMethod(pkg, clz, properties);
         return cu;
+    }
+
+    private void mkConstructors(String pkg, SchemaObject root, Map<String, SchemaObject> properties, Set<String> required, ClassOrInterfaceDeclaration clz) {
+        if (!properties.isEmpty() && !required.isEmpty()) {
+            // Add nullary constructor (but only if the other constructs won't be nullary)
+            clz.addMember(mkConstructor(pkg, root, clz, "Nullary constructor (used for deserialization).", Map.of(), required));
+        }
+
+        if (required.size() != properties.size()) {
+            // Add required properties constructor (but only if it won't collide with the all properties ctor)
+            // Honour the order in `properties`, not `required`
+            var requiredProps = properties.entrySet().stream()
+                    .filter(entry -> required.contains(entry.getKey()))
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            Map.Entry::getValue,
+                            (v1, v2) -> {
+                                throw new IllegalStateException();
+                            },
+                            LinkedHashMap::new));
+            ConstructorDeclaration ctor = mkConstructor(pkg, root, clz,
+                    "Required properties constructor.", requiredProps, required);
+            clz.addMember(ctor);
+        }
+
+        // Add the all properties ctor
+        var byRequired = properties.entrySet().stream()
+                .collect(Collectors.partitioningBy(entry -> required.contains(entry.getKey())));
+        var requiredFirst = Stream.concat(
+                byRequired.get(true).stream(),
+                byRequired.get(false).stream())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (v1, v2) -> {
+                            throw new IllegalStateException();
+                        },
+                        LinkedHashMap::new));
+        clz.addMember(mkConstructor(pkg, root, clz,
+                "All properties constructor.", requiredFirst, required));
+
+    }
+
+    @NonNull
+    private ConstructorDeclaration mkConstructor(String pkg,
+                                                 SchemaObject root,
+                                                 ClassOrInterfaceDeclaration clz,
+                                                 String javadoc,
+                                                 Map<String, SchemaObject> properties,
+                                                 Set<String> required) {
+        ConstructorDeclaration ctor = new ConstructorDeclaration();
+
+        ctor.setJavadocComment(properties.keySet().stream()
+                .map(propName -> {
+                    String s = "@param " + fieldName(propName) + " The value of the {@code " + propName + "} property.";
+                    if (required.contains(propName)) {
+                        s += " This is a required property.";
+                    }
+                    else {
+                        s += " This is an optional property.";
+                    }
+                    return s;
+                })
+                .collect(Collectors.joining("\n", javadoc + "\n", "")));
+        ctor.setModifiers(Modifier.Keyword.PUBLIC);
+        ctor.setName(clz.getName());
+
+        var pl = properties.entrySet().stream()
+                .map(entry -> {
+                    var propSchema = resolveRef(root, entry.getValue());
+                    var propType = genTypeName(pkg, root, propSchema);
+                    Parameter parameter = new Parameter(propType, fieldName(entry.getKey()));
+                    if (required.contains(entry.getKey())) {
+                        parameter.addAnnotation("edu.umd.cs.findbugs.annotations.NonNull");
+                    }
+                    else {
+                        parameter.addAnnotation("edu.umd.cs.findbugs.annotations.Nullable");
+                    }
+                    return parameter;
+                }).toList();
+        ctor.setParameters(NodeList.nodeList(pl));
+
+        var assignments = properties.keySet().stream()
+                .map(propName -> (Statement) new ExpressionStmt(new AssignExpr(new FieldAccessExpr(
+                        new ThisExpr(), fieldName(propName)),
+                        new NameExpr(fieldName(propName)),
+                        AssignExpr.Operator.ASSIGN)))
+                .toList();
+        ctor.setBody(new BlockStmt(NodeList.nodeList(assignments)));
+        return ctor;
     }
 
     @NonNull
@@ -438,16 +542,17 @@ public class CodeGen {
                 .setBody(new BlockStmt(new NodeList<>(stmt)));
     }
 
-    private static void addPropertyField(ClassOrInterfaceDeclaration clz,
-                                         String propName,
-                                         boolean required,
-                                         Type propType) {
+    private static FieldDeclaration mkPropertyField(String propName,
+                                                    boolean required,
+                                                    Type propType) {
         // TODO initializer? How work with jackson
         var fieldName = fieldName(propName);
-        FieldDeclaration fieldDeclaration = clz.addField(
-                propType,
-                fieldName,
-                Modifier.Keyword.PRIVATE);
+        FieldDeclaration fieldDeclaration = new FieldDeclaration();
+        fieldDeclaration.addAnnotation(nullableAnnotationName(required));
+        VariableDeclarator variable = new VariableDeclarator(propType, fieldName);
+        fieldDeclaration.getVariables().add(variable);
+        fieldDeclaration.setModifiers(Modifier.Keyword.PRIVATE);
+
         // @com.fasterxml.jackson.annotation.JsonProperty("name")
         // @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
         NodeList<MemberValuePair> jsonPropertyMembers = NodeList.nodeList(
@@ -463,25 +568,35 @@ public class CodeGen {
         fieldDeclaration.addAnnotation(new NormalAnnotationExpr(new Name("com.fasterxml.jackson.annotation.JsonSetter"),
                 NodeList.nodeList(new MemberValuePair("nulls", new FieldAccessExpr(new TypeExpr(
                         new ClassOrInterfaceType(null, "com.fasterxml.jackson.annotation.Nulls")), "SKIP")))));
+
+        return fieldDeclaration;
     }
 
-    private static void addPropertyGetter(ClassOrInterfaceDeclaration clz,
-                                          @Nullable String description,
-                                          String propName,
-                                          Type propType) {
+    @NonNull
+    private static String nullableAnnotationName(boolean required) {
+        return required ? "edu.umd.cs.findbugs.annotations.NonNull" : "edu.umd.cs.findbugs.annotations.Nullable";
+    }
+
+    private static MethodDeclaration mkPropertyGetterMethod(@Nullable String description,
+                                                            String propName,
+                                                            Type propType,
+                                                            boolean required) {
         String getterName = getterName(propName);
         String fieldName = fieldName(propName);
-        MethodDeclaration methodDeclaration = clz.addMethod(getterName, Modifier.Keyword.PUBLIC);
+
         if (description == null) {
             description = "Return the " + propName + ".\n";
         }
         description += "\n@return The value of this object's " + propName + ".\n";
+
+        MethodDeclaration methodDeclaration = new MethodDeclaration();
         methodDeclaration.setJavadocComment(description);
-
-        methodDeclaration
-                .setType(propType)
-                .setBody(new BlockStmt(new NodeList<>(new ReturnStmt(new FieldAccessExpr(new ThisExpr(), fieldName)))));
-
+        methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
+        methodDeclaration.addAnnotation(nullableAnnotationName(required));
+        methodDeclaration.setType(propType);
+        methodDeclaration.setName(getterName);
+        methodDeclaration.setBody(new BlockStmt(new NodeList<>(new ReturnStmt(new FieldAccessExpr(new ThisExpr(), fieldName)))));
+        return methodDeclaration;
     }
 
     @NonNull
@@ -489,23 +604,31 @@ public class CodeGen {
         return quoteMember(propName);
     }
 
-    private static void addPropertySetter(ClassOrInterfaceDeclaration clz,
-                                          @Nullable String description,
-                                          String propName,
-                                          Type propType) {
+    private static MethodDeclaration mkPropertySetterMethod(@Nullable String description,
+                                                            String propName,
+                                                            Type propType, boolean required) {
         var fieldName = fieldName(propName);
-        MethodDeclaration methodDeclaration = clz.addMethod(setterName(propName), Modifier.Keyword.PUBLIC);
+
         if (description == null) {
             description = "Set the " + propName + ".\n";
         }
         description += "\n @param " + fieldName + " The new value for this object's " + propName + ".\n";
+
+        MethodDeclaration methodDeclaration = new MethodDeclaration();
         methodDeclaration.setJavadocComment(description);
+        methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
+        methodDeclaration.setType(new VoidType());
+        methodDeclaration.setName(setterName(propName));
+        Parameter parameter = new Parameter(propType, fieldName);
+        parameter.addAnnotation(nullableAnnotationName(required));
         methodDeclaration
-                .setParameters(new NodeList<>(new Parameter(propType, fieldName)))
+                .setParameters(new NodeList<>(parameter))
                 .setBody(new BlockStmt(new NodeList<>(new ExpressionStmt(new AssignExpr(
                         new FieldAccessExpr(new ThisExpr(), fieldName),
                         new NameExpr(fieldName),
                         AssignExpr.Operator.ASSIGN)))));
+
+        return methodDeclaration;
     }
 
     @NonNull

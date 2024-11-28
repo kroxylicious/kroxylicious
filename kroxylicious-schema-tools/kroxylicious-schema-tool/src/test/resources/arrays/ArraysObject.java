@@ -15,15 +15,31 @@ package arrays;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class ArraysObject {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String name;
+
+    /**
+     * Required properties constructor.
+     */
+    public ArraysObject() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param name The value of the {@code name} property. This is an optional property.
+     */
+    public ArraysObject(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String name) {
+        this.name = name;
+    }
 
     /**
      * Return the name.
      *
      * @return The value of this object's name.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getName() {
         return this.name;
     }
@@ -33,7 +49,7 @@ public class ArraysObject {
      *
      *  @param name The new value for this object's name.
      */
-    public void setName(java.lang.String name) {
+    public void setName(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String name) {
         this.name = name;
     }
 

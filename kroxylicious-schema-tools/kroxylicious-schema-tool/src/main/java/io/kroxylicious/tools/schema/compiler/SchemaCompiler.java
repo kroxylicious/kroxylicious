@@ -62,7 +62,7 @@ public class SchemaCompiler {
         this.diagnostics = new Diagnostics();
         this.mapper = new YAMLMapper();
         this.namer = new Namer(diagnostics);
-        this.codeGen = new CodeGen(diagnostics, namer, existingClasses);
+        this.codeGen = new CodeGen(diagnostics, namer, existingClasses, true, true);
     }
 
     @NonNull

@@ -43,7 +43,7 @@ class CodeGenTest {
 
     {
         Diagnostics diagnostics = new Diagnostics();
-        codeGen = new CodeGen(diagnostics, new Namer(diagnostics), Map.of());
+        codeGen = new CodeGen(diagnostics, new Namer(diagnostics), Map.of(), true, true);
     }
 
     SchemaObject emptyTypes = new SchemaObjectBuilder().withType().build();
@@ -117,6 +117,7 @@ class CodeGenTest {
                     .describedAs("Unexpected java source output (or expected output java file doesn't exist)")
                     .exists();
             try {
+                // Files.writeString(expectedJavaFile.toPath(), HEADER + cus.get(0).toString());
                 String javaSrc = Files.readString(expectedJavaFile.toPath()).trim();
                 assertThat(cus).singleElement()
                         .isNotNull()

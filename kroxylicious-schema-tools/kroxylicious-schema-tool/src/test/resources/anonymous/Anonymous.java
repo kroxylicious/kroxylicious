@@ -15,23 +15,45 @@ package anonymous;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class Anonymous {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "obj")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private anonymous.AnonymousObj obj;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "weasels")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.util.List<anonymous.AnonymousWeasel> weasels;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "ref")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private anonymous.ViaRef ref;
+
+    /**
+     * Required properties constructor.
+     */
+    public Anonymous() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param obj The value of the {@code obj} property. This is an optional property.
+     * @param weasels The value of the {@code weasels} property. This is an optional property.
+     * @param ref The value of the {@code ref} property. This is an optional property.
+     */
+    public Anonymous(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.AnonymousObj obj, @edu.umd.cs.findbugs.annotations.Nullable() java.util.List<anonymous.AnonymousWeasel> weasels, @edu.umd.cs.findbugs.annotations.Nullable() anonymous.ViaRef ref) {
+        this.obj = obj;
+        this.weasels = weasels;
+        this.ref = ref;
+    }
 
     /**
      * Return the obj.
      *
      * @return The value of this object's obj.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public anonymous.AnonymousObj getObj() {
         return this.obj;
     }
@@ -41,7 +63,7 @@ public class Anonymous {
      *
      *  @param obj The new value for this object's obj.
      */
-    public void setObj(anonymous.AnonymousObj obj) {
+    public void setObj(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.AnonymousObj obj) {
         this.obj = obj;
     }
 
@@ -50,6 +72,7 @@ public class Anonymous {
      *
      * @return The value of this object's weasels.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.util.List<anonymous.AnonymousWeasel> getWeasels() {
         return this.weasels;
     }
@@ -59,7 +82,7 @@ public class Anonymous {
      *
      *  @param weasels The new value for this object's weasels.
      */
-    public void setWeasels(java.util.List<anonymous.AnonymousWeasel> weasels) {
+    public void setWeasels(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<anonymous.AnonymousWeasel> weasels) {
         this.weasels = weasels;
     }
 
@@ -68,6 +91,7 @@ public class Anonymous {
      *
      * @return The value of this object's ref.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public anonymous.ViaRef getRef() {
         return this.ref;
     }
@@ -77,7 +101,7 @@ public class Anonymous {
      *
      *  @param ref The new value for this object's ref.
      */
-    public void setRef(anonymous.ViaRef ref) {
+    public void setRef(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.ViaRef ref) {
         this.ref = ref;
     }
 

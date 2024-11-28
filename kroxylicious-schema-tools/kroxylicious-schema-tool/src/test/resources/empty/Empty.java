@@ -14,6 +14,12 @@ package empty;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class Empty {
 
+    /**
+     * All properties constructor.
+     */
+    public Empty() {
+    }
+
     @java.lang.Override()
     public java.lang.String toString() {
         return "Empty[" + "]";

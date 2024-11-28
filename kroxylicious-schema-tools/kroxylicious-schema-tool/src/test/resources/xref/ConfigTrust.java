@@ -14,6 +14,12 @@ package xref;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class ConfigTrust {
 
+    /**
+     * All properties constructor.
+     */
+    public ConfigTrust() {
+    }
+
     @java.lang.Override()
     public java.lang.String toString() {
         return "ConfigTrust[" + "]";

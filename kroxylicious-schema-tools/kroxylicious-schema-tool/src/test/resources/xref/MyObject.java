@@ -15,15 +15,31 @@ package xref;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class MyObject {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Double foo;
+
+    /**
+     * Required properties constructor.
+     */
+    public MyObject() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param foo The value of the {@code foo} property. This is an optional property.
+     */
+    public MyObject(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Double foo) {
+        this.foo = foo;
+    }
 
     /**
      * Return the foo.
      *
      * @return The value of this object's foo.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.Double getFoo() {
         return this.foo;
     }
@@ -33,7 +49,7 @@ public class MyObject {
      *
      *  @param foo The new value for this object's foo.
      */
-    public void setFoo(java.lang.Double foo) {
+    public void setFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Double foo) {
         this.foo = foo;
     }
 

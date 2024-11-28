@@ -15,23 +15,45 @@ package maps;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class FooBarBaz {
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String foo;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.String bar;
 
+    @edu.umd.cs.findbugs.annotations.Nullable()
     @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     private java.lang.Long baz;
+
+    /**
+     * Required properties constructor.
+     */
+    public FooBarBaz() {
+    }
+
+    /**
+     * All properties constructor.
+     * @param foo The value of the {@code foo} property. This is an optional property.
+     * @param bar The value of the {@code bar} property. This is an optional property.
+     * @param baz The value of the {@code baz} property. This is an optional property.
+     */
+    public FooBarBaz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String bar, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.Long baz) {
+        this.foo = foo;
+        this.bar = bar;
+        this.baz = baz;
+    }
 
     /**
      * Return the foo.
      *
      * @return The value of this object's foo.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getFoo() {
         return this.foo;
     }
@@ -41,7 +63,7 @@ public class FooBarBaz {
      *
      *  @param foo The new value for this object's foo.
      */
-    public void setFoo(java.lang.String foo) {
+    public void setFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo) {
         this.foo = foo;
     }
 
@@ -50,6 +72,7 @@ public class FooBarBaz {
      *
      * @return The value of this object's bar.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.String getBar() {
         return this.bar;
     }
@@ -59,7 +82,7 @@ public class FooBarBaz {
      *
      *  @param bar The new value for this object's bar.
      */
-    public void setBar(java.lang.String bar) {
+    public void setBar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String bar) {
         this.bar = bar;
     }
 
@@ -68,6 +91,7 @@ public class FooBarBaz {
      *
      * @return The value of this object's baz.
      */
+    @edu.umd.cs.findbugs.annotations.Nullable()
     public java.lang.Long getBaz() {
         return this.baz;
     }
@@ -77,7 +101,7 @@ public class FooBarBaz {
      *
      *  @param baz The new value for this object's baz.
      */
-    public void setBaz(java.lang.Long baz) {
+    public void setBaz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Long baz) {
         this.baz = baz;
     }
 
