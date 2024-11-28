@@ -32,7 +32,8 @@ public class PasswordProvider {
      * @param password The value of the {@code password} property. This is an optional property.
      * @param filePath The value of the {@code filePath} property. This is an optional property.
      */
-    public PasswordProvider(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String password, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String filePath) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public PasswordProvider(@com.fasterxml.jackson.annotation.JsonProperty(value = "password") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String password, @com.fasterxml.jackson.annotation.JsonProperty(value = "filePath") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String filePath) {
         this.password = password;
         this.filePath = filePath;
     }
@@ -51,8 +52,6 @@ public class PasswordProvider {
      * DEPRECATED. The password.
      *  @param password The new value for this object's password.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "password")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void password(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String password) {
         this.password = password;
     }
@@ -71,8 +70,6 @@ public class PasswordProvider {
      * A file path pointing to a UTF-8 encoded file containing the password
      *  @param filePath The new value for this object's filePath.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "filePath")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void filePath(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String filePath) {
         this.filePath = filePath;
     }

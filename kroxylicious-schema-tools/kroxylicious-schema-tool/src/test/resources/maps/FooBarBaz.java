@@ -36,7 +36,8 @@ public class FooBarBaz {
      * @param bar The value of the {@code bar} property. This is an optional property.
      * @param baz The value of the {@code baz} property. This is an optional property.
      */
-    public FooBarBaz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String bar, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.Long baz) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public FooBarBaz(@com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String foo, @com.fasterxml.jackson.annotation.JsonProperty(value = "bar") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String bar, @com.fasterxml.jackson.annotation.JsonProperty(value = "baz") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Long baz) {
         this.foo = foo;
         this.bar = bar;
         this.baz = baz;
@@ -58,8 +59,6 @@ public class FooBarBaz {
      *
      *  @param foo The new value for this object's foo.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void foo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo) {
         this.foo = foo;
     }
@@ -80,8 +79,6 @@ public class FooBarBaz {
      *
      *  @param bar The new value for this object's bar.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void bar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String bar) {
         this.bar = bar;
     }
@@ -102,8 +99,6 @@ public class FooBarBaz {
      *
      *  @param baz The new value for this object's baz.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void baz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Long baz) {
         this.baz = baz;
     }

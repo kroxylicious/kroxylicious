@@ -40,7 +40,8 @@ public class TrickySpec {
      * @param names The value of the {@code names} property. This is an optional property.
      * @param versions The value of the {@code versions} property. This is an optional property.
      */
-    public TrickySpec(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String group, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String scope, @edu.umd.cs.findbugs.annotations.Nullable() trickynaming.TrickySpecNames names, @edu.umd.cs.findbugs.annotations.Nullable() java.util.List<trickynaming.TrickySpecVersion> versions) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public TrickySpec(@com.fasterxml.jackson.annotation.JsonProperty(value = "group") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String group, @com.fasterxml.jackson.annotation.JsonProperty(value = "scope") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String scope, @com.fasterxml.jackson.annotation.JsonProperty(value = "names") @edu.umd.cs.findbugs.annotations.Nullable trickynaming.TrickySpecNames names, @com.fasterxml.jackson.annotation.JsonProperty(value = "versions") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<trickynaming.TrickySpecVersion> versions) {
         this.group = group;
         this.scope = scope;
         this.names = names;
@@ -61,8 +62,6 @@ public class TrickySpec {
      * The group of the API being defined
      *  @param group The new value for this object's group.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "group")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void group(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String group) {
         this.group = group;
     }
@@ -81,8 +80,6 @@ public class TrickySpec {
      * The scope of the API being defined
      *  @param scope The new value for this object's scope.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "scope")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void scope(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String scope) {
         this.scope = scope;
     }
@@ -101,8 +98,6 @@ public class TrickySpec {
      * The names of the API being defined
      *  @param names The new value for this object's names.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "names")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void names(@edu.umd.cs.findbugs.annotations.Nullable() trickynaming.TrickySpecNames names) {
         this.names = names;
     }
@@ -121,8 +116,6 @@ public class TrickySpec {
      * The versions of the API being defined
      *  @param versions The new value for this object's versions.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "versions")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void versions(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<trickynaming.TrickySpecVersion> versions) {
         this.versions = versions;
     }

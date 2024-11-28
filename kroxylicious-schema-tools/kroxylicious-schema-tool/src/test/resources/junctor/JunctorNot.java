@@ -32,7 +32,8 @@ public class JunctorNot {
      * @param foo The value of the {@code foo} property. This is an optional property.
      * @param bar The value of the {@code bar} property. This is an optional property.
      */
-    public JunctorNot(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean foo, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean bar) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public JunctorNot(@com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean foo, @com.fasterxml.jackson.annotation.JsonProperty(value = "bar") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean bar) {
         this.foo = foo;
         this.bar = bar;
     }
@@ -53,8 +54,6 @@ public class JunctorNot {
      *
      *  @param foo The new value for this object's foo.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void foo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean foo) {
         this.foo = foo;
     }
@@ -75,8 +74,6 @@ public class JunctorNot {
      *
      *  @param bar The new value for this object's bar.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void bar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean bar) {
         this.bar = bar;
     }

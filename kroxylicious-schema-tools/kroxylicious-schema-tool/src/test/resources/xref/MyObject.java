@@ -28,7 +28,8 @@ public class MyObject {
      * All properties constructor.
      * @param foo The value of the {@code foo} property. This is an optional property.
      */
-    public MyObject(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Double foo) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public MyObject(@com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Double foo) {
         this.foo = foo;
     }
 
@@ -48,8 +49,6 @@ public class MyObject {
      *
      *  @param foo The new value for this object's foo.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void foo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Double foo) {
         this.foo = foo;
     }

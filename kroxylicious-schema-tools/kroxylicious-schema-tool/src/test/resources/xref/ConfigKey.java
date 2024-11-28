@@ -48,7 +48,8 @@ public class ConfigKey {
      * @param keyPassword The value of the {@code keyPassword} property. This is an optional property.
      * @param storeType The value of the {@code storeType} property. This is an optional property.
      */
-    public ConfigKey(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String privateKeyFile, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String certificateFile, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String storeFile, @edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider storePassword, @edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider keyPassword, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String storeType) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public ConfigKey(@com.fasterxml.jackson.annotation.JsonProperty(value = "privateKeyFile") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String privateKeyFile, @com.fasterxml.jackson.annotation.JsonProperty(value = "certificateFile") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String certificateFile, @com.fasterxml.jackson.annotation.JsonProperty(value = "storeFile") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String storeFile, @com.fasterxml.jackson.annotation.JsonProperty(value = "storePassword") @edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider storePassword, @com.fasterxml.jackson.annotation.JsonProperty(value = "keyPassword") @edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider keyPassword, @com.fasterxml.jackson.annotation.JsonProperty(value = "storeType") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String storeType) {
         this.privateKeyFile = privateKeyFile;
         this.certificateFile = certificateFile;
         this.storeFile = storeFile;
@@ -71,8 +72,6 @@ public class ConfigKey {
      * location of a file containing the private key.
      *  @param privateKeyFile The new value for this object's privateKeyFile.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "privateKeyFile")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void privateKeyFile(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String privateKeyFile) {
         this.privateKeyFile = privateKeyFile;
     }
@@ -91,8 +90,6 @@ public class ConfigKey {
      * location of a file containing the certificate and intermediates.
      *  @param certificateFile The new value for this object's certificateFile.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "certificateFile")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void certificateFile(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String certificateFile) {
         this.certificateFile = certificateFile;
     }
@@ -111,8 +108,6 @@ public class ConfigKey {
      * location of a key store, or reference to a PEM file containing both private-key and certificate/intermediates.
      *  @param storeFile The new value for this object's storeFile.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "storeFile")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void storeFile(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String storeFile) {
         this.storeFile = storeFile;
     }
@@ -131,8 +126,6 @@ public class ConfigKey {
      * Specification of a password
      *  @param storePassword The new value for this object's storePassword.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "storePassword")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void storePassword(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider storePassword) {
         this.storePassword = storePassword;
     }
@@ -151,8 +144,6 @@ public class ConfigKey {
      * Specification of a password
      *  @param keyPassword The new value for this object's keyPassword.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "keyPassword")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void keyPassword(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider keyPassword) {
         this.keyPassword = keyPassword;
     }
@@ -177,8 +168,6 @@ public class ConfigKey {
      *
      *  @param storeType The new value for this object's storeType.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "storeType")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void storeType(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String storeType) {
         this.storeType = storeType;
     }

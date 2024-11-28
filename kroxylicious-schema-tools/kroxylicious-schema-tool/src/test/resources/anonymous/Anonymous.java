@@ -36,7 +36,8 @@ public class Anonymous {
      * @param weasels The value of the {@code weasels} property. This is an optional property.
      * @param ref The value of the {@code ref} property. This is an optional property.
      */
-    public Anonymous(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.AnonymousObj obj, @edu.umd.cs.findbugs.annotations.Nullable() java.util.List<anonymous.AnonymousWeasel> weasels, @edu.umd.cs.findbugs.annotations.Nullable() anonymous.ViaRef ref) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public Anonymous(@com.fasterxml.jackson.annotation.JsonProperty(value = "obj") @edu.umd.cs.findbugs.annotations.Nullable anonymous.AnonymousObj obj, @com.fasterxml.jackson.annotation.JsonProperty(value = "weasels") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<anonymous.AnonymousWeasel> weasels, @com.fasterxml.jackson.annotation.JsonProperty(value = "ref") @edu.umd.cs.findbugs.annotations.Nullable anonymous.ViaRef ref) {
         this.obj = obj;
         this.weasels = weasels;
         this.ref = ref;
@@ -58,8 +59,6 @@ public class Anonymous {
      *
      *  @param obj The new value for this object's obj.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "obj")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void obj(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.AnonymousObj obj) {
         this.obj = obj;
     }
@@ -80,8 +79,6 @@ public class Anonymous {
      *
      *  @param weasels The new value for this object's weasels.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "weasels")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void weasels(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<anonymous.AnonymousWeasel> weasels) {
         this.weasels = weasels;
     }
@@ -102,8 +99,6 @@ public class Anonymous {
      *
      *  @param ref The new value for this object's ref.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "ref")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void ref(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.ViaRef ref) {
         this.ref = ref;
     }

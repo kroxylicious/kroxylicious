@@ -28,7 +28,8 @@ public class Maps {
      * All properties constructor.
      * @param keyedOnFoo The value of the {@code keyedOnFoo} property. This is an optional property.
      */
-    public Maps(@edu.umd.cs.findbugs.annotations.Nullable() java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public Maps(@com.fasterxml.jackson.annotation.JsonProperty(value = "keyedOnFoo") @edu.umd.cs.findbugs.annotations.Nullable java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo) {
         this.keyedOnFoo = keyedOnFoo;
     }
 
@@ -46,8 +47,6 @@ public class Maps {
      * An array of FooBars
      *  @param keyedOnFoo The new value for this object's keyedOnFoo.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "keyedOnFoo")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void keyedOnFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo) {
         this.keyedOnFoo = keyedOnFoo;
     }

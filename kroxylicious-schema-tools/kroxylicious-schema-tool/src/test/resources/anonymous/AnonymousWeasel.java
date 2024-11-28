@@ -28,7 +28,8 @@ public class AnonymousWeasel {
      * All properties constructor.
      * @param baz The value of the {@code baz} property. This is an optional property.
      */
-    public AnonymousWeasel(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String baz) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public AnonymousWeasel(@com.fasterxml.jackson.annotation.JsonProperty(value = "baz") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String baz) {
         this.baz = baz;
     }
 
@@ -48,8 +49,6 @@ public class AnonymousWeasel {
      *
      *  @param baz The new value for this object's baz.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void baz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String baz) {
         this.baz = baz;
     }

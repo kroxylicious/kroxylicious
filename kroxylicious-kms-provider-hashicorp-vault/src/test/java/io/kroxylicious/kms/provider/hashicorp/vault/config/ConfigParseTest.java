@@ -12,9 +12,12 @@ import java.nio.file.Files;
 
 import javax.net.ssl.SSLContext;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
@@ -60,56 +63,56 @@ class ConfigParseTest {
             var unused = tmp.toFile().delete();
         }
     }
-    //
-    // @Test
-    // void vaultUrlRequired() {
-    // Assertions.assertThatThrownBy(() -> {
-    // String json = """
-    // {
-    // "vaultToken": { "password" : "token" }
-    // }
-    // """;
-    // readConfig(json);
-    // }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("vaultTransitEngineUrl");
-    // }
-    //
-    // @Test
-    // void vaultUrlShouldNotBeNull() {
-    // Assertions.assertThatThrownBy(() -> {
-    // String json = """
-    // {
-    // "vaultTransitEngineUrl": null,
-    // "vaultToken": { "password" : "token" }
-    // }
-    // """;
-    // readConfig(json);
-    // }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(NullPointerException.class);
-    // }
 
-    // @Test
-    // void vaultTokenRequired() {
-    // Assertions.assertThatThrownBy(() -> {
-    // String json = """
-    // {
-    // "vaultTransitEngineUrl": "https://vault"
-    // }
-    // """;
-    // readConfig(json);
-    // }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("vaultToken");
-    // }
+    @Test
+    void vaultUrlRequired() {
+        Assertions.assertThatThrownBy(() -> {
+            String json = """
+                    {
+                        "vaultToken": { "password" : "token" }
+                    }
+                    """;
+            readConfig(json);
+        }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("vaultTransitEngineUrl");
+    }
 
-    // @Test
-    // void vaultTokenShouldNotBeNull() {
-    // Assertions.assertThatThrownBy(() -> {
-    // String json = """
-    // {
-    // "vaultTransitEngineUrl": "https://vault",
-    // "vaultToken": null
-    // }
-    // """;
-    // readConfig(json);
-    // }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(NullPointerException.class);
-    // }
+    @Test
+    void vaultUrlShouldNotBeNull() {
+        Assertions.assertThatThrownBy(() -> {
+            String json = """
+                    {
+                        "vaultTransitEngineUrl": null,
+                        "vaultToken": { "password" : "token" }
+                    }
+                    """;
+            readConfig(json);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void vaultTokenRequired() {
+        Assertions.assertThatThrownBy(() -> {
+            String json = """
+                    {
+                        "vaultTransitEngineUrl": "https://vault"
+                    }
+                    """;
+            readConfig(json);
+        }).isInstanceOf(MismatchedInputException.class).hasMessageContaining("vaultToken");
+    }
+
+    @Test
+    void vaultTokenShouldNotBeNull() {
+        Assertions.assertThatThrownBy(() -> {
+            String json = """
+                    {
+                        "vaultTransitEngineUrl": "https://vault",
+                        "vaultToken": null
+                    }
+                    """;
+            readConfig(json);
+        }).isInstanceOf(ValueInstantiationException.class).cause().isInstanceOf(NullPointerException.class);
+    }
 
     @Test
     void emptyTls() throws Exception {

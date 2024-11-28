@@ -32,7 +32,8 @@ public class Tls {
      * @param key The value of the {@code key} property. This is an optional property.
      * @param trust The value of the {@code trust} property. This is an optional property.
      */
-    public Tls(@edu.umd.cs.findbugs.annotations.Nullable() xref.ConfigKey key, @edu.umd.cs.findbugs.annotations.Nullable() xref.ConfigTrust trust) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public Tls(@com.fasterxml.jackson.annotation.JsonProperty(value = "key") @edu.umd.cs.findbugs.annotations.Nullable xref.ConfigKey key, @com.fasterxml.jackson.annotation.JsonProperty(value = "trust") @edu.umd.cs.findbugs.annotations.Nullable xref.ConfigTrust trust) {
         this.key = key;
         this.trust = trust;
     }
@@ -53,8 +54,6 @@ public class Tls {
      *
      *  @param key The new value for this object's key.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "key")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void key(@edu.umd.cs.findbugs.annotations.Nullable() xref.ConfigKey key) {
         this.key = key;
     }
@@ -75,8 +74,6 @@ public class Tls {
      *
      *  @param trust The new value for this object's trust.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "trust")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void trust(@edu.umd.cs.findbugs.annotations.Nullable() xref.ConfigTrust trust) {
         this.trust = trust;
     }

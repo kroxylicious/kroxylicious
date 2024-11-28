@@ -17,6 +17,7 @@ public class TrickySpecVersionSchemaOpenAPIV3Schema {
     /**
      * All properties constructor.
      */
+    @com.fasterxml.jackson.annotation.JsonCreator()
     public TrickySpecVersionSchemaOpenAPIV3Schema() {
     }
 

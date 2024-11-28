@@ -35,9 +35,9 @@ public class Tricky {
      * @param apiVersion The value of the {@code apiVersion} property. This is a required property.
      * @param kind The value of the {@code kind} property. This is a required property.
      */
-    public Tricky(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String apiVersion, @edu.umd.cs.findbugs.annotations.NonNull() java.lang.String kind) {
-        this.apiVersion = apiVersion;
-        this.kind = kind;
+    public Tricky(@edu.umd.cs.findbugs.annotations.NonNull java.lang.String apiVersion, @edu.umd.cs.findbugs.annotations.NonNull java.lang.String kind) {
+        this.apiVersion = java.util.Objects.requireNonNull(apiVersion);
+        this.kind = java.util.Objects.requireNonNull(kind);
     }
 
     /**
@@ -46,9 +46,10 @@ public class Tricky {
      * @param kind The value of the {@code kind} property. This is a required property.
      * @param spec The value of the {@code spec} property. This is an optional property.
      */
-    public Tricky(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String apiVersion, @edu.umd.cs.findbugs.annotations.NonNull() java.lang.String kind, @edu.umd.cs.findbugs.annotations.Nullable() trickynaming.TrickySpec spec) {
-        this.apiVersion = apiVersion;
-        this.kind = kind;
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public Tricky(@com.fasterxml.jackson.annotation.JsonProperty(value = "apiVersion", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.String apiVersion, @com.fasterxml.jackson.annotation.JsonProperty(value = "kind", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.String kind, @com.fasterxml.jackson.annotation.JsonProperty(value = "spec") @edu.umd.cs.findbugs.annotations.Nullable trickynaming.TrickySpec spec) {
+        this.apiVersion = java.util.Objects.requireNonNull(apiVersion);
+        this.kind = java.util.Objects.requireNonNull(kind);
         this.spec = spec;
     }
 
@@ -68,10 +69,8 @@ public class Tricky {
      *
      *  @param apiVersion The new value for this object's apiVersion.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "apiVersion", required = true)
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void apiVersion(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String apiVersion) {
-        this.apiVersion = apiVersion;
+        this.apiVersion = java.util.Objects.requireNonNull(apiVersion);
     }
 
     /**
@@ -88,10 +87,8 @@ public class Tricky {
      * The kind of the CRD API (not the kind of the CR API being defined)
      *  @param kind The new value for this object's kind.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "kind", required = true)
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void kind(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String kind) {
-        this.kind = kind;
+        this.kind = java.util.Objects.requireNonNull(kind);
     }
 
     /**
@@ -108,8 +105,6 @@ public class Tricky {
      * API being defined
      *  @param spec The new value for this object's spec.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "spec")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void spec(@edu.umd.cs.findbugs.annotations.Nullable() trickynaming.TrickySpec spec) {
         this.spec = spec;
     }

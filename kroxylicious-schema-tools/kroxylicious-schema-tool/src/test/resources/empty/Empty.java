@@ -17,6 +17,7 @@ public class Empty {
     /**
      * All properties constructor.
      */
+    @com.fasterxml.jackson.annotation.JsonCreator()
     public Empty() {
     }
 

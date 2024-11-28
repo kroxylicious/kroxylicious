@@ -28,7 +28,8 @@ public class ArraysObject {
      * All properties constructor.
      * @param name The value of the {@code name} property. This is an optional property.
      */
-    public ArraysObject(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String name) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public ArraysObject(@com.fasterxml.jackson.annotation.JsonProperty(value = "name") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String name) {
         this.name = name;
     }
 
@@ -48,8 +49,6 @@ public class ArraysObject {
      *
      *  @param name The new value for this object's name.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void name(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String name) {
         this.name = name;
     }

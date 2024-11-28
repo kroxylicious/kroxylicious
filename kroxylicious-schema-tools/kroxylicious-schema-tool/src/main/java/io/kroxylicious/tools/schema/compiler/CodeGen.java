@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -30,6 +31,7 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.BinaryExpr;
@@ -38,6 +40,7 @@ import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.InstanceOfExpr;
+import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.Name;
@@ -347,7 +350,7 @@ public class CodeGen {
     private void mkConstructors(String pkg, SchemaObject root, Map<String, SchemaObject> properties, Set<String> required, ClassOrInterfaceDeclaration clz) {
         if (!properties.isEmpty() && !required.isEmpty()) {
             // Add nullary constructor (but only if the other constructs won't be nullary)
-            clz.addMember(mkConstructor(pkg, root, clz, "Nullary constructor (used for deserialization).", Map.of(), required));
+            clz.addMember(mkConstructor(pkg, root, clz, "Nullary constructor (used for deserialization).", Map.of(), required, (x, y) -> List.of()));
         }
 
         if (required.size() != properties.size()) {
@@ -363,7 +366,7 @@ public class CodeGen {
                             },
                             LinkedHashMap::new));
             ConstructorDeclaration ctor = mkConstructor(pkg, root, clz,
-                    "Required properties constructor.", requiredProps, required);
+                    "Required properties constructor.", requiredProps, required, (x, y) -> List.of());
             clz.addMember(ctor);
         }
 
@@ -380,8 +383,11 @@ public class CodeGen {
                             throw new IllegalStateException();
                         },
                         LinkedHashMap::new));
-        clz.addMember(mkConstructor(pkg, root, clz,
-                "All properties constructor.", requiredFirst, required));
+        ConstructorDeclaration decl = mkConstructor(pkg, root, clz,
+                "All properties constructor.", requiredFirst, required, (propName, schemaObject) -> List.of(
+                        mkAtJsonProperty(propName, required.contains(propName))));
+        decl.addAnnotation("com.fasterxml.jackson.annotation.JsonCreator");
+        clz.addMember(decl);
 
     }
 
@@ -391,7 +397,8 @@ public class CodeGen {
                                                  ClassOrInterfaceDeclaration clz,
                                                  String javadoc,
                                                  Map<String, SchemaObject> properties,
-                                                 Set<String> required) {
+                                                 Set<String> required,
+                                                 BiFunction<String, SchemaObject, List<AnnotationExpr>> annotator) {
         ConstructorDeclaration ctor = new ConstructorDeclaration();
 
         ctor.setJavadocComment(properties.keySet().stream()
@@ -413,16 +420,21 @@ public class CodeGen {
                 .map(entry -> {
                     var propSchema = resolveRef(root, entry.getValue());
                     var propType = genTypeName(pkg, root, propSchema);
+                    NodeList<AnnotationExpr> annotations = NodeList.nodeList(annotator.apply(entry.getKey(), entry.getValue()));
+                    annotations.add(new MarkerAnnotationExpr(nullableAnnotationName(required.contains(entry.getKey()))));
                     return new Parameter(propType, fieldName(entry.getKey()))
-                            .addAnnotation(nullableAnnotationName(required.contains(entry.getKey())));
+                            .setAnnotations(annotations);
                 }).toList();
         ctor.setParameters(NodeList.nodeList(pl));
 
         var assignments = properties.keySet().stream()
-                .map(propName -> (Statement) new ExpressionStmt(new AssignExpr(new FieldAccessExpr(
-                        new ThisExpr(), fieldName(propName)),
-                        new NameExpr(fieldName(propName)),
-                        AssignExpr.Operator.ASSIGN)))
+                .map(propName -> {
+                    String fieldName = fieldName(propName);
+                    return (Statement) new ExpressionStmt(new AssignExpr(new FieldAccessExpr(
+                            new ThisExpr(), fieldName),
+                            required.contains(propName) ? new MethodCallExpr("java.util.Objects.requireNonNull", new NameExpr(fieldName)) : new NameExpr(fieldName),
+                            AssignExpr.Operator.ASSIGN));
+                })
                 .toList();
         ctor.setBody(new BlockStmt(NodeList.nodeList(assignments)));
         return ctor;
@@ -538,9 +550,9 @@ public class CodeGen {
                 .setBody(new BlockStmt(new NodeList<>(stmt)));
     }
 
-    private static FieldDeclaration mkPropertyField(String propName,
-                                                    boolean required,
-                                                    Type propType) {
+    private FieldDeclaration mkPropertyField(String propName,
+                                             boolean required,
+                                             Type propType) {
         // TODO initializer? How work with jackson
         var fieldName = fieldName(propName);
         FieldDeclaration fieldDeclaration = new FieldDeclaration();
@@ -574,14 +586,14 @@ public class CodeGen {
     }
 
     @NonNull
-    private static String nullableAnnotationName(boolean required) {
-        return required ? "edu.umd.cs.findbugs.annotations.NonNull" : "edu.umd.cs.findbugs.annotations.Nullable";
+    private String nullableAnnotationName(boolean required) {
+        return required ? nonNullAnnotation : nullableAnnotation;
     }
 
-    private static MethodDeclaration mkPropertyGetterMethod(@Nullable String description,
-                                                            String propName,
-                                                            Type propType,
-                                                            boolean required) {
+    private MethodDeclaration mkPropertyGetterMethod(@Nullable String description,
+                                                     String propName,
+                                                     Type propType,
+                                                     boolean required) {
         String getterName = getterName(propName);
         String fieldName = fieldName(propName);
 
@@ -607,9 +619,9 @@ public class CodeGen {
         return quoteMember(propName);
     }
 
-    private static MethodDeclaration mkPropertySetterMethod(@Nullable String description,
-                                                            String propName,
-                                                            Type propType, boolean required) {
+    private MethodDeclaration mkPropertySetterMethod(@Nullable String description,
+                                                     String propName,
+                                                     Type propType, boolean required) {
         var fieldName = fieldName(propName);
 
         if (description == null) {
@@ -619,8 +631,8 @@ public class CodeGen {
 
         MethodDeclaration methodDeclaration = new MethodDeclaration();
         methodDeclaration.setJavadocComment(description);
-        methodDeclaration.addAnnotation(mkAtJsonProperty(propName, required));
-        methodDeclaration.addAnnotation(mkAtJsonSetter());
+        // methodDeclaration.addAnnotation(mkAtJsonProperty(propName, required));
+        // methodDeclaration.addAnnotation(mkAtJsonSetter());
         methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
         methodDeclaration.setType(new VoidType());
         methodDeclaration.setName(setterName(propName));
@@ -629,7 +641,7 @@ public class CodeGen {
                 .setParameters(new NodeList<>(parameter))
                 .setBody(new BlockStmt(new NodeList<>(new ExpressionStmt(new AssignExpr(
                         new FieldAccessExpr(new ThisExpr(), fieldName),
-                        new NameExpr(fieldName),
+                        required ? new MethodCallExpr("java.util.Objects.requireNonNull", new NameExpr(fieldName)) : new NameExpr(fieldName),
                         AssignExpr.Operator.ASSIGN)))));
 
         return methodDeclaration;

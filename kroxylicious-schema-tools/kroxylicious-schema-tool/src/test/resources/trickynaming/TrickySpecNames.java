@@ -40,7 +40,8 @@ public class TrickySpecNames {
      * @param singular The value of the {@code singular} property. This is an optional property.
      * @param shortNames The value of the {@code shortNames} property. This is an optional property.
      */
-    public TrickySpecNames(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String kind, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String plural, @edu.umd.cs.findbugs.annotations.Nullable() java.lang.String singular, @edu.umd.cs.findbugs.annotations.Nullable() java.util.List<java.lang.String> shortNames) {
+    @com.fasterxml.jackson.annotation.JsonCreator()
+    public TrickySpecNames(@com.fasterxml.jackson.annotation.JsonProperty(value = "kind") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String kind, @com.fasterxml.jackson.annotation.JsonProperty(value = "plural") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String plural, @com.fasterxml.jackson.annotation.JsonProperty(value = "singular") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String singular, @com.fasterxml.jackson.annotation.JsonProperty(value = "shortNames") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<java.lang.String> shortNames) {
         this.kind = kind;
         this.plural = plural;
         this.singular = singular;
@@ -61,8 +62,6 @@ public class TrickySpecNames {
      * The kind of the API being defined
      *  @param kind The new value for this object's kind.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "kind")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void kind(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String kind) {
         this.kind = kind;
     }
@@ -81,8 +80,6 @@ public class TrickySpecNames {
      * The plural name of the API being defined
      *  @param plural The new value for this object's plural.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "plural")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void plural(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String plural) {
         this.plural = plural;
     }
@@ -101,8 +98,6 @@ public class TrickySpecNames {
      * The singular name of the API being defined
      *  @param singular The new value for this object's singular.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "singular")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void singular(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String singular) {
         this.singular = singular;
     }
@@ -121,8 +116,6 @@ public class TrickySpecNames {
      * The short name(s) of the API being defined for use with tools. E.g. `kubectl get ...`
      *  @param shortNames The new value for this object's shortNames.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty(value = "shortNames")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
     public void shortNames(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<java.lang.String> shortNames) {
         this.shortNames = shortNames;
     }
