@@ -8,6 +8,7 @@ package com.foo;
 
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
+import org.apache.kafka.common.message.AddRaftVoterRequestData;
 import org.apache.kafka.common.message.AllocateProducerIdsRequestData;
 import org.apache.kafka.common.message.AlterClientQuotasRequestData;
 import org.apache.kafka.common.message.AlterConfigsRequestData;
@@ -31,6 +32,7 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DeleteAclsRequestData;
 import org.apache.kafka.common.message.DeleteGroupsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsRequestData;
+import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DescribeAclsRequestData;
 import org.apache.kafka.common.message.DescribeClientQuotasRequestData;
@@ -56,6 +58,7 @@ import org.apache.kafka.common.message.GetTelemetrySubscriptionsRequestData;
 import org.apache.kafka.common.message.HeartbeatRequestData;
 import org.apache.kafka.common.message.IncrementalAlterConfigsRequestData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
+import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.LeaderAndIsrRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
@@ -71,16 +74,25 @@ import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.PushTelemetryRequestData;
+import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
+import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
+import org.apache.kafka.common.message.RemoveRaftVoterRequestData;
 import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
+import org.apache.kafka.common.message.ShareAcknowledgeRequestData;
+import org.apache.kafka.common.message.ShareFetchRequestData;
+import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
+import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.StopReplicaRequestData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.UnregisterBrokerRequestData;
 import org.apache.kafka.common.message.UpdateFeaturesRequestData;
 import org.apache.kafka.common.message.UpdateMetadataRequestData;
+import org.apache.kafka.common.message.UpdateRaftVoterRequestData;
 import org.apache.kafka.common.message.VoteRequestData;
+import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
 import org.apache.kafka.common.message.WriteTxnMarkersRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 
@@ -136,6 +148,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 break;
             case ADD_PARTITIONS_TO_TXN:
                 state = ((AddPartitionsToTxnRequestFilter) this).onAddPartitionsToTxnRequest((AddPartitionsToTxnRequestData) decodedFrame.body(), filterContext);
+                break;
+            case ADD_RAFT_VOTER:
+                state = ((AddRaftVoterRequestFilter) this).onAddRaftVoterRequest((AddRaftVoterRequestData) decodedFrame.body(), filterContext);
                 break;
             case ALLOCATE_PRODUCER_IDS:
                 state = ((AllocateProducerIdsRequestFilter) this).onAllocateProducerIdsRequest((AllocateProducerIdsRequestData) decodedFrame.body(), filterContext);
@@ -205,6 +220,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 break;
             case DELETE_RECORDS:
                 state = ((DeleteRecordsRequestFilter) this).onDeleteRecordsRequest((DeleteRecordsRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DELETE_SHARE_GROUP_STATE:
+                state = ((DeleteShareGroupStateRequestFilter) this).onDeleteShareGroupStateRequest((DeleteShareGroupStateRequestData) decodedFrame.body(), filterContext);
                 break;
             case DELETE_TOPICS:
                 state = ((DeleteTopicsRequestFilter) this).onDeleteTopicsRequest((DeleteTopicsRequestData) decodedFrame.body(), filterContext);
@@ -281,6 +299,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
             case INIT_PRODUCER_ID:
                 state = ((InitProducerIdRequestFilter) this).onInitProducerIdRequest((InitProducerIdRequestData) decodedFrame.body(), filterContext);
                 break;
+            case INITIALIZE_SHARE_GROUP_STATE:
+                state = ((InitializeShareGroupStateRequestFilter) this).onInitializeShareGroupStateRequest((InitializeShareGroupStateRequestData) decodedFrame.body(), filterContext);
+                break;
             case JOIN_GROUP:
                 state = ((JoinGroupRequestFilter) this).onJoinGroupRequest((JoinGroupRequestData) decodedFrame.body(), filterContext);
                 break;
@@ -326,6 +347,15 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
             case PUSH_TELEMETRY:
                 state = ((PushTelemetryRequestFilter) this).onPushTelemetryRequest((PushTelemetryRequestData) decodedFrame.body(), filterContext);
                 break;
+            case READ_SHARE_GROUP_STATE:
+                state = ((ReadShareGroupStateRequestFilter) this).onReadShareGroupStateRequest((ReadShareGroupStateRequestData) decodedFrame.body(), filterContext);
+                break;
+            case READ_SHARE_GROUP_STATE_SUMMARY:
+                state = ((ReadShareGroupStateSummaryRequestFilter) this).onReadShareGroupStateSummaryRequest((ReadShareGroupStateSummaryRequestData) decodedFrame.body(), filterContext);
+                break;
+            case REMOVE_RAFT_VOTER:
+                state = ((RemoveRaftVoterRequestFilter) this).onRemoveRaftVoterRequest((RemoveRaftVoterRequestData) decodedFrame.body(), filterContext);
+                break;
             case RENEW_DELEGATION_TOKEN:
                 state = ((RenewDelegationTokenRequestFilter) this).onRenewDelegationTokenRequest((RenewDelegationTokenRequestData) decodedFrame.body(), filterContext);
                 break;
@@ -334,6 +364,18 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 break;
             case SASL_HANDSHAKE:
                 state = ((SaslHandshakeRequestFilter) this).onSaslHandshakeRequest((SaslHandshakeRequestData) decodedFrame.body(), filterContext);
+                break;
+            case SHARE_ACKNOWLEDGE:
+                state = ((ShareAcknowledgeRequestFilter) this).onShareAcknowledgeRequest((ShareAcknowledgeRequestData) decodedFrame.body(), filterContext);
+                break;
+            case SHARE_FETCH:
+                state = ((ShareFetchRequestFilter) this).onShareFetchRequest((ShareFetchRequestData) decodedFrame.body(), filterContext);
+                break;
+            case SHARE_GROUP_DESCRIBE:
+                state = ((ShareGroupDescribeRequestFilter) this).onShareGroupDescribeRequest((ShareGroupDescribeRequestData) decodedFrame.body(), filterContext);
+                break;
+            case SHARE_GROUP_HEARTBEAT:
+                state = ((ShareGroupHeartbeatRequestFilter) this).onShareGroupHeartbeatRequest((ShareGroupHeartbeatRequestData) decodedFrame.body(), filterContext);
                 break;
             case STOP_REPLICA:
                 state = ((StopReplicaRequestFilter) this).onStopReplicaRequest((StopReplicaRequestData) decodedFrame.body(), filterContext);
@@ -353,8 +395,14 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
             case UPDATE_METADATA:
                 state = ((UpdateMetadataRequestFilter) this).onUpdateMetadataRequest((UpdateMetadataRequestData) decodedFrame.body(), filterContext);
                 break;
+            case UPDATE_RAFT_VOTER:
+                state = ((UpdateRaftVoterRequestFilter) this).onUpdateRaftVoterRequest((UpdateRaftVoterRequestData) decodedFrame.body(), filterContext);
+                break;
             case VOTE:
                 state = ((VoteRequestFilter) this).onVoteRequest((VoteRequestData) decodedFrame.body(), filterContext);
+                break;
+            case WRITE_SHARE_GROUP_STATE:
+                state = ((WriteShareGroupStateRequestFilter) this).onWriteShareGroupStateRequest((WriteShareGroupStateRequestData) decodedFrame.body(), filterContext);
                 break;
             case WRITE_TXN_MARKERS:
                 state = ((WriteTxnMarkersRequestFilter) this).onWriteTxnMarkersRequest((WriteTxnMarkersRequestData) decodedFrame.body(), filterContext);
@@ -387,6 +435,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof AddOffsetsToTxnRequestFilter;
             case ADD_PARTITIONS_TO_TXN:
                 return this instanceof AddPartitionsToTxnRequestFilter;
+            case ADD_RAFT_VOTER:
+                return this instanceof AddRaftVoterRequestFilter;
             case ALLOCATE_PRODUCER_IDS:
                 return this instanceof AllocateProducerIdsRequestFilter;
             case ALTER_CLIENT_QUOTAS:
@@ -433,6 +483,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof DeleteGroupsRequestFilter;
             case DELETE_RECORDS:
                 return this instanceof DeleteRecordsRequestFilter;
+            case DELETE_SHARE_GROUP_STATE:
+                return this instanceof DeleteShareGroupStateRequestFilter;
             case DELETE_TOPICS:
                 return this instanceof DeleteTopicsRequestFilter;
             case DESCRIBE_ACLS:
@@ -483,6 +535,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof IncrementalAlterConfigsRequestFilter;
             case INIT_PRODUCER_ID:
                 return this instanceof InitProducerIdRequestFilter;
+            case INITIALIZE_SHARE_GROUP_STATE:
+                return this instanceof InitializeShareGroupStateRequestFilter;
             case JOIN_GROUP:
                 return this instanceof JoinGroupRequestFilter;
             case LEADER_AND_ISR:
@@ -513,12 +567,26 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof ProduceRequestFilter;
             case PUSH_TELEMETRY:
                 return this instanceof PushTelemetryRequestFilter;
+            case READ_SHARE_GROUP_STATE:
+                return this instanceof ReadShareGroupStateRequestFilter;
+            case READ_SHARE_GROUP_STATE_SUMMARY:
+                return this instanceof ReadShareGroupStateSummaryRequestFilter;
+            case REMOVE_RAFT_VOTER:
+                return this instanceof RemoveRaftVoterRequestFilter;
             case RENEW_DELEGATION_TOKEN:
                 return this instanceof RenewDelegationTokenRequestFilter;
             case SASL_AUTHENTICATE:
                 return this instanceof SaslAuthenticateRequestFilter;
             case SASL_HANDSHAKE:
                 return this instanceof SaslHandshakeRequestFilter;
+            case SHARE_ACKNOWLEDGE:
+                return this instanceof ShareAcknowledgeRequestFilter;
+            case SHARE_FETCH:
+                return this instanceof ShareFetchRequestFilter;
+            case SHARE_GROUP_DESCRIBE:
+                return this instanceof ShareGroupDescribeRequestFilter;
+            case SHARE_GROUP_HEARTBEAT:
+                return this instanceof ShareGroupHeartbeatRequestFilter;
             case STOP_REPLICA:
                 return this instanceof StopReplicaRequestFilter;
             case SYNC_GROUP:
@@ -531,8 +599,12 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof UpdateFeaturesRequestFilter;
             case UPDATE_METADATA:
                 return this instanceof UpdateMetadataRequestFilter;
+            case UPDATE_RAFT_VOTER:
+                return this instanceof UpdateRaftVoterRequestFilter;
             case VOTE:
                 return this instanceof VoteRequestFilter;
+            case WRITE_SHARE_GROUP_STATE:
+                return this instanceof WriteShareGroupStateRequestFilter;
             case WRITE_TXN_MARKERS:
                 return this instanceof WriteTxnMarkersRequestFilter;
             default:

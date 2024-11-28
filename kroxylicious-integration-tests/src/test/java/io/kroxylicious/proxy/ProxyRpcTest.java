@@ -60,7 +60,7 @@ public class ProxyRpcTest {
 
     @BeforeAll
     public static void beforeAll() {
-        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+        mockTester = mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap)
                 .addToFilters(new FilterDefinitionBuilder(FixedClientIdFilterFactory.class.getName()).withConfig("clientId", "fixed").build()));
     }
 
