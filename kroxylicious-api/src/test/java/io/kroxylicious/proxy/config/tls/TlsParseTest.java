@@ -427,11 +427,22 @@ class TlsParseTest {
     void testClientAuthSettingsParsed() throws IOException {
         String json = """
                 {
-                    "clientAuth": "clientauthsetting"
+                    "clientAuth": "NONE"
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, null, "clientauthsetting"));
+        assertThat(tls).isEqualTo(new Tls(null, null, TlsClientAuth.NONE));
+    }
+
+    @Test
+    void shouldAcceptNullClientAuth() throws IOException {
+        String json = """
+                {
+                    "clientAuth": null
+                }
+                """;
+        Tls tls = readTls(json);
+        assertThat(tls).isEqualTo(new Tls(null, null, TlsClientAuth.NONE));
     }
 
     private Tls readTls(String json) throws IOException {

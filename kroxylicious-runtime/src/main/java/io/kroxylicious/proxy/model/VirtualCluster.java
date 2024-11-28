@@ -20,11 +20,14 @@ import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -185,7 +188,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                         .orElseThrow();
 
                 if (tlsConfiguration.definesClientAuth()) {
-                    return new NettyTrustProvider(tlsConfiguration.trust()).apply(sslContextBuilder.clientAuth(ClientAuth.valueOf(tlsConfiguration.getClientAuth())))
+                    return new NettyTrustProvider(tlsConfiguration.trust()).apply(sslContextBuilder.clientAuth(toNettyClientAuth(tlsConfiguration)))
                             .build();
                 }
                 else {
@@ -196,6 +199,22 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                 throw new UncheckedIOException(e);
             }
         });
+    }
+
+    @NonNull
+    private static ClientAuth toNettyClientAuth(Tls tlsConfiguration) {
+        switch (tlsConfiguration.clientAuth()) {
+            case REQUIRED -> {
+                return ClientAuth.REQUIRE;
+            }
+            case REQUESTED -> {
+                return ClientAuth.OPTIONAL;
+            }
+            case NONE -> {
+                return ClientAuth.NONE;
+            }
+            default -> throw new IllegalStateException("Unexpected value: " + tlsConfiguration.clientAuth());
+        }
     }
 
     private Optional<SslContext> buildUpstreamSslContext() {

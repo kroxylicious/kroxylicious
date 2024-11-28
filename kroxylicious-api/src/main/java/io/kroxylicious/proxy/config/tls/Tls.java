@@ -19,9 +19,15 @@ import java.util.Locale;
  */
 public record Tls(KeyProvider key,
                   TrustProvider trust,
-                  String clientAuth) {
+                  TlsClientAuth clientAuth) {
     public Tls(KeyProvider key, TrustProvider trust) {
         this(key, trust, null);
+    }
+
+    public Tls(KeyProvider key, TrustProvider trust, TlsClientAuth clientAuth) {
+        this.key = key;
+        this.trust = trust;
+        this.clientAuth = clientAuth == null ? TlsClientAuth.NONE : clientAuth;
     }
 
     public static final String PEM = "PEM";
@@ -36,20 +42,5 @@ public record Tls(KeyProvider key,
 
     public boolean definesClientAuth() {
         return trust != null && clientAuth != null;
-    }
-
-    public String getClientAuth() {
-        if (definesClientAuth() && clientAuth.equals(TlsClientAuth.REQUIRED.getClientAuth())) {
-            return TlsClientAuth.REQUIRED.getNettyClientAuth();
-        }
-        else if (definesClientAuth() && clientAuth.equals(TlsClientAuth.REQUESTED.getClientAuth())) {
-            return TlsClientAuth.REQUESTED.getNettyClientAuth();
-        }
-        else if (definesClientAuth() && clientAuth.equals(TlsClientAuth.NONE.getClientAuth())) {
-            return TlsClientAuth.NONE.getNettyClientAuth();
-        }
-        else {
-            return TlsClientAuth.NONE.getNettyClientAuth();
-        }
     }
 }

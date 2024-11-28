@@ -40,13 +40,13 @@ class TlsTest {
 
     @Test
     void testClientAuthDefined() {
-        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), "clientauth");
+        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), TlsClientAuth.NONE);
         assertThat(tls.definesClientAuth()).isTrue();
     }
 
     @Test
     void testClientAuthNotDefinedNoTrust() {
-        Tls tls = new Tls(null, null, "clientauth");
+        Tls tls = new Tls(null, null, TlsClientAuth.REQUIRED);
         assertThat(tls.definesClientAuth()).isFalse();
     }
 
@@ -58,32 +58,26 @@ class TlsTest {
 
     @Test
     void testClientAuthRequire() {
-        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), TlsClientAuth.REQUIRED.getClientAuth());
-        assertThat(tls.getClientAuth()).isEqualTo(TlsClientAuth.REQUIRED.getNettyClientAuth());
+        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), TlsClientAuth.REQUIRED);
+        assertThat(tls.clientAuth()).isEqualTo(TlsClientAuth.REQUIRED);
     }
 
     @Test
     void testClientAuthOptional() {
-        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), TlsClientAuth.REQUESTED.getClientAuth());
-        assertThat(tls.getClientAuth()).isEqualTo(TlsClientAuth.REQUESTED.getNettyClientAuth());
+        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), TlsClientAuth.REQUESTED);
+        assertThat(tls.clientAuth()).isEqualTo(TlsClientAuth.REQUESTED);
     }
 
     @Test
     void testClientAuthNone() {
-        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), TlsClientAuth.NONE.getClientAuth());
-        assertThat(tls.getClientAuth()).isEqualTo(TlsClientAuth.NONE.getNettyClientAuth());
-    }
-
-    @Test
-    void testClientAuthInvalidValueNone() {
-        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), "invalid");
-        assertThat(tls.getClientAuth()).isEqualTo(TlsClientAuth.NONE.getNettyClientAuth());
+        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), TlsClientAuth.NONE);
+        assertThat(tls.clientAuth()).isEqualTo(TlsClientAuth.NONE);
     }
 
     @Test
     void testClientAuthNoTrustNone() {
         Tls tls = new Tls(null, null, null);
-        assertThat(tls.getClientAuth()).isEqualTo(TlsClientAuth.NONE.getNettyClientAuth());
+        assertThat(tls.clientAuth()).isEqualTo(TlsClientAuth.NONE);
     }
 
 }
