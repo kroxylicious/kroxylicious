@@ -5,7 +5,7 @@
 #
 
 $schema: http://json-schema.org/draft-04/schema#
-id: https://schema.kroxylicious.io/this.is.Test.yaml
+id: https://schema.kroxylicious.io/test/ScalarProperties.yaml
 description: A class with scalar properties
 type: object
 required:

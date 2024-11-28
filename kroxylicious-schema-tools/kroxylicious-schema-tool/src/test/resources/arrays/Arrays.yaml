@@ -5,7 +5,7 @@
 #
 
 $schema: http://json-schema.org/draft-04/schema#
-id: https://schema.kroxylicious.io/this.is.Test.yaml
+id: https://schema.kroxylicious.io/test/Arrays.yaml
 description: An class with properties mapped from the array type.
 type: object
 definitions:

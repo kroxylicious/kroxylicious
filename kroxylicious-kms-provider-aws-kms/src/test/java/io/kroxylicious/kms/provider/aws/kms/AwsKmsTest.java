@@ -149,7 +149,11 @@ class AwsKmsTest {
         try {
             var address = httpServer.getAddress();
             var awsAddress = "http://127.0.0.1:" + address.getPort();
-            var config = new Config(URI.create(awsAddress), new InlinePassword("access"), new InlinePassword("secret"), "us-west-2", null);
+            var config = new Config();
+            config.setEndpointUrl(URI.create(awsAddress));
+            config.setAccessKey(new InlinePassword("access"));
+            config.setSecretKey(new InlinePassword("secret"));
+            config.setRegion("us-west-2");
             @SuppressWarnings("resource")
             var awsKmsService = new AwsKmsService();
             awsKmsService.initialize(config);

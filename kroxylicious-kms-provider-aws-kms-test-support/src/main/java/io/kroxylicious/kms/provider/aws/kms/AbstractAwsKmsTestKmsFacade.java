@@ -79,7 +79,12 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
 
     @Override
     public Config getKmsServiceConfig() {
-        return new Config(getAwsUrl(), new InlinePassword(getAccessKey()), new InlinePassword(getSecretKey()), getRegion(), null);
+        Config config = new Config();
+        config.setEndpointUrl(getAwsUrl());
+        config.setAccessKey(new InlinePassword(getAccessKey()));
+        config.setSecretKey(new InlinePassword(getSecretKey()));
+        config.setRegion(getRegion());
+        return config;
     }
 
     protected abstract String getRegion();

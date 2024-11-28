@@ -7,9 +7,9 @@
 package io.kroxylicious.tools.schema.compiler;
 
 import java.net.URI;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
@@ -37,7 +37,7 @@ public class Namer extends SchemaObject.Visitor {
 
     //
 
-    private final Map<String, SchemaObject> idIndex = new HashMap<>();
+    private final Map<String, SchemaObject> idIndex = new TreeMap<>();
 
     public Namer(Diagnostics diagnostics) {
         this.diagnostics = Objects.requireNonNull(diagnostics);
@@ -55,8 +55,11 @@ public class Namer extends SchemaObject.Visitor {
     public void enterSchema(
                             URI base,
                             String path,
+                            String keyword,
                             @NonNull SchemaObject schema) {
-        idIndex.put(base.toString(), schema);
+        if (isRootSchema(path)) {
+            index(base, schema);
+        }
 
         // Explicit id
         String id = schema.getId();
@@ -70,7 +73,9 @@ public class Namer extends SchemaObject.Visitor {
                     diagnostics.reportWarning("Root schema of a document should contain an 'id' with an absolute URI, but 'id' is not absolute: {}",
                             base);
                 }
-                idIndex.put(uri.toString(), schema);
+                else if (!uri.equals(base)) {
+                    index(uri, schema);
+                }
             }
             else {
                 // Wright 00:
@@ -83,7 +88,7 @@ public class Namer extends SchemaObject.Visitor {
                 if (!SUBSCHEMA_ID_PATTERN.matcher(id).matches()) {
                     diagnostics.reportError("Invalid schema 'id', must match " + SUBSCHEMA_ID_PATTERN.pattern() + ": " + id);
                 }
-                idIndex.put(resolve(base, id), schema);
+                index(resolve(base, id), schema);
             }
         }
         else if (isRootSchema(path)) {
@@ -99,18 +104,26 @@ public class Namer extends SchemaObject.Visitor {
         }
         String pathId = "#" + path;
 
-        idIndex.put(resolve(base, pathId), schema);
+        index(resolve(base, pathId), schema);
 
     }
 
-    private static String resolve(URI base, String pathId) {
-        return base.resolve(pathId).toString();
+    private void index(URI base, @NonNull SchemaObject schema) {
+        SchemaObject old = idIndex.put(base.toString(), schema);
+        if (old != null) {
+            throw new RuntimeException("Attempt to identify two schemas from same URI " + base);
+        }
+    }
+
+    private static URI resolve(URI base, String pathId) {
+        return base.resolve(pathId);
     }
 
     @Override
     public void exitSchema(
                            URI base,
                            String path,
+                           String keyword,
                            @NonNull SchemaObject schema) {
     }
 

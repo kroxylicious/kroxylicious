@@ -91,15 +91,19 @@ class CodeGenTest {
 
     private static void assertGeneratedCodeMatches(String yamlFilename) {
         File src = new File(yamlFilename);
-        SchemaCompiler schemaCompiler = new SchemaCompiler(List.of(new File("src/test/resources").toPath()), null, Map.of());
+        Path path = new File("src/test/resources").toPath();
+        SchemaCompiler schemaCompiler = new SchemaCompiler(
+                List.of(path),
+                List.of(path.relativize(src.toPath()).getParent().toString().replace("/", ".")),
+                null,
+                Map.of());
         List<Input> parse = schemaCompiler.parse();
-        var trees = parse.stream()
-                // This is ugly. Currently the compiler doesn't accept a list of files to compile,
-                // just a root src. The tests are all in one root dir, so parse() returns all the YAMLs.
-                // This filter narrows down to just those YAMLs in the same dir as the yamlFilename
-                .filter(input -> input.schemaPath().getParent().endsWith(Path.of(yamlFilename).getParent()))
-                .toList();
-        var units = schemaCompiler.gen(trees).toList();
+        var units = schemaCompiler.gen(parse).toList();
+
+        assertThat(schemaCompiler.diagnostics.getNumFatals()).describedAs("Expect 0 fatal errors").isZero();
+        assertThat(schemaCompiler.diagnostics.getNumErrors()).describedAs("Expect 0 errors").isZero();
+        // TODO reinstate this assertThat(schemaCompiler.diagnostics.getNumWarnings()).describedAs("Expect 0 warnings errors").isZero();
+
         Map<String, List<CompilationUnit>> collect = units.stream().collect(Collectors.groupingBy(SchemaCompiler::javaFileName));
         assertThat(collect).hasKeySatisfying(new Condition<>(
                 filename -> filename.matches("[A-Z][a-zA-Z0-9_$]*\\.java"),
@@ -124,6 +128,7 @@ class CodeGenTest {
                 throw new UncheckedIOException(e);
             }
         });
+
     }
 
     /**
@@ -200,6 +205,12 @@ class CodeGenTest {
     @Test
     void xref() throws IOException {
         String pathname = "src/test/resources/xref/Xref.yaml";
+        assertGeneratedCode(pathname);
+    }
+
+    @Test
+    void junctor() throws IOException {
+        String pathname = "src/test/resources/junctor/Junctor.yaml";
         assertGeneratedCode(pathname);
     }
 

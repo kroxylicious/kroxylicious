@@ -135,7 +135,17 @@ public class CodeGen {
                 case BOOLEAN -> new ClassOrInterfaceType(null, "java.lang.Boolean");
                 case INTEGER -> new ClassOrInterfaceType(null, "java.lang.Long");
                 case NUMBER -> new ClassOrInterfaceType(null, "java.lang.Double");
-                case STRING -> new ClassOrInterfaceType(null, "java.lang.String");
+                case STRING -> {
+                    if (schema.getFormat() != null) {
+                        yield new ClassOrInterfaceType(null, switch (schema.getFormat()) {
+                            case "uri" -> "java.net.URI";
+                            default -> "java.lang.Object";
+                        });
+                    }
+                    else {
+                        yield new ClassOrInterfaceType(null, "java.lang.String");
+                    }
+                }
                 case ARRAY -> genCollectionOrMapType(pkg, root, schema);
                 case OBJECT -> {
                     // TODO or Map or ObjectNode if x-kubernetes-preserve-unknown-keys
@@ -226,8 +236,7 @@ public class CodeGen {
      * @param pkg
      * @param schema
      */
-    @Nullable
-    CompilationUnit genDecl(String pkg, SchemaObject schema, String path) {
+    private @Nullable CompilationUnit genDecl(String pkg, SchemaObject schema, String path, URI base) {
         // TODO A schema is recursive => This should return a Map<String, CompilationUnit>
         List<SchemaType> type = schema.getType();
         if (type == null) {
@@ -235,7 +244,7 @@ public class CodeGen {
         }
         if (type.size() == 1) {
             return switch (type.get(0)) {
-                case OBJECT -> genClass(pkg, schema, schema, path);
+                case OBJECT -> genClass(pkg, namer.resolve(base), schema, path);
                 case ARRAY, STRING, INTEGER, NUMBER, BOOLEAN, NULL -> null;
             };
         }
@@ -250,10 +259,13 @@ public class CodeGen {
 
     Map<String, String> seen = new HashMap<>();
 
-    @NonNull
+    @Nullable
     private CompilationUnit genClass(String pkg, SchemaObject root, SchemaObject schema, String path) {
         assert (isTypeGenerated(schema));
         String name = className(schema);
+        if (existingClasses.containsKey(pkg + "." + name)) {
+            return null;
+        }
         String oldPath = seen.put(name, path);
         if (oldPath != null) {
             diagnostics.reportFatal(
@@ -542,16 +554,33 @@ public class CodeGen {
         }
 
         @Override
-        public void enterSchema(URI base, String path, SchemaObject schema) {
+        public void enterSchema(URI base, String path, String keyword, SchemaObject schema) {
             if (schema.getRef() == null) {
+                if (isJunctorChild(keyword)) {
+                    return;
+                }
                 // We don't generate code for a ref, on the basis that we've already generated code for it
                 // (e.g. when we visited the schemas in /definitions).
                 // This means even if multiple refs point to the same thing, that thing should only get code gen'd once.
-                CompilationUnit value = genDecl(input.pkg(), schema, path);
+                CompilationUnit value = genDecl(input.pkg(), schema, path, base);
                 if (value != null) {
                     result.add(value);
                 }
             }
         }
+
+        /**
+         * Is the given path a child of {@code allOf}, {@code oneOf}, {@code anyOf} or {@code not}
+         * @param keyword The keyword
+         * @return true the schema at this path is a child of a logical junctor
+         */
+        private boolean isJunctorChild(String keyword) {
+            return "oneOf".equals(keyword)
+                    || "allOf".equals(keyword)
+                    || "anyOf".equals(keyword)
+                    || "not".equals(keyword);
+
+        }
     }
+
 }

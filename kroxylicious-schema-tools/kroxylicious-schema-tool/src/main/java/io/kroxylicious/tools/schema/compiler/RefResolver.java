@@ -33,6 +33,7 @@ public class RefResolver extends SchemaObject.Visitor {
     public void enterSchema(
                             URI base,
                             String path,
+                            String keyword,
                             @NonNull SchemaObject schema) {
         String ref = schema.getRef();
         if (ref != null) {
@@ -53,6 +54,7 @@ public class RefResolver extends SchemaObject.Visitor {
     public void exitSchema(
                            URI base,
                            String path,
+                           String keyword,
                            @NonNull SchemaObject schema) {
         if (CodeGen.isTypeGenerated(schema) && schema.getJavaType() == null) {
             if (isRootSchema(path)) {
@@ -69,8 +71,8 @@ public class RefResolver extends SchemaObject.Visitor {
                     var singularize = new ArrayList<Integer>();
                     nameParts.add(rootClass);
                     while (propsMatcher.find()) {
-                        String keyword = propsMatcher.group("keyword");
-                        if ("items".equals(keyword)) {
+                        String keyword2 = propsMatcher.group("keyword");
+                        if ("items".equals(keyword2)) {
                             singularize.add(nameParts.size() - 1);
                             continue;
                         }

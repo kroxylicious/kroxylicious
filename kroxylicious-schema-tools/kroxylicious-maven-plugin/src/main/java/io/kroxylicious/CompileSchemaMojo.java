@@ -54,7 +54,7 @@ public class CompileSchemaMojo extends AbstractMojo {
         String header = readHeaderFile();
         try {
 
-            SchemaCompiler schemaCompiler = new SchemaCompiler(List.of(source.toPath()), header, existingClasses != null ? existingClasses : Map.of());
+            SchemaCompiler schemaCompiler = new SchemaCompiler(List.of(source.toPath()), null, header, existingClasses != null ? existingClasses : Map.of());
             var inputs = schemaCompiler.parse();
             var units = schemaCompiler.gen(inputs);
             schemaCompiler.write(target.toPath(), units);
@@ -75,6 +75,7 @@ public class CompileSchemaMojo extends AbstractMojo {
         catch (UncheckedIOException | FatalException e) {
             throw new MojoExecutionException(e);
         }
+        getLog().info("Adding source root " + target.getAbsolutePath());
         project.addCompileSourceRoot(target.getAbsolutePath());
     }
 

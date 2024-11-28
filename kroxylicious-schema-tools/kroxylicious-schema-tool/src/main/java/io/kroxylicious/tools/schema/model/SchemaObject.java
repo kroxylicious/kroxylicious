@@ -26,41 +26,76 @@ public final class SchemaObject {
     @Nullable
     @JsonProperty("$schema")
     private String schema;
+
     @Nullable
     @JsonProperty("id")
     private String id;
+
     @Nullable
     @JsonProperty("$ref")
     private String ref;
+
     @Nullable
     @JsonProperty("description")
     private String description;
+
     @Nullable
     @JsonProperty("definitions")
     private Map<String, SchemaObject> definitions;
+
     @Nullable
     @JsonProperty("type")
     @JsonDeserialize(using = ListOrSingleSerde.SchemaType.class)
     private List<SchemaType> type;
+
+    @Nullable
+    @JsonProperty("format")
+    private String format;
+
     @Nullable
     @JsonProperty("properties")
     private Map<String, SchemaObject> properties;
+
     @Nullable
     @JsonProperty("required")
     private Set<String> required;
+
     @Nullable
     @JsonProperty("items")
     @JsonDeserialize(using = ListOrSingleSerde.SchemaObject.class)
     private List<SchemaObject> items;
+
+    @Nullable
+    @JsonProperty("oneOf")
+    @JsonDeserialize(using = ListOrSingleSerde.SchemaObject.class)
+    private List<SchemaObject> oneOf;
+
+    @Nullable
+    @JsonProperty("allOf")
+    @JsonDeserialize(using = ListOrSingleSerde.SchemaObject.class)
+    private List<SchemaObject> allOf;
+
+    @Nullable
+    @JsonProperty("anyOf")
+    @JsonDeserialize(using = ListOrSingleSerde.SchemaObject.class)
+    private List<SchemaObject> anyOf;
+
+    @Nullable
+    @JsonProperty("not")
+    private SchemaObject not;
+
     @Nullable
     @JsonProperty("x-kubernetes-list-type")
     private XKubeListType xKubernetesListType;
+
     @Nullable
     @JsonProperty("x-kubernetes-list-map-keys")
     private List<String> xKubernetesListMapKeys;
+
     @Nullable
     @JsonProperty("x-kubernetes-map-type")
     private XKubeMapType xKubernetesMapType;
+
     @Nullable
     @JsonProperty("$javaType")
     private String javaType;
@@ -68,37 +103,6 @@ public final class SchemaObject {
     @JsonCreator
     public SchemaObject() {
     }
-
-    // @Buildable(editableEnabled = false, validationEnabled = false, generateBuilderPackage = false)
-    // @JsonCreator
-    // public SchemaObject(
-    // @JsonProperty("$schema") String schema,
-    // @JsonProperty("id") String id,
-    // @JsonProperty("$ref") String ref,
-    // @JsonProperty("description") String description,
-    // @JsonProperty("definitions") Map<String, SchemaObject> definitions,
-    // @JsonProperty("type") @JsonDeserialize(using = ListOrSingleSerde.String.class) List<String> type,
-    // @JsonProperty("properties") Map<String, SchemaObject> properties,
-    // @JsonProperty("required") Set<String> required,
-    // @JsonProperty("items") @JsonDeserialize(using = ListOrSingleSerde.SchemaObject.class) List<SchemaObject> items,
-    // @JsonProperty("x-kubernetes-list-type") XKubeListType xKubernetesListType,
-    // @JsonProperty("x-kubernetes-list-map-keys") List<String> xKubernetesListMapKeys,
-    // @JsonProperty("x-kubernetes-map-type") XKubeMapType xKubernetesMapType,
-    // @JsonProperty("$javaType") String javaType) {
-    // this.schema = schema;
-    // this.id = id;
-    // this.ref = ref;
-    // this.description = description;
-    // this.definitions = definitions;
-    // this.type = type;
-    // this.properties = properties;
-    // this.required = required;
-    // this.items = items;
-    // this.xKubernetesListType = xKubernetesListType;
-    // this.xKubernetesMapType = xKubernetesMapType;
-    // this.xKubernetesListMapKeys = xKubernetesListMapKeys;
-    // this.javaType = javaType;
-    // }
 
     @Nullable
     @JsonProperty("$schema")
@@ -138,6 +142,11 @@ public final class SchemaObject {
     }
 
     @Nullable
+    public String getFormat() {
+        return format;
+    }
+
+    @Nullable
     @JsonProperty("properties")
     public Map<String, SchemaObject> getProperties() {
         return properties;
@@ -154,6 +163,26 @@ public final class SchemaObject {
     @JsonDeserialize(using = ListOrSingleSerde.SchemaObject.class)
     public List<SchemaObject> getItems() {
         return items;
+    }
+
+    @Nullable
+    public List<SchemaObject> getOneOf() {
+        return oneOf;
+    }
+
+    @Nullable
+    public List<SchemaObject> getAllOf() {
+        return allOf;
+    }
+
+    @Nullable
+    public List<SchemaObject> getAnyOf() {
+        return anyOf;
+    }
+
+    @Nullable
+    public SchemaObject getNot() {
+        return not;
     }
 
     @Nullable
@@ -180,6 +209,10 @@ public final class SchemaObject {
         return javaType;
     }
 
+    public void setFormat(@Nullable String format) {
+        this.format = format;
+    }
+
     public void setDefinitions(@Nullable Map<String, SchemaObject> definitions) {
         this.definitions = definitions;
     }
@@ -194,6 +227,22 @@ public final class SchemaObject {
 
     public void setItems(@Nullable List<SchemaObject> items) {
         this.items = items;
+    }
+
+    public void setOneOf(@Nullable List<SchemaObject> oneOf) {
+        this.oneOf = oneOf;
+    }
+
+    public void setAllOf(@Nullable List<SchemaObject> allOf) {
+        this.allOf = allOf;
+    }
+
+    public void setAnyOf(@Nullable List<SchemaObject> anyOf) {
+        this.anyOf = anyOf;
+    }
+
+    public void setNot(@Nullable SchemaObject not) {
+        this.not = not;
     }
 
     public void setJavaType(@Nullable String javaType) {
@@ -233,51 +282,51 @@ public final class SchemaObject {
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (obj == this) {
+    public boolean equals(Object o) {
+        if (this == o) {
             return true;
         }
-        if (obj == null || obj.getClass() != this.getClass()) {
+        if (!(o instanceof SchemaObject that)) {
             return false;
         }
-        var that = (SchemaObject) obj;
-        return Objects.equals(this.schema, that.schema) &&
-                Objects.equals(this.id, that.id) &&
-                Objects.equals(this.ref, that.ref) &&
-                Objects.equals(this.description, that.description) &&
-                Objects.equals(this.definitions, that.definitions) &&
-                Objects.equals(this.type, that.type) &&
-                Objects.equals(this.properties, that.properties) &&
-                Objects.equals(this.required, that.required) &&
-                Objects.equals(this.items, that.items) &&
-                Objects.equals(this.xKubernetesListType, that.xKubernetesListType) &&
-                Objects.equals(this.xKubernetesListMapKeys, that.xKubernetesListMapKeys) &&
-                Objects.equals(this.xKubernetesMapType, that.xKubernetesMapType) &&
-                Objects.equals(this.javaType, that.javaType);
+        return Objects.equals(schema, that.schema) && Objects.equals(id, that.id) && Objects.equals(ref, that.ref) && Objects.equals(description, that.description)
+                && Objects.equals(definitions, that.definitions) && Objects.equals(type, that.type) && Objects.equals(format, that.format) && Objects.equals(properties,
+                        that.properties)
+                && Objects.equals(required, that.required) && Objects.equals(items, that.items) && Objects.equals(oneOf, that.oneOf) && Objects.equals(
+                        allOf, that.allOf)
+                && Objects.equals(anyOf, that.anyOf) && Objects.equals(not, that.not) && xKubernetesListType == that.xKubernetesListType
+                && Objects.equals(xKubernetesListMapKeys, that.xKubernetesListMapKeys) && xKubernetesMapType == that.xKubernetesMapType && Objects.equals(javaType,
+                        that.javaType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(schema, id, ref, description, definitions, type, properties, required, items, xKubernetesListType, xKubernetesListMapKeys, xKubernetesMapType,
-                javaType);
+        return Objects.hash(schema, id, ref, description, definitions, type, format, properties, required, items, oneOf, allOf, anyOf, not, xKubernetesListType,
+                xKubernetesListMapKeys, xKubernetesMapType, javaType);
     }
 
     @Override
     public String toString() {
-        return "SchemaObject[" +
-                "schema=" + schema + ", " +
-                "id=" + id + ", " +
-                "ref=" + ref + ", " +
-                "description=" + description + ", " +
-                "definitions=" + definitions + ", " +
-                "type=" + type + ", " +
-                "properties=" + properties + ", " +
-                "required=" + required + ", " +
-                "items=" + items + ", " +
-                "xKubernetesListType=" + xKubernetesListType + ", " +
-                "xKubernetesListMapKeys=" + xKubernetesListMapKeys + ", " +
-                "xKubernetesMapType=" + xKubernetesMapType + ", " +
-                "javaType=" + javaType + ']';
+        return "SchemaObject{" +
+                "schema='" + schema + '\'' +
+                ", id='" + id + '\'' +
+                ", ref='" + ref + '\'' +
+                ", description='" + description + '\'' +
+                ", definitions=" + definitions +
+                ", type=" + type +
+                ", format='" + format + '\'' +
+                ", properties=" + properties +
+                ", required=" + required +
+                ", items=" + items +
+                ", oneOf=" + oneOf +
+                ", allOf=" + allOf +
+                ", anyOf=" + anyOf +
+                ", not=" + not +
+                ", xKubernetesListType=" + xKubernetesListType +
+                ", xKubernetesListMapKeys=" + xKubernetesListMapKeys +
+                ", xKubernetesMapType=" + xKubernetesMapType +
+                ", javaType='" + javaType + '\'' +
+                '}';
     }
 
     public static class Visitor {
@@ -285,59 +334,73 @@ public final class SchemaObject {
             return path.isEmpty();
         }
 
-        public void enterSchema(URI base, String path, @NonNull SchemaObject schema) {
+        public void enterSchema(URI base, String path, String keyword, @NonNull SchemaObject schema) {
         }
 
-        public void exitSchema(URI base, String path, @NonNull SchemaObject schema) {
+        public void exitSchema(URI base, String path, String keyword, @NonNull SchemaObject schema) {
         }
     }
 
-    public void visitSchemas(URI base, @NonNull Visitor visitor) {
-        visitSchemas(base, "", this, visitor);
+    public void visitSchemas(URI base, @NonNull Visitor visitor) throws VisitException {
+        visitSchemas(base, "", "", this, visitor);
     }
 
-    private static void visitSchemas(URI base, String path, SchemaObject schemaObject, @NonNull Visitor visitor) {
+    private static void visitSchemas(URI base,
+                                     String path,
+                                     String keyword,
+                                     SchemaObject schemaObject,
+                                     @NonNull Visitor visitor)
+            throws VisitException {
         try {
-            visitor.enterSchema(base, path, schemaObject);
+            visitor.enterSchema(base, path, keyword, schemaObject);
         }
         catch (Exception e) {
             throw new VisitException(visitor.getClass().getName() + "#enterSchema() threw exception while visiting schema object at '" + path + "' from " + base, e);
         }
-        if (schemaObject.definitions != null) {
-            for (Map.Entry<String, SchemaObject> entry : schemaObject.definitions.entrySet()) {
-                String definitionName = entry.getKey();
-                SchemaObject definitionSchema = entry.getValue();
-                String path1 = path + "/definitions/" + definitionName;
-                // visitor.enterSchema(base, path1, definitionSchema);
-                visitSchemas(base, path1, definitionSchema, visitor);
-                // visitor.exitSchema(base, path1, definitionSchema);
-            }
-        }
-        if (schemaObject.properties != null) {
-            for (var entry : schemaObject.properties.entrySet()) {
-                var propertyName = entry.getKey();
-                var propertySchema = entry.getValue();
-                String path1 = path + "/properties/" + propertyName;
-                // visitor.enterSchema(base, path1, propertySchema);
-                visitSchemas(base, path1, propertySchema, visitor);
-                // visitor.exitSchema(base, path1, propertySchema);
-            }
-        }
-        if (schemaObject.items != null) {
-            List<SchemaObject> schemaObjects = schemaObject.items;
-            for (int i = 0; i < schemaObjects.size(); i++) {
-                SchemaObject itemSchema = schemaObjects.get(i);
-                String path1 = path + "/items/" + i;
-                // visitor.enterSchema(base, path1, itemSchema);
-                visitSchemas(base, path1, itemSchema, visitor);
-                // visitor.exitSchema(base, path1, itemSchema);
-            }
+        visitSchemaMap(base, path, visitor, schemaObject.definitions, "definitions");
+        visitSchemaMap(base, path, visitor, schemaObject.properties, "properties");
+        visitSchemaArray(base, path, visitor, schemaObject.items, "items");
+        visitSchemaArray(base, path, visitor, schemaObject.oneOf, "oneOf");
+        visitSchemaArray(base, path, visitor, schemaObject.allOf, "allOf");
+        visitSchemaArray(base, path, visitor, schemaObject.anyOf, "anyOf");
+        if (schemaObject.not != null) {
+            String path1 = path + "/not";
+            visitSchemas(base, path1, "not", schemaObject.not, visitor);
         }
         try {
-            visitor.exitSchema(base, path, schemaObject);
+            visitor.exitSchema(base, path, keyword, schemaObject);
         }
         catch (Exception e) {
             throw new VisitException(visitor.getClass().getName() + "#exitSchema() threw exception while visiting schema object at '" + path + "' from " + base, e);
+        }
+    }
+
+    private static void visitSchemaMap(URI base,
+                                       String path,
+                                       Visitor visitor,
+                                       @Nullable Map<String, SchemaObject> map,
+                                       String keyword) {
+        if (map != null) {
+            for (Map.Entry<String, SchemaObject> entry : map.entrySet()) {
+                String definitionName = entry.getKey();
+                SchemaObject definitionSchema = entry.getValue();
+                String path1 = path + "/" + keyword + "/" + definitionName;
+                visitSchemas(base, path1, keyword, definitionSchema, visitor);
+            }
+        }
+    }
+
+    private static void visitSchemaArray(URI base,
+                                         String path,
+                                         Visitor visitor,
+                                         @Nullable List<SchemaObject> array,
+                                         String keyword) {
+        if (array != null) {
+            for (int i = 0; i < array.size(); i++) {
+                SchemaObject itemSchema = array.get(i);
+                String path1 = path + "/" + keyword + "/" + i;
+                visitSchemas(base, path1, keyword, itemSchema, visitor);
+            }
         }
     }
 }

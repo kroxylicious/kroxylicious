@@ -5,6 +5,6 @@
 #
 
 $schema: http://json-schema.org/draft-04/schema#
-id: https://schema.kroxylicious.io/Boolean.yaml
+id: https://schema.kroxylicious.io/test/Boolean.yaml
 description: A class with scalar properties
 type: boolean

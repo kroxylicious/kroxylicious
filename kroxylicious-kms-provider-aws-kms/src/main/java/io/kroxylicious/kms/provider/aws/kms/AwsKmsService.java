@@ -6,11 +6,17 @@
 
 package io.kroxylicious.kms.provider.aws.kms;
 
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Objects;
 
+import javax.net.ssl.SSLContext;
+
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
+import io.kroxylicious.kms.provider.aws.kms.config.JdkTls;
+import io.kroxylicious.kms.provider.aws.kms.config.SslConfigurationException;
 import io.kroxylicious.kms.service.KmsService;
+import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -24,6 +30,21 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
     @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
     private volatile Config config;
 
+    @NonNull
+    public static SSLContext sslContext(Tls tls) {
+        try {
+            if (tls == null) {
+                return SSLContext.getDefault();
+            }
+            else {
+                return new JdkTls(tls).sslContext();
+            }
+        }
+        catch (NoSuchAlgorithmException e) {
+            throw new SslConfigurationException(e);
+        }
+    }
+
     @Override
     public void initialize(@NonNull Config config) {
         Objects.requireNonNull(config);
@@ -34,10 +55,11 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
     @Override
     public AwsKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");
-        return new AwsKms(config.endpointUrl(),
-                config.accessKey().getProvidedPassword(),
-                config.secretKey().getProvidedPassword(),
-                config.region(),
-                Duration.ofSeconds(20), config.sslContext());
+        SSLContext sslContext = sslContext(config.getTls());
+        return new AwsKms(config.getEndpointUrl(),
+                config.getAccessKey().getProvidedPassword(),
+                config.getSecretKey().getProvidedPassword(),
+                config.getRegion(),
+                Duration.ofSeconds(20), sslContext);
     }
 }

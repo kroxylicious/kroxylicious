@@ -40,17 +40,20 @@ public class SchemaCompiler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SchemaCompiler.class);
 
-    private final List<Path> src;
+    private final List<Path> srcPaths;
     private final CodeGen codeGen;
     private final YAMLMapper mapper;
     private final Namer namer;
     private final @Nullable String header;
-    private final Diagnostics diagnostics;
+    final Diagnostics diagnostics;
+    private final List<String> packages;
 
-    public SchemaCompiler(List<Path> src,
+    public SchemaCompiler(List<Path> srcPaths,
+                          List<String> packages,
                           @Nullable String header,
                           Map<String, String> existingClasses) {
-        this.src = Objects.requireNonNull(src);
+        this.srcPaths = Objects.requireNonNull(srcPaths);
+        this.packages = packages;
         if (header != null) {
             header = maybeWrapInComment(header);
         }
@@ -84,7 +87,7 @@ public class SchemaCompiler {
 
     public List<Input> parse() {
 
-        return src.stream().flatMap(srcPath -> {
+        return srcPaths.stream().flatMap(srcPath -> {
             LOGGER.debug("Parsing {}", srcPath.toAbsolutePath());
             try (Stream<Path> walkPaths = Files.walk(srcPath)) {
                 return walkPaths.flatMap(file -> {
@@ -92,7 +95,9 @@ public class SchemaCompiler {
                     if (Files.isRegularFile(file)
                             && (string.endsWith(".yaml")
                                     || string.endsWith(".yml")
-                                    || string.endsWith(".json"))) {
+                                    || string.endsWith(".json"))
+                            && (packages == null
+                                    || packages.contains(srcPath.relativize(file).getParent().toString().replace("/", ".")))) {
                         return parseSchema(srcPath, file);
                     }
                     return Stream.empty();
@@ -127,7 +132,13 @@ public class SchemaCompiler {
             // We should now be able to resolve local $ref
             String rootClass = schemaFile.getFileName().toString().replaceAll("\\.yaml$", "");
             var refResolver = new RefResolver(diagnostics, namer, rootClass);
-            rootSchema.visitSchemas(schemaFile.toUri(), refResolver);
+            try {
+                rootSchema.visitSchemas(schemaFile.toUri(), refResolver);
+            }
+            catch (VisitException e) {
+                diagnostics.reportError("Unable to read source file {}", schemaFile, e);
+                return Stream.empty();
+            }
 
             String pkg = StreamSupport.stream(relPath.getParent().spliterator(), false)
                     .map(Path::toString)
@@ -135,7 +146,7 @@ public class SchemaCompiler {
 
             return Stream.of(new Input(schemaFile, pkg, rootSchema));
         }
-        catch (IOException | IllegalArgumentException | VisitException e) {
+        catch (IOException | IllegalArgumentException e) {
             diagnostics.reportError("Unable to read source file {}: {}", schemaFile, e.getMessage());
             return Stream.empty();
         }
@@ -212,7 +223,7 @@ public class SchemaCompiler {
         List<Path> src = List.of(Path.of("kroxylicious-schema-tools/src/test/schema"));
         Path dst = Path.of("kroxylicious-schema-tools/target/generated-test-sources/foos");
 
-        var compiler = new SchemaCompiler(src, null, Map.of());
+        var compiler = new SchemaCompiler(src, null, null, Map.of());
         var trees = compiler.parse();
         var units = compiler.gen(trees);
         compiler.write(dst, units);

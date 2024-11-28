@@ -94,12 +94,6 @@
             <scope>compile</scope>
         </dependency>
 
-
-
-        <dependency>
-            <groupId>io.fabric8</groupId>
-            <artifactId>kubernetes-model-common</artifactId>
-        </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-core</artifactId>
@@ -141,7 +135,6 @@
                             <existingClasses>
                                 <io.kroxylicious.tools.crd.model.ObjectMeta>io.fabric8.kubernetes.api.model.ObjectMeta</io.kroxylicious.tools.crd.model.ObjectMeta>
                                 <io.kroxylicious.tools.crd.model.CrdSpecVersionSchemaOpenAPIV3Schema>io.kroxylicious.tools.schema.model.SchemaObject</io.kroxylicious.tools.crd.model.CrdSpecVersionSchemaOpenAPIV3Schema>
-
                             </existingClasses>
                         </configuration>
                     </execution>

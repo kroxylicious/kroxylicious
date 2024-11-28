@@ -5,7 +5,7 @@
 #
 
 $schema: http://json-schema.org/draft-04/schema#
-id: https://schema.kroxylicious.io/Crd.yaml
+id: https://schema.kroxylicious.iotest/Tricky.yaml
 description: The Kubernetes CRD model
 type: object
 required:

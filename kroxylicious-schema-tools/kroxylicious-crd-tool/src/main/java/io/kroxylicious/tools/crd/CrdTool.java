@@ -78,13 +78,13 @@ public class CrdTool {
     private void generateJava(InputCrd inputCrd) {
 
         // TODO Generate classes according to the CRD schemas
-        var schemaCompiler = new SchemaCompiler(List.of(), header, Map.of());
+        var schemaCompiler = new SchemaCompiler(List.of(), null, header, Map.of());
         // schemaCompiler.gen()
         // schemaCompiler.write();
         inputCrd.src();
 
         // TODO Generate the Crd class itself
-        System.out.println(new CrdCodeGen().genDecl("pkg", inputCrd.crd()).toString());
+        LOGGER.debug(new CrdCodeGen().genDecl("pkg", inputCrd.crd()).toString());
     }
 
     private void writeCrd(Crd x) {
@@ -126,6 +126,7 @@ public class CrdTool {
         public void enterSchema(
                                 URI base,
                                 String path,
+                                String keyword,
                                 SchemaObject schema) {
             if (schema.getRef() != null) {
                 var ref = URI.create(schema.getRef());
@@ -163,8 +164,9 @@ public class CrdTool {
         public void exitSchema(
                                URI base,
                                String path,
+                               String keyword,
                                @NonNull SchemaObject schema) {
-            super.exitSchema(base, path, schema);
+            super.exitSchema(base, path, keyword, schema);
             // TODO remove 'id', $schema, etc, so that Kube will actually accept it
         }
     }

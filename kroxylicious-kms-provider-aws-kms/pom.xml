@@ -96,4 +96,31 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-maven-plugin</artifactId>
+                <version>${project.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-config-model</id>
+                        <goals>
+                            <goal>compile-schema</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <failOnWarnings>true</failOnWarnings>
+                            <headerFile>../etc/license.txt</headerFile>
+                            <existingClasses>
+                                <io.kroxylicious.kms.provider.aws.kms.config.PasswordProvider>io.kroxylicious.proxy.config.secret.PasswordProvider</io.kroxylicious.kms.provider.aws.kms.config.PasswordProvider>
+                                <io.kroxylicious.kms.provider.aws.kms.config.Tls>io.kroxylicious.proxy.config.tls.Tls</io.kroxylicious.kms.provider.aws.kms.config.Tls>
+                            </existingClasses>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
