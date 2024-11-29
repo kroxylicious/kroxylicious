@@ -27,15 +27,6 @@ public record Tls(KeyProvider key,
                   TrustProvider trust,
                   @Nullable TlsClientAuth clientAuth) {
 
-    /**
-     * @deprecated use the all args constructor {@see io.kroxylicious.proxy.config.tls.Tls#Tls(io.kroxylicious.proxy.config.tls.KeyProvider, io.kroxylicious.proxy.config.tls.TrustProvider, io.kroxylicious.proxy.config.tls.TlsClientAuth)}
-     */
-    // This is required for API backwards compatability
-    @Deprecated(forRemoval = true, since = "0.10.0")
-    public Tls(KeyProvider key, TrustProvider trust) {
-        this(key, trust, null);
-    }
-
     // Sonar is wrong about this being equivalent to the default ctor as the fields are not initialised by the default before calling the validation.
     @SuppressWarnings("java:S6207")
     public Tls(KeyProvider key, TrustProvider trust, TlsClientAuth clientAuth) {
@@ -43,6 +34,15 @@ public record Tls(KeyProvider key,
         this.trust = trust;
         this.clientAuth = clientAuth;
         validateClientAuth();
+    }
+
+    /**
+     * @deprecated use the all args constructor {@see io.kroxylicious.proxy.config.tls.Tls#Tls(io.kroxylicious.proxy.config.tls.KeyProvider, io.kroxylicious.proxy.config.tls.TrustProvider, io.kroxylicious.proxy.config.tls.TlsClientAuth)}
+     */
+    // This is required for API backwards compatability
+    @Deprecated(forRemoval = true, since = "0.10.0")
+    public Tls(KeyProvider key, TrustProvider trust) {
+        this(key, trust, null);
     }
 
     public static final String PEM = "PEM";

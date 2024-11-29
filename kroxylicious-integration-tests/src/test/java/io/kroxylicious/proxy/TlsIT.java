@@ -47,6 +47,7 @@ import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.FilePassword;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
+import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -336,6 +337,50 @@ class TlsIT extends BaseIT {
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_TlsClientAuthRequired(KafkaCluster cluster) throws Exception {
+        var bootstrapServers = cluster.getBootstrapServers();
+
+        // Generator for certificate that will identify the client
+        var clientCertGenerator = new KeytoolCertificateGenerator();
+        clientCertGenerator.generateSelfSignedCertificateEntry("clientTest@kroxylicious.io", "client", "Dev", "Kroxylicious.io", null, null, "US");
+        var proxyTrustStore = certsDirectory.resolve("proxy.truststore.jks");
+        clientCertGenerator.generateTrustStore(clientCertGenerator.getCertFilePath(), "proxy",
+                proxyTrustStore.toAbsolutePath().toString());
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewTls()
+                        .withClientAuth(TlsClientAuth.REQUIRED)
+                        .withNewKeyStoreKey()
+                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .withNewTrustStoreTrust()
+                        .withStoreFile(proxyTrustStore.toAbsolutePath().toString())
+                        .withNewInlinePasswordStoreProvider(clientCertGenerator.getPassword())
+                        .endTrustStoreTrust()
+                        .endTls()
+                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // do some work to ensure connection is opened
             final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
