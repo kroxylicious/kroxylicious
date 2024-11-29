@@ -18,6 +18,7 @@ import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
+import org.apache.kafka.common.message.AddRaftVoterRequestData;
 import org.apache.kafka.common.message.AllocateProducerIdsRequestData;
 import org.apache.kafka.common.message.AlterClientQuotasRequestData;
 import org.apache.kafka.common.message.AlterConfigsRequestData;
@@ -41,6 +42,7 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DeleteAclsRequestData;
 import org.apache.kafka.common.message.DeleteGroupsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsRequestData;
+import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DescribeAclsRequestData;
 import org.apache.kafka.common.message.DescribeClientQuotasRequestData;
@@ -66,6 +68,7 @@ import org.apache.kafka.common.message.GetTelemetrySubscriptionsRequestData;
 import org.apache.kafka.common.message.HeartbeatRequestData;
 import org.apache.kafka.common.message.IncrementalAlterConfigsRequestData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
+import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.LeaderAndIsrRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
@@ -81,16 +84,25 @@ import org.apache.kafka.common.message.OffsetFetchRequestData;
 import org.apache.kafka.common.message.OffsetForLeaderEpochRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.PushTelemetryRequestData;
+import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
+import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
+import org.apache.kafka.common.message.RemoveRaftVoterRequestData;
 import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
+import org.apache.kafka.common.message.ShareAcknowledgeRequestData;
+import org.apache.kafka.common.message.ShareFetchRequestData;
+import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
+import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.StopReplicaRequestData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.UnregisterBrokerRequestData;
 import org.apache.kafka.common.message.UpdateFeaturesRequestData;
 import org.apache.kafka.common.message.UpdateMetadataRequestData;
+import org.apache.kafka.common.message.UpdateRaftVoterRequestData;
 import org.apache.kafka.common.message.VoteRequestData;
+import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
 import org.apache.kafka.common.message.WriteTxnMarkersRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -98,6 +110,7 @@ import org.apache.kafka.common.requests.AbstractRequest;
 import org.apache.kafka.common.requests.AbstractResponse;
 import org.apache.kafka.common.requests.AddOffsetsToTxnRequest;
 import org.apache.kafka.common.requests.AddPartitionsToTxnRequest;
+import org.apache.kafka.common.requests.AddRaftVoterRequest;
 import org.apache.kafka.common.requests.AllocateProducerIdsRequest;
 import org.apache.kafka.common.requests.AlterClientQuotasRequest;
 import org.apache.kafka.common.requests.AlterConfigsRequest;
@@ -121,6 +134,7 @@ import org.apache.kafka.common.requests.CreateTopicsRequest;
 import org.apache.kafka.common.requests.DeleteAclsRequest;
 import org.apache.kafka.common.requests.DeleteGroupsRequest;
 import org.apache.kafka.common.requests.DeleteRecordsRequest;
+import org.apache.kafka.common.requests.DeleteShareGroupStateRequest;
 import org.apache.kafka.common.requests.DeleteTopicsRequest;
 import org.apache.kafka.common.requests.DescribeAclsRequest;
 import org.apache.kafka.common.requests.DescribeClientQuotasRequest;
@@ -146,6 +160,7 @@ import org.apache.kafka.common.requests.GetTelemetrySubscriptionsRequest;
 import org.apache.kafka.common.requests.HeartbeatRequest;
 import org.apache.kafka.common.requests.IncrementalAlterConfigsRequest;
 import org.apache.kafka.common.requests.InitProducerIdRequest;
+import org.apache.kafka.common.requests.InitializeShareGroupStateRequest;
 import org.apache.kafka.common.requests.JoinGroupRequest;
 import org.apache.kafka.common.requests.LeaderAndIsrRequest;
 import org.apache.kafka.common.requests.LeaveGroupRequest;
@@ -161,16 +176,25 @@ import org.apache.kafka.common.requests.OffsetFetchRequest;
 import org.apache.kafka.common.requests.OffsetsForLeaderEpochRequest;
 import org.apache.kafka.common.requests.ProduceRequest;
 import org.apache.kafka.common.requests.PushTelemetryRequest;
+import org.apache.kafka.common.requests.ReadShareGroupStateRequest;
+import org.apache.kafka.common.requests.ReadShareGroupStateSummaryRequest;
+import org.apache.kafka.common.requests.RemoveRaftVoterRequest;
 import org.apache.kafka.common.requests.RenewDelegationTokenRequest;
 import org.apache.kafka.common.requests.SaslAuthenticateRequest;
 import org.apache.kafka.common.requests.SaslHandshakeRequest;
+import org.apache.kafka.common.requests.ShareAcknowledgeRequest;
+import org.apache.kafka.common.requests.ShareFetchRequest;
+import org.apache.kafka.common.requests.ShareGroupDescribeRequest;
+import org.apache.kafka.common.requests.ShareGroupHeartbeatRequest;
 import org.apache.kafka.common.requests.StopReplicaRequest;
 import org.apache.kafka.common.requests.SyncGroupRequest;
 import org.apache.kafka.common.requests.TxnOffsetCommitRequest;
 import org.apache.kafka.common.requests.UnregisterBrokerRequest;
 import org.apache.kafka.common.requests.UpdateFeaturesRequest;
 import org.apache.kafka.common.requests.UpdateMetadataRequest;
+import org.apache.kafka.common.requests.UpdateRaftVoterRequest;
 import org.apache.kafka.common.requests.VoteRequest;
+import org.apache.kafka.common.requests.WriteShareGroupStateRequest;
 import org.apache.kafka.common.requests.WriteTxnMarkersRequest;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePatternFilter;
@@ -223,8 +247,7 @@ public class KafkaProxyExceptionMapper {
                 ListOffsetsRequestData listOffsetsRequestData = (ListOffsetsRequestData) reqBody;
                 if (listOffsetsRequestData.replicaId() == ListOffsetsRequest.CONSUMER_REPLICA_ID) {
                     req = ListOffsetsRequest.Builder.forConsumer(true,
-                            IsolationLevel.forId(listOffsetsRequestData.isolationLevel()),
-                            true)
+                            IsolationLevel.forId(listOffsetsRequestData.isolationLevel()))
                             .setTargetTimes(listOffsetsRequestData.topics())
                             .build(apiVersion);
                 }
@@ -539,6 +562,43 @@ public class KafkaProxyExceptionMapper {
                 break;
             case DESCRIBE_TOPIC_PARTITIONS:
                 req = new DescribeTopicPartitionsRequest((DescribeTopicPartitionsRequestData) reqBody, apiVersion);
+                break;
+            case ADD_RAFT_VOTER:
+                req = new AddRaftVoterRequest((AddRaftVoterRequestData) reqBody, apiVersion);
+                break;
+            case REMOVE_RAFT_VOTER:
+                req = new RemoveRaftVoterRequest((RemoveRaftVoterRequestData) reqBody, apiVersion);
+                break;
+            case UPDATE_RAFT_VOTER:
+                req = new UpdateRaftVoterRequest((UpdateRaftVoterRequestData) reqBody, apiVersion);
+                break;
+            case SHARE_GROUP_HEARTBEAT:
+                req = new ShareGroupHeartbeatRequest((ShareGroupHeartbeatRequestData) reqBody, apiVersion);
+                break;
+            case SHARE_GROUP_DESCRIBE:
+                req = new ShareGroupDescribeRequest((ShareGroupDescribeRequestData) reqBody, apiVersion);
+
+                break;
+            case SHARE_FETCH:
+                req = new ShareFetchRequest((ShareFetchRequestData) reqBody, apiVersion);
+                break;
+            case SHARE_ACKNOWLEDGE:
+                req = new ShareAcknowledgeRequest((ShareAcknowledgeRequestData) reqBody, apiVersion);
+                break;
+            case INITIALIZE_SHARE_GROUP_STATE:
+                req = new InitializeShareGroupStateRequest((InitializeShareGroupStateRequestData) reqBody, apiVersion);
+                break;
+            case READ_SHARE_GROUP_STATE:
+                req = new ReadShareGroupStateRequest((ReadShareGroupStateRequestData) reqBody, apiVersion);
+                break;
+            case WRITE_SHARE_GROUP_STATE:
+                req = new WriteShareGroupStateRequest((WriteShareGroupStateRequestData) reqBody, apiVersion);
+                break;
+            case DELETE_SHARE_GROUP_STATE:
+                req = new DeleteShareGroupStateRequest((DeleteShareGroupStateRequestData) reqBody, apiVersion);
+                break;
+            case READ_SHARE_GROUP_STATE_SUMMARY:
+                req = new ReadShareGroupStateSummaryRequest((ReadShareGroupStateSummaryRequestData) reqBody, apiVersion);
                 break;
             default:
                 throw new IllegalStateException();
