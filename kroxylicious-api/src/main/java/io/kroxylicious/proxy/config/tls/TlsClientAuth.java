@@ -1,3 +1,9 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 package io.kroxylicious.proxy.config.tls;
 
 public enum TlsClientAuth {
@@ -13,13 +19,4 @@ public enum TlsClientAuth {
         this.clientAuth = clientAuth;
         this.nettyClientAuth = nettyClientAuth;
     }
-
-    public String getClientAuth() {
-        return this.clientAuth;
-    }
-
-    public String getNettyClientAuth() {
-        return this.nettyClientAuth;
-    }
-
 }
