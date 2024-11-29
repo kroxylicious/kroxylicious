@@ -39,8 +39,10 @@ class VirtualClusterTest {
         final KeyPair keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"),
                 TlsTestConstants.getResourceLocationOnFilesystem("server.crt"),
                 null);
-        final Optional<Tls> tls = Optional.of(new Tls(keyPair,
-                new InsecureTls(false)));
+        final Optional<Tls> tls = Optional.of(
+                new Tls(keyPair,
+                        new InsecureTls(false),
+                        null));
         final PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),
                 "localhost", 19092, 0, 1);
@@ -97,8 +99,7 @@ class VirtualClusterTest {
                         (Consumer<SSLEngine>) (SSLEngine sslEngine) -> {
                             assertThat(sslEngine.getWantClientAuth()).isFalse();
                             assertThat(sslEngine.getNeedClientAuth()).isFalse();
-                        }
-                ),
+                        }),
                 argumentSet("want client side auth",
                         TlsClientAuth.REQUESTED,
                         (Consumer<SSLEngine>) (SSLEngine sslEngine) -> {
@@ -110,7 +111,6 @@ class VirtualClusterTest {
                         (Consumer<SSLEngine>) (SSLEngine sslEngine) -> {
                             assertThat(sslEngine.getWantClientAuth()).isFalse();
                             assertThat(sslEngine.getNeedClientAuth()).isTrue();
-                        })
-        );
+                        }));
     }
 }

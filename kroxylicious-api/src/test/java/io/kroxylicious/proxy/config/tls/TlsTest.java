@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.config.secret.FilePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TlsTest {
 
@@ -28,32 +29,52 @@ class TlsTest {
 
     @Test
     void testKeyDefined() {
-        Tls tls = new Tls(new KeyPair("/tmp/key", "/tmp/cert", null), null);
+        Tls tls = new Tls(new KeyPair("/tmp/key", "/tmp/cert", null), null, null);
         assertThat(tls.definesKey()).isTrue();
     }
 
     @Test
     void testKeyNotDefined() {
-        Tls tls = new Tls(null, null);
+        Tls tls = new Tls(null, null, null);
         assertThat(tls.definesKey()).isFalse();
     }
 
     @Test
     void testClientAuthDefined() {
         Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), TlsClientAuth.NONE);
-        assertThat(tls.definesClientAuth()).isTrue();
+        assertThat(tls.validateClientAuth()).isTrue();
     }
 
     @Test
-    void testClientAuthNotDefinedNoTrust() {
-        Tls tls = new Tls(null, null, TlsClientAuth.REQUIRED);
-        assertThat(tls.definesClientAuth()).isFalse();
+    void shouldRequireTrustStoreForClientAuthRequired() {
+        // Given
+        // When
+        // Then
+        assertThatThrownBy(() -> new Tls(null, null, TlsClientAuth.REQUIRED))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("ClientAuth enabled but no TrustStore provided to validate certificates");
     }
 
     @Test
-    void testClientAuthNotDefinedNoClientAuth() {
-        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), null);
-        assertThat(tls.definesClientAuth()).isFalse();
+    void shouldRequireTrustStoreForClientAuthRequested() {
+        // Given
+        // When
+        // Then
+        assertThatThrownBy(() -> new Tls(null, null, TlsClientAuth.REQUESTED))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("ClientAuth enabled but no TrustStore provided to validate certificates");
+    }
+
+    @Test
+    void shouldNotRequireTrustStoreForClientAuthNone() {
+        // Given
+        Tls tls = new Tls(null, null, TlsClientAuth.NONE);
+
+        // When
+        final boolean actual = tls.validateClientAuth();
+
+        // Then
+        assertThat(actual).isTrue();
     }
 
     @Test

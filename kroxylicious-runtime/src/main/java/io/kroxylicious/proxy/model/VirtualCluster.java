@@ -20,17 +20,16 @@ import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
@@ -79,7 +78,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                                                  ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
                                                  Optional<Tls> tls) {
         try {
-            var downstreamTls = tls.map(tls1 -> " (TLS)").orElse("");
+            var downstreamTls = tls.map(tls1 -> " (TLS clientAuth: " + tls1.clientAuth() + ")").orElse("");
             HostPort downstreamBootstrap = clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
             var upstreamTls = targetCluster.tls().map(tls1 -> " (TLS)").orElse("");
             HostPort upstreamHostPort = targetCluster.bootstrapServersList().get(0);
@@ -187,13 +186,8 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                 var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
                         .orElseThrow();
 
-                if (tlsConfiguration.definesClientAuth()) {
-                    return new NettyTrustProvider(tlsConfiguration.trust()).apply(sslContextBuilder.clientAuth(toNettyClientAuth(tlsConfiguration)))
-                            .build();
-                }
-                else {
-                    return sslContextBuilder.build();
-                }
+                return configureTrustProvider(tlsConfiguration).apply(sslContextBuilder.clientAuth(toNettyClientAuth(tlsConfiguration)))
+                        .build();
             }
             catch (SSLException e) {
                 throw new UncheckedIOException(e);
@@ -223,8 +217,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                 var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
                         .orElse(SslContextBuilder.forClient());
 
-                final TrustProvider trustProvider = Optional.ofNullable(targetClusterTls.trust()).orElse(PlatformTrustProvider.INSTANCE);
-                var withTrust = new NettyTrustProvider(trustProvider).apply(sslContextBuilder);
+                var withTrust = configureTrustProvider(targetClusterTls).apply(sslContextBuilder);
 
                 return withTrust.build();
             }
@@ -232,6 +225,12 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                 throw new UncheckedIOException(e);
             }
         });
+    }
+
+    @NonNull
+    private static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
+        final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
+        return new NettyTrustProvider(trustProvider);
     }
 
     private static void validatePortUsage(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider) {
