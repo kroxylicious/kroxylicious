@@ -197,18 +197,11 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     @NonNull
     private static ClientAuth toNettyClientAuth(Tls tlsConfiguration) {
-        switch (tlsConfiguration.clientAuth()) {
-            case REQUIRED -> {
-                return ClientAuth.REQUIRE;
-            }
-            case REQUESTED -> {
-                return ClientAuth.OPTIONAL;
-            }
-            case NONE -> {
-                return ClientAuth.NONE;
-            }
-            default -> throw new IllegalStateException("Unexpected value: " + tlsConfiguration.clientAuth());
-        }
+        return switch (tlsConfiguration.clientAuth()) {
+            case REQUIRED -> ClientAuth.REQUIRE;
+            case REQUESTED -> ClientAuth.OPTIONAL;
+            case NONE -> ClientAuth.NONE;
+        };
     }
 
     private Optional<SslContext> buildUpstreamSslContext() {
