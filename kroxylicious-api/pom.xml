@@ -72,6 +72,10 @@
             <artifactId>junit-jupiter-params</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-annotations</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
