@@ -25,12 +25,6 @@ public class Tricky {
     private trickynaming.TrickySpec spec;
 
     /**
-     * Nullary constructor (used for deserialization).
-     */
-    public Tricky() {
-    }
-
-    /**
      * Required properties constructor.
      * @param apiVersion The value of the {@code apiVersion} property. This is a required property.
      * @param kind The value of the {@code kind} property. This is a required property.

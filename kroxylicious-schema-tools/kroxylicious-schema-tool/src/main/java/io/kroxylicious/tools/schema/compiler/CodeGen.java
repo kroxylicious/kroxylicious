@@ -348,11 +348,6 @@ public class CodeGen {
     }
 
     private void mkConstructors(String pkg, SchemaObject root, Map<String, SchemaObject> properties, Set<String> required, ClassOrInterfaceDeclaration clz) {
-        if (!properties.isEmpty() && !required.isEmpty()) {
-            // Add nullary constructor (but only if the other constructs won't be nullary)
-            clz.addMember(mkConstructor(pkg, root, clz, "Nullary constructor (used for deserialization).", Map.of(), required, (x, y) -> List.of()));
-        }
-
         if (required.size() != properties.size()) {
             // Add required properties constructor (but only if it won't collide with the all properties ctor)
             // Honour the order in `properties`, not `required`

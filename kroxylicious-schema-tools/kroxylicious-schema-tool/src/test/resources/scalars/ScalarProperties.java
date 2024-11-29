@@ -46,12 +46,6 @@ public class ScalarProperties {
     private java.lang.String requiredString;
 
     /**
-     * Nullary constructor (used for deserialization).
-     */
-    public ScalarProperties() {
-    }
-
-    /**
      * Required properties constructor.
      * @param requiredNull The value of the {@code requiredNull} property. This is a required property.
      * @param requiredBoolean The value of the {@code requiredBoolean} property. This is a required property.

@@ -31,12 +31,6 @@ public class Config {
     private xref.Tls tls;
 
     /**
-     * Nullary constructor (used for deserialization).
-     */
-    public Config() {
-    }
-
-    /**
      * Required properties constructor.
      * @param endpointUrl The value of the {@code endpointUrl} property. This is a required property.
      */

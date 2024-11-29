@@ -89,6 +89,7 @@ class CodeGenTest {
         // Then assert that the expected files can be compiled with a java compiler
         // Because `generated == expected` this means the generated must be legal java source code
         compileJavaFilesBeneath(Path.of(yamlFilename).getParent());
+        javadocJavaFilesBeneath(Path.of(yamlFilename).getParent());
     }
 
     private static void assertGeneratedCodeMatches(String yamlFilename) {
@@ -119,6 +120,9 @@ class CodeGenTest {
                     .describedAs("Unexpected java source output (or expected output java file doesn't exist)")
                     .exists();
             try {
+                // The following can be uncomments to bulk-update the expected java files
+                // following a change to the code generator
+                // USE WITH CAUTION ;-)
                 // Files.writeString(expectedJavaFile.toPath(), HEADER + cus.get(0).toString());
                 String javaSrc = Files.readString(expectedJavaFile.toPath()).trim();
                 assertThat(cus).singleElement()
@@ -147,6 +151,23 @@ class CodeGenTest {
             Iterable<? extends JavaFileObject> compilationUnits1 = fileManager.getJavaFileObjectsFromPaths(javaFilesBeneath(path));
             assertThat(compiler.getTask(null, fileManager, null, List.of("-d", outputDir.toString()), null, compilationUnits1).call())
                     .describedAs("The java source code should compile without errors")
+                    .isTrue();
+        }
+    }
+
+    /**
+     * Compile the *.java files found beneath the given path.
+     * Throw away the generated .class files
+     * @param path
+     * @throws IOException
+     */
+    private static void javadocJavaFilesBeneath(Path path) throws IOException {
+        var outputDir = Files.createTempDirectory(CodeGenTest.class.getSimpleName());
+        var docTool = ToolProvider.getSystemDocumentationTool();
+        try (var fileManager = docTool.getStandardFileManager(null, null, null)) {
+            Iterable<? extends JavaFileObject> compilationUnits1 = fileManager.getJavaFileObjectsFromPaths(javaFilesBeneath(path));
+            assertThat(docTool.getTask(null, fileManager, null, null, List.of("-Xdoclint:all", "-Werror", "-public", "-d", outputDir.toString()), compilationUnits1).call())
+                    .describedAs("The javadoc should be processed without errors")
                     .isTrue();
         }
     }
