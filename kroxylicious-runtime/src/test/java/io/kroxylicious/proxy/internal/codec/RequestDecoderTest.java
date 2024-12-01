@@ -31,6 +31,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
+import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -92,7 +93,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                                         .forFilters(FilterAndInvoker.build(
                                                 (ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder()
                                                         .forward(header, request).completed())),
-                                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES),
+                                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl()),
                         DecodedRequestFrame.class,
                         (RequestHeaderData header) -> header, true),
                 "Unexpected correlation id");
@@ -173,7 +174,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                                                                                                      FilterContext context) {
                                         return context.requestFilterResultBuilder().forward(header, request).completed();
                                     }
-                                })), DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES),
+                                })), DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl()),
                         OpaqueRequestFrame.class, true),
                 "Unexpected correlation id");
     }
@@ -195,7 +196,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         FilterAndInvoker.build((ApiVersionsRequestFilter) (version, header, request, context) -> {
                             return context.requestFilterResultBuilder().forward(header, request).completed();
                         })),
-                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES)
+                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl())
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
@@ -227,7 +228,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
     private static KafkaRequestDecoder getKafkaRequestDecoder(DecodePredicate predicate, int socketFrameMaxSizeBytes) {
         return new KafkaRequestDecoder(
                 predicate,
-                socketFrameMaxSizeBytes);
+                socketFrameMaxSizeBytes, new ApiVersionsServiceImpl());
     }
 
     @ParameterizedTest
@@ -269,7 +270,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         FilterAndInvoker
                                 .build((ApiVersionsRequestFilter) (version, head, request, context) -> context.requestFilterResultBuilder().forward(header, request)
                                         .completed())),
-                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES)
+                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl())
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));
