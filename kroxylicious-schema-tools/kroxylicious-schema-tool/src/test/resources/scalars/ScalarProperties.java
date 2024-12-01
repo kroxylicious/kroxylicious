@@ -46,46 +46,30 @@ public class ScalarProperties {
     private java.lang.String requiredString;
 
     /**
-     * Required properties constructor.
-     * @param requiredNull The value of the {@code requiredNull} property. This is a required property.
-     * @param requiredBoolean The value of the {@code requiredBoolean} property. This is a required property.
-     * @param requiredInteger The value of the {@code requiredInteger} property. This is a required property.
-     * @param requiredNumber The value of the {@code requiredNumber} property. This is a required property.
-     * @param requiredString The value of the {@code requiredString} property. This is a required property.
-     */
-    public ScalarProperties(@edu.umd.cs.findbugs.annotations.NonNull java.lang.Object requiredNull, @edu.umd.cs.findbugs.annotations.NonNull java.lang.Boolean requiredBoolean, @edu.umd.cs.findbugs.annotations.NonNull java.lang.Long requiredInteger, @edu.umd.cs.findbugs.annotations.NonNull java.lang.Double requiredNumber, @edu.umd.cs.findbugs.annotations.NonNull java.lang.String requiredString) {
-        this.requiredNull = java.util.Objects.requireNonNull(requiredNull);
-        this.requiredBoolean = java.util.Objects.requireNonNull(requiredBoolean);
-        this.requiredInteger = java.util.Objects.requireNonNull(requiredInteger);
-        this.requiredNumber = java.util.Objects.requireNonNull(requiredNumber);
-        this.requiredString = java.util.Objects.requireNonNull(requiredString);
-    }
-
-    /**
      * All properties constructor.
-     * @param requiredNull The value of the {@code requiredNull} property. This is a required property.
-     * @param requiredBoolean The value of the {@code requiredBoolean} property. This is a required property.
-     * @param requiredInteger The value of the {@code requiredInteger} property. This is a required property.
-     * @param requiredNumber The value of the {@code requiredNumber} property. This is a required property.
-     * @param requiredString The value of the {@code requiredString} property. This is a required property.
      * @param null_ The value of the {@code null} property. This is an optional property.
      * @param boolean_ The value of the {@code boolean} property. This is an optional property.
      * @param integer The value of the {@code integer} property. This is an optional property.
      * @param number The value of the {@code number} property. This is an optional property.
      * @param string The value of the {@code string} property. This is an optional property.
+     * @param requiredNull The value of the {@code requiredNull} property. This is a required property.
+     * @param requiredBoolean The value of the {@code requiredBoolean} property. This is a required property.
+     * @param requiredInteger The value of the {@code requiredInteger} property. This is a required property.
+     * @param requiredNumber The value of the {@code requiredNumber} property. This is a required property.
+     * @param requiredString The value of the {@code requiredString} property. This is a required property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator()
-    public ScalarProperties(@com.fasterxml.jackson.annotation.JsonProperty(value = "requiredNull", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.Object requiredNull, @com.fasterxml.jackson.annotation.JsonProperty(value = "requiredBoolean", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.Boolean requiredBoolean, @com.fasterxml.jackson.annotation.JsonProperty(value = "requiredInteger", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.Long requiredInteger, @com.fasterxml.jackson.annotation.JsonProperty(value = "requiredNumber", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.Double requiredNumber, @com.fasterxml.jackson.annotation.JsonProperty(value = "requiredString", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.String requiredString, @com.fasterxml.jackson.annotation.JsonProperty(value = "null") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Object null_, @com.fasterxml.jackson.annotation.JsonProperty(value = "boolean") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean boolean_, @com.fasterxml.jackson.annotation.JsonProperty(value = "integer") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Long integer, @com.fasterxml.jackson.annotation.JsonProperty(value = "number") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Double number, @com.fasterxml.jackson.annotation.JsonProperty(value = "string") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String string) {
-        this.requiredNull = java.util.Objects.requireNonNull(requiredNull);
-        this.requiredBoolean = java.util.Objects.requireNonNull(requiredBoolean);
-        this.requiredInteger = java.util.Objects.requireNonNull(requiredInteger);
-        this.requiredNumber = java.util.Objects.requireNonNull(requiredNumber);
-        this.requiredString = java.util.Objects.requireNonNull(requiredString);
+    public ScalarProperties(@com.fasterxml.jackson.annotation.JsonProperty(value = "null") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Object null_, @com.fasterxml.jackson.annotation.JsonProperty(value = "boolean") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean boolean_, @com.fasterxml.jackson.annotation.JsonProperty(value = "integer") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Long integer, @com.fasterxml.jackson.annotation.JsonProperty(value = "number") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Double number, @com.fasterxml.jackson.annotation.JsonProperty(value = "string") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String string, @com.fasterxml.jackson.annotation.JsonProperty(value = "requiredNull", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.Object requiredNull, @com.fasterxml.jackson.annotation.JsonProperty(value = "requiredBoolean", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.Boolean requiredBoolean, @com.fasterxml.jackson.annotation.JsonProperty(value = "requiredInteger", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.Long requiredInteger, @com.fasterxml.jackson.annotation.JsonProperty(value = "requiredNumber", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.Double requiredNumber, @com.fasterxml.jackson.annotation.JsonProperty(value = "requiredString", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.String requiredString) {
         this.null_ = null_;
         this.boolean_ = boolean_;
         this.integer = integer;
         this.number = number;
         this.string = string;
+        this.requiredNull = java.util.Objects.requireNonNull(requiredNull);
+        this.requiredBoolean = java.util.Objects.requireNonNull(requiredBoolean);
+        this.requiredInteger = java.util.Objects.requireNonNull(requiredInteger);
+        this.requiredNumber = java.util.Objects.requireNonNull(requiredNumber);
+        this.requiredString = java.util.Objects.requireNonNull(requiredString);
     }
 
     /**

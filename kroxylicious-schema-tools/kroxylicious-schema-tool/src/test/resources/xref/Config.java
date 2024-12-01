@@ -31,14 +31,6 @@ public class Config {
     private xref.Tls tls;
 
     /**
-     * Required properties constructor.
-     * @param endpointUrl The value of the {@code endpointUrl} property. This is a required property.
-     */
-    public Config(@edu.umd.cs.findbugs.annotations.NonNull java.lang.String endpointUrl) {
-        this.endpointUrl = java.util.Objects.requireNonNull(endpointUrl);
-    }
-
-    /**
      * All properties constructor.
      * @param endpointUrl The value of the {@code endpointUrl} property. This is a required property.
      * @param accessKey The value of the {@code accessKey} property. This is an optional property.

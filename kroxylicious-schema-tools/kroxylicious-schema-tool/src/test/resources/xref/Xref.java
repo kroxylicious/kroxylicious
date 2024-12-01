@@ -25,12 +25,6 @@ public class Xref {
     private xref.MyObject myObject;
 
     /**
-     * Required properties constructor.
-     */
-    public Xref() {
-    }
-
-    /**
      * All properties constructor.
      * @param myBoolean The value of the {@code myBoolean} property. This is an optional property.
      * @param myList The value of the {@code myList} property. This is an optional property.

@@ -19,12 +19,6 @@ public class AnonymousWeasel {
     private java.lang.String baz;
 
     /**
-     * Required properties constructor.
-     */
-    public AnonymousWeasel() {
-    }
-
-    /**
      * All properties constructor.
      * @param baz The value of the {@code baz} property. This is an optional property.
      */

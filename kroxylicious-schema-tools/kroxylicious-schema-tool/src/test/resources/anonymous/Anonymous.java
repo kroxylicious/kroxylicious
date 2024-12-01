@@ -25,12 +25,6 @@ public class Anonymous {
     private anonymous.ViaRef ref;
 
     /**
-     * Required properties constructor.
-     */
-    public Anonymous() {
-    }
-
-    /**
      * All properties constructor.
      * @param obj The value of the {@code obj} property. This is an optional property.
      * @param weasels The value of the {@code weasels} property. This is an optional property.

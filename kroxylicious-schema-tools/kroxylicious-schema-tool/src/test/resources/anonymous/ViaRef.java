@@ -19,12 +19,6 @@ public class ViaRef {
     private java.lang.String bar;
 
     /**
-     * Required properties constructor.
-     */
-    public ViaRef() {
-    }
-
-    /**
      * All properties constructor.
      * @param bar The value of the {@code bar} property. This is an optional property.
      */

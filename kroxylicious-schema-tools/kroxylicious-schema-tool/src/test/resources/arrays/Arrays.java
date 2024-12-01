@@ -31,12 +31,6 @@ public class Arrays {
     private java.util.List<arrays.FooBar> fooBars;
 
     /**
-     * Required properties constructor.
-     */
-    public Arrays() {
-    }
-
-    /**
      * All properties constructor.
      * @param strings The value of the {@code strings} property. This is an optional property.
      * @param stringSet The value of the {@code stringSet} property. This is an optional property.

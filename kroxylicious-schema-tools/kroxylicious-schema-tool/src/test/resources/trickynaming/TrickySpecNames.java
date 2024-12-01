@@ -28,12 +28,6 @@ public class TrickySpecNames {
     private java.util.List<java.lang.String> shortNames;
 
     /**
-     * Required properties constructor.
-     */
-    public TrickySpecNames() {
-    }
-
-    /**
      * All properties constructor.
      * @param kind The value of the {@code kind} property. This is an optional property.
      * @param plural The value of the {@code plural} property. This is an optional property.

@@ -8,7 +8,6 @@ package io.kroxylicious.filter.encryption.config;
 
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -17,10 +16,13 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.fasterxml.jackson.databind.json.JsonMapper;
+
+import io.kroxylicious.filter.encryption.RecordEncryption;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RecordEncryptionConfigTest {
 
@@ -76,42 +78,17 @@ class RecordEncryptionConfigTest {
         assertThat(accessor.apply(getKmsCacheConfig(configKey, configValue))).isEqualTo(expectedKmsConfig);
     }
 
-    static Stream<Arguments> invalidExperimentalConfig() {
-        return Stream.of(
-                Arguments.of("decryptedDekCacheSize", List.of()),
-                Arguments.of("decryptedDekCacheSize", "banana"),
-                Arguments.of("decryptedDekExpireAfterAccessSeconds", List.of()),
-                Arguments.of("decryptedDekExpireAfterAccessSeconds", "banana"),
-                Arguments.of("resolvedAliasCacheSize", List.of()),
-                Arguments.of("resolvedAliasCacheSize", "banana"),
-                Arguments.of("resolvedAliasExpireAfterWriteSeconds", List.of()),
-                Arguments.of("resolvedAliasExpireAfterWriteSeconds", "banana"),
-                Arguments.of("resolvedAliasRefreshAfterWriteSeconds", List.of()),
-                Arguments.of("resolvedAliasRefreshAfterWriteSeconds", "banana"),
-                Arguments.of("notFoundAliasExpireAfterWriteSeconds", List.of()),
-                Arguments.of("notFoundAliasExpireAfterWriteSeconds", "banana"),
-                Arguments.of("encryptionDekRefreshAfterWriteSeconds", List.of()),
-                Arguments.of("encryptionDekRefreshAfterWriteSeconds", "banana"),
-                Arguments.of("encryptionDekExpireAfterWriteSeconds", List.of()),
-                Arguments.of("encryptionDekExpireAfterWriteSeconds", "banana"));
-    }
-
-    @ParameterizedTest(name = "{0} - {1}")
-    @MethodSource
-    void invalidExperimentalConfig(String configKey, Object configValue) {
-        RecordEncryptionConfig config = createConfig(Map.of(configKey, configValue));
-        assertThatThrownBy(config::kmsCache).isInstanceOf(IllegalArgumentException.class);
-    }
-
     private static @NonNull KmsCacheConfig getKmsCacheConfig(String key, Object value) {
         HashMap<String, Object> map = new HashMap<>();
         map.put(key, value);
         RecordEncryptionConfig config = createConfig(map);
-        return config.kmsCache();
+        return RecordEncryption.kmsCache(config);
     }
 
     private static @NonNull RecordEncryptionConfig createConfig(Map<String, Object> map) {
-        return new RecordEncryptionConfig("kms", 1L, "selector", 2L, map);
+        var mapper = new JsonMapper();
+        RecordEncryptionConfigExperimental recordEncryptionConfigExperimental = mapper.convertValue(map, RecordEncryptionConfigExperimental.class);
+        return new RecordEncryptionConfig("kms", 1L, "selector", 2L, recordEncryptionConfigExperimental);
     }
 
 }

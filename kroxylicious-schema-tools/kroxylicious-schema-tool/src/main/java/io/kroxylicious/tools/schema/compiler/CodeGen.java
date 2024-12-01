@@ -10,14 +10,12 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -348,38 +346,10 @@ public class CodeGen {
     }
 
     private void mkConstructors(String pkg, SchemaObject root, Map<String, SchemaObject> properties, Set<String> required, ClassOrInterfaceDeclaration clz) {
-        if (required.size() != properties.size()) {
-            // Add required properties constructor (but only if it won't collide with the all properties ctor)
-            // Honour the order in `properties`, not `required`
-            var requiredProps = properties.entrySet().stream()
-                    .filter(entry -> required.contains(entry.getKey()))
-                    .collect(Collectors.toMap(
-                            Map.Entry::getKey,
-                            Map.Entry::getValue,
-                            (v1, v2) -> {
-                                throw new IllegalStateException();
-                            },
-                            LinkedHashMap::new));
-            ConstructorDeclaration ctor = mkConstructor(pkg, root, clz,
-                    "Required properties constructor.", requiredProps, required, (x, y) -> List.of());
-            clz.addMember(ctor);
-        }
 
         // Add the all properties ctor
-        var byRequired = properties.entrySet().stream()
-                .collect(Collectors.partitioningBy(entry -> required.contains(entry.getKey())));
-        var requiredFirst = Stream.concat(
-                byRequired.get(true).stream(),
-                byRequired.get(false).stream())
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        Map.Entry::getValue,
-                        (v1, v2) -> {
-                            throw new IllegalStateException();
-                        },
-                        LinkedHashMap::new));
         ConstructorDeclaration decl = mkConstructor(pkg, root, clz,
-                "All properties constructor.", requiredFirst, required, (propName, schemaObject) -> List.of(
+                "All properties constructor.", properties, required, (propName, schemaObject) -> List.of(
                         mkAtJsonProperty(propName, required.contains(propName))));
         decl.addAnnotation("com.fasterxml.jackson.annotation.JsonCreator");
         clz.addMember(decl);

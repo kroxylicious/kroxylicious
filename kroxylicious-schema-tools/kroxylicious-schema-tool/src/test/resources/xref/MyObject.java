@@ -19,12 +19,6 @@ public class MyObject {
     private java.lang.Double foo;
 
     /**
-     * Required properties constructor.
-     */
-    public MyObject() {
-    }
-
-    /**
      * All properties constructor.
      * @param foo The value of the {@code foo} property. This is an optional property.
      */

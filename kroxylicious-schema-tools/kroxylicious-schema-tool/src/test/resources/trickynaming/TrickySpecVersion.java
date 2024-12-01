@@ -28,12 +28,6 @@ public class TrickySpecVersion {
     private trickynaming.CrdSchema schema;
 
     /**
-     * Required properties constructor.
-     */
-    public TrickySpecVersion() {
-    }
-
-    /**
      * All properties constructor.
      * @param name The value of the {@code name} property. This is an optional property.
      * @param served The value of the {@code served} property. This is an optional property.

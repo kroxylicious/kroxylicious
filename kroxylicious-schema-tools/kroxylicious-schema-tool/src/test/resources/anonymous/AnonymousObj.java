@@ -19,12 +19,6 @@ public class AnonymousObj {
     private java.lang.String foo;
 
     /**
-     * Required properties constructor.
-     */
-    public AnonymousObj() {
-    }
-
-    /**
      * All properties constructor.
      * @param foo The value of the {@code foo} property. This is an optional property.
      */

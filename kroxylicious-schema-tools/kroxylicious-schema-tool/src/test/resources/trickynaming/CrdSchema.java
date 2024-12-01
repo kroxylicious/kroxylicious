@@ -19,12 +19,6 @@ public class CrdSchema {
     private trickynaming.TrickySpecVersionSchemaOpenAPIV3Schema openAPIV3Schema;
 
     /**
-     * Required properties constructor.
-     */
-    public CrdSchema() {
-    }
-
-    /**
      * All properties constructor.
      * @param openAPIV3Schema The value of the {@code openAPIV3Schema} property. This is an optional property.
      */

@@ -22,12 +22,6 @@ public class JunctorAnyOf {
     private java.lang.Boolean bar;
 
     /**
-     * Required properties constructor.
-     */
-    public JunctorAnyOf() {
-    }
-
-    /**
      * All properties constructor.
      * @param foo The value of the {@code foo} property. This is an optional property.
      * @param bar The value of the {@code bar} property. This is an optional property.

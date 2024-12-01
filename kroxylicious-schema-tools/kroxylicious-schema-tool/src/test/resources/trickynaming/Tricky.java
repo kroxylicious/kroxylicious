@@ -25,16 +25,6 @@ public class Tricky {
     private trickynaming.TrickySpec spec;
 
     /**
-     * Required properties constructor.
-     * @param apiVersion The value of the {@code apiVersion} property. This is a required property.
-     * @param kind The value of the {@code kind} property. This is a required property.
-     */
-    public Tricky(@edu.umd.cs.findbugs.annotations.NonNull java.lang.String apiVersion, @edu.umd.cs.findbugs.annotations.NonNull java.lang.String kind) {
-        this.apiVersion = java.util.Objects.requireNonNull(apiVersion);
-        this.kind = java.util.Objects.requireNonNull(kind);
-    }
-
-    /**
      * All properties constructor.
      * @param apiVersion The value of the {@code apiVersion} property. This is a required property.
      * @param kind The value of the {@code kind} property. This is a required property.

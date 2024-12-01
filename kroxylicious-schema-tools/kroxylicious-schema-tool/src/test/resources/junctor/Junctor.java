@@ -28,12 +28,6 @@ public class Junctor {
     private junctor.JunctorNot not;
 
     /**
-     * Required properties constructor.
-     */
-    public Junctor() {
-    }
-
-    /**
      * All properties constructor.
      * @param oneOf The value of the {@code oneOf} property. This is an optional property.
      * @param anyOf The value of the {@code anyOf} property. This is an optional property.

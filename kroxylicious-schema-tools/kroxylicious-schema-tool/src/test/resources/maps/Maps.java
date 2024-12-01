@@ -19,12 +19,6 @@ public class Maps {
     private java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo;
 
     /**
-     * Required properties constructor.
-     */
-    public Maps() {
-    }
-
-    /**
      * All properties constructor.
      * @param keyedOnFoo The value of the {@code keyedOnFoo} property. This is an optional property.
      */

@@ -25,12 +25,6 @@ public class FooBarBaz {
     private java.lang.Long baz;
 
     /**
-     * Required properties constructor.
-     */
-    public FooBarBaz() {
-    }
-
-    /**
      * All properties constructor.
      * @param foo The value of the {@code foo} property. This is an optional property.
      * @param bar The value of the {@code bar} property. This is an optional property.

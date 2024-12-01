@@ -34,12 +34,6 @@ public class ConfigKey {
     private java.lang.String storeType;
 
     /**
-     * Required properties constructor.
-     */
-    public ConfigKey() {
-    }
-
-    /**
      * All properties constructor.
      * @param privateKeyFile The value of the {@code privateKeyFile} property. This is an optional property.
      * @param certificateFile The value of the {@code certificateFile} property. This is an optional property.

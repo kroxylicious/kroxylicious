@@ -22,12 +22,6 @@ public class Tls {
     private xref.ConfigTrust trust;
 
     /**
-     * Required properties constructor.
-     */
-    public Tls() {
-    }
-
-    /**
      * All properties constructor.
      * @param key The value of the {@code key} property. This is an optional property.
      * @param trust The value of the {@code trust} property. This is an optional property.

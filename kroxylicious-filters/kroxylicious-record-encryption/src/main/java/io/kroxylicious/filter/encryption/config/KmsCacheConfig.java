@@ -33,14 +33,14 @@ public record KmsCacheConfig(
     }
 
     @SuppressWarnings("java:S1905") // Sonar's warning about this is incorrect, the cast is required.
-    KmsCacheConfig(Integer decryptedDekCacheSize,
-                   Long decryptedDekExpireAfterAccessSeconds,
-                   Integer resolvedAliasCacheSize,
-                   Long resolvedAliasExpireAfterWriteSeconds,
-                   Long resolvedAliasRefreshAfterWriteSeconds,
-                   Long notFoundAliasExpireAfterWriteSeconds,
-                   Long decryptedDekRefreshAfterWriteSeconds,
-                   Long decryptedDekExpireAfterWriteSeconds) {
+    public KmsCacheConfig(Integer decryptedDekCacheSize,
+                          Long decryptedDekExpireAfterAccessSeconds,
+                          Integer resolvedAliasCacheSize,
+                          Long resolvedAliasExpireAfterWriteSeconds,
+                          Long resolvedAliasRefreshAfterWriteSeconds,
+                          Long notFoundAliasExpireAfterWriteSeconds,
+                          Long decryptedDekRefreshAfterWriteSeconds,
+                          Long decryptedDekExpireAfterWriteSeconds) {
         this(mapNotNull(decryptedDekCacheSize, Function.identity()),
                 (Duration) mapNotNull(decryptedDekExpireAfterAccessSeconds, Duration::ofSeconds),
                 mapNotNull(resolvedAliasCacheSize, Function.identity()),

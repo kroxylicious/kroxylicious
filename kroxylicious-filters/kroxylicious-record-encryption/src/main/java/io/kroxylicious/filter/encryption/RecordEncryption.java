@@ -23,14 +23,18 @@ import javax.crypto.Cipher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.databind.json.JsonMapper;
+
 import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
+import io.kroxylicious.filter.encryption.config.DekManagerConfig;
 import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
 import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
+import io.kroxylicious.filter.encryption.config.RecordEncryptionConfigExperimental;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
@@ -100,23 +104,58 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         }
     }
 
+    public static KmsCacheConfig kmsCache(RecordEncryptionConfig config) {
+        Integer decryptedDekCacheSize = Optional.ofNullable(config.experimental())
+                .map(RecordEncryptionConfigExperimental::decryptedDekCacheSize)
+                .map(Long::intValue).orElse(null);
+        Long decryptedDekExpireAfterAccessSeconds = Optional.ofNullable(config.experimental())
+                .map(RecordEncryptionConfigExperimental::decryptedDekExpireAfterAccessSeconds).orElse(null);
+        Integer resolvedAliasCacheSize = Optional.ofNullable(config.experimental())
+                .map(RecordEncryptionConfigExperimental::resolvedAliasCacheSize)
+                .map(Long::intValue).orElse(null);
+        Long resolvedAliasExpireAfterWriteSeconds = Optional.ofNullable(config.experimental())
+                .map(RecordEncryptionConfigExperimental::resolvedAliasExpireAfterWriteSeconds).orElse(null);
+        Long resolvedAliasRefreshAfterWriteSeconds = Optional.ofNullable(config.experimental())
+                .map(RecordEncryptionConfigExperimental::resolvedAliasRefreshAfterWriteSeconds).orElse(null);
+        Long notFoundAliasExpireAfterWriteSeconds = Optional.ofNullable(config.experimental())
+                .map(RecordEncryptionConfigExperimental::notFoundAliasExpireAfterWriteSeconds).orElse(null);
+        Long encryptionDekRefreshAfterWriteSeconds = Optional.ofNullable(config.experimental())
+                .map(RecordEncryptionConfigExperimental::encryptionDekRefreshAfterWriteSeconds).orElse(null);
+        Long encryptionDekExpireAfterWriteSeconds = Optional.ofNullable(config.experimental())
+                .map(RecordEncryptionConfigExperimental::encryptionDekExpireAfterWriteSeconds).orElse(null);
+        return new KmsCacheConfig(decryptedDekCacheSize, decryptedDekExpireAfterAccessSeconds, resolvedAliasCacheSize, resolvedAliasExpireAfterWriteSeconds,
+                resolvedAliasRefreshAfterWriteSeconds, notFoundAliasExpireAfterWriteSeconds, encryptionDekRefreshAfterWriteSeconds, encryptionDekExpireAfterWriteSeconds);
+    }
+
+    public static DekManagerConfig dekManager(RecordEncryptionConfig config) {
+        Long maxEncryptionsPerDek = Optional.ofNullable(config.experimental()).map(RecordEncryptionConfigExperimental::maxEncryptionsPerDek).orElse(null);
+        return new DekManagerConfig(maxEncryptionsPerDek);
+
+    }
+
     @Override
     public SharedEncryptionContext<K, E> initialize(FilterFactoryContext context,
                                                     RecordEncryptionConfig configuration)
             throws PluginConfigurationException {
         checkCipherSuite();
-        KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
-        kmsPlugin.initialize(configuration.kmsConfig());
+        var kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
+        kmsPlugin.initialize(initializeKms(kmsPlugin, configuration.kmsConfig()));
         Kms<K, E> kms = buildKms(configuration, kmsPlugin);
 
-        var dekConfig = configuration.dekManager();
+        var dekConfig = dekManager(configuration);
         DekManager<K, E> dekManager = new DekManager<>(kms, dekConfig.maxEncryptionsPerDek());
 
-        KmsCacheConfig cacheConfig = configuration.kmsCache();
+        KmsCacheConfig cacheConfig = kmsCache(configuration);
         EncryptionDekCache<K, E> encryptionDekCache = new EncryptionDekCache<>(dekManager, null, EncryptionDekCache.NO_MAX_CACHE_SIZE,
                 cacheConfig.encryptionDekCacheRefreshAfterWriteDuration(), cacheConfig.encryptionDekCacheExpireAfterWriteDuration());
         DecryptionDekCache<K, E> decryptionDekCache = new DecryptionDekCache<>(dekManager, null, DecryptionDekCache.NO_MAX_CACHE_SIZE);
         return new SharedEncryptionContext<>(kms, kmsPlugin::close, configuration, dekManager, encryptionDekCache, decryptionDekCache);
+    }
+
+    private static <S, C> @NonNull C initializeKms(S plugin, Object conf) {
+        Class<C> toValueType = (Class) plugin.getClass().getAnnotation(Plugin.class).configType();
+        C typedConfig = new JsonMapper().convertValue(conf, toValueType);
+        return typedConfig;
     }
 
     @NonNull
@@ -139,7 +178,8 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
                 executor);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, sharedEncryptionContext.configuration().selector());
-        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(), sharedEncryptionContext.configuration().selectorConfig());
+        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(),
+                initializeKms(ksPlugin, sharedEncryptionContext.configuration().selectorConfig()));
         return new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
     }
 
@@ -156,7 +196,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
     @NonNull
     private static <K, E> Kms<K, E> wrapWithCachingKms(RecordEncryptionConfig configuration, Kms<K, E> resilientKms) {
-        KmsCacheConfig config = configuration.kmsCache();
+        KmsCacheConfig config = kmsCache(configuration);
         LOGGER.debug("KMS cache configuration: {}", config);
         return CachingKms.wrap(resilientKms, config.decryptedDekCacheSize(), config.decryptedDekExpireAfterAccessDuration(), config.resolvedAliasCacheSize(),
                 config.resolvedAliasExpireAfterWriteDuration(), config.resolvedAliasRefreshAfterWriteDuration(), config.notFoundAliasExpireAfterWriteDuration());

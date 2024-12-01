@@ -1,0 +1,50 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+$schema: http://json-schema.org/draft-04/schema#
+id: https://kroxylicious.io/schema/filter/RecordEncryption.yaml
+description: The RecordEncryption filter configuration schema
+type: object
+required:
+  - kms
+  - selector
+properties:
+  kms:
+    description: Class name of the KMS implementation.
+    type: string
+  kmsConfig:
+    description: Configuration of the KMS implementation.
+    type: object
+  selector:
+    description: Class name of the selector implementation.
+    type: string
+  selectorConfig:
+    description: Configuration of the selector implementation.
+    type: object
+  experimental:
+    description: |
+      Additional configuration that's offered without a compatibility guarantee.
+      This part of the API may change in the future without notice.
+    type: object
+    properties:
+      decryptedDekCacheSize:
+        type: integer
+      decryptedDekExpireAfterAccessSeconds:
+        type: integer
+      resolvedAliasCacheSize:
+        type: integer
+      resolvedAliasExpireAfterWriteSeconds:
+        type: integer
+      resolvedAliasRefreshAfterWriteSeconds:
+        type: integer
+      notFoundAliasExpireAfterWriteSeconds:
+        type: integer
+      encryptionDekRefreshAfterWriteSeconds:
+        type: integer
+      encryptionDekExpireAfterWriteSeconds:
+        type: integer
+      maxEncryptionsPerDek:
+        type: integer

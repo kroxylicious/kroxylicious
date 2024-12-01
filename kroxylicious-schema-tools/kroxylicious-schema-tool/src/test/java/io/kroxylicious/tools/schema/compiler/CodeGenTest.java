@@ -166,7 +166,8 @@ class CodeGenTest {
         var docTool = ToolProvider.getSystemDocumentationTool();
         try (var fileManager = docTool.getStandardFileManager(null, null, null)) {
             Iterable<? extends JavaFileObject> compilationUnits1 = fileManager.getJavaFileObjectsFromPaths(javaFilesBeneath(path));
-            assertThat(docTool.getTask(null, fileManager, null, null, List.of("-Xdoclint:all", "-Werror", "-public", "-d", outputDir.toString()), compilationUnits1).call())
+            assertThat(
+                    docTool.getTask(null, fileManager, null, null, List.of("-Xdoclint:all", "-Werror", "-public", "-d", outputDir.toString()), compilationUnits1).call())
                     .describedAs("The javadoc should be processed without errors")
                     .isTrue();
         }

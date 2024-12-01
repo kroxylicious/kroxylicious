@@ -19,12 +19,6 @@ public class ArraysObject {
     private java.lang.String name;
 
     /**
-     * Required properties constructor.
-     */
-    public ArraysObject() {
-    }
-
-    /**
      * All properties constructor.
      * @param name The value of the {@code name} property. This is an optional property.
      */

@@ -22,12 +22,6 @@ public class PasswordProvider {
     private java.lang.String filePath;
 
     /**
-     * Required properties constructor.
-     */
-    public PasswordProvider() {
-    }
-
-    /**
      * All properties constructor.
      * @param password The value of the {@code password} property. This is an optional property.
      * @param filePath The value of the {@code filePath} property. This is an optional property.

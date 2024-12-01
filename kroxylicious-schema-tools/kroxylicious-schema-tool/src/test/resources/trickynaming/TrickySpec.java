@@ -28,12 +28,6 @@ public class TrickySpec {
     private java.util.List<trickynaming.TrickySpecVersion> versions;
 
     /**
-     * Required properties constructor.
-     */
-    public TrickySpec() {
-    }
-
-    /**
      * All properties constructor.
      * @param group The value of the {@code group} property. This is an optional property.
      * @param scope The value of the {@code scope} property. This is an optional property.
