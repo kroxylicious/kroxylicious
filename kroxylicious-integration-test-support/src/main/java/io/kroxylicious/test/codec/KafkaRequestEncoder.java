@@ -16,7 +16,7 @@ import io.kroxylicious.test.client.CorrelationManager;
 /**
  * Kafka Request Encoder
  */
-public class KafkaRequestEncoder extends KafkaMessageEncoder<DecodedRequestFrame<?>> {
+public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestEncoder.class);
 
@@ -36,7 +36,7 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<DecodedRequestFrame
     }
 
     @Override
-    protected void encode(ChannelHandlerContext ctx, DecodedRequestFrame frame, ByteBuf out) throws Exception {
+    protected void encode(ChannelHandlerContext ctx, RequestFrame frame, ByteBuf out) throws Exception {
         super.encode(ctx, frame, out);
         if (frame.hasResponse()) {
             correlationManager.putBrokerRequest(frame.apiKey().id, frame.apiVersion(), frame.correlationId(), frame.getResponseFuture());

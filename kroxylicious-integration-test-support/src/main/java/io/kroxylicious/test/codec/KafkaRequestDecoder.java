@@ -51,7 +51,6 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
 
         RequestHeaderData header;
-        final ByteBufAccessorImpl accessor;
         var decodeRequest = true;
         LOGGER.debug("Decode {}/v{} request? {}", apiKey, apiVersion, decodeRequest);
         boolean decodeResponse = true;
@@ -61,13 +60,13 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
             log().trace("{}: headerVersion {}", ctx, headerVersion);
         }
         in.readerIndex(sof);
-        accessor = new ByteBufAccessorImpl(in);
-        header = readHeader(headerVersion, accessor);
+        ByteBufAccessorImpl acc = new ByteBufAccessorImpl(in);
+        header = readHeader(headerVersion, acc);
         if (log().isTraceEnabled()) {
             log().trace("{}: header: {}", ctx, header);
         }
         final Frame frame;
-        ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, accessor);
+        ApiMessage body = BodyDecoder.decodeRequest(apiKey, apiVersion, acc);
         if (log().isTraceEnabled()) {
             log().trace("{}: body {}", ctx, body);
         }
