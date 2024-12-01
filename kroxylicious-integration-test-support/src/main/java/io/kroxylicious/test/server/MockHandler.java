@@ -86,6 +86,7 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
 
     /**
      * Set the response
+     *
      * @param response response
      */
     public void setMockResponseForApiKey(ApiKeys keys, ApiMessage response) {
@@ -100,6 +101,26 @@ public class MockHandler extends ChannelInboundHandlerAdapter {
                 description.appendText("has key " + keys);
             }
         }, Action.respond(response));
+    }
+
+    /**
+     * Set the response
+     *
+     * @param response response
+     * @param responseApiVersion apiVersion used to encode mock response
+     */
+    public void setMockResponseForApiKey(ApiKeys keys, ApiMessage response, short responseApiVersion) {
+        addMockResponse(new TypeSafeMatcher<>() {
+            @Override
+            protected boolean matchesSafely(Request request) {
+                return request.apiKeys() == keys;
+            }
+
+            @Override
+            public void describeTo(Description description) {
+                description.appendText("has key " + keys);
+            }
+        }, Action.respond(response, responseApiVersion));
     }
 
     public void addMockResponse(Matcher<Request> matcher, Action action) {

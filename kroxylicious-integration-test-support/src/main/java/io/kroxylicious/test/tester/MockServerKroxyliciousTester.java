@@ -139,4 +139,8 @@ public class MockServerKroxyliciousTester extends DefaultKroxyliciousTester {
             }
         };
     }
+
+    public int getReceivedRequestCount() {
+        return mockServer.getReceivedRequests().size();
+    }
 }

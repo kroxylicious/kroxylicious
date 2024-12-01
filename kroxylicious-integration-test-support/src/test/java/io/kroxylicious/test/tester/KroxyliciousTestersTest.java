@@ -257,6 +257,13 @@ class KroxyliciousTestersTest {
     }
 
     @Test
+    void testMockRequestInitialRequestCount() {
+        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy)) {
+            assertThat(tester.getReceivedRequestCount()).isZero();
+        }
+    }
+
+    @Test
     void testSimpleTestClientReportsConnectionState() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var kafkaClient = tester.simpleTestClient()) {
@@ -334,6 +341,7 @@ class KroxyliciousTestersTest {
             assertThat(response1Message).isEqualTo(mockResponse1);
             assertThat(tester.getOnlyRequestForApiKey(ApiKeys.DESCRIBE_ACLS)).isEqualTo(describeAcls);
             assertThat(tester.getRequestsForApiKey(ApiKeys.DESCRIBE_ACLS)).containsOnly(describeAcls);
+            assertThat(tester.getReceivedRequestCount()).isEqualTo(1);
 
             Request listTransactions = new Request(ApiKeys.LIST_TRANSACTIONS, ApiKeys.LIST_TRANSACTIONS.latestVersion(), "client", new ListTransactionsRequestData());
             var response2 = kafkaClient.getSync(listTransactions);
@@ -343,6 +351,7 @@ class KroxyliciousTestersTest {
             assertThat(response2Message).isEqualTo(mockResponse2);
             assertThat(tester.getOnlyRequestForApiKey(ApiKeys.LIST_TRANSACTIONS)).isEqualTo(listTransactions);
             assertThat(tester.getRequestsForApiKey(ApiKeys.LIST_TRANSACTIONS)).containsOnly(listTransactions);
+            assertThat(tester.getReceivedRequestCount()).isEqualTo(2);
         }
     }
 
