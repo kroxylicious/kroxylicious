@@ -32,6 +32,7 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
+import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
@@ -180,7 +181,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         var dp = new SaslDecodePredicate(!authnHandlers.isEmpty());
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
-        KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp, virtualCluster.socketFrameMaxSizeBytes());
+        KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp, virtualCluster.socketFrameMaxSizeBytes(), apiVersionsService);
         pipeline.addLast("requestDecoder", decoder);
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
         pipeline.addLast("responseOrderer", new ResponseOrderer());
@@ -194,7 +195,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         }
 
         final NetFilter netFilter = new InitalizerNetFilter(dp, ch, binding, pfr, filterChainFactory, endpointReconciler,
-                new ApiVersionsIntersectFilter(apiVersionsService));
+                new ApiVersionsIntersectFilter(apiVersionsService), new ApiVersionsDowngradeFilter(apiVersionsService));
         var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster);
 
         pipeline.addLast("netHandler", frontendHandler);
@@ -213,6 +214,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         private final FilterChainFactory filterChainFactory;
         private final EndpointReconciler endpointReconciler;
         private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
+        private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
 
         InitalizerNetFilter(SaslDecodePredicate decodePredicate,
                             SocketChannel ch,
@@ -220,7 +222,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                             PluginFactoryRegistry pfr,
                             FilterChainFactory filterChainFactory,
                             EndpointReconciler endpointReconciler,
-                            ApiVersionsIntersectFilter apiVersionsIntersectFilter) {
+                            ApiVersionsIntersectFilter apiVersionsIntersectFilter,
+                            ApiVersionsDowngradeFilter apiVersionsDowngradeFilter) {
             this.decodePredicate = decodePredicate;
             this.ch = ch;
             this.virtualCluster = binding.virtualCluster();
@@ -229,6 +232,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             this.filterChainFactory = filterChainFactory;
             this.endpointReconciler = endpointReconciler;
             this.apiVersionsIntersectFilter = apiVersionsIntersectFilter;
+            this.apiVersionsDowngradeFilter = apiVersionsDowngradeFilter;
         }
 
         @Override
@@ -240,6 +244,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             List<FilterAndInvoker> customProtocolFilters = filterChainFactory.createFilters(filterContext);
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
+            filters.addAll(FilterAndInvoker.build(apiVersionsDowngradeFilter));
             filters.addAll(customProtocolFilters);
             if (binding.restrictUpstreamToMetadataDiscovery()) {
                 filters.addAll(FilterAndInvoker.build(new EagerMetadataLearner()));

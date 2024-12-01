@@ -42,6 +42,7 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
@@ -297,7 +298,7 @@ class KafkaProxyInitializerTest {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         final KafkaProxyInitializer.InitalizerNetFilter initalizerNetFilter = new KafkaProxyInitializer.InitalizerNetFilter(mock(SaslDecodePredicate.class),
                 channel, vcb, pfr, fcf, (virtualCluster1, upstreamNodes) -> null,
-                new ApiVersionsIntersectFilter(apiVersionsService));
+                new ApiVersionsIntersectFilter(apiVersionsService), new ApiVersionsDowngradeFilter(apiVersionsService));
         final NetFilter.NetFilterContext netFilterContext = mock(NetFilter.NetFilterContext.class);
 
         // When
