@@ -16,8 +16,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.fasterxml.jackson.databind.json.JsonMapper;
-
 import io.kroxylicious.filter.encryption.RecordEncryption;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -86,9 +84,7 @@ class RecordEncryptionConfigTest {
     }
 
     private static @NonNull RecordEncryptionConfig createConfig(Map<String, Object> map) {
-        var mapper = new JsonMapper();
-        RecordEncryptionConfigExperimental recordEncryptionConfigExperimental = mapper.convertValue(map, RecordEncryptionConfigExperimental.class);
-        return new RecordEncryptionConfig("kms", 1L, "selector", 2L, recordEncryptionConfigExperimental);
+        return new RecordEncryptionConfig("kms", 1L, "selector", 2L, map);
     }
 
 }

@@ -10,6 +10,7 @@ import java.security.Provider;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,7 +35,6 @@ import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
 import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
-import io.kroxylicious.filter.encryption.config.RecordEncryptionConfigExperimental;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
@@ -59,6 +59,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@link FilterFactory} for {@link RecordEncryptionFilter}.
@@ -104,33 +105,53 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         }
     }
 
-    public static KmsCacheConfig kmsCache(RecordEncryptionConfig config) {
-        Integer decryptedDekCacheSize = Optional.ofNullable(config.experimental())
-                .map(RecordEncryptionConfigExperimental::decryptedDekCacheSize)
-                .map(Long::intValue).orElse(null);
-        Long decryptedDekExpireAfterAccessSeconds = Optional.ofNullable(config.experimental())
-                .map(RecordEncryptionConfigExperimental::decryptedDekExpireAfterAccessSeconds).orElse(null);
-        Integer resolvedAliasCacheSize = Optional.ofNullable(config.experimental())
-                .map(RecordEncryptionConfigExperimental::resolvedAliasCacheSize)
-                .map(Long::intValue).orElse(null);
-        Long resolvedAliasExpireAfterWriteSeconds = Optional.ofNullable(config.experimental())
-                .map(RecordEncryptionConfigExperimental::resolvedAliasExpireAfterWriteSeconds).orElse(null);
-        Long resolvedAliasRefreshAfterWriteSeconds = Optional.ofNullable(config.experimental())
-                .map(RecordEncryptionConfigExperimental::resolvedAliasRefreshAfterWriteSeconds).orElse(null);
-        Long notFoundAliasExpireAfterWriteSeconds = Optional.ofNullable(config.experimental())
-                .map(RecordEncryptionConfigExperimental::notFoundAliasExpireAfterWriteSeconds).orElse(null);
-        Long encryptionDekRefreshAfterWriteSeconds = Optional.ofNullable(config.experimental())
-                .map(RecordEncryptionConfigExperimental::encryptionDekRefreshAfterWriteSeconds).orElse(null);
-        Long encryptionDekExpireAfterWriteSeconds = Optional.ofNullable(config.experimental())
-                .map(RecordEncryptionConfigExperimental::encryptionDekExpireAfterWriteSeconds).orElse(null);
+    public static KmsCacheConfig kmsCache(RecordEncryptionConfig configuration) {
+        Integer decryptedDekCacheSize = getExperimentalInt(configuration.experimental(), "decryptedDekCacheSize");
+        Long decryptedDekExpireAfterAccessSeconds = getExperimentalLong(configuration.experimental(), "decryptedDekExpireAfterAccessSeconds");
+        Integer resolvedAliasCacheSize = getExperimentalInt(configuration.experimental(), "resolvedAliasCacheSize");
+        Long resolvedAliasExpireAfterWriteSeconds = getExperimentalLong(configuration.experimental(), "resolvedAliasExpireAfterWriteSeconds");
+        Long resolvedAliasRefreshAfterWriteSeconds = getExperimentalLong(configuration.experimental(), "resolvedAliasRefreshAfterWriteSeconds");
+        Long notFoundAliasExpireAfterWriteSeconds = getExperimentalLong(configuration.experimental(), "notFoundAliasExpireAfterWriteSeconds");
+        Long encryptionDekRefreshAfterWriteSeconds = getExperimentalLong(configuration.experimental(), "encryptionDekRefreshAfterWriteSeconds");
+        Long encryptionDekExpireAfterWriteSeconds = getExperimentalLong(configuration.experimental(), "encryptionDekExpireAfterWriteSeconds");
         return new KmsCacheConfig(decryptedDekCacheSize, decryptedDekExpireAfterAccessSeconds, resolvedAliasCacheSize, resolvedAliasExpireAfterWriteSeconds,
                 resolvedAliasRefreshAfterWriteSeconds, notFoundAliasExpireAfterWriteSeconds, encryptionDekRefreshAfterWriteSeconds, encryptionDekExpireAfterWriteSeconds);
     }
 
-    public static DekManagerConfig dekManager(RecordEncryptionConfig config) {
-        Long maxEncryptionsPerDek = Optional.ofNullable(config.experimental()).map(RecordEncryptionConfigExperimental::maxEncryptionsPerDek).orElse(null);
+    public static DekManagerConfig dekManager(RecordEncryptionConfig configuration) {
+        Long maxEncryptionsPerDek = getExperimentalLong(configuration.experimental(), "maxEncryptionsPerDek");
         return new DekManagerConfig(maxEncryptionsPerDek);
 
+    }
+
+    @Nullable
+    private static Integer getExperimentalInt(Map<String, Object> experimental, String property) {
+        return Optional.ofNullable(experimental).map(x -> x.get(property)).map(value -> {
+            if (value instanceof Number number) {
+                return number.intValue();
+            }
+            else if (value instanceof String stringValue) {
+                return Integer.parseInt(stringValue);
+            }
+            else {
+                throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
+            }
+        }).orElse(null);
+    }
+
+    @Nullable
+    private static Long getExperimentalLong(Map<String, Object> experimental, String property) {
+        return Optional.ofNullable(experimental).map(x -> x.get(property)).map(value -> {
+            if (value instanceof Number number) {
+                return number.longValue();
+            }
+            else if (value instanceof String stringValue) {
+                return Long.parseLong(stringValue);
+            }
+            else {
+                throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
+            }
+        }).orElse(null);
     }
 
     @Override

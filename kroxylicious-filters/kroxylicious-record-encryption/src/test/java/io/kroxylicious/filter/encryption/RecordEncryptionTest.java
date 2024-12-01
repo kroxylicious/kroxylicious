@@ -23,7 +23,6 @@ import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
 import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
-import io.kroxylicious.filter.encryption.config.RecordEncryptionConfigExperimental;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.filter.encryption.dek.DekException;
 import io.kroxylicious.kms.service.Kms;
@@ -85,8 +84,8 @@ class RecordEncryptionTest {
         recordEncryption.close(sec);
     }
 
-    @Test
     @Disabled
+    @Test
     void closePropagatedToKmsService() {
         var kmsConfig = new Object();
         var config = new RecordEncryptionConfig("KMS", kmsConfig, "SELECTOR", null, null);
@@ -125,7 +124,15 @@ class RecordEncryptionTest {
 
     @Test
     void testKmsCacheConfigDefaultsWhenPropertiesNull() {
-        var experimental = new RecordEncryptionConfigExperimental(null, null, null, null, null, null, null, null, null);
+        Map<String, Object> experimental = new HashMap<>();
+        experimental.put("decryptedDekCacheSize", null);
+        experimental.put("decryptedDekExpireAfterAccessSeconds", null);
+        experimental.put("resolvedAliasCacheSize", null);
+        experimental.put("resolvedAliasExpireAfterWriteSeconds", null);
+        experimental.put("resolvedAliasRefreshAfterWriteSeconds", null);
+        experimental.put("notFoundAliasExpireAfterWriteSeconds", null);
+        experimental.put("encryptionDekRefreshAfterWriteSeconds", null);
+        experimental.put("encryptionDekExpireAfterWriteSeconds", null);
         KmsCacheConfig config = RecordEncryption.kmsCache(new RecordEncryptionConfig("vault", 1L, "selector", 1L,
                 experimental));
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
@@ -159,16 +166,15 @@ class RecordEncryptionTest {
                 Duration.ofSeconds(7L),
                 Duration.ofSeconds(8L));
 
-        var experimental = new RecordEncryptionConfigExperimental(
-                1L,
-                2L,
-                3L,
-                4L,
-                5L,
-                6L,
-                7L,
-                8L,
-                9L);
+        Map<String, Object> experimental = new HashMap<>();
+        experimental.put("decryptedDekCacheSize", 1);
+        experimental.put("decryptedDekExpireAfterAccessSeconds", 2);
+        experimental.put("resolvedAliasCacheSize", 3);
+        experimental.put("resolvedAliasExpireAfterWriteSeconds", 4);
+        experimental.put("resolvedAliasRefreshAfterWriteSeconds", 5);
+        experimental.put("notFoundAliasExpireAfterWriteSeconds", 6);
+        experimental.put("encryptionDekRefreshAfterWriteSeconds", 7);
+        experimental.put("encryptionDekExpireAfterWriteSeconds", 8);
         KmsCacheConfig config = RecordEncryption.kmsCache(new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental));
         assertThat(config).isEqualTo(kmsCacheConfig);
     }
@@ -178,16 +184,8 @@ class RecordEncryptionTest {
         var dekManagerCacheConfig = new DekManagerConfig(
                 1_000L);
 
-        var experimental = new RecordEncryptionConfigExperimental(
-                1L,
-                2L,
-                3L,
-                4L,
-                5L,
-                6L,
-                7L,
-                8L,
-                1_000L);
+        Map<String, Object> experimental = new HashMap<>();
+        experimental.put("maxEncryptionsPerDek", 1_000L);
 
         var config = RecordEncryption.dekManager(new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental));
         assertThat(config).isEqualTo(dekManagerCacheConfig);

@@ -164,6 +164,7 @@
                             <existingClasses>
                                 <io.kroxylicious.filter.encryption.config.RecordEncryptionConfigKmsConfig>java.lang.Object</io.kroxylicious.filter.encryption.config.RecordEncryptionConfigKmsConfig>
                                 <io.kroxylicious.filter.encryption.config.RecordEncryptionConfigSelectorConfig>java.lang.Object</io.kroxylicious.filter.encryption.config.RecordEncryptionConfigSelectorConfig>
+                                <io.kroxylicious.filter.encryption.config.RecordEncryptionConfigExperimental>java.util.Map&lt;String, Object&gt;</io.kroxylicious.filter.encryption.config.RecordEncryptionConfigExperimental>
                             </existingClasses>
                         </configuration>
                     </execution>
