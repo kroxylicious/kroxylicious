@@ -14,7 +14,6 @@ import java.util.concurrent.Future;
 import javax.crypto.Cipher;
 
 import org.assertj.core.api.AbstractThrowableAssert;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.encryption.config.CipherSpec;
@@ -56,7 +55,6 @@ class RecordEncryptionTest {
     }
 
     @Test
-    @Disabled
     @SuppressWarnings("unchecked")
     void shouldInitAndCreateFilter() {
         var kmsConfig = new Object();
@@ -84,7 +82,6 @@ class RecordEncryptionTest {
         recordEncryption.close(sec);
     }
 
-    @Disabled
     @Test
     void closePropagatedToKmsService() {
         var kmsConfig = new Object();

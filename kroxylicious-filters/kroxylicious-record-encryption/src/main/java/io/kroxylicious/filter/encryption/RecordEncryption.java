@@ -160,7 +160,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
             throws PluginConfigurationException {
         checkCipherSuite();
         var kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
-        kmsPlugin.initialize(initializeKms(kmsPlugin, configuration.kmsConfig()));
+        kmsPlugin.initialize(convertConfigValueToConfigType(kmsPlugin, configuration.kmsConfig()));
         Kms<K, E> kms = buildKms(configuration, kmsPlugin);
 
         var dekConfig = dekManager(configuration);
@@ -173,8 +173,14 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         return new SharedEncryptionContext<>(kms, kmsPlugin::close, configuration, dekManager, encryptionDekCache, decryptionDekCache);
     }
 
-    private static <S, C> @NonNull C initializeKms(S plugin, Object conf) {
-        Class<C> toValueType = (Class) plugin.getClass().getAnnotation(Plugin.class).configType();
+    private static <P, C> @NonNull C convertConfigValueToConfigType(P plugin, Object conf) {
+        // Get the class of the config type from the plugin instance
+        Plugin annotation = plugin.getClass().getAnnotation(Plugin.class);
+        if (annotation == null) {
+            return (C) conf;
+        }
+        Class<C> toValueType = (Class) annotation.configType();
+        // Convert the config object ("Json as Maps and Lists") to the config type
         C typedConfig = new JsonMapper().convertValue(conf, toValueType);
         return typedConfig;
     }
@@ -200,7 +206,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, sharedEncryptionContext.configuration().selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(),
-                initializeKms(ksPlugin, sharedEncryptionContext.configuration().selectorConfig()));
+                convertConfigValueToConfigType(ksPlugin, sharedEncryptionContext.configuration().selectorConfig()));
         return new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
     }
 
