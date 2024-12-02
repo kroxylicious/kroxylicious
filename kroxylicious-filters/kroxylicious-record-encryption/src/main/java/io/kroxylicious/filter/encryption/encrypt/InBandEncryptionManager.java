@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
+import org.apache.kafka.common.errors.NetworkException;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
@@ -111,7 +112,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
                     new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + allRecordsCount + " records for topic " + topicName + " partition "
-                            + partition + " after " + attempt + " attempts"));
+                            + partition + " after " + attempt + " attempts",
+                            new NetworkException("Failed to encrypt record(s) because there were no valid encryption keys")));
         }
         return currentDek(encryptionScheme).thenCompose(dek -> {
             // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt

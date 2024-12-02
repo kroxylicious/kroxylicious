@@ -23,6 +23,7 @@ import java.util.stream.LongStream;
 
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.errors.ApiException;
+import org.apache.kafka.common.errors.NetworkException;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
@@ -233,7 +234,8 @@ class RecordEncryptionFilterTest {
         var produceRequestData = buildProduceRequestData(new TopicProduceData()
                 .setName(ENCRYPTED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
-        final RequestNotSatisfiable failure = new RequestNotSatisfiable("could not acquire a DEK");
+        final RequestNotSatisfiable failure = new RequestNotSatisfiable("could not acquire a DEK", new NetworkException("could not acquire a DEK"));
+
         when(kekSelector.selectKek(anySet())).thenReturn(CompletableFuture.failedFuture(failure));
 
         // When

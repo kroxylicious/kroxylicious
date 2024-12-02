@@ -29,8 +29,7 @@
     <allow pkg="io.kroxylicious.filter.encryption" local-only="true"/><!-- all subpackages -->
 
     <subpackage name="common">
-        <allow pkg="org.apache.kafka.common.record"/>
-        <allow pkg="org.apache.kafka.common.utils"/>
+        <allow pkg="org.apache.kafka.common"/>
     </subpackage>
     <subpackage name="config">
         <allow pkg="com.fasterxml.jackson.annotation"/>
@@ -65,6 +64,7 @@
         <allow pkg="org.apache.kafka.common.record"/>
         <allow pkg="org.apache.kafka.common.utils"/>
         <allow pkg="org.apache.kafka.common.header"/>
+        <allow pkg="org.apache.kafka.common.errors"/>
         <allow pkg="io.kroxylicious.kafka.transform"/>
         <allow pkg="com.github.benmanes.caffeine.cache"/>
         <allow pkg="io.kroxylicious.kms.service"/> <!-- serde -->
@@ -89,7 +89,6 @@
         <allow pkg="io.kroxylicious.filter.encryption.dek"/>
         <allow pkg="io.kroxylicious.filter.encryption.crypto"/>
     </subpackage>
-
 
 
 </import-control>

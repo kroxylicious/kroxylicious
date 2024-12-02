@@ -15,7 +15,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.common.errors.NetworkException;
+import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
@@ -75,10 +75,10 @@ public class RecordEncryptionFilter<K>
         return maybeEncodeProduce(request, context)
                 .thenCompose(yy -> context.forwardRequest(header, request))
                 .exceptionallyCompose(throwable -> {
-                    if (isEncryptionException(throwable) || isEncryptionException(throwable.getCause())) {
+                    final ApiException clientFacingException = getClientFacingException(throwable);
+                    if (clientFacingException != null) {
                         return context.requestFilterResultBuilder()
-                                .errorResponse(header, request, new NetworkException(throwable))
-                                // Respond with a NetworkException as that is Retryable and UnknownServerException is not.
+                                .errorResponse(header, request, clientFacingException)
                                 .completed();
                     }
                     else {
@@ -86,6 +86,18 @@ public class RecordEncryptionFilter<K>
                         return CompletableFuture.failedStage(throwable);
                     }
                 });
+    }
+
+    private static ApiException getClientFacingException(Throwable throwable) {
+        if (isEncryptionException(throwable)) {
+            return ((EncryptionException) throwable).getApiException();
+        }
+        else if (isEncryptionException(throwable.getCause())) {
+            return ((EncryptionException) throwable.getCause()).getApiException();
+        }
+        else {
+            return null;
+        }
     }
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {

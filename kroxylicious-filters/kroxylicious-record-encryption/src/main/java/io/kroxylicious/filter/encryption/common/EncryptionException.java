@@ -6,16 +6,34 @@
 
 package io.kroxylicious.filter.encryption.common;
 
+import org.apache.kafka.common.InvalidRecordException;
+import org.apache.kafka.common.errors.ApiException;
+
 /**
  * Exceptions to do with encryption.
  */
 public class EncryptionException extends RuntimeException {
-    public EncryptionException(Throwable e) {
-        super(e);
-    }
+    private final ApiException apiException;
 
+    /**
+     * Constructs an exception using an {@see InvalidRecordException} so that it is considered fatal by Kafka clients
+     * @param message to be included in both the logs and the client response (where messages are included by the protocol)
+     */
     public EncryptionException(String message) {
-        super(message);
+        this(message, new InvalidRecordException(message));
     }
 
+    /**
+     * Constructs an encryption exception
+     * @param message the message for <em>*this*</em> exception.
+     * @param apiException the Exception to be sent to the client.
+     */
+    public EncryptionException(String message, ApiException apiException) {
+        super(message);
+        this.apiException = apiException;
+    }
+
+    public ApiException getApiException() {
+        return apiException;
+    }
 }

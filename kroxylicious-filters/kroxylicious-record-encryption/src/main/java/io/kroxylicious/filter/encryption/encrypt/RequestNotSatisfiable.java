@@ -6,6 +6,8 @@
 
 package io.kroxylicious.filter.encryption.encrypt;
 
+import org.apache.kafka.common.errors.ApiException;
+
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 
 /**
@@ -18,5 +20,9 @@ import io.kroxylicious.filter.encryption.common.EncryptionException;
 public class RequestNotSatisfiable extends EncryptionException {
     public RequestNotSatisfiable(String message) {
         super(message);
+    }
+
+    public RequestNotSatisfiable(String message, ApiException apiException) {
+        super(message, apiException);
     }
 }
