@@ -10,8 +10,6 @@ import java.security.KeyStore;
 import java.util.Locale;
 import java.util.Objects;
 
-import io.kroxylicious.proxy.tag.VisibleForTesting;
-
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -61,11 +59,9 @@ public record Tls(KeyProvider key,
         return clientAuth == null ? TlsClientAuth.NONE : clientAuth;
     }
 
-    @VisibleForTesting
-    boolean validateClientAuth() {
+    private void validateClientAuth() {
         if (clientAuth() != TlsClientAuth.NONE && Objects.isNull(trust)) {
             throw new IllegalStateException("ClientAuth enabled but no TrustStore provided to validate certificates");
         }
-        return true;
     }
 }

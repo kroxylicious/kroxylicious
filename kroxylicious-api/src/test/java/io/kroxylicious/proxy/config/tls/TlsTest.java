@@ -40,12 +40,6 @@ class TlsTest {
     }
 
     @Test
-    void testClientAuthDefined() {
-        Tls tls = new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), TlsClientAuth.NONE);
-        assertThat(tls.validateClientAuth()).isTrue();
-    }
-
-    @Test
     void shouldRequireTrustStoreForClientAuthRequired() {
         // Given
         // When
@@ -68,13 +62,23 @@ class TlsTest {
     @Test
     void shouldNotRequireTrustStoreForClientAuthNone() {
         // Given
-        Tls tls = new Tls(null, null, TlsClientAuth.NONE);
 
         // When
-        final boolean actual = tls.validateClientAuth();
+        Tls tls = new Tls(null, null, TlsClientAuth.NONE);
 
         // Then
-        assertThat(actual).isTrue();
+        assertThat(tls).isNotNull();
+    }
+
+    @Test
+    void shouldNotRequireTrustStoreForNullClientAuth() {
+        // Given
+
+        // When
+        Tls tls = new Tls(null, null, null);
+
+        // Then
+        assertThat(tls).isNotNull();
     }
 
     @Test
