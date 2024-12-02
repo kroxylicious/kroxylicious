@@ -157,14 +157,18 @@ public class SchemaCompiler {
     }
 
     public Stream<CompilationUnit> gen(List<Input> inputs) {
-        try {
+
             return inputs.stream()
-                    .flatMap(input -> codeGen.genDecls(input).stream());
-        }
-        catch (VisitException e) {
-            diagnostics.reportFatal("Error: {}", e.getMessage(), e);
-            return Stream.empty();
-        }
+                    .flatMap(input -> {
+                        try {
+                            return codeGen.genDecls(input).stream();
+                        }
+                        catch (VisitException e) {
+                            diagnostics.reportFatal("Error: {}", e.getMessage(), e);
+                            return Stream.empty();
+                        }
+                    });
+
     }
 
     public int numFatals() {
@@ -221,16 +225,6 @@ public class SchemaCompiler {
 
     private static String packageName(CompilationUnit compilationUnit) {
         return compilationUnit.getPackageDeclaration().orElseThrow().getNameAsString();
-    }
-
-    public static void main(String[] a) {
-        List<Path> src = List.of(Path.of("kroxylicious-schema-tools/src/test/schema"));
-        Path dst = Path.of("kroxylicious-schema-tools/target/generated-test-sources/foos");
-
-        var compiler = new SchemaCompiler(src, null, null, Map.of());
-        var trees = compiler.parse();
-        var units = compiler.gen(trees);
-        compiler.write(dst, units);
     }
 
 }

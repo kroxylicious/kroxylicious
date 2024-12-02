@@ -11,6 +11,9 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * The values allowed for the JSONSchema {@code type} keyword.
+ */
 public enum SchemaType {
     @JsonProperty("null")
     NULL,

@@ -1,0 +1,22 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+$schema: http://json-schema.org/draft-04/schema#
+id: https://schema.kroxylicious.io/test/Anonymous.yaml
+description: An object with anonymous typed properties
+type: object
+properties:
+  emptyType:
+    type: []
+  nullString:
+    type: ["null", "string"]
+  booleanInteger:
+    type: [ "boolean", "integer" ]
+  integerString:
+    type: ["integer", "string"]
+
+  allTheTypes:
+    type: ["null", "boolean", "integer", "number", "string", "array", "object"]

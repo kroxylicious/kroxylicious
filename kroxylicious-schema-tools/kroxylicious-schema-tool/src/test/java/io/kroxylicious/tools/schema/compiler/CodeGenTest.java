@@ -36,6 +36,7 @@ import io.kroxylicious.tools.schema.model.XKubeListType;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CodeGenTest {
 
@@ -90,6 +91,27 @@ class CodeGenTest {
         // Because `generated == expected` this means the generated must be legal java source code
         compileJavaFilesBeneath(Path.of(yamlFilename).getParent());
         javadocJavaFilesBeneath(Path.of(yamlFilename).getParent());
+    }
+
+    private static SchemaCompiler genDiagnostics(String yamlFilename) {
+        File src = new File(yamlFilename);
+        Path path = new File("src/test/resources").toPath();
+        SchemaCompiler schemaCompiler = new SchemaCompiler(
+                List.of(path),
+                List.of(path.relativize(src.toPath()).getParent().toString().replace("/", ".")),
+                null,
+                Map.of());
+        List<Input> parse = schemaCompiler.parse();
+        assertThat(schemaCompiler.diagnostics.getNumFatals()).isZero();
+        assertThat(schemaCompiler.diagnostics.getNumErrors()).isZero();
+        assertThat(schemaCompiler.diagnostics.getNumWarnings()).isZero();
+        try {
+            var units = schemaCompiler.gen(parse).toList();
+        }
+        catch (FatalException e) {
+            // pass
+        }
+        return schemaCompiler;
     }
 
     private static void assertGeneratedCodeMatches(String yamlFilename) {
@@ -237,6 +259,17 @@ class CodeGenTest {
     void junctor() throws IOException {
         String pathname = "src/test/resources/junctor/Junctor.yaml";
         assertGeneratedCode(pathname);
+    }
+
+    @Test
+    void unionType() throws IOException {
+        String pathname = "src/test/resources/uniontype/UnionType.yaml";
+        assertThat(genDiagnostics(pathname))
+                .satisfies(schemaCompiler -> {
+                    assertThat(schemaCompiler.numFatals()).isEqualTo(1);
+                    assertThat(schemaCompiler.numErrors()).isEqualTo(0);
+                    assertThat(schemaCompiler.numWarnings()).isEqualTo(0);
+                });
     }
 
 }

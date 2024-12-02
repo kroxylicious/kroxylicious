@@ -12,6 +12,8 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +45,7 @@ public class Namer extends SchemaObject.Visitor {
         this.diagnostics = Objects.requireNonNull(diagnostics);
     }
 
-    public SchemaObject resolve(URI uri) {
+    public @Nullable SchemaObject resolve(URI uri) {
         return idIndex.get(uri.toString());
     }
 
