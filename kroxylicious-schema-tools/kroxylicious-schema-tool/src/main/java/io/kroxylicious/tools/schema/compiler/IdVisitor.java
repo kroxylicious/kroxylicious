@@ -26,21 +26,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class IdVisitor extends SchemaObject.Visitor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(IdVisitor.class);
-
     private static final Pattern SUBSCHEMA_ID_PATTERN = Pattern.compile("^#[A-Za-z][A-Za-z0-9_:.-]*$");
 
     private final Diagnostics diagnostics;
-
-    // TODO Namer over a loaded schema
 
     // The "id" keyword defines a URI for the schema, and the base URI that
     // other URI references within the schema are resolved against.
     // The "id" keyword itself is resolved against the base URI that the object
     // as a whole appears in.
-    //
-
-    //
 
     private final Map<String, SchemaObject> idIndex = new TreeMap<>();
 
@@ -116,20 +109,12 @@ public class IdVisitor extends SchemaObject.Visitor {
     private void index(URI base, @NonNull SchemaObject schema) {
         SchemaObject old = idIndex.put(base.toString(), schema);
         if (old != null) {
-            throw new RuntimeException("Attempt to identify two schemas from same URI " + base);
+            diagnostics.reportError("Attempt to identify two schemas from same URI {}", base);
         }
     }
 
     private static URI resolve(URI base, String pathId) {
         return base.resolve(pathId);
-    }
-
-    @Override
-    public void exitSchema(
-                           URI base,
-                           String path,
-                           String keyword,
-                           @NonNull SchemaObject schema) {
     }
 
 }

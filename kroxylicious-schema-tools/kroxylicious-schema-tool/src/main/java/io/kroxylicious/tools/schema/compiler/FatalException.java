@@ -12,5 +12,6 @@ package io.kroxylicious.tools.schema.compiler;
  */
 public class FatalException extends RuntimeException {
     public FatalException() {
+        super();
     }
 }

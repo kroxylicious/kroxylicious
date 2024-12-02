@@ -15,13 +15,13 @@ package trickynaming;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class Tricky {
 
-    @edu.umd.cs.findbugs.annotations.NonNull()
+    @edu.umd.cs.findbugs.annotations.NonNull
     private java.lang.String apiVersion;
 
-    @edu.umd.cs.findbugs.annotations.NonNull()
+    @edu.umd.cs.findbugs.annotations.NonNull
     private java.lang.String kind;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private trickynaming.TrickySpec spec;
 
     /**
@@ -30,7 +30,7 @@ public class Tricky {
      * @param kind The value of the {@code kind} property. This is a required property.
      * @param spec The value of the {@code spec} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public Tricky(@com.fasterxml.jackson.annotation.JsonProperty(value = "apiVersion", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.String apiVersion, @com.fasterxml.jackson.annotation.JsonProperty(value = "kind", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.String kind, @com.fasterxml.jackson.annotation.JsonProperty(value = "spec") @edu.umd.cs.findbugs.annotations.Nullable trickynaming.TrickySpec spec) {
         this.apiVersion = java.util.Objects.requireNonNull(apiVersion);
         this.kind = java.util.Objects.requireNonNull(kind);
@@ -42,7 +42,7 @@ public class Tricky {
      *
      * @return The value of this object's apiVersion.
      */
-    @edu.umd.cs.findbugs.annotations.NonNull()
+    @edu.umd.cs.findbugs.annotations.NonNull
     @com.fasterxml.jackson.annotation.JsonProperty(value = "apiVersion", required = true)
     public java.lang.String apiVersion() {
         return this.apiVersion;
@@ -53,7 +53,7 @@ public class Tricky {
      *
      *  @param apiVersion The new value for this object's apiVersion.
      */
-    public void apiVersion(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String apiVersion) {
+    public void apiVersion(@edu.umd.cs.findbugs.annotations.NonNull java.lang.String apiVersion) {
         this.apiVersion = java.util.Objects.requireNonNull(apiVersion);
     }
 
@@ -61,7 +61,7 @@ public class Tricky {
      * The kind of the CRD API (not the kind of the CR API being defined)
      * @return The value of this object's kind.
      */
-    @edu.umd.cs.findbugs.annotations.NonNull()
+    @edu.umd.cs.findbugs.annotations.NonNull
     @com.fasterxml.jackson.annotation.JsonProperty(value = "kind", required = true)
     public java.lang.String kind() {
         return this.kind;
@@ -71,7 +71,7 @@ public class Tricky {
      * The kind of the CRD API (not the kind of the CR API being defined)
      *  @param kind The new value for this object's kind.
      */
-    public void kind(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String kind) {
+    public void kind(@edu.umd.cs.findbugs.annotations.NonNull java.lang.String kind) {
         this.kind = java.util.Objects.requireNonNull(kind);
     }
 
@@ -79,7 +79,7 @@ public class Tricky {
      * API being defined
      * @return The value of this object's spec.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "spec")
     public trickynaming.TrickySpec spec() {
         return this.spec;
@@ -89,21 +89,21 @@ public class Tricky {
      * API being defined
      *  @param spec The new value for this object's spec.
      */
-    public void spec(@edu.umd.cs.findbugs.annotations.Nullable() trickynaming.TrickySpec spec) {
+    public void spec(@edu.umd.cs.findbugs.annotations.Nullable trickynaming.TrickySpec spec) {
         this.spec = spec;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "Tricky[" + "apiVersion: " + this.apiVersion + ", kind: " + this.kind + ", spec: " + this.spec + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.apiVersion, this.kind, this.spec);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

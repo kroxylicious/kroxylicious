@@ -181,8 +181,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         }
         Class<C> toValueType = (Class) annotation.configType();
         // Convert the config object ("Json as Maps and Lists") to the config type
-        C typedConfig = new JsonMapper().convertValue(conf, toValueType);
-        return typedConfig;
+        return new JsonMapper().convertValue(conf, toValueType);
     }
 
     @NonNull

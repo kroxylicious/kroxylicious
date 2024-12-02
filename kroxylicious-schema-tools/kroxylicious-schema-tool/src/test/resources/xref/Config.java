@@ -15,19 +15,19 @@ package xref;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class Config {
 
-    @edu.umd.cs.findbugs.annotations.NonNull()
+    @edu.umd.cs.findbugs.annotations.NonNull
     private java.lang.String endpointUrl;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private xref.PasswordProvider accessKey;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private xref.PasswordProvider secretKey;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.String region;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private xref.Tls tls;
 
     /**
@@ -38,7 +38,7 @@ public class Config {
      * @param region The value of the {@code region} property. This is an optional property.
      * @param tls The value of the {@code tls} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public Config(@com.fasterxml.jackson.annotation.JsonProperty(value = "endpointUrl", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.String endpointUrl, @com.fasterxml.jackson.annotation.JsonProperty(value = "accessKey") @edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider accessKey, @com.fasterxml.jackson.annotation.JsonProperty(value = "secretKey") @edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider secretKey, @com.fasterxml.jackson.annotation.JsonProperty(value = "region") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String region, @com.fasterxml.jackson.annotation.JsonProperty(value = "tls") @edu.umd.cs.findbugs.annotations.Nullable xref.Tls tls) {
         this.endpointUrl = java.util.Objects.requireNonNull(endpointUrl);
         this.accessKey = accessKey;
@@ -52,7 +52,7 @@ public class Config {
      *
      * @return The value of this object's endpointUrl.
      */
-    @edu.umd.cs.findbugs.annotations.NonNull()
+    @edu.umd.cs.findbugs.annotations.NonNull
     @com.fasterxml.jackson.annotation.JsonProperty(value = "endpointUrl", required = true)
     public java.lang.String endpointUrl() {
         return this.endpointUrl;
@@ -63,7 +63,7 @@ public class Config {
      *
      *  @param endpointUrl The new value for this object's endpointUrl.
      */
-    public void endpointUrl(@edu.umd.cs.findbugs.annotations.NonNull() java.lang.String endpointUrl) {
+    public void endpointUrl(@edu.umd.cs.findbugs.annotations.NonNull java.lang.String endpointUrl) {
         this.endpointUrl = java.util.Objects.requireNonNull(endpointUrl);
     }
 
@@ -71,7 +71,7 @@ public class Config {
      * Specification of a password
      * @return The value of this object's accessKey.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "accessKey")
     public xref.PasswordProvider accessKey() {
         return this.accessKey;
@@ -81,7 +81,7 @@ public class Config {
      * Specification of a password
      *  @param accessKey The new value for this object's accessKey.
      */
-    public void accessKey(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider accessKey) {
+    public void accessKey(@edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider accessKey) {
         this.accessKey = accessKey;
     }
 
@@ -89,7 +89,7 @@ public class Config {
      * Specification of a password
      * @return The value of this object's secretKey.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "secretKey")
     public xref.PasswordProvider secretKey() {
         return this.secretKey;
@@ -99,7 +99,7 @@ public class Config {
      * Specification of a password
      *  @param secretKey The new value for this object's secretKey.
      */
-    public void secretKey(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider secretKey) {
+    public void secretKey(@edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider secretKey) {
         this.secretKey = secretKey;
     }
 
@@ -107,7 +107,7 @@ public class Config {
      * AWS region
      * @return The value of this object's region.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "region")
     public java.lang.String region() {
         return this.region;
@@ -117,7 +117,7 @@ public class Config {
      * AWS region
      *  @param region The new value for this object's region.
      */
-    public void region(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String region) {
+    public void region(@edu.umd.cs.findbugs.annotations.Nullable java.lang.String region) {
         this.region = region;
     }
 
@@ -126,7 +126,7 @@ public class Config {
      *
      * @return The value of this object's tls.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "tls")
     public xref.Tls tls() {
         return this.tls;
@@ -137,21 +137,21 @@ public class Config {
      *
      *  @param tls The new value for this object's tls.
      */
-    public void tls(@edu.umd.cs.findbugs.annotations.Nullable() xref.Tls tls) {
+    public void tls(@edu.umd.cs.findbugs.annotations.Nullable xref.Tls tls) {
         this.tls = tls;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "Config[" + "endpointUrl: " + this.endpointUrl + ", accessKey: " + this.accessKey + ", secretKey: " + this.secretKey + ", region: " + this.region + ", tls: " + this.tls + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.endpointUrl, this.accessKey, this.secretKey, this.region, this.tls);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

@@ -15,14 +15,14 @@ package anonymous;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class ViaRef {
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.String bar;
 
     /**
      * All properties constructor.
      * @param bar The value of the {@code bar} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public ViaRef(@com.fasterxml.jackson.annotation.JsonProperty(value = "bar") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String bar) {
         this.bar = bar;
     }
@@ -32,7 +32,7 @@ public class ViaRef {
      *
      * @return The value of this object's bar.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
     public java.lang.String bar() {
         return this.bar;
@@ -43,21 +43,21 @@ public class ViaRef {
      *
      *  @param bar The new value for this object's bar.
      */
-    public void bar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String bar) {
+    public void bar(@edu.umd.cs.findbugs.annotations.Nullable java.lang.String bar) {
         this.bar = bar;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "ViaRef[" + "bar: " + this.bar + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.bar);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

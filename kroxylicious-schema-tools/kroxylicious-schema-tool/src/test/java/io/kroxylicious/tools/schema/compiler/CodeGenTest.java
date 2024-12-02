@@ -158,7 +158,7 @@ class CodeGenTest {
                 // The following can be uncomments to bulk-update the expected java files
                 // following a change to the code generator
                 // USE WITH CAUTION ;-)
-                // Files.writeString(expectedJavaFile.toPath(), HEADER + cus.get(0).toString());
+                //Files.writeString(expectedJavaFile.toPath(), HEADER + cus.get(0).toString());
                 String javaSrc = Files.readString(expectedJavaFile.toPath()).trim();
                 assertThat(cus).singleElement()
                         .isNotNull()

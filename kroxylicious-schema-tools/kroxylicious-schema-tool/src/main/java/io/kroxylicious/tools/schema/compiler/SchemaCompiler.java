@@ -141,13 +141,7 @@ public class SchemaCompiler {
             // We should now be able to resolve local $ref
             String rootClass = schemaFile.getFileName().toString().replaceAll("\\.yaml$", "");
             var typeNameVisitor = new TypeNameVisitor(diagnostics, idVisitor, rootClass);
-            try {
-                rootSchema.visitSchemas(schemaFile.toUri(), typeNameVisitor);
-            }
-            catch (VisitException e) {
-                diagnostics.reportError("Unable to read source file {}", schemaFile, e);
-                return Stream.empty();
-            }
+            rootSchema.visitSchemas(schemaFile.toUri(), typeNameVisitor);
 
             String pkg = StreamSupport.stream(relPath.getParent().spliterator(), false)
                     .map(Path::toString)
@@ -155,7 +149,7 @@ public class SchemaCompiler {
 
             return Stream.of(new SchemaInput(schemaFile, pkg, rootSchema));
         }
-        catch (IOException | IllegalArgumentException e) {
+        catch (IOException | IllegalArgumentException | VisitException e) {
             diagnostics.reportError("Unable to read source file {}: {}", schemaFile, e.getMessage());
             return Stream.empty();
         }

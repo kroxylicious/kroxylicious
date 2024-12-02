@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 
 public class ListOrSingleSerde {
 
-    public ListOrSingleSerde() {
+    private ListOrSingleSerde() {
     }
 
     public abstract static class ListOrSingleDeserializer<T> extends JsonDeserializer<List<T>> {
@@ -69,6 +69,7 @@ public class ListOrSingleSerde {
         }
     }
 
+    @SuppressWarnings("javaarchitecture:S7027")
     public static class SchemaObject extends ListOrSingleDeserializer<io.kroxylicious.tools.schema.model.SchemaObject> {
         public SchemaObject() {
             super(new TypeReference<io.kroxylicious.tools.schema.model.SchemaObject>() {

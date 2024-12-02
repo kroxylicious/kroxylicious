@@ -69,39 +69,59 @@ public class TypeNameVisitor extends SchemaObject.Visitor {
                 schema.setJavaType(rootClass);
             }
             else {
-                var definitionsMatcher = DEFINITIONS_PATTERN.matcher(path);
-                if (definitionsMatcher.matches()) {
-                    schema.setJavaType(definitionsMatcher.group("defName"));
-                }
-                else {
-                    var propsMatcher = PROPS_PATH.matcher(path);
-                    var nameParts = new ArrayList<String>();
-                    var singularize = new ArrayList<Integer>();
-                    nameParts.add(rootClass);
-                    while (propsMatcher.find()) {
-                        String keyword2 = propsMatcher.group("keyword");
-                        if ("items".equals(keyword2)) {
-                            singularize.add(nameParts.size() - 1);
-                            continue;
-                        }
-                        String propertyName = propsMatcher.group("nameOrIndex");
-                        propertyName = initialCaps(propertyName);
-                        nameParts.add(propertyName);
-                    }
-                    for (int index : singularize) {
-                        nameParts.add(index, singularize(nameParts.remove(index)));
-                    }
-                    String computedName = String.join("", nameParts);
-                    assert (!computedName.isEmpty());
-                    if (!computedName.equals(rootClass)) {
-                        schema.setJavaType(computedName);
-                    }
-                    else {
-                        diagnostics.reportError("Could not compute a java class name for the schema at " + path);
-                    }
-                }
+                final String name = generateTypeName(path, keyword);
+                schema.setJavaType(name);
             }
         }
+    }
+
+    private String generateTypeName(String path, String keyword) {
+        final String name;
+        if ("definitions".equals(keyword)) {
+            name = generateTypeNameForDefinition(path);
+        }
+        else {
+            var propsMatcher = PROPS_PATH.matcher(path);
+            var nameParts = new ArrayList<String>();
+            var singularize = new ArrayList<Integer>();
+            nameParts.add(rootClass);
+            while (propsMatcher.find()) {
+                String keyword2 = propsMatcher.group("keyword");
+                if ("items".equals(keyword2)) {
+                    singularize.add(nameParts.size() - 1);
+                    continue;
+                }
+                String propertyName = propsMatcher.group("nameOrIndex");
+                propertyName = initialCaps(propertyName);
+                nameParts.add(propertyName);
+            }
+            for (int index : singularize) {
+                nameParts.add(index, singularize(nameParts.remove(index)));
+            }
+            String computedName = String.join("", nameParts);
+            assert (!computedName.isEmpty());
+            if (!computedName.equals(rootClass)) {
+                name = computedName;
+            }
+            else {
+                diagnostics.reportError("Could not compute a java class name for the schema at " + path);
+                name = "*ERROR*";
+            }
+        }
+        return name;
+    }
+
+    private String generateTypeNameForDefinition(String path) {
+        final String name;
+        var definitionsMatcher = DEFINITIONS_PATTERN.matcher(path);
+        if (definitionsMatcher.matches()) {
+            name = definitionsMatcher.group("defName");
+        }
+        else {
+            diagnostics.reportError("Could not compute a java class name for the schema at " + path);
+            name = "*ERROR*";
+        }
+        return name;
     }
 
     @NonNull
@@ -123,6 +143,8 @@ public class TypeNameVisitor extends SchemaObject.Visitor {
         return propertyName;
     }
 
+    @SuppressWarnings("java:S5860") // sonar fails to detect use of the group name
     private static final Pattern PROPS_PATH = Pattern.compile("/(?<keyword>properties|items)/(?<nameOrIndex>[a-zA-Z0-9_-]+)");
+    @SuppressWarnings("java:S5860") // sonar fails to detect use of the group name
     private static final Pattern DEFINITIONS_PATTERN = Pattern.compile(".*/definitions/(?<defName>[a-zA-Z0-9_-]+)");
 }

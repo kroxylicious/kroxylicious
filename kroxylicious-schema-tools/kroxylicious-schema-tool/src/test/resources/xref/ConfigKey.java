@@ -15,22 +15,22 @@ package xref;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class ConfigKey {
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.String privateKeyFile;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.String certificateFile;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.String storeFile;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private xref.PasswordProvider storePassword;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private xref.PasswordProvider keyPassword;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.String storeType;
 
     /**
@@ -42,7 +42,7 @@ public class ConfigKey {
      * @param keyPassword The value of the {@code keyPassword} property. This is an optional property.
      * @param storeType The value of the {@code storeType} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public ConfigKey(@com.fasterxml.jackson.annotation.JsonProperty(value = "privateKeyFile") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String privateKeyFile, @com.fasterxml.jackson.annotation.JsonProperty(value = "certificateFile") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String certificateFile, @com.fasterxml.jackson.annotation.JsonProperty(value = "storeFile") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String storeFile, @com.fasterxml.jackson.annotation.JsonProperty(value = "storePassword") @edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider storePassword, @com.fasterxml.jackson.annotation.JsonProperty(value = "keyPassword") @edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider keyPassword, @com.fasterxml.jackson.annotation.JsonProperty(value = "storeType") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String storeType) {
         this.privateKeyFile = privateKeyFile;
         this.certificateFile = certificateFile;
@@ -56,7 +56,7 @@ public class ConfigKey {
      * location of a file containing the private key.
      * @return The value of this object's privateKeyFile.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "privateKeyFile")
     public java.lang.String privateKeyFile() {
         return this.privateKeyFile;
@@ -66,7 +66,7 @@ public class ConfigKey {
      * location of a file containing the private key.
      *  @param privateKeyFile The new value for this object's privateKeyFile.
      */
-    public void privateKeyFile(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String privateKeyFile) {
+    public void privateKeyFile(@edu.umd.cs.findbugs.annotations.Nullable java.lang.String privateKeyFile) {
         this.privateKeyFile = privateKeyFile;
     }
 
@@ -74,7 +74,7 @@ public class ConfigKey {
      * location of a file containing the certificate and intermediates.
      * @return The value of this object's certificateFile.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "certificateFile")
     public java.lang.String certificateFile() {
         return this.certificateFile;
@@ -84,7 +84,7 @@ public class ConfigKey {
      * location of a file containing the certificate and intermediates.
      *  @param certificateFile The new value for this object's certificateFile.
      */
-    public void certificateFile(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String certificateFile) {
+    public void certificateFile(@edu.umd.cs.findbugs.annotations.Nullable java.lang.String certificateFile) {
         this.certificateFile = certificateFile;
     }
 
@@ -92,7 +92,7 @@ public class ConfigKey {
      * location of a key store, or reference to a PEM file containing both private-key and certificate/intermediates.
      * @return The value of this object's storeFile.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "storeFile")
     public java.lang.String storeFile() {
         return this.storeFile;
@@ -102,7 +102,7 @@ public class ConfigKey {
      * location of a key store, or reference to a PEM file containing both private-key and certificate/intermediates.
      *  @param storeFile The new value for this object's storeFile.
      */
-    public void storeFile(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String storeFile) {
+    public void storeFile(@edu.umd.cs.findbugs.annotations.Nullable java.lang.String storeFile) {
         this.storeFile = storeFile;
     }
 
@@ -110,7 +110,7 @@ public class ConfigKey {
      * Specification of a password
      * @return The value of this object's storePassword.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "storePassword")
     public xref.PasswordProvider storePassword() {
         return this.storePassword;
@@ -120,7 +120,7 @@ public class ConfigKey {
      * Specification of a password
      *  @param storePassword The new value for this object's storePassword.
      */
-    public void storePassword(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider storePassword) {
+    public void storePassword(@edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider storePassword) {
         this.storePassword = storePassword;
     }
 
@@ -128,7 +128,7 @@ public class ConfigKey {
      * Specification of a password
      * @return The value of this object's keyPassword.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "keyPassword")
     public xref.PasswordProvider keyPassword() {
         return this.keyPassword;
@@ -138,7 +138,7 @@ public class ConfigKey {
      * Specification of a password
      *  @param keyPassword The new value for this object's keyPassword.
      */
-    public void keyPassword(@edu.umd.cs.findbugs.annotations.Nullable() xref.PasswordProvider keyPassword) {
+    public void keyPassword(@edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider keyPassword) {
         this.keyPassword = keyPassword;
     }
 
@@ -149,7 +149,7 @@ public class ConfigKey {
      *
      * @return The value of this object's storeType.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "storeType")
     public java.lang.String storeType() {
         return this.storeType;
@@ -162,21 +162,21 @@ public class ConfigKey {
      *
      *  @param storeType The new value for this object's storeType.
      */
-    public void storeType(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String storeType) {
+    public void storeType(@edu.umd.cs.findbugs.annotations.Nullable java.lang.String storeType) {
         this.storeType = storeType;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "ConfigKey[" + "privateKeyFile: " + this.privateKeyFile + ", certificateFile: " + this.certificateFile + ", storeFile: " + this.storeFile + ", storePassword: " + this.storePassword + ", keyPassword: " + this.keyPassword + ", storeType: " + this.storeType + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.privateKeyFile, this.certificateFile, this.storeFile, this.storePassword, this.keyPassword, this.storeType);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

@@ -15,14 +15,14 @@ package maps;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class Maps {
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo;
 
     /**
      * All properties constructor.
      * @param keyedOnFoo The value of the {@code keyedOnFoo} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public Maps(@com.fasterxml.jackson.annotation.JsonProperty(value = "keyedOnFoo") @edu.umd.cs.findbugs.annotations.Nullable java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo) {
         this.keyedOnFoo = keyedOnFoo;
     }
@@ -31,7 +31,7 @@ public class Maps {
      * An array of FooBars
      * @return The value of this object's keyedOnFoo.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "keyedOnFoo")
     public java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo() {
         return this.keyedOnFoo;
@@ -41,21 +41,21 @@ public class Maps {
      * An array of FooBars
      *  @param keyedOnFoo The new value for this object's keyedOnFoo.
      */
-    public void keyedOnFoo(@edu.umd.cs.findbugs.annotations.Nullable() java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo) {
+    public void keyedOnFoo(@edu.umd.cs.findbugs.annotations.Nullable java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo) {
         this.keyedOnFoo = keyedOnFoo;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "Maps[" + "keyedOnFoo: " + this.keyedOnFoo + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.keyedOnFoo);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

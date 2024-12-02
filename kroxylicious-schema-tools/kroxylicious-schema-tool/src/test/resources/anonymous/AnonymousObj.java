@@ -15,14 +15,14 @@ package anonymous;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class AnonymousObj {
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.String foo;
 
     /**
      * All properties constructor.
      * @param foo The value of the {@code foo} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public AnonymousObj(@com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String foo) {
         this.foo = foo;
     }
@@ -32,7 +32,7 @@ public class AnonymousObj {
      *
      * @return The value of this object's foo.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
     public java.lang.String foo() {
         return this.foo;
@@ -43,21 +43,21 @@ public class AnonymousObj {
      *
      *  @param foo The new value for this object's foo.
      */
-    public void foo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String foo) {
+    public void foo(@edu.umd.cs.findbugs.annotations.Nullable java.lang.String foo) {
         this.foo = foo;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "AnonymousObj[" + "foo: " + this.foo + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.foo);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

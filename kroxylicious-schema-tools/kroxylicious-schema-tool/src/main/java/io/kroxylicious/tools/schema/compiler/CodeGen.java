@@ -8,7 +8,6 @@ package io.kroxylicious.tools.schema.compiler;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,11 +95,10 @@ public class CodeGen {
                 diagnostics.reportFatal("Use of an absolute URI in $ref is not supported");
                 return new SchemaObject();
             }
-            else if (ref.getPath() == null
-                    || ref.getPath().isEmpty()) {
-                if (ref.getFragment() != null) {
-                    return resolveInternalFragmentRef(root, ref);
-                }
+            else if ((ref.getPath() == null
+                        || ref.getPath().isEmpty())
+                    && ref.getFragment() != null) {
+                return resolveInternalFragmentRef(root, ref);
             }
             // Two possibilities: a local ref point to a file which we should be compiling
             // or a local ref pointing to a file which we should _not be compiling_
@@ -140,11 +138,16 @@ public class CodeGen {
         return new SchemaObject();
     }
 
+    @SuppressWarnings("java:S1192")
     Type genTypeName(String pkg, SchemaObject root, SchemaObject schema) {
         Objects.requireNonNull(schema);
         List<SchemaType> type = schema.getType();
-        if (type == null) {
-            type = Arrays.asList(SchemaType.values());
+        if (type == null || type.isEmpty()) {
+            // unconstrained => union of all types
+            type = new ArrayList<>(SchemaType.all());
+        }
+        else {
+            type = new ArrayList<>(type);
         }
         if (type.size() == 1) {
             return switch (type.get(0)) {
@@ -168,16 +171,11 @@ public class CodeGen {
                     // TODO or Map or ObjectNode if x-kubernetes-preserve-unknown-keys
                     String fqName = pkg + "." + className(schema);
                     String orDefault = existingClasses.getOrDefault(fqName, fqName);
-                    // diagnostics.reportWarning("{}={}", fqName, orDefault);
                     yield new ClassOrInterfaceType(null, orDefault);
                 }
             };
         }
         else {
-            if (type.isEmpty()) {
-                // unconstrained => union of all types
-                return new ClassOrInterfaceType(null, "java.lang.Object");
-            }
             return new ClassOrInterfaceType(null, "java.lang.Object");
         }
     }
@@ -254,7 +252,6 @@ public class CodeGen {
      * @param schema
      */
     private @Nullable CompilationUnit genDecl(String pkg, SchemaObject schema, String path, URI base) {
-        // TODO A schema is recursive => This should return a Map<String, CompilationUnit>
         List<SchemaType> type = schema.getType();
         if (type == null) {
             type = SchemaType.all();
@@ -296,7 +293,6 @@ public class CodeGen {
         Set<String> required = schema.getRequired() == null ? Set.of() : schema.getRequired();
         CompilationUnit cu = new CompilationUnit();
         cu.setPackageDeclaration(new PackageDeclaration(new Name(pkg)));
-        // TODO annotations
 
         ClassOrInterfaceDeclaration clz = cu.addClass(name,
                 Modifier.Keyword.PUBLIC);
@@ -354,7 +350,7 @@ public class CodeGen {
         ConstructorDeclaration decl = mkConstructor(pkg, root, clz,
                 "All properties constructor.", properties, required, (propName, schemaObject) -> List.of(
                         mkAtJsonProperty(propName, required.contains(propName))));
-        decl.addAnnotation("com.fasterxml.jackson.annotation.JsonCreator");
+        decl.addAnnotation(new MarkerAnnotationExpr("com.fasterxml.jackson.annotation.JsonCreator"));
         clz.addMember(decl);
 
     }
@@ -389,7 +385,7 @@ public class CodeGen {
                     var propSchema = resolveRef(root, entry.getValue());
                     var propType = genTypeName(pkg, root, propSchema);
                     NodeList<AnnotationExpr> annotations = NodeList.nodeList(annotator.apply(entry.getKey(), entry.getValue()));
-                    annotations.add(new MarkerAnnotationExpr(nullableAnnotationName(required.contains(entry.getKey()))));
+                    annotations.add(mkNullableAnnotation(required.contains(entry.getKey())));
                     return new Parameter(propType, fieldName(entry.getKey()))
                             .setAnnotations(annotations);
                 }).toList();
@@ -442,7 +438,7 @@ public class CodeGen {
 
         clz.addMethod("toString", Modifier.Keyword.PUBLIC)
                 .setType("java.lang.String")
-                .addAnnotation("java.lang.Override")
+                .addAnnotation(mkAtOverride())
                 .setBody(new BlockStmt(new NodeList<>(new ReturnStmt(expr))));
     }
 
@@ -455,7 +451,7 @@ public class CodeGen {
 
         clz.addMethod("hashCode", Modifier.Keyword.PUBLIC)
                 .setType("int")
-                .addAnnotation("java.lang.Override")
+                .addAnnotation(mkAtOverride())
                 .setBody(new BlockStmt(new NodeList<>(new ReturnStmt(new MethodCallExpr("java.util.Objects.hash")
                         .setArguments(args)))));
     }
@@ -464,13 +460,6 @@ public class CodeGen {
                                         String pkg,
                                         ClassOrInterfaceDeclaration clz,
                                         Map<String, SchemaObject> properties) {
-        // if (this == other) {
-        // return true;
-        // } else if (other instanceof Bob otherBob) {
-        // return Objects.equals(this.foo, otherBob.foo)
-        // && Objects.equals(this.bar, otherBob.bar)
-        // && ... // for each property;
-        // } else { return false; }
         String className = clz.getNameAsString();
         Expression expr;
         String otherParamName = "other";
@@ -513,20 +502,22 @@ public class CodeGen {
 
         clz.addMethod("equals", Modifier.Keyword.PUBLIC)
                 .setType("boolean")
-                .addAnnotation("java.lang.Override")
+                .addAnnotation(mkAtOverride())
                 .setParameters(new NodeList<>(new Parameter(new ClassOrInterfaceType(null, "java.lang.Object"), otherParamName)))
                 .setBody(new BlockStmt(new NodeList<>(stmt)));
+    }
+
+    @NonNull
+    private static MarkerAnnotationExpr mkAtOverride() {
+        return new MarkerAnnotationExpr("java.lang.Override");
     }
 
     private FieldDeclaration mkPropertyField(String propName,
                                              boolean required,
                                              Type propType) {
-        // TODO initializer? How work with jackson
         var fieldName = fieldName(propName);
         FieldDeclaration fieldDeclaration = new FieldDeclaration();
-        fieldDeclaration.addAnnotation(nullableAnnotationName(required));
-        // fieldDeclaration.addAnnotation(mkAtJsonProperty(propName, required));
-        // fieldDeclaration.addAnnotation(mkAtJsonSetter());
+        fieldDeclaration.addAnnotation(mkNullableAnnotation(required));
         VariableDeclarator variable = new VariableDeclarator(propType, fieldName);
         fieldDeclaration.getVariables().add(variable);
         fieldDeclaration.setModifiers(Modifier.Keyword.PRIVATE);
@@ -554,8 +545,8 @@ public class CodeGen {
     }
 
     @NonNull
-    private String nullableAnnotationName(boolean required) {
-        return required ? nonNullAnnotation : nullableAnnotation;
+    private AnnotationExpr mkNullableAnnotation(boolean required) {
+        return new MarkerAnnotationExpr(required ? nonNullAnnotation : nullableAnnotation);
     }
 
     private MethodDeclaration mkPropertyGetterMethod(@Nullable String description,
@@ -573,9 +564,8 @@ public class CodeGen {
         MethodDeclaration methodDeclaration = new MethodDeclaration();
         methodDeclaration.setJavadocComment(description);
         methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
-        methodDeclaration.addAnnotation(nullableAnnotationName(required));
+        methodDeclaration.addAnnotation(mkNullableAnnotation(required));
         methodDeclaration.addAnnotation(mkAtJsonProperty(propName, required));
-        // fieldDeclaration.addAnnotation(mkAtJsonSetter());
         methodDeclaration.setType(propType);
         methodDeclaration.setName(getterName);
         methodDeclaration.setBody(new BlockStmt(new NodeList<>(new ReturnStmt(new FieldAccessExpr(new ThisExpr(), fieldName)))));
@@ -599,12 +589,10 @@ public class CodeGen {
 
         MethodDeclaration methodDeclaration = new MethodDeclaration();
         methodDeclaration.setJavadocComment(description);
-        // methodDeclaration.addAnnotation(mkAtJsonProperty(propName, required));
-        // methodDeclaration.addAnnotation(mkAtJsonSetter());
         methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
         methodDeclaration.setType(new VoidType());
         methodDeclaration.setName(setterName(propName));
-        Parameter parameter = new Parameter(propType, fieldName).addAnnotation(nullableAnnotationName(required));
+        Parameter parameter = new Parameter(propType, fieldName).addAnnotation(mkNullableAnnotation(required));
         methodDeclaration
                 .setParameters(new NodeList<>(parameter))
                 .setBody(new BlockStmt(new NodeList<>(new ExpressionStmt(new AssignExpr(

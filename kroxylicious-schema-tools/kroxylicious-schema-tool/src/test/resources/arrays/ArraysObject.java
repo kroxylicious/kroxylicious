@@ -15,14 +15,14 @@ package arrays;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class ArraysObject {
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.String name;
 
     /**
      * All properties constructor.
      * @param name The value of the {@code name} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public ArraysObject(@com.fasterxml.jackson.annotation.JsonProperty(value = "name") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String name) {
         this.name = name;
     }
@@ -32,7 +32,7 @@ public class ArraysObject {
      *
      * @return The value of this object's name.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "name")
     public java.lang.String name() {
         return this.name;
@@ -43,21 +43,21 @@ public class ArraysObject {
      *
      *  @param name The new value for this object's name.
      */
-    public void name(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String name) {
+    public void name(@edu.umd.cs.findbugs.annotations.Nullable java.lang.String name) {
         this.name = name;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "ArraysObject[" + "name: " + this.name + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.name);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

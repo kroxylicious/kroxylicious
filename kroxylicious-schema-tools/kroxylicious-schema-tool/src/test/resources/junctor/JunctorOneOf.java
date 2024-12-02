@@ -15,10 +15,10 @@ package junctor;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class JunctorOneOf {
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.Boolean foo;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.Boolean bar;
 
     /**
@@ -26,7 +26,7 @@ public class JunctorOneOf {
      * @param foo The value of the {@code foo} property. This is an optional property.
      * @param bar The value of the {@code bar} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public JunctorOneOf(@com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean foo, @com.fasterxml.jackson.annotation.JsonProperty(value = "bar") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean bar) {
         this.foo = foo;
         this.bar = bar;
@@ -37,7 +37,7 @@ public class JunctorOneOf {
      *
      * @return The value of this object's foo.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "foo")
     public java.lang.Boolean foo() {
         return this.foo;
@@ -48,7 +48,7 @@ public class JunctorOneOf {
      *
      *  @param foo The new value for this object's foo.
      */
-    public void foo(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean foo) {
+    public void foo(@edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean foo) {
         this.foo = foo;
     }
 
@@ -57,7 +57,7 @@ public class JunctorOneOf {
      *
      * @return The value of this object's bar.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "bar")
     public java.lang.Boolean bar() {
         return this.bar;
@@ -68,21 +68,21 @@ public class JunctorOneOf {
      *
      *  @param bar The new value for this object's bar.
      */
-    public void bar(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.Boolean bar) {
+    public void bar(@edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean bar) {
         this.bar = bar;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "JunctorOneOf[" + "foo: " + this.foo + ", bar: " + this.bar + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.foo, this.bar);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

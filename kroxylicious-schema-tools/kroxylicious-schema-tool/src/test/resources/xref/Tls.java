@@ -15,10 +15,10 @@ package xref;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class Tls {
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private xref.ConfigKey key;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private xref.ConfigTrust trust;
 
     /**
@@ -26,7 +26,7 @@ public class Tls {
      * @param key The value of the {@code key} property. This is an optional property.
      * @param trust The value of the {@code trust} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public Tls(@com.fasterxml.jackson.annotation.JsonProperty(value = "key") @edu.umd.cs.findbugs.annotations.Nullable xref.ConfigKey key, @com.fasterxml.jackson.annotation.JsonProperty(value = "trust") @edu.umd.cs.findbugs.annotations.Nullable xref.ConfigTrust trust) {
         this.key = key;
         this.trust = trust;
@@ -37,7 +37,7 @@ public class Tls {
      *
      * @return The value of this object's key.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "key")
     public xref.ConfigKey key() {
         return this.key;
@@ -48,7 +48,7 @@ public class Tls {
      *
      *  @param key The new value for this object's key.
      */
-    public void key(@edu.umd.cs.findbugs.annotations.Nullable() xref.ConfigKey key) {
+    public void key(@edu.umd.cs.findbugs.annotations.Nullable xref.ConfigKey key) {
         this.key = key;
     }
 
@@ -57,7 +57,7 @@ public class Tls {
      *
      * @return The value of this object's trust.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "trust")
     public xref.ConfigTrust trust() {
         return this.trust;
@@ -68,21 +68,21 @@ public class Tls {
      *
      *  @param trust The new value for this object's trust.
      */
-    public void trust(@edu.umd.cs.findbugs.annotations.Nullable() xref.ConfigTrust trust) {
+    public void trust(@edu.umd.cs.findbugs.annotations.Nullable xref.ConfigTrust trust) {
         this.trust = trust;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "Tls[" + "key: " + this.key + ", trust: " + this.trust + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.key, this.trust);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

@@ -15,19 +15,19 @@ package arrays;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class Arrays {
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.util.List<java.lang.String> strings;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.util.Set<java.lang.String> stringSet;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.util.List<java.lang.Long> integers;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.util.List<arrays.ArraysObject> objects;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.util.List<arrays.FooBar> fooBars;
 
     /**
@@ -38,7 +38,7 @@ public class Arrays {
      * @param objects The value of the {@code objects} property. This is an optional property.
      * @param fooBars The value of the {@code fooBars} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public Arrays(@com.fasterxml.jackson.annotation.JsonProperty(value = "strings") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<java.lang.String> strings, @com.fasterxml.jackson.annotation.JsonProperty(value = "stringSet") @edu.umd.cs.findbugs.annotations.Nullable java.util.Set<java.lang.String> stringSet, @com.fasterxml.jackson.annotation.JsonProperty(value = "integers") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<java.lang.Long> integers, @com.fasterxml.jackson.annotation.JsonProperty(value = "objects") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<arrays.ArraysObject> objects, @com.fasterxml.jackson.annotation.JsonProperty(value = "fooBars") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<arrays.FooBar> fooBars) {
         this.strings = strings;
         this.stringSet = stringSet;
@@ -51,7 +51,7 @@ public class Arrays {
      * An array of strings
      * @return The value of this object's strings.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "strings")
     public java.util.List<java.lang.String> strings() {
         return this.strings;
@@ -61,7 +61,7 @@ public class Arrays {
      * An array of strings
      *  @param strings The new value for this object's strings.
      */
-    public void strings(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<java.lang.String> strings) {
+    public void strings(@edu.umd.cs.findbugs.annotations.Nullable java.util.List<java.lang.String> strings) {
         this.strings = strings;
     }
 
@@ -69,7 +69,7 @@ public class Arrays {
      * An array of strings
      * @return The value of this object's stringSet.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "stringSet")
     public java.util.Set<java.lang.String> stringSet() {
         return this.stringSet;
@@ -79,7 +79,7 @@ public class Arrays {
      * An array of strings
      *  @param stringSet The new value for this object's stringSet.
      */
-    public void stringSet(@edu.umd.cs.findbugs.annotations.Nullable() java.util.Set<java.lang.String> stringSet) {
+    public void stringSet(@edu.umd.cs.findbugs.annotations.Nullable java.util.Set<java.lang.String> stringSet) {
         this.stringSet = stringSet;
     }
 
@@ -87,7 +87,7 @@ public class Arrays {
      * An array of integers
      * @return The value of this object's integers.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "integers")
     public java.util.List<java.lang.Long> integers() {
         return this.integers;
@@ -97,7 +97,7 @@ public class Arrays {
      * An array of integers
      *  @param integers The new value for this object's integers.
      */
-    public void integers(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<java.lang.Long> integers) {
+    public void integers(@edu.umd.cs.findbugs.annotations.Nullable java.util.List<java.lang.Long> integers) {
         this.integers = integers;
     }
 
@@ -105,7 +105,7 @@ public class Arrays {
      * An array of objects (not via $ref)
      * @return The value of this object's objects.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "objects")
     public java.util.List<arrays.ArraysObject> objects() {
         return this.objects;
@@ -115,7 +115,7 @@ public class Arrays {
      * An array of objects (not via $ref)
      *  @param objects The new value for this object's objects.
      */
-    public void objects(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<arrays.ArraysObject> objects) {
+    public void objects(@edu.umd.cs.findbugs.annotations.Nullable java.util.List<arrays.ArraysObject> objects) {
         this.objects = objects;
     }
 
@@ -123,7 +123,7 @@ public class Arrays {
      * An array of FooBars
      * @return The value of this object's fooBars.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "fooBars")
     public java.util.List<arrays.FooBar> fooBars() {
         return this.fooBars;
@@ -133,21 +133,21 @@ public class Arrays {
      * An array of FooBars
      *  @param fooBars The new value for this object's fooBars.
      */
-    public void fooBars(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<arrays.FooBar> fooBars) {
+    public void fooBars(@edu.umd.cs.findbugs.annotations.Nullable java.util.List<arrays.FooBar> fooBars) {
         this.fooBars = fooBars;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "Arrays[" + "strings: " + this.strings + ", stringSet: " + this.stringSet + ", integers: " + this.integers + ", objects: " + this.objects + ", fooBars: " + this.fooBars + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.strings, this.stringSet, this.integers, this.objects, this.fooBars);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

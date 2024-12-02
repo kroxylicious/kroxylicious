@@ -102,6 +102,7 @@ public final class SchemaObject {
 
     @JsonCreator
     public SchemaObject() {
+        super();
     }
 
     @Nullable
@@ -335,9 +336,11 @@ public final class SchemaObject {
         }
 
         public void enterSchema(URI base, String path, String keyword, @NonNull SchemaObject schema) {
+            // default behaviour is no-op
         }
 
         public void exitSchema(URI base, String path, String keyword, @NonNull SchemaObject schema) {
+            // default behaviour is no-op
         }
     }
 

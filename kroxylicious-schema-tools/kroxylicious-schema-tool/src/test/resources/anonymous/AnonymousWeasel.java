@@ -15,14 +15,14 @@ package anonymous;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class AnonymousWeasel {
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.lang.String baz;
 
     /**
      * All properties constructor.
      * @param baz The value of the {@code baz} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public AnonymousWeasel(@com.fasterxml.jackson.annotation.JsonProperty(value = "baz") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String baz) {
         this.baz = baz;
     }
@@ -32,7 +32,7 @@ public class AnonymousWeasel {
      *
      * @return The value of this object's baz.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "baz")
     public java.lang.String baz() {
         return this.baz;
@@ -43,21 +43,21 @@ public class AnonymousWeasel {
      *
      *  @param baz The new value for this object's baz.
      */
-    public void baz(@edu.umd.cs.findbugs.annotations.Nullable() java.lang.String baz) {
+    public void baz(@edu.umd.cs.findbugs.annotations.Nullable java.lang.String baz) {
         this.baz = baz;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "AnonymousWeasel[" + "baz: " + this.baz + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.baz);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;

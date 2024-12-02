@@ -15,13 +15,13 @@ package anonymous;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 public class Anonymous {
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private anonymous.AnonymousObj obj;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private java.util.List<anonymous.AnonymousWeasel> weasels;
 
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     private anonymous.ViaRef ref;
 
     /**
@@ -30,7 +30,7 @@ public class Anonymous {
      * @param weasels The value of the {@code weasels} property. This is an optional property.
      * @param ref The value of the {@code ref} property. This is an optional property.
      */
-    @com.fasterxml.jackson.annotation.JsonCreator()
+    @com.fasterxml.jackson.annotation.JsonCreator
     public Anonymous(@com.fasterxml.jackson.annotation.JsonProperty(value = "obj") @edu.umd.cs.findbugs.annotations.Nullable anonymous.AnonymousObj obj, @com.fasterxml.jackson.annotation.JsonProperty(value = "weasels") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<anonymous.AnonymousWeasel> weasels, @com.fasterxml.jackson.annotation.JsonProperty(value = "ref") @edu.umd.cs.findbugs.annotations.Nullable anonymous.ViaRef ref) {
         this.obj = obj;
         this.weasels = weasels;
@@ -42,7 +42,7 @@ public class Anonymous {
      *
      * @return The value of this object's obj.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "obj")
     public anonymous.AnonymousObj obj() {
         return this.obj;
@@ -53,7 +53,7 @@ public class Anonymous {
      *
      *  @param obj The new value for this object's obj.
      */
-    public void obj(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.AnonymousObj obj) {
+    public void obj(@edu.umd.cs.findbugs.annotations.Nullable anonymous.AnonymousObj obj) {
         this.obj = obj;
     }
 
@@ -62,7 +62,7 @@ public class Anonymous {
      *
      * @return The value of this object's weasels.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "weasels")
     public java.util.List<anonymous.AnonymousWeasel> weasels() {
         return this.weasels;
@@ -73,7 +73,7 @@ public class Anonymous {
      *
      *  @param weasels The new value for this object's weasels.
      */
-    public void weasels(@edu.umd.cs.findbugs.annotations.Nullable() java.util.List<anonymous.AnonymousWeasel> weasels) {
+    public void weasels(@edu.umd.cs.findbugs.annotations.Nullable java.util.List<anonymous.AnonymousWeasel> weasels) {
         this.weasels = weasels;
     }
 
@@ -82,7 +82,7 @@ public class Anonymous {
      *
      * @return The value of this object's ref.
      */
-    @edu.umd.cs.findbugs.annotations.Nullable()
+    @edu.umd.cs.findbugs.annotations.Nullable
     @com.fasterxml.jackson.annotation.JsonProperty(value = "ref")
     public anonymous.ViaRef ref() {
         return this.ref;
@@ -93,21 +93,21 @@ public class Anonymous {
      *
      *  @param ref The new value for this object's ref.
      */
-    public void ref(@edu.umd.cs.findbugs.annotations.Nullable() anonymous.ViaRef ref) {
+    public void ref(@edu.umd.cs.findbugs.annotations.Nullable anonymous.ViaRef ref) {
         this.ref = ref;
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public java.lang.String toString() {
         return "Anonymous[" + "obj: " + this.obj + ", weasels: " + this.weasels + ", ref: " + this.ref + "]";
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public int hashCode() {
         return java.util.Objects.hash(this.obj, this.weasels, this.ref);
     }
 
-    @java.lang.Override()
+    @java.lang.Override
     public boolean equals(java.lang.Object other) {
         if (this == other)
             return true;
