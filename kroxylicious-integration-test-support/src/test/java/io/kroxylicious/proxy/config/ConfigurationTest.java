@@ -18,7 +18,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
+import io.kroxylicious.proxy.config.tls.TlsClientAuth;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class ConfigurationTest {
 
@@ -26,11 +29,11 @@ class ConfigurationTest {
     private final ConfigParser configParser = new ConfigParser();
 
     public static Stream<Arguments> fluentApiConfigYamlFidelity() {
-        return Stream.of(Arguments.of("Top level",
+        return Stream.of(argumentSet("Top level",
                 new ConfigurationBuilder().withUseIoUring(true).build(),
                 """
                         useIoUring: true"""),
-                Arguments.of("With filter",
+                argumentSet("With filter",
                         new ConfigurationBuilder()
                                 .addToFilters(new FilterDefinitionBuilder(ExampleFilterFactory.class.getSimpleName())
                                         .withConfig("examplePlugin", "ExamplePluginInstance",
@@ -45,7 +48,7 @@ class ConfigurationTest {
                                         examplePluginConfig:
                                           pluginKey: pluginValue
                                 """),
-                Arguments.of("With Virtual Cluster",
+                argumentSet("With Virtual Cluster",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
@@ -69,7 +72,7 @@ class ConfigurationTest {
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
                                 """),
-                Arguments.of("Downstream TLS",
+                argumentSet("Downstream TLS - default client auth",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
@@ -100,13 +103,14 @@ class ConfigurationTest {
                                          privateKeyFile: /tmp/key
                                          keyPassword:
                                            password: keypassword
+                                       clientAuth: NONE
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
                                 """),
-                Arguments.of("Upstream TLS - platform trust",
+                argumentSet("Upstream TLS - platform trust",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
@@ -126,14 +130,15 @@ class ConfigurationTest {
                                   demo:
                                     targetCluster:
                                       bootstrap_servers: kafka.example:1234
-                                      tls: {}
+                                      tls:
+                                        clientAuth: NONE
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
                                 """),
-                Arguments.of("Upstream TLS - trust from truststore",
+                argumentSet("Upstream TLS - trust from truststore",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
@@ -144,6 +149,7 @@ class ConfigurationTest {
                                         .withStoreType("JKS")
                                         .withNewInlinePasswordStoreProvider("storepassword")
                                         .endTrustStoreTrust()
+                                        .withClientAuth(TlsClientAuth.REQUESTED)
                                         .endTls()
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
@@ -164,13 +170,14 @@ class ConfigurationTest {
                                             storePassword:
                                               password: storepassword
                                             storeType: JKS
+                                         clientAuth: REQUESTED
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
                                 """),
-                Arguments.of("Upstream TLS - trust from truststore, password from file",
+                argumentSet("Upstream TLS - trust from truststore, password from file",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
@@ -181,6 +188,7 @@ class ConfigurationTest {
                                         .withStoreType("JKS")
                                         .withNewFilePasswordStoreProvider("/tmp/password.txt")
                                         .endTrustStoreTrust()
+                                        .withClientAuth(TlsClientAuth.REQUIRED)
                                         .endTls()
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
@@ -201,13 +209,14 @@ class ConfigurationTest {
                                             storePassword:
                                               passwordFile: /tmp/password.txt
                                             storeType: JKS
+                                         clientAuth: REQUIRED
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
                                 """),
-                Arguments.of("Upstream TLS - insecure",
+                argumentSet("Upstream TLS - insecure",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
@@ -231,6 +240,7 @@ class ConfigurationTest {
                                       tls:
                                          trust:
                                             insecure: true
+                                         clientAuth: NONE
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
@@ -241,9 +251,9 @@ class ConfigurationTest {
         );
     }
 
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest
     @MethodSource
-    void fluentApiConfigYamlFidelity(String name, Configuration config, String expected) throws Exception {
+    void fluentApiConfigYamlFidelity(Configuration config, String expected) throws Exception {
         var yaml = configParser.toYaml(config);
         var actualJson = MAPPER.reader().readValue(yaml, JsonNode.class);
         var expectedJson = MAPPER.reader().readValue(expected, JsonNode.class);
