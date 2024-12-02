@@ -12,14 +12,13 @@ import java.util.Objects;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.tools.schema.model.SchemaObject;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class Namer extends SchemaObject.Visitor {
 

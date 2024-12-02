@@ -17,8 +17,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious-maven-plugin</artifactId>
-    <description>A maven plugin to expose the tools to a maven build</description>
+    <artifactId>kroxylicious-schema-maven-plugin</artifactId>
+    <description>A maven plugin to expose the schema compiler to a maven build</description>
     <packaging>maven-plugin</packaging>
 
     <properties>

@@ -110,7 +110,7 @@
         <plugins>
             <plugin>
                 <groupId>io.kroxylicious</groupId>
-                <artifactId>kroxylicious-maven-plugin</artifactId>
+                <artifactId>kroxylicious-schema-maven-plugin</artifactId>
                 <version>${project.version}</version>
                 <executions>
                     <execution>

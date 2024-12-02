@@ -158,16 +158,16 @@ public class SchemaCompiler {
 
     public Stream<CompilationUnit> gen(List<Input> inputs) {
 
-            return inputs.stream()
-                    .flatMap(input -> {
-                        try {
-                            return codeGen.genDecls(input).stream();
-                        }
-                        catch (VisitException e) {
-                            diagnostics.reportFatal("Error: {}", e.getMessage(), e);
-                            return Stream.empty();
-                        }
-                    });
+        return inputs.stream()
+                .flatMap(input -> {
+                    try {
+                        return codeGen.genDecls(input).stream();
+                    }
+                    catch (VisitException e) {
+                        diagnostics.reportFatal("Error: {}", e.getMessage(), e);
+                        return Stream.empty();
+                    }
+                });
 
     }
 

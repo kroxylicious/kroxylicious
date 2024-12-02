@@ -6,18 +6,16 @@
 
 package io.kroxylicious.tools.schema.compiler;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
-import io.kroxylicious.tools.schema.model.SchemaObject;
-import io.kroxylicious.tools.schema.model.SchemaObjectBuilder;
-
-import io.kroxylicious.tools.schema.model.SchemaType;
-
-import io.kroxylicious.tools.schema.model.VisitException;
+import java.net.URI;
 
 import org.junit.jupiter.api.Test;
 
-import java.net.URI;
+import io.kroxylicious.tools.schema.model.SchemaObject;
+import io.kroxylicious.tools.schema.model.SchemaObjectBuilder;
+import io.kroxylicious.tools.schema.model.SchemaType;
+import io.kroxylicious.tools.schema.model.VisitException;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,11 +31,10 @@ public class SchemaObjectTest {
         SchemaObject.Visitor throwingVisitor = new SchemaObject.Visitor() {
             @Override
             public void enterSchema(
-                    URI base,
-                    String path,
-                    String keyword,
-                    @NonNull SchemaObject schema
-            ) {
+                                    URI base,
+                                    String path,
+                                    String keyword,
+                                    @NonNull SchemaObject schema) {
                 super.enterSchema(base, path, keyword, schema);
                 if (path.endsWith("/bar")) {
                     throw new RuntimeException();
@@ -46,7 +43,8 @@ public class SchemaObjectTest {
         };
         assertThatThrownBy(() -> schema.visitSchemas(URI.create("test://schema"), throwingVisitor))
                 .isExactlyInstanceOf(VisitException.class)
-                .hasMessage("io.kroxylicious.tools.schema.compiler.SchemaObjectTest$1#enterSchema() threw exception while visiting schema object at '/properties/bar' from test://schema");
+                .hasMessage(
+                        "io.kroxylicious.tools.schema.compiler.SchemaObjectTest$1#enterSchema() threw exception while visiting schema object at '/properties/bar' from test://schema");
     }
 
     @Test
