@@ -172,6 +172,6 @@ public class RecordEncryptionFilter<K>
     }
 
     private static boolean isEncryptionException(Throwable throwable) {
-        return EncryptionException.class.isAssignableFrom(throwable.getClass());
+        return throwable instanceof EncryptionException;
     }
 }
