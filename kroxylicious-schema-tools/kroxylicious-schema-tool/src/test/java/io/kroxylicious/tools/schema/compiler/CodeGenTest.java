@@ -36,7 +36,6 @@ import io.kroxylicious.tools.schema.model.XKubeListType;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CodeGenTest {
 
@@ -91,6 +90,18 @@ class CodeGenTest {
         // Because `generated == expected` this means the generated must be legal java source code
         compileJavaFilesBeneath(Path.of(yamlFilename).getParent());
         javadocJavaFilesBeneath(Path.of(yamlFilename).getParent());
+    }
+
+    private static SchemaCompiler parseDiagnostics(String yamlFilename) {
+        File src = new File(yamlFilename);
+        Path path = new File("src/test/resources").toPath();
+        SchemaCompiler schemaCompiler = new SchemaCompiler(
+                List.of(path),
+                List.of(path.relativize(src.toPath()).getParent().toString().replace("/", ".")),
+                null,
+                Map.of());
+        List<Input> parse = schemaCompiler.parse();
+        return schemaCompiler;
     }
 
     private static SchemaCompiler genDiagnostics(String yamlFilename) {
@@ -262,13 +273,35 @@ class CodeGenTest {
     }
 
     @Test
+    void nonSchemaFile() throws IOException {
+        String pathname = "src/test/resources/nonschemafile/NonSchemaFile.yaml";
+        assertThat(parseDiagnostics(pathname))
+                .satisfies(schemaCompiler -> {
+                    assertThat(schemaCompiler.numFatals()).isZero();
+                    assertThat(schemaCompiler.numErrors()).isZero();
+                    assertThat(schemaCompiler.numWarnings()).isEqualTo(1);
+                });
+    }
+
+    @Test
+    void unsupportedSchemaVersion() throws IOException {
+        String pathname = "src/test/resources/badschemaversion/BadSchemaVersion.yaml";
+        assertThat(parseDiagnostics(pathname))
+                .satisfies(schemaCompiler -> {
+                    assertThat(schemaCompiler.numFatals()).isZero();
+                    assertThat(schemaCompiler.numErrors()).isZero();
+                    assertThat(schemaCompiler.numWarnings()).isEqualTo(1);
+                });
+    }
+
+    @Test
     void unionType() throws IOException {
         String pathname = "src/test/resources/uniontype/UnionType.yaml";
         assertThat(genDiagnostics(pathname))
                 .satisfies(schemaCompiler -> {
                     assertThat(schemaCompiler.numFatals()).isEqualTo(1);
-                    assertThat(schemaCompiler.numErrors()).isEqualTo(0);
-                    assertThat(schemaCompiler.numWarnings()).isEqualTo(0);
+                    assertThat(schemaCompiler.numErrors()).isZero();
+                    assertThat(schemaCompiler.numWarnings()).isZero();
                 });
     }
 
