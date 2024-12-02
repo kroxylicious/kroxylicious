@@ -96,7 +96,7 @@ public class CodeGen {
                 return new SchemaObject();
             }
             else if ((ref.getPath() == null
-                        || ref.getPath().isEmpty())
+                    || ref.getPath().isEmpty())
                     && ref.getFragment() != null) {
                 return resolveInternalFragmentRef(root, ref);
             }
