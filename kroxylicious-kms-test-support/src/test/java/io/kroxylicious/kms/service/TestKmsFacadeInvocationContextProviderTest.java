@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -39,6 +40,14 @@ class TestKmsFacadeInvocationContextProviderTest {
 
     @Mock
     TestKmsFacade<?, ?, ?> testKmsFacade;
+    private MyParameterContext stringParam;
+    private MyParameterContext testKmsFacadeParam;
+
+    @BeforeEach
+    void setUp() {
+        stringParam = new MyParameterContext(String.class);
+        testKmsFacadeParam = new MyParameterContext(TestKmsFacade.class);
+    }
 
     @SuppressWarnings("unchecked")
     @Test
@@ -51,7 +60,7 @@ class TestKmsFacadeInvocationContextProviderTest {
 
         // When
         final boolean supportsParameter = testKmsProvider.supportsParameter(
-                new MyParameterContext(String.class),
+                stringParam,
                 extensionContext);
 
         // Then
@@ -69,7 +78,7 @@ class TestKmsFacadeInvocationContextProviderTest {
 
         // When
         final boolean supportsParameter = testKmsProvider.supportsParameter(
-                new MyParameterContext(TestKmsFacade.class),
+                testKmsFacadeParam,
                 extensionContext);
 
         // Then
@@ -87,7 +96,7 @@ class TestKmsFacadeInvocationContextProviderTest {
 
         // When
         final Object supportsParameter = testKmsProvider.resolveParameter(
-                new MyParameterContext(TestKmsFacade.class),
+                testKmsFacadeParam,
                 extensionContext);
 
         // Then
@@ -105,7 +114,7 @@ class TestKmsFacadeInvocationContextProviderTest {
 
         // When
         final TestKmsFacade<?, ?, ?> supportsParameter = (TestKmsFacade<?, ?, ?>) testKmsProvider.resolveParameter(
-                new MyParameterContext(TestKmsFacade.class),
+                testKmsFacadeParam,
                 extensionContext);
 
         // Then
@@ -123,7 +132,7 @@ class TestKmsFacadeInvocationContextProviderTest {
 
         // When
         assertThatThrownBy(() -> testKmsProvider.resolveParameter(
-                new MyParameterContext(String.class),
+                stringParam,
                 extensionContext))
                 .isInstanceOf(ParameterResolutionException.class)
                 .hasMessageStartingWith("Unable to resolve");
@@ -142,7 +151,7 @@ class TestKmsFacadeInvocationContextProviderTest {
         final TestKmsFacadeInvocationContextProvider testKmsProvider = new TestKmsFacadeInvocationContextProvider();
 
         testKmsProvider.supportsParameter(
-                new MyParameterContext(String.class),
+                stringParam,
                 extensionContext);
         final Function<String, ?> lambdaCatcherValue = lambdaCatcher.getValue();
 
