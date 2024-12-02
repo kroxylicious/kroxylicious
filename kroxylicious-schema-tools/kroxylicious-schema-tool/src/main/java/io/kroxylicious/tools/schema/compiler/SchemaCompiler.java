@@ -124,12 +124,12 @@ public class SchemaCompiler {
             LOGGER.debug("Parsing {}", schemaFile);
             var tree = mapper.readTree(schemaFile.toFile());
 
-            JsonNode $schema = tree.path("$schema");
-            if ($schema.isMissingNode()) {
+            JsonNode schemaKeywordNode = tree.path("$schema");
+            if (schemaKeywordNode.isMissingNode()) {
                 diagnostics.reportWarning("Ignoring non-schema file: {}", schemaFile);
                 return Stream.empty();
             }
-            if (!"http://json-schema.org/draft-04/schema#".equals($schema.asText("http://json-schema.org/draft-04/schema#"))) {
+            if (!"http://json-schema.org/draft-04/schema#".equals(schemaKeywordNode.asText("http://json-schema.org/draft-04/schema#"))) {
                 diagnostics.reportWarning("Ignoring non-schema file: {}", schemaFile);
                 return Stream.empty();
             }

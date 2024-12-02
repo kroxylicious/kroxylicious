@@ -25,6 +25,8 @@ import javax.tools.ToolProvider;
 
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.github.javaparser.ast.CompilationUnit;
 
@@ -83,33 +85,33 @@ class CodeGenTest {
 
             """;
 
-    private void assertGeneratedCode(String yamlFilename) throws IOException {
+    private void assertGeneratedCode(String dir) throws IOException {
         // First assert that the generate code matches the expected files
-        assertGeneratedCodeMatches(yamlFilename);
+        assertGeneratedCodeMatches(dir);
         // Then assert that the expected files can be compiled with a java compiler
         // Because `generated == expected` this means the generated must be legal java source code
-        compileJavaFilesBeneath(Path.of(yamlFilename).getParent());
-        javadocJavaFilesBeneath(Path.of(yamlFilename).getParent());
+        compileJavaFilesBeneath(Path.of(dir).getParent());
+        javadocJavaFilesBeneath(Path.of(dir).getParent());
     }
 
-    private static SchemaCompiler parseDiagnostics(String yamlFilename) {
-        File src = new File(yamlFilename);
+    private static SchemaCompiler parseDiagnostics(String dir) {
+        File src = new File(dir);
         Path path = new File("src/test/resources").toPath();
         SchemaCompiler schemaCompiler = new SchemaCompiler(
                 List.of(path),
-                List.of(path.relativize(src.toPath()).getParent().toString().replace("/", ".")),
+                List.of(path.relativize(src.toPath()).toString().replace("/", ".")),
                 null,
                 Map.of());
-        List<SchemaInput> parse = schemaCompiler.parse();
+        schemaCompiler.parse();
         return schemaCompiler;
     }
 
-    private static SchemaCompiler genDiagnostics(String yamlFilename) {
-        File src = new File(yamlFilename);
+    private static SchemaCompiler genDiagnostics(String dir) {
+        File src = new File(dir);
         Path path = new File("src/test/resources").toPath();
         SchemaCompiler schemaCompiler = new SchemaCompiler(
                 List.of(path),
-                List.of(path.relativize(src.toPath()).getParent().toString().replace("/", ".")),
+                List.of(path.relativize(src.toPath()).toString().replace("/", ".")),
                 null,
                 Map.of());
         List<SchemaInput> parse = schemaCompiler.parse();
@@ -117,7 +119,7 @@ class CodeGenTest {
         assertThat(schemaCompiler.diagnostics.getNumErrors()).isZero();
         assertThat(schemaCompiler.diagnostics.getNumWarnings()).isZero();
         try {
-            var units = schemaCompiler.gen(parse).toList();
+            schemaCompiler.gen(parse).toList();
         }
         catch (FatalException e) {
             // pass
@@ -125,12 +127,12 @@ class CodeGenTest {
         return schemaCompiler;
     }
 
-    private static void assertGeneratedCodeMatches(String yamlFilename) {
-        File src = new File(yamlFilename);
+    private static void assertGeneratedCodeMatches(String dir) {
+        Path src = Path.of(dir);
         Path path = new File("src/test/resources").toPath();
         SchemaCompiler schemaCompiler = new SchemaCompiler(
                 List.of(path),
-                List.of(path.relativize(src.toPath()).getParent().toString().replace("/", ".")),
+                List.of(path.relativize(src).toString().replace("/", ".")),
                 null,
                 Map.of());
         List<SchemaInput> parse = schemaCompiler.parse();
@@ -138,7 +140,7 @@ class CodeGenTest {
 
         assertThat(schemaCompiler.diagnostics.getNumFatals()).describedAs("Expect 0 fatal errors").isZero();
         assertThat(schemaCompiler.diagnostics.getNumErrors()).describedAs("Expect 0 errors").isZero();
-        // TODO reinstate this assertThat(schemaCompiler.diagnostics.getNumWarnings()).describedAs("Expect 0 warnings errors").isZero();
+        // TODO assertThat(schemaCompiler.diagnostics.getNumWarnings()).describedAs("Expect 0 warnings").isZero();
 
         Map<String, List<CompilationUnit>> collect = units.stream().collect(Collectors.groupingBy(SchemaCompiler::javaFileName));
         assertThat(collect).hasKeySatisfying(new Condition<>(
@@ -148,7 +150,7 @@ class CodeGenTest {
                 unitsForFile -> unitsForFile.size() == 1,
                 "No colliding units"));
         collect.forEach((javaFilename, cus) -> {
-            File expectedJavaFile = new File(src.getParentFile(), javaFilename);
+            File expectedJavaFile = new File(src.toFile(), javaFilename);
             assertThat(expectedJavaFile)
                     .describedAs("Unexpected java source output (or expected output java file doesn't exist)")
                     .exists();
@@ -224,57 +226,27 @@ class CodeGenTest {
         return result;
     }
 
-    @Test
-    void empty() throws IOException {
-        String pathname = "src/test/resources/empty/Empty.yaml";
-        assertGeneratedCode(pathname);
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "src/test/resources/empty",
+            "src/test/resources/scalars",
+            "src/test/resources/arrays",
+            "src/test/resources/maps",
+            "src/test/resources/anonymous",
+            "src/test/resources/trickynaming",
+            "src/test/resources/xref",
+            "src/test/resources/junctor"
+    })
+    void compiles(String dir) throws IOException {
+        assertGeneratedCode(dir);
     }
 
-    @Test
-    void scalarProperties() throws IOException {
-        String pathname = "src/test/resources/scalars/ScalarProperties.yaml";
-        assertGeneratedCode(pathname);
-    }
-
-    @Test
-    void arrays() throws IOException {
-        String pathname = "src/test/resources/arrays/Arrays.yaml";
-        assertGeneratedCode(pathname);
-    }
-
-    @Test
-    void maps() throws IOException {
-        String pathname = "src/test/resources/maps/Maps.yaml";
-        assertGeneratedCode(pathname);
-    }
-
-    @Test
-    void anonymous() throws IOException {
-        String pathname = "src/test/resources/anonymous/Anonymous.yaml";
-        assertGeneratedCode(pathname);
-    }
-
-    @Test
-    void trickyNaming() throws IOException {
-        String pathname = "src/test/resources/trickynaming/Tricky.yaml";
-        assertGeneratedCode(pathname);
-    }
-
-    @Test
-    void xref() throws IOException {
-        String pathname = "src/test/resources/xref/Xref.yaml";
-        assertGeneratedCode(pathname);
-    }
-
-    @Test
-    void junctor() throws IOException {
-        String pathname = "src/test/resources/junctor/Junctor.yaml";
-        assertGeneratedCode(pathname);
-    }
-
-    @Test
-    void nonSchemaFile() throws IOException {
-        String pathname = "src/test/resources/nonschemafile/NonSchemaFile.yaml";
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "src/test/resources/nonschemafile",
+            "src/test/resources/badschemaversion"
+    })
+    void warnings(String pathname) {
         assertThat(parseDiagnostics(pathname))
                 .satisfies(schemaCompiler -> {
                     assertThat(schemaCompiler.numFatals()).isZero();
@@ -284,19 +256,8 @@ class CodeGenTest {
     }
 
     @Test
-    void unsupportedSchemaVersion() throws IOException {
-        String pathname = "src/test/resources/badschemaversion/BadSchemaVersion.yaml";
-        assertThat(parseDiagnostics(pathname))
-                .satisfies(schemaCompiler -> {
-                    assertThat(schemaCompiler.numFatals()).isZero();
-                    assertThat(schemaCompiler.numErrors()).isZero();
-                    assertThat(schemaCompiler.numWarnings()).isEqualTo(1);
-                });
-    }
-
-    @Test
-    void unionType() throws IOException {
-        String pathname = "src/test/resources/uniontype/UnionType.yaml";
+    void unionTypeIsFatal() {
+        String pathname = "src/test/resources/uniontype";
         assertThat(genDiagnostics(pathname))
                 .satisfies(schemaCompiler -> {
                     assertThat(schemaCompiler.numFatals()).isEqualTo(1);

@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.fasterxml.jackson.core.JacksonException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -19,6 +18,9 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
 public class ListOrSingleSerde {
+
+    public ListOrSingleSerde() {
+    }
 
     public abstract static class ListOrSingleDeserializer<T> extends JsonDeserializer<List<T>> {
         private final TypeReference<T> elementTypeReference;
@@ -41,7 +43,7 @@ public class ListOrSingleSerde {
         public List<T> deserialize(
                                    JsonParser parser,
                                    DeserializationContext context)
-                throws IOException, JacksonException {
+                throws IOException {
             if (parser.isExpectedStartArrayToken()) {
                 return parser.readValueAs(listTypeReference);
             }

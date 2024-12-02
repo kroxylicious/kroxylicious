@@ -20,7 +20,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class SchemaObjectTest {
+class SchemaObjectTest {
 
     @Test
     void testVisitor() {
@@ -41,7 +41,8 @@ public class SchemaObjectTest {
                 }
             }
         };
-        assertThatThrownBy(() -> schema.visitSchemas(URI.create("test://schema"), throwingVisitor))
+        URI base = URI.create("test://schema");
+        assertThatThrownBy(() -> schema.visitSchemas(base, throwingVisitor))
                 .isExactlyInstanceOf(VisitException.class)
                 .hasMessage(
                         "io.kroxylicious.tools.schema.compiler.SchemaObjectTest$1#enterSchema() threw exception while visiting schema object at '/properties/bar' from test://schema");
@@ -105,8 +106,8 @@ public class SchemaObjectTest {
                 .isNotEqualTo(fooBarJava)
                 .isNotEqualTo(fooBarId);
 
-        assertThat(fooBar.hashCode()).isEqualTo(fooBar2.hashCode());
-
-        assertThat(fooBar.toString()).isEqualTo(fooBar2.toString());
+        assertThat(fooBar)
+                .hasSameHashCodeAs(fooBar2)
+                .hasToString(fooBar2.toString());
     }
 }
