@@ -23,8 +23,6 @@
     <modules>
         <module>kroxylicious-schema-tool</module>
         <module>kroxylicious-maven-plugin</module>
-        <module>kroxylicious-crd-tool</module>
-
     </modules>
 
     <dependencyManagement>
