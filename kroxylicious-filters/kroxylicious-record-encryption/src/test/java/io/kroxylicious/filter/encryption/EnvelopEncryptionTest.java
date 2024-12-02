@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
@@ -27,7 +26,6 @@ class EnvelopEncryptionTest {
 
     @SuppressWarnings({ "removal", "unchecked" })
     @Test
-    @Disabled
     void shouldInitAndCreateFilter() {
         var config = new RecordEncryptionConfig("KMS", null, "SELECTOR", null, null);
         var ee = new EnvelopeEncryption<>();

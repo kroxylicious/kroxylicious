@@ -36,6 +36,11 @@ import io.kroxylicious.tools.schema.model.VisitException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * A transpiler which accepts JSON Schemas (Wright draft 4) and
+ * generates {@code .java} source code for Jackson-annotated POJOs
+ * that can represent instance values that conform to that schema.
+ */
 public class SchemaCompiler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SchemaCompiler.class);
@@ -43,7 +48,7 @@ public class SchemaCompiler {
     private final List<Path> srcPaths;
     private final CodeGen codeGen;
     private final YAMLMapper mapper;
-    private final Namer namer;
+    private final IdVisitor idVisitor;
     private final @Nullable String header;
     final Diagnostics diagnostics;
     private final List<String> packages;
@@ -61,9 +66,9 @@ public class SchemaCompiler {
 
         this.diagnostics = new Diagnostics();
         this.mapper = new YAMLMapper();
-        this.namer = new Namer(diagnostics);
+        this.idVisitor = new IdVisitor(diagnostics);
         this.codeGen = new CodeGen(diagnostics,
-                namer,
+                idVisitor,
                 existingClasses,
                 "edu.umd.cs.findbugs.annotations.Nullable",
                 "edu.umd.cs.findbugs.annotations.NonNull");
@@ -89,7 +94,7 @@ public class SchemaCompiler {
         return header;
     }
 
-    public List<Input> parse() {
+    public List<SchemaInput> parse() {
 
         return srcPaths.stream().flatMap(srcPath -> {
             LOGGER.debug("Parsing {}", srcPath.toAbsolutePath());
@@ -113,7 +118,7 @@ public class SchemaCompiler {
         }).toList();
     }
 
-    private Stream<Input> parseSchema(Path srcPath, Path schemaFile) {
+    private Stream<SchemaInput> parseSchema(Path srcPath, Path schemaFile) {
         try {
             var relPath = srcPath.relativize(schemaFile);
             LOGGER.debug("Parsing {}", schemaFile);
@@ -131,13 +136,13 @@ public class SchemaCompiler {
             var rootSchema = mapper.convertValue(tree, SchemaObject.class);
 
             // Build the map of absolute URI identifiers to schema
-            rootSchema.visitSchemas(schemaFile.toUri(), namer);
+            rootSchema.visitSchemas(schemaFile.toUri(), idVisitor);
 
             // We should now be able to resolve local $ref
             String rootClass = schemaFile.getFileName().toString().replaceAll("\\.yaml$", "");
-            var refResolver = new RefResolver(diagnostics, namer, rootClass);
+            var typeNameVisitor = new TypeNameVisitor(diagnostics, idVisitor, rootClass);
             try {
-                rootSchema.visitSchemas(schemaFile.toUri(), refResolver);
+                rootSchema.visitSchemas(schemaFile.toUri(), typeNameVisitor);
             }
             catch (VisitException e) {
                 diagnostics.reportError("Unable to read source file {}", schemaFile, e);
@@ -148,7 +153,7 @@ public class SchemaCompiler {
                     .map(Path::toString)
                     .collect(Collectors.joining("."));
 
-            return Stream.of(new Input(schemaFile, pkg, rootSchema));
+            return Stream.of(new SchemaInput(schemaFile, pkg, rootSchema));
         }
         catch (IOException | IllegalArgumentException e) {
             diagnostics.reportError("Unable to read source file {}: {}", schemaFile, e.getMessage());
@@ -156,7 +161,7 @@ public class SchemaCompiler {
         }
     }
 
-    public Stream<CompilationUnit> gen(List<Input> inputs) {
+    public Stream<CompilationUnit> gen(List<SchemaInput> inputs) {
 
         return inputs.stream()
                 .flatMap(input -> {

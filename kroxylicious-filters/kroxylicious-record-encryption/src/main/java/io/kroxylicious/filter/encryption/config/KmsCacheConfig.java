@@ -9,6 +9,8 @@ package io.kroxylicious.filter.encryption.config;
 import java.time.Duration;
 import java.util.function.Function;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 import static java.util.Objects.requireNonNullElse;
 
 public record KmsCacheConfig(
@@ -33,6 +35,7 @@ public record KmsCacheConfig(
     }
 
     @SuppressWarnings("java:S1905") // Sonar's warning about this is incorrect, the cast is required.
+    @VisibleForTesting
     public KmsCacheConfig(Integer decryptedDekCacheSize,
                           Long decryptedDekExpireAfterAccessSeconds,
                           Integer resolvedAliasCacheSize,

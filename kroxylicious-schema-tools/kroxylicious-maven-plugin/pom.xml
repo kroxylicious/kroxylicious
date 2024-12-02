@@ -58,21 +58,10 @@
             <artifactId>sundr-core</artifactId>
             <scope>compile</scope>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>io.kroxylicious</groupId>-->
-<!--            <artifactId>kroxylicious-crd-tool</artifactId>-->
-<!--            <version>${project.version}</version>-->
-<!--        </dependency>-->
         <dependency>
             <groupId>org.apache.maven</groupId>
             <artifactId>maven-plugin-api</artifactId>
         </dependency>
-<!--        <dependency>-->
-<!--            <groupId>org.checkerframework</groupId>-->
-<!--            <artifactId>checker-qual</artifactId>-->
-<!--            <version>3.43.0</version>-->
-<!--            <scope>compile</scope>-->
-<!--        </dependency>-->
     </dependencies>
 
     <build>

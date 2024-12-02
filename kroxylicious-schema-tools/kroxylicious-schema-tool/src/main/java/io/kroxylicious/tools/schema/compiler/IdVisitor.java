@@ -20,9 +20,13 @@ import io.kroxylicious.tools.schema.model.SchemaObject;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class Namer extends SchemaObject.Visitor {
+/**
+ * A {@link SchemaObject.Visitor} which tracks the URIs (multiple!) which can be used
+ * to refer to a schema.
+ */
+public class IdVisitor extends SchemaObject.Visitor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(Namer.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(IdVisitor.class);
 
     private static final Pattern SUBSCHEMA_ID_PATTERN = Pattern.compile("^#[A-Za-z][A-Za-z0-9_:.-]*$");
 
@@ -40,7 +44,7 @@ public class Namer extends SchemaObject.Visitor {
 
     private final Map<String, SchemaObject> idIndex = new TreeMap<>();
 
-    public Namer(Diagnostics diagnostics) {
+    public IdVisitor(Diagnostics diagnostics) {
         this.diagnostics = Objects.requireNonNull(diagnostics);
     }
 

@@ -9,6 +9,9 @@ package io.kroxylicious.tools.schema.compiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Used to track errors and warnings emitted by the tool, to avoid fail fast behaviour.
+ */
 public class Diagnostics {
     private static final Logger LOGGER = LoggerFactory.getLogger(Diagnostics.class);
 

@@ -43,7 +43,7 @@ class CodeGenTest {
 
     {
         Diagnostics diagnostics = new Diagnostics();
-        codeGen = new CodeGen(diagnostics, new Namer(diagnostics), Map.of(),
+        codeGen = new CodeGen(diagnostics, new IdVisitor(diagnostics), Map.of(),
                 "edu.umd.cs.findbugs.annotations.Nullable",
                 "edu.umd.cs.findbugs.annotations.NonNull");
     }
@@ -100,7 +100,7 @@ class CodeGenTest {
                 List.of(path.relativize(src.toPath()).getParent().toString().replace("/", ".")),
                 null,
                 Map.of());
-        List<Input> parse = schemaCompiler.parse();
+        List<SchemaInput> parse = schemaCompiler.parse();
         return schemaCompiler;
     }
 
@@ -112,7 +112,7 @@ class CodeGenTest {
                 List.of(path.relativize(src.toPath()).getParent().toString().replace("/", ".")),
                 null,
                 Map.of());
-        List<Input> parse = schemaCompiler.parse();
+        List<SchemaInput> parse = schemaCompiler.parse();
         assertThat(schemaCompiler.diagnostics.getNumFatals()).isZero();
         assertThat(schemaCompiler.diagnostics.getNumErrors()).isZero();
         assertThat(schemaCompiler.diagnostics.getNumWarnings()).isZero();
@@ -133,7 +133,7 @@ class CodeGenTest {
                 List.of(path.relativize(src.toPath()).getParent().toString().replace("/", ".")),
                 null,
                 Map.of());
-        List<Input> parse = schemaCompiler.parse();
+        List<SchemaInput> parse = schemaCompiler.parse();
         var units = schemaCompiler.gen(parse).toList();
 
         assertThat(schemaCompiler.diagnostics.getNumFatals()).describedAs("Expect 0 fatal errors").isZero();

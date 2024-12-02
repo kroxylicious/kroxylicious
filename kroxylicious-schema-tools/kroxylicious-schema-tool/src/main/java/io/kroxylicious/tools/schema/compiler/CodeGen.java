@@ -66,21 +66,24 @@ import io.kroxylicious.tools.schema.model.XKubeListType;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Java code generation from a SchemaObject.
+ */
 public class CodeGen {
 
-    private final Namer namer;
+    private final IdVisitor idVisitor;
     private final Diagnostics diagnostics;
     private final Map<String, String> existingClasses;
     private final String nullableAnnotation;
     private final String nonNullAnnotation;
 
     public CodeGen(Diagnostics diagnostics,
-                   Namer namer,
+                   IdVisitor idVisitor,
                    Map<String, String> existingClasses,
                    String nullableAnnotation,
                    String nonNullAnnotation) {
         this.diagnostics = Objects.requireNonNull(diagnostics);
-        this.namer = Objects.requireNonNull(namer);
+        this.idVisitor = Objects.requireNonNull(idVisitor);
         this.existingClasses = existingClasses;
         this.nullableAnnotation = nullableAnnotation;
         this.nonNullAnnotation = nonNullAnnotation;
@@ -105,7 +108,7 @@ public class CodeGen {
             // If the java for the referred to file is out of date then we'll likely generate the wrong thing
 
             URI sought = URI.create(root.getId()).resolve(ref);
-            var resolved = namer.resolve(sought);
+            var resolved = idVisitor.resolve(sought);
             if (resolved != null) {
                 return resolved;
             }
@@ -231,7 +234,7 @@ public class CodeGen {
         return new ClassOrInterfaceType(null, "code.generation.Error");
     }
 
-    List<CompilationUnit> genDecls(Input input) {
+    List<CompilationUnit> genDecls(SchemaInput input) {
         var result = new ArrayList<CompilationUnit>();
         // TODO visit the subschemas given them javaType names if they don't have them already.
         // If loaded from URI ending /x or /x.yaml or /X or /X.yaml
@@ -258,7 +261,7 @@ public class CodeGen {
         }
         if (type.size() == 1) {
             return switch (type.get(0)) {
-                case OBJECT -> genClass(pkg, namer.resolve(base), schema, path);
+                case OBJECT -> genClass(pkg, idVisitor.resolve(base), schema, path);
                 case ARRAY, STRING, INTEGER, NUMBER, BOOLEAN, NULL -> null;
             };
         }
@@ -645,11 +648,11 @@ public class CodeGen {
     }
 
     private class CodeGenVisitor extends SchemaObject.Visitor {
-        private final Input input;
+        private final SchemaInput input;
         private final ArrayList<CompilationUnit> result;
 
         CodeGenVisitor(
-                       Input input,
+                       SchemaInput input,
                        ArrayList<CompilationUnit> result) {
             this.input = input;
             this.result = result;

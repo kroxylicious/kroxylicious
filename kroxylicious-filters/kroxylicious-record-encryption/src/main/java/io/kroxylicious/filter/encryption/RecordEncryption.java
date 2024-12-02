@@ -105,7 +105,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         }
     }
 
-    public static KmsCacheConfig kmsCache(RecordEncryptionConfig configuration) {
+    static KmsCacheConfig kmsCache(RecordEncryptionConfig configuration) {
         Integer decryptedDekCacheSize = getExperimentalInt(configuration.experimental(), "decryptedDekCacheSize");
         Long decryptedDekExpireAfterAccessSeconds = getExperimentalLong(configuration.experimental(), "decryptedDekExpireAfterAccessSeconds");
         Integer resolvedAliasCacheSize = getExperimentalInt(configuration.experimental(), "resolvedAliasCacheSize");
@@ -118,7 +118,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
                 resolvedAliasRefreshAfterWriteSeconds, notFoundAliasExpireAfterWriteSeconds, encryptionDekRefreshAfterWriteSeconds, encryptionDekExpireAfterWriteSeconds);
     }
 
-    public static DekManagerConfig dekManager(RecordEncryptionConfig configuration) {
+    static DekManagerConfig dekManager(RecordEncryptionConfig configuration) {
         Long maxEncryptionsPerDek = getExperimentalLong(configuration.experimental(), "maxEncryptionsPerDek");
         return new DekManagerConfig(maxEncryptionsPerDek);
 

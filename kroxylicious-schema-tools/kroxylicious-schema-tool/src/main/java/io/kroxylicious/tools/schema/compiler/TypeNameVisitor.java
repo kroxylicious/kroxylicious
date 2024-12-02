@@ -15,17 +15,25 @@ import io.kroxylicious.tools.schema.model.SchemaObject;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public class RefResolver extends SchemaObject.Visitor {
+/**
+ * A {@link SchemaObject.Visitor} that assigns a (hopefully, but not necessarily)
+ * unique {@link SchemaObject#getJavaType()} name to each (sub-)schema which has
+ * been loaded without any explicit {@link SchemaObject#getJavaType()}.
+ *
+ * We don't aim for uniqueness on the basis that the user can always override by setting $javaType, and we'd prefer to
+ * generate "nice" names than "ugly" names which are guaranteed to be unique.
+ */
+public class TypeNameVisitor extends SchemaObject.Visitor {
 
     private final Diagnostics diagnostics;
-    private final Namer namer;
+    private final IdVisitor idVisitor;
     private String rootClass;
 
-    public RefResolver(Diagnostics diagnostics,
-                       Namer namer,
-                       String rootClass) {
+    public TypeNameVisitor(Diagnostics diagnostics,
+                           IdVisitor idVisitor,
+                           String rootClass) {
         this.diagnostics = diagnostics;
-        this.namer = namer;
+        this.idVisitor = idVisitor;
         this.rootClass = rootClass;
     }
 
@@ -40,7 +48,7 @@ public class RefResolver extends SchemaObject.Visitor {
             // TODO validate that the other fields are not set
 
             // resolve
-            SchemaObject schemaObject = namer.resolve(base.resolve(ref));
+            SchemaObject schemaObject = idVisitor.resolve(base.resolve(ref));
             if (schemaObject == null) {
                 // TODO cope with not-yet-loaded refs
                 diagnostics.reportWarning("{}: Unable to resolve $ref:{}", base, ref);
