@@ -25,8 +25,7 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.tls.TrustStore",
         "io.kroxylicious.proxy.config.tls.InsecureTls",
         "io.kroxylicious.proxy.config.tls.KeyStore",
-        "io.kroxylicious.proxy.config.tls.KeyPair",
-        "io.kroxylicious.proxy.config.tls.TlsClientAuth"
+        "io.kroxylicious.proxy.config.tls.KeyPair"
 })
 public final class BuilderConfig {
     public static final String TARGET_CONFIG_PACKAGE = "io.kroxylicious.proxy.config.model";
