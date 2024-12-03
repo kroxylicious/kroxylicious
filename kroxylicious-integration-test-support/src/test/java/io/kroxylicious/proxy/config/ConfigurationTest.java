@@ -103,7 +103,50 @@ class ConfigurationTest {
                                          privateKeyFile: /tmp/key
                                          keyPassword:
                                            password: keypassword
-                                       clientAuth: NONE
+                                    clusterNetworkAddressConfigProvider:
+                                      type: SniRoutingClusterNetworkAddressConfigProvider
+                                      config:
+                                        bootstrapAddress: cluster1:9192
+                                        brokerAddressPattern: broker-$(nodeId)
+                                """),
+                argumentSet("Downstream TLS - required client auth",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .endTargetCluster()
+                                        .withNewTls()
+                                        .withNewKeyPairKey()
+                                        .withCertificateFile("/tmp/cert")
+                                        .withPrivateKeyFile("/tmp/key")
+                                        .withNewInlinePasswordKeyProvider("keypassword")
+                                        .endKeyPairKey()
+                                        .withNewTrustStoreTrust()
+                                        .withClientAuth(TlsClientAuth.REQUIRED)
+                                        .withStoreFile("/tmp/trust")
+                                        .endTrustStoreTrust()
+                                        .endTls()
+                                        .withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                        "SniRoutingClusterNetworkAddressConfigProvider")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
+                                                        .build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  demo:
+                                    targetCluster:
+                                      bootstrap_servers: kafka.example:1234
+                                    tls:
+                                       key:
+                                         certificateFile: /tmp/cert
+                                         privateKeyFile: /tmp/key
+                                         keyPassword:
+                                           password: keypassword
+                                       trust:
+                                         storeFile: /tmp/trust
+                                         clientAuth: REQUIRED
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
@@ -130,8 +173,7 @@ class ConfigurationTest {
                                   demo:
                                     targetCluster:
                                       bootstrap_servers: kafka.example:1234
-                                      tls:
-                                        clientAuth: NONE
+                                      tls: {}
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
@@ -149,7 +191,6 @@ class ConfigurationTest {
                                         .withStoreType("JKS")
                                         .withNewInlinePasswordStoreProvider("storepassword")
                                         .endTrustStoreTrust()
-                                        .withClientAuth(TlsClientAuth.REQUESTED)
                                         .endTls()
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
@@ -170,7 +211,6 @@ class ConfigurationTest {
                                             storePassword:
                                               password: storepassword
                                             storeType: JKS
-                                         clientAuth: REQUESTED
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
@@ -188,7 +228,6 @@ class ConfigurationTest {
                                         .withStoreType("JKS")
                                         .withNewFilePasswordStoreProvider("/tmp/password.txt")
                                         .endTrustStoreTrust()
-                                        .withClientAuth(TlsClientAuth.REQUIRED)
                                         .endTls()
                                         .endTargetCluster()
                                         .withClusterNetworkAddressConfigProvider(
@@ -209,7 +248,6 @@ class ConfigurationTest {
                                             storePassword:
                                               passwordFile: /tmp/password.txt
                                             storeType: JKS
-                                         clientAuth: REQUIRED
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
@@ -240,7 +278,6 @@ class ConfigurationTest {
                                       tls:
                                          trust:
                                             insecure: true
-                                         clientAuth: NONE
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:

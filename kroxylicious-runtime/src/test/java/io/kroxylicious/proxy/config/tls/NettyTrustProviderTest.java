@@ -13,8 +13,10 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
@@ -37,7 +39,7 @@ class NettyTrustProviderTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource()
     void trustStoreTypes(String name, String storeType, String storeFile, PasswordProvider storePassword) throws Exception {
-        var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem(storeFile), storePassword, storeType));
+        var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem(storeFile), storePassword, storeType, null));
         trustStore.apply(sslContextBuilder);
         var sslContext = sslContextBuilder.build();
         assertThat(sslContext).isNotNull();
@@ -47,15 +49,45 @@ class NettyTrustProviderTest {
 
     @Test
     void trustStoreIncorrectPassword() {
-        var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.BADPASS, null));
+        var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.BADPASS, null, null));
         assertThatCode(() -> trustStore.apply(sslContextBuilder))
                 .hasMessageContaining("Error building SSLContext")
                 .hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }
 
+    @ParameterizedTest
+    @EnumSource(TlsClientAuth.class)
+    void clientAuthentication(TlsClientAuth clientAuth) {
+        var trustStore = new NettyTrustProvider(
+                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.STOREPASS, TlsTestConstants.JKS, clientAuth));
+        trustStore.apply(sslContextBuilder);
+        assertThat(sslContextBuilder)
+                .extracting("clientAuth")
+                .satisfies(nettyClientAuth -> {
+                    switch (clientAuth) {
+                        case REQUIRED -> assertThat(nettyClientAuth).isEqualTo(ClientAuth.REQUIRE);
+                        case REQUESTED -> assertThat(nettyClientAuth).isEqualTo(ClientAuth.OPTIONAL);
+                        case NONE -> assertThat(nettyClientAuth).isEqualTo(ClientAuth.NONE);
+                    }
+
+                });
+    }
+
+    @Test
+    void supportsClientAuthenticationDisabled() {
+        var trustStore = new NettyTrustProvider(
+                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.STOREPASS, TlsTestConstants.JKS, null));
+        trustStore.apply(sslContextBuilder);
+        assertThat(sslContextBuilder)
+                .extracting("clientAuth")
+                .satisfies(nettyClientAuth -> {
+                    assertThat(nettyClientAuth).isEqualTo(ClientAuth.NONE);
+                });
+    }
+
     @Test
     void trustStoreNotFound() {
-        var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.NOT_EXIST, TlsTestConstants.STOREPASS, null));
+        var trustStore = new NettyTrustProvider(new TrustStore(TlsTestConstants.NOT_EXIST, TlsTestConstants.STOREPASS, null, null));
         assertThatCode(() -> trustStore.apply(sslContextBuilder))
                 .hasMessageContaining("Error building SSLContext")
                 .hasRootCauseInstanceOf(FileNotFoundException.class);

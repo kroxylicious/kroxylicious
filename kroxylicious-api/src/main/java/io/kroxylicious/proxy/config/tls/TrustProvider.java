@@ -9,6 +9,8 @@ package io.kroxylicious.proxy.config.tls;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A TrustProvider is a source of trust anchors used to determine whether a certificate present by a peer is trusted.
  * <ul>
@@ -27,4 +29,14 @@ public interface TrustProvider {
      * @param visitor visitor.
      */
     <T> T accept(TrustProviderVisitor<T> visitor);
+
+    /**
+     * In the TLS server role, indicates the authentication that will be applied to the client.
+     * In the TLS client role, this has no meaning.
+     *
+     * @return client auth
+     */
+    default @Nullable TlsClientAuth clientAuth() {
+        return null;
+    }
 }

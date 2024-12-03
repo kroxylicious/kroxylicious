@@ -8,40 +8,15 @@ package io.kroxylicious.proxy.config.tls;
 
 import java.security.KeyStore;
 import java.util.Locale;
-import java.util.Objects;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Provides TLS configuration for this peer.  This class is designed to be used for both TLS server and client roles.
  *
- * @param key   specifies a key provider that provides the certificate/key used to identify this peer.
+ * @param key specifies a key provider that provides the certificate/key used to identify this peer.
  * @param trust specifies a trust provider used by this peer to determine whether to trust the peer. If omitted platform trust is used instead.
- * @param clientAuth when in the node is in the TLS <em>server</em> role, clientAuth specifies how the server should authenticate clients. This option has no meaning in the node is in the TLS <em>client</em> role. 
- *
- * TODO ability to restrict by TLS protocol and cipher suite.
  */
 public record Tls(KeyProvider key,
-                  TrustProvider trust,
-                  @Nullable TlsClientAuth clientAuth) {
-
-    // Sonar is wrong about this being equivalent to the default ctor as the fields are not initialised by the default before calling the validation.
-    @SuppressWarnings("java:S6207")
-    public Tls(KeyProvider key, TrustProvider trust, TlsClientAuth clientAuth) {
-        this.key = key;
-        this.trust = trust;
-        this.clientAuth = clientAuth;
-        validateClientAuth();
-    }
-
-    /**
-     * @deprecated use the all args constructor {@see io.kroxylicious.proxy.config.tls.Tls#Tls(io.kroxylicious.proxy.config.tls.KeyProvider, io.kroxylicious.proxy.config.tls.TrustProvider, io.kroxylicious.proxy.config.tls.TlsClientAuth)}
-     */
-    // This is required for API backwards compatability
-    @Deprecated(forRemoval = true, since = "0.10.0")
-    public Tls(KeyProvider key, TrustProvider trust) {
-        this(key, trust, null);
-    }
+                  TrustProvider trust) {
 
     public static final String PEM = "PEM";
 
@@ -53,15 +28,4 @@ public record Tls(KeyProvider key,
         return key != null;
     }
 
-    @Override
-    public TlsClientAuth clientAuth() {
-        // We can't just default this in the canonical constructor as it then becomes a nonsensical property of Upstream TLS config
-        return clientAuth == null ? TlsClientAuth.NONE : clientAuth;
-    }
-
-    private void validateClientAuth() {
-        if (clientAuth() != TlsClientAuth.NONE && Objects.isNull(trust)) {
-            throw new IllegalStateException("ClientAuth enabled but no TrustStore provided to validate certificates");
-        }
-    }
 }

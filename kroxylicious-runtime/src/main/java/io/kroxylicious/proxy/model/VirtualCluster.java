@@ -16,7 +16,6 @@ import javax.net.ssl.SSLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
@@ -25,6 +24,7 @@ import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -78,7 +78,8 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                                                  ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
                                                  Optional<Tls> tls) {
         try {
-            var downstreamTls = tls.map(tls1 -> " (TLS clientAuth: " + tls1.clientAuth() + ")").orElse("");
+            var downstreamTls = tls.map(t -> Optional.ofNullable(t.trust()).map(TrustProvider::clientAuth).orElse(TlsClientAuth.NONE))
+                    .map(clientAuth -> " (TLS clientAuth: " + clientAuth + ")").orElse("");
             HostPort downstreamBootstrap = clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
             var upstreamTls = targetCluster.tls().map(tls1 -> " (TLS)").orElse("");
             HostPort upstreamHostPort = targetCluster.bootstrapServersList().get(0);
@@ -186,22 +187,12 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                 var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
                         .orElseThrow();
 
-                return configureTrustProvider(tlsConfiguration).apply(sslContextBuilder.clientAuth(toNettyClientAuth(tlsConfiguration)))
-                        .build();
+                return configureTrustProvider(tlsConfiguration).apply(sslContextBuilder).build();
             }
             catch (SSLException e) {
                 throw new UncheckedIOException(e);
             }
         });
-    }
-
-    @NonNull
-    private static ClientAuth toNettyClientAuth(Tls tlsConfiguration) {
-        return switch (tlsConfiguration.clientAuth()) {
-            case REQUIRED -> ClientAuth.REQUIRE;
-            case REQUESTED -> ClientAuth.OPTIONAL;
-            case NONE -> ClientAuth.NONE;
-        };
     }
 
     private Optional<SslContext> buildUpstreamSslContext() {

@@ -89,7 +89,7 @@ class JdkTlsTest {
 
     @Test
     void testFileNotFound() {
-        TrustStore store = new TrustStore("/tmp/" + UUID.randomUUID(), new InlinePassword("changeit"), null);
+        TrustStore store = new TrustStore("/tmp/" + UUID.randomUUID(), new InlinePassword("changeit"), null, null);
         assertThatThrownBy(() -> JdkTls.getTrustManagers(store)).isInstanceOf(SslConfigurationException.class).cause().isInstanceOf(FileNotFoundException.class);
     }
 
@@ -97,14 +97,14 @@ class JdkTlsTest {
     void testJks() {
         CertificateGenerator.Keys keys = CertificateGenerator.generate();
         CertificateGenerator.TrustStore trustStore = keys.jksClientTruststore();
-        TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), null);
+        TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), null, null);
         TrustManager[] trustManagers = JdkTls.getTrustManagers(store);
         assertThat(trustManagers).isNotEmpty();
     }
 
     @Test
     void testPemNotSupported() {
-        TrustStore store = new TrustStore("/tmp/store", null, "PEM");
+        TrustStore store = new TrustStore("/tmp/store", null, "PEM", null);
         assertThatThrownBy(() -> {
             JdkTls.getTrustManagers(store);
         }).isInstanceOf(SslConfigurationException.class).hasMessage("PEM trust not supported by vault yet");
@@ -115,7 +115,7 @@ class JdkTlsTest {
         CertificateGenerator.Keys keys = CertificateGenerator.generate();
         CertificateGenerator.TrustStore trustStore = keys.jksClientTruststore();
         String badPassword = UUID.randomUUID().toString();
-        TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(badPassword), null);
+        TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(badPassword), null, null);
         assertThatThrownBy(() -> JdkTls.getTrustManagers(store)).isInstanceOf(SslConfigurationException.class).cause().isInstanceOf(IOException.class)
                 .hasMessageContaining("Keystore was tampered with, or password was incorrect");
     }
@@ -124,7 +124,7 @@ class JdkTlsTest {
     void testPkcs12() {
         CertificateGenerator.Keys keys = CertificateGenerator.generate();
         CertificateGenerator.TrustStore trustStore = keys.pkcs12ClientTruststore();
-        TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), trustStore.type());
+        TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), trustStore.type(), null);
         TrustManager[] trustManagers = JdkTls.getTrustManagers(store);
         assertThat(trustManagers).isNotEmpty();
     }
@@ -172,7 +172,7 @@ class JdkTlsTest {
         CertificateGenerator.Keys keys = CertificateGenerator.generate();
         CertificateGenerator.TrustStore trustStore = keys.pkcs12ClientTruststore();
         String badPassword = UUID.randomUUID().toString();
-        TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(badPassword), null);
+        TrustStore store = new TrustStore(trustStore.path().toString(), new InlinePassword(badPassword), null, null);
         assertThatThrownBy(() -> JdkTls.getTrustManagers(store)).isInstanceOf(SslConfigurationException.class).cause().isInstanceOf(IOException.class)
                 .hasMessageContaining("keystore password was incorrect");
     }

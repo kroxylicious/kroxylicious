@@ -34,4 +34,10 @@ class InsecureTlsTest {
         });
         assertThat(result).isSameAs(trustProvider);
     }
+
+    @Test
+    void testNoClientAuth() {
+        TrustProvider trustProvider = new InsecureTls(true);
+        assertThat(trustProvider.clientAuth()).isNull();
+    }
 }
