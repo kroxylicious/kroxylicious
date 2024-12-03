@@ -6,24 +6,24 @@
 
 package io.kroxylicious.tools.schema.compiler;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
 import io.kroxylicious.tools.schema.model.SchemaObject;
+import io.kroxylicious.tools.schema.model.SchemaVisitor;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * A {@link SchemaObject.Visitor} that assigns a (hopefully, but not necessarily)
+ * A {@link SchemaVisitor} that assigns a (hopefully, but not necessarily)
  * unique {@link SchemaObject#getJavaType()} name to each (sub-)schema which has
  * been loaded without any explicit {@link SchemaObject#getJavaType()}.
  *
  * We don't aim for uniqueness on the basis that the user can always override by setting $javaType, and we'd prefer to
  * generate "nice" names than "ugly" names which are guaranteed to be unique.
  */
-public class TypeNameVisitor extends SchemaObject.Visitor {
+public class TypeNameVisitor extends SchemaVisitor {
 
     private final Diagnostics diagnostics;
     private final IdVisitor idVisitor;
@@ -39,19 +39,17 @@ public class TypeNameVisitor extends SchemaObject.Visitor {
 
     @Override
     public void enterSchema(
-                            URI base,
-                            String path,
-                            String keyword,
+                            SchemaVisitor.Context context,
                             @NonNull SchemaObject schema) {
         String ref = schema.getRef();
         if (ref != null) {
             // TODO validate that the other fields are not set
 
             // resolve
-            SchemaObject schemaObject = idVisitor.resolve(base.resolve(ref));
+            SchemaObject schemaObject = idVisitor.resolve(context.base().resolve(ref));
             if (schemaObject == null) {
                 // TODO cope with not-yet-loaded refs
-                diagnostics.reportWarning("{}: Unable to resolve $ref:{}", base, ref);
+                diagnostics.reportWarning("{}: Unable to resolve $ref:{}", context.base(), ref);
             }
 
             // TODO check for infinite recursion, both direct and indirect
@@ -60,16 +58,14 @@ public class TypeNameVisitor extends SchemaObject.Visitor {
 
     @Override
     public void exitSchema(
-                           URI base,
-                           String path,
-                           String keyword,
+            SchemaVisitor.Context context,
                            @NonNull SchemaObject schema) {
         if (CodeGen.isTypeGenerated(schema) && schema.getJavaType() == null) {
-            if (isRootSchema(path)) {
+            if (context.isRootSchema()) {
                 schema.setJavaType(rootClass);
             }
             else {
-                final String name = generateTypeName(path, keyword);
+                final String name = generateTypeName(context.fullPath(), context.keyword());
                 schema.setJavaType(name);
             }
         }

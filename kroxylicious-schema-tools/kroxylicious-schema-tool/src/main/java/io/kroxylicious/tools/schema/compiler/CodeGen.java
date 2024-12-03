@@ -61,6 +61,7 @@ import com.github.javaparser.ast.type.VoidType;
 import io.kroxylicious.tools.schema.model.SchemaObject;
 import io.kroxylicious.tools.schema.model.SchemaObjectBuilder;
 import io.kroxylicious.tools.schema.model.SchemaType;
+import io.kroxylicious.tools.schema.model.SchemaVisitor;
 import io.kroxylicious.tools.schema.model.XKubeListType;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -635,7 +636,7 @@ public class CodeGen {
         };
     }
 
-    private class CodeGenVisitor extends SchemaObject.Visitor {
+    private class CodeGenVisitor extends SchemaVisitor {
         private final SchemaInput input;
         private final ArrayList<CompilationUnit> result;
 
@@ -647,15 +648,15 @@ public class CodeGen {
         }
 
         @Override
-        public void enterSchema(URI base, String path, String keyword, SchemaObject schema) {
+        public void enterSchema(SchemaVisitor.Context context, SchemaObject schema) {
             if (schema.getRef() == null) {
-                if (isJunctorChild(keyword)) {
+                if (isJunctorChild(context.keyword())) {
                     return;
                 }
                 // We don't generate code for a ref, on the basis that we've already generated code for it
                 // (e.g. when we visited the schemas in /definitions).
                 // This means even if multiple refs point to the same thing, that thing should only get code gen'd once.
-                CompilationUnit value = genDecl(input.pkg(), schema, path, base);
+                CompilationUnit value = genDecl(input.pkg(), schema, context.fullPath(), context.base());
                 if (value != null) {
                     result.add(value);
                 }

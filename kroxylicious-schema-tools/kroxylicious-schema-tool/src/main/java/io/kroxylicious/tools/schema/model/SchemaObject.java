@@ -330,79 +330,62 @@ public final class SchemaObject {
                 '}';
     }
 
-    public static class Visitor {
-        protected static boolean isRootSchema(String path) {
-            return path.isEmpty();
-        }
-
-        public void enterSchema(URI base, String path, String keyword, @NonNull SchemaObject schema) {
-            // default behaviour is no-op
-        }
-
-        public void exitSchema(URI base, String path, String keyword, @NonNull SchemaObject schema) {
-            // default behaviour is no-op
-        }
+    public void visitSchemas(URI base, @NonNull SchemaVisitor visitor) throws VisitException {
+        var context = new SchemaVisitor.Context(base);
+        visitSchemas(context, this, visitor);
     }
 
-    public void visitSchemas(URI base, @NonNull Visitor visitor) throws VisitException {
-        visitSchemas(base, "", "", this, visitor);
-    }
-
-    private static void visitSchemas(URI base,
-                                     String path,
-                                     String keyword,
+    private static void visitSchemas(SchemaVisitor.Context context,
                                      SchemaObject schemaObject,
-                                     @NonNull Visitor visitor)
+                                     @NonNull SchemaVisitor visitor)
             throws VisitException {
         try {
-            visitor.enterSchema(base, path, keyword, schemaObject);
+            visitor.enterSchema(context, schemaObject);
         }
         catch (Exception e) {
-            throw new VisitException(visitor.getClass().getName() + "#enterSchema() threw exception while visiting schema object at '" + path + "' from " + base, e);
+            throw new VisitException(visitor.getClass().getName() + "#enterSchema() threw exception while visiting schema object at '" + context.fullPath() + "' from " + context.base(), e);
         }
-        visitSchemaMap(base, path, visitor, schemaObject.definitions, "definitions");
-        visitSchemaMap(base, path, visitor, schemaObject.properties, "properties");
-        visitSchemaArray(base, path, visitor, schemaObject.items, "items");
-        visitSchemaArray(base, path, visitor, schemaObject.oneOf, "oneOf");
-        visitSchemaArray(base, path, visitor, schemaObject.allOf, "allOf");
-        visitSchemaArray(base, path, visitor, schemaObject.anyOf, "anyOf");
+        visitSchemaMap(context, visitor, schemaObject.definitions, "definitions");
+        visitSchemaMap(context, visitor, schemaObject.properties, "properties");
+        visitSchemaArray(context, visitor, schemaObject.items, "items");
+        visitSchemaArray(context, visitor, schemaObject.oneOf, "oneOf");
+        visitSchemaArray(context, visitor, schemaObject.allOf, "allOf");
+        visitSchemaArray(context, visitor, schemaObject.anyOf, "anyOf");
         if (schemaObject.not != null) {
-            String path1 = path + "/not";
-            visitSchemas(base, path1, "not", schemaObject.not, visitor);
+            String path1 = "not";
+            visitSchemas(new SchemaVisitor.Context(context, "not", path1), schemaObject.not, visitor);
         }
         try {
-            visitor.exitSchema(base, path, keyword, schemaObject);
+            visitor.exitSchema(context, schemaObject);
         }
         catch (Exception e) {
-            throw new VisitException(visitor.getClass().getName() + "#exitSchema() threw exception while visiting schema object at '" + path + "' from " + base, e);
+            throw new VisitException(visitor.getClass().getName() + "#exitSchema() threw exception while visiting schema object at '" + context.fullPath() + "' from " + context.base(), e);
         }
     }
 
-    private static void visitSchemaMap(URI base,
-                                       String path,
-                                       Visitor visitor,
+    private static void visitSchemaMap(SchemaVisitor.Context context,
+                                       SchemaVisitor visitor,
                                        @Nullable Map<String, SchemaObject> map,
                                        String keyword) {
         if (map != null) {
             for (Map.Entry<String, SchemaObject> entry : map.entrySet()) {
                 String definitionName = entry.getKey();
                 SchemaObject definitionSchema = entry.getValue();
-                String path1 = path + "/" + keyword + "/" + definitionName;
-                visitSchemas(base, path1, keyword, definitionSchema, visitor);
+                String path1 = keyword + "/" + definitionName;
+                visitSchemas(new SchemaVisitor.Context(context, keyword, path1), definitionSchema, visitor);
             }
         }
     }
 
-    private static void visitSchemaArray(URI base,
-                                         String path,
-                                         Visitor visitor,
+    private static void visitSchemaArray(SchemaVisitor.Context context,
+                                         SchemaVisitor visitor,
                                          @Nullable List<SchemaObject> array,
                                          String keyword) {
         if (array != null) {
             for (int i = 0; i < array.size(); i++) {
                 SchemaObject itemSchema = array.get(i);
-                String path1 = path + "/" + keyword + "/" + i;
-                visitSchemas(base, path1, keyword, itemSchema, visitor);
+                String path1 = keyword + "/" + i;
+                visitSchemas(new SchemaVisitor.Context(context, keyword, path1), itemSchema, visitor);
             }
         }
     }

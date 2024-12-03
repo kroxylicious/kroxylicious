@@ -17,11 +17,13 @@ import io.kroxylicious.tools.schema.model.SchemaObject;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import io.kroxylicious.tools.schema.model.SchemaVisitor;
+
 /**
- * A {@link SchemaObject.Visitor} which tracks the URIs (multiple!) which can be used
+ * A {@link SchemaVisitor} which tracks the URIs (multiple!) which can be used
  * to refer to a schema.
  */
-public class IdVisitor extends SchemaObject.Visitor {
+public class IdVisitor extends SchemaVisitor {
 
     private static final Pattern SUBSCHEMA_ID_PATTERN = Pattern.compile("^#[A-Za-z][A-Za-z0-9_:.-]*$");
 
@@ -48,27 +50,25 @@ public class IdVisitor extends SchemaObject.Visitor {
 
     @Override
     public void enterSchema(
-                            URI base,
-                            String path,
-                            String keyword,
+                            SchemaVisitor.Context context,
                             @NonNull SchemaObject schema) {
-        if (isRootSchema(path)) {
-            index(base, schema);
+        if (context.isRootSchema()) {
+            index(context.base(), schema);
         }
 
         // Explicit id
         String id = schema.getId();
         if (id != null) {
-            if (isRootSchema(path)) {
+            if (context.isRootSchema()) {
                 // Wright 00:
                 // The root schema of a JSON Schema document SHOULD contain an "id"
                 // keyword with an absolute-URI (containing a scheme, but no fragment).
                 URI uri = URI.create(id);
                 if (!uri.isAbsolute()) {
                     diagnostics.reportWarning("Root schema of a document should contain an 'id' with an absolute URI, but 'id' is not absolute: {}",
-                            base);
+                            context.base());
                 }
-                else if (!uri.equals(base)) {
+                else if (!uri.equals(context.base())) {
                     index(uri, schema);
                 }
             }
@@ -83,23 +83,23 @@ public class IdVisitor extends SchemaObject.Visitor {
                 if (!SUBSCHEMA_ID_PATTERN.matcher(id).matches()) {
                     diagnostics.reportError("Invalid schema 'id', must match " + SUBSCHEMA_ID_PATTERN.pattern() + ": " + id);
                 }
-                index(resolve(base, id), schema);
+                index(resolve(context.base(), id), schema);
             }
         }
-        else if (isRootSchema(path)) {
+        else if (context.isRootSchema()) {
             diagnostics.reportWarning("Root schema of a document should contain an 'id' with an absolute URI, but 'id' is absent: {}",
-                    base);
+                    context.base());
         }
 
         // Pointer id. This cannot collide with the 'id' property because it always begins with /
         // which id is not allowed to contain
-        if (!path.isEmpty() && path.indexOf('/') == -1) {
+        if (!context.fullPath().isEmpty() && context.fullPath().indexOf('/') == -1) {
             // Should never happen
             throw new IllegalStateException();
         }
-        String pathId = "#" + path;
+        String pathId = "#" + context.fullPath();
 
-        index(resolve(base, pathId), schema);
+        index(resolve(context.base(), pathId), schema);
 
     }
 

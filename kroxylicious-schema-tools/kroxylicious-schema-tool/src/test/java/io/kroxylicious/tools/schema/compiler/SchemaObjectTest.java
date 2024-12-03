@@ -7,6 +7,12 @@
 package io.kroxylicious.tools.schema.compiler;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import io.kroxylicious.tools.schema.model.SchemaVisitor;
 
 import org.junit.jupiter.api.Test;
 
@@ -22,31 +28,37 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SchemaObjectTest {
 
+    private SchemaObject schema = new SchemaObjectBuilder().withType(SchemaType.OBJECT)
+            .addToProperties("foo", new SchemaObjectBuilder().withType(SchemaType.STRING).build())
+            .addToProperties("bar", new SchemaObjectBuilder().withType(SchemaType.STRING).build())
+            .build();
+
     @Test
     void testVisitor() {
-        SchemaObject schema = new SchemaObjectBuilder().withType(SchemaType.OBJECT)
-                .addToProperties("foo", new SchemaObjectBuilder().withType(SchemaType.STRING).build())
-                .addToProperties("bar", new SchemaObjectBuilder().withType(SchemaType.STRING).build())
-                .build();
-        SchemaObject.Visitor throwingVisitor = new SchemaObject.Visitor() {
-            @Override
-            public void enterSchema(
-                                    URI base,
-                                    String path,
-                                    String keyword,
-                                    @NonNull SchemaObject schema) {
-                super.enterSchema(base, path, keyword, schema);
-                if (path.endsWith("/bar")) {
-                    throw new RuntimeException();
-                }
-            }
-        };
+        MySchemaVisitor visitor = new MySchemaVisitor(null);
+        URI base = URI.create("test://schema");
+        schema.visitSchemas(base, visitor);
+        assertThat(visitor.contextsPreorder).hasToString(
+                "[Context{base=test://schema, keyword='', fullPath=''}, "
+                + "Context{keyword='properties', fullPath='/properties/foo'}, "
+                + "Context{keyword='properties', fullPath='/properties/bar'}]");
+        assertThat(visitor.contextsPostorder).hasToString(
+                "[Context{keyword='properties', fullPath='/properties/foo'}, "
+                        + "Context{keyword='properties', fullPath='/properties/bar'}, "
+                        + "Context{base=test://schema, keyword='', fullPath=''}]");
+    }
+
+    @Test
+    void testVisitorThrows() {
+        SchemaVisitor throwingVisitor = new MySchemaVisitor("/properties/bar");
         URI base = URI.create("test://schema");
         assertThatThrownBy(() -> schema.visitSchemas(base, throwingVisitor))
                 .isExactlyInstanceOf(VisitException.class)
                 .hasMessage(
-                        "io.kroxylicious.tools.schema.compiler.SchemaObjectTest$1#enterSchema() threw exception while visiting schema object at '/properties/bar' from test://schema");
+                        "io.kroxylicious.tools.schema.compiler.SchemaObjectTest$MySchemaVisitor#enterSchema() threw exception while visiting schema object at '/properties/bar' from test://schema");
     }
+
+
 
     @Test
     void hasCodeAndEquals() {
@@ -109,5 +121,35 @@ class SchemaObjectTest {
         assertThat(fooBar)
                 .hasSameHashCodeAs(fooBar2)
                 .hasToString(fooBar2.toString());
+    }
+
+    private static class MySchemaVisitor extends SchemaVisitor {
+        public final String pathWhichThrows;
+        public final List<Context> contextsPreorder = new ArrayList<>();
+        public final List<Context> contextsPostorder = new ArrayList<>();
+
+        MySchemaVisitor(@Nullable String pathWhichThrows) {
+            this.pathWhichThrows = pathWhichThrows;
+        }
+
+        @Override
+        public void enterSchema(
+                Context context,
+                @NonNull SchemaObject schema) {
+            super.enterSchema(context, schema);
+            contextsPreorder.add(context);
+            if (context.fullPath().equals(pathWhichThrows)) {
+                throw new RuntimeException();
+            }
+        }
+
+        @Override
+        public void exitSchema(
+                Context context,
+                @NonNull SchemaObject schema
+        ) {
+            super.exitSchema(context, schema);
+            contextsPostorder.add(context);
+        }
     }
 }
