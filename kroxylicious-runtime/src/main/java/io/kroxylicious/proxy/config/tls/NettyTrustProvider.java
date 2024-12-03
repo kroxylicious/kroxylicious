@@ -38,6 +38,7 @@ public class NettyTrustProvider {
             public SslContextBuilder visit(TrustStore trustStore) {
                 try {
                     enableHostnameVerification();
+                    enableClientAuthIfRequired(trustStore);
                     if (trustStore.isPemType()) {
                         return builder.trustManager(new File(trustStore.storeFile()));
                     }
@@ -51,10 +52,6 @@ public class NettyTrustProvider {
                             var trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                             trustManagerFactory.init(keyStore);
 
-                            Optional.ofNullable(trustStore.clientAuth())
-                                    .map(NettyTrustProvider::toNettyClientAuth)
-                                    .ifPresent(builder::clientAuth);
-
                             return builder.trustManager(trustManagerFactory);
                         }
                     }
@@ -62,6 +59,12 @@ public class NettyTrustProvider {
                 catch (Exception e) {
                     throw new SslContextBuildException("Error building SSLContext for TrustStore: " + trustStore, e);
                 }
+            }
+
+            private void enableClientAuthIfRequired(TrustStore trustStore) {
+                Optional.ofNullable(trustStore.clientAuth())
+                        .map(NettyTrustProvider::toNettyClientAuth)
+                        .ifPresent(builder::clientAuth);
             }
 
             @Override
