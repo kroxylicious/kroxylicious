@@ -6,6 +6,9 @@
 
 package io.kroxylicious.kms.service;
 
+/**
+ * Represents problems interacting with a Key Management System.
+ */
 public class KmsException extends RuntimeException {
     public KmsException() {
     }

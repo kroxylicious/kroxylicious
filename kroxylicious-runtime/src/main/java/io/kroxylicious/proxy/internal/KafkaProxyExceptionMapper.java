@@ -16,6 +16,7 @@ import org.apache.kafka.common.acl.AccessControlEntryFilter;
 import org.apache.kafka.common.acl.AclBindingFilter;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
+import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddRaftVoterRequestData;
@@ -88,6 +89,7 @@ import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
 import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
 import org.apache.kafka.common.message.RemoveRaftVoterRequestData;
 import org.apache.kafka.common.message.RenewDelegationTokenRequestData;
+import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.ShareAcknowledgeRequestData;
@@ -220,16 +222,26 @@ public class KafkaProxyExceptionMapper {
         return errorResponse(frame, error).data();
     }
 
+    public static AbstractResponse errorResponseForMessage(RequestHeaderData requestHeaders, ApiMessage message, ApiException apiException) {
+        final short apiKey = message.apiKey();
+        return errorResponse(ApiKeys.forId(apiKey), message, requestHeaders.requestApiVersion()).getErrorResponse(apiException);
+    }
+
     @VisibleForTesting
     static AbstractResponse errorResponse(DecodedRequestFrame<?> frame, Throwable error) {
-        /*
-         * This monstrosity is needed because there isn't any _nicely_ abstracted code we can borrow from Kafka
-         * which creates and response with error codes set appropriately.
-         */
-        final AbstractRequest req;
         ApiMessage reqBody = frame.body();
         short apiVersion = frame.apiVersion();
         final ApiKeys apiKey = frame.apiKey();
+        final AbstractRequest req = errorResponse(apiKey, reqBody, apiVersion);
+        return req.getErrorResponse(error);
+    }
+
+    /*
+     * This monstrosity is needed because there isn't any _nicely_ abstracted code we can borrow from Kafka
+     * which creates and response with error codes set appropriately.
+     */
+    private static AbstractRequest errorResponse(ApiKeys apiKey, ApiMessage reqBody, short apiVersion) {
+        final AbstractRequest req;
         switch (apiKey) {
             case SASL_HANDSHAKE:
                 req = new SaslHandshakeRequest((SaslHandshakeRequestData) reqBody, apiVersion);
@@ -601,8 +613,8 @@ public class KafkaProxyExceptionMapper {
                 req = new ReadShareGroupStateSummaryRequest((ReadShareGroupStateSummaryRequestData) reqBody, apiVersion);
                 break;
             default:
-                throw new IllegalStateException();
+                throw new IllegalStateException("Unable to generate error for APIKey: " + apiKey);
         }
-        return req.getErrorResponse(error);
+        return req;
     }
 }

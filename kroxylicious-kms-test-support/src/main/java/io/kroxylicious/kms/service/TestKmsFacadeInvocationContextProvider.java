@@ -7,6 +7,9 @@
 package io.kroxylicious.kms.service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -16,11 +19,16 @@ import org.junit.jupiter.api.extension.ExecutionCondition;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.api.extension.ParameterResolutionException;
+import org.junit.jupiter.api.extension.ParameterResolver;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 
-public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider {
+public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider, ParameterResolver {
+
+    private static final ExtensionContext.Namespace STORE_NAMESPACE = ExtensionContext.Namespace.create("TEST_KMS");
+    private static final String FACADE_FACTORIES = "KMS_FACADE_FACTORIES";
 
     @Override
     public boolean supportsTestTemplate(ExtensionContext context) {
@@ -29,9 +37,42 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
 
     @Override
     public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(ExtensionContext context) {
-        return TestKmsFacadeFactory.getTestKmsFacadeFactories()
-                .map(TestKmsFacadeFactory::build)
+        return getTestKmsFacadeStream(context)
+                .values()
+                .stream()
                 .map(TemplateInvocationContext::new);
+    }
+
+    @Override
+    public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
+        final TestKmsFacade<?, ?, ?> testKmsFacade = getTestKmsFacadeStream(extensionContext)
+                .get(parameterContext.getParameter().getType());
+        if (testKmsFacade == null) {
+            throw new ParameterResolutionException("Unable to resolve " + parameterContext.getParameter().getType().getSimpleName());
+        }
+        else {
+            testKmsFacade.start();
+            return testKmsFacade;
+        }
+    }
+
+    @Override
+    public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
+        final Map<Class<TestKmsFacade<?, ?, ?>>, TestKmsFacade<?, ?, ?>> facadeFactories = getTestKmsFacadeStream(extensionContext);
+        return facadeFactories.containsKey(parameterContext.getParameter().getType());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<Class<TestKmsFacade<?, ?, ?>>, TestKmsFacade<?, ?, ?>> getTestKmsFacadeStream(ExtensionContext extensionContext) {
+        final ExtensionContext.Store store = extensionContext.getStore(STORE_NAMESPACE);
+        return store.getOrComputeIfAbsent(FACADE_FACTORIES, key -> TestKmsFacadeFactory.getTestKmsFacadeFactories()
+                .map(TestKmsFacadeFactory::build)
+                .collect(
+                        Collectors.toMap(
+                                Object::getClass,
+                                Function.identity()
+
+                        )), Map.class);
     }
 
     private record TemplateInvocationContext(TestKmsFacade<?, ?, ?> kmsFacade) implements TestTemplateInvocationContext {
