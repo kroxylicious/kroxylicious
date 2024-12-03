@@ -21,7 +21,6 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.secret.FilePassword",
         "io.kroxylicious.proxy.config.secret.InlinePassword",
         "io.kroxylicious.proxy.config.tls.Tls",
-        "io.kroxylicious.proxy.config.tls.TlsClientAuth",
         "io.kroxylicious.proxy.config.tls.TrustStore",
         "io.kroxylicious.proxy.config.tls.InsecureTls",
         "io.kroxylicious.proxy.config.tls.KeyStore",
