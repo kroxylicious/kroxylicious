@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.config;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 
@@ -17,7 +18,8 @@ public record Configuration(@Nullable AdminHttpConfiguration adminHttp,
                             Map<String, VirtualCluster> virtualClusters,
                             List<FilterDefinition> filters,
                             List<MicrometerDefinition> micrometer,
-                            boolean useIoUring) {
+                            boolean useIoUring,
+                            @Nullable Optional<Map<String, Object>> experimental) {
     public @Nullable AdminHttpConfiguration adminHttpConfig() {
         return adminHttp();
     }

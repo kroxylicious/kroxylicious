@@ -34,9 +34,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Cluster and intersect those versions with the versions supported by the proxy. We offer the highest
  * minimum version for each api key supported by the Cluster and proxy. We offer the lowest maximum version
  * for each api key supported by the Cluster and proxy.
- * Any versions for ApiKeys unknown to the proxy are forwarded to the client untouched. (ie the broker supports
+ * Any versions for ApiKeys unknown to the proxy are removed from the api versions list. (ie the broker supports
  * a new ApiKey that this version of Kroxylicious is unaware of)
- * TODO check if this is still sensible behaviour, potentially a RequestFilter would attempt to decode these and fail.
  */
 @ExtendWith(NettyLeakDetectorExtension.class)
 public class ApiVersionsIT {
@@ -48,6 +47,18 @@ public class ApiVersionsIT {
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() + 1));
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
+        }
+    }
+
+    @Test
+    void shouldOfferTheMinimumHighestSupportedVersionWhenBrokerIsAheadOfKroxyliciousAndMaxVersionOverridden() {
+        short overriddenVersion = (short) (ApiKeys.METADATA.latestVersion(true) - 1);
+        try (var tester = mockKafkaKroxyliciousTester((bootstrap) -> KroxyliciousConfigUtils.proxy(bootstrap)
+                .withExperimental(Map.of("apiKeyIdMaxVersionOverride", Map.of(ApiKeys.METADATA.name(), overriddenVersion))));
+                var client = tester.simpleTestClient()) {
+            givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion(true));
+            Response response = whenGetApiVersionsFromKroxylicious(client);
+            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), overriddenVersion);
         }
     }
 
