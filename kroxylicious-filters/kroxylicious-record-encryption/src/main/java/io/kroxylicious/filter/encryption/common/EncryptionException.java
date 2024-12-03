@@ -9,10 +9,13 @@ package io.kroxylicious.filter.encryption.common;
 import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.errors.ApiException;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * Exceptions to do with encryption.
  */
 public class EncryptionException extends RuntimeException {
+    @NonNull
     private final ApiException apiException;
 
     /**
@@ -28,7 +31,7 @@ public class EncryptionException extends RuntimeException {
      * @param message the message for <em>*this*</em> exception.
      * @param apiException the Exception to be sent to the client.
      */
-    public EncryptionException(String message, ApiException apiException) {
+    public EncryptionException(String message, @NonNull ApiException apiException) {
         super(message);
         this.apiException = apiException;
     }
