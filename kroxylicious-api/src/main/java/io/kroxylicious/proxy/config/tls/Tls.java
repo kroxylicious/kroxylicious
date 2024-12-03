@@ -17,7 +17,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * @param key   specifies a key provider that provides the certificate/key used to identify this peer.
  * @param trust specifies a trust provider used by this peer to determine whether to trust the peer. If omitted platform trust is used instead.
- * @param clientAuth specifies how the TLS session should authenticate clients. Optional not required when configuring upstream TLS
+ * @param clientAuth when in the node is in the TLS <em>server</em> role, clientAuth specifies how the server should authenticate clients. This option has no meaning in the node is in the TLS <em>client</em> role. 
  *
  * TODO ability to restrict by TLS protocol and cipher suite.
  */
