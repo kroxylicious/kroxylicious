@@ -27,7 +27,8 @@ public interface DekContext<E> {
      * in it's life. This method is idempotent, further calls to `rotate` will not make
      * any changes and the same future will be returned.
      * @return a future that is completed after rotation, enabling multiple threads
-     * to wait for rotation before retrying the encryption operation.
+     * to wait for rotation before retrying the encryption operation. If there are any
+     * exceptions during rotation the future will be completed exceptionally.
      */
     CompletionStage<Void> rotate();
 

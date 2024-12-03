@@ -61,9 +61,15 @@ public class EncryptionDekCache<K, E> {
         @Override
         public CompletionStage<Void> rotate() {
             if (hasBeenRotated.compareAndSet(false, true)) {
-                LOGGER.debug("rotating encryption key {}", key);
-                dek.destroyForEncrypt();
-                cache.invalidate(key).whenComplete((dekContext, throwable) -> rotated.complete(null));
+                try {
+                    LOGGER.debug("rotating encryption key {}", key);
+                    dek.destroyForEncrypt();
+                    cache.invalidate(key).whenComplete((dekContext, throwable) -> rotated.complete(null));
+                }
+                catch (Exception e) {
+                    LOGGER.debug("error rotating encryption key {}", key, e);
+                    rotated.completeExceptionally(e);
+                }
             }
             else {
                 LOGGER.debug("encryption key {} has already been rotated", key);
