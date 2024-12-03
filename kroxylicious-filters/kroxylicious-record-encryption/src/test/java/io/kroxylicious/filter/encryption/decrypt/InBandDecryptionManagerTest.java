@@ -53,6 +53,7 @@ import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
 import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.filter.encryption.encrypt.DekContext;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionDekCache;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
 import io.kroxylicious.filter.encryption.encrypt.InBandEncryptionManager;
@@ -904,7 +905,7 @@ class InBandDecryptionManagerTest {
         EncryptionScheme<UUID> scheme1 = new EncryptionScheme<>(kek1, EnumSet.of(RecordField.RECORD_VALUE));
         doEncrypt(encryptionManager, "topic", 1, scheme1, initial, encrypted);
 
-        EncryptionDekCache<UUID, InMemoryEdek>.EncryptionDek dek1 = encryptionManager.currentDek(scheme1).toCompletableFuture().join();
+        DekContext<InMemoryEdek> dek1 = encryptionManager.currentDekContext(scheme1).toCompletableFuture().join();
         assertThat(dek1.getDek().isDestroyed()).isFalse();
 
         // When

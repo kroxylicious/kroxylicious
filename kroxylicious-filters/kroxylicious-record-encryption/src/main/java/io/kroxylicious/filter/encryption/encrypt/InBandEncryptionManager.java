@@ -15,8 +15,6 @@ import java.util.function.IntFunction;
 import org.apache.kafka.common.errors.NetworkException;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
@@ -36,7 +34,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
     private static final int MAX_ATTEMPTS = 100;
-    private static final Logger log = LoggerFactory.getLogger(InBandEncryptionManager.class);
 
     /**
      * The encryption version used on the produce path.
@@ -73,7 +70,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     }
 
     @VisibleForTesting
-    public CompletionStage<EncryptionDekCache<K, E>.EncryptionDek> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
+    public CompletionStage<DekContext<E>> currentDekContext(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
         return dekCache.get(encryptionScheme, filterThreadExecutor);
     }
@@ -119,7 +116,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                             + partition + " after " + attempt + " attempts",
                             new NetworkException("Failed to encrypt record(s) because there were no valid encryption keys")));
         }
-        return currentDek(encryptionScheme).thenCompose(dek -> {
+        return currentDekContext(encryptionScheme).thenCompose(dek -> {
             Dek<E> eDek = dek.getDek();
             if (!eDek.isDestroyed() && !eDek.destroyedForEncrypt()) {
                 try (Dek<E>.Encryptor encryptor = eDek.encryptor(allRecordsCount)) {
@@ -132,18 +129,14 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                             bufferAllocator);
                     return CompletableFuture.completedFuture(encryptedMemoryRecords);
                 }
-                catch (ExhaustedDekException e) {
-                    dek.rotate();
-                    // fall through to retry
-                }
-                catch (DestroyedDekException e) {
+                catch (ExhaustedDekException | DestroyedDekException e) {
                     // fall through to retry
                 }
                 catch (Exception e) {
                     return CompletableFuture.failedFuture(e);
                 }
             }
-            return filterThreadExecutor.completingOnFilterThread(dek.rotateFuture())
+            return filterThreadExecutor.completingOnFilterThread(dek.rotate())
                     .thenCompose(n -> attemptEncrypt(topicName,
                             partition,
                             encryptionScheme,

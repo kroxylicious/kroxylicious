@@ -45,44 +45,33 @@ public class EncryptionDekCache<K, E> {
 
     private record CacheKey<K>(K kek, CipherSpec cipherSpec) {}
 
-    public class EncryptionDek {
+    private static class RotateOnceDekContext<K, E> implements DekContext<E> {
         private final CacheKey<K> key;
         private final Dek<E> dek;
+        private final EncryptionDekCache<K, E> cache;
         private final AtomicBoolean hasBeenRotated = new AtomicBoolean(false);
         private final CompletableFuture<Void> rotated = new CompletableFuture<>();
 
-        public EncryptionDek(CacheKey<K> key, Dek<E> dek) {
+        private RotateOnceDekContext(CacheKey<K> key, Dek<E> dek, EncryptionDekCache<K, E> cache) {
             this.key = key;
             this.dek = dek;
+            this.cache = cache;
         }
 
-        /**
-         * Destroy this DEK for encryption
-         * Discard the currently cached DEK for the KEK in the given {@code encryptionScheme} once.
-         * Competing threads will only discard it from the cache once.
-         * This method may block if a DEK for the given {@code encryptionScheme} is in the process
-         * of being loaded.
-         */
-        public void rotate() {
+        @Override
+        public CompletionStage<Void> rotate() {
             if (hasBeenRotated.compareAndSet(false, true)) {
                 LOGGER.debug("rotating encryption key {}", key);
                 dek.destroyForEncrypt();
-                EncryptionDekCache.this.invalidate(key);
-                rotated.complete(null);
+                cache.invalidate(key).whenComplete((dekContext, throwable) -> rotated.complete(null));
             }
             else {
                 LOGGER.debug("encryption key {} has already been rotated", key);
             }
-        }
-
-        /**
-         * @return a future that is completed after cache invalidation, enabling multiple threads
-         * to wait for cache invalidation before retrying the encryption operation.
-         */
-        public CompletionStage<Void> rotateFuture() {
             return rotated;
         }
 
+        @Override
         public Dek<E> getDek() {
             return dek;
         }
@@ -94,7 +83,7 @@ public class EncryptionDekCache<K, E> {
 
     private final DekManager<K, E> dekManager;
 
-    private final AsyncLoadingCache<CacheKey<K>, EncryptionDek> dekCache;
+    private final AsyncLoadingCache<CacheKey<K>, DekContext<E>> dekCache;
 
     public EncryptionDekCache(@NonNull DekManager<K, E> dekManager,
                               @Nullable Executor dekCacheExecutor,
@@ -124,7 +113,7 @@ public class EncryptionDekCache<K, E> {
      * Invoked by Caffeine when a DEK needs to be loaded.
      * This method is executed on the {@code dekCacheExecutor} passed to the constructor.
      */
-    private CompletableFuture<EncryptionDek> requestGenerateDek(@NonNull CacheKey<K> cacheKey,
+    private CompletableFuture<DekContext<E>> requestGenerateDek(@NonNull CacheKey<K> cacheKey,
                                                                 @NonNull Executor executor) {
         return dekManager.generateDek(cacheKey.kek(), cipherSpecResolver.fromName(cacheKey.cipherSpec()))
                 .thenApply(dek -> {
@@ -134,7 +123,7 @@ public class EncryptionDekCache<K, E> {
                     dek.destroyForDecrypt();
                     return dek;
                 })
-                .thenApply(eDek -> new EncryptionDek(cacheKey, eDek))
+                .thenApply(eDek -> (DekContext<E>) new RotateOnceDekContext<>(cacheKey, eDek, this))
                 .toCompletableFuture();
     }
 
@@ -143,7 +132,7 @@ public class EncryptionDekCache<K, E> {
      * This method is executed on the {@code dekCacheExecutor} passed to the constructor.
      */
     private void afterCacheEviction(@Nullable CacheKey<K> cacheKey,
-                                    @Nullable EncryptionDek dek,
+                                    @Nullable DekContext<E> dek,
                                     RemovalCause removalCause) {
         if (dek != null) {
             dek.getDek().destroyForEncrypt();
@@ -161,25 +150,16 @@ public class EncryptionDekCache<K, E> {
      * @param filterThreadExecutor The filter thread executor.
      * @return A stage that completes on the filter thread with the DEK.
      */
-    public @NonNull CompletionStage<EncryptionDek> get(@NonNull EncryptionScheme<K> encryptionScheme,
+    public @NonNull CompletionStage<DekContext<E>> get(@NonNull EncryptionScheme<K> encryptionScheme,
                                                        @NonNull FilterThreadExecutor filterThreadExecutor) {
         return filterThreadExecutor.completingOnFilterThread(dekCache.get(cacheKey(encryptionScheme)));
     }
 
-    /**
-     * Discard any cached DEK for the KEK in the given {@code encryptionScheme}.
-     * This method may block if a DEK for the given {@code encryptionScheme} is in the process
-     * of being loaded.
-     * @param encryptionScheme The KEK for the DEK to discard.
-     */
-    public void invalidate(@NonNull EncryptionScheme<K> encryptionScheme) {
-        CacheKey<K> key = cacheKey(encryptionScheme);
-        invalidate(key);
-    }
-
-    private void invalidate(@NonNull CacheKey<K> key) {
+    private CompletableFuture<DekContext<E>> invalidate(@NonNull CacheKey<K> key) {
         invalidationCount.incrementAndGet();
-        dekCache.synchronous().invalidate(key);
+        return dekCache.asMap().remove(key).whenComplete((dekContext, throwable) -> {
+            LOGGER.debug("removed DEK for key: {} from cache", key);
+        });
     }
 
     public long invalidationCount() {

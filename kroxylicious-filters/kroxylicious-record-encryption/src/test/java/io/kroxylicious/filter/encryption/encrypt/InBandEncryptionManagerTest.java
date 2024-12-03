@@ -41,7 +41,7 @@ class InBandEncryptionManagerTest {
     // this test covers a bug fix where multiple encrypting threads would invalidate the cache key with
     // undefined results. We only need to invalidate each cached DEK once
     @Test
-    void testMultipleThreadsCooperateToMinimiseDekCreations() throws InterruptedException {
+    void testMultipleThreadsCooperateToMinimiseDekCreations() {
         InMemoryKms kms = getInMemoryKms();
         // we are testing a race condition and want high parallelism to prompt parallel usages of exhausted DEKs
         Executor executor = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
@@ -56,7 +56,7 @@ class InBandEncryptionManagerTest {
 
         List<Record> initial = List.of(record);
 
-        int numEncryptionOperations = 10;
+        int numEncryptionOperations = 50;
         List<CompletableFuture<Void>> encrypts = IntStream.range(0, numEncryptionOperations)
                 .mapToObj(x -> doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial,
                         new ArrayList<>()).toCompletableFuture())

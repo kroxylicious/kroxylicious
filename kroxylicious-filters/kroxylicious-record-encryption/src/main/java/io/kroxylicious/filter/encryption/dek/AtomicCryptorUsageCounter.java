@@ -196,6 +196,7 @@ class AtomicCryptorUsageCounter {
      * @return true if has been destroyed for encrypt via {@linkplain #destroyForEncrypt()} or {@linkplain #destroyForBoth()} ()}
      */
     public boolean isDestroyedForEncrypt() {
-        return encryptorCount(state.get()) < 0;
+        // note that 0 is an invalid state, we use the sign to track destruction state
+        return encryptorCount(state.get()) <= END;
     }
 }
