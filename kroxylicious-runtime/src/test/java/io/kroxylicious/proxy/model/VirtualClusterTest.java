@@ -62,7 +62,7 @@ class VirtualClusterTest {
     }
 
     @ParameterizedTest
-    @MethodSource("io.kroxylicious.proxy.model.VirtualClusterTest#clientAuthSettings")
+    @MethodSource("clientAuthSettings")
     void shouldRequireDownstreamClientAuth(TlsClientAuth clientAuth, Consumer<SSLEngine> sslEngineAssertions) {
         // Given
         final KeyPair keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"),
