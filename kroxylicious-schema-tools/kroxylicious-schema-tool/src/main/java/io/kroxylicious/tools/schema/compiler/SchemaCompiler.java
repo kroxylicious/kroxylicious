@@ -54,9 +54,11 @@ public class SchemaCompiler {
     private final List<String> packages;
 
     public SchemaCompiler(List<Path> srcPaths,
-                          List<String> packages,
+                          @Nullable List<String> packages,
                           @Nullable String header,
-                          Map<String, String> existingClasses) {
+                          Map<String, String> existingClasses,
+                          List<TypeAnnotator> typeAnnotators,
+                          List<PropertyAnnotator> propertyAnnotators) {
         this.srcPaths = Objects.requireNonNull(srcPaths);
         this.packages = packages;
         if (header != null) {
@@ -71,7 +73,9 @@ public class SchemaCompiler {
                 idVisitor,
                 existingClasses,
                 "edu.umd.cs.findbugs.annotations.Nullable",
-                "edu.umd.cs.findbugs.annotations.NonNull");
+                "edu.umd.cs.findbugs.annotations.NonNull",
+                typeAnnotators,
+                propertyAnnotators);
     }
 
     @NonNull

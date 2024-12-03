@@ -23,6 +23,12 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.ToolProvider;
 
+import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
+import com.github.javaparser.ast.expr.Name;
+import com.github.javaparser.ast.expr.SimpleName;
+import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,9 +51,13 @@ class CodeGenTest {
 
     {
         Diagnostics diagnostics = new Diagnostics();
-        codeGen = new CodeGen(diagnostics, new IdVisitor(diagnostics), Map.of(),
+        codeGen = new CodeGen(diagnostics,
+                new IdVisitor(diagnostics),
+                Map.of(),
                 "edu.umd.cs.findbugs.annotations.Nullable",
-                "edu.umd.cs.findbugs.annotations.NonNull");
+                "edu.umd.cs.findbugs.annotations.NonNull",
+                List.of(),
+                List.of());
     }
 
     SchemaObject emptyTypes = new SchemaObjectBuilder().withType().build();
@@ -85,9 +95,11 @@ class CodeGenTest {
 
             """;
 
-    private void assertGeneratedCode(String dir) throws IOException {
+    private void assertGeneratedCode(String dir,
+                                     List<TypeAnnotator> typeAnnotators,
+                                     List<PropertyAnnotator> propertyAnnotators) throws IOException {
         // First assert that the generate code matches the expected files
-        assertGeneratedCodeMatches(dir);
+        assertGeneratedCodeMatches(dir, typeAnnotators, propertyAnnotators);
         // Then assert that the expected files can be compiled with a java compiler
         // Because `generated == expected` this means the generated must be legal java source code
         compileJavaFilesBeneath(Path.of(dir).getParent());
@@ -101,7 +113,9 @@ class CodeGenTest {
                 List.of(path),
                 List.of(path.relativize(src.toPath()).toString().replace("/", ".")),
                 null,
-                Map.of());
+                Map.of(),
+                List.of(),
+                List.of());
         schemaCompiler.parse();
         return schemaCompiler;
     }
@@ -113,7 +127,9 @@ class CodeGenTest {
                 List.of(path),
                 List.of(path.relativize(src.toPath()).toString().replace("/", ".")),
                 null,
-                Map.of());
+                Map.of(),
+                List.of(),
+                List.of());
         List<SchemaInput> parse = schemaCompiler.parse();
         assertThat(schemaCompiler.diagnostics.getNumFatals()).isZero();
         assertThat(schemaCompiler.diagnostics.getNumErrors()).isZero();
@@ -127,14 +143,18 @@ class CodeGenTest {
         return schemaCompiler;
     }
 
-    private static void assertGeneratedCodeMatches(String dir) {
+    private static void assertGeneratedCodeMatches(String dir,
+                                                   List<TypeAnnotator> typeAnnotators,
+                                                   List<PropertyAnnotator> propertyAnnotators) {
         Path src = Path.of(dir);
         Path path = new File("src/test/resources").toPath();
         SchemaCompiler schemaCompiler = new SchemaCompiler(
                 List.of(path),
                 List.of(path.relativize(src).toString().replace("/", ".")),
                 null,
-                Map.of());
+                Map.of(),
+                typeAnnotators,
+                propertyAnnotators);
         List<SchemaInput> parse = schemaCompiler.parse();
         var units = schemaCompiler.gen(parse).toList();
 
@@ -238,7 +258,61 @@ class CodeGenTest {
             "src/test/resources/junctor"
     })
     void compiles(String dir) throws IOException {
-        assertGeneratedCode(dir);
+        assertGeneratedCode(dir, List.of(), List.of());
+    }
+
+    @Test
+    void customAnnotations() throws IOException {
+        assertGeneratedCode("src/test/resources/customannotations",
+                List.of(new TypeAnnotator() {
+                    @Override
+                    public List<AnnotationExpr> annotateClass(SchemaObject typeSchema) {
+                        return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("class")));
+                    }
+                }),
+                List.of(
+                        new PropertyAnnotator() {
+                            @Override
+                            public List<AnnotationExpr> annotateField(
+                                    String property,
+                                    SchemaObject propertySchema
+                            ) {
+                                return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("field")));
+                            }
+
+                            @Override
+                            public List<AnnotationExpr> annotateConstructorParameter(
+                                    String property,
+                                    SchemaObject propertySchema
+                            ) {
+                                return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("ctorParameter")));
+                            }
+
+                            @Override
+                            public List<AnnotationExpr> annotateAccessor(
+                                    String property,
+                                    SchemaObject propertySchema
+                            ) {
+                                return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("accessor")));
+                            }
+
+                            @Override
+                            public List<AnnotationExpr> annotateMutator(
+                                    String property,
+                                    SchemaObject propertySchema
+                            ) {
+                                return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("mutator")));
+                            }
+
+                            @Override
+                            public List<AnnotationExpr> annotateMutatorParameter(
+                                    String property,
+                                    SchemaObject propertySchema
+                            ) {
+                                return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("mutatorParameter")));
+                            }
+                        }
+                ));
     }
 
     @ParameterizedTest

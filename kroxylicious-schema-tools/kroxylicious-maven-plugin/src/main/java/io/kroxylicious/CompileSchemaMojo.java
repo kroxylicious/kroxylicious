@@ -54,7 +54,12 @@ public class CompileSchemaMojo extends AbstractMojo {
         String header = readHeaderFile();
         try {
 
-            SchemaCompiler schemaCompiler = new SchemaCompiler(List.of(source.toPath()), null, header, existingClasses != null ? existingClasses : Map.of());
+            SchemaCompiler schemaCompiler = new SchemaCompiler(List.of(source.toPath()),
+                    null,
+                    header,
+                    existingClasses != null ? existingClasses : Map.of(),
+                    List.of(),
+                    List.of());
             var inputs = schemaCompiler.parse();
             var units = schemaCompiler.gen(inputs);
             schemaCompiler.write(target.toPath(), units);

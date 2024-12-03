@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -76,17 +77,23 @@ public class CodeGen {
     private final Map<String, String> existingClasses;
     private final String nullableAnnotation;
     private final String nonNullAnnotation;
+    private final List<TypeAnnotator> typeAnnotators;
+    private final List<PropertyAnnotator> propertyAnnotators;
 
     public CodeGen(Diagnostics diagnostics,
                    IdVisitor idVisitor,
                    Map<String, String> existingClasses,
                    String nullableAnnotation,
-                   String nonNullAnnotation) {
+                   String nonNullAnnotation,
+                   List<TypeAnnotator> typeAnnotators,
+                   List<PropertyAnnotator> propertyAnnotators) {
         this.diagnostics = Objects.requireNonNull(diagnostics);
         this.idVisitor = Objects.requireNonNull(idVisitor);
         this.existingClasses = existingClasses;
         this.nullableAnnotation = nullableAnnotation;
         this.nonNullAnnotation = nonNullAnnotation;
+        this.typeAnnotators = typeAnnotators;
+        this.propertyAnnotators = propertyAnnotators;
     }
 
     SchemaObject resolveRef(SchemaObject root, SchemaObject schema) {
@@ -322,26 +329,37 @@ public class CodeGen {
         clz.addAnnotation(new NormalAnnotationExpr(new Name("com.fasterxml.jackson.databind.annotation.JsonDeserialize"),
                 new NodeList<>(new MemberValuePair("using", new ClassExpr(new ClassOrInterfaceType(null, "com.fasterxml.jackson.databind.JsonDeserializer.None"))))));
 
+        typeAnnotators.stream().flatMap(ta -> ta.annotateClass(schema).stream()).forEach(clz::addAnnotation);
+
+        // fields
         for (var entry : properties.entrySet()) {
             String propName = entry.getKey();
             var propSchema = resolveRef(root, entry.getValue());
             var propType = genTypeName(pkg, root, propSchema);
-            clz.addMember(mkPropertyField(propName, required.contains(propName), propType));
+            FieldDeclaration fieldDeclaration = mkPropertyField(propName, required.contains(propName), propType);
+            propertyAnnotators.stream().flatMap(ta -> ta.annotateField(propName, propSchema).stream()).forEach(fieldDeclaration::addAnnotation);
+            clz.addMember(fieldDeclaration);
         }
 
+        // constructors
         mkConstructors(pkg, root, properties, required, clz);
 
+        // accessors and mutators
         for (var entry : properties.entrySet()) {
             String propName = entry.getKey();
             var propSchema = resolveRef(root, entry.getValue());
             var propType = genTypeName(pkg, root, propSchema);
-            clz.addMember(mkPropertyGetterMethod(propSchema.getDescription(), propName, propType, required.contains(propName)));
-            clz.addMember(mkPropertySetterMethod(propSchema.getDescription(), propName, propType, required.contains(propName)));
+            clz.addMember(mkPropertyGetterMethod(propSchema, propName, propType, required.contains(propName)));
+            clz.addMember(mkPropertySetterMethod(propSchema, propName, propType, required.contains(propName)));
         }
 
+        // toString
         addToStringMethod(clz, properties);
+        // hashCode
         addHashCodeMethod(clz, properties);
+        // equals
         addEqualsMethod(pkg, clz, properties);
+
         return cu;
     }
 
@@ -349,8 +367,13 @@ public class CodeGen {
 
         // Add the all properties ctor
         ConstructorDeclaration decl = mkConstructor(pkg, root, clz,
-                "All properties constructor.", properties, required, (propName, schemaObject) -> List.of(
-                        mkAtJsonProperty(propName, required.contains(propName))));
+                "All properties constructor.", properties, required, (propName, schemaObject) -> {
+                    return Stream.concat(
+                            Stream.of(mkAtJsonProperty(propName, required.contains(propName))),
+                            propertyAnnotators.stream()
+                                    .flatMap(ta -> ta.annotateConstructorParameter(propName, schemaObject).stream())
+                    ).toList();
+                });
         decl.addAnnotation(new MarkerAnnotationExpr("com.fasterxml.jackson.annotation.JsonCreator"));
         clz.addMember(decl);
 
@@ -550,13 +573,14 @@ public class CodeGen {
         return new MarkerAnnotationExpr(required ? nonNullAnnotation : nullableAnnotation);
     }
 
-    private MethodDeclaration mkPropertyGetterMethod(@Nullable String description,
+    private MethodDeclaration mkPropertyGetterMethod(SchemaObject propSchema,
                                                      String propName,
                                                      Type propType,
                                                      boolean required) {
         String getterName = getterName(propName);
         String fieldName = fieldName(propName);
 
+        String description = propSchema.getDescription();
         if (description == null) {
             description = "Return the " + propName + ".\n";
         }
@@ -567,6 +591,7 @@ public class CodeGen {
         methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
         methodDeclaration.addAnnotation(mkNullableAnnotation(required));
         methodDeclaration.addAnnotation(mkAtJsonProperty(propName, required));
+        propertyAnnotators.stream().flatMap(ta -> ta.annotateAccessor(propName, propSchema).stream()).forEach(methodDeclaration::addAnnotation);
         methodDeclaration.setType(propType);
         methodDeclaration.setName(getterName);
         methodDeclaration.setBody(new BlockStmt(new NodeList<>(new ReturnStmt(new FieldAccessExpr(new ThisExpr(), fieldName)))));
@@ -578,11 +603,12 @@ public class CodeGen {
         return quoteMember(propName);
     }
 
-    private MethodDeclaration mkPropertySetterMethod(@Nullable String description,
+    private MethodDeclaration mkPropertySetterMethod(SchemaObject propSchema,
                                                      String propName,
                                                      Type propType, boolean required) {
         var fieldName = fieldName(propName);
 
+        String description = propSchema.getDescription();
         if (description == null) {
             description = "Set the " + propName + ".\n";
         }
@@ -590,10 +616,12 @@ public class CodeGen {
 
         MethodDeclaration methodDeclaration = new MethodDeclaration();
         methodDeclaration.setJavadocComment(description);
+        propertyAnnotators.stream().flatMap(ta -> ta.annotateMutator(propName, propSchema).stream()).forEach(methodDeclaration::addAnnotation);
         methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
         methodDeclaration.setType(new VoidType());
         methodDeclaration.setName(setterName(propName));
         Parameter parameter = new Parameter(propType, fieldName).addAnnotation(mkNullableAnnotation(required));
+        propertyAnnotators.stream().flatMap(ta -> ta.annotateMutatorParameter(propName, propSchema).stream()).forEach(parameter::addAnnotation);
         methodDeclaration
                 .setParameters(new NodeList<>(parameter))
                 .setBody(new BlockStmt(new NodeList<>(new ExpressionStmt(new AssignExpr(
