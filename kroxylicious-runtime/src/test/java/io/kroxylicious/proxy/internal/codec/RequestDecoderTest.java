@@ -306,7 +306,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         assertEquals(45,
                 exactlyOneFrame_encoded(produceVersion,
                         ApiKeys.PRODUCE::requestHeaderVersion,
-                        (x) -> header,
+                        x -> header,
                         () -> body,
                         getKafkaRequestDecoder(DECODE_NOTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES),
                         OpaqueRequestFrame.class,
