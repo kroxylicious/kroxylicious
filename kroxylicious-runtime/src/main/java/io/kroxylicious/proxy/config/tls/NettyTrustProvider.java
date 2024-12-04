@@ -38,7 +38,7 @@ public class NettyTrustProvider {
             public SslContextBuilder visit(TrustStore trustStore) {
                 try {
                     enableHostnameVerification();
-                    enableClientAuthIfRequired(trustStore);
+                    enableClientAuth(trustStore);
                     if (trustStore.isPemType()) {
                         return builder.trustManager(new File(trustStore.storeFile()));
                     }
@@ -61,7 +61,7 @@ public class NettyTrustProvider {
                 }
             }
 
-            private void enableClientAuthIfRequired(TrustStore trustStore) {
+            private void enableClientAuth(TrustStore trustStore) {
                 Optional.ofNullable(trustStore.clientAuth())
                         .map(NettyTrustProvider::toNettyClientAuth)
                         .ifPresent(builder::clientAuth);
