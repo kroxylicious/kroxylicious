@@ -37,8 +37,20 @@ class TrustStoreTest {
     }
 
     @Test
+    void testClientAuth() {
+        TrustStore store = new TrustStore("/tmp/store", null, "PKCS12", new ServerOptions(TlsClientAuth.REQUIRED));
+        assertThat(store.trustOptions()).isEqualTo(new ServerOptions(TlsClientAuth.REQUIRED));
+    }
+
+    @Test
+    void testClientAuthPermitsNull() {
+        TrustStore store = new TrustStore("/tmp/store", null, "PKCS12", null);
+        assertThat(store.trustOptions()).isNull();
+    }
+
+    @Test
     void testAccept() {
-        TrustProvider trustProvider = new TrustStore("/tmp/store", null, "PEM");
+        TrustProvider trustProvider = new TrustStore("/tmp/store", null, "PEM", null);
         TrustStore result = trustProvider.accept(new TrustProviderVisitor<>() {
             @Override
             public TrustStore visit(TrustStore trustStore) {

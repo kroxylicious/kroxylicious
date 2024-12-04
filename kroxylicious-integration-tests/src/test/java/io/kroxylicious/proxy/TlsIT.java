@@ -445,26 +445,26 @@ class TlsIT extends BaseIT {
     private ConfigurationBuilder constructMutualTlsBuilder(KafkaCluster cluster, TlsClientAuth tlsClientAuth) throws Exception {
         var bootstrapServers = cluster.getBootstrapServers();
 
-        var builder = new ConfigurationBuilder()
+        return new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
                         .withNewTls()
-                        .withClientAuth(tlsClientAuth)
                         .withNewKeyStoreKey()
                         .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
                         .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
                         .endKeyStoreKey()
                         .withNewTrustStoreTrust()
+                        .withNewServerOptionsTrust()
+                        .withClientAuth(tlsClientAuth)
+                        .endServerOptionsTrust()
                         .withStoreFile(proxyTrustStore.toAbsolutePath().toString())
                         .withNewInlinePasswordStoreProvider(clientCertGenerator.getPassword())
                         .endTrustStoreTrust()
                         .endTls()
                         .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                         .build());
-
-        return builder;
     }
 
     private PasswordProvider constructPasswordProvider(Class<? extends PasswordProvider> providerClazz, String password) {

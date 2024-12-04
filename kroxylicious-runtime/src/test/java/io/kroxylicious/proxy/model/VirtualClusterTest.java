@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 
 import javax.net.ssl.SSLEngine;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -20,29 +21,41 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.netty.buffer.ByteBufAllocator;
 
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsTestConstants;
+import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 
 import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class VirtualClusterTest {
 
+    private String privateKeyFile;
+    private String cert;
+    private String client;
+
+    @BeforeEach
+    void setUp() {
+        privateKeyFile = TlsTestConstants.getResourceLocationOnFilesystem("server.key");
+        cert = TlsTestConstants.getResourceLocationOnFilesystem("server.crt");
+        client = TlsTestConstants.getResourceLocationOnFilesystem("client.jks");
+    }
+
     @Test
     void shouldBuildSslContext() {
         // Given
-        final KeyPair keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"),
-                TlsTestConstants.getResourceLocationOnFilesystem("server.crt"),
-                null);
+        final KeyPair keyPair = new KeyPair(privateKeyFile, cert, null);
         final Optional<Tls> tls = Optional.of(
                 new Tls(keyPair,
-                        new InsecureTls(false),
-                        null));
+                        new InsecureTls(false)));
         final PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),
                 "localhost", 19092, 0, 1);
@@ -65,18 +78,19 @@ class VirtualClusterTest {
     @MethodSource("clientAuthSettings")
     void shouldRequireDownstreamClientAuth(TlsClientAuth clientAuth, Consumer<SSLEngine> sslEngineAssertions) {
         // Given
-        final KeyPair keyPair = new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"),
-                TlsTestConstants.getResourceLocationOnFilesystem("server.crt"),
+        final KeyPair keyPair = new KeyPair(privateKeyFile,
+                cert,
                 null);
-        final Optional<Tls> tls = Optional.of(new Tls(keyPair, new InsecureTls(false), clientAuth));
+        final Optional<Tls> tls = Optional.of(new Tls(keyPair, new TrustStore(client, new InlinePassword("storepass"), null, new ServerOptions(clientAuth))));
         final PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),
                 "localhost", 19092, 0, 1);
         final PortPerBrokerClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider(
                 clusterNetworkAddressConfigProviderConfig);
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
 
         // When
-        final VirtualCluster virtualCluster = new VirtualCluster("wibble", new TargetCluster("bootstrap:9092", tls), clusterNetworkAddressConfigProvider, tls, false,
+        final VirtualCluster virtualCluster = new VirtualCluster("wibble", targetCluster, clusterNetworkAddressConfigProvider, tls, false,
                 false);
 
         // Then
@@ -92,7 +106,7 @@ class VirtualClusterTest {
                                 }));
     }
 
-    public static Stream<Arguments> clientAuthSettings() {
+    static Stream<Arguments> clientAuthSettings() {
         return Stream.of(
                 argumentSet("don't expect client side auth",
                         TlsClientAuth.NONE,
@@ -113,4 +127,26 @@ class VirtualClusterTest {
                             assertThat(sslEngine.getNeedClientAuth()).isTrue();
                         }));
     }
+
+    @Test
+    void shouldNotAllowUpstreamToProvideTlsServerOptions() {
+        // Given
+        final KeyPair keyPair = new KeyPair(privateKeyFile,
+                cert,
+                null);
+        final Optional<Tls> tls = Optional.of(new Tls(keyPair, new TrustStore(client, new InlinePassword("storepass"), null, new ServerOptions(TlsClientAuth.REQUIRED))));
+        final PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
+                parse("localhost:1235"),
+                "localhost", 19092, 0, 1);
+        final PortPerBrokerClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider(
+                clusterNetworkAddressConfigProviderConfig);
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", tls);
+
+        // When/Then
+        assertThatThrownBy(() -> new VirtualCluster("wibble", targetCluster, clusterNetworkAddressConfigProvider, Optional.empty(), false,
+                false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Cannot apply trust options");
+    }
+
 }

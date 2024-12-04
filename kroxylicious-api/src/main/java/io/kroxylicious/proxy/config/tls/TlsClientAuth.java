@@ -11,5 +11,5 @@ public enum TlsClientAuth {
     REQUIRED,
     REQUESTED,
     NONE;
-    
+
 }

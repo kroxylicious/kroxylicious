@@ -117,7 +117,7 @@ class VaultKmsTlsIT {
         CertificateGenerator.KeyStore keyStore = clientKeys.jksServerKeystore();
         VaultKms service = getTlsVaultKms(
                 new Tls(new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), new InlinePassword(keyStore.keyPassword()), "JKS"),
-                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type())),
+                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null)),
                 testVault.getEndpoint());
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)
@@ -150,7 +150,7 @@ class VaultKmsTlsIT {
 
     @NonNull
     private static Tls defaultStoreTypeTls(CertificateGenerator.TrustStore jksTrustStore) {
-        return new Tls(null, new TrustStore(jksTrustStore.path().toString(), new InlinePassword(jksTrustStore.password()), null));
+        return new Tls(null, new TrustStore(jksTrustStore.path().toString(), new InlinePassword(jksTrustStore.password()), null, null));
     }
 
     @NonNull
@@ -167,17 +167,17 @@ class VaultKmsTlsIT {
 
     @NonNull
     private static Tls tlsForTrustStoreInlinePassword(CertificateGenerator.TrustStore trustStore) {
-        return new Tls(null, new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), trustStore.type()));
+        return new Tls(null, new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), trustStore.type(), null));
     }
 
     @NonNull
     private static Tls tlsForTrustStoreFilePassword(CertificateGenerator.TrustStore trustStore) {
-        return new Tls(null, new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type()));
+        return new Tls(null, new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null));
     }
 
     @NonNull
     private static Tls tlsForTrustStoreNoPassword(CertificateGenerator.TrustStore trustStore) {
-        return new Tls(null, new TrustStore(trustStore.path().toString(), null, trustStore.type()));
+        return new Tls(null, new TrustStore(trustStore.path().toString(), null, trustStore.type(), null));
     }
 
 }
