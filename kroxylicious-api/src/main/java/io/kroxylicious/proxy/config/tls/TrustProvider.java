@@ -31,12 +31,11 @@ public interface TrustProvider {
     <T> T accept(TrustProviderVisitor<T> visitor);
 
     /**
-     * In the TLS server role, indicates the authentication that will be applied to the client.
-     * In the TLS client role, this has no meaning.
+     * Trust options that apply when the TLS peer in a server mode.
      *
-     * @return client auth
+     * @return server options
      */
-    default @Nullable TlsClientAuth clientAuth() {
+    default @Nullable ServerOptions serverOptions() {
         return null;
     }
 }

@@ -66,7 +66,8 @@ class NettyTrustProviderTest {
     @MethodSource
     void clientAuthentication(TlsClientAuth clientAuth, ClientAuth expectedNettyClientAuth) {
         var trustStore = new NettyTrustProvider(
-                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.STOREPASS, TlsTestConstants.JKS, clientAuth));
+                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"), TlsTestConstants.STOREPASS, TlsTestConstants.JKS,
+                        new ServerOptions(clientAuth)));
         trustStore.apply(sslContextBuilder);
         assertThat(sslContextBuilder)
                 .extracting("clientAuth")

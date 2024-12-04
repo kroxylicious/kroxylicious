@@ -38,14 +38,14 @@ class TrustStoreTest {
 
     @Test
     void testClientAuth() {
-        TrustStore store = new TrustStore("/tmp/store", null, "PKCS12", TlsClientAuth.REQUIRED);
-        assertThat(store.clientAuth()).isEqualTo(TlsClientAuth.REQUIRED);
+        TrustStore store = new TrustStore("/tmp/store", null, "PKCS12", new ServerOptions(TlsClientAuth.REQUIRED));
+        assertThat(store.serverOptions()).isEqualTo(new ServerOptions(TlsClientAuth.REQUIRED));
     }
 
     @Test
     void testClientAuthPermitsNull() {
         TrustStore store = new TrustStore("/tmp/store", null, "PKCS12", null);
-        assertThat(store.clientAuth()).isNull();
+        assertThat(store.serverOptions()).isNull();
     }
 
     @Test

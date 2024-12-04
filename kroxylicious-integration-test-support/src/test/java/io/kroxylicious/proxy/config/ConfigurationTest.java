@@ -122,7 +122,9 @@ class ConfigurationTest {
                                         .withNewInlinePasswordKeyProvider("keypassword")
                                         .endKeyPairKey()
                                         .withNewTrustStoreTrust()
+                                        .withNewServerOptions()
                                         .withClientAuth(TlsClientAuth.REQUIRED)
+                                        .endServerOptions()
                                         .withStoreFile("/tmp/trust")
                                         .endTrustStoreTrust()
                                         .endTls()
@@ -146,7 +148,8 @@ class ConfigurationTest {
                                            password: keypassword
                                        trust:
                                          storeFile: /tmp/trust
-                                         clientAuth: REQUIRED
+                                         serverOptions:
+                                            clientAuth: REQUIRED
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:

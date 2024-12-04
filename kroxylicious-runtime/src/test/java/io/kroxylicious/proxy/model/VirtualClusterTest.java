@@ -24,6 +24,7 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsTestConstants;
@@ -79,7 +80,7 @@ class VirtualClusterTest {
         final KeyPair keyPair = new KeyPair(privateKeyFile,
                 cert,
                 null);
-        final Optional<Tls> tls = Optional.of(new Tls(keyPair, new TrustStore(client, new InlinePassword("storepass"), null, clientAuth)));
+        final Optional<Tls> tls = Optional.of(new Tls(keyPair, new TrustStore(client, new InlinePassword("storepass"), null, new ServerOptions(clientAuth))));
         final PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),
                 "localhost", 19092, 0, 1);

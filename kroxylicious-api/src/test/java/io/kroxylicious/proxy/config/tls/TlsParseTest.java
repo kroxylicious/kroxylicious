@@ -214,12 +214,14 @@ class TlsParseTest {
                         "storePassword": {
                             "filePath": "/tmp/pass"
                         },
-                        "clientAuth": "REQUIRED"
+                        "serverOptions": {
+                            "clientAuth": "REQUIRED"
+                        }
                     }
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null, TlsClientAuth.REQUIRED)));
+        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null, new ServerOptions(TlsClientAuth.REQUIRED))));
     }
 
     @Test
