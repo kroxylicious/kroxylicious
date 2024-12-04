@@ -23,14 +23,13 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * @param storePasswordProvider provider for the store password or null if store does not require a password.
  * @param storeType specifies the server key type. Legal values are those types supported by the platform {@link KeyStore},
  *         and PEM (for X-509 certificates express in PEM format).
- * @param serverOptions clientAuth when in the node is in the TLS <em>server</em> role, clientAuth specifies how the server should authenticate clients.
- *         This option has no meaning in the node is in the TLS <em>client</em> role
+ * @param trustOptions the trust options that will be applied to this peer.
  */
 @SuppressFBWarnings(value = "PATH_TRAVERSAL_IN", justification = "The paths provide the location for key material which may exist anywhere on the file-system. Paths are provided by the user in the administrator role via Kroxylicious configuration. ")
 public record TrustStore(@JsonProperty(required = true) String storeFile,
                          @JsonProperty(value = "storePassword") PasswordProvider storePasswordProvider,
                          String storeType,
-                         @Nullable @JsonProperty(value = "serverOptions") ServerOptions serverOptions)
+                         @Nullable @JsonProperty(value = "trustOptions") TrustOptions trustOptions)
         implements TrustProvider {
 
     public TrustStore {

@@ -80,7 +80,9 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                                                  Optional<Tls> tls) {
         try {
             var downstreamTls = tls.map(t -> Optional.ofNullable(t.trust())
-                    .map(TrustProvider::serverOptions)
+                    .map(TrustProvider::trustOptions)
+                    .filter(ServerOptions.class::isInstance)
+                    .map(ServerOptions.class::cast)
                     .map(ServerOptions::clientAuth)
                     .orElse(TlsClientAuth.NONE))
                     .map(clientAuth -> " (TLS clientAuth: " + clientAuth + ")").orElse("");

@@ -31,11 +31,11 @@ public interface TrustProvider {
     <T> T accept(TrustProviderVisitor<T> visitor);
 
     /**
-     * Trust options that apply when the TLS peer in a server mode.
+     * Trust options that apply to this TLS peer..
      *
-     * @return server options
+     * @return trust options
      */
-    default @Nullable ServerOptions serverOptions() {
+    default @Nullable TrustOptions trustOptions() {
         return null;
     }
 }

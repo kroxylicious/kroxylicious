@@ -214,7 +214,7 @@ class TlsParseTest {
                         "storePassword": {
                             "filePath": "/tmp/pass"
                         },
-                        "serverOptions": {
+                        "trustOptions": {
                             "clientAuth": "REQUIRED"
                         }
                     }
