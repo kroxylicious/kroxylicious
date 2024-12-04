@@ -11,6 +11,8 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.config.secret.InlinePassword;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TlsTest {
@@ -33,6 +35,13 @@ class TlsTest {
     @Test
     void testKeyNotDefined() {
         Tls tls = new Tls(null, null);
+        assertThat(tls.definesKey()).isFalse();
+    }
+
+    @Test
+    void testTrustDefined() {
+        Tls tls = new Tls(null, new TrustStore("/tmp/certs", new InlinePassword("pass"), null));
+        assertThat(tls.trust()).isNotNull();
         assertThat(tls.definesKey()).isFalse();
     }
 

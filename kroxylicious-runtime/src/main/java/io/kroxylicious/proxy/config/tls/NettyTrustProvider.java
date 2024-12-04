@@ -14,11 +14,13 @@ import java.util.Optional;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
+import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class NettyTrustProvider {
@@ -36,6 +38,7 @@ public class NettyTrustProvider {
             public SslContextBuilder visit(TrustStore trustStore) {
                 try {
                     enableHostnameVerification();
+                    enableClientAuth(trustStore);
                     if (trustStore.isPemType()) {
                         return builder.trustManager(new File(trustStore.storeFile()));
                     }
@@ -48,6 +51,7 @@ public class NettyTrustProvider {
 
                             var trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                             trustManagerFactory.init(keyStore);
+
                             return builder.trustManager(trustManagerFactory);
                         }
                     }
@@ -55,6 +59,15 @@ public class NettyTrustProvider {
                 catch (Exception e) {
                     throw new SslContextBuildException("Error building SSLContext for TrustStore: " + trustStore, e);
                 }
+            }
+
+            private void enableClientAuth(TrustStore trustStore) {
+                Optional.ofNullable(trustStore.trustOptions())
+                        .filter(ServerOptions.class::isInstance)
+                        .map(ServerOptions.class::cast)
+                        .map(ServerOptions::clientAuth)
+                        .map(NettyTrustProvider::toNettyClientAuth)
+                        .ifPresent(builder::clientAuth);
             }
 
             @Override
@@ -92,6 +105,15 @@ public class NettyTrustProvider {
                 builder.endpointIdentificationAlgorithm(httpsHostnameVerification);
             }
         });
+    }
+
+    @NonNull
+    private static ClientAuth toNettyClientAuth(TlsClientAuth clientAuth) {
+        return switch (clientAuth) {
+            case REQUIRED -> ClientAuth.REQUIRE;
+            case REQUESTED -> ClientAuth.OPTIONAL;
+            case NONE -> ClientAuth.NONE;
+        };
     }
 
 }

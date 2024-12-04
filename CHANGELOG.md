@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1561](https://github.com/kroxylicious/kroxylicious/pull/1631) Allow Trust and ClientAuth to be set for Downstream TLS
 * [#1550](https://github.com/kroxylicious/kroxylicious/pull/1550) Upgrade Apache Kafka from 3.8.0 to 3.9.0 #1550
 * [#1557](https://github.com/kroxylicious/kroxylicious/pull/1557) Bump io.micrometer:micrometer-bom from 1.13.5 to 1.13.6
 * [#1554](https://github.com/kroxylicious/kroxylicious/pull/1554) Bump apicurio-registry.version from 2.6.4.Final to 2.6.5.Final

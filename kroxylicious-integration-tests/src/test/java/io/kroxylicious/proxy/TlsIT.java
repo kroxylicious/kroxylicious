@@ -47,6 +47,7 @@ import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.FilePassword;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
+import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -79,7 +80,9 @@ class TlsIT extends BaseIT {
     @TempDir
     private Path certsDirectory;
     private KeytoolCertificateGenerator downstreamCertificateGenerator;
+    private KeytoolCertificateGenerator clientCertGenerator;
     private Path clientTrustStore;
+    private Path proxyTrustStore;
 
     @BeforeEach
     public void beforeEach() throws Exception {
@@ -89,6 +92,13 @@ class TlsIT extends BaseIT {
         this.clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
         this.downstreamCertificateGenerator.generateTrustStore(this.downstreamCertificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());
+
+        // Generator for certificate that will identify the client
+        this.clientCertGenerator = new KeytoolCertificateGenerator();
+        this.clientCertGenerator.generateSelfSignedCertificateEntry("clientTest@kroxylicious.io", "client", "Dev", "Kroxylicious.io", null, null, "US");
+        this.proxyTrustStore = certsDirectory.resolve("proxy.truststore.jks");
+        this.clientCertGenerator.generateTrustStore(clientCertGenerator.getCertFilePath(), "proxy",
+                proxyTrustStore.toAbsolutePath().toString());
     }
 
     @Test
@@ -340,6 +350,121 @@ class TlsIT extends BaseIT {
             final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
         }
+    }
+
+    @Test
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequired(KafkaCluster cluster) throws Exception {
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUIRED));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_UnsuccessfulTlsClientAuthRequired(KafkaCluster cluster) throws Exception {
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUIRED));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // Would need key information provided for mTLS to work here for TlsClientAuth.REQUIRED
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .hasRootCauseMessage("Received fatal alert: bad_certificate");
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequestedAndProvided(KafkaCluster cluster) throws Exception {
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUESTED));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequestedAndNotProvided(KafkaCluster cluster) throws Exception {
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUESTED));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_SuccessfulTlsClientAuthNoneAndProvided(KafkaCluster cluster) throws Exception {
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.NONE));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_SuccessfulTlsClientAuthNoneAndNotProvided(KafkaCluster cluster) throws Exception {
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.NONE));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    private ConfigurationBuilder constructMutualTlsBuilder(KafkaCluster cluster, TlsClientAuth tlsClientAuth) throws Exception {
+        var bootstrapServers = cluster.getBootstrapServers();
+
+        return new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .withNewTrustStoreTrust()
+                        .withNewServerOptionsTrust()
+                        .withClientAuth(tlsClientAuth)
+                        .endServerOptionsTrust()
+                        .withStoreFile(proxyTrustStore.toAbsolutePath().toString())
+                        .withNewInlinePasswordStoreProvider(clientCertGenerator.getPassword())
+                        .endTrustStoreTrust()
+                        .endTls()
+                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .build());
     }
 
     private PasswordProvider constructPasswordProvider(Class<? extends PasswordProvider> providerClazz, String password) {

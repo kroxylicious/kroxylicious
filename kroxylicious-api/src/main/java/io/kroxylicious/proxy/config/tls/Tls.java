@@ -12,10 +12,8 @@ import java.util.Locale;
 /**
  * Provides TLS configuration for this peer.  This class is designed to be used for both TLS server and client roles.
  *
- * @param key   specifies a key provider that provides the certificate/key used to identify this peer.
+ * @param key specifies a key provider that provides the certificate/key used to identify this peer.
  * @param trust specifies a trust provider used by this peer to determine whether to trust the peer. If omitted platform trust is used instead.
- *
- * TODO ability to restrict by TLS protocol and cipher suite.
  */
 public record Tls(KeyProvider key,
                   TrustProvider trust) {
@@ -29,4 +27,5 @@ public record Tls(KeyProvider key,
     public boolean definesKey() {
         return key != null;
     }
+
 }
