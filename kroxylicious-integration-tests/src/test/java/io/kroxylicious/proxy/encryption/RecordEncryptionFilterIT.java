@@ -6,17 +6,31 @@
 
 package io.kroxylicious.proxy.encryption;
 
+import java.lang.management.ManagementFactory;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import javax.management.AttributeNotFoundException;
+import javax.management.InstanceNotFoundException;
+import javax.management.IntrospectionException;
+import javax.management.MBeanAttributeInfo;
+import javax.management.MBeanException;
+import javax.management.MBeanInfo;
+import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
+import javax.management.ObjectName;
+import javax.management.ReflectionException;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -28,9 +42,11 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.header.Header;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowingConsumer;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -40,6 +56,7 @@ import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
+import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryTestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeInvocationContextProvider;
 import io.kroxylicious.proxy.config.FilterDefinition;
@@ -271,6 +288,58 @@ class RecordEncryptionFilterIT {
 
             assertMoreThanOneEdekUsed(topic, directConsumer);
         }
+    }
+
+    @Test
+    void failedEncryptionRespondsWithError(KafkaCluster cluster, Topic topic, InMemoryTestKmsFacade testKmsFacade)
+            throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+        // 1 second is the current minimum configurable value
+        Duration edekExpiry = Duration.ofSeconds(1);
+        builder.addToFilters(new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
+                .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
+                .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
+                .withConfig("experimental", Map.of(
+                        "encryptionDekRefreshAfterWriteSeconds", edekExpiry.toSeconds(),
+                        "maxEncryptionsPerDek", 1))
+                .withConfig("selector", TemplateKekSelector.class.getSimpleName())
+                .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
+                .build());
+        var messageOne = "hello world";
+        var messageTwo = "hello world2";
+        final String clientId = "producer-" + topic.name();
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer(
+                        Map.of("delivery.timeout.ms", 1500,
+                                "linger.ms", 100,
+                                "request.timeout.ms", 300,
+                                "client.id", clientId))) {
+            final AtomicReference<Exception> responseException = new AtomicReference<>();
+            producer.send(new ProducerRecord<>(topic.name(), 0, "", messageOne), (metadata, exception) -> {
+            });
+            producer.send(new ProducerRecord<>(topic.name(), 0, "", messageTwo), (metadata, exception) -> responseException.set(exception));
+            await().until(() -> responseException.get() != null);
+            assertMetricHasCount(clientId, "connection-close-total", 0);
+            assertThat(responseException).hasValueSatisfying(
+                    actualException -> assertThat(actualException)
+                            .isInstanceOf(TimeoutException.class)
+                            .hasMessageStartingWith("Expiring 2 record(s) for"));
+        }
+    }
+
+    private static void assertMetricHasCount(String clientId, String metricName, double expectedValue)
+            throws MalformedObjectNameException, InstanceNotFoundException, IntrospectionException, ReflectionException, MBeanException, AttributeNotFoundException {
+        final MBeanServer platformMBeanServer = ManagementFactory.getPlatformMBeanServer();
+        final ObjectName producerMetricsObjectName = ObjectName.getInstance("kafka.producer:type=producer-metrics,client-id=" + clientId);
+        final MBeanInfo producerMetricsMbean = platformMBeanServer.getMBeanInfo(producerMetricsObjectName);
+        final MBeanAttributeInfo attributeInfo = Arrays.stream(producerMetricsMbean.getAttributes())
+                .filter(mBeanAttributeInfo -> metricName.equalsIgnoreCase(mBeanAttributeInfo.getName()))
+                .findAny().orElseThrow(() -> new IllegalStateException(metricName + " metric not found"));
+        final Object attribute = platformMBeanServer.getAttribute(producerMetricsObjectName, attributeInfo.getName());
+        assertThat(attribute).describedAs("%s should metric %s with specified value", clientId, metricName).isEqualTo(expectedValue);
     }
 
     private static void assertMoreThanOneEdekUsed(Topic topic, KafkaConsumer<byte[], byte[]> directConsumer) {

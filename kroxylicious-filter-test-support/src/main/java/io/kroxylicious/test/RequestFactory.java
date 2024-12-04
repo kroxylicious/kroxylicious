@@ -122,7 +122,11 @@ public class RequestFactory {
                 });
     }
 
-    public record ApiMessageVersion(ApiMessage apiMessage, short apiVersion) {}
+    public record ApiMessageVersion(ApiMessage apiMessage, short apiVersion) {
+        public ApiKeys getApiKey() {
+            return ApiKeys.forId(apiMessage().apiKey());
+        }
+    }
 
     private static @NonNull ApiMessage apiMessageForApiKey(ApiKeys apiKey) {
         final ApiMessage apiMessage = apiKey.messageType.newRequest();

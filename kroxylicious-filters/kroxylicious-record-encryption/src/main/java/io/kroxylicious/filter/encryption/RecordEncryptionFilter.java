@@ -15,6 +15,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
@@ -25,6 +26,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.slf4j.Logger;
 
+import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
 import io.kroxylicious.filter.encryption.config.RecordField;
@@ -71,7 +73,31 @@ public class RecordEncryptionFilter<K>
                                                                  ProduceRequestData request,
                                                                  FilterContext context) {
         return maybeEncodeProduce(request, context)
-                .thenCompose(yy -> context.forwardRequest(header, request));
+                .thenCompose(yy -> context.forwardRequest(header, request))
+                .exceptionallyCompose(throwable -> {
+                    final ApiException clientFacingException = getClientFacingException(throwable);
+                    if (clientFacingException != null) {
+                        return context.requestFilterResultBuilder()
+                                .errorResponse(header, request, clientFacingException)
+                                .completed();
+                    }
+                    else {
+                        // returning a failed stage is effectively asking the runtime to kill the connection.
+                        return CompletableFuture.failedStage(throwable);
+                    }
+                });
+    }
+
+    private static ApiException getClientFacingException(Throwable throwable) {
+        if (isEncryptionException(throwable)) {
+            return ((EncryptionException) throwable).getApiException();
+        }
+        else if (isEncryptionException(throwable.getCause())) {
+            return ((EncryptionException) throwable.getCause()).getApiException();
+        }
+        else {
+            return null;
+        }
     }
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
@@ -157,4 +183,7 @@ public class RecordEncryptionFilter<K>
                 .thenApply(fpr::setRecords);
     }
 
+    private static boolean isEncryptionException(Throwable throwable) {
+        return throwable instanceof EncryptionException;
+    }
 }

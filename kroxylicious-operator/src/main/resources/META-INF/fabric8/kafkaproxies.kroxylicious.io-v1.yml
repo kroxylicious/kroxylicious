@@ -81,7 +81,16 @@ spec:
                               type: string
                             name:
                               type: string
-
+                podTemplate:
+                  type: object
+                  properties:
+                    metadata:
+                      properties:
+                        labels:
+                          additionalProperties:
+                            type: string
+                          type: object
+                      type: object
             status:
               type: object
               properties:
