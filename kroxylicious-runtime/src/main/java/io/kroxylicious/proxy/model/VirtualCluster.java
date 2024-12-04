@@ -24,9 +24,7 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
-import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
@@ -83,11 +81,10 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         try {
             var downstreamTls = tls.map(t -> Optional.ofNullable(t.trust())
                     .map(TrustProvider::trustOptions)
-                    .filter(ServerOptions.class::isInstance)
-                    .map(ServerOptions.class::cast)
-                    .map(ServerOptions::clientAuth)
-                    .orElse(TlsClientAuth.NONE))
-                    .map(clientAuth -> " (TLS clientAuth: " + clientAuth + ")").orElse("");
+                    .map(TrustOptions::toString)
+                    .orElse("-"))
+                    .map(options -> " (TLS: " + options + ")")
+                    .orElse("");
             HostPort downstreamBootstrap = clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
             var upstreamTls = targetCluster.tls().map(tls1 -> " (TLS)").orElse("");
             HostPort upstreamHostPort = targetCluster.bootstrapServersList().get(0);
