@@ -9,6 +9,7 @@ import java.io.UncheckedIOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLException;
@@ -26,6 +27,7 @@ import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
+import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -206,6 +208,13 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
             try {
                 var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
                         .orElse(SslContextBuilder.forClient());
+
+                Optional.ofNullable(targetClusterTls.trust())
+                        .map(TrustProvider::trustOptions)
+                        .filter(Predicate.not(TrustOptions::forClient))
+                        .ifPresent(to -> {
+                            throw new IllegalStateException("Cannot apply trust options " + to + " to upstream (client) TLS.)");
+                        });
 
                 var withTrust = configureTrustProvider(targetClusterTls).apply(sslContextBuilder);
 

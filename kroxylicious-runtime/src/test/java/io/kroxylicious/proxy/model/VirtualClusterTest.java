@@ -33,6 +33,7 @@ import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPe
 
 import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class VirtualClusterTest {
@@ -86,9 +87,10 @@ class VirtualClusterTest {
                 "localhost", 19092, 0, 1);
         final PortPerBrokerClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider(
                 clusterNetworkAddressConfigProviderConfig);
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
 
         // When
-        final VirtualCluster virtualCluster = new VirtualCluster("wibble", new TargetCluster("bootstrap:9092", tls), clusterNetworkAddressConfigProvider, tls, false,
+        final VirtualCluster virtualCluster = new VirtualCluster("wibble", targetCluster, clusterNetworkAddressConfigProvider, tls, false,
                 false);
 
         // Then
@@ -104,7 +106,7 @@ class VirtualClusterTest {
                                 }));
     }
 
-    public static Stream<Arguments> clientAuthSettings() {
+    static Stream<Arguments> clientAuthSettings() {
         return Stream.of(
                 argumentSet("don't expect client side auth",
                         TlsClientAuth.NONE,
@@ -125,4 +127,26 @@ class VirtualClusterTest {
                             assertThat(sslEngine.getNeedClientAuth()).isTrue();
                         }));
     }
+
+    @Test
+    void shouldNotAllowUpstreamToProvideTlsServerOptions() {
+        // Given
+        final KeyPair keyPair = new KeyPair(privateKeyFile,
+                cert,
+                null);
+        final Optional<Tls> tls = Optional.of(new Tls(keyPair, new TrustStore(client, new InlinePassword("storepass"), null, new ServerOptions(TlsClientAuth.REQUIRED))));
+        final PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
+                parse("localhost:1235"),
+                "localhost", 19092, 0, 1);
+        final PortPerBrokerClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider(
+                clusterNetworkAddressConfigProviderConfig);
+        final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", tls);
+
+        // When/Then
+        assertThatThrownBy(() -> new VirtualCluster("wibble", targetCluster, clusterNetworkAddressConfigProvider, Optional.empty(), false,
+                false))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Cannot apply trust options");
+    }
+
 }
