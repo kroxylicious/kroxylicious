@@ -23,6 +23,7 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
@@ -38,6 +39,11 @@ import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import org.testcontainers.DockerClientFactory;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
+import org.testcontainers.utility.DockerImageName;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -67,6 +73,7 @@ public class ApiVersionsDowngradeIT {
     public static final short API_VERSIONS_ID = ApiKeys.API_VERSIONS.id;
     public static final String SASL_USER = "alice";
     public static final String SASL_PASSWORD = "foo";
+    private static final DockerImageName OLD_REDPANDA_USING_API_VER0_2 = DockerImageName.parse("docker.redpanda.com/redpandadata/redpanda:v22.1.11");
 
     @Test
     void clientAheadOfProxy() {
@@ -133,6 +140,50 @@ public class ApiVersionsDowngradeIT {
         }
     }
 
+    /**
+     * In this test, we verify the assumption that the Kafka Client is capable
+     * of negotiating down api-versions version twice.  This test uses an
+     * old version of Redpanda (that supports max v2) and the Proxy (restricted
+     * to v3).  The Kafka Client is using v4.
+     * <br>
+     * Client will first make a v4 request.  The proxy's response will cause the client
+     * to try again at v3.  The broker will then cause the client to try a third time at v2.
+     * This request will satisfy all parties and the connection establishment will continue.
+     * All this occurs on a single connection.
+     */
+    @Test
+    @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
+    void clientAheadOfProxyWhichIsAheadOfBroker() {
+
+        try (var redpanda = createRedpanda(OLD_REDPANDA_USING_API_VER0_2)) {
+            redpanda.start();
+            var redpandaApiVersion = (short) 2;
+            var proxyApiVersion = (short) (ApiKeys.API_VERSIONS.latestVersion() - 1);
+            assertThat(redpandaApiVersion).isLessThan(proxyApiVersion);
+
+            var proxy = proxy("localhost:9092")
+                    .withExperimental(Map.of("apiKeyIdMaxVersionOverride", Map.of(ApiKeys.API_VERSIONS.name(), proxyApiVersion)));
+            try (var tester = kroxyliciousTester(proxy);
+                    var admin = tester.admin()) {
+                // We've got no way to observe the actual version of the API versions request that is used during _negotiation_
+                // so we make do with asserting the connection is usable.
+                final var result = admin.describeCluster().clusterId();
+                assertThat(result).as("Unable to get the clusterId from the Kafka cluster").succeedsWithin(Duration.ofSeconds(10));
+                // check that the client is actually using the correct version.
+                assertThat(admin)
+                        .extracting("instance")
+                        .extracting("client")
+                        .extracting("apiVersions")
+                        .extracting("nodeApiVersions", InstanceOfAssertFactories.map(String.class, NodeApiVersions.class))
+                        .hasEntrySatisfying("-1", nav -> {
+                            assertThat(nav.apiVersion(ApiKeys.API_VERSIONS).maxVersion())
+                                    .isEqualTo(redpandaApiVersion);
+                        });
+            }
+
+        }
+    }
+
     private static @NonNull OpaqueRequestFrame createHypotheticalFutureRequest() {
         short unsupportedVersion = (short) (ApiKeys.API_VERSIONS.latestVersion(true) + 1);
         RequestHeaderData requestHeaderData = getRequestHeaderData(API_VERSIONS_ID, unsupportedVersion, CORRELATION_ID);
@@ -161,4 +212,26 @@ public class ApiVersionsDowngradeIT {
         return requestHeaderData;
     }
 
+    @NonNull
+    private RedpandaContainer createRedpanda(DockerImageName image) {
+        var redpanda = new RedpandaContainer(image);
+        redpanda.setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*Bootstrap complete.*"));
+        redpanda.addFixedExposedPort(9092, 9092);
+        return redpanda;
+    }
+    private static class RedpandaContainer extends GenericContainer<RedpandaContainer> {
+
+        private RedpandaContainer(DockerImageName dockerImageName) {
+            super(dockerImageName);
+        }
+
+        @Override
+        protected void addFixedExposedPort(int hostPort, int containerPort) {
+            super.addFixedExposedPort(hostPort, containerPort);
+        }
+    }
+
+    static boolean isDockerAvailable() {
+        return DockerClientFactory.instance().isDockerAvailable();
+    }
 }
