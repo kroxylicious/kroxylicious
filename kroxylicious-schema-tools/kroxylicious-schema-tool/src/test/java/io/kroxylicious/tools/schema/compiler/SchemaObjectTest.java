@@ -10,18 +10,16 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
-import io.kroxylicious.tools.schema.model.SchemaVisitor;
-
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.tools.schema.model.SchemaObject;
 import io.kroxylicious.tools.schema.model.SchemaObjectBuilder;
 import io.kroxylicious.tools.schema.model.SchemaType;
+import io.kroxylicious.tools.schema.model.SchemaVisitor;
 import io.kroxylicious.tools.schema.model.VisitException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,8 +38,8 @@ class SchemaObjectTest {
         schema.visitSchemas(base, visitor);
         assertThat(visitor.contextsPreorder).hasToString(
                 "[Context{base=test://schema, keyword='', fullPath=''}, "
-                + "Context{keyword='properties', fullPath='/properties/foo'}, "
-                + "Context{keyword='properties', fullPath='/properties/bar'}]");
+                        + "Context{keyword='properties', fullPath='/properties/foo'}, "
+                        + "Context{keyword='properties', fullPath='/properties/bar'}]");
         assertThat(visitor.contextsPostorder).hasToString(
                 "[Context{keyword='properties', fullPath='/properties/foo'}, "
                         + "Context{keyword='properties', fullPath='/properties/bar'}, "
@@ -57,8 +55,6 @@ class SchemaObjectTest {
                 .hasMessage(
                         "io.kroxylicious.tools.schema.compiler.SchemaObjectTest$MySchemaVisitor#enterSchema() threw exception while visiting schema object at '/properties/bar' from test://schema");
     }
-
-
 
     @Test
     void hasCodeAndEquals() {
@@ -134,8 +130,8 @@ class SchemaObjectTest {
 
         @Override
         public void enterSchema(
-                Context context,
-                @NonNull SchemaObject schema) {
+                                Context context,
+                                @NonNull SchemaObject schema) {
             super.enterSchema(context, schema);
             contextsPreorder.add(context);
             if (context.fullPath().equals(pathWhichThrows)) {
@@ -145,9 +141,8 @@ class SchemaObjectTest {
 
         @Override
         public void exitSchema(
-                Context context,
-                @NonNull SchemaObject schema
-        ) {
+                               Context context,
+                               @NonNull SchemaObject schema) {
             super.exitSchema(context, schema);
             contextsPostorder.add(context);
         }

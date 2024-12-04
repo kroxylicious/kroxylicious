@@ -23,7 +23,7 @@ public class CrdSchema {
      * @param openAPIV3Schema The value of the {@code openAPIV3Schema} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public CrdSchema(@com.fasterxml.jackson.annotation.JsonProperty(value = "openAPIV3Schema") @edu.umd.cs.findbugs.annotations.Nullable trickynaming.TrickySpecVersionSchemaOpenAPIV3Schema openAPIV3Schema) {
+    public CrdSchema(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "openAPIV3Schema") trickynaming.TrickySpecVersionSchemaOpenAPIV3Schema openAPIV3Schema) {
         this.openAPIV3Schema = openAPIV3Schema;
     }
 

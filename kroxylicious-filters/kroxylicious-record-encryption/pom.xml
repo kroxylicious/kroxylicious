@@ -155,7 +155,7 @@
                     <execution>
                         <id>generate-config-model</id>
                         <goals>
-                            <goal>compile-schema</goal>
+                            <goal>compile-plugin</goal>
                         </goals>
                         <phase>generate-sources</phase>
                         <configuration>

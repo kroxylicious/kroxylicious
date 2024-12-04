@@ -23,7 +23,7 @@ public class Maps {
      * @param keyedOnFoo The value of the {@code keyedOnFoo} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public Maps(@com.fasterxml.jackson.annotation.JsonProperty(value = "keyedOnFoo") @edu.umd.cs.findbugs.annotations.Nullable java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo) {
+    public Maps(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "keyedOnFoo") java.util.Map<java.lang.String, maps.FooBarBaz> keyedOnFoo) {
         this.keyedOnFoo = keyedOnFoo;
     }
 

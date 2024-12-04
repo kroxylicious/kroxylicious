@@ -27,7 +27,7 @@ public class Tls {
      * @param trust The value of the {@code trust} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public Tls(@com.fasterxml.jackson.annotation.JsonProperty(value = "key") @edu.umd.cs.findbugs.annotations.Nullable xref.ConfigKey key, @com.fasterxml.jackson.annotation.JsonProperty(value = "trust") @edu.umd.cs.findbugs.annotations.Nullable xref.ConfigTrust trust) {
+    public Tls(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "key") xref.ConfigKey key, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "trust") xref.ConfigTrust trust) {
         this.key = key;
         this.trust = trust;
     }

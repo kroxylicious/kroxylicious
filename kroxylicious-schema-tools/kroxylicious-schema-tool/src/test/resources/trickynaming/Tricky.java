@@ -31,7 +31,7 @@ public class Tricky {
      * @param spec The value of the {@code spec} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public Tricky(@com.fasterxml.jackson.annotation.JsonProperty(value = "apiVersion", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.String apiVersion, @com.fasterxml.jackson.annotation.JsonProperty(value = "kind", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.String kind, @com.fasterxml.jackson.annotation.JsonProperty(value = "spec") @edu.umd.cs.findbugs.annotations.Nullable trickynaming.TrickySpec spec) {
+    public Tricky(@edu.umd.cs.findbugs.annotations.NonNull @com.fasterxml.jackson.annotation.JsonProperty(value = "apiVersion", required = true) java.lang.String apiVersion, @edu.umd.cs.findbugs.annotations.NonNull @com.fasterxml.jackson.annotation.JsonProperty(value = "kind", required = true) java.lang.String kind, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "spec") trickynaming.TrickySpec spec) {
         this.apiVersion = java.util.Objects.requireNonNull(apiVersion);
         this.kind = java.util.Objects.requireNonNull(kind);
         this.spec = spec;

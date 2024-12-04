@@ -23,18 +23,16 @@ import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.ToolProvider;
 
-import com.github.javaparser.ast.expr.AnnotationExpr;
-import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
-import com.github.javaparser.ast.expr.Name;
-import com.github.javaparser.ast.expr.SimpleName;
-import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.Name;
+import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
 
 import io.kroxylicious.tools.schema.model.SchemaObject;
 import io.kroxylicious.tools.schema.model.SchemaObjectBuilder;
@@ -97,7 +95,8 @@ class CodeGenTest {
 
     private void assertGeneratedCode(String dir,
                                      List<TypeAnnotator> typeAnnotators,
-                                     List<PropertyAnnotator> propertyAnnotators) throws IOException {
+                                     List<PropertyAnnotator> propertyAnnotators)
+            throws IOException {
         // First assert that the generate code matches the expected files
         assertGeneratedCodeMatches(dir, typeAnnotators, propertyAnnotators);
         // Then assert that the expected files can be compiled with a java compiler
@@ -266,7 +265,7 @@ class CodeGenTest {
         assertGeneratedCode("src/test/resources/customannotations",
                 List.of(new TypeAnnotator() {
                     @Override
-                    public List<AnnotationExpr> annotateClass(SchemaObject typeSchema) {
+                    public List<AnnotationExpr> annotateClass(Diagnostics diagnostics, SchemaObject typeSchema) {
                         return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("class")));
                     }
                 }),
@@ -274,45 +273,44 @@ class CodeGenTest {
                         new PropertyAnnotator() {
                             @Override
                             public List<AnnotationExpr> annotateField(
-                                    String property,
-                                    SchemaObject propertySchema
-                            ) {
+                                                                      Diagnostics diagnostics,
+                                                                      String property,
+                                                                      SchemaObject propertySchema) {
                                 return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("field")));
                             }
 
                             @Override
                             public List<AnnotationExpr> annotateConstructorParameter(
-                                    String property,
-                                    SchemaObject propertySchema
-                            ) {
+                                                                                     Diagnostics diagnostics,
+                                                                                     String property,
+                                                                                     SchemaObject propertySchema) {
                                 return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("ctorParameter")));
                             }
 
                             @Override
                             public List<AnnotationExpr> annotateAccessor(
-                                    String property,
-                                    SchemaObject propertySchema
-                            ) {
+                                                                         Diagnostics diagnostics,
+                                                                         String property,
+                                                                         SchemaObject propertySchema) {
                                 return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("accessor")));
                             }
 
                             @Override
                             public List<AnnotationExpr> annotateMutator(
-                                    String property,
-                                    SchemaObject propertySchema
-                            ) {
+                                                                        Diagnostics diagnostics,
+                                                                        String property,
+                                                                        SchemaObject propertySchema) {
                                 return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("mutator")));
                             }
 
                             @Override
                             public List<AnnotationExpr> annotateMutatorParameter(
-                                    String property,
-                                    SchemaObject propertySchema
-                            ) {
+                                                                                 Diagnostics diagnostics,
+                                                                                 String property,
+                                                                                 SchemaObject propertySchema) {
                                 return List.of(new SingleMemberAnnotationExpr(new Name("customannotations.Custom"), new StringLiteralExpr("mutatorParameter")));
                             }
-                        }
-                ));
+                        }));
     }
 
     @ParameterizedTest

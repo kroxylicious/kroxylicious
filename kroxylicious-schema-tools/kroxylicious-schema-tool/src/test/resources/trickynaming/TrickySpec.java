@@ -35,7 +35,7 @@ public class TrickySpec {
      * @param versions The value of the {@code versions} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public TrickySpec(@com.fasterxml.jackson.annotation.JsonProperty(value = "group") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String group, @com.fasterxml.jackson.annotation.JsonProperty(value = "scope") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String scope, @com.fasterxml.jackson.annotation.JsonProperty(value = "names") @edu.umd.cs.findbugs.annotations.Nullable trickynaming.TrickySpecNames names, @com.fasterxml.jackson.annotation.JsonProperty(value = "versions") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<trickynaming.TrickySpecVersion> versions) {
+    public TrickySpec(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "group") java.lang.String group, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "scope") java.lang.String scope, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "names") trickynaming.TrickySpecNames names, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "versions") java.util.List<trickynaming.TrickySpecVersion> versions) {
         this.group = group;
         this.scope = scope;
         this.names = names;

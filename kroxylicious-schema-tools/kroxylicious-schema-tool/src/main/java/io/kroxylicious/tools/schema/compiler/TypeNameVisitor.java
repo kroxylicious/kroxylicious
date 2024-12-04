@@ -58,7 +58,7 @@ public class TypeNameVisitor extends SchemaVisitor {
 
     @Override
     public void exitSchema(
-            SchemaVisitor.Context context,
+                           SchemaVisitor.Context context,
                            @NonNull SchemaObject schema) {
         if (CodeGen.isTypeGenerated(schema) && schema.getJavaType() == null) {
             if (context.isRootSchema()) {

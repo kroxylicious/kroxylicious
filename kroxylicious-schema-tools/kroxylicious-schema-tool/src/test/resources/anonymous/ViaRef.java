@@ -23,7 +23,7 @@ public class ViaRef {
      * @param bar The value of the {@code bar} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public ViaRef(@com.fasterxml.jackson.annotation.JsonProperty(value = "bar") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String bar) {
+    public ViaRef(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "bar") java.lang.String bar) {
         this.bar = bar;
     }
 

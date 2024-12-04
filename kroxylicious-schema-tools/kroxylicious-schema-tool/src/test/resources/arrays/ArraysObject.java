@@ -23,7 +23,7 @@ public class ArraysObject {
      * @param name The value of the {@code name} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public ArraysObject(@com.fasterxml.jackson.annotation.JsonProperty(value = "name") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String name) {
+    public ArraysObject(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "name") java.lang.String name) {
         this.name = name;
     }
 

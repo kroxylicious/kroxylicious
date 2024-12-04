@@ -6,9 +6,9 @@
 
 package io.kroxylicious.tools.schema.model;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import java.net.URI;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class SchemaVisitor {
 
@@ -20,16 +20,14 @@ public class SchemaVisitor {
         Context(
                 Context parent,
                 String keyword,
-                String path
-        ) {
+                String path) {
             this.parent = parent;
             this.keyword = keyword;
             this.path = path;
         }
 
         Context(
-                URI base
-        ) {
+                URI base) {
             this.parent = base;
             this.keyword = "";
             this.path = "";
@@ -64,14 +62,12 @@ public class SchemaVisitor {
         @Override
         public String toString() {
             return "Context{" +
-                    (parent instanceof URI ? "base=" + parent  + ", " : "") +
+                    (parent instanceof URI ? "base=" + parent + ", " : "") +
                     "keyword='" + keyword + '\'' +
                     ", fullPath='" + fullPath() + '\'' +
                     '}';
         }
     }
-
-
 
     public void enterSchema(Context context, @NonNull SchemaObject schema) {
         // default behaviour is no-op

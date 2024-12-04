@@ -25,7 +25,7 @@ public class CustomAnnotations {
      * @param foo The value of the {@code foo} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public CustomAnnotations(@com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @customannotations.Custom("ctorParameter") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String foo) {
+    public CustomAnnotations(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @customannotations.Custom("ctorParameter") java.lang.String foo) {
         this.foo = foo;
     }
 

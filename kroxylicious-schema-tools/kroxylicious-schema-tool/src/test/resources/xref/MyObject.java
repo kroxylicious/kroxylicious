@@ -23,7 +23,7 @@ public class MyObject {
      * @param foo The value of the {@code foo} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public MyObject(@com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Double foo) {
+    public MyObject(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "foo") java.lang.Double foo) {
         this.foo = foo;
     }
 

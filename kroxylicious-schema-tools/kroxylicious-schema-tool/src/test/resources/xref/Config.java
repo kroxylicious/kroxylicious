@@ -39,7 +39,7 @@ public class Config {
      * @param tls The value of the {@code tls} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public Config(@com.fasterxml.jackson.annotation.JsonProperty(value = "endpointUrl", required = true) @edu.umd.cs.findbugs.annotations.NonNull java.lang.String endpointUrl, @com.fasterxml.jackson.annotation.JsonProperty(value = "accessKey") @edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider accessKey, @com.fasterxml.jackson.annotation.JsonProperty(value = "secretKey") @edu.umd.cs.findbugs.annotations.Nullable xref.PasswordProvider secretKey, @com.fasterxml.jackson.annotation.JsonProperty(value = "region") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String region, @com.fasterxml.jackson.annotation.JsonProperty(value = "tls") @edu.umd.cs.findbugs.annotations.Nullable xref.Tls tls) {
+    public Config(@edu.umd.cs.findbugs.annotations.NonNull @com.fasterxml.jackson.annotation.JsonProperty(value = "endpointUrl", required = true) java.lang.String endpointUrl, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "accessKey") xref.PasswordProvider accessKey, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "secretKey") xref.PasswordProvider secretKey, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "region") java.lang.String region, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "tls") xref.Tls tls) {
         this.endpointUrl = java.util.Objects.requireNonNull(endpointUrl);
         this.accessKey = accessKey;
         this.secretKey = secretKey;

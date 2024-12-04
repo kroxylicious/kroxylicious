@@ -35,7 +35,7 @@ public class TrickySpecNames {
      * @param shortNames The value of the {@code shortNames} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public TrickySpecNames(@com.fasterxml.jackson.annotation.JsonProperty(value = "kind") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String kind, @com.fasterxml.jackson.annotation.JsonProperty(value = "plural") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String plural, @com.fasterxml.jackson.annotation.JsonProperty(value = "singular") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String singular, @com.fasterxml.jackson.annotation.JsonProperty(value = "shortNames") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<java.lang.String> shortNames) {
+    public TrickySpecNames(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "kind") java.lang.String kind, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "plural") java.lang.String plural, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "singular") java.lang.String singular, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "shortNames") java.util.List<java.lang.String> shortNames) {
         this.kind = kind;
         this.plural = plural;
         this.singular = singular;

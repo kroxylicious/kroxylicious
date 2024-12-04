@@ -16,10 +16,11 @@ public interface TypeAnnotator {
 
     /**
      * Return annotations to be added to the class.
+     * @param diagnostics Diagnostics for reporting errors.
      * @param typeSchema The schema of the type
      * @return The annotations to add
      */
-    default List<AnnotationExpr> annotateClass(SchemaObject typeSchema) {
+    default List<AnnotationExpr> annotateClass(Diagnostics diagnostics, SchemaObject typeSchema) {
         return List.of();
     }
 }

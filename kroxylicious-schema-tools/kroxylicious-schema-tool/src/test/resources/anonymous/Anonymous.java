@@ -31,7 +31,7 @@ public class Anonymous {
      * @param ref The value of the {@code ref} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public Anonymous(@com.fasterxml.jackson.annotation.JsonProperty(value = "obj") @edu.umd.cs.findbugs.annotations.Nullable anonymous.AnonymousObj obj, @com.fasterxml.jackson.annotation.JsonProperty(value = "weasels") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<anonymous.AnonymousWeasel> weasels, @com.fasterxml.jackson.annotation.JsonProperty(value = "ref") @edu.umd.cs.findbugs.annotations.Nullable anonymous.ViaRef ref) {
+    public Anonymous(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "obj") anonymous.AnonymousObj obj, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "weasels") java.util.List<anonymous.AnonymousWeasel> weasels, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "ref") anonymous.ViaRef ref) {
         this.obj = obj;
         this.weasels = weasels;
         this.ref = ref;

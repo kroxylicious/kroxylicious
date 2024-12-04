@@ -167,7 +167,7 @@ public class CodeGen {
                     if (schema.getFormat() != null) {
                         yield new ClassOrInterfaceType(null, switch (schema.getFormat()) {
                             case "uri" -> "java.net.URI";
-                            default -> "java.lang.Object";
+                            default -> "java.lang.String";
                         });
                     }
                     else {
@@ -329,7 +329,7 @@ public class CodeGen {
         clz.addAnnotation(new NormalAnnotationExpr(new Name("com.fasterxml.jackson.databind.annotation.JsonDeserialize"),
                 new NodeList<>(new MemberValuePair("using", new ClassExpr(new ClassOrInterfaceType(null, "com.fasterxml.jackson.databind.JsonDeserializer.None"))))));
 
-        typeAnnotators.stream().flatMap(ta -> ta.annotateClass(schema).stream()).forEach(clz::addAnnotation);
+        typeAnnotators.stream().flatMap(ta -> ta.annotateClass(diagnostics, schema).stream()).forEach(clz::addAnnotation);
 
         // fields
         for (var entry : properties.entrySet()) {
@@ -337,7 +337,7 @@ public class CodeGen {
             var propSchema = resolveRef(root, entry.getValue());
             var propType = genTypeName(pkg, root, propSchema);
             FieldDeclaration fieldDeclaration = mkPropertyField(propName, required.contains(propName), propType);
-            propertyAnnotators.stream().flatMap(ta -> ta.annotateField(propName, propSchema).stream()).forEach(fieldDeclaration::addAnnotation);
+            propertyAnnotators.stream().flatMap(ta -> ta.annotateField(diagnostics, propName, propSchema).stream()).forEach(fieldDeclaration::addAnnotation);
             clz.addMember(fieldDeclaration);
         }
 
@@ -363,17 +363,20 @@ public class CodeGen {
         return cu;
     }
 
-    private void mkConstructors(String pkg, SchemaObject root, Map<String, SchemaObject> properties, Set<String> required, ClassOrInterfaceDeclaration clz) {
+    private void mkConstructors(String pkg,
+                                SchemaObject root,
+                                Map<String, SchemaObject> properties,
+                                Set<String> required,
+                                ClassOrInterfaceDeclaration clz) {
 
         // Add the all properties ctor
         ConstructorDeclaration decl = mkConstructor(pkg, root, clz,
-                "All properties constructor.", properties, required, (propName, schemaObject) -> {
-                    return Stream.concat(
-                            Stream.of(mkAtJsonProperty(propName, required.contains(propName))),
-                            propertyAnnotators.stream()
-                                    .flatMap(ta -> ta.annotateConstructorParameter(propName, schemaObject).stream())
-                    ).toList();
-                });
+                "All properties constructor.", properties, required,
+                (propName, schemaObject) -> Stream.concat(
+                        Stream.of(mkAtJsonProperty(propName, required.contains(propName))),
+                        propertyAnnotators.stream()
+                                .flatMap(ta -> ta.annotateConstructorParameter(diagnostics, propName, schemaObject).stream()))
+                        .toList());
         decl.addAnnotation(new MarkerAnnotationExpr("com.fasterxml.jackson.annotation.JsonCreator"));
         clz.addMember(decl);
 
@@ -408,10 +411,10 @@ public class CodeGen {
                 .map(entry -> {
                     var propSchema = resolveRef(root, entry.getValue());
                     var propType = genTypeName(pkg, root, propSchema);
-                    NodeList<AnnotationExpr> annotations = NodeList.nodeList(annotator.apply(entry.getKey(), entry.getValue()));
-                    annotations.add(mkNullableAnnotation(required.contains(entry.getKey())));
-                    return new Parameter(propType, fieldName(entry.getKey()))
-                            .setAnnotations(annotations);
+                    Parameter parameter = new Parameter(propType, fieldName(entry.getKey()));
+                    parameter.addAnnotation(mkNullableAnnotation(required.contains(entry.getKey())));
+                    annotator.apply(entry.getKey(), entry.getValue()).forEach(parameter::addAnnotation);
+                    return parameter;
                 }).toList();
         ctor.setParameters(NodeList.nodeList(pl));
 
@@ -573,7 +576,8 @@ public class CodeGen {
         return new MarkerAnnotationExpr(required ? nonNullAnnotation : nullableAnnotation);
     }
 
-    private MethodDeclaration mkPropertyGetterMethod(SchemaObject propSchema,
+    private MethodDeclaration mkPropertyGetterMethod(
+                                                     SchemaObject propSchema,
                                                      String propName,
                                                      Type propType,
                                                      boolean required) {
@@ -591,7 +595,7 @@ public class CodeGen {
         methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
         methodDeclaration.addAnnotation(mkNullableAnnotation(required));
         methodDeclaration.addAnnotation(mkAtJsonProperty(propName, required));
-        propertyAnnotators.stream().flatMap(ta -> ta.annotateAccessor(propName, propSchema).stream()).forEach(methodDeclaration::addAnnotation);
+        propertyAnnotators.stream().flatMap(ta -> ta.annotateAccessor(diagnostics, propName, propSchema).stream()).forEach(methodDeclaration::addAnnotation);
         methodDeclaration.setType(propType);
         methodDeclaration.setName(getterName);
         methodDeclaration.setBody(new BlockStmt(new NodeList<>(new ReturnStmt(new FieldAccessExpr(new ThisExpr(), fieldName)))));
@@ -603,7 +607,8 @@ public class CodeGen {
         return quoteMember(propName);
     }
 
-    private MethodDeclaration mkPropertySetterMethod(SchemaObject propSchema,
+    private MethodDeclaration mkPropertySetterMethod(
+                                                     SchemaObject propSchema,
                                                      String propName,
                                                      Type propType, boolean required) {
         var fieldName = fieldName(propName);
@@ -616,12 +621,12 @@ public class CodeGen {
 
         MethodDeclaration methodDeclaration = new MethodDeclaration();
         methodDeclaration.setJavadocComment(description);
-        propertyAnnotators.stream().flatMap(ta -> ta.annotateMutator(propName, propSchema).stream()).forEach(methodDeclaration::addAnnotation);
+        propertyAnnotators.stream().flatMap(ta -> ta.annotateMutator(diagnostics, propName, propSchema).stream()).forEach(methodDeclaration::addAnnotation);
         methodDeclaration.setModifiers(Modifier.Keyword.PUBLIC);
         methodDeclaration.setType(new VoidType());
         methodDeclaration.setName(setterName(propName));
         Parameter parameter = new Parameter(propType, fieldName).addAnnotation(mkNullableAnnotation(required));
-        propertyAnnotators.stream().flatMap(ta -> ta.annotateMutatorParameter(propName, propSchema).stream()).forEach(parameter::addAnnotation);
+        propertyAnnotators.stream().flatMap(ta -> ta.annotateMutatorParameter(diagnostics, propName, propSchema).stream()).forEach(parameter::addAnnotation);
         methodDeclaration
                 .setParameters(new NodeList<>(parameter))
                 .setBody(new BlockStmt(new NodeList<>(new ExpressionStmt(new AssignExpr(

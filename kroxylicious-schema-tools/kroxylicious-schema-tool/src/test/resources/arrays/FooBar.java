@@ -27,7 +27,7 @@ public class FooBar {
      * @param bar The value of the {@code bar} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public FooBar(@com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String foo, @com.fasterxml.jackson.annotation.JsonProperty(value = "bar") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String bar) {
+    public FooBar(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "foo") java.lang.String foo, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "bar") java.lang.String bar) {
         this.foo = foo;
         this.bar = bar;
     }

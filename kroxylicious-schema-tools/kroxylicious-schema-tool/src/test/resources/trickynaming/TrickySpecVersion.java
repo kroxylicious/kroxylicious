@@ -35,7 +35,7 @@ public class TrickySpecVersion {
      * @param schema The value of the {@code schema} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public TrickySpecVersion(@com.fasterxml.jackson.annotation.JsonProperty(value = "name") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String name, @com.fasterxml.jackson.annotation.JsonProperty(value = "served") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean served, @com.fasterxml.jackson.annotation.JsonProperty(value = "storage") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean storage, @com.fasterxml.jackson.annotation.JsonProperty(value = "schema") @edu.umd.cs.findbugs.annotations.Nullable trickynaming.CrdSchema schema) {
+    public TrickySpecVersion(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "name") java.lang.String name, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "served") java.lang.Boolean served, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "storage") java.lang.Boolean storage, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "schema") trickynaming.CrdSchema schema) {
         this.name = name;
         this.served = served;
         this.storage = storage;

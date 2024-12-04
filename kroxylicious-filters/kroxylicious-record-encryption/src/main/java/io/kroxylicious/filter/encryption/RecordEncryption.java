@@ -24,8 +24,6 @@ import javax.crypto.Cipher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.databind.json.JsonMapper;
-
 import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
@@ -159,8 +157,8 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
                                                     RecordEncryptionConfig configuration)
             throws PluginConfigurationException {
         checkCipherSuite();
-        var kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
-        kmsPlugin.initialize(convertConfigValueToConfigType(kmsPlugin, configuration.kmsConfig()));
+        KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
+        kmsPlugin.initialize(configuration.kmsConfig());
         Kms<K, E> kms = buildKms(configuration, kmsPlugin);
 
         var dekConfig = dekManager(configuration);
@@ -171,17 +169,6 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
                 cacheConfig.encryptionDekCacheRefreshAfterWriteDuration(), cacheConfig.encryptionDekCacheExpireAfterWriteDuration());
         DecryptionDekCache<K, E> decryptionDekCache = new DecryptionDekCache<>(dekManager, null, DecryptionDekCache.NO_MAX_CACHE_SIZE);
         return new SharedEncryptionContext<>(kms, kmsPlugin::close, configuration, dekManager, encryptionDekCache, decryptionDekCache);
-    }
-
-    private static <P, C> @NonNull C convertConfigValueToConfigType(P plugin, Object conf) {
-        // Get the class of the config type from the plugin instance
-        Plugin annotation = plugin.getClass().getAnnotation(Plugin.class);
-        if (annotation == null) {
-            return (C) conf;
-        }
-        Class<C> toValueType = (Class) annotation.configType();
-        // Convert the config object ("Json as Maps and Lists") to the config type
-        return new JsonMapper().convertValue(conf, toValueType);
     }
 
     @NonNull
@@ -204,8 +191,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
                 executor);
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, sharedEncryptionContext.configuration().selector());
-        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(),
-                convertConfigValueToConfigType(ksPlugin, sharedEncryptionContext.configuration().selectorConfig()));
+        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(), sharedEncryptionContext.configuration().selectorConfig());
         return new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
     }
 

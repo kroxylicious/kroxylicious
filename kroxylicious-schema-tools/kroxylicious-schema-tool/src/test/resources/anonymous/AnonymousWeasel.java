@@ -23,7 +23,7 @@ public class AnonymousWeasel {
      * @param baz The value of the {@code baz} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public AnonymousWeasel(@com.fasterxml.jackson.annotation.JsonProperty(value = "baz") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String baz) {
+    public AnonymousWeasel(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "baz") java.lang.String baz) {
         this.baz = baz;
     }
 

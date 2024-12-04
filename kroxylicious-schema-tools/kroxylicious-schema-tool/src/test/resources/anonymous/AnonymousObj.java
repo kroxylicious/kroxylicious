@@ -23,7 +23,7 @@ public class AnonymousObj {
      * @param foo The value of the {@code foo} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public AnonymousObj(@com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @edu.umd.cs.findbugs.annotations.Nullable java.lang.String foo) {
+    public AnonymousObj(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "foo") java.lang.String foo) {
         this.foo = foo;
     }
 

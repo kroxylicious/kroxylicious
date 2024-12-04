@@ -15,15 +15,23 @@ properties:
   kms:
     description: Class name of the KMS implementation.
     type: string
+    format: plugin-impl-name
+    plugin-interface-name: io.kroxylicious.kms.service.KmsService
   kmsConfig:
     description: Configuration of the KMS implementation.
     type: object
+    format: plugin-impl-config
+    impl-name-property: kms
   selector:
     description: Class name of the selector implementation.
     type: string
+    format: plugin-impl-name
+    plugin-interface-name: io.kroxylicious.filter.encryption.config.KekSelectorService
   selectorConfig:
     description: Configuration of the selector implementation.
     type: object
+    format: plugin-impl-config
+    impl-name-property: selector
   experimental:
     description: |
       Additional configuration that's offered without a compatibility guarantee.

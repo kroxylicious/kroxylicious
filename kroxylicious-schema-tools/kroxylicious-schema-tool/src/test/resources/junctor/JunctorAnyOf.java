@@ -27,7 +27,7 @@ public class JunctorAnyOf {
      * @param bar The value of the {@code bar} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public JunctorAnyOf(@com.fasterxml.jackson.annotation.JsonProperty(value = "foo") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean foo, @com.fasterxml.jackson.annotation.JsonProperty(value = "bar") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean bar) {
+    public JunctorAnyOf(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "foo") java.lang.Boolean foo, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "bar") java.lang.Boolean bar) {
         this.foo = foo;
         this.bar = bar;
     }

@@ -31,7 +31,7 @@ public class Xref {
      * @param myObject The value of the {@code myObject} property. This is an optional property.
      */
     @com.fasterxml.jackson.annotation.JsonCreator
-    public Xref(@com.fasterxml.jackson.annotation.JsonProperty(value = "myBoolean") @edu.umd.cs.findbugs.annotations.Nullable java.lang.Boolean myBoolean, @com.fasterxml.jackson.annotation.JsonProperty(value = "myList") @edu.umd.cs.findbugs.annotations.Nullable java.util.List<java.lang.Long> myList, @com.fasterxml.jackson.annotation.JsonProperty(value = "myObject") @edu.umd.cs.findbugs.annotations.Nullable xref.MyObject myObject) {
+    public Xref(@edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "myBoolean") java.lang.Boolean myBoolean, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "myList") java.util.List<java.lang.Long> myList, @edu.umd.cs.findbugs.annotations.Nullable @com.fasterxml.jackson.annotation.JsonProperty(value = "myObject") xref.MyObject myObject) {
         this.myBoolean = myBoolean;
         this.myList = myList;
         this.myObject = myObject;

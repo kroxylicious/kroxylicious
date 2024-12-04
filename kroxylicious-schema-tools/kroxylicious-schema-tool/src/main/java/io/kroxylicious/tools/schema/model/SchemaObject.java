@@ -7,11 +7,14 @@
 package io.kroxylicious.tools.schema.model;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonAnyGetter;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -282,6 +285,21 @@ public final class SchemaObject {
         this.xKubernetesMapType = xKubernetesMapType;
     }
 
+    private Map<String, Object> additionalProperties;
+
+    @JsonAnyGetter
+    public Map<String, Object> getAdditionalProperties() {
+        return this.additionalProperties != null ? this.additionalProperties : Map.of();
+    }
+
+    @JsonAnySetter
+    public void setAdditionalProperty(String name, Object value) {
+        if (this.additionalProperties == null) {
+            this.additionalProperties = new HashMap<>(2);
+        }
+        this.additionalProperties.put(name, value);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -297,13 +315,14 @@ public final class SchemaObject {
                         allOf, that.allOf)
                 && Objects.equals(anyOf, that.anyOf) && Objects.equals(not, that.not) && xKubernetesListType == that.xKubernetesListType
                 && Objects.equals(xKubernetesListMapKeys, that.xKubernetesListMapKeys) && xKubernetesMapType == that.xKubernetesMapType && Objects.equals(javaType,
-                        that.javaType);
+                        that.javaType)
+                && Objects.equals(additionalProperties, that.additionalProperties);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(schema, id, ref, description, definitions, type, format, properties, required, items, oneOf, allOf, anyOf, not, xKubernetesListType,
-                xKubernetesListMapKeys, xKubernetesMapType, javaType);
+                xKubernetesListMapKeys, xKubernetesMapType, javaType, additionalProperties);
     }
 
     @Override
@@ -327,6 +346,7 @@ public final class SchemaObject {
                 ", xKubernetesListMapKeys=" + xKubernetesListMapKeys +
                 ", xKubernetesMapType=" + xKubernetesMapType +
                 ", javaType='" + javaType + '\'' +
+                ", additionalProperties=" + additionalProperties +
                 '}';
     }
 
@@ -343,7 +363,9 @@ public final class SchemaObject {
             visitor.enterSchema(context, schemaObject);
         }
         catch (Exception e) {
-            throw new VisitException(visitor.getClass().getName() + "#enterSchema() threw exception while visiting schema object at '" + context.fullPath() + "' from " + context.base(), e);
+            throw new VisitException(
+                    visitor.getClass().getName() + "#enterSchema() threw exception while visiting schema object at '" + context.fullPath() + "' from " + context.base(),
+                    e);
         }
         visitSchemaMap(context, visitor, schemaObject.definitions, "definitions");
         visitSchemaMap(context, visitor, schemaObject.properties, "properties");
@@ -359,7 +381,9 @@ public final class SchemaObject {
             visitor.exitSchema(context, schemaObject);
         }
         catch (Exception e) {
-            throw new VisitException(visitor.getClass().getName() + "#exitSchema() threw exception while visiting schema object at '" + context.fullPath() + "' from " + context.base(), e);
+            throw new VisitException(
+                    visitor.getClass().getName() + "#exitSchema() threw exception while visiting schema object at '" + context.fullPath() + "' from " + context.base(),
+                    e);
         }
     }
 

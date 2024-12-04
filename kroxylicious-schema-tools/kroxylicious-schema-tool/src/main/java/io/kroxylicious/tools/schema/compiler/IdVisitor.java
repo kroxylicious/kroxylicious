@@ -13,11 +13,10 @@ import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 import io.kroxylicious.tools.schema.model.SchemaObject;
+import io.kroxylicious.tools.schema.model.SchemaVisitor;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
-
-import io.kroxylicious.tools.schema.model.SchemaVisitor;
 
 /**
  * A {@link SchemaVisitor} which tracks the URIs (multiple!) which can be used

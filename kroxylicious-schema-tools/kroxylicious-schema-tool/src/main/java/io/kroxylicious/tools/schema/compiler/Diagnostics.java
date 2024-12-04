@@ -29,7 +29,7 @@ public class Diagnostics {
      * @param message
      * @param arguments
      */
-    void reportFatal(String message, Object... arguments) {
+    public void reportFatal(String message, Object... arguments) {
         LOGGER.error(message, arguments);
         numFatals++;
         throw new FatalException();
@@ -41,7 +41,7 @@ public class Diagnostics {
      * @param message
      * @param arguments
      */
-    void reportError(String message, Object... arguments) {
+    public void reportError(String message, Object... arguments) {
         LOGGER.error(message, arguments);
         numErrors++;
     }
@@ -52,7 +52,7 @@ public class Diagnostics {
      * @param message
      * @param arguments
      */
-    void reportWarning(String message, Object... arguments) {
+    public void reportWarning(String message, Object... arguments) {
         LOGGER.warn(message, arguments);
         numWarnings++;
     }
