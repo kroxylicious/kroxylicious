@@ -23,6 +23,7 @@ import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.dek.BufferTooSmallException;
 import io.kroxylicious.filter.encryption.dek.Dek;
+import io.kroxylicious.filter.encryption.dek.DestroyedDekException;
 import io.kroxylicious.filter.encryption.dek.ExhaustedDekException;
 import io.kroxylicious.kafka.transform.RecordStream;
 import io.kroxylicious.kms.service.Serde;
@@ -32,13 +33,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
-    private static final int MAX_ATTEMPTS = 3;
+    private static final int MAX_ATTEMPTS = 100;
 
     /**
-    * The encryption version used on the produce path.
-    * Note that the encryption version used on the fetch path is read from the
-    * {@link EncryptionHeader#ENCRYPTION_HEADER_NAME} header.
-    */
+     * The encryption version used on the produce path.
+     * Note that the encryption version used on the fetch path is read from the
+     * {@link EncryptionHeader#ENCRYPTION_HEADER_NAME} header.
+     */
     private final Encryption encryption;
     private final Serde<E> edekSerde;
     private final EncryptionDekCache<K, E> dekCache;
@@ -69,7 +70,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     }
 
     @VisibleForTesting
-    public CompletionStage<Dek<E>> currentDek(@NonNull EncryptionScheme<K> encryptionScheme) {
+    public CompletionStage<DekContext<E>> currentDekContext(@NonNull EncryptionScheme<K> encryptionScheme) {
         // todo should we add some scheduled timeout as well? or should we rely on the KMS to timeout appropriately.
         return dekCache.get(encryptionScheme, filterThreadExecutor);
     }
@@ -115,10 +116,10 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                             + partition + " after " + attempt + " attempts",
                             new NetworkException("Failed to encrypt record(s) because there were no valid encryption keys")));
         }
-        return currentDek(encryptionScheme).thenCompose(dek -> {
-            // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
-            if (!dek.isDestroyed()) {
-                try (Dek<E>.Encryptor encryptor = dek.encryptor(allRecordsCount)) {
+        return currentDekContext(encryptionScheme).thenCompose(dek -> {
+            Dek<E> eDek = dek.getDek();
+            if (!eDek.isDestroyed() && !eDek.destroyedForEncrypt()) {
+                try (Dek<E>.Encryptor encryptor = eDek.encryptor(allRecordsCount)) {
                     var encryptedMemoryRecords = encryptBatches(
                             topicName,
                             partition,
@@ -128,22 +129,21 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                             bufferAllocator);
                     return CompletableFuture.completedFuture(encryptedMemoryRecords);
                 }
-                catch (ExhaustedDekException e) {
-                    rotateKeyContext(encryptionScheme, dek);
-                    // fall through to recursive call below...
+                catch (ExhaustedDekException | DestroyedDekException e) {
+                    // fall through to retry
                 }
                 catch (Exception e) {
                     return CompletableFuture.failedFuture(e);
                 }
             }
-            // recurse, incrementing the attempt number
-            return attemptEncrypt(topicName,
-                    partition,
-                    encryptionScheme,
-                    records,
-                    attempt + 1,
-                    bufferAllocator,
-                    allRecordsCount);
+            return filterThreadExecutor.completingOnFilterThread(dek.rotate())
+                    .thenCompose(n -> attemptEncrypt(topicName,
+                            partition,
+                            encryptionScheme,
+                            records,
+                            attempt + 1,
+                            bufferAllocator,
+                            allRecordsCount));
         });
     }
 
@@ -177,9 +177,4 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         } while (true);
     }
 
-    private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme,
-                                  @NonNull Dek<E> dek) {
-        dek.destroyForEncrypt();
-        dekCache.invalidate(encryptionScheme);
-    }
 }
