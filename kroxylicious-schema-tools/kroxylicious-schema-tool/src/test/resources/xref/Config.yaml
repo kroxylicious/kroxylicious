@@ -1,0 +1,74 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+$schema: http://json-schema.org/draft-04/schema#
+id: https://schema.kroxylicious.io/Crd.yaml
+description: The AWS KMS configuration schema
+definitions:
+  PasswordProvider:
+    description: Specification of a password
+    type: object
+    properties:
+      password:
+        description: DEPRECATED. The password.
+        type: string
+      filePath:
+        description: A file path pointing to a UTF-8 encoded file containing the password
+        type: string
+    oneOf:
+      - required:
+          - password
+      - required:
+          - filePath
+  Tls:
+    type: object
+    properties:
+      key:
+        type: object
+        properties:
+          privateKeyFile:
+            description: location of a file containing the private key.
+            type: string
+          certificateFile:
+            description: location of a file containing the certificate and intermediates.
+            type: string
+          storeFile:
+            description: location of a key store, or reference to a PEM file containing both private-key and certificate/intermediates.
+            type: string
+          storePassword:
+            $ref: "#/definitions/PasswordProvider"
+          keyPassword:
+            $ref: "#/definitions/PasswordProvider"
+          storeType:
+            description: |
+              specifies the server key type.
+              Legal values are those types supported by the platform {@link java.security.KeyStore},
+              and PEM (for X-509 certificates express in PEM format).
+            type: string
+        oneOf:
+          - required:
+              - privateKeyFile
+              - certificateFile
+          - required:
+              - storeFile
+      trust:
+        type: object
+type: object
+#$javaType: Config
+required:
+  - endpointUrl
+properties:
+  endpointUrl:
+    type: string
+  accessKey:
+    $ref: "#/definitions/PasswordProvider"
+  secretKey:
+    $ref: "#/definitions/PasswordProvider"
+  region:
+    description: AWS region
+    type: string
+  tls:
+    $ref: "#/definitions/Tls"
