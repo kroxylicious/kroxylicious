@@ -12,6 +12,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,7 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.KafkaProxy;
+import io.kroxylicious.proxy.ProxyEnvironment;
 
 import picocli.CommandLine;
 
@@ -41,10 +43,16 @@ class KroxyliciousTest {
     private CommandLine cmd;
     private StringWriter soutWriter;
     private StringWriter serrWriter;
+    private AtomicReference<ProxyEnvironment> env = new AtomicReference<>(null);
 
     @BeforeEach
     public void setup() {
-        Kroxylicious app = new Kroxylicious((ffm, configuration) -> mockProxy);
+        Kroxylicious app = new Kroxylicious((ffm, configuration, environment) -> {
+            if (!env.compareAndSet(null, environment)) {
+                throw new IllegalStateException("env already set");
+            }
+            return mockProxy;
+        });
         soutWriter = new StringWriter();
         serrWriter = new StringWriter();
         cmd = new CommandLine(app);
@@ -85,6 +93,15 @@ class KroxyliciousTest {
         when(mockProxy.startup()).thenReturn(mockProxy);
         doNothing().when(mockProxy).block();
         assertEquals(0, cmd.execute("-c", file.toString()));
+    }
+
+    @Test
+    void testDefaultEnvironment(@TempDir Path dir) throws Exception {
+        Path file = copyClasspathResourceToTempFileInDir("proxy-config.yaml", dir);
+        when(mockProxy.startup()).thenReturn(mockProxy);
+        doNothing().when(mockProxy).block();
+        assertEquals(0, cmd.execute("-c", file.toString()));
+        assertThat(env).hasValue(ProxyEnvironment.PRODUCTION);
     }
 
     @Test

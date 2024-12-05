@@ -507,7 +507,7 @@ class DefaultKroxyliciousTesterTest {
                 .endAdminHttp();
         var testerBuilder = new KroxyliciousTesterBuilder()
                 .setConfigurationBuilder(proxy)
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy);
+                .setKroxyliciousFactory((env, config) -> DefaultKroxyliciousTester.spawnProxy(config, env));
 
         try (var tester = (KroxyliciousTester) testerBuilder
                 .createDefaultKroxyliciousTester()) {
@@ -537,7 +537,7 @@ class DefaultKroxyliciousTesterTest {
     @NonNull
     private KroxyliciousTester buildDefaultTester() {
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(proxy(backingCluster))
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
+                .setKroxyliciousFactory((env, config) -> DefaultKroxyliciousTester.spawnProxy(config, env))
                 .setClientFactory(clientFactory)
                 .createDefaultKroxyliciousTester();
     }
@@ -565,7 +565,8 @@ class DefaultKroxyliciousTesterTest {
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
                 .setTrustStoreLocation(keytoolCertificateGenerator.getTrustStoreLocation())
                 .setTrustStorePassword(keytoolCertificateGenerator.getPassword())
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
+                .setKroxyliciousFactory((env, config) -> DefaultKroxyliciousTester.spawnProxy(config, env)).setClientFactory(clientFactory)
+                .createDefaultKroxyliciousTester();
     }
 
     private static void generateSecurityCert(KeytoolCertificateGenerator keytoolCertificateGenerator) {
@@ -580,7 +581,8 @@ class DefaultKroxyliciousTesterTest {
     private KroxyliciousTester buildTester() {
         return new KroxyliciousTesterBuilder()
                 .setConfigurationBuilder(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C))
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
+                .setKroxyliciousFactory((env, config) -> DefaultKroxyliciousTester.spawnProxy(config, env)).setClientFactory(clientFactory)
+                .createDefaultKroxyliciousTester();
     }
 
     public static <T> T argThat(Consumer<T> assertions) {

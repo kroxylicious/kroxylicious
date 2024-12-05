@@ -10,12 +10,12 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Properties;
 import java.util.concurrent.Callable;
-import java.util.function.BiFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.KafkaProxy;
+import io.kroxylicious.proxy.ProxyEnvironment;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
@@ -35,13 +35,18 @@ public class Kroxylicious implements Callable<Integer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
     private static final String UNKNOWN = "unknown";
-    private final BiFunction<PluginFactoryRegistry, Configuration, KafkaProxy> proxyBuilder;
+    public static final String KROXYLICIOUS_ENVIRONMENT = "KROXYLICIOUS_ENVIRONMENT";
+    private final KafkaProxyBuilder proxyBuilder;
+
+    interface KafkaProxyBuilder {
+        KafkaProxy build(PluginFactoryRegistry registry, Configuration config, ProxyEnvironment environment);
+    }
 
     Kroxylicious() {
         this(KafkaProxy::new);
     }
 
-    Kroxylicious(BiFunction<PluginFactoryRegistry, Configuration, KafkaProxy> proxyBuilder) {
+    Kroxylicious(KafkaProxyBuilder proxyBuilder) {
         this.proxyBuilder = proxyBuilder;
     }
 
@@ -61,8 +66,9 @@ public class Kroxylicious implements Callable<Integer> {
         try (InputStream stream = Files.newInputStream(configFile.toPath())) {
 
             Configuration config = configParser.parseConfiguration(stream);
-            printBannerAndVersions();
-            try (KafkaProxy kafkaProxy = proxyBuilder.apply(configParser, config)) {
+            ProxyEnvironment proxyEnvironment = getEnvironment();
+            printBannerAndVersions(proxyEnvironment);
+            try (KafkaProxy kafkaProxy = proxyBuilder.build(configParser, config, proxyEnvironment)) {
                 kafkaProxy.startup();
                 kafkaProxy.block();
             }
@@ -75,11 +81,21 @@ public class Kroxylicious implements Callable<Integer> {
         return 0;
     }
 
-    private static void printBannerAndVersions() throws Exception {
+    private static ProxyEnvironment getEnvironment() {
+        String environmentString = System.getProperty(KROXYLICIOUS_ENVIRONMENT,
+                System.getenv().getOrDefault(KROXYLICIOUS_ENVIRONMENT, ProxyEnvironment.PRODUCTION.name()));
+        return ProxyEnvironment.valueOf(environmentString);
+    }
+
+    private static void printBannerAndVersions(ProxyEnvironment proxyEnvironment) throws Exception {
         new BannerLogger().log();
         String[] versions = new VersionProvider().getVersion();
         for (String version : versions) {
             LOGGER.info("{}", version);
+        }
+        LOGGER.info("environment: {}", proxyEnvironment.name());
+        if (proxyEnvironment == ProxyEnvironment.DEVELOPMENT) {
+            LOGGER.warn("Warning, kroxylicious is configured for development. The proxy is permitted to apply some features that are for testing only.");
         }
         LOGGER.atInfo()
                 .setMessage("Platform: Java {}({}) running on {} {}/{}")

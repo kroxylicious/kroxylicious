@@ -40,7 +40,7 @@ class KafkaProxyTest {
                    - type: RequiresConfigFactory
                 """;
         var configParser = new ConfigParser();
-        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config))) {
+        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), ProxyEnvironment.DEVELOPMENT)) {
             assertThatThrownBy(kafkaProxy::startup).isInstanceOf(PluginConfigurationException.class)
                     .hasMessage(
                             "Exception initializing filter factory RequiresConfigFactory with config null: RequiresConfigFactory requires configuration, but config object is null");
@@ -94,7 +94,7 @@ class KafkaProxyTest {
     @MethodSource
     void detectsConflictingPorts(String name, String config, String expectedMessage) throws Exception {
         ConfigParser configParser = new ConfigParser();
-        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config))) {
+        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), ProxyEnvironment.DEVELOPMENT)) {
             var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
             assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
         }
@@ -121,7 +121,7 @@ class KafkaProxyTest {
         ConfigParser configParser = new ConfigParser();
         final Configuration parsedConfiguration = configParser.parseConfiguration(config);
         var illegalStateException = assertThrows(IllegalStateException.class, () -> {
-            try (var ignored = new KafkaProxy(configParser, parsedConfiguration)) {
+            try (var ignored = new KafkaProxy(configParser, parsedConfiguration, ProxyEnvironment.DEVELOPMENT)) {
                 fail("The proxy started, but a failure was expected.");
             }
         });

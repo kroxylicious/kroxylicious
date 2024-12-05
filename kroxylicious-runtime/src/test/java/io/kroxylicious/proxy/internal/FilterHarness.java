@@ -110,7 +110,28 @@ public abstract class FilterHarness {
         header.setRequestApiKey(apiKey.id);
         header.setRequestApiVersion(apiKey.latestVersion());
         header.setClientId(TEST_CLIENT);
-        var frame = new DecodedRequestFrame<>(apiKey.latestVersion(), correlationId, false, header, data);
+        return writeRequest(header, data);
+    }
+
+    /**
+     * Write a client request to the pipeline.
+     * @param headerData The request header.
+     * @param data The request body.
+     * @return The frame that was sent.
+     * @param <B> The type of the request.
+     */
+    protected <B extends ApiMessage> DecodedRequestFrame<B> writeRequest(RequestHeaderData headerData, B data) {
+        var frame = new DecodedRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, headerData, data);
+        return writeRequest(frame);
+    }
+
+    /**
+     * Write a client request frame to the pipeline.
+     * @param frame The request header.
+     * @return The frame that was sent.
+     * @param <B> The type of the request.
+     */
+    protected <B extends ApiMessage> DecodedRequestFrame<B> writeRequest(DecodedRequestFrame<B> frame) {
         channel.writeOutbound(frame);
         return frame;
     }
@@ -182,6 +203,10 @@ public abstract class FilterHarness {
      */
     @AfterEach
     public void assertFinish() {
+        if (channel == null) {
+            // enable mixing FilterHarness tests with other unit tests that don't create the channel
+            return;
+        }
         boolean finish = channel.finish();
         if (finish) {
             Object inbound = channel.readInbound();

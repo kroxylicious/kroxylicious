@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 
-import io.kroxylicious.test.codec.DecodedRequestFrame;
+import io.kroxylicious.test.codec.RequestFrame;
 
 /**
  * Simple kafka handle capable of sending one or more requests to a server side.
@@ -23,7 +23,7 @@ import io.kroxylicious.test.codec.DecodedRequestFrame;
 public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaClientHandler.class);
 
-    private final Deque<DecodedRequestFrame<?>> queue = new ConcurrentLinkedDeque<>();
+    private final Deque<RequestFrame> queue = new ConcurrentLinkedDeque<>();
     private ChannelHandlerContext ctx;
 
     // Read/Mutated by the Netty thread only.
@@ -63,7 +63,7 @@ public class KafkaClientHandler extends ChannelInboundHandlerAdapter {
      * @param decodedRequestFrame request frame to send
      * @return future that will yield the response along with a sequenceNumber indicating the order it was received by the client.
      */
-    public CompletableFuture<SequencedResponse> sendRequest(DecodedRequestFrame<?> decodedRequestFrame) {
+    public CompletableFuture<SequencedResponse> sendRequest(RequestFrame decodedRequestFrame) {
         queue.addLast(decodedRequestFrame);
         processPendingWrites();
         return decodedRequestFrame.getResponseFuture();

@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -210,12 +211,31 @@ class ConfigParserTest {
         assertThat(provider.type()).isEqualTo("PortPerBrokerClusterNetworkAddressConfigProvider");
         assertThat(provider.config()).isInstanceOf(PortPerBrokerClusterNetworkAddressConfigProviderConfig.class);
         assertThat(((PortPerBrokerClusterNetworkAddressConfigProviderConfig) provider.config()).getBootstrapAddress()).isEqualTo(HostPort.parse("localhost:9192"));
+        assertThat(configuration.internal()).isEmpty();
     }
 
     @Test
     void testConfigParserBadJson() {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> configParser.parseConfiguration("}"));
         assertThat(exception.getMessage()).contains("Couldn't parse configuration");
+    }
+
+    @Test
+    void testConfigParserInternalOmitted() {
+        Configuration configuration = configParser.parseConfiguration("{}");
+        assertThat(configuration.internal()).isEmpty();
+    }
+
+    @Test
+    void testConfigParserInternalNull() {
+        Configuration configuration = configParser.parseConfiguration("{\"internal\": null}");
+        assertThat(configuration.internal()).isEmpty();
+    }
+
+    @Test
+    void testConfigParserInternalSpecified() {
+        Configuration configuration = configParser.parseConfiguration("{\"internal\": {\"a\":\"b\"}}}");
+        assertThat(configuration.internal()).contains(Map.of("a", "b"));
     }
 
     @SuppressWarnings("resource")
@@ -400,7 +420,7 @@ class ConfigParserTest {
 
     @Test
     void shouldThrowWhenSerializingUnserializableObject() {
-        var config = new Configuration(null, null, List.of(new FilterDefinition("", new NonSerializableConfig(""))), null, false);
+        var config = new Configuration(null, null, List.of(new FilterDefinition("", new NonSerializableConfig(""))), null, false, Optional.empty());
 
         ConfigParser cp = new ConfigParser();
         assertThatThrownBy(() -> {

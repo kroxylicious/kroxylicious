@@ -50,7 +50,7 @@ public final class MockServer implements AutoCloseable {
      */
     public void addMockResponseForApiKey(ResponsePayload response) {
         Objects.requireNonNull(response);
-        serverHandler.setMockResponseForApiKey(response.apiKeys(), response.message());
+        serverHandler.setMockResponseForApiKey(response.apiKeys(), response.message(), response.responseApiVersion());
     }
 
     /**
@@ -60,7 +60,7 @@ public final class MockServer implements AutoCloseable {
     public void addMockResponse(Matcher<Request> requestMatcher, ResponsePayload response) {
         Objects.requireNonNull(response);
         Objects.requireNonNull(requestMatcher);
-        serverHandler.addMockResponse(requestMatcher, Action.respond(response.message()));
+        serverHandler.addMockResponse(requestMatcher, Action.respond(response.message(), response.responseApiVersion()));
     }
 
     public void dropWhen(Matcher<Request> requestMatcher) {

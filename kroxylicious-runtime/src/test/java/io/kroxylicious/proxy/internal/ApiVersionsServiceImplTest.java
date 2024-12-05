@@ -6,11 +6,14 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.Map;
+
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ApiVersionsServiceImplTest {
 
@@ -66,6 +69,37 @@ class ApiVersionsServiceImplTest {
                 (short) (ApiKeys.METADATA.latestVersion() + 1));
         apiVersionsService.updateVersions("channel", upstreamApiVersions);
         assertThat(upstreamApiVersions.apiKeys()).isEmpty();
+    }
+
+    @Test
+    void intersectionConsidersMaxVersionOverride() {
+        short overrideMaxVersion = (short) (ApiKeys.METADATA.latestVersion(true) - 1);
+        ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(Map.of(ApiKeys.METADATA, overrideMaxVersion));
+        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, ApiKeys.METADATA.oldestVersion(),
+                (short) (ApiKeys.METADATA.latestVersion() + 1));
+        apiVersionsService.updateVersions("channel", upstreamApiVersions);
+        assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), overrideMaxVersion);
+    }
+
+    @Test
+    void latestVersion() {
+        ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
+        assertThat(apiVersionsService.latestVersion(ApiKeys.API_VERSIONS)).isEqualTo(ApiKeys.API_VERSIONS.latestVersion(true));
+    }
+
+    @Test
+    void latestVersionConsidersMaxVersionOverride() {
+        short overrideMaxVersion = (short) (ApiKeys.API_VERSIONS.latestVersion(true) - 1);
+        ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(Map.of(ApiKeys.API_VERSIONS, overrideMaxVersion));
+        assertThat(apiVersionsService.latestVersion(ApiKeys.API_VERSIONS)).isEqualTo(overrideMaxVersion);
+    }
+
+    @Test
+    void versionOverridesMustBeAboveTheOldestVersionForEachKey() {
+        short overrideMaxVersion = (short) (ApiKeys.API_VERSIONS.oldestVersion() - 1);
+        Map<ApiKeys, Short> overrideMap = Map.of(ApiKeys.API_VERSIONS, overrideMaxVersion);
+        assertThatThrownBy(() -> new ApiVersionsServiceImpl(overrideMap)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("api versions override map contained invalid entries: [API_VERSIONS specified max version -1 less than oldest supported version 0]");
     }
 
     private static void assertThatApiVersionsContainsExactly(ApiVersionsResponseData upstreamApiVersions, ApiKeys apiKeys, short minVersion, short maxVersion) {
