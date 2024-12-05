@@ -39,7 +39,7 @@ adminHttp: # <1>
             storePassword:
               passwordFile: /opt/proxy/server/keystore-password/storePassword
 filters: # <11>
-  - type: EnvelopeEncryption # <12>
+  - type: RecordEncryption # <12>
     config: # <13>
       kms: VaultKmsService
       kmsConfig:
