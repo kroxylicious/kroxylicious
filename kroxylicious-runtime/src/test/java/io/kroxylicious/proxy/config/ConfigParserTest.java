@@ -400,7 +400,7 @@ class ConfigParserTest {
 
     @Test
     void shouldThrowWhenSerializingUnserializableObject() {
-        var config = new Configuration(null, null, List.of(new FilterDefinition("", new NonSerializableConfig(""))), null, false);
+        var config = new Configuration(null, null, List.of(new FilterDefinition("", new NonSerializableConfig(""))), null, false, Optional.empty());
 
         ConfigParser cp = new ConfigParser();
         assertThatThrownBy(() -> {
