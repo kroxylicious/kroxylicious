@@ -15,13 +15,13 @@ set -euo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/../common-perf.sh"
 
-CFG=04-envelope-encryption-filter/config.yaml
+CFG=04-record-encryption-filter/config.yaml
 ENDPOINT=kroxylicious:9092
 
 KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious vault
 
-docker exec vault vault secrets enable transit 1>/dev/null
-# Don't create a key
+${CONTAINER_ENGINE} exec vault vault secrets enable transit 1>/dev/null
+${CONTAINER_ENGINE} exec vault vault write -f transit/keys/KEK_${TOPIC} 1>/dev/null
 
 setKroxyliciousContainerIdPID
 

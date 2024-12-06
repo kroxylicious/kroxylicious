@@ -46,16 +46,16 @@ Name                                      Sent      Rate rec/s    Rate Mi/s  Avg
 01-no-proxy-baseline                      10000000  48671.274214  47.53      628.71      1354.00     625           669           692           1326
 02-no-filters                             10000000  47188.954010  46.08      648.50      1630.00     637           704           873           1601
 03-transform-filter                       10000000  47623.810000  46.51      642.44      882.00      639           686           716           818
-04-envelope-encryption-filter             10000000  45558.086560  44.49      671.66      1840.00     662           720           814           1621
-05-envelope-encryption-filter-no-encrypt  10000000  13195.153684  12.89      2323.05     4244.00     2304          2385          2867          3807
+04-record-encryption-filter               10000000  45558.086560  44.49      671.66      1840.00     662           720           814           1621
+05-record-encryption-filter-no-encrypt    10000000  13195.153684  12.89      2323.05     4244.00     2304          2385          2867          3807
 Consumer Results
 Name                                      Consumed Mi  Consumed Mi/s  Consumed recs  Consumed rec/s  Rebalance Time ms  Fetch Time ms  Fetch Mi/s  Fetch rec/s
 ----                                      -----------  -------------  -------------  --------------  -----------------  -------------  ----------  -----------
 01-no-proxy-baseline                      9765.7471    622.2996       10000125       637234.7543     289                15404          633.9748    649190.1454
 02-no-filters                             9765.7471    317.1006       10000125       324711.0108     307                30490          320.2934    327980.4854
 03-transform-filter                       9765.7471    341.4597       10000125       349654.7203     295                28305          345.0184    353298.8871
-04-envelope-encryption-filter             9765.6445    104.6099       10000020       107120.4996     290                93063          104.9358    107454.3051
-05-envelope-encryption-filter-no-encrypt  9765.7471    142.2749       10000125       145689.4668     295                68345          142.8890    146318.3115
+04-record-encryption-filter               9765.6445    104.6099       10000020       107120.4996     290                93063          104.9358    107454.3051
+05-record-encryption-filter-no-encrypt    9765.7471    142.2749       10000125       145689.4668     295                68345          142.8890    146318.3115
 ```
 
 ## Configuration
