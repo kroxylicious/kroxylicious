@@ -8,7 +8,6 @@ package io.kroxylicious.proxy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -36,6 +35,7 @@ import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
@@ -43,15 +43,19 @@ import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
+import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static java.util.Objects.requireNonNull;
 
 public final class KafkaProxy implements AutoCloseable {
 
@@ -80,12 +84,23 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable EventGroupConfig serverEventGroup;
     private @Nullable Channel metricsChannel;
 
-    public KafkaProxy(PluginFactoryRegistry pfr, Configuration config) {
-        this.pfr = Objects.requireNonNull(pfr);
-        this.config = Objects.requireNonNull(config);
+    public KafkaProxy(@NonNull PluginFactoryRegistry pfr, @NonNull Configuration config, @NonNull Features features) {
+        this.pfr = requireNonNull(pfr);
+        this.config = validate(requireNonNull(config), requireNonNull(features));
         this.virtualClusters = config.virtualClusterModel();
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
+    }
+
+    @VisibleForTesting
+    static Configuration validate(Configuration config, Features features) {
+        List<String> errorMessages = features.supports(config);
+        if (!errorMessages.isEmpty()) {
+            String message = "invalid configuration: " + String.join(",", errorMessages);
+            LOGGER.error(message);
+            throw new IllegalConfigurationException(message);
+        }
+        return config;
     }
 
     /**
