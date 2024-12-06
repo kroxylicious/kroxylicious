@@ -6,6 +6,11 @@
 
 package io.kroxylicious.proxy;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -15,6 +20,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -40,7 +46,7 @@ class KafkaProxyTest {
                    - type: RequiresConfigFactory
                 """;
         var configParser = new ConfigParser();
-        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config))) {
+        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Set.of())) {
             assertThatThrownBy(kafkaProxy::startup).isInstanceOf(PluginConfigurationException.class)
                     .hasMessage(
                             "Exception initializing filter factory RequiresConfigFactory with config null: RequiresConfigFactory requires configuration, but config object is null");
@@ -94,7 +100,7 @@ class KafkaProxyTest {
     @MethodSource
     void detectsConflictingPorts(String name, String config, String expectedMessage) throws Exception {
         ConfigParser configParser = new ConfigParser();
-        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config))) {
+        try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Set.of())) {
             var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
             assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
         }
@@ -121,10 +127,37 @@ class KafkaProxyTest {
         ConfigParser configParser = new ConfigParser();
         final Configuration parsedConfiguration = configParser.parseConfiguration(config);
         var illegalStateException = assertThrows(IllegalStateException.class, () -> {
-            try (var ignored = new KafkaProxy(configParser, parsedConfiguration)) {
+            try (var ignored = new KafkaProxy(configParser, parsedConfiguration, Set.of())) {
                 fail("The proxy started, but a failure was expected.");
             }
         });
         assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
     }
+
+    static List<Arguments> permittedConfigurationForFeatures() {
+        List<Arguments> cases = new ArrayList<>();
+        cases.add(Arguments.of(Set.of(Feature.TEST_CONFIGURATION), Optional.empty()));
+        cases.add(Arguments.of(Set.of(Feature.TEST_CONFIGURATION), Optional.of(Map.of())));
+        cases.add(Arguments.of(Set.of(Feature.TEST_CONFIGURATION), Optional.of(Map.of("a", "b"))));
+        cases.add(Arguments.of(Set.of(), Optional.empty()));
+        cases.add(Arguments.of(Set.of(), Optional.of(Map.of())));
+        return cases;
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void permittedConfigurationForFeatures(Set<Feature> features, Optional<Map<String, Object>> internalConfiguration) {
+        Configuration configuration = new Configuration(null, null, List.of(), null, false, internalConfiguration);
+        assertThat(KafkaProxy.validate(configuration, features)).isEqualTo(configuration);
+    }
+
+    @Test
+    void invalidConfigurationForFeatures() {
+        Optional<Map<String, Object>> a = Optional.of(Map.of("a", "b"));
+        Configuration configuration = new Configuration(null, null, List.of(), null, false, a);
+        assertThatThrownBy(() -> {
+            KafkaProxy.validate(configuration, Set.of());
+        }).isInstanceOf(IllegalConfigurationException.class).hasMessage("test-only configuration for proxy present, but loading test-only configuration not enabled");
+    }
+
 }

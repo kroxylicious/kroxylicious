@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -43,12 +44,14 @@ import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
 import io.kroxylicious.proxy.internal.admin.AdminHttpInitializer;
+import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -80,12 +83,24 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable EventGroupConfig serverEventGroup;
     private @Nullable Channel metricsChannel;
 
-    public KafkaProxy(PluginFactoryRegistry pfr, Configuration config) {
+    public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Set<Feature> features) {
         this.pfr = Objects.requireNonNull(pfr);
-        this.config = Objects.requireNonNull(config);
+        this.config = validate(config, features);
         this.virtualClusters = config.virtualClusterModel();
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
+    }
+
+    @VisibleForTesting
+    static Configuration validate(Configuration config, Set<Feature> features) {
+        Optional<Map<String, Object>> development = config.development();
+        if (development.isPresent() && !development.get().isEmpty()) {
+            if (!features.contains(Feature.TEST_CONFIGURATION)) {
+                LOGGER.error("test-only configuration for proxy present, but loading test-only configuration not enabled: {}", development.get());
+                throw new IllegalConfigurationException("test-only configuration for proxy present, but loading test-only configuration not enabled");
+            }
+        }
+        return config;
     }
 
     /**
