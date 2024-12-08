@@ -8,8 +8,10 @@ To secure client connections to virtual clusters, configure TLS on the virtual c
 Ensure the certificate matches the names of the virtual cluster's bootstrap and broker addresses. +
 This may require wildcard certificates and Subject Alternative Names (SANs).
 
-* Provide the TLS configuration using the tls properties in the virtual cluster's configuration to enable it to present the certificate to clients. 
+* Provide the TLS configuration using the `tls` properties in the virtual cluster's configuration to enable it to present the certificate to clients. 
 Depending on your certificate format, apply one of the following examples.
+
+* For mutual TLS, you may also use the `trust` properties to configure the virtual cluster to use TLS client authentication.
 
 NOTE: TLS is recommended on Kafka clients and virtual clusters for production configurations.
 
@@ -28,7 +30,7 @@ virtualClusters:
         storeType: PKCS12 # <4>                            
       # ...
 ----
-<1> PKCS #12 store for the public CA certificate of the virtual cluster.
+<1> PKCS #12 store containing the private-key and certificate/intermediates of the virtual cluster.
 <2> Password to protect the PKCS #12 store.
 <3> (Optional) Password for the key. If a password is not specified, the keystore’s password is used to decrypt the key too.
 <4> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
@@ -47,23 +49,37 @@ virtualClusters:
 # …
 ----
 <1> Private key of the virtual cluster.
-<2> Public CA certificate of the virtual cluster.
+<2> Public certificate of the virtual cluster.
 <3> (Optional) Password for the key.
 
-If required, configure the `insecure` property to disable trust and establish insecure connections with any Kafka Cluster, irrespective of certificate validity. 
-However, this option is only intended for use in development and testing environments where proper certificates are hard to obtain and manage.
+You can configure the virtual cluster to require that clients present a certificate for authentication. 
+The virtual cluster verifies that the client's certificate is signed by one of the CA certificates contained in a trust store.  
+If verification fails, the client's connection is refused.
 
-.Example to enable insecure TLS
+.Example to configure TLS client authentication using PKCS12 trust store
 [source,yaml]
 ----
 virtualClusters:
   demo:
-    targetCluster:
-      bootstrap_servers: myprivatecluster:9092
-      tls:
-        trust:
-          insecure: true # <1>                           
-      #...
+    tls:
+      key:
+        # ...
+      trust:
+        storeFile: <path>/trust.p12 #1 <1>
+        storePassword:
+          passwordFile: <path>/trust.password # <2>
+        storeType: PKCS12 # <3>
+        trustOptions:
+          clientAuth: REQUIRED # <4>
 # …
 ----
-<1> Enables insecure TLS.
+<1> PKCS #12 store containing CA certificate(s) used to verify that the client's certificate is trusted.
+<2> (Optional) Password to protect the PKCS #12 store.
+<3> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
+<4> Client authentication mode. 
+If set to `REQUIRED`, the client must present a valid certificate. 
+If set to `REQUESTED`, the client is requested to present a certificate. If presented, the certificate is validated. If the client chooses not to present a certificate the connection is still allowed. 
+If set to `NONE`, client authentication is disabled.
+
+NOTE: The client's identity, as established through TLS client authentication, is currently not relayed to the target cluster. 
+For more information, see the https://github.com/kroxylicious/kroxylicious/issues/1637[related issue].
