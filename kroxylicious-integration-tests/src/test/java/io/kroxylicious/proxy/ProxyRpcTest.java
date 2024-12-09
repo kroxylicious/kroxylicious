@@ -43,6 +43,8 @@ import static org.apache.kafka.common.protocol.ApiKeys.CONTROLLED_SHUTDOWN;
 import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;
 import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
 import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
+import static org.apache.kafka.common.protocol.ApiKeys.SHARE_ACKNOWLEDGE;
+import static org.apache.kafka.common.protocol.ApiKeys.SHARE_FETCH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(NettyLeakDetectorExtension.class)
@@ -56,7 +58,7 @@ public class ProxyRpcTest {
      * API_VERSIONS is not proxied, kroxylicious can respond to this itself
      * FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER, kroxylicious takes charge of rewriting these responses itself.
      */
-    private static final Set<ApiKeys> SKIPPED_API_KEYS = Set.of(API_VERSIONS, FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER);
+    private static final Set<ApiKeys> SKIPPED_API_KEYS = Set.of(API_VERSIONS, FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER, SHARE_ACKNOWLEDGE, SHARE_FETCH);
 
     @BeforeAll
     public static void beforeAll() {

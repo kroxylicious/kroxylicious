@@ -1,0 +1,28 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: SHARE_FETCH
+  description: Node endpoints rewritten
+  version: 0
+  response:
+    payload:
+      errorCode: 0
+      errorMessage: ""
+      responses: []
+      nodeEndpoints:
+        - nodeId: 0
+          host: upstreamz
+          port: 9199
+          rack: a
+      throttleTimeMs: 0
+    diff:
+      - op: replace
+        path: "/nodeEndpoints/0/host"
+        value: downstream
+      - op: replace
+        path: "/nodeEndpoints/0/port"
+        value: 19199
+  disabled: false
