@@ -24,7 +24,7 @@ public class RecordValidation implements FilterFactory<ValidationConfig, Validat
     @Override
     public RecordValidationFilter createFilter(FilterFactoryContext context, ValidationConfig configuration) {
         ProduceRequestValidator validator = ProduceRequestValidatorBuilder.build(configuration);
-        return new RecordValidationFilter(configuration.isForwardPartialRequests(), validator);
+        return new RecordValidationFilter(validator);
     }
 
 }

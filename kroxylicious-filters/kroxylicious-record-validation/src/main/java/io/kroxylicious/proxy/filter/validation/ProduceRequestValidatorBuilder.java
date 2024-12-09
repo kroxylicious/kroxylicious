@@ -38,8 +38,8 @@ class ProduceRequestValidatorBuilder {
      */
     static ProduceRequestValidator build(ValidationConfig config) {
         RoutingProduceRequestValidator.RoutingProduceRequestValidatorBuilder builder = RoutingProduceRequestValidator.builder();
-        config.getRules().forEach(rule -> builder.appendValidatorForTopicPattern(rule.getTopicNames(), toValidatorWithNullHandling(rule)));
-        RecordValidationRule defaultRule = config.getDefaultRule();
+        config.rules().forEach(rule -> builder.appendValidatorForTopicPattern(rule.getTopicNames(), toValidatorWithNullHandling(rule)));
+        RecordValidationRule defaultRule = config.defaultRule();
         TopicValidator defaultValidator = defaultRule == null ? TopicValidators.allValid() : toValidatorWithNullHandling(defaultRule);
         builder.setDefaultValidator(defaultValidator);
         return builder.build();
