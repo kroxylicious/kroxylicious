@@ -68,7 +68,7 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
         CompletionStage<ProduceRequestValidationResult> validationStage = validator.validateRequest(request);
         return validationStage.thenCompose(result -> {
             if (result.isAnyTopicPartitionInvalid()) {
-                return handleInvalidTopicPartitions(header, request, context, result);
+                return handleInvalidTopicPartitions(request, context, result);
             }
             else {
                 return context.forwardRequest(header, request);
@@ -76,7 +76,7 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
         });
     }
 
-    private CompletionStage<RequestFilterResult> handleInvalidTopicPartitions(RequestHeaderData header, ProduceRequestData request, FilterContext context,
+    private CompletionStage<RequestFilterResult> handleInvalidTopicPartitions(ProduceRequestData request, FilterContext context,
                                                                               ProduceRequestValidationResult result) {
         if (result.isAllTopicPartitionsInvalid()) {
             LOGGER.debug("all topic-partitions for request contained invalid data: {}", result);

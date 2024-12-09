@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.filter.validation.config;
 
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -19,32 +18,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param rules describes a list of rules, associating topics with some validation to be applied to produce data for that topic
  * @param defaultRule the default validation rule to be applied when no rule is matched for a topic within a ProduceRequest
  */
-public record ValidationConfig(List<TopicMatchingRecordValidationRule> rules, RecordValidationRule defaultRule) {
-
-    @JsonCreator
-    public ValidationConfig(@JsonProperty("rules") List<TopicMatchingRecordValidationRule> rules,
-                            @JsonProperty("defaultRule") RecordValidationRule defaultRule) {
-        this.rules = rules;
-        this.defaultRule = defaultRule;
-    }
-
-    /**
-     * Get the rules
-     * @return rules
-     */
-    @Override
-    public List<TopicMatchingRecordValidationRule> rules() {
-        return rules;
-    }
-
-    /**
-     * get default rule
-     * @return default rule (not null)
-     */
-    @Override
-    public RecordValidationRule defaultRule() {
-        return defaultRule;
-    }
+public record ValidationConfig(@JsonProperty("rules") List<TopicMatchingRecordValidationRule> rules,
+                               @JsonProperty("defaultRule") RecordValidationRule defaultRule) {
 
     @Override
     public String toString() {
