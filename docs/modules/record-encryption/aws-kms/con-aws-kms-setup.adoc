@@ -36,25 +36,6 @@ aws iam create-login-profile --user-name ${ADMIN} --password ${INITIAL_PASSWORD}
 echo Now log in at ${CONSOLE_URL}  with user name ${ADMIN} password ${INITIAL_PASSWORD} and change the password.
 ----
 
-== Establish an application identity for the filter
-
-The filter must authenticate to AWS in order to perform envelope encryption operations, such as generating and decrypting DEKs. 
-Therefore, an AWS IAM identity with sufficient permissions must be created for the filter.
-
-Use AWS IAM to create this identity and generate an *Access Key* for it. 
-The Access Key/Secret Key pair is used by the filter. 
-Do not enable console access for this user.
-
-Using the CLI, the following commands create the IAM identity for the filter. 
-This example uses the user name `kroxylicious`, but you can choose a different name if needed. 
-Adjust the instructions accordingly if using a different user name.
-
-[source,shell]
-----
-aws iam create-user --user-name kroxylicious
-aws iam create-access-key --user-name kroxylicious
-----
-
 == Create an alias-based policy for KEK aliases
 
 Create an alias based policy granting permissions to use keys aliased by the established alias naming convention.
@@ -90,13 +71,11 @@ EOF
 aws iam create-policy --policy-name KroxyliciousRecordEncryption --policy-document file:///tmp/policy
 ----
 
-== Apply the alias-based policy to the filter's application identity
+== Establish an authentication mechanism for the filter
 
-Attach the alias policy to the filter's application identity. 
-This will allow the filter to perform key operations on all KEKs with aliases that match the specified naming convention.
+The filter must authenticate to AWS in order to perform envelope encryption operations, such as generating and decrypting DEKs.
 
-[source,shell]
-----
-AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-aws iam attach-user-policy --user-name kroxylicious --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KroxyliciousRecordEncryption"
-----
+include::con-aws-kms-setup-application-identity-iam.adoc[leveloffset=+1]
+include::con-aws-kms-setup-application-identity-ec2-metadata.adoc[leveloffset=+1]
+
+
