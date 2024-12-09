@@ -565,7 +565,9 @@ class DefaultKroxyliciousTesterTest {
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
                 .setTrustStoreLocation(keytoolCertificateGenerator.getTrustStoreLocation())
                 .setTrustStorePassword(keytoolCertificateGenerator.getPassword())
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
+                .setClientFactory(clientFactory)
+                .createDefaultKroxyliciousTester();
     }
 
     private static void generateSecurityCert(KeytoolCertificateGenerator keytoolCertificateGenerator) {
@@ -580,7 +582,8 @@ class DefaultKroxyliciousTesterTest {
     private KroxyliciousTester buildTester() {
         return new KroxyliciousTesterBuilder()
                 .setConfigurationBuilder(proxy(backingCluster, VIRTUAL_CLUSTER_A, VIRTUAL_CLUSTER_B, VIRTUAL_CLUSTER_C))
-                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory).createDefaultKroxyliciousTester();
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy).setClientFactory(clientFactory)
+                .createDefaultKroxyliciousTester();
     }
 
     public static <T> T argThat(Consumer<T> assertions) {

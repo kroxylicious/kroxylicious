@@ -8,9 +8,10 @@ package io.kroxylicious.app;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.util.EnumSet;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.function.BiFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.internal.config.Feature;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -35,13 +37,18 @@ public class Kroxylicious implements Callable<Integer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
     private static final String UNKNOWN = "unknown";
-    private final BiFunction<PluginFactoryRegistry, Configuration, KafkaProxy> proxyBuilder;
+    public static final String UNLOCK_TEST_CONFIGURATION_VARIABLE = "KROXYLICIOUS_UNLOCK_TEST_CONFIGURATION";
+    private final KafkaProxyBuilder proxyBuilder;
+
+    interface KafkaProxyBuilder {
+        KafkaProxy build(PluginFactoryRegistry registry, Configuration config, Set<Feature> features);
+    }
 
     Kroxylicious() {
         this(KafkaProxy::new);
     }
 
-    Kroxylicious(BiFunction<PluginFactoryRegistry, Configuration, KafkaProxy> proxyBuilder) {
+    Kroxylicious(KafkaProxyBuilder proxyBuilder) {
         this.proxyBuilder = proxyBuilder;
     }
 
@@ -61,8 +68,9 @@ public class Kroxylicious implements Callable<Integer> {
         try (InputStream stream = Files.newInputStream(configFile.toPath())) {
 
             Configuration config = configParser.parseConfiguration(stream);
-            printBannerAndVersions();
-            try (KafkaProxy kafkaProxy = proxyBuilder.apply(configParser, config)) {
+            Set<Feature> features = getFeatures();
+            printBannerAndVersions(features);
+            try (KafkaProxy kafkaProxy = proxyBuilder.build(configParser, config, features)) {
                 kafkaProxy.startup();
                 kafkaProxy.block();
             }
@@ -75,11 +83,21 @@ public class Kroxylicious implements Callable<Integer> {
         return 0;
     }
 
-    private static void printBannerAndVersions() throws Exception {
+    private static Set<Feature> getFeatures() {
+        String unlockSystemTestConfigurationString = System.getProperty(UNLOCK_TEST_CONFIGURATION_VARIABLE,
+                System.getenv().getOrDefault(UNLOCK_TEST_CONFIGURATION_VARIABLE, "false"));
+        boolean unlockSystemTestConfiguration = Boolean.parseBoolean(unlockSystemTestConfigurationString);
+        return unlockSystemTestConfiguration ? EnumSet.of(Feature.TEST_CONFIGURATION) : Set.of();
+    }
+
+    private static void printBannerAndVersions(Set<Feature> features) throws Exception {
         new BannerLogger().log();
         String[] versions = new VersionProvider().getVersion();
         for (String version : versions) {
             LOGGER.info("{}", version);
+        }
+        for (Feature feature : features) {
+            feature.maybeLogWarning(LOGGER);
         }
         LOGGER.atInfo()
                 .setMessage("Platform: Java {}({}) running on {} {}/{}")
