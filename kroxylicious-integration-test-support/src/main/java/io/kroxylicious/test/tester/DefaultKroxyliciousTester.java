@@ -40,6 +40,7 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.test.client.KafkaClient;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -220,7 +221,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     public void restartProxy() {
         try {
             proxy.close();
-            proxy = spawnProxy(kroxyliciousConfig);
+            proxy = spawnProxy(kroxyliciousConfig, Features.defaultFeatures());
         }
         catch (Exception e) {
             throw new IllegalStateException(e);
@@ -257,8 +258,8 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
     }
 
-    static KafkaProxy spawnProxy(Configuration config) {
-        KafkaProxy kafkaProxy = new KafkaProxy(new ServiceBasedPluginFactoryRegistry(), config);
+    static KafkaProxy spawnProxy(Configuration config, Features features) {
+        KafkaProxy kafkaProxy = new KafkaProxy(new ServiceBasedPluginFactoryRegistry(), config, features);
         try {
             kafkaProxy.startup();
         }
