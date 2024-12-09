@@ -12,7 +12,6 @@ import java.util.Map;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.InvalidRecordException;
-import org.apache.kafka.common.KafkaException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -39,7 +38,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     @Test
     void invalidJsonProduceRejected(KafkaCluster cluster, Topic topic) {
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(false, topic));
+                .addToFilters(createFilterDef(topic));
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
@@ -52,7 +51,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(false, topic1));
+                .addToFilters(createFilterDef(topic1));
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var rejected = producer.send(new ProducerRecord<>(topic1.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
@@ -70,11 +69,11 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void partiallyInvalidJsonTransactionalAllRejected(KafkaCluster cluster, Topic topic1, Topic topic2) {
+    void invalidJsonProduceRejectedUsingTransaction(KafkaCluster cluster, Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(true, topic1));
+                .addToFilters(createFilterDef(topic1));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000, TRANSACTIONAL_ID_CONFIG, randomUUID().toString()))) {
@@ -90,11 +89,11 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void partiallyInvalidJsonNotConfiguredToForwardAllRejected(KafkaCluster cluster, Topic topic1, Topic topic2) {
+    void singleValidationFailureCausesRejectionOfWholeBatch(KafkaCluster cluster, Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(false, topic1));
+                .addToFilters(createFilterDef(topic1));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
@@ -107,35 +106,11 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void partiallyInvalidJsonProduceRejected(KafkaCluster cluster, Topic topic1, Topic topic2) {
+    void singleValidationFailureCausesRejectionOfWholeBatchSameTopic(KafkaCluster cluster, @TopicPartitions(2) Topic topic) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(true, topic1));
-
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
-            var invalid = producer.send(new ProducerRecord<>(topic1.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
-            var valid = producer.send(new ProducerRecord<>(topic2.name(), "my-key", SYNTACTICALLY_CORRECT_JSON));
-            producer.flush();
-            assertThatFutureFails(invalid, InvalidRecordException.class, "value was not syntactically correct JSON");
-
-            assertThatFutureSucceeds(valid);
-
-            var records = consumeAll(tester, topic2);
-            assertThat(records)
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
-        }
-    }
-
-    @Test
-    void partiallyInvalidAcrossPartitionsOfSameTopic(KafkaCluster cluster, @TopicPartitions(2) Topic topic) {
-        assertThat(cluster.getNumOfBrokers()).isOne();
-
-        var config = proxy(cluster)
-                .addToFilters(createFilterDef(true, topic));
+                .addToFilters(createFilterDef(topic));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
@@ -143,39 +118,14 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
             var valid = producer.send(new ProducerRecord<>(topic.name(), 1, "my-key", SYNTACTICALLY_CORRECT_JSON));
             producer.flush();
             assertThatFutureFails(invalid, InvalidRecordException.class, "value was not syntactically correct JSON");
-
-            assertThatFutureSucceeds(valid);
-
-            var records = consumeAll(tester, topic);
-            assertThat(records)
-                    .singleElement()
-                    .extracting(ConsumerRecord::value)
-                    .isEqualTo(SYNTACTICALLY_CORRECT_JSON);
-        }
-    }
-
-    @Test
-    void partiallyInvalidWithinOnePartitionOfTopic(KafkaCluster cluster, Topic topic) {
-        assertThat(cluster.getNumOfBrokers()).isOne();
-
-        var config = proxy(cluster)
-                .addToFilters(createFilterDef(true, topic));
-
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
-            var invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
-            var valid = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_CORRECT_JSON));
-            producer.flush();
-
-            assertThatFutureFails(invalid, InvalidRecordException.class, "value was not syntactically correct JSON");
-            assertThatFutureFails(valid, KafkaException.class, "Failed to append record because it was part of a batch which had one more more invalid records");
+            assertThatFutureFails(valid, InvalidRecordException.class, "Invalid record in another topic-partition caused whole ProduceRequest to be invalidated");
         }
     }
 
     @Test
     void validJsonProduceAccepted(KafkaCluster cluster, Topic topic) {
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(false, topic));
+                .addToFilters(createFilterDef(topic));
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -227,8 +177,8 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
         }
     }
 
-    private FilterDefinition createFilterDef(boolean forwardPartialRequests, Topic... topics) {
-        return new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("forwardPartialRequests", forwardPartialRequests, "rules",
+    private FilterDefinition createFilterDef(Topic... topics) {
+        return new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
                 List.of(Map.of("topicNames", Arrays.stream(topics).map(Topic::name).toList(), "valueRule",
                         Map.of("syntacticallyCorrectJson", Map.of()))))
                 .build();

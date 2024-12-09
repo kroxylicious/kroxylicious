@@ -48,20 +48,18 @@ import io.kroxylicious.proxy.filter.validation.validators.topic.TopicValidationR
 public class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordValidationFilter.class);
-    private final boolean forwardPartialRequests;
     private final ProduceRequestValidator validator;
     private final Map<Integer, ProduceRequestValidationResult> correlatedResults = new HashMap<>();
 
     /**
      * Construct a new ProduceValidationFilter
-     * @param forwardPartialRequests whether to forward valid topic-partitions if some other topic-partition is invalid (transactional requests are never forwarded if any topic-partition invalid)
+     *
      * @param validator validator to test ProduceRequests with
      */
-    public RecordValidationFilter(boolean forwardPartialRequests, ProduceRequestValidator validator) {
+    public RecordValidationFilter(ProduceRequestValidator validator) {
         if (validator == null) {
             throw new IllegalArgumentException("validator is null");
         }
-        this.forwardPartialRequests = forwardPartialRequests;
         this.validator = validator;
     }
 
@@ -84,16 +82,6 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
             LOGGER.debug("all topic-partitions for request contained invalid data: {}", result);
             ProduceResponseData response = invalidateEntireRequest(request, result);
             return context.requestFilterResultBuilder().shortCircuitResponse(response).completed();
-        }
-        // do not forward partial produce data if request is transactional because the whole produce must eventually succeed or fail together
-        else if (request.transactionalId() == null && forwardPartialRequests) {
-            LOGGER.debug("some topic-partitions contained invalid data: {}, forwarding valid topic-partitions", result);
-            request.topicData().removeIf(topicProduceData -> result.isAllPartitionsInvalid(topicProduceData.name()));
-            for (ProduceRequestData.TopicProduceData topicDatum : request.topicData()) {
-                topicDatum.partitionData().removeIf(partitionProduceData -> !result.isPartitionValid(topicDatum.name(), partitionProduceData.index()));
-            }
-            correlatedResults.put(header.correlationId(), result);
-            return context.forwardRequest(header, request);
         }
         else {
             LOGGER.debug("some topic-partitions for transactional request with id: {}, contained invalid data: {}, invalidation entire request",
