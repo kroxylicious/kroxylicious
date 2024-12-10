@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
+import io.kroxylicious.kms.provider.hashicorp.vault.VaultKmsService;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -125,7 +126,7 @@ class ConfigParseTest {
         Config config = readConfig(json);
         assertThat(config.tls()).isNotNull();
         assertThat(config.tls().trust()).isNull();
-        assertThat(config.sslContext()).isSameAs(SSLContext.getDefault());
+        assertThat(VaultKmsService.sslContext(config)).isSameAs(SSLContext.getDefault());
     }
 
     @Test
@@ -138,7 +139,7 @@ class ConfigParseTest {
                 """;
         Config config = readConfig(json);
         assertThat(config.tls()).isNull();
-        assertThat(config.sslContext()).isSameAs(SSLContext.getDefault());
+        assertThat(VaultKmsService.sslContext(config)).isSameAs(SSLContext.getDefault());
     }
 
     // we do not need to exhaustively test serialization of Tls as it has its own coverage

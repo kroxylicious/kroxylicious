@@ -244,6 +244,12 @@
                 <scope>provided</scope>
             </dependency>
             <dependency>
+                <groupId>io.sundr</groupId>
+                <artifactId>sundr-core</artifactId>
+                <version>${sundr-builder-annotations.version}</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.apache.kafka</groupId>
                 <artifactId>kafka-clients</artifactId>
                 <version>${kafka.version}</version>
@@ -437,6 +443,7 @@
     <modules>
         <module>kroxylicious-annotations</module>
         <module>kroxylicious-kafka-message-tools</module>
+        <module>kroxylicious-schema-tools</module>
         <module>kroxylicious-kms</module>
         <module>kroxylicious-kms-test-support</module>
         <module>kroxylicious-kms-provider-aws-kms</module>
@@ -899,7 +906,7 @@
                                 <goals>
                                     <goal>analyze-only</goal>
                                 </goals>
-                                <configuration>
+                                <configuration combine.children="append">
                                     <failOnWarning>true</failOnWarning>
                                     <ignoreUnusedRuntime>true</ignoreUnusedRuntime>
                                     <ignoredUsedUndeclaredDependencies>

@@ -10,6 +10,7 @@ import java.security.Provider;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -27,6 +28,7 @@ import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
+import io.kroxylicious.filter.encryption.config.DekManagerConfig;
 import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
@@ -55,6 +57,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@link FilterFactory} for {@link RecordEncryptionFilter}.
@@ -100,6 +103,55 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         }
     }
 
+    static KmsCacheConfig kmsCache(RecordEncryptionConfig configuration) {
+        Integer decryptedDekCacheSize = getExperimentalInt(configuration.experimental(), "decryptedDekCacheSize");
+        Long decryptedDekExpireAfterAccessSeconds = getExperimentalLong(configuration.experimental(), "decryptedDekExpireAfterAccessSeconds");
+        Integer resolvedAliasCacheSize = getExperimentalInt(configuration.experimental(), "resolvedAliasCacheSize");
+        Long resolvedAliasExpireAfterWriteSeconds = getExperimentalLong(configuration.experimental(), "resolvedAliasExpireAfterWriteSeconds");
+        Long resolvedAliasRefreshAfterWriteSeconds = getExperimentalLong(configuration.experimental(), "resolvedAliasRefreshAfterWriteSeconds");
+        Long notFoundAliasExpireAfterWriteSeconds = getExperimentalLong(configuration.experimental(), "notFoundAliasExpireAfterWriteSeconds");
+        Long encryptionDekRefreshAfterWriteSeconds = getExperimentalLong(configuration.experimental(), "encryptionDekRefreshAfterWriteSeconds");
+        Long encryptionDekExpireAfterWriteSeconds = getExperimentalLong(configuration.experimental(), "encryptionDekExpireAfterWriteSeconds");
+        return new KmsCacheConfig(decryptedDekCacheSize, decryptedDekExpireAfterAccessSeconds, resolvedAliasCacheSize, resolvedAliasExpireAfterWriteSeconds,
+                resolvedAliasRefreshAfterWriteSeconds, notFoundAliasExpireAfterWriteSeconds, encryptionDekRefreshAfterWriteSeconds, encryptionDekExpireAfterWriteSeconds);
+    }
+
+    static DekManagerConfig dekManager(RecordEncryptionConfig configuration) {
+        Long maxEncryptionsPerDek = getExperimentalLong(configuration.experimental(), "maxEncryptionsPerDek");
+        return new DekManagerConfig(maxEncryptionsPerDek);
+
+    }
+
+    @Nullable
+    private static Integer getExperimentalInt(Map<String, Object> experimental, String property) {
+        return Optional.ofNullable(experimental).map(x -> x.get(property)).map(value -> {
+            if (value instanceof Number number) {
+                return number.intValue();
+            }
+            else if (value instanceof String stringValue) {
+                return Integer.parseInt(stringValue);
+            }
+            else {
+                throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
+            }
+        }).orElse(null);
+    }
+
+    @Nullable
+    private static Long getExperimentalLong(Map<String, Object> experimental, String property) {
+        return Optional.ofNullable(experimental).map(x -> x.get(property)).map(value -> {
+            if (value instanceof Number number) {
+                return number.longValue();
+            }
+            else if (value instanceof String stringValue) {
+                return Long.parseLong(stringValue);
+            }
+            else {
+                throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
+            }
+        }).orElse(null);
+    }
+
     @Override
     public SharedEncryptionContext<K, E> initialize(FilterFactoryContext context,
                                                     RecordEncryptionConfig configuration)
@@ -109,10 +161,10 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         kmsPlugin.initialize(configuration.kmsConfig());
         Kms<K, E> kms = buildKms(configuration, kmsPlugin);
 
-        var dekConfig = configuration.dekManager();
+        var dekConfig = dekManager(configuration);
         DekManager<K, E> dekManager = new DekManager<>(kms, dekConfig.maxEncryptionsPerDek());
 
-        KmsCacheConfig cacheConfig = configuration.kmsCache();
+        KmsCacheConfig cacheConfig = kmsCache(configuration);
         EncryptionDekCache<K, E> encryptionDekCache = new EncryptionDekCache<>(dekManager, null, EncryptionDekCache.NO_MAX_CACHE_SIZE,
                 cacheConfig.encryptionDekCacheRefreshAfterWriteDuration(), cacheConfig.encryptionDekCacheExpireAfterWriteDuration());
         DecryptionDekCache<K, E> decryptionDekCache = new DecryptionDekCache<>(dekManager, null, DecryptionDekCache.NO_MAX_CACHE_SIZE);
@@ -156,7 +208,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
     @NonNull
     private static <K, E> Kms<K, E> wrapWithCachingKms(RecordEncryptionConfig configuration, Kms<K, E> resilientKms) {
-        KmsCacheConfig config = configuration.kmsCache();
+        KmsCacheConfig config = kmsCache(configuration);
         LOGGER.debug("KMS cache configuration: {}", config);
         return CachingKms.wrap(resilientKms, config.decryptedDekCacheSize(), config.decryptedDekExpireAfterAccessDuration(), config.resolvedAliasCacheSize(),
                 config.resolvedAliasExpireAfterWriteDuration(), config.resolvedAliasRefreshAfterWriteDuration(), config.notFoundAliasExpireAfterWriteDuration());

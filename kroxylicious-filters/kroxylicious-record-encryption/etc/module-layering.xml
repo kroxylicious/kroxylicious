@@ -26,6 +26,7 @@
     <allow pkg="io.kroxylicious.proxy.filter" local-only="true"/> <!-- the filter api -->
     <allow pkg="io.kroxylicious.proxy.plugin" local-only="true"/> <!-- the plugin api -->
     <allow pkg="io.kroxylicious.kms.service" local-only="true"/> <!-- the kms api -->
+    <allow pkg="com.fasterxml.jackson" local-only="true"/>
     <allow pkg="io.kroxylicious.filter.encryption" local-only="true"/><!-- all subpackages -->
 
     <subpackage name="common">
