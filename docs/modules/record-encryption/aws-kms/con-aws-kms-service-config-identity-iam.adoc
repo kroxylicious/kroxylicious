@@ -1,0 +1,23 @@
+
+= Authenticating using a fixed IAM identity
+
+[source, yaml]
+----
+kms: AwsKmsService                                            # <1>
+kmsConfig:
+  endpointUrl: https://kms.<region>.amazonaws.com             # <2>
+  tls:                                                        # <3>
+  credentialsProvider:
+    type: fixed
+    accessKeyId:
+      passwordFile: /opt/aws/accessKey                        # <4>
+    secretAccessKey:
+      passwordFile: /opt/aws/secretKey                        # <5>
+  region: <region>                                            # <6>
+----
+<1> Name of the KMS provider. This must be `AwsKmsService`.
+<2> AWS Endpoint URL.  This must include the `https://` scheme part.
+<3> (Optional) TLS trust configuration.
+<4> File containing the AWS Access Key Id
+<5> File containing the AWS Secret Access Key
+<6> AWS region identifier (e.g. `us-east-1`)
