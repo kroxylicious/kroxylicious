@@ -17,11 +17,6 @@ record AllValidTopicValidationResult(String topicName) implements TopicValidatio
     }
 
     @Override
-    public boolean isAllPartitionsInvalid() {
-        return false;
-    }
-
-    @Override
     public Stream<PartitionValidationResult> invalidPartitions() {
         return Stream.empty();
     }

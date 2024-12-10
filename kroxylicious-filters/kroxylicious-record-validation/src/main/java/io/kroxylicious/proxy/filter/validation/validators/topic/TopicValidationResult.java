@@ -20,12 +20,6 @@ public interface TopicValidationResult {
     boolean isAnyPartitionInvalid();
 
     /**
-     * are all partitions invalid
-     * @return true if all partitions invalid
-     */
-    boolean isAllPartitionsInvalid();
-
-    /**
      * get invalid partitions
      * @return stream of invalid partitions
      */

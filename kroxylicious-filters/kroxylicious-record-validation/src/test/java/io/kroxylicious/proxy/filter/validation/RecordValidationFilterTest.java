@@ -128,7 +128,6 @@ class RecordValidationFilterTest {
         var validator = new RecordValidationFilter(produceRequestValidator);
 
         when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
-        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(true);
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
 
         var header = new RequestHeaderData();
@@ -167,7 +166,6 @@ class RecordValidationFilterTest {
         var validator = new RecordValidationFilter(produceRequestValidator);
 
         when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
-        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(false);
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
         when(topicValidationResult.getPartitionResult(1)).thenReturn(new PartitionValidationResult(1, List.of()));
 
@@ -217,7 +215,6 @@ class RecordValidationFilterTest {
         var validator = new RecordValidationFilter(produceRequestValidator);
 
         when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
-        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(true);
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
 
         var header = new RequestHeaderData();
@@ -256,7 +253,6 @@ class RecordValidationFilterTest {
         var validator = new RecordValidationFilter(produceRequestValidator);
 
         when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
-        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(false);
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
 
         var header = new RequestHeaderData();

@@ -12,8 +12,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Configuration for Produce Request validation. Contains a description of the rules for validating
- * the data for all topic-partitions with a ProduceRequest and how to handle partial failures (where
- * some topic-partitions are valid and others are invalid within a single ProduceRequest)
+ * the data for all topic-partitions within a ProduceRequest.
  *
  * @param rules describes a list of rules, associating topics with some validation to be applied to produce data for that topic
  * @param defaultRule the default validation rule to be applied when no rule is matched for a topic within a ProduceRequest
@@ -24,7 +23,7 @@ public record ValidationConfig(@JsonProperty("rules") List<TopicMatchingRecordVa
     @Override
     public String toString() {
         return "ValidationConfig{" +
-                ", rules=" + rules +
+                "rules=" + rules +
                 ", defaultRule=" + defaultRule +
                 '}';
     }
