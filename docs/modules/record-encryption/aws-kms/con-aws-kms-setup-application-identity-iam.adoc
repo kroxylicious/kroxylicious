@@ -1,6 +1,6 @@
 [id='con-aws-kms-setup-application-identity-iam-{context}']
 
-= Using an AWS IAM identity
+= Authenticating using an AWS IAM identity
 
 An AWS IAM identity with sufficient permissions must be created for the filter.
 

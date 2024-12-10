@@ -1,6 +1,6 @@
 
-= Authenticating using a EC2 metadata
 
+. Configuration for authenticating with EC2 metadata
 [source, yaml]
 ----
 kms: AwsKmsService                                            # <1>
@@ -11,7 +11,7 @@ kmsConfig:
     iamRole: KroxyliciousInstance                             # <3>
   region: <region>                                            # <4>
 ----
-<1> Name of the KMS provider. This must be `AwsKmsService`.
-<2> AWS Endpoint URL.  This must include the `https://` scheme part.
+<1> Specifies the name of the KMS provider. Use `AwsKmsService`.
+<2> AWS KMS endpoint URL,  which must include the `https://` scheme.
 <3> Name of the IAM role that has been associated with the EC2 instance(s) hosting Kroxylicious.
 <4> AWS region identifier (e.g. `us-east-1`)
