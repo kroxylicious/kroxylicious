@@ -29,14 +29,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * For the kafka RPCs that Kroxylicious can intercept, Kroxylicious should only offer API versions
- * that it can encode/decode using it's version of the kafka-clients lib. It should also only offer API versions
+ * that it can encode/decode using its version of the kafka-clients lib. It should also only offer API versions
  * that the Cluster can understand. So we use a Filter to intercept the ApiVersions response from the
  * Cluster and intersect those versions with the versions supported by the proxy. We offer the highest
  * minimum version for each api key supported by the Cluster and proxy. We offer the lowest maximum version
  * for each api key supported by the Cluster and proxy.
- * Any versions for ApiKeys unknown to the proxy are forwarded to the client untouched. (ie the broker supports
- * a new ApiKey that this version of Kroxylicious is unaware of)
- * TODO check if this is still sensible behaviour, potentially a RequestFilter would attempt to decode these and fail.
+ * Any versions for ApiKeys unknown to the proxy are removed from the response. (ie the broker supports
+ * a new ApiKey that this version of Kroxylicious is unaware of).
  */
 @ExtendWith(NettyLeakDetectorExtension.class)
 public class ApiVersionsIT {
