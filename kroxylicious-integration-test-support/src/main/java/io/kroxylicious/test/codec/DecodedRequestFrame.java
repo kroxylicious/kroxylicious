@@ -19,7 +19,7 @@ import io.kroxylicious.test.client.SequencedResponse;
  */
 public class DecodedRequestFrame<B extends ApiMessage>
         extends DecodedFrame<RequestHeaderData, B>
-        implements Frame {
+        implements RequestFrame {
 
     private final CompletableFuture<SequencedResponse> responseFuture = new CompletableFuture<>();
 
@@ -50,6 +50,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
      * Whether the Kafka Client expects a response to this request
      * @return Whether the Kafka Client expects a response to this request
      */
+    @Override
     public boolean hasResponse() {
         return !(body instanceof ProduceRequest pr && pr.acks() == 0);
     }

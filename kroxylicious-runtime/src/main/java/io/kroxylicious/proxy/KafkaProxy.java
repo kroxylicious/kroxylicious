@@ -11,7 +11,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +41,7 @@ import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
@@ -126,11 +129,13 @@ public final class KafkaProxy implements AutoCloseable {
 
             maybeStartMetricsListener(adminEventGroup, meterRegistries);
 
+            var overrideMap = getApiKeyMaxVersionOverride(config);
+            ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filters());
             var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of()));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
             var plainServerBootstrap = buildServerBootstrap(serverEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of()));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -149,6 +154,19 @@ public final class KafkaProxy implements AutoCloseable {
             shutdown();
             throw e;
         }
+    }
+
+    private Map<ApiKeys, Short> getApiKeyMaxVersionOverride(Configuration config) {
+        Map<String, Number> apiKeyIdMaxVersion = config.development()
+                .map(m -> m.get("apiKeyIdMaxVersionOverride"))
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .orElse(Map.of());
+
+        return apiKeyIdMaxVersion.entrySet()
+                .stream()
+                .collect(Collectors.toMap(e -> ApiKeys.valueOf(e.getKey()),
+                        e -> e.getValue().shortValue()));
     }
 
     private ServerBootstrap buildServerBootstrap(EventGroupConfig virtualHostEventGroup, KafkaProxyInitializer kafkaProxyInitializer) {

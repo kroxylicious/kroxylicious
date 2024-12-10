@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1635](https://github.com/kroxylicious/kroxylicious/pull/1635) Handle ApiVersions unsupported version downgrade
 * [#1648](https://github.com/kroxylicious/kroxylicious/pull/1648) Add test-only feature mechanism to Proxy configuration
 * [#1379](https://github.com/kroxylicious/kroxylicious/issues/1379) Remove Deprecated EnvelopeEncryption
 * [#1561](https://github.com/kroxylicious/kroxylicious/pull/1631) Allow Trust and ClientAuth to be set for Downstream TLS

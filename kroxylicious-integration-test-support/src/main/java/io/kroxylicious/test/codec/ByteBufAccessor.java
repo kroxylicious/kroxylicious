@@ -7,12 +7,13 @@ package io.kroxylicious.test.codec;
 
 import java.nio.ByteBuffer;
 
+import org.apache.kafka.common.protocol.Readable;
 import org.apache.kafka.common.protocol.Writable;
 
 /**
  * Provides write access to byte buffer for serializing frames.
  */
-public interface ByteBufAccessor extends Writable {
+public interface ByteBufAccessor extends Writable, Readable {
 
     @Override
     void writeByte(byte val);
@@ -56,4 +57,14 @@ public interface ByteBufAccessor extends Writable {
      */
     int writerIndex();
 
+    /**
+     * Get reader index
+     * @return readerIndex of underlying buffer
+     */
+    int readerIndex();
+
+    /**
+     * set reader index of underlying buffer
+     */
+    void readerIndex(int index);
 }
