@@ -1,3 +1,7 @@
+// file included in the following:
+//
+// con-aws-kms-setup.adoc
+
 [id='con-aws-kms-setup-application-identity-iam-{context}']
 
 = Authenticating using an AWS IAM identity
