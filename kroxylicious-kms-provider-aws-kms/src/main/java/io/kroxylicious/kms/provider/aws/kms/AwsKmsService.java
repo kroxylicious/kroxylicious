@@ -8,8 +8,10 @@ package io.kroxylicious.kms.provider.aws.kms;
 
 import java.time.Duration;
 import java.util.Objects;
+import java.util.Optional;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
+import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProvider;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
 
@@ -23,11 +25,13 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
 
     @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
     private volatile Config config;
+    private CredentialsProvider credentialsProvider;
 
     @Override
     public void initialize(@NonNull Config config) {
         Objects.requireNonNull(config);
         this.config = config;
+        this.credentialsProvider = config.credentialsProvider().createCredentialsProvider();
     }
 
     @NonNull
@@ -35,9 +39,13 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
     public AwsKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");
         return new AwsKms(config.endpointUrl(),
-                config.accessKey().getProvidedPassword(),
-                config.secretKey().getProvidedPassword(),
+                credentialsProvider,
                 config.region(),
                 Duration.ofSeconds(20), config.sslContext());
+    }
+
+    @Override
+    public void close() {
+        Optional.ofNullable(credentialsProvider).ifPresent(CredentialsProvider::close);
     }
 }
