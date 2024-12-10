@@ -8,7 +8,10 @@
 For AWS KMS, the KMS configuration looks like this.
 
 include::con-aws-kms-service-config-identity-iam.adoc[leveloffset=+1]
+
+ifdef::include-aws-kms-service-config-identity-ec2-metadata[]
 include::con-aws-kms-service-config-identity-ec2-metadata.adoc[leveloffset=+1]
+endif::[]
 
 For TLS trust and TLS client authentication configuration, the filter accepts the same TLS parameters as xref:con-deploying-upstream-tls-{context}[Upstream TLS]
 except the `PEM` store type is currently https://github.com/kroxylicious/kroxylicious/issues/933[not supported].
