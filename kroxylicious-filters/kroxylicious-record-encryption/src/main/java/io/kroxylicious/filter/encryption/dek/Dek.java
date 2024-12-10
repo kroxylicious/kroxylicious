@@ -102,19 +102,25 @@ public final class Dek<E> {
      * @return The encryptor.
      * @throws IllegalArgumentException If {@code numEncryptions} is less and or equal to zero.
      * @throws ExhaustedDekException If the DEK cannot support the given number of encryptions
-     * @throws DestroyedDekException If the DEK has been {@linkplain #destroy()} destroyed.
+     * @throws DestroyedDekException If the DEK has been destroyed for encryption via {@linkplain #destroy()} or {@linkplain #destroyForEncrypt()}.
      */
     public @NonNull Encryptor encryptor(int numEncryptions) {
         if (numEncryptions <= 0) {
             throw new IllegalArgumentException();
         }
+        // there was a race condition where an exhausted dek exception triggered destruction before another
+        // thread that had acquired the desired numEncryptions could acquire an encryptor. This way we reserve
+        // first and release in case of exhaustion.
+        if (!outstandingCryptors.acquireEncryptorUsage()) {
+            throw new DestroyedDekException();
+        }
         if (remainingEncryptions.addAndGet(-numEncryptions) >= 0) {
-            if (!outstandingCryptors.acquireEncryptorUsage()) {
-                throw new DestroyedDekException();
-            }
             return new Encryptor(cipherManager, atomicKey.get(), numEncryptions);
         }
-        throw new ExhaustedDekException("This DEK does not have " + numEncryptions + " encryptions available");
+        else {
+            outstandingCryptors.releaseEncryptorUsage();
+            throw new ExhaustedDekException("This DEK does not have " + numEncryptions + " encryptions available");
+        }
     }
 
     /**
@@ -175,6 +181,13 @@ public final class Dek<E> {
 
     public E edek() {
         return edek;
+    }
+
+    /**
+     * @return true if this Dek has been destroyed for encryption via {@linkplain #destroy()} or {@linkplain #destroyForEncrypt()}
+     */
+    public boolean destroyedForEncrypt() {
+        return outstandingCryptors.isDestroyedForEncrypt();
     }
 
     /**

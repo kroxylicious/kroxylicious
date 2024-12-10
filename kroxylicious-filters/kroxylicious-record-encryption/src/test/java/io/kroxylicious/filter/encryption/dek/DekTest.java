@@ -47,11 +47,12 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void encryptorThrowsExhaustedDekExceptionOnDekWithZeroEncryptions(CipherManager cipherManager) {
+    void encryptorThrowsDestroyedDekExceptionOnDekWithZeroEncryptions(CipherManager cipherManager) {
         var key = makeKey();
+        // a dek initialized with 0 encryptions is is destroyed for encryption
         var dek = new Dek<>("edek", key, cipherManager, 0);
         assertThatThrownBy(() -> dek.encryptor(1))
-                .isExactlyInstanceOf(ExhaustedDekException.class);
+                .isExactlyInstanceOf(DestroyedDekException.class);
     }
 
     @NonNull
@@ -481,12 +482,12 @@ class DekTest {
         // Destroy the DEK: We expect the encryptor should still be usable
         dek.destroy();
         assertThat(dek.isDestroyed())
-                .describedAs("Key should be not be destroyed because some encryptions are left")
+                .describedAs("Key material should be not be destroyed because some encryptions are left")
                 .isFalse();
 
         assertThatThrownBy(() -> dek.encryptor(1))
-                .describedAs("Expect to not be able to get another encoder")
-                .isExactlyInstanceOf(ExhaustedDekException.class);
+                .describedAs("Expect to not be able to get another encoder because DEK destroyed for encrypt")
+                .isExactlyInstanceOf(DestroyedDekException.class);
 
         // Note, we use a common buffer backing both the plaintext and the ciphertext so that we're testing that
         // encrypt() is copy-safe.

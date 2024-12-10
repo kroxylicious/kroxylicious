@@ -52,8 +52,8 @@ import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
 import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
-import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.filter.encryption.encrypt.DekContext;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionDekCache;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
 import io.kroxylicious.filter.encryption.encrypt.InBandEncryptionManager;
@@ -905,8 +905,8 @@ class InBandDecryptionManagerTest {
         EncryptionScheme<UUID> scheme1 = new EncryptionScheme<>(kek1, EnumSet.of(RecordField.RECORD_VALUE));
         doEncrypt(encryptionManager, "topic", 1, scheme1, initial, encrypted);
 
-        Dek<InMemoryEdek> dek1 = encryptionManager.currentDek(scheme1).toCompletableFuture().join();
-        assertThat(dek1.isDestroyed()).isFalse();
+        DekContext<InMemoryEdek> dek1 = encryptionManager.currentDekContext(scheme1).toCompletableFuture().join();
+        assertThat(dek1.getDek().isDestroyed()).isFalse();
 
         // When
         // Encrypt with key2, which should evict the DEK for key 1
@@ -914,7 +914,7 @@ class InBandDecryptionManagerTest {
         doEncrypt(encryptionManager, "topic", 1, scheme2, initial, encrypted);
 
         // Then
-        assertThat(dek1.isDestroyed()).isTrue();
+        assertThat(dek1.getDek().isDestroyed()).isTrue();
     }
 
     @Test
