@@ -75,7 +75,6 @@ class KafkaProxyFrontendHandlerTest {
     public static final String SNI_HOSTNAME = "external.example.com";
     public static final String CLUSTER_HOST = "internal.example.org";
     public static final int CLUSTER_PORT = 9092;
-    public static final String TLS_NEGOTIATION_ERROR = "TLS negotiation error";
     EmbeddedChannel inboundChannel;
     EmbeddedChannel outboundChannel;
 
