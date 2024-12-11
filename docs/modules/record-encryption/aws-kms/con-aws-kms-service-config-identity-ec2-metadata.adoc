@@ -2,8 +2,8 @@
 //
 // con-aws-kms-service-config.adoc
 
-Configuration for authenticating with a EC2 metadata:
 
+. Configuration for authenticating with a EC2 metadata
 [source, yaml]
 ----
 kms: AwsKmsService                                            # <1>
