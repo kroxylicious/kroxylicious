@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.filter.validation.validators.request;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import io.kroxylicious.proxy.filter.validation.validators.topic.PartitionValidationResult;
 import io.kroxylicious.proxy.filter.validation.validators.topic.TopicValidationResult;
 
 /**
@@ -25,49 +24,6 @@ public record ProduceRequestValidationResult(Map<String, TopicValidationResult> 
      */
     public boolean isAnyTopicPartitionInvalid() {
         return topicValidationResults.values().stream().anyMatch(TopicValidationResult::isAnyPartitionInvalid);
-    }
-
-    /**
-     * Are all topic partitions invalid
-     * @return true if all topic-partitions were invalid
-     */
-    public boolean isAllTopicPartitionsInvalid() {
-        return topicValidationResults.values().stream().allMatch(TopicValidationResult::isAllPartitionsInvalid);
-    }
-
-    /**
-     * Are all topic partitions invalid for a topic
-     * @param topicName topic name
-     * @return true if all partitions for topicName are invalid
-     */
-    public boolean isAllPartitionsInvalid(String topicName) {
-        TopicValidationResult topicValidationResult = topicValidationResults.get(topicName);
-        if (topicValidationResult == null) {
-            return false;
-        }
-        else {
-            return topicValidationResult.isAllPartitionsInvalid();
-        }
-    }
-
-    /**
-     * Is a topic-partition valid
-     * @param topicName name of the topic
-     * @param partitionIndex index of the partition
-     * @return true if the topic-partition is valid
-     * @throws IllegalStateException if the topicName or partitionIndex has no recorded result, we should have some outcome for every topic-partition
-     */
-    public boolean isPartitionValid(String topicName, int partitionIndex) {
-        TopicValidationResult topicValidationResult = topicValidationResults.get(topicName);
-        if (topicValidationResult == null) {
-            throw new IllegalStateException("topicValidationResults should contain a result for all topics in the request, failed topic: " + topicName);
-        }
-        PartitionValidationResult partitionValidationResult = topicValidationResult.getPartitionResult(partitionIndex);
-        if (partitionValidationResult == null) {
-            throw new IllegalStateException(
-                    "partitionValidationResult should contain a result for all topics in the request, failed topic: " + topicName + ", partition" + partitionIndex);
-        }
-        return partitionValidationResult.allRecordsValid();
     }
 
     /**

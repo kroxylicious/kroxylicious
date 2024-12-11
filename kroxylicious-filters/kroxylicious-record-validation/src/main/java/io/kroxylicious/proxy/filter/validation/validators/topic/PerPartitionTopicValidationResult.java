@@ -17,14 +17,6 @@ record PerPartitionTopicValidationResult(String topicName, Map<Integer, Partitio
     }
 
     @Override
-    public boolean isAllPartitionsInvalid() {
-        if (partitionValidationResults.isEmpty()) {
-            return false;
-        }
-        return partitionValidationResults.values().stream().noneMatch(PartitionValidationResult::allRecordsValid);
-    }
-
-    @Override
     public Stream<PartitionValidationResult> invalidPartitions() {
         return partitionValidationResults.values().stream().filter(partitionValidationResult -> !partitionValidationResult.allRecordsValid());
     }

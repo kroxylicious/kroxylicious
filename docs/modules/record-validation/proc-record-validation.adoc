@@ -37,18 +37,11 @@ filters:
             <rule definition>                                          # <2>
           valueRule:
             <rule definition>                                          # <3>
-        forwardPartialRequests: false                                  # <5>
 ----
 <1> List of topic names to which the validation rules will be applied.
 <2> Validation rules that are applied to the record's key.
 <3> Validation rules that are applied to the record's value.
 <4> (Optional) Default rule that is applied to any topics for which there is no explict rule defined.
-<5> If `false`, any record failing validation will cause the entire produce request to be rejected.
-    If `true`, only partitions within the request where all records validated successfully will be forwarded to the
-    broker. The response the client will receive will be a mixed response with response returned from the broker
-    for the partitions whose records passed validation and error responses for the partitions that failed validation.
-    If the client is using transactions, this setting is *ignored*. Any failing record validation will
-    cause the entire produce request to be rejected.
 
 Replace the token `<rule definition>`  in the YAML configuration with either a Schema Validation rule or a JSON Syntax Validation rule depending on your requirements.
 

@@ -30,7 +30,7 @@ class RecordValidationTest {
     @Test
     void shouldInitAndCreateFilter() {
         RecordValidation factory = new RecordValidation();
-        var config = factory.initialize(null, new ValidationConfig(true, List.of(), new RecordValidationRule(null, null)));
+        var config = factory.initialize(null, new ValidationConfig(List.of(), new RecordValidationRule(null, null)));
         Filter filter = factory.createFilter(null, config);
         assertThat(filter).isNotNull().isInstanceOf(RecordValidationFilter.class);
     }

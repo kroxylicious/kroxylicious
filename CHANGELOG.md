@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1657](https://github.com/kroxylicious/kroxylicious/pull/1657) Remove forwardPartialRequests feature of record validation filter
 * [#1635](https://github.com/kroxylicious/kroxylicious/pull/1635) Handle ApiVersions unsupported version downgrade
 * [#1648](https://github.com/kroxylicious/kroxylicious/pull/1648) Add test-only feature mechanism to Proxy configuration
 * [#1379](https://github.com/kroxylicious/kroxylicious/issues/1379) Remove Deprecated EnvelopeEncryption
@@ -22,7 +23,8 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
-* The deprecated EnvelopeEncryption filter is now removed.  Use RecordEncryption instead. 
+* The deprecated EnvelopeEncryption filter is now removed.  Use RecordEncryption instead.
+* The deprecated forwardPartialRequests option has been removed from the Record Validation Filter.
 
 ## 0.8.0
 
