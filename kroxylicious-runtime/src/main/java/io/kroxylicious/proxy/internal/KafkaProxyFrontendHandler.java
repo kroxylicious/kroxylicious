@@ -12,7 +12,6 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -481,7 +480,6 @@ public class KafkaProxyFrontendHandler
         }
         virtualCluster.getUpstreamSslContext().ifPresent(sslContext -> {
             final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
-            handler.setHandshakeTimeout(100, TimeUnit.MILLISECONDS);
             pipeline.addFirst("ssl", handler);
         });
 
