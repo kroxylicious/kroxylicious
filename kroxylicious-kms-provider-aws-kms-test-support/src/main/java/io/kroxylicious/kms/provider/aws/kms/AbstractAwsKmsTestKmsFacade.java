@@ -19,6 +19,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
+import io.kroxylicious.kms.provider.aws.kms.config.FixedCredentialsProviderConfig;
+import io.kroxylicious.kms.provider.aws.kms.credentials.FixedCredentialsProvider;
 import io.kroxylicious.kms.provider.aws.kms.model.CreateAliasRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.CreateKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.CreateKeyResponse;
@@ -79,7 +81,8 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
 
     @Override
     public Config getKmsServiceConfig() {
-        return new Config(getAwsUrl(), new InlinePassword(getAccessKey()), new InlinePassword(getSecretKey()), getRegion(), null);
+        var credentialsProviderConfig = new FixedCredentialsProviderConfig(new InlinePassword(getAccessKey()), new InlinePassword(getSecretKey()));
+        return new Config(getAwsUrl(), credentialsProviderConfig, getRegion(), null);
     }
 
     protected abstract String getRegion();
@@ -167,7 +170,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         private HttpRequest createRequest(Object request, String target) {
             var body = encodeJson(request).getBytes(UTF_8);
 
-            return AwsV4SigningHttpRequestBuilder.newBuilder(getAccessKey(), getSecretKey(), getRegion(), "kms", Instant.now())
+            return AwsV4SigningHttpRequestBuilder.newBuilder(FixedCredentialsProvider.fixedCredentials(getAccessKey(), getSecretKey()), getRegion(), "kms", Instant.now())
                     .uri(getAwsUrl())
                     .header(AwsKms.CONTENT_TYPE_HEADER, AwsKms.APPLICATION_X_AMZ_JSON_1_1)
                     .header(AwsKms.X_AMZ_TARGET_HEADER, target)
