@@ -79,17 +79,31 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                                                  ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
                                                  Optional<Tls> tls) {
         try {
+            HostPort downstreamBootstrap = clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
             var downstreamTls = tls.map(t -> Optional.ofNullable(t.trust())
                     .map(TrustProvider::trustOptions)
-                    .map(TrustOptions::toString)
-                    .orElse("-"))
-                    .map(options -> " (TLS: " + options + ")")
-                    .orElse("");
-            HostPort downstreamBootstrap = clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
-            var upstreamTls = targetCluster.tls().map(tls1 -> " (TLS)").orElse("");
+                    .map(TrustOptions::toString).orElse("-"))
+                    .map(options -> " (TLS: " + options + ") ").orElse("");
+            var downstreamCipherSuites = tls.map(t -> Optional.ofNullable(t.cipherSuites())
+                    .map(Iterable<String>::toString).orElse("Default"))
+                    .map(cipherSuites -> " (Configured Ciphers: " + cipherSuites + ")").orElse("");
+            var downstreamEnabledProtocols = tls.map(t -> Optional.ofNullable(t.enabledProtocols())
+                    .map(Iterable<String>::toString).orElse("Default"))
+                    .map(enabledProtocols -> " (Configured Protocols: " + enabledProtocols + ")").orElse("");
+
             HostPort upstreamHostPort = targetCluster.bootstrapServersList().get(0);
-            LOGGER.info("Virtual Cluster: {}, Downstream {}{} => Upstream {}{}",
-                    clusterName, downstreamBootstrap, downstreamTls, upstreamHostPort, upstreamTls);
+            var upstreamTls = targetCluster.tls().map(tls1 -> " (TLS)").orElse("");
+            var upstreamCipherSuites = targetCluster.tls().map(t -> Optional.ofNullable(t.cipherSuites())
+                    .map(Iterable<String>::toString).orElse("Default"))
+                    .map(cipherSuites -> " (Configured Ciphers: " + cipherSuites + ")").orElse("");
+            var upstreamEnabledProtocols = targetCluster.tls().map(t -> Optional.ofNullable(t.enabledProtocols())
+                    .map(Iterable<String>::toString).orElse("Default"))
+                    .map(enabledProtocols -> " (Configured Protocols: " + enabledProtocols + ")").orElse("");
+
+            LOGGER.info("Virtual Cluster: {}, Downstream {}{}{}{} => Upstream {}{}{}{}",
+                    clusterName,
+                    downstreamBootstrap, downstreamTls, downstreamCipherSuites, downstreamEnabledProtocols,
+                    upstreamHostPort, upstreamTls, upstreamCipherSuites, upstreamEnabledProtocols);
         }
         catch (Exception e) {
             LOGGER.warn("Failed to log summary for Virtual Cluster: {}", clusterName, e);
@@ -192,6 +206,9 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                 var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
                         .orElseThrow();
 
+                configureCipherSuites(sslContextBuilder, tlsConfiguration);
+                configureEnabledProtocols(sslContextBuilder, tlsConfiguration);
+
                 return configureTrustProvider(tlsConfiguration).apply(sslContextBuilder).build();
             }
             catch (SSLException e) {
@@ -205,6 +222,9 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
             try {
                 var sslContextBuilder = Optional.ofNullable(targetClusterTls.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forClient)
                         .orElse(SslContextBuilder.forClient());
+
+                configureCipherSuites(sslContextBuilder, targetClusterTls);
+                configureEnabledProtocols(sslContextBuilder, targetClusterTls);
 
                 Optional.ofNullable(targetClusterTls.trust())
                         .map(TrustProvider::trustOptions)
@@ -227,6 +247,16 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
         final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
         return new NettyTrustProvider(trustProvider);
+    }
+
+    private static void configureCipherSuites(SslContextBuilder sslContextBuilder, Tls tlsConfiguration) {
+        Optional.ofNullable(tlsConfiguration.cipherSuites())
+                .map(ciphers -> sslContextBuilder.ciphers(tlsConfiguration.cipherSuites()));
+    }
+
+    private static void configureEnabledProtocols(SslContextBuilder sslContextBuilder, Tls tlsConfiguration) {
+        Optional.ofNullable(tlsConfiguration.enabledProtocols())
+                .map(ciphers -> sslContextBuilder.protocols(tlsConfiguration.enabledProtocols()));
     }
 
     private static void validatePortUsage(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider) {
