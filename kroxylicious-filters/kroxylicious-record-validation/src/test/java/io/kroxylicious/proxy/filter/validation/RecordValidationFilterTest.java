@@ -91,14 +91,14 @@ class RecordValidationFilterTest {
     @SuppressWarnings("DataFlowIssue")
     @Test
     void rejectsNullValidator() {
-        assertThatThrownBy(() -> new RecordValidationFilter(false, null))
+        assertThatThrownBy(() -> new RecordValidationFilter(null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void requestThatPassesValidationIsForwarded() {
         // Given
-        var validator = new RecordValidationFilter(false, produceRequestValidator);
+        var validator = new RecordValidationFilter(produceRequestValidator);
 
         when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(false);
 
@@ -125,10 +125,9 @@ class RecordValidationFilterTest {
     @Test
     void requestWithAllPartitionsFailedIsRejectedWithShortCircuitResponse() {
         // Given
-        var validator = new RecordValidationFilter(false, produceRequestValidator);
+        var validator = new RecordValidationFilter(produceRequestValidator);
 
         when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
-        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(true);
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
 
         var header = new RequestHeaderData();
@@ -162,59 +161,11 @@ class RecordValidationFilterTest {
     }
 
     @Test
-    void requestWithSomePartitionsFailedIsIsForwarded() {
-        // Given
-        var validator = new RecordValidationFilter(true, produceRequestValidator);
-
-        when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
-        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(false);
-        when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
-        when(topicValidationResult.getPartitionResult(1)).thenReturn(new PartitionValidationResult(1, List.of()));
-
-        var header = new RequestHeaderData();
-        final ProduceRequestData.PartitionProduceData partition1 = new ProduceRequestData.PartitionProduceData();
-        final ProduceRequestData.PartitionProduceData partition2 = new ProduceRequestData.PartitionProduceData();
-        partition2.setIndex(1);
-        var request = buildProduceRequestData(new ProduceRequestData.TopicProduceData()
-                .setName(MY_TOPIC)
-                .setPartitionData(
-                        new ArrayList<>(List.of(
-                                partition1,
-                                partition2))));
-        when(produceRequestValidator.validateRequest(request)).thenReturn(
-                CompletableFuture.completedStage(new ProduceRequestValidationResult(Map.of(MY_TOPIC, topicValidationResult))));
-
-        // When
-        var result = validator.onProduceRequest(HIGHEST_SUPPORTED_VERSION, header, request, context);
-
-        // Then
-        assertThat(result)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> {
-                    assertThat(rfr.shortCircuitResponse()).isFalse();
-                    assertThat(rfr.message())
-                            .isInstanceOf(ProduceRequestData.class);
-
-                    var prd = (ProduceRequestData) rfr.message();
-                    assertThat(prd.topicData())
-                            .singleElement()
-                            .satisfies(tpr -> {
-                                assertThat(tpr.name()).isEqualTo(MY_TOPIC);
-                                assertThat(tpr.partitionData())
-                                        .singleElement()
-                                        .extracting(ProduceRequestData.PartitionProduceData::index)
-                                        .isEqualTo(1);
-                            });
-                });
-    }
-
-    @Test
     void requestWithSomePartitionsFailedIsRejected() {
         // Given
-        var validator = new RecordValidationFilter(false, produceRequestValidator);
+        var validator = new RecordValidationFilter(produceRequestValidator);
 
         when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
-        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(false);
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
         when(topicValidationResult.getPartitionResult(1)).thenReturn(new PartitionValidationResult(1, List.of()));
 
@@ -261,10 +212,9 @@ class RecordValidationFilterTest {
     @Test
     void requestWithAllPartitionsFailedIsRejectedWithShortCircuitResponseInTransaction() {
         // Given
-        var validator = new RecordValidationFilter(true, produceRequestValidator);
+        var validator = new RecordValidationFilter(produceRequestValidator);
 
         when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
-        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(true);
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
 
         var header = new RequestHeaderData();
@@ -300,10 +250,9 @@ class RecordValidationFilterTest {
     @Test
     void requestWithSomePartitionsFailedIsRejectedWithShortCircuitResponseInTransaction() {
         // Given
-        var validator = new RecordValidationFilter(true, produceRequestValidator);
+        var validator = new RecordValidationFilter(produceRequestValidator);
 
         when(topicValidationResult.isAnyPartitionInvalid()).thenReturn(true);
-        when(topicValidationResult.isAllPartitionsInvalid()).thenReturn(false);
         when(topicValidationResult.getPartitionResult(0)).thenReturn(new PartitionValidationResult(0, List.of(new RecordValidationFailure(0, "record error"))));
 
         var header = new RequestHeaderData();
