@@ -3,8 +3,7 @@
 // con-aws-kms-service-config.adoc
 
 
-Configuration for authenticating with a fixed IAM identity:
-
+. Configuration for authenticating with a fixed IAM identity
 [source, yaml]
 ----
 kms: AwsKmsService                                            # <1>
