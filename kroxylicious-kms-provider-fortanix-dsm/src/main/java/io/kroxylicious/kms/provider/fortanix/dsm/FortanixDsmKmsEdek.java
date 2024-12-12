@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.aws.kms;
+package io.kroxylicious.kms.provider.fortanix.dsm;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -15,9 +15,9 @@ import java.util.Objects;
  * @param kekRef - kek reference.
  * @param edek - edek bytes
  */
-record AwsKmsEdek(String kekRef,
-                  byte[] edek) {
-    AwsKmsEdek {
+record FortanixDsmKmsEdek(String kekRef,
+                          byte[] edek) {
+    FortanixDsmKmsEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
         if (kekRef.isEmpty()) {
@@ -41,7 +41,7 @@ record AwsKmsEdek(String kekRef,
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        AwsKmsEdek that = (AwsKmsEdek) o;
+        FortanixDsmKmsEdek that = (FortanixDsmKmsEdek) o;
         return Objects.equals(kekRef, that.kekRef) && Arrays.equals(edek, that.edek);
     }
 
@@ -62,7 +62,7 @@ record AwsKmsEdek(String kekRef,
      */
     @Override
     public String toString() {
-        return "AwsKmsEdek{" +
+        return "FortanixDsmKmsEdek{" +
                 "keyRef=" + kekRef +
                 ", edek=" + Arrays.toString(edek) +
                 '}';

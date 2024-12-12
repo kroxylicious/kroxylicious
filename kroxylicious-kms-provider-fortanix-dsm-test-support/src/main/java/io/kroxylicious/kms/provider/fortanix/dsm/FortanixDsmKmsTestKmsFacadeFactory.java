@@ -6,13 +6,13 @@
 
 package io.kroxylicious.kms.provider.fortanix.dsm;
 
-import io.kroxylicious.kms.provider.aws.kms.config.Config;
+import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 
 /**
  * Factory for {@link FortanixDsmKmsTestKmsFacade}s.
  */
-public class FortanixDsKmsTestKmsFacadeFactory extends AbstractFortanixDsmKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, FortanixDsmKmsEdek> {
+public class FortanixDsmKmsTestKmsFacadeFactory extends AbstractFortanixDsmKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, FortanixDsmKmsEdek> {
     /**
      * {@inheritDoc}
      */

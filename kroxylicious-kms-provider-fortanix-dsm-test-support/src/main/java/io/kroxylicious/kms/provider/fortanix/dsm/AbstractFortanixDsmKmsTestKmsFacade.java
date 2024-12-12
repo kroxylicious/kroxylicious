@@ -18,18 +18,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.aws.kms.config.Config;
-import io.kroxylicious.kms.provider.aws.kms.model.CreateAliasRequest;
-import io.kroxylicious.kms.provider.aws.kms.model.CreateKeyRequest;
-import io.kroxylicious.kms.provider.aws.kms.model.CreateKeyResponse;
-import io.kroxylicious.kms.provider.aws.kms.model.DeleteAliasRequest;
-import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
-import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
-import io.kroxylicious.kms.provider.aws.kms.model.ErrorResponse;
-import io.kroxylicious.kms.provider.aws.kms.model.RotateKeyRequest;
-import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionRequest;
-import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionResponse;
-import io.kroxylicious.kms.provider.aws.kms.model.UpdateAliasRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.CreateAliasRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.CreateKeyRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.CreateKeyResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.DeleteAliasRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.DescribeKeyRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.DescribeKeyResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.RotateKeyRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.ScheduleKeyDeletionRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.ScheduleKeyDeletionResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.UpdateAliasRequest;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -40,7 +40,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-public abstract class AbstractFortanixKmsTestKmsFacade implements TestKmsFacade<Config, String, FortanixDsmKmsEdek> {
+public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, FortanixDsmKmsEdek> {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int MINIMUM_ALLOWED_EXPIRY_DAYS = 7;
 
@@ -62,7 +62,7 @@ public abstract class AbstractFortanixKmsTestKmsFacade implements TestKmsFacade<
     };
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 
-    protected AbstractFortanixKmsTestKmsFacade() {
+    protected AbstractFortanixDsmKmsTestKmsFacade() {
     }
 
     protected abstract void startKms();
@@ -89,8 +89,8 @@ public abstract class AbstractFortanixKmsTestKmsFacade implements TestKmsFacade<
     protected abstract String getAccessKey();
 
     @Override
-    public final Class<AwsKmsService> getKmsServiceClass() {
-        return AwsKmsService.class;
+    public final Class<FortanixDsmKmsService> getKmsServiceClass() {
+        return FortanixDsmKmsService.class;
     }
 
     @Override
@@ -110,14 +110,14 @@ public abstract class AbstractFortanixKmsTestKmsFacade implements TestKmsFacade<
             var createRequest = createRequest(createKey, TRENT_SERVICE_CREATE_KEY);
             var createKeyResponse = sendRequest(alias, createRequest, CREATE_KEY_RESPONSE_TYPE_REF);
 
-            final CreateAliasRequest createAlias = new CreateAliasRequest(createKeyResponse.keyMetadata().keyId(), AwsKms.ALIAS_PREFIX + alias);
+            final CreateAliasRequest createAlias = new CreateAliasRequest(createKeyResponse.keyMetadata().keyId(), FortanixDsmKms.ALIAS_PREFIX + alias);
             var aliasRequest = createRequest(createAlias, TRENT_SERVICE_CREATE_ALIAS);
             sendRequestExpectingNoResponse(aliasRequest);
         }
 
         @Override
         public DescribeKeyResponse read(String alias) {
-            final DescribeKeyRequest describeKey = new DescribeKeyRequest(AwsKms.ALIAS_PREFIX + alias);
+            final DescribeKeyRequest describeKey = new DescribeKeyRequest(FortanixDsmKms.ALIAS_PREFIX + alias);
             var request = createRequest(describeKey, TRENT_SERVICE_DESCRIBE_KEY);
             return sendRequest(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF);
         }
@@ -131,7 +131,7 @@ public abstract class AbstractFortanixKmsTestKmsFacade implements TestKmsFacade<
 
             sendRequest(keyId, scheduleDeleteRequest, SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF);
 
-            final DeleteAliasRequest deleteAlias = new DeleteAliasRequest(AwsKms.ALIAS_PREFIX + alias);
+            final DeleteAliasRequest deleteAlias = new DeleteAliasRequest(FortanixDsmKms.ALIAS_PREFIX + alias);
             var deleteAliasRequest = createRequest(deleteAlias, TRENT_SERVICE_DELETE_ALIAS);
             sendRequestExpectingNoResponse(deleteAliasRequest);
         }
@@ -159,7 +159,7 @@ public abstract class AbstractFortanixKmsTestKmsFacade implements TestKmsFacade<
             var keyRequest = createRequest(request, TRENT_SERVICE_CREATE_KEY);
             var createKeyResponse = sendRequest(alias, keyRequest, CREATE_KEY_RESPONSE_TYPE_REF);
 
-            final UpdateAliasRequest update = new UpdateAliasRequest(createKeyResponse.keyMetadata().keyId(), AwsKms.ALIAS_PREFIX + alias);
+            final UpdateAliasRequest update = new UpdateAliasRequest(createKeyResponse.keyMetadata().keyId(), FortanixDsmKms.ALIAS_PREFIX + alias);
             var aliasRequest = createRequest(update, TRENT_SERVICE_UPDATE_ALIAS);
             sendRequestExpectingNoResponse(aliasRequest);
         }
@@ -169,8 +169,8 @@ public abstract class AbstractFortanixKmsTestKmsFacade implements TestKmsFacade<
 
             return AwsV4SigningHttpRequestBuilder.newBuilder(getAccessKey(), getSecretKey(), getRegion(), "kms", Instant.now())
                     .uri(getAwsUrl())
-                    .header(AwsKms.CONTENT_TYPE_HEADER, AwsKms.APPLICATION_X_AMZ_JSON_1_1)
-                    .header(AwsKms.X_AMZ_TARGET_HEADER, target)
+                    .header(FortanixDsmKms.CONTENT_TYPE_HEADER, FortanixDsmKms.APPLICATION_X_AMZ_JSON_1_1)
+                    .header(FortanixDsmKms.X_AMZ_TARGET_HEADER, target)
                     .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                     .build();
         }

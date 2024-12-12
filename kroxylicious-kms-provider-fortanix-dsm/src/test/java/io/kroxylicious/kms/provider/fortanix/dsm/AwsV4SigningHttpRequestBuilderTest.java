@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.aws.kms;
+package io.kroxylicious.kms.provider.fortanix.dsm;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -49,7 +49,7 @@ class AwsV4SigningHttpRequestBuilderTest {
     public static final URI TEST_URI = URI.create("http://localhost:1234");
 
     static Stream<Arguments> requestSigning() throws Exception {
-        try (var knownGoodYaml = AwsV4SigningHttpRequestBuilderTest.class.getResourceAsStream("/io/kroxylicious/kms/provider/aws/kms/known_good.yaml")) {
+        try (var knownGoodYaml = AwsV4SigningHttpRequestBuilderTest.class.getResourceAsStream("/io/kroxylicious/kms/provider/fortanix/kms/known_good.yaml")) {
             assertThat(knownGoodYaml).isNotNull();
             var parser = YAML_FACTORY.createParser(knownGoodYaml);
             List<TestDef> testDefs = MAPPER.readValues(parser, TestDef.class).readAll();
@@ -74,7 +74,7 @@ class AwsV4SigningHttpRequestBuilderTest {
         var server = httpServer(testDef.url.getPort(), requestHeaderCatching);
         var client = HttpClient.newHttpClient();
         try {
-            var builder = AwsV4SigningHttpRequestBuilder.newBuilder(testDef.accessKeyId(),
+            var builder = io.kroxylicious.kms.provider.aws.kms.AwsV4SigningHttpRequestBuilder.newBuilder(testDef.accessKeyId(),
                     testDef.secretAccessKey(),
                     testDef.region(),
                     testDef.service(),
@@ -182,13 +182,13 @@ class AwsV4SigningHttpRequestBuilderTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void hostHeader(String name, URI uri, String expected) {
-        var builder = ((AwsV4SigningHttpRequestBuilder) createBuilder(TEST_URI));
+        var builder = ((io.kroxylicious.kms.provider.aws.kms.AwsV4SigningHttpRequestBuilder) createBuilder(TEST_URI));
         assertThat(builder.getHostHeaderForSigning(uri)).isEqualTo(expected);
     }
 
     @NonNull
     private HttpRequest.Builder createBuilder(URI uri) {
-        var builder = AwsV4SigningHttpRequestBuilder.newBuilder(ACCESS_KEY, SECRET_KEY, REGION, SERVICE, Instant.ofEpochMilli(0));
+        var builder = io.kroxylicious.kms.provider.aws.kms.AwsV4SigningHttpRequestBuilder.newBuilder(ACCESS_KEY, SECRET_KEY, REGION, SERVICE, Instant.ofEpochMilli(0));
         if (uri != null) {
             builder.uri(uri);
         }

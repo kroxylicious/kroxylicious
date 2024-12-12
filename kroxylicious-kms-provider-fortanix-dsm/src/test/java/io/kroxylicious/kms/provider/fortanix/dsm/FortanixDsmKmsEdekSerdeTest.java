@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.aws.kms;
+package io.kroxylicious.kms.provider.fortanix.dsm;
 
 import java.nio.ByteBuffer;
 import java.util.stream.Stream;
@@ -19,14 +19,14 @@ import io.kroxylicious.kms.service.Serde;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class AwsKmsEdekSerdeTest {
+class FortanixDsmKmsEdekSerdeTest {
 
     private static final String KEY_REF = "1234abcd-12ab-34cd-56ef-1234567890ab";
-    private final Serde<AwsKmsEdek> serde = AwsKmsEdekSerde.instance();
+    private final Serde<FortanixDsmKmsEdek> serde = FortanixDsmKmsEdekSerde.instance();
 
     @Test
     void shouldRoundTrip() {
-        var edek = new AwsKmsEdek(KEY_REF, new byte[]{ 1, 2, 3 });
+        var edek = new FortanixDsmKmsEdek(KEY_REF, new byte[]{ 1, 2, 3 });
         var buf = ByteBuffer.allocate(serde.sizeOf(edek));
         serde.serialize(edek, buf);
         buf.flip();
@@ -36,7 +36,7 @@ class AwsKmsEdekSerdeTest {
 
     @Test
     void sizeOf() {
-        var edek = new AwsKmsEdek(KEY_REF, new byte[]{ 1 });
+        var edek = new FortanixDsmKmsEdek(KEY_REF, new byte[]{ 1 });
         var expectedSize = 1 + 1 + 36 + 1;
         var size = serde.sizeOf(edek);
         assertThat(size).isEqualTo(expectedSize);

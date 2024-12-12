@@ -4,20 +4,20 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.aws.kms;
+package io.kroxylicious.kms.provider.fortanix.dsm;
 
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class AwsKmsEdekTest {
+class FortanixDsmKmsEdekTest {
     @Test
     @SuppressWarnings("java:S5853")
     void equalsAndHashCode() {
-        var edek1 = new AwsKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        var edek2 = new AwsKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        var keyRefDiffer = new AwsKmsEdek("keyrefX", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        var edekBytesDiffer = new AwsKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 4 });
+        var edek1 = new FortanixDsmKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        var edek2 = new FortanixDsmKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        var keyRefDiffer = new FortanixDsmKmsEdek("keyrefX", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        var edekBytesDiffer = new FortanixDsmKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 4 });
 
         assertThat(edek1)
                 .isEqualTo(edek1)
@@ -40,7 +40,7 @@ class AwsKmsEdekTest {
 
     @Test
     void toStringFormation() {
-        var edek = new AwsKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
-        assertThat(edek).hasToString("AwsKmsEdek{keyRef=keyref, edek=[1, 2, 3]}");
+        var edek = new FortanixDsmKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        assertThat(edek).hasToString("FortanixDsmKmsEdek{keyRef=keyref, edek=[1, 2, 3]}");
     }
 }

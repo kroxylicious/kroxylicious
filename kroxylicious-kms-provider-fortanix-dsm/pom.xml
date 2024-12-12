@@ -18,10 +18,10 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious-kms-provider-aws-kms</artifactId>
+    <artifactId>kroxylicious-kms-provider-fortanix-dsm</artifactId>
 
-    <name>AWS KMS</name>
-    <description>A KMS provider backed by a remote instance of AWS KMS</description>
+    <name>Fortanix DSM</name>
+    <description>A KMS provider backed by a remote instance of Fortanix DSM</description>
 
     <dependencies>
         <dependency>
@@ -94,6 +94,10 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-test-support</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-provider-aws-kms</artifactId>
         </dependency>
     </dependencies>
 </project>

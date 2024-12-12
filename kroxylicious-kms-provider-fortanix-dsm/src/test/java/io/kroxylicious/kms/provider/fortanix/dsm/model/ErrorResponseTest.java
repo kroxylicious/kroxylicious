@@ -4,9 +4,11 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.aws.kms.model;
+package io.kroxylicious.kms.provider.fortanix.dsm.model;
 
 import org.junit.jupiter.api.Test;
+
+import io.kroxylicious.kms.provider.aws.kms.model.ErrorResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

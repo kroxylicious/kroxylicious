@@ -22,7 +22,7 @@ import static org.apache.kafka.common.utils.Utils.utf8;
 import static org.apache.kafka.common.utils.Utils.utf8Length;
 
 /**
- * Serde for the AwsKmsEdek.
+ * Serde for the FortanixDsmKmsEdek.
  * <br/>
  * The serialization structure is as follows:
  * <ol>
@@ -33,21 +33,21 @@ import static org.apache.kafka.common.utils.Utils.utf8Length;
  * </ol>
  * @see <a href="https://protobuf.dev/programming-guides/encoding/">Protobuf Encodings</a>
  */
-class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
+class FortanixDsmKmsEdekSerde implements Serde<FortanixDsmKmsEdek> {
 
-    private static final AwsKmsEdekSerde INSTANCE = new AwsKmsEdekSerde();
+    private static final FortanixDsmKmsEdekSerde INSTANCE = new FortanixDsmKmsEdekSerde();
 
     public static final byte VERSION_0 = (byte) 0;
 
-    static Serde<AwsKmsEdek> instance() {
+    static Serde<FortanixDsmKmsEdek> instance() {
         return INSTANCE;
     }
 
-    private AwsKmsEdekSerde() {
+    private FortanixDsmKmsEdekSerde() {
     }
 
     @Override
-    public AwsKmsEdek deserialize(@NonNull ByteBuffer buffer) {
+    public FortanixDsmKmsEdek deserialize(@NonNull ByteBuffer buffer) {
         Objects.requireNonNull(buffer);
 
         var version = buffer.get();
@@ -62,11 +62,11 @@ class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
         var edek = new byte[edekLength];
         buffer.get(edek);
 
-        return new AwsKmsEdek(kekRef, edek);
+        return new FortanixDsmKmsEdek(kekRef, edek);
     }
 
     @Override
-    public int sizeOf(AwsKmsEdek edek) {
+    public int sizeOf(FortanixDsmKmsEdek edek) {
         Objects.requireNonNull(edek);
         int kekRefLen = utf8Length(edek.kekRef());
         return 1 // version byte
@@ -76,7 +76,7 @@ class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
     }
 
     @Override
-    public void serialize(AwsKmsEdek edek, @NonNull ByteBuffer buffer) {
+    public void serialize(FortanixDsmKmsEdek edek, @NonNull ByteBuffer buffer) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(buffer);
         var keyRefBuf = edek.kekRef().getBytes(StandardCharsets.UTF_8);

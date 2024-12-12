@@ -16,8 +16,8 @@ import org.testcontainers.utility.DockerImageName;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public class FortanixDKmsTestKmsFacade extends AbstractFortanixDsmKmsTestKmsFacade {
-    private static final Logger LOG = LoggerFactory.getLogger(FortanixDKmsTestKmsFacade.class);
+public class FortanixDsmKmsTestKmsFacade extends AbstractFortanixDsmKmsTestKmsFacade {
+    private static final Logger LOG = LoggerFactory.getLogger(FortanixDsmKmsTestKmsFacade.class);
     public static final DockerImageName LOCALSTACK_IMAGE = DockerImageName.parse("localstack/localstack:3.5");
     private LocalStackContainer localStackContainer;
 

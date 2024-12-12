@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.aws.kms;
+package io.kroxylicious.kms.provider.fortanix.dsm;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -26,14 +26,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.aws.kms.model.DecryptRequest;
-import io.kroxylicious.kms.provider.aws.kms.model.DecryptResponse;
-import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
-import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
-import io.kroxylicious.kms.provider.aws.kms.model.ErrorResponse;
-import io.kroxylicious.kms.provider.aws.kms.model.GenerateDataKeyRequest;
-import io.kroxylicious.kms.provider.aws.kms.model.GenerateDataKeyResponse;
-import io.kroxylicious.kms.provider.aws.kms.model.KeyMetadata;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.DescribeKeyRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.DescribeKeyResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateDataKeyRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateDataKeyResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.KeyMetadata;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
@@ -52,7 +52,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * The approach taken by this implementation is to make direct calls to the AWS KMS API over REST (rather than relying upon the AWS KMS SDK).  This
  * is done in order to avoid the (significant) dependencies of the AWS SDK to the class-path.
  */
-public class AwsKms implements Kms<String, AwsKmsEdek> {
+public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
     static final String APPLICATION_X_AMZ_JSON_1_1 = "application/x-amz-json-1.1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -83,7 +83,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     private final URI awsUrl;
 
-    AwsKms(URI awsUrl, String accessKey, String secretKey, String region, Duration timeout, SSLContext sslContext) {
+    FortanixDsmKms(URI awsUrl, String accessKey, String secretKey, String region, Duration timeout, SSLContext sslContext) {
         Objects.requireNonNull(awsUrl);
         Objects.requireNonNull(accessKey);
         Objects.requireNonNull(secretKey);
@@ -114,13 +114,13 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<DekPair<AwsKmsEdek>> generateDekPair(@NonNull String kekRef) {
+    public CompletionStage<DekPair<FortanixDsmKmsEdek>> generateDekPair(@NonNull String kekRef) {
         final GenerateDataKeyRequest generateRequest = new GenerateDataKeyRequest(kekRef, "AES_256");
         var request = createRequest(generateRequest, TRENT_SERVICE_GENERATE_DATA_KEY);
         return sendAsync(kekRef, request, GENERATE_DATA_KEY_RESPONSE_TYPE_REF, UnknownKeyException::new)
                 .thenApply(response -> {
                     var key = DestroyableRawSecretKey.takeOwnershipOf(response.plaintext(), AES_KEY_ALGO);
-                    return new DekPair<>(new AwsKmsEdek(kekRef, response.ciphertextBlob()), key);
+                    return new DekPair<>(new FortanixDsmKmsEdek(kekRef, response.ciphertextBlob()), key);
                 });
     }
 
@@ -131,7 +131,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull AwsKmsEdek edek) {
+    public CompletionStage<SecretKey> decryptEdek(@NonNull FortanixDsmKmsEdek edek) {
         final DecryptRequest decryptRequest = new DecryptRequest(edek.kekRef(), edek.edek());
         var request = createRequest(decryptRequest, TRENT_SERVICE_DECRYPT);
         return sendAsync(edek.kekRef(), request, DECRYPT_RESPONSE_TYPE_REF, UnknownKeyException::new)
@@ -199,8 +199,8 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
 
     @NonNull
     @Override
-    public Serde<AwsKmsEdek> edekSerde() {
-        return AwsKmsEdekSerde.instance();
+    public Serde<FortanixDsmKmsEdek> edekSerde() {
+        return FortanixDsmKmsEdekSerde.instance();
     }
 
     @NonNull

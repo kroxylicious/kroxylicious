@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.aws.kms;
+package io.kroxylicious.kms.provider.fortanix.dsm;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -22,7 +22,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
-import io.kroxylicious.kms.provider.aws.kms.config.Config;
+import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.KmsException;
@@ -33,7 +33,7 @@ import io.kroxylicious.proxy.config.secret.InlinePassword;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit test for {@link AwsKms}.  See also io.kroxylicious.kms.service.KmsIT.
+ * Unit test for {@link FortanixDsmKms}.  See also io.kroxylicious.kms.service.KmsIT.
  */
 class AwsKmsTest {
 
@@ -109,7 +109,7 @@ class AwsKmsTest {
             assertThat(aliasStage)
                     .succeedsWithin(Duration.ofSeconds(5))
                     .extracting(DekPair::edek)
-                    .isEqualTo(new AwsKmsEdek("alias", ciphertextBlobBytes));
+                    .isEqualTo(new FortanixDsmKmsEdek("alias", ciphertextBlobBytes));
 
             assertThat(aliasStage)
                     .succeedsWithin(Duration.ofSeconds(5))
@@ -132,18 +132,18 @@ class AwsKmsTest {
         var expectedKey = DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES");
 
         withMockAwsWithSingleResponse(response, kms -> {
-            Assertions.assertThat(kms.decryptEdek(new AwsKmsEdek("kek", "unused".getBytes(StandardCharsets.UTF_8))))
+            Assertions.assertThat(kms.decryptEdek(new FortanixDsmKmsEdek("kek", "unused".getBytes(StandardCharsets.UTF_8))))
                     .succeedsWithin(Duration.ofSeconds(5))
                     .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
                     .matches(key -> SecretKeyUtils.same(key, expectedKey));
         });
     }
 
-    void withMockAwsWithSingleResponse(String response, Consumer<AwsKms> consumer) {
+    void withMockAwsWithSingleResponse(String response, Consumer<FortanixDsmKms> consumer) {
         withMockAwsWithSingleResponse(response, 200, consumer);
     }
 
-    void withMockAwsWithSingleResponse(String response, int statusCode, Consumer<AwsKms> consumer) {
+    void withMockAwsWithSingleResponse(String response, int statusCode, Consumer<FortanixDsmKms> consumer) {
         HttpHandler handler = statusCode >= 500 ? new ErrorResponse(statusCode) : new StaticResponse(statusCode, response);
         HttpServer httpServer = httpServer(handler);
         try {

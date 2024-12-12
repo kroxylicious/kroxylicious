@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.aws.kms;
+package io.kroxylicious.kms.provider.fortanix.dsm;
 
 import java.util.Optional;
 
@@ -14,22 +14,22 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class AwsKmsServiceTest {
-    private FortanixDsmKmsService awsKmsService;
+class FortanixDsmKmsServiceTest {
+    private FortanixDsmKmsService fortanixDsmKmsService;
 
     @BeforeEach
     void beforeEach() {
-        awsKmsService = new FortanixDsmKmsService();
+        fortanixDsmKmsService = new FortanixDsmKmsService();
     }
 
     @AfterEach
     void afterEach() {
-        Optional.ofNullable(awsKmsService).ifPresent(FortanixDsmKmsService::close);
+        Optional.ofNullable(fortanixDsmKmsService).ifPresent(FortanixDsmKmsService::close);
     }
 
     @Test
     void detectsMissingInitialization() {
-        assertThatThrownBy(() -> awsKmsService.buildKms())
+        assertThatThrownBy(() -> fortanixDsmKmsService.buildKms())
                 .isInstanceOf(NullPointerException.class);
     }
 }
