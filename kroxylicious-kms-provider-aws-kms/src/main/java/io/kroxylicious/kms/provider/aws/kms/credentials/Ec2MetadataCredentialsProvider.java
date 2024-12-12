@@ -155,9 +155,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
         return witness.minimalCompletionStage();
     }
 
-    private void scheduleCredentialRefresh(Instant credentialExpiration) {
-        var delay = (long) Math.max(0, this.lifetimeFactor * (credentialExpiration.toEpochMilli() - systemClock.millis()));
-        LOGGER.debug("Scheduling preemptive refresh of AWS credentials in {}ms", delay);
+    private void scheduleCredentialRefresh(long delay) {
+        LOGGER.debug("Scheduling refresh of AWS credentials in {}ms", delay);
 
         var refreshedCredFuture = new CompletableFuture<SecurityCredentials>();
         executorService.schedule(() -> {
@@ -197,22 +196,23 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     private void propagateResultToFuture(SecurityCredentials credentials, Throwable t, CompletableFuture<SecurityCredentials> target) {
+        final long nextRefresh;
         if (t != null) {
             LOGGER.warn("Refresh of EC2 credentials failed. Is IAM role {} assigned to this EC2 instance?", config.iamRole(), t);
             tokenRefreshErrorCount.incrementAndGet();
             target.completeExceptionally(t);
 
-            var refreshTimeWithBackoff = systemClock.instant().plusMillis(backoff.backoff(tokenRefreshErrorCount.get()));
-            scheduleCredentialRefresh(refreshTimeWithBackoff);
-
+            nextRefresh = systemClock.instant().plusMillis(backoff.backoff(tokenRefreshErrorCount.get())).toEpochMilli();
         }
         else {
-            LOGGER.debug("Obtained AWS credentials from EC2 metadata using IAM role {}, expiry {}", config.iamRole(), credentials.expiration());
-            scheduleCredentialRefresh(credentials.expiration());
+            var expiration = credentials.expiration();
+            LOGGER.debug("Obtained AWS credentials from EC2 metadata using IAM role {}, expiry {}", config.iamRole(), expiration);
+            nextRefresh = (long) Math.max(0, this.lifetimeFactor * (expiration.toEpochMilli() - systemClock.millis()));
 
             tokenRefreshErrorCount.set(0);
             target.complete(credentials);
         }
+        scheduleCredentialRefresh(nextRefresh);
     }
 
     private CompletableFuture<HttpResponse<String>> getToken() {
