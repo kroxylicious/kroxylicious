@@ -219,6 +219,7 @@ class Ec2MetadataCredentialsProviderTest {
                             .willReturn(WireMock.aResponse()
                                     .withBody(toJson(refreshed))));
 
+            // advance time so that the initial credential has past its expiration.
             var timeBeyondInitialExpiry = initial.expiration().plusSeconds(1);
             when(clock.instant()).thenReturn(timeBeyondInitialExpiry);
 
