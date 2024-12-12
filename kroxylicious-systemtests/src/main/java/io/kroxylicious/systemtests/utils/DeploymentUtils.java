@@ -18,6 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -71,13 +72,14 @@ public class DeploymentUtils {
      * @param namespaceName the namespace name
      * @param deploymentName the deployment name
      */
-    public static void waitForDeploymentReady(String namespaceName, String deploymentName) {
+    public static boolean waitForDeploymentReady(String namespaceName, String deploymentName) {
         LOGGER.info("Waiting for Deployment: {}/{} to be ready", namespaceName, deploymentName);
 
         await().atMost(READINESS_TIMEOUT).pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS)
                 .until(() -> kubeClient(namespaceName).isDeploymentReady(namespaceName, deploymentName));
 
         LOGGER.info("Deployment: {}/{} is ready", namespaceName, deploymentName);
+        return true;
     }
 
     /**
@@ -128,7 +130,7 @@ public class DeploymentUtils {
      */
     public static boolean checkLoadBalancerIsWorking(String namespace) {
         Service service = new ServiceBuilder()
-                .withKind(Constants.SERVICE_KIND)
+                .withKind(Constants.SERVICE)
                 .withNewMetadata()
                 .withName(TEST_LOAD_BALANCER_NAME)
                 .withNamespace(namespace)
@@ -167,7 +169,7 @@ public class DeploymentUtils {
      * @param podName the pod name
      * @param timeout the timeout
      */
-    public static void waitForDeploymentRunning(String namespaceName, String podName, Duration timeout) {
+    public static boolean waitForDeploymentRunning(String namespaceName, String podName, Duration timeout) {
         LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, podName);
         waitForLeavingPendingPhase(namespaceName, podName);
         await().alias("await pod to be running or succeeded")
@@ -175,6 +177,21 @@ public class DeploymentUtils {
                 .pollInterval(Duration.ofMillis(500))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
                         && kubeClient().isDeploymentRunning(namespaceName, podName));
+        return true;
+    }
+
+    public static boolean waitForDeploymentRunning(String namespaceName, String deploymentName, int expectedPods, Duration timeout) {
+        LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, deploymentName);
+        List<Pod> pods = kubeClient().listPods(namespaceName, kubeClient().getPodSelectorFromDeployment(namespaceName, deploymentName));
+
+        AtomicInteger runningPods = new AtomicInteger();
+        pods.forEach(p -> {
+            if (waitForDeploymentRunning(namespaceName, p.getMetadata().getName(), timeout)) {
+                runningPods.getAndIncrement();
+            }
+        });
+
+        return runningPods.get() == expectedPods;
     }
 
     private static void waitForLeavingPendingPhase(String namespaceName, String podName) {
@@ -273,6 +290,11 @@ public class DeploymentUtils {
         }
     }
 
+    public static String getPodName(String namespace, String name) {
+        List<Pod> pods = kubeClient(namespace).listPods(namespace, kubeClient().getPodSelectorFromDeployment(namespace, name));
+        return pods.get(pods.size() - 1).getMetadata().getName();
+    }
+
     private record TimeoutLoggingEvaluationListener(Supplier<String> messageSupplier) implements ConditionEvaluationListener<PodStatus> {
         @Override
         public void onTimeout(TimeoutEvent timeoutEvent) {
@@ -326,5 +348,42 @@ public class DeploymentUtils {
         String address = route.getSpec().getHost();
         LOGGER.debug("Deduced route address for service: {} as: {}", serviceName, address);
         return address;
+    }
+
+    /**
+     * Gets number of replicas.
+     *
+     * @param deploymentNamespace the deployment namespace
+     * @param deploymentName the deployment name
+     * @return the number of replicas
+     */
+    public static int getNumberOfReplicas(String deploymentNamespace, String deploymentName) {
+        LOGGER.info("Getting number of replicas..");
+        return kubeClient().getDeployment(deploymentNamespace, deploymentName).getStatus().getReplicas();
+    }
+
+    /**
+     * Scale replicas to.
+     *
+     * @param deploymentNamespace the deployment namespace
+     * @param deploymentName the deployment name
+     * @param scaledTo the number of replicas to scale up/down
+     * @param timeout the timeout
+     */
+    public static void scaleReplicasTo(String deploymentNamespace, String deploymentName, int scaledTo, Duration timeout) {
+        LOGGER.info("Scaling number of replicas to {}..", scaledTo);
+        kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(deploymentName).scale(scaledTo);
+        await().atMost(timeout).pollInterval(Duration.ofSeconds(1))
+                .until(() -> getNumberOfReplicas(deploymentNamespace, deploymentName) == scaledTo
+                        && kubeClient().isDeploymentReady(deploymentNamespace, deploymentName));
+    }
+
+    /**
+     * Get cluster IP
+     *
+     * @return the cluster IP
+     */
+    public static String getClusterIP(String deploymentNamespace, String deploymentName) {
+        return kubeClient().getService(deploymentNamespace, deploymentName).getSpec().getClusterIP();
     }
 }

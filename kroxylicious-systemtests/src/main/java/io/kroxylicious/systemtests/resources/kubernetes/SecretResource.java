@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.resources.kroxylicious;
+package io.kroxylicious.systemtests.resources.kubernetes;
 
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.Secret;
@@ -23,7 +23,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class SecretResource implements ResourceType<Secret> {
     @Override
     public String getKind() {
-        return Constants.SECRET_KIND;
+        return Constants.SECRET;
     }
 
     @Override

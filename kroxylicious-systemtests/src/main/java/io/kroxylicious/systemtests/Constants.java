@@ -8,169 +8,188 @@ package io.kroxylicious.systemtests;
 
 import java.time.Duration;
 
+import io.kroxylicious.systemtests.utils.TestUtils;
+
 /**
- * The interface Constants.
+ * The type Constants.
  */
-public interface Constants {
+public final class Constants {
+
+    private Constants() {
+    }
+
     /**
      * The deployment name for kroxylicous
      */
-    String KROXY_DEPLOYMENT_NAME = "kroxylicious-proxy";
+    public static final String KROXYLICIOUS = "kroxylicious";
+    public static final String KROXY_DEPLOYMENT_NAME = "kroxylicious-proxy";
+    public static final String KO_DEPLOYMENT_NAME = "kroxylicious-operator";
+    public static final String KO_NAMESPACE = "kroxylicious-operator";
+
     /**
      * The service name for kroxylicious. Used for the bootstrap url
      */
-    String KROXY_SERVICE_NAME = "kroxylicious-service";
+    public static final String KROXY_SERVICE_NAME = "kroxylicious-service";
     /**
      * The constant KROXY_CONFIG_NAME.
      */
-    String KROXY_CONFIG_NAME = "kroxylicious-config";
+    public static final String KROXY_CONFIG_NAME = "kroxylicious-config";
     /**
      * Strimzi cluster operator deployment name
      */
-    String STRIMZI_DEPLOYMENT_NAME = "strimzi-cluster-operator";
+    public static final String STRIMZI_DEPLOYMENT_NAME = "strimzi-cluster-operator";
     /**
      * The default namespace used for kubernetes deployment
      */
-    String KAFKA_DEFAULT_NAMESPACE = "kafka";
+    public static final String KAFKA_DEFAULT_NAMESPACE = "kafka";
 
     /**
      * The cert-manager namespace for kubernetes deployment
      */
-    String CERT_MANAGER_NAMESPACE = "cert-manager";
+    public static final String CERT_MANAGER_NAMESPACE = "cert-manager";
 
     /**
      * API versions of Strimzi CustomResources
      */
-    String KAFKA_API_VERSION_V1BETA2 = "kafka.strimzi.io/v1beta2";
+    public static final String KAFKA_API_VERSION_V1BETA2 = "kafka.strimzi.io/v1beta2";
 
     /**
      * Kind of Strimzi CustomResources
      */
-    String KAFKA_KIND = "Kafka";
+    public static final String KAFKA_KIND = "Kafka";
 
     /**
      * Kind of kafka users
      */
-    String KAFKA_USER_KIND = "KafkaUser";
+    public static final String KAFKA_USER_KIND = "KafkaUser";
     /**
      * Kind of kafka node pools
      */
-    String KAFKA_NODE_POOL_KIND = "KafkaNodePool";
-    /**
-     * Kind of pods
-     */
-    String POD_KIND = "Pod";
-
-    /**
-     * Kind of config maps
-     */
-    String CONFIG_MAP_KIND = "ConfigMap";
-
-    /**
-     * Kind of jobs
-     */
-    String JOB = "Job";
-
-    /**
-     * Kind of services
-     */
-    String SERVICE_KIND = "Service";
-
-    /**
-     * Kind of secret
-     */
-    String SECRET_KIND = "Secret";
+    public static final String KAFKA_NODE_POOL_KIND = "KafkaNodePool";
 
     /**
      * Load balancer type name.
      */
-    String LOAD_BALANCER_TYPE = "LoadBalancer";
+    public static final String LOAD_BALANCER_TYPE = "LoadBalancer";
 
     /**
      * Listener names for Kafka cluster
      */
-    String PLAIN_LISTENER_NAME = "plain";
+    public static final String PLAIN_LISTENER_NAME = "plain";
     /**
      * Listener name for tls
      */
-    String TLS_LISTENER_NAME = "tls";
+    public static final String TLS_LISTENER_NAME = "tls";
 
     /**
      * Strimzi related labels and annotations
      */
-    String STRIMZI_DOMAIN = "strimzi.io/";
+    public static final String STRIMZI_DOMAIN = "strimzi.io/";
     /**
      * Strimzi cluster label
      */
-    String STRIMZI_CLUSTER_LABEL = STRIMZI_DOMAIN + "cluster";
+    public static final String STRIMZI_CLUSTER_LABEL = STRIMZI_DOMAIN + "cluster";
 
     /**
      * Polls and timeouts constants
      */
-    Duration POLL_INTERVAL_FOR_RESOURCE_READINESS = Duration.ofSeconds(2);
+    public static final Duration POLL_INTERVAL_FOR_RESOURCE_READINESS = Duration.ofSeconds(2);
     /**
      * Poll interval for resource deletion
      */
-    Duration POLL_INTERVAL_FOR_RESOURCE_DELETION = Duration.ofSeconds(1);
+    public static final Duration POLL_INTERVAL_FOR_RESOURCE_DELETION = Duration.ofSeconds(1);
 
     /**
      * Global timeout
      */
-    Duration GLOBAL_TIMEOUT = Duration.ofMinutes(5);
+    public static final Duration GLOBAL_TIMEOUT = Duration.ofMinutes(5);
     /**
      * Global Poll interval
      */
-    Duration GLOBAL_POLL_INTERVAL = Duration.ofSeconds(1);
-    Duration RECONCILIATION_INTERVAL = Duration.ofSeconds(30);
-    Duration GLOBAL_POLL_INTERVAL_MEDIUM = Duration.ofSeconds(10);
-    Duration GLOBAL_STATUS_TIMEOUT = Duration.ofMinutes(3);
-    Duration GLOBAL_TIMEOUT_SHORT = Duration.ofMinutes(2);
+    public static final Duration GLOBAL_POLL_INTERVAL = Duration.ofSeconds(1);
+    public static final Duration RECONCILIATION_INTERVAL = Duration.ofSeconds(30);
+    public static final Duration GLOBAL_POLL_INTERVAL_MEDIUM = Duration.ofSeconds(10);
+    public static final Duration GLOBAL_STATUS_TIMEOUT = Duration.ofMinutes(3);
+    public static final Duration GLOBAL_TIMEOUT_SHORT = Duration.ofMinutes(2);
+    public static final Duration KO_OPERATION_TIMEOUT_DEFAULT = Duration.ofMinutes(5);
+    public static final Duration KO_OPERATION_TIMEOUT_SHORT = Duration.ofSeconds(30);
+    public static final Duration KO_OPERATION_TIMEOUT_MEDIUM = Duration.ofMinutes(2);
 
     /**
      * Kubernetes related constants
      */
-    String DEPLOYMENT = "Deployment";
+    public static final String DEPLOYMENT = "Deployment";
+    public static final String DEPLOYMENT_TYPE = "deployment-type";
+    public static final String CUSTOM_RESOURCE_DEFINITION = "CustomResourceDefinition";
+    public static final String CLUSTER_ROLE = "ClusterRole";
+    public static final String CLUSTER_ROLE_BINDING = "ClusterRoleBinding";
+    public static final String CONFIG_MAP = "ConfigMap";
+    public static final String CUSTOM_RESOURCE_DEFINITION_SHORT = "Crd";
+    public static final String JOB = "Job";
+    public static final String NAMESPACE = "Namespace";
+    public static final String POD = "Pod";
+    public static final String ROLE = "Role";
+    public static final String SECRET = "Secret";
+    public static final String SERVICE = "Service";
+    public static final String SERVICE_ACCOUNT = "ServiceAccount";
 
     /**
      * Test clients image url
      */
-    String TEST_CLIENTS_IMAGE = "quay.io/strimzi-test-clients/test-clients:latest-kafka-" + Environment.KAFKA_VERSION;
-    String KCAT_CLIENT_IMAGE = "quay.io/kroxylicious/kcat:1.7.1";
-    String KAF_CLIENT_IMAGE = "quay.io/kroxylicious/kaf:v0.2.7";
+    public static final String TEST_CLIENTS_IMAGE = "quay.io/strimzi-test-clients/test-clients:latest-kafka-" + Environment.KAFKA_VERSION;
+    public static final String KCAT_CLIENT_IMAGE = "quay.io/kroxylicious/kcat:1.7.1";
+    public static final String KAF_CLIENT_IMAGE = "quay.io/kroxylicious/kaf:v0.2.7";
 
     /**
      * The cert manager url to install it on kubernetes
      */
-    String CERT_MANAGER_URL = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml";
+    public static final String CERT_MANAGER_URL = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml";
     /**
      * kafka consumer client label to identify the consumer test client
      */
-    String KAFKA_CONSUMER_CLIENT_LABEL = "kafka-consumer-client";
+    public static final String KAFKA_CONSUMER_CLIENT_LABEL = "kafka-consumer-client";
     /**
      * kafka producer client label to identify the producer test client
      */
-    String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
+    public static final String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
     /**
      * kafka admin client label to identify the admin test client
      */
-    String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
+    public static final String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
     /**
      * Image pull policies
      */
-    String PULL_IMAGE_IF_NOT_PRESENT = "IfNotPresent";
-    String PULL_IMAGE_ALWAYS = "Always";
+    public static final String PULL_IMAGE_IF_NOT_PRESENT = "IfNotPresent";
+    public static final String PULL_IMAGE_ALWAYS = "Always";
 
     /**
      * Restart policies
      */
-    String RESTART_POLICY_ONFAILURE = "OnFailure";
-    String RESTART_POLICY_NEVER = "Never";
+    public static final String RESTART_POLICY_ONFAILURE = "OnFailure";
+    public static final String RESTART_POLICY_NEVER = "Never";
 
     /**
      * Scraper pod labels
      */
-    String SCRAPER_LABEL_KEY = "user-test-app";
-    String SCRAPER_LABEL_VALUE = "scraper";
-    String SCRAPER_NAME = "Scraper";
-    String DEPLOYMENT_TYPE_LABEL_KEY = "deployment-type";
+    public static final String SCRAPER_LABEL_KEY = "user-test-app";
+    public static final String SCRAPER_LABEL_VALUE = "scraper";
+    public static final String SCRAPER_NAME = "Scraper";
+    public static final String DEPLOYMENT_TYPE_LABEL_KEY = "deployment-type";
+
+    /**
+     * Basic paths to examples
+     */
+    public static final String PATH_TO_OPERATOR = TestUtils.USER_PATH + "/../kroxylicious-operator";
+    public static final String PATH_TO_OPERATOR_EXAMPLES = PATH_TO_OPERATOR + "/examples";
+    public static final String PATH_TO_OPERATOR_INSTALL_FILES = PATH_TO_OPERATOR + "/install";
+
+    /**
+     * Auxiliary variable for kroxylicious operator deployment
+     */
+    public static final String WATCH_ALL_NAMESPACES = "*";
+
+    /**
+     * Auxiliary variables for storing data across our tests
+     */
+    public static final String PREPARE_OPERATOR_ENV_KEY = "PREPARE_OPERATOR_ENV";
 }

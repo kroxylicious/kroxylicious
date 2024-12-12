@@ -76,6 +76,7 @@
         <netty-leak-detector-junit-extension.version>0.0.5</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.10.0</wiremock.version>
         <docker-java.version>3.4.0</docker-java.version>
+        <test-frame.version>0.8.0</test-frame.version>
     </properties>
 
     <name>Parent POM</name>
@@ -430,6 +431,16 @@
                 <groupId>io.github.nettyplus</groupId>
                 <artifactId>netty-leak-detector-junit-extension</artifactId>
                 <version>${netty-leak-detector-junit-extension.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.skodjob</groupId>
+                <artifactId>test-frame-common</artifactId>
+                <version>${test-frame.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.skodjob</groupId>
+                <artifactId>test-frame-kubernetes</artifactId>
+                <version>${test-frame.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -950,6 +961,7 @@
                                 </goals>
                                 <phase>process-sources</phase>
                                 <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
                                     <javaExclusionPattern>(?sm)^[ \t]*// *@formatter:off.*?^[ \t]*// *@formatter:on</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.sourceDirectory}</directory>
@@ -963,6 +975,7 @@
                                 </goals>
                                 <phase>process-test-sources</phase>
                                 <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
                                     <javaExclusionPattern>(?sm)^[ \t]*// *@formatter:off.*?^[ \t]*// *@formatter:on</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.testSourceDirectory}</directory>
@@ -1072,6 +1085,7 @@
                                 </goals>
                                 <phase>process-sources</phase>
                                 <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
                                     <javaExclusionPattern>(?sm)^[ \t]*// *@formatter:off.*?^[ \t]*// *@formatter:on</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.sourceDirectory}</directory>
@@ -1085,6 +1099,7 @@
                                 </goals>
                                 <phase>process-test-sources</phase>
                                 <configuration>
+                                    <!--suppress UnresolvedMavenProperty -->
                                     <javaExclusionPattern>(?sm)^[ \t]*// *@formatter:off.*?^[ \t]*// *@formatter:on</javaExclusionPattern>
                                     <directories>
                                         <directory>${project.build.testSourceDirectory}</directory>

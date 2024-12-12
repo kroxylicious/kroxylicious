@@ -12,8 +12,8 @@ import io.strimzi.api.kafka.model.user.KafkaUser;
 import io.strimzi.api.kafka.model.user.KafkaUserList;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.resources.ResourceManager;
 import io.kroxylicious.systemtests.resources.ResourceType;
-import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 

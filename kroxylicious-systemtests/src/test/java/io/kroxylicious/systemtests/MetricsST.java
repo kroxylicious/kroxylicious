@@ -12,7 +12,6 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +20,6 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.ComponentType;
-import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.metrics.MetricsCollector;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
@@ -39,7 +37,6 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 /**
  * This test suite is designed for testing metrics exposed by kroxylicious.
  */
-@ExtendWith(KroxyliciousExtension.class)
 class MetricsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsST.class);
     private final String clusterName = "my-cluster";

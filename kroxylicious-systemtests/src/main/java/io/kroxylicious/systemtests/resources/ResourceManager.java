@@ -4,11 +4,17 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.resources.manager;
+package io.kroxylicious.systemtests.resources;
 
 import java.time.Duration;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Stack;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,17 +29,22 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.ConditionStatus;
 import io.kroxylicious.systemtests.k8s.HelmClient;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
-import io.kroxylicious.systemtests.resources.ResourceCondition;
-import io.kroxylicious.systemtests.resources.ResourceOperation;
-import io.kroxylicious.systemtests.resources.ResourceType;
-import io.kroxylicious.systemtests.resources.kroxylicious.ConfigMapResource;
-import io.kroxylicious.systemtests.resources.kroxylicious.DeploymentResource;
-import io.kroxylicious.systemtests.resources.kroxylicious.SecretResource;
-import io.kroxylicious.systemtests.resources.kroxylicious.ServiceResource;
+import io.kroxylicious.systemtests.resources.kubernetes.ClusterOperatorCustomResourceDefinition;
+import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleBindingResource;
+import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleResource;
+import io.kroxylicious.systemtests.resources.kubernetes.ConfigMapResource;
+import io.kroxylicious.systemtests.resources.kubernetes.DeploymentResource;
+import io.kroxylicious.systemtests.resources.kubernetes.NamespaceResource;
+import io.kroxylicious.systemtests.resources.kubernetes.RoleResource;
+import io.kroxylicious.systemtests.resources.kubernetes.SecretResource;
+import io.kroxylicious.systemtests.resources.kubernetes.ServiceAccountResource;
+import io.kroxylicious.systemtests.resources.kubernetes.ServiceResource;
+import io.kroxylicious.systemtests.resources.operator.BundleResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaUserResource;
 
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -43,6 +54,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class ResourceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
     private static ResourceManager instance;
+    private static String koDeploymentName = Constants.KO_DEPLOYMENT_NAME;
+    private static ThreadLocal<ExtensionContext> testContext = new ThreadLocal<>();
+    public static final Map<String, Stack<ResourceItem>> STORED_RESOURCES = new LinkedHashMap<>();
 
     private ResourceManager() {
     }
@@ -57,6 +71,14 @@ public class ResourceManager {
             instance = new ResourceManager();
         }
         return instance;
+    }
+
+    public static void setTestContext(ExtensionContext context) {
+        testContext.set(context);
+    }
+
+    public static ExtensionContext getTestContext() {
+        return testContext.get();
     }
 
     /**
@@ -75,8 +97,23 @@ public class ResourceManager {
             new ServiceResource(),
             new ConfigMapResource(),
             new DeploymentResource(),
-            new SecretResource()
+            new SecretResource(),
+            new BundleResource(),
+            new ClusterRoleBindingResource(),
+            new RoleResource(),
+            new ClusterRoleResource(),
+            new NamespaceResource(),
+            new ServiceAccountResource(),
+            new ClusterOperatorCustomResourceDefinition()
     };
+
+    public static String getKoDeploymentName() {
+        return koDeploymentName;
+    }
+
+    public static void setKoDeploymentName(String newName) {
+        koDeploymentName = newName;
+    }
 
     /**
      * Create resource without wait.
@@ -110,6 +147,14 @@ public class ResourceManager {
 
             assert type != null;
             type.create(resource);
+
+            synchronized (this) {
+                STORED_RESOURCES.computeIfAbsent(getTestContext().getDisplayName(), k -> new Stack<>());
+                STORED_RESOURCES.get(getTestContext().getDisplayName()).push(
+                        new ResourceItem<T>(
+                                () -> deleteResource(resource),
+                                resource));
+            }
         }
 
         if (waitReady) {
@@ -155,6 +200,71 @@ public class ResourceManager {
             catch (Exception e) {
                 LOGGER.error("Failed to delete {} {}/{}", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName(), e);
             }
+        }
+    }
+
+    public void deleteResources() {
+        LOGGER.info(String.join("", Collections.nCopies(76, "#")));
+        if (!STORED_RESOURCES.containsKey(getTestContext().getDisplayName()) || STORED_RESOURCES.get(getTestContext().getDisplayName()).isEmpty()) {
+            LOGGER.info("In context {} is everything deleted", getTestContext().getDisplayName());
+        }
+        else {
+            LOGGER.info("Deleting all resources for {}", getTestContext().getDisplayName());
+        }
+
+        // if stack is created for specific test suite or test case
+        AtomicInteger numberOfResources = STORED_RESOURCES.get(getTestContext().getDisplayName()) != null
+                ? new AtomicInteger(STORED_RESOURCES.get(getTestContext().getDisplayName()).size())
+                :
+                // stack has no elements
+                new AtomicInteger(0);
+        while (STORED_RESOURCES.containsKey(getTestContext().getDisplayName()) && numberOfResources.get() > 0) {
+            Stack<ResourceItem> stack = STORED_RESOURCES.get(getTestContext().getDisplayName());
+
+            while (!stack.isEmpty()) {
+                ResourceItem resourceItem = stack.pop();
+
+                try {
+                    resourceItem.getThrowableRunner().run();
+                }
+                catch (Exception e) {
+                    e.printStackTrace();
+                }
+                numberOfResources.decrementAndGet();
+            }
+        }
+        STORED_RESOURCES.remove(getTestContext().getDisplayName());
+        LOGGER.info(String.join("", Collections.nCopies(76, "#")));
+    }
+
+    public void deleteResourcesOfTypeWithoutWait(final String resourceKind) {
+        // Delete all resources of the specified kind
+        cmdKubeClient().deleteAllByResource(resourceKind);
+        LOGGER.info("Deleted all resources of kind: {}", resourceKind);
+
+        // Clear the instance stack of such resources
+        STORED_RESOURCES
+                .forEach((key, stack) -> stack.removeIf(resourceItem -> resourceItem.getResource() != null && resourceKind.equals(resourceItem.getResource().getKind())));
+        LOGGER.info("Cleared all resources of kind: {} from the resource stack", resourceKind);
+    }
+
+    /**
+     * Synchronizing all resources which are inside specific extension context.
+     * @param <T> type of the resource which inherits from HasMetadata f.e Kafka, KafkaConnect, Pod, Deployment etc..
+     */
+    @SuppressWarnings(value = "unchecked")
+    public final <T extends HasMetadata> void synchronizeResources() {
+        Stack<ResourceItem> resources = STORED_RESOURCES.get(getTestContext().getDisplayName());
+
+        // sync all resources
+        for (ResourceItem resource : resources) {
+            if (resource.getResource() == null) {
+                continue;
+            }
+            ResourceType<T> type = findResourceType((T) resource.getResource());
+
+            assert type != null;
+            waitResourceCondition((T) resource.getResource(), ResourceCondition.readiness(type));
         }
     }
 
