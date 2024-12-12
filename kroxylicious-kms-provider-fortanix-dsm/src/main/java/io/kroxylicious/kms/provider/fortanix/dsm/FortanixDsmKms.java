@@ -13,7 +13,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -28,8 +27,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.DescribeKeyRequest;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.DescribeKeyResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateDataKeyRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateDataKeyResponse;
@@ -57,7 +56,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     static final String APPLICATION_X_AMZ_JSON_1_1 = "application/x-amz-json-1.1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
-    private static final TypeReference<DescribeKeyResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<InfoResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<GenerateDataKeyResponse> GENERATE_DATA_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
@@ -146,10 +145,10 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     @NonNull
     @Override
     public CompletableFuture<String> resolveAlias(@NonNull String alias) {
-        final DescribeKeyRequest resolveRequest = new DescribeKeyRequest(ALIAS_PREFIX + alias);
+        final InfoRequest resolveRequest = new InfoRequest(ALIAS_PREFIX + alias);
         var request = createRequest(resolveRequest, TRENT_SERVICE_DESCRIBE_KEY);
         return sendAsync(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF, UnknownAliasException::new)
-                .thenApply(DescribeKeyResponse::keyMetadata)
+                .thenApply(InfoResponse::keyMetadata)
                 .thenApply(KeyMetadata::keyId);
     }
 
@@ -204,7 +203,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     }
 
     @NonNull
-    private URI getAwsUrl() {
+    private URI getEndpointUrl() {
         return awsUrl;
     }
 
@@ -212,10 +211,9 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
         var body = getBody(request).getBytes(UTF_8);
 
-        return AwsV4SigningHttpRequestBuilder.newBuilder(accessKey, secretKey, region, "kms", Instant.now())
-                .uri(getAwsUrl())
+        return HttpRequest.newBuilder()
+                .uri(getEndpointUrl())
                 .header(CONTENT_TYPE_HEADER, APPLICATION_X_AMZ_JSON_1_1)
-                .header(X_AMZ_TARGET_HEADER, target)
                 .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                 .build();
     }

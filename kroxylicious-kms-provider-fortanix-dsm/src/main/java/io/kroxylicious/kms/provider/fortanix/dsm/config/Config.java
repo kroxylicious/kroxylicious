@@ -20,25 +20,19 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Configuration for the Vault KMS service.
+ * Configuration for the Fortanix DSM JMS service.
  *
  * @param endpointUrl URL of the Vault Transit Engine e.g. {@code https://myhashicorpvault:8200/v1/transit}
- * @param accessKey AWS accessKey
- * @param secretKey the password provider that will provide the Vault token.
- * @param region AWS region
+ * @param apiKey AWS apiKey
  */
 
 public record Config(
                      @JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @JsonProperty(required = true) PasswordProvider accessKey,
-                     @JsonProperty(required = true) PasswordProvider secretKey,
-                     @JsonProperty(required = true) String region,
+                     @JsonProperty(required = true) PasswordProvider apiKey,
                      Tls tls) {
     public Config {
         Objects.requireNonNull(endpointUrl);
-        Objects.requireNonNull(region);
-        Objects.requireNonNull(accessKey);
-        Objects.requireNonNull(secretKey);
+        Objects.requireNonNull(apiKey);
     }
 
     @NonNull

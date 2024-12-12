@@ -23,8 +23,8 @@ import io.kroxylicious.kms.provider.fortanix.dsm.model.CreateAliasRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.CreateKeyRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.CreateKeyResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DeleteAliasRequest;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.DescribeKeyRequest;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.DescribeKeyResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.RotateKeyRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ScheduleKeyDeletionRequest;
@@ -54,7 +54,7 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
 
     private static final TypeReference<CreateKeyResponse> CREATE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
-    private static final TypeReference<DescribeKeyResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<InfoResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<ScheduleKeyDeletionResponse> SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
@@ -79,7 +79,7 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
 
     @Override
     public Config getKmsServiceConfig() {
-        return new Config(getAwsUrl(), new InlinePassword(getAccessKey()), new InlinePassword(getSecretKey()), getRegion(), null);
+        return new Config(getAwsUrl(), new InlinePassword(getAccessKey()), null);
     }
 
     protected abstract String getRegion();
@@ -116,8 +116,8 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
         }
 
         @Override
-        public DescribeKeyResponse read(String alias) {
-            final DescribeKeyRequest describeKey = new DescribeKeyRequest(FortanixDsmKms.ALIAS_PREFIX + alias);
+        public InfoResponse read(String alias) {
+            final InfoRequest describeKey = new InfoRequest(FortanixDsmKms.ALIAS_PREFIX + alias);
             var request = createRequest(describeKey, TRENT_SERVICE_DESCRIBE_KEY);
             return sendRequest(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF);
         }

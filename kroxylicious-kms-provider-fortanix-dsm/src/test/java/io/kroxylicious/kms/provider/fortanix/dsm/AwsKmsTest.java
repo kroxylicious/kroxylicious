@@ -149,7 +149,7 @@ class AwsKmsTest {
         try {
             var address = httpServer.getAddress();
             var awsAddress = "http://127.0.0.1:" + address.getPort();
-            var config = new Config(URI.create(awsAddress), new InlinePassword("access"), new InlinePassword("secret"), "us-west-2", null);
+            var config = new Config(URI.create(awsAddress), new InlinePassword("access"), null);
             @SuppressWarnings("resource")
             var awsKmsService = new FortanixDsmKmsService();
             awsKmsService.initialize(config);

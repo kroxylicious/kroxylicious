@@ -35,7 +35,7 @@ public class FortanixDsmKmsService implements KmsService<Config, String, Fortani
     public FortanixDsmKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");
         return new FortanixDsmKms(config.endpointUrl(),
-                config.accessKey().getProvidedPassword(),
+                config.apiKey().getProvidedPassword(),
                 config.secretKey().getProvidedPassword(),
                 config.region(),
                 Duration.ofSeconds(20), config.sslContext());

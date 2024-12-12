@@ -8,15 +8,13 @@ package io.kroxylicious.kms.provider.fortanix.dsm.model;
 
 import java.util.Objects;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-@JsonIgnoreProperties(ignoreUnknown = true)
-public record DescribeKeyResponse(@JsonProperty(value = "KeyMetadata") @NonNull KeyMetadata keyMetadata) {
+public record InfoRequest(@JsonProperty(value = "name") @NonNull String name) {
 
-    public DescribeKeyResponse {
-        Objects.requireNonNull(keyMetadata);
+    public InfoRequest {
+        Objects.requireNonNull(name);
     }
 }
