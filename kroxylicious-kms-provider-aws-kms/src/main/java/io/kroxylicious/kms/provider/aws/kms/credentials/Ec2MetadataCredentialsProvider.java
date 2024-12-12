@@ -247,11 +247,12 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
             return OBJECT_MAPPER.readValue(bytes, SECURITY_CREDENTIALS_RESPONSE_TYPE_REF);
         }
         catch (IOException e) {
-            throw new UncheckedIOException(e);
+            throw new UncheckedIOException("Failed to unmarshal '%s' as a SecurityCredential." + bodyToString(bytes), e);
         }
     }
 
     private SecurityCredentials checkSuccessfulState(SecurityCredentials sc) {
+        LOGGER.debug("AWS returned security credential : {} ", sc);
         if (!"success".equals(sc.code().toLowerCase(Locale.ROOT))) {
             throw new KmsException(
                     "Unexpected code value in SecurityCredentials object returned from AWS.  Expecting code='Success', got code='%s'".formatted(sc.code()));
@@ -262,9 +263,10 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     @NonNull
     private static <O> HttpResponse<O> checkResponseStatus(@NonNull HttpResponse<O> response) {
         var statusCode = response.statusCode();
+        LOGGER.debug("");
         var httpSuccess = statusCode >= 200 && statusCode < 300;
         if (!httpSuccess) {
-            var body = response.body() instanceof byte[] bytes ? new String(bytes, StandardCharsets.UTF_8) : String.valueOf(response.body());
+            var body = bodyToString(response.body());
             throw new KmsException("Operation failed, HTTP status code %d, response: %s".formatted(statusCode, body));
         }
         return response;
@@ -275,6 +277,10 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
         executorService.shutdownNow();
     }
 
+    private static <B> String bodyToString(B body) {
+        return body instanceof byte[] bytes ? new String(bytes, StandardCharsets.UTF_8) : String.valueOf(body);
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record SecurityCredentials(@JsonProperty(value = "Code") @NonNull String code,
                                       @JsonProperty(value = "AccessKeyId") @NonNull String accessKeyId,
@@ -282,13 +288,23 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
                                       @JsonProperty(value = "Token") @NonNull String token,
                                       @JsonProperty(value = "Expiration") @NonNull Instant expiration)
             implements Credentials {
-
         public SecurityCredentials {
             Objects.requireNonNull(code);
             Objects.requireNonNull(accessKeyId);
             Objects.requireNonNull(secretAccessKey);
             Objects.requireNonNull(token);
             Objects.requireNonNull(expiration);
+        }
+
+        @Override
+        public String toString() {
+            return "SecurityCredentials{" +
+                    "code='" + code + '\'' +
+                    ", accessKeyId='" + accessKeyId + '\'' +
+                    ", secretAccessKey='***************" +
+                    ", token='***************'" +
+                    ", expiration=" + expiration +
+                    '}';
         }
 
         @NonNull
