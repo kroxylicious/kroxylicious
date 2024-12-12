@@ -18,8 +18,8 @@ kmsConfig:
     passwordFile: /opt/vault/token
 
 ----
-<1> Name of the KMS provider. This must be `VaultKmsService`.
-<2> link:setup.adoc#_vault_transit_engine_url[Vault Transit Engine URL] including the protocol part, i.e. `https:` or `http:`
+<1> Specifies the name of the KMS provider. Use `VaultKmsService`.
+<2> link:../con-vault-setup.adoc#_vault_transit_engine_url[Vault Transit Engine URL] including the protocol part, i.e. `https:` or `http:`
 <3> (Optional) TLS trust configuration.
 <4> File containing the Vault Token
 

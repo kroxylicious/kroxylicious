@@ -42,3 +42,6 @@
 
 // Apicurio links
 :apicurio-docs: https://www.apicur.io/registry/docs/apicurio-registry/{ApicurioVersion}/
+
+// Conditional inclusion flags
+:include-aws-kms-service-config-identity-ec2-metadata: 1
