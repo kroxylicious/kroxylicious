@@ -163,8 +163,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
             refreshCredential(refreshedCredFuture);
             refreshedCredFuture.thenApply(sc -> {
                 var previous = current.getAndSet(refreshedCredFuture);
-                // the previous future have been already complete, but for safety complete it anyway.
-                previous.complete(sc);
+                // the previous future have been already complete, but for safety, complete it anyway.
+                Optional.ofNullable(previous).ifPresent(f -> f.complete(sc));
                 return null;
             });
         }, delay, TimeUnit.MILLISECONDS);
