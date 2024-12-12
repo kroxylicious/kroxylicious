@@ -95,6 +95,7 @@ class Ec2MetadataCredentialsProviderTest {
 
     @AfterEach
     void afterEach() {
+        metadataServer.resetAll();
         executorService.shutdownNow();
     }
 

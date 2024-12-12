@@ -83,7 +83,7 @@ class ConfigParseTest {
     }
 
     @Test
-    void supportsLegacyCredentials() throws IOException {
+    void supportsLegacyFormatConfigCredentials() throws IOException {
         String json = """
                 {
                     "endpointUrl": "http://kms.us-east-1.amazon.com",

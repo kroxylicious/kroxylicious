@@ -55,7 +55,7 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
      *
      * @deprecated use {@link Config#Config(URI, CredentialsProviderConfig, String, Tls)}
      */
-    @Deprecated(forRemoval = true, since = "0.8.0")
+    @Deprecated(forRemoval = true, since = "0.9.0")
     private Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
                    @JsonProperty(value = "accessKey", required = true) PasswordProvider accessKey,
                    @JsonProperty(value = "secretKey", required = true) PasswordProvider secretKey,
