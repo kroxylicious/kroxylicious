@@ -106,23 +106,22 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
      * @param config config.
      */
     public Ec2MetadataCredentialsProvider(@NonNull Ec2MetadataCredentialsProviderConfig config) {
-        this(config, Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread thread = new Thread(r, Ec2MetadataCredentialsProvider.class.getName() + "thread");
-            thread.setDaemon(true);
-            return thread;
-        }), Clock.systemUTC());
+        this(config, Clock.systemUTC());
     }
 
     @VisibleForTesting
-    Ec2MetadataCredentialsProvider(@NonNull Ec2MetadataCredentialsProviderConfig config, @NonNull ScheduledExecutorService executorService, @NonNull Clock systemClock) {
+    Ec2MetadataCredentialsProvider(@NonNull Ec2MetadataCredentialsProviderConfig config, @NonNull Clock systemClock) {
         Objects.requireNonNull(config);
-        Objects.requireNonNull(executorService);
         Objects.requireNonNull(systemClock);
         this.config = config;
-        this.executorService = executorService;
         this.systemClock = systemClock;
-        this.client = createClient();
         this.lifetimeFactor = config.credentialLifetimeFactor().orElse(DEFAULT_CREDENTIALS_LIFETIME_FACTOR);
+        this.executorService = Executors.newSingleThreadScheduledExecutor(r -> {
+            var thread = new Thread(r, Ec2MetadataCredentialsProvider.class.getName() + "thread");
+            thread.setDaemon(true);
+            return thread;
+        });
+        this.client = createClient();
     }
 
     private HttpClient createClient() {

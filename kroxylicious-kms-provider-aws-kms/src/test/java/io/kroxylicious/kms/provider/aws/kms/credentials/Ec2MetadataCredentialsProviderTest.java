@@ -13,9 +13,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Optional;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -42,8 +39,6 @@ import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMoc
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -68,7 +63,6 @@ class Ec2MetadataCredentialsProviderTest {
             }""";
     private static WireMockServer metadataServer;
     private Ec2MetadataCredentialsProviderConfig config;
-    private ScheduledExecutorService executorService;
 
     @BeforeAll
     public static void initMockRegistry() {
@@ -84,7 +78,6 @@ class Ec2MetadataCredentialsProviderTest {
     @BeforeEach
     void setUp() {
         config = new Ec2MetadataCredentialsProviderConfig(IAM_ROLE, Optional.of(URI.create(metadataServer.baseUrl())), Optional.of(0.20));
-        executorService = Executors.newSingleThreadScheduledExecutor();
 
         metadataServer.stubFor(
                 put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
@@ -96,7 +89,6 @@ class Ec2MetadataCredentialsProviderTest {
     @AfterEach
     void afterEach() {
         metadataServer.resetAll();
-        executorService.shutdownNow();
     }
 
     @Test
@@ -134,7 +126,7 @@ class Ec2MetadataCredentialsProviderTest {
                         .willReturn(WireMock.aResponse()
                                 .withBody(toJson(credentials))));
 
-        try (var provider = new Ec2MetadataCredentialsProvider(config, executorService, fixedClock)) {
+        try (var provider = new Ec2MetadataCredentialsProvider(config, fixedClock)) {
             var credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -149,11 +141,9 @@ class Ec2MetadataCredentialsProviderTest {
         }
     }
 
-    @NonNull
-    private SecurityCredentials createTestCredential(String code, String accessKey, String secretKey, String token, Instant expiration) {
-        return new SecurityCredentials(code, accessKey, secretKey, token, expiration);
-    }
-
+    /**
+     * This test ensures that the credentials get refreshed, preemptively, before its expiration time.
+     */
     @Test
     void credentialGetsPreemptivelyRefreshed() {
         var now = Instant.now();
@@ -164,7 +154,7 @@ class Ec2MetadataCredentialsProviderTest {
                         .willReturn(WireMock.aResponse()
                                 .withBody(toJson(initial))));
 
-        try (var provider = new Ec2MetadataCredentialsProvider(config, executorService, Clock.systemUTC())) {
+        try (var provider = new Ec2MetadataCredentialsProvider(config, Clock.systemUTC())) {
             var credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -187,26 +177,25 @@ class Ec2MetadataCredentialsProviderTest {
         }
     }
 
+    /**
+     * This test ensures if a credential somehow expires (because time is beyond its expiration)
+     * that it get refreshed anyway.
+     */
     @Test
     void expiredCredentialRefreshed() {
+        var factorSoLargePreemptiveRefreshBeAfterExpiry = Optional.of(2.0);
+        var cfg = new Ec2MetadataCredentialsProviderConfig(IAM_ROLE, config.metadataEndpoint(), factorSoLargePreemptiveRefreshBeAfterExpiry);
         var clock = mock(Clock.class);
-        var executor = mock(ScheduledThreadPoolExecutor.class);
 
         var now = Instant.now();
         var initial = createTestCredential("Success", "accessKeyId", "initialKey", "token", now.plusSeconds(10));
-
-        doAnswer(invocation -> {
-            var runnable = ((Runnable) invocation.getArguments()[0]);
-            runnable.run();
-            return null;
-        }).when(executor).execute(any(Runnable.class));
 
         metadataServer.stubFor(
                 get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
                                 .withBody(toJson(initial))));
 
-        try (var provider = new Ec2MetadataCredentialsProvider(config, executor, clock)) {
+        try (var provider = new Ec2MetadataCredentialsProvider(cfg, clock)) {
             var credentialStage = provider.getCredentials();
             assertThat(credentialStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -309,6 +298,11 @@ class Ec2MetadataCredentialsProviderTest {
                     .succeedsWithin(Duration.ofSeconds(2))
                     .returns("secretAccessKey", SecurityCredentials::secretAccessKey);
         }
+    }
+
+    @NonNull
+    private SecurityCredentials createTestCredential(String code, String accessKey, String secretKey, String token, Instant expiration) {
+        return new SecurityCredentials(code, accessKey, secretKey, token, expiration);
     }
 
     private byte[] toJson(SecurityCredentials credentials) {
