@@ -262,11 +262,11 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     @NonNull
     private static <O> HttpResponse<O> checkResponseStatus(@NonNull HttpResponse<O> response) {
         var statusCode = response.statusCode();
-        LOGGER.debug("");
         var httpSuccess = statusCode >= 200 && statusCode < 300;
         if (!httpSuccess) {
+            var uri = response.request().uri();
             var body = bodyToString(response.body());
-            throw new KmsException("Operation failed, HTTP status code %d, response: %s".formatted(statusCode, body));
+            throw new KmsException("Operation failed, request uri: %s, HTTP status code %d, response: %s".formatted(uri, statusCode, body));
         }
         return response;
     }
