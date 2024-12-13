@@ -144,7 +144,7 @@ This configuration results in the following mapping from node ID to port:
 
 == SNI routing address provider
 
-The SNI ((Server Name Indication) routing provider opens a single port for all virtual clusters or a port for each. 
+The SNI (Server Name Indication) routing provider opens a single port for all virtual clusters or a port for each. 
 You can open a port for the whole cluster or each broker.   
 The SNI routing provider uses SNI information to determine where to route the traffic, so requires downstream TLS.  
 

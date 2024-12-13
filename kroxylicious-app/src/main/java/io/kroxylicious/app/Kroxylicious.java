@@ -8,9 +8,9 @@ package io.kroxylicious.app;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.Properties;
 import java.util.concurrent.Callable;
-import java.util.function.BiFunction;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +19,8 @@ import io.kroxylicious.proxy.KafkaProxy;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.internal.config.Feature;
+import io.kroxylicious.proxy.internal.config.Features;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -35,13 +37,17 @@ public class Kroxylicious implements Callable<Integer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
     private static final String UNKNOWN = "unknown";
-    private final BiFunction<PluginFactoryRegistry, Configuration, KafkaProxy> proxyBuilder;
+    private final KafkaProxyBuilder proxyBuilder;
+
+    interface KafkaProxyBuilder {
+        KafkaProxy build(PluginFactoryRegistry registry, Configuration config, Features features);
+    }
 
     Kroxylicious() {
         this(KafkaProxy::new);
     }
 
-    Kroxylicious(BiFunction<PluginFactoryRegistry, Configuration, KafkaProxy> proxyBuilder) {
+    Kroxylicious(KafkaProxyBuilder proxyBuilder) {
         this.proxyBuilder = proxyBuilder;
     }
 
@@ -61,8 +67,9 @@ public class Kroxylicious implements Callable<Integer> {
         try (InputStream stream = Files.newInputStream(configFile.toPath())) {
 
             Configuration config = configParser.parseConfiguration(stream);
-            printBannerAndVersions();
-            try (KafkaProxy kafkaProxy = proxyBuilder.apply(configParser, config)) {
+            Features features = getFeatures();
+            printBannerAndVersions(features);
+            try (KafkaProxy kafkaProxy = proxyBuilder.build(configParser, config, features)) {
                 kafkaProxy.startup();
                 kafkaProxy.block();
             }
@@ -75,12 +82,29 @@ public class Kroxylicious implements Callable<Integer> {
         return 0;
     }
 
-    private static void printBannerAndVersions() throws Exception {
+    private static boolean isExplicitlyEnabled(Feature feature) {
+        String variableName = "KROXYLICIOUS_UNLOCK_" + feature.name();
+        String enabledString = System.getProperty(variableName, System.getenv(variableName));
+        return Boolean.parseBoolean(enabledString);
+    }
+
+    private static Features getFeatures() {
+        Features.FeaturesBuilder builder = Features.builder();
+        Arrays.stream(Feature.values()).forEach(f -> {
+            if (isExplicitlyEnabled(f)) {
+                builder.enable(f);
+            }
+        });
+        return builder.build();
+    }
+
+    private static void printBannerAndVersions(Features features) throws Exception {
         new BannerLogger().log();
         String[] versions = new VersionProvider().getVersion();
         for (String version : versions) {
             LOGGER.info("{}", version);
         }
+        features.warnings().forEach(LOGGER::warn);
         LOGGER.atInfo()
                 .setMessage("Platform: Java {}({}) running on {} {}/{}")
                 .addArgument(Runtime::version)

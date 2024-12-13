@@ -30,6 +30,7 @@ import io.kroxylicious.test.codec.DecodedRequestFrame;
 import io.kroxylicious.test.codec.DecodedResponseFrame;
 import io.kroxylicious.test.codec.KafkaRequestEncoder;
 import io.kroxylicious.test.codec.KafkaResponseDecoder;
+import io.kroxylicious.test.codec.RequestFrame;
 
 /**
  * KafkaClient for testing.
@@ -97,6 +98,21 @@ public final class KafkaClient implements AutoCloseable {
                 .thenCompose(u -> kafkaClientHandler.sendRequest(decodedRequestFrame))
                 .thenApply(KafkaClient::toResponse);
 
+    }
+
+    /**
+     * Bootstrap and connect to a Kafka broker on a given host and port. Send
+     * the request to it and inform the client when we have received a response.
+     * The channel is closed after we have received the message. Prefer {@link #get(Request)} for most cases,
+     * this enables advanced cases like sending opaque frames.
+     * @param frame to send to kafka
+     * @return a future that will be completed with the response from the kafka broker (translated to JsonNode)
+     */
+    public CompletableFuture<Response> get(RequestFrame frame) {
+        return ensureChannel(correlationManager, kafkaClientHandler)
+                .thenApply(KafkaClient::checkChannelOpen)
+                .thenCompose(u -> kafkaClientHandler.sendRequest(frame))
+                .thenApply(KafkaClient::toResponse);
     }
 
     public Response getSync(Request request) {

@@ -28,7 +28,6 @@ import org.apache.kafka.common.message.${messageSpec.name}Data;
 </#list>
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
-import org.apache.kafka.common.protocol.Readable;
 
 /**
 * Decodes Kafka Readable into an ApiMessage
@@ -50,17 +49,16 @@ public class BodyDecoder {
     * @return the ApiMessage
     * @throws IllegalArgumentException if an unhandled ApiKey is encountered
     */
-    static ApiMessage decodeRequest(ApiKeys apiKey, short apiVersion, Readable accessor) {
-        switch (apiKey) {
+    static ApiMessage decodeRequest(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
+        return switch (apiKey) {
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'request'>
-            case ${retrieveApiKey(messageSpec)}:
-                return new ${messageSpec.name}Data(accessor, apiVersion);
+            case ${retrieveApiKey(messageSpec)} ->
+                    new ${messageSpec.name}Data(accessor, apiVersion);
     </#if>
 </#list>
-            default:
-                throw new IllegalArgumentException("Unsupported RPC " + apiKey);
-        }
+            default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);
+        };
     }
 
     /**
@@ -71,17 +69,35 @@ public class BodyDecoder {
     * @return the ApiMessage
     * @throws IllegalArgumentException if an unhandled ApiKey is encountered
     */
-    static ApiMessage decodeResponse(ApiKeys apiKey, short apiVersion, Readable accessor) {
-        switch (apiKey) {
+    static ApiMessage decodeResponse(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
+        return switch (apiKey) {
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'response'>
-            case ${retrieveApiKey(messageSpec)}:
-                return new ${messageSpec.name}Data(accessor, apiVersion);
+        <#if messageSpec.name == 'ApiVersionsResponse'>
+            case ${retrieveApiKey(messageSpec)} -> {
+                // KIP-511 when the client receives an unsupported version for the ApiVersionResponse, it fails back to version 0
+                // Use the same algorithm as https://github.com/apache/kafka/blob/a41c10fd49841381b5207c184a385622094ed440/clients/src/main/java/org/apache/kafka/common/requests/ApiVersionsResponse.java#L90-L106
+                int prev = accessor.readerIndex();
+                try {
+                    yield new ${messageSpec.name}Data(accessor, apiVersion);
+                }
+                catch (RuntimeException e) {
+                    accessor.readerIndex(prev);
+                    if (apiVersion != 0) {
+                        yield new ${messageSpec.name}Data(accessor, (short) 0);
+                    }
+                    else {
+                        throw e;
+                    }
+                }
+            }
+        <#else>
+            case ${retrieveApiKey(messageSpec)} -> new ${messageSpec.name}Data(accessor, apiVersion);
+        </#if>
     </#if>
 </#list>
-            default:
-                throw new IllegalArgumentException("Unsupported RPC " + apiKey);
-        }
+            default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);
+        };
     }
 
 }

@@ -16,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.proxy.internal.config.Feature;
+import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
@@ -29,14 +31,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * For the kafka RPCs that Kroxylicious can intercept, Kroxylicious should only offer API versions
- * that it can encode/decode using it's version of the kafka-clients lib. It should also only offer API versions
+ * that it can encode/decode using its version of the kafka-clients lib. It should also only offer API versions
  * that the Cluster can understand. So we use a Filter to intercept the ApiVersions response from the
  * Cluster and intersect those versions with the versions supported by the proxy. We offer the highest
  * minimum version for each api key supported by the Cluster and proxy. We offer the lowest maximum version
  * for each api key supported by the Cluster and proxy.
- * Any versions for ApiKeys unknown to the proxy are forwarded to the client untouched. (ie the broker supports
- * a new ApiKey that this version of Kroxylicious is unaware of)
- * TODO check if this is still sensible behaviour, potentially a RequestFilter would attempt to decode these and fail.
+ * Any versions for ApiKeys unknown to the proxy are removed from the response. (ie the broker supports
+ * a new ApiKey that this version of Kroxylicious is unaware of).
  */
 @ExtendWith(NettyLeakDetectorExtension.class)
 public class ApiVersionsIT {
@@ -48,6 +49,19 @@ public class ApiVersionsIT {
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() + 1));
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
+        }
+    }
+
+    @Test
+    void shouldOfferTheMinimumHighestSupportedVersionWhenBrokerIsAheadOfKroxyliciousAndMaxVersionOverridden() {
+        short overriddenVersion = (short) (ApiKeys.METADATA.latestVersion(true) - 1);
+        Features testOnlyConfigEnabled = Features.builder().enable(Feature.TEST_ONLY_CONFIGURATION).build();
+        try (var tester = mockKafkaKroxyliciousTester(bootstrap -> KroxyliciousConfigUtils.proxy(bootstrap)
+                .withDevelopment(Map.of("apiKeyIdMaxVersionOverride", Map.of(ApiKeys.METADATA.name(), overriddenVersion))), testOnlyConfigEnabled);
+                var client = tester.simpleTestClient()) {
+            givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion(true));
+            Response response = whenGetApiVersionsFromKroxylicious(client);
+            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), overriddenVersion);
         }
     }
 

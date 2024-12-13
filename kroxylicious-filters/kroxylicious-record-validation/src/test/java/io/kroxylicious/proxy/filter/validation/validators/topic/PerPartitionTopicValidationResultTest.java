@@ -23,7 +23,6 @@ class PerPartitionTopicValidationResultTest {
         var result = new PerPartitionTopicValidationResult("foo", Map.of());
 
         assertThat(result)
-                .returns(false, PerPartitionTopicValidationResult::isAllPartitionsInvalid)
                 .returns(false, PerPartitionTopicValidationResult::isAnyPartitionInvalid);
         assertThat(result)
                 .extracting(PerPartitionTopicValidationResult::invalidPartitions, STREAM)
@@ -36,8 +35,7 @@ class PerPartitionTopicValidationResultTest {
                 Map.of(1, new PartitionValidationResult(2, List.of(INVALID))));
 
         assertThat(result)
-                .returns(true, PerPartitionTopicValidationResult::isAnyPartitionInvalid)
-                .returns(true, PerPartitionTopicValidationResult::isAllPartitionsInvalid);
+                .returns(true, PerPartitionTopicValidationResult::isAnyPartitionInvalid);
     }
 
     @Test
@@ -47,8 +45,7 @@ class PerPartitionTopicValidationResultTest {
                         1, new PartitionValidationResult(1, List.of(INVALID))));
 
         assertThat(result)
-                .returns(true, PerPartitionTopicValidationResult::isAnyPartitionInvalid)
-                .returns(false, PerPartitionTopicValidationResult::isAllPartitionsInvalid);
+                .returns(true, PerPartitionTopicValidationResult::isAnyPartitionInvalid);
     }
 
     @Test

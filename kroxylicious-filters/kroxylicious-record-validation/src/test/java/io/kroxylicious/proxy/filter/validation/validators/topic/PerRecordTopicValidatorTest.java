@@ -46,7 +46,6 @@ class PerRecordTopicValidatorTest {
         var result = topicValidator.validateTopicData(tpd);
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, TopicValidationResult::isAllPartitionsInvalid)
                 .returns(false, TopicValidationResult::isAnyPartitionInvalid)
                 .extracting(TopicValidationResult::invalidPartitions, stream(PartitionValidationResult.class))
                 .isEmpty();
@@ -63,7 +62,6 @@ class PerRecordTopicValidatorTest {
         var result = topicValidator.validateTopicData(tpd);
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, TopicValidationResult::isAllPartitionsInvalid)
                 .returns(true, TopicValidationResult::isAnyPartitionInvalid);
 
         var invalidPartitions = result.toCompletableFuture().join().invalidPartitions();
@@ -118,7 +116,6 @@ class PerRecordTopicValidatorTest {
 
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(false, TopicValidationResult::isAllPartitionsInvalid)
                 .returns(true, TopicValidationResult::isAnyPartitionInvalid);
 
         var invalidPartitions = result.toCompletableFuture().join().invalidPartitions();
@@ -149,7 +146,6 @@ class PerRecordTopicValidatorTest {
 
         assertThat(result)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, TopicValidationResult::isAllPartitionsInvalid)
                 .returns(true, TopicValidationResult::isAnyPartitionInvalid);
 
         var invalidPartitions = result.toCompletableFuture().join().invalidPartitions().toList();

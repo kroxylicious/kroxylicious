@@ -19,7 +19,7 @@ virtualClusters:
     logNetwork: false
     logFrames: false
 filters:
-- type: EnvelopeEncryption
+- type: RecordEncryption
   config:
     kms: VaultKmsService
     kmsConfig:

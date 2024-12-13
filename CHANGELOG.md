@@ -7,6 +7,10 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1657](https://github.com/kroxylicious/kroxylicious/pull/1657) Remove forwardPartialRequests feature of record validation filter
+* [#1635](https://github.com/kroxylicious/kroxylicious/pull/1635) Handle ApiVersions unsupported version downgrade
+* [#1648](https://github.com/kroxylicious/kroxylicious/pull/1648) Add test-only feature mechanism to Proxy configuration
+* [#1379](https://github.com/kroxylicious/kroxylicious/issues/1379) Remove Deprecated EnvelopeEncryption
 * [#1561](https://github.com/kroxylicious/kroxylicious/pull/1631) Allow Trust and ClientAuth to be set for Downstream TLS
 * [#1550](https://github.com/kroxylicious/kroxylicious/pull/1550) Upgrade Apache Kafka from 3.8.0 to 3.9.0 #1550
 * [#1557](https://github.com/kroxylicious/kroxylicious/pull/1557) Bump io.micrometer:micrometer-bom from 1.13.5 to 1.13.6
@@ -16,6 +20,11 @@ Format `<github issue/pr number>: <short description>`.
 * [#1514](https://github.com/kroxylicious/kroxylicious/pull/1514) Bump io.netty:netty-bom from 4.1.112.Final to 4.1.113.Final
 * [#1517](https://github.com/kroxylicious/kroxylicious/pull/1517) Bump apicurio-registry.version from 2.6.2.Final to 2.6.3.Final
 * [#1515](https://github.com/kroxylicious/kroxylicious/pull/1515) Bump io.micrometer:micrometer-bom from 1.13.2 to 1.13.4
+
+### Changes, deprecations and removals
+
+* The deprecated EnvelopeEncryption filter is now removed.  Use RecordEncryption instead.
+* The deprecated forwardPartialRequests option has been removed from the Record Validation Filter.
 
 ## 0.8.0
 

@@ -6,10 +6,11 @@
 
 package io.kroxylicious.test.tester;
 
-import java.util.function.Function;
+import java.util.function.BiFunction;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.internal.config.Features;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -23,7 +24,8 @@ public class KroxyliciousTesterBuilder {
     private String trustStoreLocation = null;
     @Nullable
     private String trustStorePassword = null;
-    private Function<Configuration, AutoCloseable> kroxyliciousFactory = DefaultKroxyliciousTester::spawnProxy;
+    private BiFunction<Configuration, Features, AutoCloseable> kroxyliciousFactory = DefaultKroxyliciousTester::spawnProxy;
+    private Features features = Features.defaultFeatures();
     private DefaultKroxyliciousTester.ClientFactory clientFactory = (clusterName, defaultConfiguration) -> new KroxyliciousClients(defaultConfiguration);
     private ConfigurationBuilder configurationBuilder;
 
@@ -67,18 +69,19 @@ public class KroxyliciousTesterBuilder {
      */
     public DefaultKroxyliciousTester createDefaultKroxyliciousTester() {
         final TrustStoreConfiguration trustStoreConfiguration = trustStoreLocation != null ? new TrustStoreConfiguration(trustStoreLocation, trustStorePassword) : null;
-        return new DefaultKroxyliciousTester(configurationBuilder, kroxyliciousFactory, clientFactory, trustStoreConfiguration);
+        return new DefaultKroxyliciousTester(configurationBuilder, configuration -> kroxyliciousFactory.apply(configuration, features), clientFactory,
+                trustStoreConfiguration);
     }
 
     /**
      * Supplies a function which translates Kroxylicious config into a kroxylicious instance.
      * <p>
-     * <em>Intended for internal use to allow unit testing of the testers.</em>
+     * <em>Intended to enable alternative strategies like running the proxy in-process or in a new process.</em>
      *
      * @param kroxyliciousFactory config translation function.
      * @return the current instance of the builder for chaining in a fluent fashion.
      */
-    KroxyliciousTesterBuilder setKroxyliciousFactory(Function<Configuration, AutoCloseable> kroxyliciousFactory) {
+    public KroxyliciousTesterBuilder setKroxyliciousFactory(BiFunction<Configuration, Features, AutoCloseable> kroxyliciousFactory) {
         this.kroxyliciousFactory = kroxyliciousFactory;
         return this;
     }
@@ -93,6 +96,16 @@ public class KroxyliciousTesterBuilder {
      */
     KroxyliciousTesterBuilder setClientFactory(DefaultKroxyliciousTester.ClientFactory clientFactory) {
         this.clientFactory = clientFactory;
+        return this;
+    }
+
+    /**
+     * Sets the features of the proxy.
+     * @param features features
+     * @return the current instance of the builder for chaining in a fluent fashion.
+     */
+    public KroxyliciousTesterBuilder setFeatures(Features features) {
+        this.features = features;
         return this;
     }
 

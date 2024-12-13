@@ -22,6 +22,8 @@ import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseData.MetadataResponseBroker;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.message.ShareAcknowledgeResponseData;
+import org.apache.kafka.common.message.ShareFetchResponseData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,8 @@ import io.kroxylicious.proxy.filter.FindCoordinatorResponseFilter;
 import io.kroxylicious.proxy.filter.MetadataResponseFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ShareAcknowledgeResponseFilter;
+import io.kroxylicious.proxy.filter.ShareFetchResponseFilter;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.model.VirtualCluster;
 import io.kroxylicious.proxy.service.HostPort;
@@ -42,7 +46,7 @@ import io.kroxylicious.proxy.service.HostPort;
  * is responsible for updating the virtual cluster's cache of upstream broker endpoints.
  */
 public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordinatorResponseFilter, DescribeClusterResponseFilter,
-        ProduceResponseFilter, FetchResponseFilter {
+        ProduceResponseFilter, FetchResponseFilter, ShareFetchResponseFilter, ShareAcknowledgeResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
@@ -125,6 +129,32 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
                     .forEach(ne -> apply(context, ne, FetchResponseData.NodeEndpoint::nodeId,
                             FetchResponseData.NodeEndpoint::host, FetchResponseData.NodeEndpoint::port,
                             FetchResponseData.NodeEndpoint::setHost, FetchResponseData.NodeEndpoint::setPort));
+        }
+        return context.forwardResponse(header, response);
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onShareAcknowledgeResponse(short apiVersion, ResponseHeaderData header, ShareAcknowledgeResponseData response,
+                                                                            FilterContext context) {
+        // KIP-932
+        if (response.nodeEndpoints() != null) {
+            response.nodeEndpoints()
+                    .forEach(ne -> apply(context, ne, ShareAcknowledgeResponseData.NodeEndpoint::nodeId,
+                            ShareAcknowledgeResponseData.NodeEndpoint::host, ShareAcknowledgeResponseData.NodeEndpoint::port,
+                            ShareAcknowledgeResponseData.NodeEndpoint::setHost, ShareAcknowledgeResponseData.NodeEndpoint::setPort));
+        }
+        return context.forwardResponse(header, response);
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onShareFetchResponse(short apiVersion, ResponseHeaderData header, ShareFetchResponseData response,
+                                                                      FilterContext context) {
+        // KIP-932
+        if (response.nodeEndpoints() != null) {
+            response.nodeEndpoints()
+                    .forEach(ne -> apply(context, ne, ShareFetchResponseData.NodeEndpoint::nodeId,
+                            ShareFetchResponseData.NodeEndpoint::host, ShareFetchResponseData.NodeEndpoint::port,
+                            ShareFetchResponseData.NodeEndpoint::setHost, ShareFetchResponseData.NodeEndpoint::setPort));
         }
         return context.forwardResponse(header, response);
     }
