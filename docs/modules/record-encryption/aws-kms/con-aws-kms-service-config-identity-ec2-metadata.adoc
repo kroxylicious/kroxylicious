@@ -9,8 +9,7 @@
 kms: AwsKmsService                                            # <1>
 kmsConfig:
   endpointUrl: https://kms.<region>.amazonaws.com             # <2>
-  credentialsProvider:
-    type: ec2Metadata
+  ec2MetadataCredentials:
     iamRole: <name of IAM role>                               # <3>
     metadataEndpoint: <EC2 metadata endpoint>                 # <4>
     credentialLifetimeFactor: 0.8                             # <5>

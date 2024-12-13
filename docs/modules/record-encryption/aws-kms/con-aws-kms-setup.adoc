@@ -75,7 +75,7 @@ aws iam create-policy --policy-name KroxyliciousRecordEncryption --policy-docume
 
 The filter must authenticate to AWS in order to perform envelope encryption operations, such as generating and decrypting DEKs.
 
-include::con-aws-kms-setup-application-identity-iam.adoc[leveloffset=+1]
+include::con-aws-kms-setup-application-identity-long-term.adoc[leveloffset=+1]
 ifdef::include-aws-kms-service-config-identity-ec2-metadata[]
 include::con-aws-kms-setup-application-identity-ec2-metadata.adoc[le    veloffset=+1]
 endif::[]

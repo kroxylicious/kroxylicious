@@ -2,11 +2,11 @@
 //
 // con-aws-kms-setup.adoc
 
-[id='con-aws-kms-setup-application-identity-iam-{context}']
+[id='con-aws-kms-setup-application-identity-long-term-{context}']
 
-= Authenticating using an AWS IAM identity
+= Authenticating using long-term IAM identity
 
-An AWS IAM identity with sufficient permissions must be created for the filter.
+A long-term IAM identity with sufficient permissions must be created for the filter.
 
 Use AWS IAM to create this identity and generate an *Access Key* for it.
 The Access Key/Secret Key pair is used by the filter.

@@ -3,15 +3,14 @@
 // con-aws-kms-service-config.adoc
 
 
-. Configuration for authenticating with a fixed IAM identity
+. Configuration for authenticating with a long-term IAM identity
 [source, yaml]
 ----
 kms: AwsKmsService                                            # <1>
 kmsConfig:
   endpointUrl: https://kms.<region>.amazonaws.com             # <2>
   tls:                                                        # <3>
-  credentialsProvider:
-    type: fixed
+  longTermCredentials:
     accessKeyId:
       passwordFile: /opt/aws/accessKey                        # <4>
     secretAccessKey:

@@ -7,7 +7,7 @@
 
 For AWS KMS, the KMS configuration looks like this.
 
-include::con-aws-kms-service-config-identity-iam.adoc[leveloffset=+1]
+include::con-aws-kms-service-config-identity-long-term.adoc[leveloffset=+1]
 
 ifdef::include-aws-kms-service-config-identity-ec2-metadata[]
 include::con-aws-kms-service-config-identity-ec2-metadata.adoc[leveloffset=+1]
