@@ -54,8 +54,7 @@ your Kafka client off-EC2.
          kmsConfig:
            region: us-east-1
            endpointUrl: https://kms.us-east-1.amazonaws.com
-           credentialsProvider:
-             type: ec2Metadata
+           ec2MetadataCredentials:
              iamRole: KroxyliciousInstance
              # credentialLifetimeFactor: 0.001  you can use a low credentialLifetimeFactor to force Kroxylicious to renew the token frequently
          selector: TemplateKekSelector

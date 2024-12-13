@@ -7,17 +7,10 @@
 package io.kroxylicious.kms.provider.aws.kms.config;
 
 import java.net.URI;
-import java.util.Objects;
-import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 
 import io.kroxylicious.kms.provider.aws.kms.credentials.Credentials;
-import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProvider;
-import io.kroxylicious.kms.provider.aws.kms.credentials.Ec2MetadataCredentialsProvider;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  *
@@ -27,25 +20,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param metadataEndpoint metadata endpoint (defaulted)
  * @param credentialLifetimeFactor the factor applied to determine how long until a credential is preemptively refreshed
  */
-@JsonTypeName("ec2Metadata")
 public record Ec2MetadataCredentialsProviderConfig(@JsonProperty(value = "iamRole", required = true) String iamRole,
-                                                   @JsonProperty(value = "metadataEndpoint", required = false) Optional<URI> metadataEndpoint,
-                                                   @JsonProperty(value = "credentialLifetimeFactor", required = false) Optional<Double> credentialLifetimeFactor)
-        implements CredentialsProviderConfig {
-    public Ec2MetadataCredentialsProviderConfig {
-        Objects.requireNonNull(iamRole);
-    }
+                                                   @JsonProperty(value = "metadataEndpoint", required = false) URI metadataEndpoint,
+                                                   @JsonProperty(value = "credentialLifetimeFactor", required = false) Double credentialLifetimeFactor) {
 
-    @Override
-    public @NonNull CredentialsProvider createCredentialsProvider() {
-        return new Ec2MetadataCredentialsProvider(this);
-    }
-
-    @Override
-    public String toString() {
-        return "Ec2CredentialsProviderConfig[" +
-                "metadataEndpoint=" + metadataEndpoint.map(URI::toString).orElse("<default>") + ',' +
-                "credentialLifetimeFactor=" + credentialLifetimeFactor.map(String::valueOf).orElse("<default>") + ',' +
-                "iamRole=" + iamRole + ']';
-    }
 }

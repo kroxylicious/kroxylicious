@@ -12,7 +12,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.Optional;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -77,7 +76,7 @@ class Ec2MetadataCredentialsProviderTest {
 
     @BeforeEach
     void setUp() {
-        config = new Ec2MetadataCredentialsProviderConfig(IAM_ROLE, Optional.of(URI.create(metadataServer.baseUrl())), Optional.of(0.20));
+        config = new Ec2MetadataCredentialsProviderConfig(IAM_ROLE, URI.create(metadataServer.baseUrl()), 0.20);
 
         metadataServer.stubFor(
                 put(urlEqualTo(TOKEN_RETRIEVAL_ENDPOINT))
@@ -183,7 +182,7 @@ class Ec2MetadataCredentialsProviderTest {
      */
     @Test
     void expiredCredentialRefreshed() {
-        var factorSoLargePreemptiveRefreshBeAfterExpiry = Optional.of(2.0);
+        var factorSoLargePreemptiveRefreshBeAfterExpiry = 2.0;
         var cfg = new Ec2MetadataCredentialsProviderConfig(IAM_ROLE, config.metadataEndpoint(), factorSoLargePreemptiveRefreshBeAfterExpiry);
         var clock = mock(Clock.class);
 

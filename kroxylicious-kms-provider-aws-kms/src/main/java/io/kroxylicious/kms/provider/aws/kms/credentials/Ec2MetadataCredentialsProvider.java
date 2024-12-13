@@ -99,6 +99,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
     private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
     private final Double lifetimeFactor;
+    private final URI uri;
 
     /**
      * Creates the EC2 metadata credentials provider.
@@ -115,7 +116,8 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
         Objects.requireNonNull(systemClock);
         this.config = config;
         this.systemClock = systemClock;
-        this.lifetimeFactor = config.credentialLifetimeFactor().orElse(DEFAULT_CREDENTIALS_LIFETIME_FACTOR);
+        this.lifetimeFactor = Optional.ofNullable(config.credentialLifetimeFactor()).orElse(DEFAULT_CREDENTIALS_LIFETIME_FACTOR);
+        this.uri = Optional.ofNullable(config.metadataEndpoint()).orElse(DEFAULT_IP4_METADATA_ENDPOINT);
         this.executorService = Executors.newSingleThreadScheduledExecutor(r -> {
             var thread = new Thread(r, Ec2MetadataCredentialsProvider.class.getName() + "thread");
             thread.setDaemon(true);
@@ -238,7 +240,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     private URI getMetadataEndpoint() {
-        return config.metadataEndpoint().orElse(DEFAULT_IP4_METADATA_ENDPOINT);
+        return uri;
     }
 
     private SecurityCredentials toSecurityCredentials(byte[] bytes) {

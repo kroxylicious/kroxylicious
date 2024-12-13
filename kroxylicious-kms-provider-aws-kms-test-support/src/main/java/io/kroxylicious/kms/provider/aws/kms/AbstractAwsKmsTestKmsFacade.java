@@ -82,7 +82,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
     @Override
     public Config getKmsServiceConfig() {
         var credentialsProviderConfig = new LongTermCredentialsProviderConfig(new InlinePassword(getAccessKey()), new InlinePassword(getSecretKey()));
-        return new Config(getAwsUrl(), credentialsProviderConfig, getRegion(), null);
+        return new Config(getAwsUrl(), null, null, credentialsProviderConfig, null, getRegion(), null);
     }
 
     protected abstract String getRegion();

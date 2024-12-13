@@ -12,22 +12,38 @@ import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
-import io.kroxylicious.kms.provider.aws.kms.config.CredentialsProviderConfig;
+import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
 import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProvider;
+import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProviderFactory;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class AwsKmsServiceTest {
+
+    @Mock
+    private CredentialsProviderFactory factory;
+
+    @Mock
+    private LongTermCredentialsProviderConfig longTermCredentialsProviderConfig;
+
+    @Mock
+    private CredentialsProvider credentialsProvider;
+
     private AwsKmsService awsKmsService;
 
     @BeforeEach
     void beforeEach() {
-        awsKmsService = new AwsKmsService();
+
+        awsKmsService = new AwsKmsService(factory);
     }
 
     @AfterEach
@@ -36,19 +52,17 @@ class AwsKmsServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("resource")
     void initializeCreatesCredentialsProvider() {
         // Given
-        var cpc = mock(CredentialsProviderConfig.class);
-        var cp = mock(CredentialsProvider.class);
-        var config = new Config(URI.create("https://host.invalid"), cpc, "us-east-1", null);
-        when(cpc.createCredentialsProvider()).thenReturn(cp);
+        when(factory.createCredentialsProvider(isA(Config.class))).thenReturn(credentialsProvider);
+        var config = new Config(URI.create("https://host.invalid"), null, null, longTermCredentialsProviderConfig, null, "us-east-1", null);
 
         // When
         awsKmsService.initialize(config);
 
         // Then
-        verify(cpc).createCredentialsProvider();
+        verify(factory).createCredentialsProvider(config);
     }
 
     @Test
@@ -58,19 +72,16 @@ class AwsKmsServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     void credentialsProviderLifecycle() {
         // Given
-        var cpc = mock(CredentialsProviderConfig.class);
-        var cp = mock(CredentialsProvider.class);
-        var config = new Config(URI.create("https://host.invalid"), cpc, "us-east-1", null);
-        when(cpc.createCredentialsProvider()).thenReturn(cp);
+        when(factory.createCredentialsProvider(isA(Config.class))).thenReturn(credentialsProvider);
+        var config = new Config(URI.create("https://host.invalid"), null, null, longTermCredentialsProviderConfig, null, "us-east-1", null);
         awsKmsService.initialize(config);
 
         // When
         awsKmsService.close();
 
         // Then
-        verify(cp).close();
+        verify(credentialsProvider).close();
     }
 }

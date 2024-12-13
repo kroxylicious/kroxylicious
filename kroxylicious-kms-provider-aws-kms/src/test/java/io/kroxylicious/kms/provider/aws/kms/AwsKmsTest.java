@@ -144,14 +144,15 @@ class AwsKmsTest {
         withMockAwsWithSingleResponse(response, 200, consumer);
     }
 
+    @SuppressWarnings("resource")
     void withMockAwsWithSingleResponse(String response, int statusCode, Consumer<AwsKms> consumer) {
         HttpHandler handler = statusCode >= 500 ? new ErrorResponse(statusCode) : new StaticResponse(statusCode, response);
         HttpServer httpServer = httpServer(handler);
         try {
             var address = httpServer.getAddress();
             var awsAddress = "http://127.0.0.1:" + address.getPort();
-            var credentialsProvider = new LongTermCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret"));
-            var config = new Config(URI.create(awsAddress), credentialsProvider, "us-west-2", null);
+            var longTermCredentialsProviderConfig = new LongTermCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret"));
+            var config = new Config(URI.create(awsAddress), null, null, longTermCredentialsProviderConfig, null, "us-west-2", null);
             var awsKmsService = new AwsKmsService();
             awsKmsService.initialize(config);
             var service = awsKmsService.buildKms();
