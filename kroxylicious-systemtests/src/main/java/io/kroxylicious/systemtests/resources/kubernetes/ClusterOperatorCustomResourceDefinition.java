@@ -19,14 +19,17 @@ public class ClusterOperatorCustomResourceDefinition implements ResourceType<Cus
     public String getKind() {
         return Constants.CUSTOM_RESOURCE_DEFINITION;
     }
+
     @Override
     public CustomResourceDefinition get(String namespace, String name) {
         return kubeClient().getCustomResourceDefinition(name);
     }
+
     @Override
     public void create(CustomResourceDefinition resource) {
         kubeClient().createOrUpdateCustomResourceDefinition(resource);
     }
+
     @Override
     public void delete(CustomResourceDefinition resource) {
         kubeClient().deleteCustomResourceDefinition(resource);

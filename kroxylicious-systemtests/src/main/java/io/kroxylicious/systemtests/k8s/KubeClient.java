@@ -501,11 +501,13 @@ public class KubeClient {
     public void createOrUpdateCustomResourceDefinition(CustomResourceDefinition resourceDefinition) {
         try {
             client.apiextensions().v1().customResourceDefinitions().resource(resourceDefinition).create();
-        } catch (KubernetesClientException e) {
+        }
+        catch (KubernetesClientException e) {
             if (e.getCode() == 409) {
                 LOGGER.info("CustomResourceDefinition: {} is already created, going to update it", resourceDefinition.getMetadata().getName());
                 client.apiextensions().v1().customResourceDefinitions().resource(resourceDefinition).update();
-            } else {
+            }
+            else {
                 throw e;
             }
         }
