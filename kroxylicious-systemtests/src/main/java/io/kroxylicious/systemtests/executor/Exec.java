@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.utils.ReadWriteUtils;
 
 import static java.lang.String.join;
 
@@ -302,7 +303,8 @@ public class Exec {
      * @throws ExecutionException the execution exception
      */
     public int execute(String input, List<String> commands, Duration timeout, File dir) throws IOException, InterruptedException, ExecutionException {
-        LOGGER.debug("Running command - {}", String.join(" ", commands.toArray(new String[0])));
+        String command = String.join(" ", commands.toArray(new String[0]));
+        LOGGER.debug("Running command - {}", command);
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
         dir = dir == null ? new File(System.getProperty("user.dir")) : dir;
@@ -360,7 +362,8 @@ public class Exec {
      * @return the pid
      */
     public long executeWithoutWait(List<String> commands, File dir) {
-        LOGGER.debug("Running command - {}", String.join(" ", commands.toArray(new String[0])));
+        String command = String.join(" ", commands.toArray(new String[0]));
+        LOGGER.debug("Running command - {}", command);
         ProcessBuilder builder = new ProcessBuilder();
         builder.command(commands);
         dir = dir == null ? new File(System.getProperty("user.dir")) : dir;
@@ -369,7 +372,7 @@ public class Exec {
             process = builder.start();
         }
         catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
         return process.pid();
     }
@@ -401,8 +404,8 @@ public class Exec {
         if (logPath != null) {
             try {
                 Files.createDirectories(logPath);
-                Files.writeString(Paths.get(logPath.toString(), "stdOutput.log"), stdOut, Charset.defaultCharset());
-                Files.writeString(Paths.get(logPath.toString(), "stdError.log"), stdErr, Charset.defaultCharset());
+                ReadWriteUtils.writeFile(Paths.get(logPath.toString(), "stdOutput.log"), stdOut);
+                ReadWriteUtils.writeFile(Paths.get(logPath.toString(), "stdError.log"), stdOut);
             }
             catch (Exception ex) {
                 LOGGER.warn("Cannot save output of execution: {}", ex.getMessage());

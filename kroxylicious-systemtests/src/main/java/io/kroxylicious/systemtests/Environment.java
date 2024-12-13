@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.function.Function;
 
 import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.environment.TestEnvironmentVariables;
@@ -112,61 +111,53 @@ public class Environment {
     /**
      * KAFKA_VERSION env variable assignment
      */
-    public static final String KAFKA_VERSION = getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
+    public static final String KAFKA_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
 
     /**
      * KROXY_VERSION env variable assignment
      */
-    public static final String KROXY_VERSION = getOrDefault(KROXY_VERSION_ENV, KROXY_VERSION_DEFAULT);
+    public static final String KROXY_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_VERSION_ENV, KROXY_VERSION_DEFAULT);
 
     /**
      * KROXY_IMAGE_REPO env variable assignment
      */
-    public static final String KROXY_IMAGE_REPO = getOrDefault(KROXY_IMAGE_REPO_ENV, KROXY_IMAGE_REPO_DEFAULT);
+    public static final String KROXY_IMAGE_REPO = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_IMAGE_REPO_ENV, KROXY_IMAGE_REPO_DEFAULT);
     /**
      * SKIP_TEARDOWN env variable assignment.
      */
-    public static final boolean SKIP_TEARDOWN = Boolean.parseBoolean(getOrDefault(SKIP_TEARDOWN_ENV, SKIP_TEARDOWN_DEFAULT));
+    public static final boolean SKIP_TEARDOWN = Boolean.parseBoolean(ENVIRONMENT_VARIABLES.getOrDefault(SKIP_TEARDOWN_ENV, SKIP_TEARDOWN_DEFAULT));
 
-    public static final String STRIMZI_FEATURE_GATES = getOrDefault(STRIMZI_FEATURE_GATES_ENV, STRIMZI_FEATURE_GATES_DEFAULT);
+    public static final String STRIMZI_FEATURE_GATES = ENVIRONMENT_VARIABLES.getOrDefault(STRIMZI_FEATURE_GATES_ENV, STRIMZI_FEATURE_GATES_DEFAULT);
 
-    public static final String CONTAINER_CONFIG_PATH = getOrDefault(CONTAINER_CONFIG_PATH_ENV, CONTAINER_CONFIG_PATH_DEFAULT);
+    public static final String CONTAINER_CONFIG_PATH = ENVIRONMENT_VARIABLES.getOrDefault(CONTAINER_CONFIG_PATH_ENV, CONTAINER_CONFIG_PATH_DEFAULT);
 
-    public static final boolean SKIP_STRIMZI_INSTALL = Boolean.parseBoolean(getOrDefault(SKIP_STRIMZI_INSTALL_ENV, SKIP_STRIMZI_INSTALL_DEFAULT));
+    public static final boolean SKIP_STRIMZI_INSTALL = Boolean.parseBoolean(ENVIRONMENT_VARIABLES.getOrDefault(SKIP_STRIMZI_INSTALL_ENV, SKIP_STRIMZI_INSTALL_DEFAULT));
 
-    public static final String VAULT_CHART_VERSION = getOrDefault(VAULT_CHART_VERSION_ENV, VAULT_CHART_VERSION_DEFAULT);
+    public static final String VAULT_CHART_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(VAULT_CHART_VERSION_ENV, VAULT_CHART_VERSION_DEFAULT);
 
-    public static final String AWS_LOCALSTACK_CHART_VERSION = getOrDefault(AWS_LOCALSTACK_CHART_VERSION_ENV, AWS_LOCALSTACK_CHART_VERSION_DEFAULT);
+    public static final String AWS_LOCALSTACK_CHART_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(AWS_LOCALSTACK_CHART_VERSION_ENV, AWS_LOCALSTACK_CHART_VERSION_DEFAULT);
 
-    public static final String KAFKA_CLIENT = getOrDefault(KAFKA_CLIENT_ENV, KAFKA_CLIENT_DEFAULT);
+    public static final String KAFKA_CLIENT = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_CLIENT_ENV, KAFKA_CLIENT_DEFAULT);
 
-    public static final String STRIMZI_VERSION = getOrDefault(STRIMZI_VERSION_ENV, STRIMZI_VERSION_DEFAULT);
+    public static final String STRIMZI_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(STRIMZI_VERSION_ENV, STRIMZI_VERSION_DEFAULT);
 
-    public static final String CLUSTER_DUMP_DIR = getOrDefault(CLUSTER_DUMP_DIR_ENV, CLUSTER_DUMP_DIR_DEFAULT);
+    public static final String CLUSTER_DUMP_DIR = ENVIRONMENT_VARIABLES.getOrDefault(CLUSTER_DUMP_DIR_ENV, CLUSTER_DUMP_DIR_DEFAULT);
 
-    public static final String AWS_ACCESS_KEY_ID = getOrDefault(AWS_ACCESS_KEY_ID_ENV, AWS_ACCESS_KEY_ID_DEFAULT);
+    public static final String AWS_ACCESS_KEY_ID = ENVIRONMENT_VARIABLES.getOrDefault(AWS_ACCESS_KEY_ID_ENV, AWS_ACCESS_KEY_ID_DEFAULT);
 
-    public static final String AWS_SECRET_ACCESS_KEY = getOrDefault(AWS_SECRET_ACCESS_KEY_ENV, AWS_SECRET_ACCESS_KEY_DEFAULT);
+    public static final String AWS_SECRET_ACCESS_KEY = ENVIRONMENT_VARIABLES.getOrDefault(AWS_SECRET_ACCESS_KEY_ENV, AWS_SECRET_ACCESS_KEY_DEFAULT);
 
-    public static final String AWS_USE_CLOUD = getOrDefault(AWS_USE_CLOUD_ENV, AWS_USE_CLOUD_DEFAULT);
+    public static final String AWS_USE_CLOUD = ENVIRONMENT_VARIABLES.getOrDefault(AWS_USE_CLOUD_ENV, AWS_USE_CLOUD_DEFAULT);
 
-    public static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID = getOrDefault(AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV, AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT);
+    public static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID = ENVIRONMENT_VARIABLES.getOrDefault(AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV, AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT);
 
-    public static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY = getOrDefault(AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV, AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT);
+    public static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY = ENVIRONMENT_VARIABLES.getOrDefault(AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV, AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT);
 
-    public static final String AWS_REGION = getOrDefault(AWS_REGION_ENV, AWS_REGION_DEFAULT);
+    public static final String AWS_REGION = ENVIRONMENT_VARIABLES.getOrDefault(AWS_REGION_ENV, AWS_REGION_DEFAULT);
 
-    public static final String KROXY_ORG = getOrDefault(KROXY_ORG_ENV, KROXY_ORG_DEFAULT);
-    public static final String KROXY_TAG = getOrDefault(KROXY_TAG_ENV, KROXY_TAG_DEFAULT);
-    public static final String KROXY_REGISTRY = getOrDefault(KROXY_REGISTRY_ENV, KROXY_REGISTRY_DEFAULT);
-
-    private static String getOrDefault(String varName, String defaultValue) {
-        return getOrDefault(varName, String::toString, defaultValue);
-    }
-
-    private static <T> T getOrDefault(String varName, Function<String, T> converter, T defaultValue) {
-        return System.getenv(varName) != null ? converter.apply(System.getenv(varName)) : defaultValue;
-    }
+    public static final String KROXY_ORG = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_ORG_ENV, KROXY_ORG_DEFAULT);
+    public static final String KROXY_TAG = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_TAG_ENV, KROXY_TAG_DEFAULT);
+    public static final String KROXY_REGISTRY = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_REGISTRY_ENV, KROXY_REGISTRY_DEFAULT);
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();

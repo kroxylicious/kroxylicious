@@ -27,6 +27,7 @@ import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
+import io.kroxylicious.systemtests.utils.ReadWriteUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -100,7 +101,7 @@ public class KcatClient implements KafkaClient {
     }
 
     private List<String> extractRecordLinesFromLog(String log) {
-        return Stream.of(log.split("\n")).filter(TestUtils::isValidJson).toList();
+        return Stream.of(log.split("\n")).filter(ReadWriteUtils::isValidJson).toList();
     }
 
     private List<ConsumerRecord> getConsumerRecords(List<String> logRecords) {

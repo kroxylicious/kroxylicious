@@ -10,7 +10,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -111,7 +110,7 @@ public class DeploymentUtils {
      * @throws IOException the io exception
      */
     public static FileInputStream getDeploymentFileFromURL(String url) throws IOException {
-        File deploymentFile = Files.createTempFile("deploy", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
+        File deploymentFile = ReadWriteUtils.tempFile("deploy", ".yaml");// Files.createTempFile("deploy", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
         FileUtils.copyURLToFile(
                 URI.create(url).toURL(),
                 deploymentFile,

@@ -6,184 +6,61 @@
 
 package io.kroxylicious.systemtests.utils;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
+import java.io.UncheckedIOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.nio.charset.StandardCharsets;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 import java.util.UUID;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
-import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
 /**
  * Class with various utility methods for reading and writing files and objects
  */
 public final class ReadWriteUtils {
-    private static final Logger LOGGER = LogManager.getLogger(ReadWriteUtils.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final YAMLFactory WRITE_YAML_FACTORY = YAMLFactory.builder()
+            .disable(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID)
+            .build();
+    private static final ObjectMapper READ_YAML_OBJECT_MAPPER = new ObjectMapper(new YAMLFactory());
+    private static final ObjectMapper WRITE_YAML_OBJECT_MAPPER = new ObjectMapper(WRITE_YAML_FACTORY);
 
     private ReadWriteUtils() {
         // All static methods
     }
 
     /**
-     * Reads file frm the disk and returns it as a String
-     *
-     * @param file  The file that should be read
-     *
-     * @return  String with file content
-     */
-    public static String readFile(File file) {
-        try {
-            if (file == null) {
-                return null;
-            }
-            else {
-                return Files.readString(file.toPath());
-            }
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Reads file frm the disk and returns it as a String
-     *
-     * @param filePath  Path to the file that should be read
-     *
-     * @return  String with file content
-     */
-    public static String readFile(String filePath) {
-        return readFile(new File(filePath));
-    }
-
-    /**
-     * Read the classpath resource with the given resourceName and return the content as a String
+     * Read the classpath resource with the given resourceName and return the URI
      *
      * @param cls           The class relative to which the resource will be loaded.
      * @param resourceName  The name of the file stored in resources
      *
-     * @return  The resource content
+     * @return  The URI of the resource
      */
-    public static String readFileFromResources(Class<?> cls, String resourceName) {
+    public static URI getResourceURI(Class<?> cls, String resourceName) {
+        URL url = null;
         try {
-            URL url = cls.getResource(resourceName);
+            url = cls.getClassLoader().getResource(resourceName);
             if (url == null) {
-                return null;
+                throw new IllegalArgumentException("Cannot find resource " + resourceName + " on classpath");
             }
-            else {
-                return Files.readString(Paths.get(
-                        url.toURI()));
-            }
+            return url.toURI();
         }
-        catch (IOException | URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Reads an InputStream and returns its content as a String
-     *
-     * @param stream    InputStreams that should be read
-     *
-     * @return  String with the InputStream content
-     */
-    public static String readInputStream(InputStream stream) {
-        StringBuilder textBuilder = new StringBuilder();
-        try (Reader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
-            int character;
-
-            while ((character = reader.read()) != -1) {
-                textBuilder.append((char) character);
-            }
-        }
-        catch (IOException e) {
-            LOGGER.warn("Failed to read from InputStream", e);
-        }
-
-        return textBuilder.toString();
-    }
-
-    /**
-     * Reads an object from a YAML file stored in resources
-     *
-     * @param resource  The name of the file in resources
-     * @param c         The class from which resource path should be the file loaded
-     *
-     * @return  An object instance read from the file
-     *
-     * @param <T>   Type of the object
-     */
-    public static <T> T readObjectFromYamlFileInResources(String resource, Class<T> c) {
-        return readObjectFromYamlFileInResources(resource, c, false);
-    }
-
-    /**
-     * Reads an object from a YAML file stored in resources
-     *
-     * @param resource                  The name of the file in resources
-     * @param c                         The class from which resource path should be the file loaded
-     * @param ignoreUnknownProperties   Defines whether unknown properties should be ignored or if this method should
-     *                                  fail with an exception
-     *
-     * @return  An object instance from the file
-     *
-     * @param <T>   Type of the resource
-     */
-    public static <T> T readObjectFromYamlFileInResources(String resource, Class<T> c, boolean ignoreUnknownProperties) {
-        URL url = c.getResource(resource);
-        if (url == null) {
-            return null;
-        }
-        ObjectMapper mapper = new YAMLMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, !ignoreUnknownProperties);
-        try {
-            return mapper.readValue(url, c);
-        }
-        catch (InvalidFormatException e) {
-            throw new IllegalArgumentException(e);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Reads an object from YAML string
-     *
-     * @param yamlContent   String with the YAML of the object
-     * @param c             The class representing the object
-     *
-     * @return  Returns the object instance based on the YAML
-     *
-     * @param <T>   Type of the object
-     */
-    public static <T> T readObjectFromYamlString(String yamlContent, Class<T> c) {
-        try {
-            ObjectMapper mapper = new YAMLMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
-            return mapper.readValue(yamlContent, c);
-        }
-        catch (InvalidFormatException e) {
-            throw new IllegalArgumentException(e);
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
+        catch (URISyntaxException e) {
+            throw new IllegalStateException("Cannot determine file system path for " + url, e);
         }
     }
 
@@ -199,14 +76,13 @@ public final class ReadWriteUtils {
      */
     public static <T> T readObjectFromYamlFilepath(File yamlFile, Class<T> c) {
         try {
-            ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-            return mapper.readValue(yamlFile, c);
+            return READ_YAML_OBJECT_MAPPER.readValue(yamlFile, c);
         }
         catch (InvalidFormatException e) {
             throw new IllegalArgumentException(e);
         }
         catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
     }
 
@@ -233,35 +109,32 @@ public final class ReadWriteUtils {
      *
      * @param <T>   Type of the object
      */
-    public static <T> String writeObjectToYamlString(T instance) {
+    public static <T> String writeObjectToYamlString(T instance, int indent) {
         try {
-            ObjectMapper mapper = new YAMLMapper()
-                    .disable(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID)
-                    .setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
-            return mapper.writeValueAsString(instance);
+            return WRITE_YAML_OBJECT_MAPPER.writeValueAsString(instance).indent(indent).trim();
         }
         catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
     }
 
     /**
-     * Converts an object into YAML
+     * Is valid json.
      *
-     * @param instance  The resource that should be converted to YAML
-     *
-     * @return  String with the YAML representation of the object
-     *
-     * @param <T>   Type of the object
+     * @param value the value
+     * @return the boolean
      */
-    public static <T> String writeObjectToJsonString(T instance) {
+    public static boolean isValidJson(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
         try {
-            ObjectMapper mapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
-            return mapper.writeValueAsString(instance);
+            OBJECT_MAPPER.readTree(value);
         }
-        catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+        catch (IOException e) {
+            return false;
         }
+        return true;
     }
 
     /**
@@ -272,10 +145,10 @@ public final class ReadWriteUtils {
      */
     public static void writeFile(Path filePath, String text) {
         try {
-            Files.writeString(filePath, text, StandardCharsets.UTF_8);
+            Files.writeString(filePath, text, Charset.defaultCharset());
         }
         catch (IOException e) {
-            LOGGER.warn("Exception during writing text in file", e);
+            throw new IllegalStateException("Unable to generate file on Path: " + filePath, e);
         }
     }
 
@@ -292,12 +165,16 @@ public final class ReadWriteUtils {
         prefix = prefix == null ? UUID.randomUUID().toString() : prefix;
         suffix = suffix == null ? ".tmp" : suffix;
         try {
-            file = Files.createTempFile(prefix, suffix).toFile();
+            file = Files.createTempFile(prefix, suffix, getDefaultPosixFilePermissions()).toFile();
         }
         catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
         file.deleteOnExit();
         return file;
+    }
+
+    private static FileAttribute<Set<PosixFilePermission>> getDefaultPosixFilePermissions() {
+        return PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
     }
 }

@@ -24,7 +24,7 @@ import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.resources.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
-import io.kroxylicious.systemtests.utils.TestUtils;
+import io.kroxylicious.systemtests.utils.ReadWriteUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -97,7 +97,7 @@ public class LocalStack implements AwsKmsClient {
         ResourceManager.helmClient().addRepository(LOCALSTACK_HELM_REPOSITORY_NAME, LOCALSTACK_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(LOCALSTACK_HELM_CHART_NAME, LOCALSTACK_SERVICE_NAME,
                 Optional.of(Environment.AWS_LOCALSTACK_CHART_VERSION),
-                Optional.of(Path.of(TestUtils.getResourcesURI("helm_localstack_overrides.yaml"))),
+                Optional.of(Path.of(ReadWriteUtils.getResourceURI(getClass(), "helm_localstack_overrides.yaml"))),
                 Optional.empty());
     }
 

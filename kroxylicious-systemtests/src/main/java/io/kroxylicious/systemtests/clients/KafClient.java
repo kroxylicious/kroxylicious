@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import io.kroxylicious.systemtests.utils.ReadWriteUtils;
+
 import org.awaitility.core.ConditionTimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,7 +119,7 @@ public class KafClient implements KafkaClient {
     }
 
     private List<String> extractRecordLinesFromLog(String log) {
-        return Stream.of(log.split("\n")).filter(TestUtils::isValidJson).toList();
+        return Stream.of(log.split("\n")).filter(ReadWriteUtils::isValidJson).toList();
     }
 
     private List<ConsumerRecord> getConsumerRecords(String topicName, List<String> logRecords) {
