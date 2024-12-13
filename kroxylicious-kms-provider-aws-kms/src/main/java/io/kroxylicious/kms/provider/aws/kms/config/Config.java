@@ -61,7 +61,7 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
                    @JsonProperty(value = "secretKey", required = true) PasswordProvider secretKey,
                    @JsonProperty(value = "region", required = true) String region,
                    @JsonProperty(value = "tls", required = false) Tls tls) {
-        this(endpointUrl, new FixedCredentialsProviderConfig(accessKey, secretKey), region, tls);
+        this(endpointUrl, new LongTermCredentialsProviderConfig(accessKey, secretKey), region, tls);
     }
 
     @NonNull

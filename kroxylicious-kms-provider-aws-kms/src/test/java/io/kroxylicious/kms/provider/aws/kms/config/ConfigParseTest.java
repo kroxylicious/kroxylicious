@@ -20,7 +20,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 
-import io.kroxylicious.kms.provider.aws.kms.credentials.FixedCredentialsProvider;
+import io.kroxylicious.kms.provider.aws.kms.credentials.LongTermCredentialsProvider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,12 +30,12 @@ class ConfigParseTest {
     private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new Jdk8Module());
 
     @Test
-    void fixedCredentials() throws IOException {
+    void longTermCredentials() throws IOException {
         String json = """
                 {
                     "endpointUrl": "https://kms.us-east-1.amazon.com",
                     "credentialsProvider": {
-                        "type": "fixed",
+                        "type": "longTerm",
                         "accessKeyId": {
                             "password": "myAccessKeyId"
                         },
@@ -55,7 +55,7 @@ class ConfigParseTest {
         try (var provider = config.credentialsProvider().createCredentialsProvider()) {
             assertThat(provider.getCredentials())
                     .succeedsWithin(Duration.ofSeconds(1))
-                    .isEqualTo(FixedCredentialsProvider.fixedCredentials("myAccessKeyId", "mySecretAccessKey"));
+                    .isEqualTo(LongTermCredentialsProvider.fixedCredentials("myAccessKeyId", "mySecretAccessKey"));
         }
     }
 
@@ -103,7 +103,7 @@ class ConfigParseTest {
         try (var provider = config.credentialsProvider().createCredentialsProvider()) {
             assertThat(provider.getCredentials())
                     .succeedsWithin(Duration.ofSeconds(1))
-                    .isEqualTo(FixedCredentialsProvider.fixedCredentials("myAccessKey", "mySecretKey"));
+                    .isEqualTo(LongTermCredentialsProvider.fixedCredentials("myAccessKey", "mySecretKey"));
         }
     }
 
@@ -113,7 +113,7 @@ class ConfigParseTest {
                         {
                             "endpointUrl": "http://kms.us-east-1.amazon.com",
                             "credentialsProvider": {
-                                "type": "fixed",
+                                "type": "longTerm",
                                 "accessKeyId": {
                                     "password": "myAccessKeyId"
                                 },
@@ -132,7 +132,7 @@ class ConfigParseTest {
                                 {
                                     "endpointUrl": "http://kms.us-east-1.amazon.com",
                                     "credentialsProvider": {
-                                        "type": "fixed",
+                                        "type": "longTerm",
                                         "accessKeyId": {
                                             "password": "myAccessKeyId"
                                         },

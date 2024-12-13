@@ -10,16 +10,16 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-import io.kroxylicious.kms.provider.aws.kms.config.FixedCredentialsProviderConfig;
+import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Provider that obtains fixed {@link Credentials} that are statically defined by configuration.
+ * Provider that obtains long-term {@link Credentials} that are statically defined by configuration.
  *
- * @see <a href="https://docs.aws.amazon.com/sdkref/latest/guide/access-iam-users.html">long term credentials</a>.
+ * @see <a href="https://docs.aws.amazon.com/sdkref/latest/guide/access-iam-users.html">long-term credentials</a>.
  */
-public class FixedCredentialsProvider implements CredentialsProvider {
+public class LongTermCredentialsProvider implements CredentialsProvider {
     private final CompletionStage<Credentials> credentialsCompletionStage;
 
     /**
@@ -27,7 +27,7 @@ public class FixedCredentialsProvider implements CredentialsProvider {
      *
      * @param config config.
      */
-    public FixedCredentialsProvider(@NonNull FixedCredentialsProviderConfig config) {
+    public LongTermCredentialsProvider(@NonNull LongTermCredentialsProviderConfig config) {
         Objects.requireNonNull(config);
         var accessKeyId = config.accessKeyId().getProvidedPassword();
         var secretAccessKey = config.secretAccessKey().getProvidedPassword();

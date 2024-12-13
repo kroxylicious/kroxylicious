@@ -10,7 +10,7 @@ import java.net.URI;
 
 import io.kroxylicious.kms.provider.aws.kms.AbstractAwsKmsTestKmsFacade;
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
-import io.kroxylicious.kms.provider.aws.kms.config.FixedCredentialsProviderConfig;
+import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.systemtests.installation.kms.aws.AwsKmsCloud;
 
@@ -58,7 +58,7 @@ public class KubeAwsKmsCloudTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
 
     @Override
     public final Config getKmsServiceConfig() {
-        var credentialsProvider = new FixedCredentialsProviderConfig(new InlinePassword(getKroxyliciousAccessKey()),
+        var credentialsProvider = new LongTermCredentialsProviderConfig(new InlinePassword(getKroxyliciousAccessKey()),
                 new InlinePassword(getKroxyliciousSecretKey()));
         return new Config(getAwsUrl(), credentialsProvider, getRegion(), null);
     }

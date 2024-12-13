@@ -34,7 +34,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
-import io.kroxylicious.kms.provider.aws.kms.credentials.FixedCredentialsProvider;
+import io.kroxylicious.kms.provider.aws.kms.credentials.LongTermCredentialsProvider;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -77,7 +77,7 @@ class AwsV4SigningHttpRequestBuilderTest {
         var client = HttpClient.newHttpClient();
         try {
             var builder = AwsV4SigningHttpRequestBuilder.newBuilder(
-                    FixedCredentialsProvider.fixedCredentials(testDef.accessKeyId, testDef.secretAccessKey()), testDef.region(),
+                    LongTermCredentialsProvider.fixedCredentials(testDef.accessKeyId, testDef.secretAccessKey()), testDef.region(),
                     testDef.service(),
                     testDef.requestTime());
             testDef.apply(builder);
@@ -189,7 +189,7 @@ class AwsV4SigningHttpRequestBuilderTest {
 
     @NonNull
     private HttpRequest.Builder createBuilder(URI uri) {
-        var builder = AwsV4SigningHttpRequestBuilder.newBuilder(FixedCredentialsProvider.fixedCredentials(ACCESS_KEY, SECRET_KEY),
+        var builder = AwsV4SigningHttpRequestBuilder.newBuilder(LongTermCredentialsProvider.fixedCredentials(ACCESS_KEY, SECRET_KEY),
                 REGION, SERVICE, Instant.ofEpochMilli(0));
         if (uri != null) {
             builder.uri(uri);
