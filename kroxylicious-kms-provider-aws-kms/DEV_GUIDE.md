@@ -13,7 +13,7 @@ your Kafka client off-EC2.
 
 1. Create an EC2 instance on AWS - `t2.micro` instance will suffice.
 2. Enable SSH with key pair. The remainder of the instructions assume you've download the key into `.ssh/MyEC2KeyPair.pem`.
-3. Enable inbound traffic to port 22 (for SSH) and 9192 - 9193 (for Kafka traffic).
+3. Enable inbound traffic to port 22 (for SSH) and 9192 - 9195 (for Kafka traffic).
 4. Follow the 'Authenticating using AWS EC2 metadata' instructions in https://kroxylicious.io/kroxylicious/#assembly-aws-kms-proxy
    to create the policy, IAM role and assign the IAM role to the EC2 host.
 5. SSH into the EC2 instance `ssh  -i "~/.ssh/MyEC2KeyPair.pem" ec2-xxx-xxx-xxx-xxx.compute-1.amazonaws.com` and install packages ready to run docker containers and kroxylicious.
@@ -38,15 +38,15 @@ your Kafka client off-EC2.
 10. Create a config file for Kroxylicious updating the virtual clusters bootstrap address to the public address of the EC2 instance.
     ```yaml
      virtualClusters:
-     - demo:
-       targetCluster:
-         bootstrap_servers: localhost:9092
-       clusterNetworkAddressConfigProvider:
-         type: PortPerBrokerClusterNetworkAddressConfigProvider
-         config:
-           bootstrapAddress: ec2-xx-xx-xx-xx.compute-1.amazonaws.com:9192
-       logNetwork: false
-       logFrames: false
+       demo:
+         targetCluster:
+           bootstrap_servers: localhost:9092
+         clusterNetworkAddressConfigProvider:
+           type: PortPerBrokerClusterNetworkAddressConfigProvider
+           config:
+             bootstrapAddress: ec2-xx-xx-xx-xx.compute-1.amazonaws.com:9192
+         logNetwork: false
+         logFrames: false
      filters:
      - type: RecordEncryption
        config:
@@ -54,10 +54,10 @@ your Kafka client off-EC2.
          kmsConfig:
            region: us-east-1
            endpointUrl: https://kms.us-east-1.amazonaws.com
-         credentialsProvider:
-           type: ec2Metadata
-           iamRole: KroxyliciousInstance
-           # credentialLifetimeFactor: 0.001  you can use a low credentialLifetimeFactor to force Kroxylicious to renew the token frequently
+           credentialsProvider:
+             type: ec2Metadata
+             iamRole: KroxyliciousInstance
+             # credentialLifetimeFactor: 0.001  you can use a low credentialLifetimeFactor to force Kroxylicious to renew the token frequently
          selector: TemplateKekSelector
          selectorConfig:
            template: "KEK_${topicName}"
