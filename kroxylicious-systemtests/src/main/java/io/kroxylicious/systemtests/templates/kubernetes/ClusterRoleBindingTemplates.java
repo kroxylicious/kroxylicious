@@ -21,6 +21,9 @@ import io.kroxylicious.systemtests.Constants;
 
 public class ClusterRoleBindingTemplates {
 
+    private ClusterRoleBindingTemplates() {
+    }
+
     private static final Logger LOGGER = LogManager.getLogger(ClusterRoleBindingTemplates.class);
     private static final Map<String, String> kroxyLabelSelector = Map.of("app.kubernetes.io/name", "kroxylicious",
             "app.kubernetes.io/component", "operator");

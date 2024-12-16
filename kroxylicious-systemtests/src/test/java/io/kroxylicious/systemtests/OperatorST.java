@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 
 import static io.kroxylicious.systemtests.TestTags.OPERATOR;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 @Disabled
 @Tag(OPERATOR)
@@ -23,7 +24,7 @@ class OperatorST extends AbstractST {
     @Test
     void operatorInstallation() {
         kroxyliciousOperator = new KroxyliciousOperator(Constants.KO_NAMESPACE);
-        kroxyliciousOperator.deploy();
+        assertDoesNotThrow(() -> kroxyliciousOperator.deploy());
     }
 
     @AfterEach

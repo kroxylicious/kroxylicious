@@ -29,6 +29,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.ConditionStatus;
 import io.kroxylicious.systemtests.k8s.HelmClient;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterOperatorCustomResourceDefinition;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleBindingResource;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleResource;
@@ -44,7 +45,6 @@ import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaUserResource;
 
-import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -55,7 +55,7 @@ public class ResourceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
     private static ResourceManager instance;
     private static String koDeploymentName = Constants.KO_DEPLOYMENT_NAME;
-    private static ThreadLocal<ExtensionContext> testContext = new ThreadLocal<>();
+    private static final ThreadLocal<ExtensionContext> testContext = new ThreadLocal<>();
     public static final Map<String, Stack<ResourceItem>> STORED_RESOURCES = new LinkedHashMap<>();
 
     private ResourceManager() {
@@ -151,9 +151,7 @@ public class ResourceManager {
             synchronized (this) {
                 STORED_RESOURCES.computeIfAbsent(getTestContext().getDisplayName(), k -> new Stack<>());
                 STORED_RESOURCES.get(getTestContext().getDisplayName()).push(
-                        new ResourceItem<T>(
-                                () -> deleteResource(resource),
-                                resource));
+                        new ResourceItem<T>(() -> deleteResource(resource), resource));
             }
         }
 
@@ -163,9 +161,11 @@ public class ResourceManager {
                 if (Objects.equals(resource.getKind(), KafkaTopic.RESOURCE_KIND)) {
                     continue;
                 }
+                assert type != null;
                 if (!waitResourceCondition(resource, ResourceCondition.readiness(type))) {
-                    throw new RuntimeException(String.format("Timed out waiting for %s %s/%s to be ready", resource.getKind(), resource.getMetadata().getNamespace(),
-                            resource.getMetadata().getName()));
+                    throw new KubeClusterException
+                            .InvalidResource(String.format("Timed out waiting for %s %s/%s to be ready",
+                            resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
                 }
             }
         }
@@ -193,8 +193,9 @@ public class ResourceManager {
             try {
                 type.delete(resource);
                 if (!waitResourceCondition(resource, ResourceCondition.deletion())) {
-                    throw new RuntimeException(
-                            String.format("Timed out deleting %s %s/%s", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
+                    throw new KubeClusterException
+                            .InvalidResource(String.format("Timed out deleting %s %s/%s",
+                            resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
                 }
             }
             catch (Exception e) {
@@ -233,17 +234,6 @@ public class ResourceManager {
             }
         }
         STORED_RESOURCES.remove(getTestContext().getDisplayName());
-    }
-
-    public void deleteResourcesOfTypeWithoutWait(final String resourceKind) {
-        // Delete all resources of the specified kind
-        cmdKubeClient().deleteAllByResource(resourceKind);
-        LOGGER.info("Deleted all resources of kind: {}", resourceKind);
-
-        // Clear the instance stack of such resources
-        STORED_RESOURCES
-                .forEach((key, stack) -> stack.removeIf(resourceItem -> resourceItem.getResource() != null && resourceKind.equals(resourceItem.getResource().getKind())));
-        LOGGER.info("Cleared all resources of kind: {} from the resource stack", resourceKind);
     }
 
     /**

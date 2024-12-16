@@ -92,15 +92,15 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
     @SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
     public KroxyliciousOperatorBundleInstaller(KroxyliciousOperatorBuilder builder) {
-        this.extensionContext = builder.extensionContext;
-        this.kroxyliciousOperatorName = builder.kroxyliciousOperatorName;
-        this.namespaceInstallTo = builder.namespaceInstallTo;
-        this.namespaceToWatch = builder.namespaceToWatch;
-        this.bindingsNamespaces = builder.bindingsNamespaces;
-        this.operationTimeout = builder.operationTimeout;
-        this.reconciliationInterval = builder.reconciliationInterval;
-        this.extraLabels = builder.extraLabels;
-        this.replicas = builder.replicas;
+        this.extensionContext = builder.getExtensionContext();
+        this.kroxyliciousOperatorName = builder.getKroxyliciousOperatorName();
+        this.namespaceInstallTo = builder.getNamespaceInstallTo();
+        this.namespaceToWatch = builder.getNamespaceToWatch();
+        this.bindingsNamespaces = builder.getBindingNamespaces();
+        this.operationTimeout = builder.getOperationTimeout();
+        this.reconciliationInterval = builder.getReconciliationInterval();
+        this.extraLabels = builder.getExtraLabels();
+        this.replicas = builder.getReplicas();
 
         // assign defaults is something is not specified
         if (this.kroxyliciousOperatorName == null || this.kroxyliciousOperatorName.isEmpty()) {

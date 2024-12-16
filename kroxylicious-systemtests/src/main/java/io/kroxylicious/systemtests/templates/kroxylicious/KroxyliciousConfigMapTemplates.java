@@ -6,10 +6,6 @@
 
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
-
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -21,10 +17,6 @@ import io.kroxylicious.systemtests.utils.ReadWriteUtils;
  * The type Kroxylicious config templates.
  */
 public final class KroxyliciousConfigMapTemplates {
-    private static final YAMLFactory FACTORY = YAMLFactory.builder()
-            .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-            .build();
-    private static final ObjectMapper YAML_OBJECT_MAPPER = new ObjectMapper(FACTORY);
 
     private KroxyliciousConfigMapTemplates() {
     }
