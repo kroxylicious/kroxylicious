@@ -7,7 +7,7 @@
 package io.kroxylicious.systemtests.resources;
 
 import java.time.Duration;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -204,7 +204,6 @@ public class ResourceManager {
     }
 
     public void deleteResources() {
-        LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         if (!STORED_RESOURCES.containsKey(getTestContext().getDisplayName()) || STORED_RESOURCES.get(getTestContext().getDisplayName()).isEmpty()) {
             LOGGER.info("In context {} is everything deleted", getTestContext().getDisplayName());
         }
@@ -228,13 +227,12 @@ public class ResourceManager {
                     resourceItem.getThrowableRunner().run();
                 }
                 catch (Exception e) {
-                    e.printStackTrace();
+                    LOGGER.atTrace().log(Arrays.toString(e.getStackTrace()));
                 }
                 numberOfResources.decrementAndGet();
             }
         }
         STORED_RESOURCES.remove(getTestContext().getDisplayName());
-        LOGGER.info(String.join("", Collections.nCopies(76, "#")));
     }
 
     public void deleteResourcesOfTypeWithoutWait(final String resourceKind) {
