@@ -22,4 +22,4 @@ kmsConfig:
     If using IPv6, use `http://[fd00:ec2::254]` instead.
 <5> (Optional) Factor applied to the credential's expiration time to determine when to trigger a pre-emptive refresh of the credential.
     Defaults to `0.8`, Thus means the credential will refreshed once it reaches 80% of its lifetime.
-<4> AWS region identifier (e.g. `us-east-1`).
+<6> AWS region identifier (e.g. `us-east-1`).
