@@ -26,7 +26,7 @@ Adjust the instructions accordingly if you use a different user name.
 [source,shell]
 ----
 ADMIN=kroxylicious-admin
-INITIAL_PASSWORD=$(tr -dc '[:alnum:][:punct:]' < /dev/urandom | head -c 16)
+INITIAL_PASSWORD=$(aws secretsmanager get-random-password  --output text)
 CONSOLE_URL=https://$(aws sts get-caller-identity --query Account --output text).signin.aws.amazon.com/console
 aws iam create-user --user-name ${ADMIN}
 aws iam attach-user-policy --user-name ${ADMIN} --policy-arn arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser
