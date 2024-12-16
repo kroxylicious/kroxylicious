@@ -37,7 +37,8 @@ public final class ReadWriteUtils {
             .build();
     private static final ObjectMapper READ_YAML_OBJECT_MAPPER = new ObjectMapper(new YAMLFactory());
     private static final ObjectMapper WRITE_YAML_OBJECT_MAPPER = new ObjectMapper(WRITE_YAML_FACTORY);
-    private static final ObjectMapper WRITE_YAML_NO_START_MARKER_OBJECT_MAPPER = new ObjectMapper(WRITE_YAML_FACTORY.disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER));
+    private static final ObjectMapper WRITE_YAML_NO_START_MARKER_OBJECT_MAPPER = new ObjectMapper(
+            WRITE_YAML_FACTORY.disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER));
 
     private ReadWriteUtils() {
         // All static methods
@@ -111,7 +112,7 @@ public final class ReadWriteUtils {
      */
     public static <T> String writeObjectToYamlString(T instance, int indent) {
         try {
-            if(indent > 0) {
+            if (indent > 0) {
                 return WRITE_YAML_NO_START_MARKER_OBJECT_MAPPER.writeValueAsString(instance).indent(indent).trim();
             }
             return WRITE_YAML_OBJECT_MAPPER.writeValueAsString(instance).trim();
