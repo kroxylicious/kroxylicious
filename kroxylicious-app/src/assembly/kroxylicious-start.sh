@@ -26,7 +26,7 @@ classpath() {
 }
 
 if [ "${KROXYLICIOUS_LOGGING_OPTIONS+set}" != set ]; then
-  KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=$(script_dir)/../config/log4j2.yaml"
+  KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=$(script_dir)/../config/log4j2.yaml -Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector"
 fi
 export JAVA_OPTIONS="${KROXYLICIOUS_LOGGING_OPTIONS} ${JAVA_OPTIONS:-}"
 JAVA_CLASSPATH="$(classpath)"

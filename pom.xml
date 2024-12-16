@@ -35,6 +35,7 @@
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
+        <disruptor.version>3.3.4</disruptor.version>
         <freemarker.version>2.3.33</freemarker.version>
         <guava.version>33.3.1-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
@@ -254,6 +255,11 @@
                 <version>${log4j.version}</version>
                 <scope>import</scope>
                 <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.lmax</groupId>
+                <artifactId>disruptor</artifactId>
+                <version>${disruptor.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.freemarker</groupId>
