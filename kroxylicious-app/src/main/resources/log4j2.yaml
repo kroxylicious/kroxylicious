@@ -13,7 +13,7 @@ Configuration:
       name: STDOUT
       target: SYSTEM_OUT
       PatternLayout:
-        pattern: "%d{yyyy-MM-dd HH:mm:ss} <%t> %-5p %c:%L - %m%n"
+        pattern: "%d{yyyy-MM-dd HH:mm:ss} <%t> %-5p %c - %m%n"
   Loggers:
     Root:
       level: "${env:KROXYLICIOUS_ROOT_LOG_LEVEL:-WARN}"
