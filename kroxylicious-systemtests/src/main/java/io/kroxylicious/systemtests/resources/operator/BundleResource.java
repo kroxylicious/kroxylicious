@@ -87,16 +87,21 @@ public class BundleResource implements ResourceType<Deployment> {
         this.replicas = builder.replicas;
 
         // assign defaults is something is not specified
-        if (this.name == null || this.name.isEmpty())
+        if (this.name == null || this.name.isEmpty()) {
             this.name = Constants.KO_DEPLOYMENT_NAME;
-        if (this.namespaceToWatch == null)
+        }
+        if (this.namespaceToWatch == null) {
             this.namespaceToWatch = this.namespaceInstallTo;
-        if (this.operationTimeout.isZero())
+        }
+        if (this.operationTimeout.isZero()) {
             this.operationTimeout = Constants.KO_OPERATION_TIMEOUT_DEFAULT;
-        if (this.reconciliationInterval.isZero())
+        }
+        if (this.reconciliationInterval.isZero()) {
             this.reconciliationInterval = Constants.RECONCILIATION_INTERVAL;
-        if (this.extraLabels == null)
+        }
+        if (this.extraLabels == null) {
             this.extraLabels = new HashMap<>();
+        }
     }
 
     public static class BundleResourceBuilder {
@@ -164,7 +169,7 @@ public class BundleResource implements ResourceType<Deployment> {
 
     protected BundleResourceBuilder newBuilder() {
         return new BundleResourceBuilder();
-    };
+    }
 
     protected BundleResourceBuilder toBuilder() {
         return newBuilder()

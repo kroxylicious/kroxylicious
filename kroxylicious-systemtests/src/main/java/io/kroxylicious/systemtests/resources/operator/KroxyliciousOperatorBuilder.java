@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
 
@@ -64,12 +65,7 @@ public class KroxyliciousOperatorBuilder {
     }
 
     public KroxyliciousOperatorBuilder addToTheBindingsNamespaces(String bindingsNamespace) {
-        if (this.bindingsNamespaces != null) {
-            this.bindingsNamespaces = new ArrayList<>(this.bindingsNamespaces);
-        }
-        else {
-            this.bindingsNamespaces = new ArrayList<>(Collections.singletonList(bindingsNamespace));
-        }
+        this.bindingsNamespaces = new ArrayList<>(Objects.requireNonNullElseGet(this.bindingsNamespaces, () -> Collections.singletonList(bindingsNamespace)));
         return self();
     }
 
