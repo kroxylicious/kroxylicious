@@ -47,7 +47,7 @@ class Ec2MetadataCredentialsProviderTest {
     private static final String MY_TOKEN = "mytoken";
     private static final String IAM_ROLE = "myrole";
     private static final String TOKEN_RETRIEVAL_ENDPOINT = "/latest/api/token";
-    private static final String META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT = "/2024-04-11/meta-data/iam/security-credentials/";
+    private static final String META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT = "/latest/meta-data/iam/security-credentials/";
 
     // From https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-metadata-security-credentials.html
     private static final String KNOWN_GOOD_SECURITY_CREDENTIAL_RESPONSE = """
@@ -60,6 +60,19 @@ class Ec2MetadataCredentialsProviderTest {
               "Token" : "token",
               "Expiration" : "2017-05-17T15:09:54Z"
             }""";
+
+    private static final String SECURITY_CREDENTIAL_RESPONSE_WITH_ADDITIONAL_PROPERTIES = """
+            {
+              "Code" : "Success",
+              "LastUpdated" : "2012-04-26T16:39:16Z",
+              "Type" : "AWS-HMAC",
+              "AccessKeyId" : "ASIAIOSFODNN7EXAMPLE",
+              "SecretAccessKey" : "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+              "Token" : "token",
+              "Expiration" : "2017-05-17T15:09:54Z",
+              "Foo" : "Bar"
+            }""";
+
     private static WireMockServer metadataServer;
     private Ec2MetadataCredentialsProviderConfig config;
 
@@ -103,6 +116,27 @@ class Ec2MetadataCredentialsProviderTest {
                 get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
                         .willReturn(WireMock.aResponse()
                                 .withBody(KNOWN_GOOD_SECURITY_CREDENTIAL_RESPONSE)));
+
+        try (var provider = new Ec2MetadataCredentialsProvider(config)) {
+            var credentialsStage = provider.getCredentials();
+            assertThat(credentialsStage)
+                    .succeedsWithin(Duration.ofSeconds(5))
+                    .returns("ASIAIOSFODNN7EXAMPLE", SecurityCredentials::accessKeyId)
+                    .returns("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", SecurityCredentials::secretAccessKey)
+                    .returns(Instant.parse("2017-05-17T15:09:54Z"), SecurityCredentials::expiration);
+        }
+    }
+
+    /**
+     * In line with AWS advice, the code uses the /latest/ endpoint.  The reason for this test is to ensure
+     * that if AWS adds a new field to the response, that we'll continue to unmarshall the object without failure.
+     */
+    @Test
+    void allowsCredentialsResponseWithAdditionalProperties() {
+        metadataServer.stubFor(
+                get(urlEqualTo(META_DATA_IAM_SECURITY_CREDENTIALS_ENDPOINT + IAM_ROLE))
+                        .willReturn(WireMock.aResponse()
+                                .withBody(SECURITY_CREDENTIAL_RESPONSE_WITH_ADDITIONAL_PROPERTIES)));
 
         try (var provider = new Ec2MetadataCredentialsProvider(config)) {
             var credentialsStage = provider.getCredentials();
