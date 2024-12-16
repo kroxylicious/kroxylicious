@@ -42,7 +42,7 @@
         <junit.version>5.11.3</junit.version>
         <kafka.version>3.9.0</kafka.version>
         <kroxy.extension.version>0.10.0</kroxy.extension.version>
-        <log4j.version>2.24.2</log4j.version>
+        <log4j.version>2.24.3</log4j.version>
         <caffeine.version>3.1.8</caffeine.version>
         <picocli.version>4.7.6</picocli.version>
         <netty.version>4.1.115.Final</netty.version>
@@ -52,7 +52,7 @@
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.26.3</assertj-core.version>
         <mockito.version>5.14.2</mockito.version>
-        <micrometer.version>1.14.1</micrometer.version>
+        <micrometer.version>1.14.2</micrometer.version>
         <slf4j.version>2.0.16</slf4j.version>
         <sundr-builder-annotations.version>0.200.0</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.8.6</spotbugs-annotations.version>

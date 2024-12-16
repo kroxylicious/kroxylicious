@@ -1,0 +1,59 @@
+// file included in the following:
+//
+// con-aws-kms-setup.adoc
+
+[id='con-aws-kms-setup-application-ec2-metadata-{context}']
+
+= Authenticating using AWS EC2 metadata
+
+If Kroxylicious is running within AWS EC2, the EC2 instance(s) can be associated with an IAM role
+that is associated with the `KroxyliciousRecordEncryption` policy.  The Record Encryption filter uses the
+role to authenticate using the {aws}/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#instance-metadata-security-credentials[Instance Metadata Security Credentials]
+method.
+
+== Create the role
+
+Create a role with a policy that allows the EC2 instance to assume the role.
+
+[source,shell]
+----
+cat > trustpolicy << EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "sts:AssumeRole"
+            ],
+            "Principal": {
+                "Service": [
+                    "ec2.amazonaws.com"
+                ]
+            }
+        }
+    ]
+}
+EOF
+aws iam create-role --role-name KroxyliciousInstance --assume-role-policy-document file://trustpolicy
+----
+
+== Attach the policy to the role
+
+This gives the role the permissions the Record Encryption filter requires to perform the KMS operations.
+
+[source,shell]
+----
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+aws iam attach-role-policy --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KroxyliciousRecordEncryption --role-name KroxyliciousInstance
+----
+
+== Associate the EC2 instance(s) hosting Kroxylicious with the role
+
+Associate your EC2 instance(s) with the role.  Replace the `<EC2 instance id>` token in the command line with the instance id
+of each AWS EC2 hosting a Kroxylicious instance.
+
+[source,shell]
+----
+aws ec2 associate-iam-instance-profile --instance-id <EC2 instance id> --iam-instance-profile Name="KroxyliciousInstance"
+----

@@ -7,24 +7,11 @@
 
 For AWS KMS, the KMS configuration looks like this.
 
-[source, yaml]
-----
-kms: AwsKmsService                                            # <1>
-kmsConfig:
-  endpointUrl: https://kms.<region>.amazonaws.com             # <2>
-  tls:                                                        # <3>
-  accessKey:
-    passwordFile: /opt/aws/accessKey                          # <4>
-  secretKey:
-    passwordFile: /opt/aws/secretKey                          # <5>
-  region: <region>                                            # <6>
-----
-<1> Name of the KMS provider. This must be `AwsKmsService`.
-<2> AWS Endpoint URL.  This must include the `https://` scheme part.
-<3> (Optional) TLS trust configuration.
-<4> File containing the AWS Access Key
-<5> File containing the AWS Secret Key
-<6> AWS region identifier (e.g. `us-east-1`)
+include::con-aws-kms-service-config-identity-long-term.adoc[leveloffset=+1]
+
+ifdef::include-aws-kms-service-config-identity-ec2-metadata[]
+include::con-aws-kms-service-config-identity-ec2-metadata.adoc[leveloffset=+1]
+endif::[]
 
 For TLS trust and TLS client authentication configuration, the filter accepts the same TLS parameters as xref:con-deploying-upstream-tls-{context}[Upstream TLS]
 except the `PEM` store type is currently https://github.com/kroxylicious/kroxylicious/issues/933[not supported].
