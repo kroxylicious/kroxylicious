@@ -56,7 +56,7 @@
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
-            <artifactId>kubernetes-model-extensions</artifactId>
+            <artifactId>kubernetes-model-apiextensions</artifactId>
             <scope>compile</scope>
         </dependency>
         <dependency>
