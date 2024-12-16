@@ -110,7 +110,7 @@ public class DeploymentUtils {
      * @throws IOException the io exception
      */
     public static FileInputStream getDeploymentFileFromURL(String url) throws IOException {
-        File deploymentFile = ReadWriteUtils.tempFile("deploy", ".yaml");// Files.createTempFile("deploy", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
+        File deploymentFile = ReadWriteUtils.tempFile("deploy", ".yaml");
         FileUtils.copyURLToFile(
                 URI.create(url).toURL(),
                 deploymentFile,

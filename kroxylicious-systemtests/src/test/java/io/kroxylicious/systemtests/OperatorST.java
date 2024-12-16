@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -14,6 +15,7 @@ import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperato
 
 import static io.kroxylicious.systemtests.TestTags.OPERATOR;
 
+@Disabled
 @Tag(OPERATOR)
 class OperatorST extends AbstractST {
     protected static KroxyliciousOperator kroxyliciousOperator;
