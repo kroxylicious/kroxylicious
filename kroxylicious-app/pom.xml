@@ -89,6 +89,7 @@
         <dependency>
             <groupId>com.lmax</groupId>
             <artifactId>disruptor</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <!--support yaml logging configuration-->
         <dependency>
