@@ -197,23 +197,23 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     private void propagateResultToFuture(SecurityCredentials credentials, Throwable t, CompletableFuture<SecurityCredentials> target) {
-        final long nextRefresh;
+        final long refreshDelay;
         if (t != null) {
             LOGGER.warn("Refresh of EC2 credentials failed. Is IAM role {} assigned to this EC2 instance?", config.iamRole(), t);
             tokenRefreshErrorCount.incrementAndGet();
             target.completeExceptionally(t);
 
-            nextRefresh = systemClock.instant().plusMillis(backoff.backoff(tokenRefreshErrorCount.get())).toEpochMilli();
+            refreshDelay = backoff.backoff(tokenRefreshErrorCount.get());
         }
         else {
             var expiration = credentials.expiration();
             LOGGER.debug("Obtained AWS credentials from EC2 metadata using IAM role {}, expiry {}", config.iamRole(), expiration);
-            nextRefresh = (long) Math.max(0, this.lifetimeFactor * (expiration.toEpochMilli() - systemClock.millis()));
-
             tokenRefreshErrorCount.set(0);
             target.complete(credentials);
+
+            refreshDelay = (long) Math.max(0, this.lifetimeFactor * (expiration.toEpochMilli() - systemClock.instant().toEpochMilli()));
         }
-        scheduleCredentialRefresh(nextRefresh);
+        scheduleCredentialRefresh(refreshDelay);
     }
 
     private CompletableFuture<HttpResponse<String>> getToken() {
