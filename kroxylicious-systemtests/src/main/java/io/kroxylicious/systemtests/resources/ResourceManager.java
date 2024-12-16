@@ -163,8 +163,7 @@ public class ResourceManager {
                 }
                 assert type != null;
                 if (!waitResourceCondition(resource, ResourceCondition.readiness(type))) {
-                    throw new KubeClusterException
-                            .InvalidResource(String.format("Timed out waiting for %s %s/%s to be ready",
+                    throw new KubeClusterException.InvalidResource(String.format("Timed out waiting for %s %s/%s to be ready",
                             resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
                 }
             }
@@ -193,8 +192,7 @@ public class ResourceManager {
             try {
                 type.delete(resource);
                 if (!waitResourceCondition(resource, ResourceCondition.deletion())) {
-                    throw new KubeClusterException
-                            .InvalidResource(String.format("Timed out deleting %s %s/%s",
+                    throw new KubeClusterException.InvalidResource(String.format("Timed out deleting %s %s/%s",
                             resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
                 }
             }
