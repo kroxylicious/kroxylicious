@@ -12,12 +12,17 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.GeneralSecurityException;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.net.ssl.SSLContext;
 
@@ -25,14 +30,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kms.provider.aws.kms.model.EncryptRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.EncryptResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateDataKeyRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateDataKeyResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.KeyMetadata;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.SessionAuthResponse;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
@@ -46,17 +52,20 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
- * An implementation of the KMS interface backed by a remote instance of <a href="https://docs.aws.amazon.com/kms/latest/developerguide/overview.html">AWS Key Management Service</a>.
+ * An implementation of the KMS interface backed by <a href="https://www.fortanix.com/platform/data-security-manager">Fortanix DSM</a>.
  * <br/>
- * The approach taken by this implementation is to make direct calls to the AWS KMS API over REST (rather than relying upon the AWS KMS SDK).  This
- * is done in order to avoid the (significant) dependencies of the AWS SDK to the class-path.
  */
 public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
-    static final String APPLICATION_X_AMZ_JSON_1_1 = "application/x-amz-json-1.1";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
-    private static final TypeReference<InfoResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
+
+    private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<>() {
+    };
+
+    private static final TypeReference<InfoResponse> INFO_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
+    };
+    private static final TypeReference<List<EncryptResponse>> LIST_ENCRYPT_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<GenerateDataKeyResponse> GENERATE_DATA_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
@@ -64,16 +73,10 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     };
     private static final TypeReference<ErrorResponse> ERROR_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
-    private static final String TRENT_SERVICE_DESCRIBE_KEY = "TrentService.DescribeKey";
-    private static final String TRENT_SERVICE_GENERATE_DATA_KEY = "TrentService.GenerateDataKey";
-    private static final String TRENT_SERVICE_DECRYPT = "TrentService.Decrypt";
-    static final String CONTENT_TYPE_HEADER = "Content-Type";
-    static final String X_AMZ_TARGET_HEADER = "X-Amz-Target";
+    static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String ALIAS_PREFIX = "alias/";
 
-    private final String accessKey;
-    private final String secretKey;
-    private final String region;
+    private final String apiKey;
     private final Duration timeout;
     private final HttpClient client;
 
@@ -81,18 +84,26 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
      * The AWS KMS url.
      */
     private final URI awsUrl;
+    private final KeyGenerator aes;
+    private CompletableFuture<SessionAuthResponse> session;
 
-    FortanixDsmKms(URI awsUrl, String accessKey, String secretKey, String region, Duration timeout, SSLContext sslContext) {
+    FortanixDsmKms(URI awsUrl, String apiKey, Duration timeout, SSLContext sslContext) {
         Objects.requireNonNull(awsUrl);
-        Objects.requireNonNull(accessKey);
-        Objects.requireNonNull(secretKey);
-        Objects.requireNonNull(region);
+        Objects.requireNonNull(apiKey);
         this.awsUrl = awsUrl;
-        this.accessKey = accessKey;
-        this.secretKey = secretKey;
-        this.region = region;
+        this.apiKey = apiKey;
         this.timeout = timeout;
         client = createClient(sslContext);
+
+        try {
+            this.aes = KeyGenerator.getInstance(AES_KEY_ALGO);
+            this.aes.init(256); // Required for Java 17 which defaults to a key size of 128.
+        }
+        catch (NoSuchAlgorithmException e) {
+            // This should be impossible, because JCA guarantees that AES is available
+            throw new KmsException(e);
+        }
+
     }
 
     private HttpClient createClient(SSLContext sslContext) {
@@ -114,14 +125,35 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     @NonNull
     @Override
     public CompletionStage<DekPair<FortanixDsmKmsEdek>> generateDekPair(@NonNull String kekRef) {
-        final GenerateDataKeyRequest generateRequest = new GenerateDataKeyRequest(kekRef, "AES_256");
-        var request = createRequest(generateRequest, TRENT_SERVICE_GENERATE_DATA_KEY);
-        return sendAsync(kekRef, request, GENERATE_DATA_KEY_RESPONSE_TYPE_REF, UnknownKeyException::new)
-                .thenApply(response -> {
-                    var key = DestroyableRawSecretKey.takeOwnershipOf(response.plaintext(), AES_KEY_ALGO);
-                    return new DekPair<>(new FortanixDsmKmsEdek(kekRef, response.ciphertextBlob()), key);
-                });
+        try {
+            var dek = DestroyableRawSecretKey.toDestroyableKey(this.aes.generateKey());
+
+            // encrypt
+
+            final EncryptRequest info = new EncryptRequest(kekRef, new EncryptRequest.Request(kekRef, "AES", dek.getEncoded(), null, null, 0, null ));
+            return getSessionAuthResponse()
+                    .thenApply(s -> createRequest(info, "/crypto/v1/keys/batch/encrypt", s))
+                    .thenCompose(request -> sendAsync("", request, LIST_ENCRYPT_RESPONSE_TYPE_REF, u -> new UnknownAliasException(kekRef)))
+                    .thenApply(x -> new DekPair<>(new FortanixDsmKmsEdek(kekRef, x.get(0).cipher()), dek));
+        }
+        catch (KmsException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
     }
+
+    private static final String AES_WRAP_ALGO = "AES_256/GCM/NoPadding";
+
+    private static Cipher aesGcm() {
+        try {
+            return Cipher.getInstance(AES_WRAP_ALGO);
+        }
+        catch (GeneralSecurityException e) {
+            throw new KmsException(e);
+        }
+    }
+
+
 
     /**
      * {@inheritDoc}
@@ -132,7 +164,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     @Override
     public CompletionStage<SecretKey> decryptEdek(@NonNull FortanixDsmKmsEdek edek) {
         final DecryptRequest decryptRequest = new DecryptRequest(edek.kekRef(), edek.edek());
-        var request = createRequest(decryptRequest, TRENT_SERVICE_DECRYPT);
+        var request = createRequest(decryptRequest, null, null);
         return sendAsync(edek.kekRef(), request, DECRYPT_RESPONSE_TYPE_REF, UnknownKeyException::new)
                 .thenApply(response -> DestroyableRawSecretKey.takeOwnershipOf(response.plaintext(), AES_KEY_ALGO));
     }
@@ -145,11 +177,11 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     @NonNull
     @Override
     public CompletableFuture<String> resolveAlias(@NonNull String alias) {
-        final InfoRequest resolveRequest = new InfoRequest(ALIAS_PREFIX + alias);
-        var request = createRequest(resolveRequest, TRENT_SERVICE_DESCRIBE_KEY);
-        return sendAsync(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF, UnknownAliasException::new)
-                .thenApply(InfoResponse::keyMetadata)
-                .thenApply(KeyMetadata::keyId);
+        final InfoRequest info = new InfoRequest(alias);
+        return getSessionAuthResponse()
+                .thenApply(s -> createRequest(info, "/crypto/v1/keys/info", s))
+                .thenCompose(request -> sendAsync(alias, request, INFO_KEY_RESPONSE_TYPE_REF, u -> new UnknownAliasException(alias)))
+                .thenApply(InfoResponse::kid);
     }
 
     private <T> CompletableFuture<T> sendAsync(@NonNull String key, HttpRequest request,
@@ -175,23 +207,10 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
                                                             @NonNull HttpResponse<byte[]> response,
                                                             @NonNull Function<String, KmsException> notFound) {
         var statusCode = response.statusCode();
-        // AWS API states that only the 200 response is currently used.
         // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
         var httpSuccess = statusCode >= 200 && statusCode < 300;
         if (!httpSuccess) {
-            ErrorResponse error;
-            try {
-                error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
-            }
-            catch (UncheckedIOException e) {
-                error = null;
-            }
-
-            if (error != null && error.isNotFound()) {
-                throw notFound.apply("key '%s' is not found (AWS error: %s).".formatted(key, error));
-            }
-
-            throw new KmsException("Operation failed, key %s, HTTP status code %d, AWS error: %s".formatted(key, statusCode, error));
+            throw notFound.apply("Operation failed, request %s, HTTP status code %d".formatted(response.request().uri(), statusCode));
         }
         return response;
     }
@@ -207,16 +226,41 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         return awsUrl;
     }
 
-    private HttpRequest createRequest(Object request, String target) {
+    private HttpRequest createRequest(Object request, String path, SessionAuthResponse sessionAuth) {
 
         var body = getBody(request).getBytes(UTF_8);
 
         return HttpRequest.newBuilder()
-                .uri(getEndpointUrl())
-                .header(CONTENT_TYPE_HEADER, APPLICATION_X_AMZ_JSON_1_1)
+                .uri(getEndpointUrl().resolve(path))
+                .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionAuth.tokenType() + " " + sessionAuth.accessToken())
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                 .build();
     }
+
+    private CompletableFuture<SessionAuthResponse> getSessionAuthResponse() {
+        if (this.session == null) {
+            var sessionRequest = createSessionRequest();
+            return sendAsync("session", sessionRequest, SESSION_AUTH_RESPONSE, KmsException::new)
+                    .thenCompose(sar -> {
+                        this.session = CompletableFuture.completedFuture(sar);
+                        System.out.println("Got " + sar);
+                        return this.session;
+                    });
+        }
+        return this.session;
+    }
+
+    private HttpRequest createSessionRequest() {
+
+        return HttpRequest.newBuilder()
+                .uri(getEndpointUrl().resolve("/sys/v1/session/auth"))
+                .header(FortanixDsmKms.AUTHORIZATION_HEADER, "Basic " + this.apiKey)
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+    }
+
 
     private String getBody(Object obj) {
         try {

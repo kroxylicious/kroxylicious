@@ -7,77 +7,45 @@
 package io.kroxylicious.kms.provider.fortanix.dsm;
 
 import java.net.URI;
+import java.util.Objects;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testcontainers.DockerClientFactory;
-import org.testcontainers.containers.localstack.LocalStackContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class FortanixDsmKmsTestKmsFacade extends AbstractFortanixDsmKmsTestKmsFacade {
-    private static final Logger LOG = LoggerFactory.getLogger(FortanixDsmKmsTestKmsFacade.class);
-    public static final DockerImageName LOCALSTACK_IMAGE = DockerImageName.parse("localstack/localstack:3.5");
-    private LocalStackContainer localStackContainer;
 
     @Override
     public boolean isAvailable() {
-        return DockerClientFactory.instance().isDockerAvailable();
+        return true;
     }
 
     @Override
     @SuppressWarnings("resource")
     public void startKms() {
-        localStackContainer = new LocalStackContainer(LOCALSTACK_IMAGE) {
-            @Override
-            @SuppressWarnings("java:S1874")
-            public LocalStackContainer withFileSystemBind(String hostPath, String containerPath) {
-                if (containerPath.endsWith("docker.sock")) {
-                    LOG.debug("Skipped filesystem bind for {} => {}", hostPath, containerPath);
-                    // Testcontainers mounts the docker.sock into the Localstack container by default.
-                    // This is relied upon by only the Lambda Provider. By default, Podman prevents
-                    // containers accessing the docker.sock (unless run in rootful mode). Since the
-                    // Lambda Provider is not required by our use-case, skipping the filesystem bind is
-                    // the simplest option.
-                    // https://docs.localstack.cloud/getting-started/installation/#docker
-                    // https://github.com/containers/podman/issues/6015
-                    return this;
-                }
-                else {
-                    return super.withFileSystemBind(hostPath, containerPath);
-                }
-            }
-        }.withServices(LocalStackContainer.Service.KMS);
-
-        localStackContainer.start();
+        // testing against cloud, nothing to do
     }
 
     @Override
     public void stopKms() {
-        if (localStackContainer != null) {
-            localStackContainer.close();
-        }
+        // testing against cloud, nothing to do
+
+
+
+
+
+
     }
 
     @Override
     @NonNull
-    protected URI getAwsUrl() {
-        return localStackContainer.getEndpointOverride(LocalStackContainer.Service.KMS);
+    protected URI getEndpointUrl() {
+        return URI.create("https://api.uk.smartkey.io");
     }
 
     @Override
-    protected String getRegion() {
-        return localStackContainer.getRegion();
-    }
-
-    @Override
-    protected String getSecretKey() {
-        return localStackContainer.getSecretKey();
-    }
-
-    @Override
-    protected String getAccessKey() {
-        return localStackContainer.getAccessKey();
+    protected String getApiKey() {
+        var apiKey = System.getenv().get("FORTANIX_ADMIN_API_KEY");
+        Objects.requireNonNull(apiKey);
+        return apiKey;
     }
 }

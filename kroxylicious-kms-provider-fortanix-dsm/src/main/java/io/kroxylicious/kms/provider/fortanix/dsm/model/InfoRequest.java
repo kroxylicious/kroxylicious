@@ -12,6 +12,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Fortanix key info <a href="https://support.fortanix.com/apidocs/lookup-a-security-object">request</a> looking up by
+ * name.
+ *
+ * @param name key alias
+ */
 public record InfoRequest(@JsonProperty(value = "name") @NonNull String name) {
 
     public InfoRequest {

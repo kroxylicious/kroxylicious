@@ -12,16 +12,17 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.time.Instant;
+import java.util.List;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.kms.provider.aws.kms.model.KeyListResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.KeyResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.CreateAliasRequest;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.CreateKeyRequest;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.CreateKeyResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateSecurityObjectRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateSecurityObjectResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DeleteAliasRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
@@ -29,11 +30,10 @@ import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.RotateKeyRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ScheduleKeyDeletionRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ScheduleKeyDeletionResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.UpdateAliasRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.SessionAuthResponse;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -44,15 +44,12 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int MINIMUM_ALLOWED_EXPIRY_DAYS = 7;
 
-    private static final String TRENT_SERVICE_DESCRIBE_KEY = "TrentService.DescribeKey";
-    private static final String TRENT_SERVICE_CREATE_KEY = "TrentService.CreateKey";
-    private static final String TRENT_SERVICE_CREATE_ALIAS = "TrentService.CreateAlias";
-    private static final String TRENT_SERVICE_UPDATE_ALIAS = "TrentService.UpdateAlias";
-    private static final String TRENT_SERVICE_ROTATE_KEY = "TrentService.RotateKeyOnDemand";
-    private static final String TRENT_SERVICE_DELETE_ALIAS = "TrentService.DeleteAlias";
-    private static final String TRENT_SERVICE_SCHEDULE_KEY_DELETION = "TrentService.ScheduleKeyDeletion";
+    private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<>() {
+    };
 
-    private static final TypeReference<CreateKeyResponse> CREATE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<List<KeyResponse>> KEY_LIST_RESPONSE_RESPONSE = new TypeReference<>() {
+    };
+    private static final TypeReference<GenerateSecurityObjectResponse> GENERATE_SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<InfoResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
@@ -60,7 +57,11 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
     };
     private static final TypeReference<ErrorResponse> ERROR_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
+    public static final String KEY_GROUP = "eae3d454-825f-40e6-abd4-1b7e978e1687";
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+
+    private SessionAuthResponse session;
+
 
     protected AbstractFortanixDsmKmsTestKmsFacade() {
     }
@@ -75,18 +76,14 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
     }
 
     @NonNull
-    protected abstract URI getAwsUrl();
+    protected abstract URI getEndpointUrl();
 
     @Override
     public Config getKmsServiceConfig() {
-        return new Config(getAwsUrl(), new InlinePassword(getAccessKey()), null);
+        return new Config(getEndpointUrl(), new InlinePassword(getApiKey()), null);
     }
 
-    protected abstract String getRegion();
-
-    protected abstract String getSecretKey();
-
-    protected abstract String getAccessKey();
+    protected abstract String getApiKey();
 
     @Override
     public final Class<FortanixDsmKmsService> getKmsServiceClass() {
@@ -95,52 +92,81 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
 
     @Override
     public final void stop() {
+
+        deleteAllkeys();
+
         stopKms();
+    }
+
+    private void deleteAllkeys() {
+
+        var sessionResponse = getSessionAuthResponse();
+
+        var keyListRequest = HttpRequest.newBuilder()
+                .uri(getEndpointUrl().resolve("/crypto/v1/keys?group_id=" + KEY_GROUP))
+                .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
+                .GET()
+                .build();
+
+        var keys = sendRequest("", keyListRequest, KEY_LIST_RESPONSE_RESPONSE);
+        keys.forEach(k -> {
+
+            var keyDeleteRequest = HttpRequest.newBuilder()
+                    .uri(getEndpointUrl().resolve("/crypto/v1/keys/" + k.kid()))
+                    .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
+                    .DELETE()
+                    .build();
+
+            sendRequestExpectingNoResponse(keyDeleteRequest);
+        });
+
     }
 
     @Override
     public final TestKekManager getTestKekManager() {
-        return new AwsKmsTestKekManager();
+        return new FortanixDsmKmsTestKekManager();
     }
 
-    class AwsKmsTestKekManager implements TestKekManager {
+    class FortanixDsmKmsTestKekManager implements TestKekManager {
+
         @Override
         public void generateKek(String alias) {
-            final CreateKeyRequest createKey = new CreateKeyRequest("key for alias: " + alias);
-            var createRequest = createRequest(createKey, TRENT_SERVICE_CREATE_KEY);
-            var createKeyResponse = sendRequest(alias, createRequest, CREATE_KEY_RESPONSE_TYPE_REF);
+            var sessionResponse = getSessionAuthResponse();
 
-            final CreateAliasRequest createAlias = new CreateAliasRequest(createKeyResponse.keyMetadata().keyId(), FortanixDsmKms.ALIAS_PREFIX + alias);
-            var aliasRequest = createRequest(createAlias, TRENT_SERVICE_CREATE_ALIAS);
-            sendRequestExpectingNoResponse(aliasRequest);
+            var generateRequest = new GenerateSecurityObjectRequest( alias, 256, "AES", KEY_GROUP);
+            var request = createRequest("/crypto/v1/keys", generateRequest, sessionResponse);
+            var response = sendRequest(alias, request, GENERATE_SECURITY_OBJECT_RESPONSE_TYPE_REF);
+            System.out.println(response);
+
         }
+
 
         @Override
         public InfoResponse read(String alias) {
             final InfoRequest describeKey = new InfoRequest(FortanixDsmKms.ALIAS_PREFIX + alias);
-            var request = createRequest(describeKey, TRENT_SERVICE_DESCRIBE_KEY);
+            var request = createRequest(null, describeKey, null);
             return sendRequest(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF);
         }
 
         @Override
         public void deleteKek(String alias) {
             var key = read(alias);
-            var keyId = key.keyMetadata().keyId();
+            var keyId = key.kid();
             final ScheduleKeyDeletionRequest request = new ScheduleKeyDeletionRequest(keyId, MINIMUM_ALLOWED_EXPIRY_DAYS);
-            var scheduleDeleteRequest = createRequest(request, TRENT_SERVICE_SCHEDULE_KEY_DELETION);
+            var scheduleDeleteRequest = createRequest(null, request, null);
 
             sendRequest(keyId, scheduleDeleteRequest, SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF);
 
             final DeleteAliasRequest deleteAlias = new DeleteAliasRequest(FortanixDsmKms.ALIAS_PREFIX + alias);
-            var deleteAliasRequest = createRequest(deleteAlias, TRENT_SERVICE_DELETE_ALIAS);
+            var deleteAliasRequest = createRequest(null, deleteAlias, null);
             sendRequestExpectingNoResponse(deleteAliasRequest);
         }
 
         @Override
         public void rotateKek(String alias) {
             var key = read(alias);
-            final RotateKeyRequest rotateKey = new RotateKeyRequest(key.keyMetadata().keyId());
-            var rotateKeyRequest = createRequest(rotateKey, TRENT_SERVICE_ROTATE_KEY);
+            final RotateKeyRequest rotateKey = new RotateKeyRequest(key.kid());
+            var rotateKeyRequest = createRequest(null, rotateKey, null);
             try {
                 sendRequestExpectingNoResponse(rotateKeyRequest);
             }
@@ -155,106 +181,115 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
             // https://github.com/localstack/localstack/issues/10723
 
             // mimic rotate by creating a new key and repoint the alias at it, leaving the original key in place.
-            final CreateKeyRequest request = new CreateKeyRequest("[rotated] key for alias: " + alias);
-            var keyRequest = createRequest(request, TRENT_SERVICE_CREATE_KEY);
-            var createKeyResponse = sendRequest(alias, keyRequest, CREATE_KEY_RESPONSE_TYPE_REF);
-
-            final UpdateAliasRequest update = new UpdateAliasRequest(createKeyResponse.keyMetadata().keyId(), FortanixDsmKms.ALIAS_PREFIX + alias);
-            var aliasRequest = createRequest(update, TRENT_SERVICE_UPDATE_ALIAS);
-            sendRequestExpectingNoResponse(aliasRequest);
-        }
-
-        private HttpRequest createRequest(Object request, String target) {
-            var body = encodeJson(request).getBytes(UTF_8);
-
-            return AwsV4SigningHttpRequestBuilder.newBuilder(getAccessKey(), getSecretKey(), getRegion(), "kms", Instant.now())
-                    .uri(getAwsUrl())
-                    .header(FortanixDsmKms.CONTENT_TYPE_HEADER, FortanixDsmKms.APPLICATION_X_AMZ_JSON_1_1)
-                    .header(FortanixDsmKms.X_AMZ_TARGET_HEADER, target)
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(body))
-                    .build();
-        }
-
-        private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
-            try {
-                HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-                checkForError(key, request.uri(), response.statusCode(), response);
-                return decodeJson(valueTypeRef, response.body());
-            }
-            catch (IOException e) {
-                if (e.getCause() instanceof KmsException ke) {
-                    throw ke;
-                }
-                throw new UncheckedIOException("Request to %s failed".formatted(request), e);
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Interrupted during REST API call: %s".formatted(request.uri()), e);
-            }
-        }
-
-        private void checkForError(String key, URI uri, int statusCode, HttpResponse<byte[]> response) {
-            ErrorResponse error;
-            // AWS API states that only the 200 response is currently used.
-            // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
-            if (!isHttpSuccess(statusCode)) {
-                if (statusCode == 501) {
-                    throw new AwsNotImplementException("AWS does not implement %s".formatted(uri));
-                }
-                try {
-                    error = decodeJson(ERROR_RESPONSE_TYPE_REF, response.body());
-                    if (error.isNotFound()) {
-                        throw new UnknownAliasException(key);
-                    }
-                    else {
-                        throw new IllegalStateException("unexpected response %s (AWS error: %s) for request: %s".formatted(response.statusCode(), error, uri));
-                    }
-                }
-                catch (UncheckedIOException e) {
-                    throw new IllegalStateException("Unable to read error response with Status Code: %s from AWS for request: %s".formatted(response.statusCode(), uri));
-                }
-            }
-        }
-
-        private void sendRequestExpectingNoResponse(HttpRequest request) {
-            try {
-                var response = client.send(request, HttpResponse.BodyHandlers.discarding());
-                if (!isHttpSuccess(response.statusCode())) {
-                    if (response.statusCode() == 501) {
-                        throw new AwsNotImplementException("AWS do not implement %s".formatted(request.uri()));
-                    }
-                    throw new IllegalStateException("Unexpected response: %d to request %s".formatted(response.statusCode(), request.uri()));
-                }
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException("Request to %s failed".formatted(request), e);
-            }
-            catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException(e);
-            }
-        }
-
-        private boolean isHttpSuccess(int statusCode) {
-            return statusCode >= 200 && statusCode < 300;
-        }
-
-        private static <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
-            try {
-                return OBJECT_MAPPER.readValue(bytes, valueTypeRef);
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }
-
-        private String encodeJson(Object obj) {
-            try {
-                return OBJECT_MAPPER.writeValueAsString(obj);
-            }
-            catch (JsonProcessingException e) {
-                throw new UncheckedIOException("Failed to encode the request body", e);
-            }
+//            final GenerateSecurityObjectRequest request = new GenerateSecurityObjectRequest(alias,);
+//            var keyRequest = createRequest(request, null);
+//            var createKeyResponse = sendRequest(alias, keyRequest, CREATE_KEY_RESPONSE_TYPE_REF);
+//
+//            final UpdateAliasRequest update = new UpdateAliasRequest(createKeyResponse.kid(), FortanixDsmKms.ALIAS_PREFIX + alias);
+//            var aliasRequest = createRequest(update, null);
+//            sendRequestExpectingNoResponse(aliasRequest);
         }
     }
+
+
+    private HttpRequest createRequest(String path, Object request, SessionAuthResponse sessionResponse) {
+        var body = encodeJson(request).getBytes(UTF_8);
+
+        return HttpRequest.newBuilder()
+                .uri(getEndpointUrl().resolve(path))
+                .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                .build();
+    }
+
+    private SessionAuthResponse getSessionAuthResponse() {
+        if (this.session == null) {
+            var sessionRequest = createSessionRequest();
+            this.session = sendRequest("session", sessionRequest, SESSION_AUTH_RESPONSE);
+        }
+        return this.session;
+    }
+
+    private HttpRequest createSessionRequest() {
+
+        return HttpRequest.newBuilder()
+                .uri(getEndpointUrl().resolve("/sys/v1/session/auth"))
+                .header(FortanixDsmKms.AUTHORIZATION_HEADER, "Basic " + getApiKey())
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+    }
+
+
+    private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
+        try {
+            HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            checkForError(key, request.uri(), response.statusCode(), response);
+            return decodeJson(valueTypeRef, response.body());
+        }
+        catch (IOException e) {
+            if (e.getCause() instanceof KmsException ke) {
+                throw ke;
+            }
+            throw new UncheckedIOException("Request to %s failed".formatted(request), e);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted during REST API call: %s".formatted(request.uri()), e);
+        }
+    }
+
+    private void checkForError(String key, URI uri, int statusCode, HttpResponse<byte[]> response) {
+        // AWS API states that only the 200 response is currently used.
+        // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
+        if (!isHttpSuccess(statusCode)) {
+            if (statusCode == 501) {
+                throw new AwsNotImplementException("AWS does not implement %s".formatted(uri));
+            }
+            var body = new String(response.body(), UTF_8);
+            throw new IllegalStateException("Unable to read error response with Status Code: %s from Fortanix for request: %s, body %s".formatted(response.statusCode(), uri,
+                    body));
+        }
+    }
+
+    private void sendRequestExpectingNoResponse(HttpRequest request) {
+        try {
+            var response = client.send(request, HttpResponse.BodyHandlers.discarding());
+            if (!isHttpSuccess(response.statusCode())) {
+                if (response.statusCode() == 501) {
+                    throw new AwsNotImplementException("AWS do not implement %s".formatted(request.uri()));
+                }
+                throw new IllegalStateException("Unexpected response: %d to request %s".formatted(response.statusCode(), request.uri()));
+            }
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException("Request to %s failed".formatted(request), e);
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private boolean isHttpSuccess(int statusCode) {
+        return statusCode >= 200 && statusCode < 300;
+    }
+
+    private static <T> T decodeJson(TypeReference<T> valueTypeRef, byte[] bytes) {
+        try {
+            return OBJECT_MAPPER.readValue(bytes, valueTypeRef);
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private String encodeJson(Object obj) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(obj);
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException("Failed to encode the request body", e);
+        }
+    }
+
 }

@@ -14,6 +14,7 @@ import java.util.Objects;
  *
  * @param kekRef - kek reference.
  * @param edek - edek bytes
+ * needs the iv etc
  */
 record FortanixDsmKmsEdek(String kekRef,
                           byte[] edek) {

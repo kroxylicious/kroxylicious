@@ -14,8 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record CreateKeyResponse(@JsonProperty("KeyMetadata") @NonNull KeyMetadata keyMetadata) {
-    public CreateKeyResponse {
-        Objects.requireNonNull(keyMetadata);
+public record GenerateSecurityObjectResponse(@JsonProperty("kid") @NonNull String kid) {
+    public GenerateSecurityObjectResponse {
+        Objects.requireNonNull(kid);
     }
 }
