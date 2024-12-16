@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1667](https://github.com/kroxylicious/kroxylicious/pull/1667) Bump io.micrometer:micrometer-bom from 1.14.1 to 1.14.2
 * [#1294](https://github.com/kroxylicious/kroxylicious/issues/1294) AWS KMS - support authentication from instance metadata of EC2
 * [#1657](https://github.com/kroxylicious/kroxylicious/pull/1657) Remove forwardPartialRequests feature of record validation filter
 * [#1635](https://github.com/kroxylicious/kroxylicious/pull/1635) Handle ApiVersions unsupported version downgrade
