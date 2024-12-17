@@ -9,10 +9,8 @@ package io.kroxylicious.systemtests.resources.operator;
 import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.installation.InstallationMethod;
 
-import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.UnknownInstallationType;
-import io.kroxylicious.systemtests.resources.ResourceManager;
 
 public class SetUpKroxyliciousOperator {
     private final InstallationMethod installationMethod;
@@ -35,10 +33,6 @@ public class SetUpKroxyliciousOperator {
         if (Environment.INSTALL_TYPE != InstallType.Yaml) {
             throw new UnknownInstallationType("Installation type " + Environment.INSTALL_TYPE + " not supported");
         }
-        return new KroxyliciousOperatorBuilder()
-                .withExtensionContext(ResourceManager.getTestContext())
-                .withNamespace(installationNamespace)
-                .withWatchingNamespaces(Constants.WATCH_ALL_NAMESPACES)
-                .createBundleInstallation();
+        return new KroxyliciousOperatorBundleInstaller().getDefaultBuilder(installationNamespace).createBundleInstallation();
     }
 }

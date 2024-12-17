@@ -92,15 +92,15 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
     @SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
     public KroxyliciousOperatorBundleInstaller(KroxyliciousOperatorBuilder builder) {
-        this.extensionContext = builder.getExtensionContext();
-        this.kroxyliciousOperatorName = builder.getKroxyliciousOperatorName();
-        this.namespaceInstallTo = builder.getNamespaceInstallTo();
-        this.namespaceToWatch = builder.getNamespaceToWatch();
-        this.bindingsNamespaces = builder.getBindingNamespaces();
-        this.operationTimeout = builder.getOperationTimeout();
-        this.reconciliationInterval = builder.getReconciliationInterval();
-        this.extraLabels = builder.getExtraLabels();
-        this.replicas = builder.getReplicas();
+        this.extensionContext = builder.extensionContext;
+        this.kroxyliciousOperatorName = builder.kroxyliciousOperatorName;
+        this.namespaceInstallTo = builder.namespaceInstallTo;
+        this.namespaceToWatch = builder.namespaceToWatch;
+        this.bindingsNamespaces = builder.bindingsNamespaces;
+        this.operationTimeout = builder.operationTimeout;
+        this.reconciliationInterval = builder.reconciliationInterval;
+        this.extraLabels = builder.extraLabels;
+        this.replicas = builder.replicas;
 
         // assign defaults is something is not specified
         if (this.kroxyliciousOperatorName == null || this.kroxyliciousOperatorName.isEmpty()) {
@@ -389,5 +389,95 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             }
         }
         LOGGER.info(SEPARATOR);
+    }
+
+    public KroxyliciousOperatorBuilder getDefaultBuilder(String installationNamespace) {
+        return new KroxyliciousOperatorBuilder()
+                .withExtensionContext(ResourceManager.getTestContext())
+                .withNamespace(installationNamespace)
+                .withWatchingNamespaces(Constants.WATCH_ALL_NAMESPACES);
+    }
+
+    public static class KroxyliciousOperatorBuilder {
+
+        private ExtensionContext extensionContext;
+        private String kroxyliciousOperatorName;
+        private String namespaceInstallTo;
+        private String namespaceToWatch;
+        private List<String> bindingsNamespaces;
+        private Duration operationTimeout;
+        private Duration reconciliationInterval;
+        private Map<String, String> extraLabels;
+        private int replicas = 1;
+
+        public KroxyliciousOperatorBuilder withExtensionContext(ExtensionContext extensionContext) {
+            this.extensionContext = extensionContext;
+            return self();
+        }
+
+        public KroxyliciousOperatorBuilder withKroxyliciousOperatorName(String kroxyliciousOperatorName) {
+            this.kroxyliciousOperatorName = kroxyliciousOperatorName;
+            return self();
+        }
+
+        public KroxyliciousOperatorBuilder withNamespace(String namespaceInstallTo) {
+            this.namespaceInstallTo = namespaceInstallTo;
+            return self();
+        }
+
+        public KroxyliciousOperatorBuilder withWatchingNamespaces(String namespaceToWatch) {
+            this.namespaceToWatch = namespaceToWatch;
+            return self();
+        }
+
+        public KroxyliciousOperatorBuilder addToTheWatchingNamespaces(String namespaceToWatch) {
+            if (this.namespaceToWatch != null) {
+                if (!this.namespaceToWatch.equals("*")) {
+                    this.namespaceToWatch += "," + namespaceToWatch;
+                }
+            }
+            else {
+                this.namespaceToWatch = namespaceToWatch;
+            }
+            return self();
+        }
+
+        public KroxyliciousOperatorBuilder withBindingsNamespaces(List<String> bindingsNamespaces) {
+            this.bindingsNamespaces = bindingsNamespaces;
+            return self();
+        }
+
+        public KroxyliciousOperatorBuilder addToTheBindingsNamespaces(String bindingsNamespace) {
+            this.bindingsNamespaces = new ArrayList<>(Objects.requireNonNullElseGet(this.bindingsNamespaces, () -> Collections.singletonList(bindingsNamespace)));
+            return self();
+        }
+
+        public KroxyliciousOperatorBuilder withOperationTimeout(Duration operationTimeout) {
+            this.operationTimeout = operationTimeout;
+            return self();
+        }
+
+        public KroxyliciousOperatorBuilder withReconciliationInterval(Duration reconciliationInterval) {
+            this.reconciliationInterval = reconciliationInterval;
+            return self();
+        }
+
+        public KroxyliciousOperatorBuilder withExtraLabels(Map<String, String> extraLabels) {
+            this.extraLabels = extraLabels;
+            return self();
+        }
+
+        public KroxyliciousOperatorBuilder withReplicas(int replicas) {
+            this.replicas = replicas;
+            return self();
+        }
+
+        private KroxyliciousOperatorBuilder self() {
+            return this;
+        }
+
+        public KroxyliciousOperatorBundleInstaller createBundleInstallation() {
+            return new KroxyliciousOperatorBundleInstaller(this);
+        }
     }
 }
