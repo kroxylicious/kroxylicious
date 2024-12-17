@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: kroxylicious
-        image: quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT
+        image: quay.io/kroxylicious/kroxylicious:0.10.0-SNAPSHOT
         imagePullPolicy: Always
         args: ["--config", "/opt/kroxylicious/config/config.yaml"]
         ports:
