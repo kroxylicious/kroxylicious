@@ -34,7 +34,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
-    private static final int MAX_ATTEMPTS = 3;
+    private static final int MAX_ATTEMPTS = 100;
     /**
     * The encryption version used on the produce path.
     * Note that the encryption version used on the fetch path is read from the
