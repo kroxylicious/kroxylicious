@@ -22,4 +22,5 @@ kmsConfig:
 <3> (Optional) TLS trust configuration.
 <4> File containing the AWS access key ID.
 <5> File containing the AWS secret access key.
-<6> AWS region identifier, such as `us-east-1`.
+<6> The AWS region identifier, such as `us-east-1`, specifying where your KMS resources are located. 
+This must match the region of the KMS endpoint you're using.
