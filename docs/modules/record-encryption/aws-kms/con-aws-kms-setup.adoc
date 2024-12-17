@@ -26,14 +26,14 @@ Adjust the instructions accordingly if you use a different user name.
 [source,shell]
 ----
 ADMIN=kroxylicious-admin
-INITIAL_PASSWORD=$(tr -dc 'A-Za-z0-9!?%=' < /dev/urandom | head -c 10)
+INITIAL_PASSWORD=$(aws secretsmanager get-random-password  --output text)
 CONSOLE_URL=https://$(aws sts get-caller-identity --query Account --output text).signin.aws.amazon.com/console
 aws iam create-user --user-name ${ADMIN}
 aws iam attach-user-policy --user-name ${ADMIN} --policy-arn arn:aws:iam::aws:policy/AWSKeyManagementServicePowerUser
 aws iam attach-user-policy --user-name ${ADMIN} --policy-arn arn:aws:iam::aws:policy/IAMUserChangePassword
 aws iam attach-user-policy --user-name ${ADMIN} --policy-arn arn:aws:iam::aws:policy/AWSCloudShellFullAccess
-aws iam create-login-profile --user-name ${ADMIN} --password ${INITIAL_PASSWORD} --password-reset-required
-echo Now log in at ${CONSOLE_URL}  with user name ${ADMIN} password ${INITIAL_PASSWORD} and change the password.
+aws iam create-login-profile --user-name ${ADMIN} --password "${INITIAL_PASSWORD}" --password-reset-required
+echo Now log in at ${CONSOLE_URL}  with user name ${ADMIN} password "${INITIAL_PASSWORD}" and change the password.
 ----
 
 == Create an alias-based policy for KEK aliases
