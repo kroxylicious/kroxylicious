@@ -7,7 +7,7 @@
 package io.kroxylicious.systemtests.enums;
 
 public enum DeploymentType {
-    BundleClusterOperator,
-    HelmClusterOperator,
-    OlmClusterOperator
+    BUNDLE,
+    HELM,
+    OLM
 }

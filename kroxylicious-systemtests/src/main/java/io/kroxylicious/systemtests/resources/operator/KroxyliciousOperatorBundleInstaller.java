@@ -138,8 +138,8 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             cluster.setNamespace(namespaceInstallTo);
 
             if (this.extensionContext != null) {
-                ResourceManager.STORED_RESOURCES.computeIfAbsent(this.extensionContext.getDisplayName(), k -> new Stack<>());
-                ResourceManager.STORED_RESOURCES.get(this.extensionContext.getDisplayName()).push(
+                ResourceManager.getStoredResources().computeIfAbsent(this.extensionContext.getDisplayName(), k -> new Stack<>());
+                ResourceManager.getStoredResources().get(this.extensionContext.getDisplayName()).push(
                         new ResourceItem<>(this::deleteKroxyliciousOperatorNamespace));
 
                 NamespaceUtils.createNamespaces(namespaceInstallTo, bindingsNamespaces);

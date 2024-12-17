@@ -56,7 +56,7 @@ public class ResourceManager {
     private static ResourceManager instance;
     private static String koDeploymentName = Constants.KO_DEPLOYMENT_NAME;
     private static ExtensionContext testContext;
-    public static final Map<String, Stack<ResourceItem<?>>> STORED_RESOURCES = new LinkedHashMap<>();
+    private static final Map<String, Stack<ResourceItem<?>>> storedResources = new LinkedHashMap<>();
 
     private ResourceManager() {
     }
@@ -79,6 +79,10 @@ public class ResourceManager {
 
     public static ExtensionContext getTestContext() {
         return testContext;
+    }
+
+    public static Map<String, Stack<ResourceItem<?>>> getStoredResources() {
+        return storedResources;
     }
 
     /**
@@ -149,8 +153,8 @@ public class ResourceManager {
             type.create(resource);
 
             synchronized (this) {
-                STORED_RESOURCES.computeIfAbsent(getTestContext().getDisplayName(), k -> new Stack<>());
-                STORED_RESOURCES.get(getTestContext().getDisplayName()).push(
+                storedResources.computeIfAbsent(getTestContext().getDisplayName(), k -> new Stack<>());
+                storedResources.get(getTestContext().getDisplayName()).push(
                         new ResourceItem<>(() -> deleteResource(resource), resource));
             }
         }
@@ -203,7 +207,7 @@ public class ResourceManager {
     }
 
     public void deleteResources() {
-        if (!STORED_RESOURCES.containsKey(getTestContext().getDisplayName()) || STORED_RESOURCES.get(getTestContext().getDisplayName()).isEmpty()) {
+        if (!storedResources.containsKey(getTestContext().getDisplayName()) || storedResources.get(getTestContext().getDisplayName()).isEmpty()) {
             LOGGER.info("In context {} is everything deleted", getTestContext().getDisplayName());
         }
         else {
@@ -211,13 +215,13 @@ public class ResourceManager {
         }
 
         // if stack is created for specific test suite or test case
-        AtomicInteger numberOfResources = STORED_RESOURCES.get(getTestContext().getDisplayName()) != null
-                ? new AtomicInteger(STORED_RESOURCES.get(getTestContext().getDisplayName()).size())
+        AtomicInteger numberOfResources = storedResources.get(getTestContext().getDisplayName()) != null
+                ? new AtomicInteger(storedResources.get(getTestContext().getDisplayName()).size())
                 :
                 // stack has no elements
                 new AtomicInteger(0);
-        while (STORED_RESOURCES.containsKey(getTestContext().getDisplayName()) && numberOfResources.get() > 0) {
-            Stack<ResourceItem<?>> stack = STORED_RESOURCES.get(getTestContext().getDisplayName());
+        while (storedResources.containsKey(getTestContext().getDisplayName()) && numberOfResources.get() > 0) {
+            Stack<ResourceItem<?>> stack = storedResources.get(getTestContext().getDisplayName());
 
             while (!stack.isEmpty()) {
                 ResourceItem<?> resourceItem = stack.pop();
@@ -231,7 +235,7 @@ public class ResourceManager {
                 numberOfResources.decrementAndGet();
             }
         }
-        STORED_RESOURCES.remove(getTestContext().getDisplayName());
+        storedResources.remove(getTestContext().getDisplayName());
     }
 
     /**
@@ -240,7 +244,7 @@ public class ResourceManager {
      */
     @SuppressWarnings(value = "unchecked")
     public final <T extends HasMetadata> void synchronizeResources() {
-        Stack<ResourceItem<?>> resources = STORED_RESOURCES.get(getTestContext().getDisplayName());
+        Stack<ResourceItem<?>> resources = storedResources.get(getTestContext().getDisplayName());
 
         // sync all resources
         for (ResourceItem<?> resource : resources) {

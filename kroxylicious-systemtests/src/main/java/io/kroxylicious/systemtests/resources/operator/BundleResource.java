@@ -190,7 +190,7 @@ public class BundleResource implements ResourceType<Deployment> {
                 .editMetadata()
                 .withName(name)
                 .withNamespace(namespaceInstallTo)
-                .addToLabels(Constants.DEPLOYMENT_TYPE, DeploymentType.BundleClusterOperator.name())
+                .addToLabels(Constants.DEPLOYMENT_TYPE, DeploymentType.BUNDLE.name())
                 .endMetadata()
                 .editSpec()
                 .withReplicas(this.replicas)
