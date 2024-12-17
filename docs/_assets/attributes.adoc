@@ -15,7 +15,7 @@
 
 //Latest version
 :KroxyliciousVersion: 0.9
-:gitRef: tree/main
+:gitRef: releases/tag/v0.9.0
 :ApicurioVersion: 2.6.x
 
 //Proxy links
