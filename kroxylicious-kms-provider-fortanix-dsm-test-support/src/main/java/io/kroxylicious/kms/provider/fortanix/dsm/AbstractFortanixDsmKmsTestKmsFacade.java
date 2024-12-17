@@ -14,19 +14,21 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.aws.kms.model.KeyListResponse;
-import io.kroxylicious.kms.provider.aws.kms.model.KeyResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.DeleteAliasRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateSecurityObjectRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateSecurityObjectResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.DeleteAliasRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.KeyResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.RotateKeyRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ScheduleKeyDeletionRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ScheduleKeyDeletionResponse;
@@ -41,6 +43,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, FortanixDsmKmsEdek> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractFortanixDsmKmsTestKmsFacade.class);
+
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final int MINIMUM_ALLOWED_EXPIRY_DAYS = 7;
 
@@ -61,7 +65,6 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 
     private SessionAuthResponse session;
-
 
     protected AbstractFortanixDsmKmsTestKmsFacade() {
     }
@@ -133,13 +136,12 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
         public void generateKek(String alias) {
             var sessionResponse = getSessionAuthResponse();
 
-            var generateRequest = new GenerateSecurityObjectRequest( alias, 256, "AES", KEY_GROUP);
+            var generateRequest = new GenerateSecurityObjectRequest(alias, 256, "AES", KEY_GROUP);
             var request = createRequest("/crypto/v1/keys", generateRequest, sessionResponse);
             var response = sendRequest(alias, request, GENERATE_SECURITY_OBJECT_RESPONSE_TYPE_REF);
-            System.out.println(response);
+            LOGGER.trace("generateKek {} -> {}", alias, response);
 
         }
-
 
         @Override
         public InfoResponse read(String alias) {
@@ -181,16 +183,15 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
             // https://github.com/localstack/localstack/issues/10723
 
             // mimic rotate by creating a new key and repoint the alias at it, leaving the original key in place.
-//            final GenerateSecurityObjectRequest request = new GenerateSecurityObjectRequest(alias,);
-//            var keyRequest = createRequest(request, null);
-//            var createKeyResponse = sendRequest(alias, keyRequest, CREATE_KEY_RESPONSE_TYPE_REF);
-//
-//            final UpdateAliasRequest update = new UpdateAliasRequest(createKeyResponse.kid(), FortanixDsmKms.ALIAS_PREFIX + alias);
-//            var aliasRequest = createRequest(update, null);
-//            sendRequestExpectingNoResponse(aliasRequest);
+            // final GenerateSecurityObjectRequest request = new GenerateSecurityObjectRequest(alias,);
+            // var keyRequest = createRequest(request, null);
+            // var createKeyResponse = sendRequest(alias, keyRequest, CREATE_KEY_RESPONSE_TYPE_REF);
+            //
+            // final UpdateAliasRequest update = new UpdateAliasRequest(createKeyResponse.kid(), FortanixDsmKms.ALIAS_PREFIX + alias);
+            // var aliasRequest = createRequest(update, null);
+            // sendRequestExpectingNoResponse(aliasRequest);
         }
     }
-
 
     private HttpRequest createRequest(String path, Object request, SessionAuthResponse sessionResponse) {
         var body = encodeJson(request).getBytes(UTF_8);
@@ -219,7 +220,6 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
                 .build();
     }
 
-
     private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
         try {
             HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
@@ -246,8 +246,9 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
                 throw new AwsNotImplementException("AWS does not implement %s".formatted(uri));
             }
             var body = new String(response.body(), UTF_8);
-            throw new IllegalStateException("Unable to read error response with Status Code: %s from Fortanix for request: %s, body %s".formatted(response.statusCode(), uri,
-                    body));
+            throw new IllegalStateException(
+                    "Unable to read error response with Status Code: %s from Fortanix for request: %s, body %s".formatted(response.statusCode(), uri,
+                            body));
         }
     }
 

@@ -6,10 +6,10 @@
 
 package io.kroxylicious.kms.provider.fortanix.dsm.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.List;
 import java.util.Objects;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record SessionAuthResponse(@JsonProperty("token_type") String tokenType,
                                   @JsonProperty("expires_in") int expiresIn,
@@ -33,6 +33,3 @@ public record SessionAuthResponse(@JsonProperty("token_type") String tokenType,
                 '}';
     }
 }
-
-
-

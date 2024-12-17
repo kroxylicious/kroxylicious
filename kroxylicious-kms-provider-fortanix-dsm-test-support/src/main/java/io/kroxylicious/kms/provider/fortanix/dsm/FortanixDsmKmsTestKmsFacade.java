@@ -9,10 +9,14 @@ package io.kroxylicious.kms.provider.fortanix.dsm;
 import java.net.URI;
 import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class FortanixDsmKmsTestKmsFacade extends AbstractFortanixDsmKmsTestKmsFacade {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(FortanixDsmKmsTestKmsFacade.class);
 
     @Override
     public boolean isAvailable() {
@@ -22,17 +26,14 @@ public class FortanixDsmKmsTestKmsFacade extends AbstractFortanixDsmKmsTestKmsFa
     @Override
     @SuppressWarnings("resource")
     public void startKms() {
+        LOGGER.trace("startKms");
         // testing against cloud, nothing to do
     }
 
     @Override
     public void stopKms() {
+        LOGGER.trace("stopKms");
         // testing against cloud, nothing to do
-
-
-
-
-
 
     }
 

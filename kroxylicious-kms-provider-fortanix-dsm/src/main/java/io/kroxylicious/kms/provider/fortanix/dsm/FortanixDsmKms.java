@@ -30,14 +30,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.aws.kms.model.EncryptRequest;
-import io.kroxylicious.kms.provider.aws.kms.model.EncryptResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.EncryptRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.EncryptResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateDataKeyResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SessionAuthResponse;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
@@ -130,7 +130,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
             // encrypt
 
-            final EncryptRequest info = new EncryptRequest(kekRef, new EncryptRequest.Request(kekRef, "AES", dek.getEncoded(), null, null, 0, null ));
+            final EncryptRequest info = new EncryptRequest(kekRef, new EncryptRequest.Request(kekRef, "AES", dek.getEncoded(), null, null, 0, null));
             return getSessionAuthResponse()
                     .thenApply(s -> createRequest(info, "/crypto/v1/keys/batch/encrypt", s))
                     .thenCompose(request -> sendAsync("", request, LIST_ENCRYPT_RESPONSE_TYPE_REF, u -> new UnknownAliasException(kekRef)))
@@ -152,8 +152,6 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
             throw new KmsException(e);
         }
     }
-
-
 
     /**
      * {@inheritDoc}
@@ -245,7 +243,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
             return sendAsync("session", sessionRequest, SESSION_AUTH_RESPONSE, KmsException::new)
                     .thenCompose(sar -> {
                         this.session = CompletableFuture.completedFuture(sar);
-                        System.out.println("Got " + sar);
+                        // System.out.println("Got " + sar);
                         return this.session;
                     });
         }
@@ -260,7 +258,6 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
     }
-
 
     private String getBody(Object obj) {
         try {
