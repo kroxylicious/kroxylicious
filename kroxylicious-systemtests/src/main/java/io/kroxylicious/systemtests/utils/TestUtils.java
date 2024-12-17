@@ -20,7 +20,6 @@ public class TestUtils {
     public static final String USER_PATH = System.getProperty("user.dir");
     private static final Pattern IMAGE_PATTERN_FULL_PATH = Pattern.compile("^(?<registry>[^/]*)/(?<org>[^/]*)/(?<image>[^:]*):(?<tag>.*)$");
     private static final Pattern IMAGE_PATTERN = Pattern.compile("^(?<org>[^/]*)/(?<image>[^:]*):(?<tag>.*)$");
-    private static final Pattern KAFKA_COMPONENT_PATTERN = Pattern.compile("([^-|^_]*?)(?<kafka>[-|_]kafka[-|_])(?<version>.*)$");
 
     private TestUtils() {
     }
@@ -65,13 +64,7 @@ public class TestUtils {
 
     private static String buildTag(String currentTag) {
         if (!currentTag.equals(Environment.KROXY_TAG) && !Environment.KROXY_TAG_DEFAULT.equals(Environment.KROXY_TAG)) {
-            Matcher t = KAFKA_COMPONENT_PATTERN.matcher(currentTag);
-            if (t.find()) {
-                currentTag = Environment.KROXY_TAG + t.group("kafka") + t.group("version");
-            }
-            else {
-                currentTag = Environment.KROXY_TAG;
-            }
+            currentTag = Environment.KROXY_TAG;
         }
         return currentTag;
     }
