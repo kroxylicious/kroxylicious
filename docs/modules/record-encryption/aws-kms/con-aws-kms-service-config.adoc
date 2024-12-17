@@ -5,7 +5,8 @@
 [id='con-aws-kms-service-config-{context}']
 = Configuring the AWS KMS
 
-For AWS KMS, the KMS configuration looks like this.
+This section provides examples of AWS KMS configurations for authenticating with AWS KMS services. 
+Use these examples to configure Kroxylicious to authenticate using either a long-term IAM identity or EC2 instance metadata credentials.
 
 include::con-aws-kms-service-config-identity-long-term.adoc[leveloffset=+1]
 

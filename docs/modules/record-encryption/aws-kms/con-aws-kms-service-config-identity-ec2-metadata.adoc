@@ -3,23 +3,24 @@
 // con-aws-kms-service-config.adoc
 
 
-. Configuration for authenticating with a EC2 metadata
+.Configuration for authenticating with EC2 metadata
 [source, yaml]
 ----
 kms: AwsKmsService                                            # <1>
 kmsConfig:
   endpointUrl: https://kms.<region>.amazonaws.com             # <2>
   ec2MetadataCredentials:
-    iamRole: <name of IAM role>                               # <3>
-    metadataEndpoint: <EC2 metadata endpoint>                 # <4>
+    iamRole: <name_of_IAM_role>                               # <3>
+    metadataEndpoint: <EC2_metadata_endpoint>                 # <4>
     credentialLifetimeFactor: 0.8                             # <5>
   region: <region>                                            # <6>
 ----
 <1> Specifies the name of the KMS provider. Use `AwsKmsService`.
-<2> AWS KMS endpoint URL,  which must include the `https://` scheme.
+<2> AWS KMS endpoint URL, which must include the `https://` scheme.
 <3> Name of the IAM role associated with the EC2 instance(s) hosting Kroxylicious.
-<4> (Optional) Metadata endpoint that will be used to obtain EC2 metadata.  Defaults to `http://169.254.169.254/`.
-    If using IPv6, use `http://[fd00:ec2::254]` instead.
-<5> (Optional) Factor applied to the credential's expiration time to determine when to trigger a pre-emptive refresh of the credential.
-    Defaults to `0.8`, Thus means the credential will refreshed once it reaches 80% of its lifetime.
-<6> AWS region identifier (e.g. `us-east-1`).
+<4> (Optional) Metadata endpoint used to obtain EC2 metadata. 
+Defaults to `\http://169.254.169.254/`.
+If using IPv6, use `http://[fd00:ec2::254]` instead.
+<5> (Optional) Factor used to determine when to refresh a credential before it expires.
+Defaults to `0.8`, which means the credential is refreshed once it reaches 80% of its lifetime.
+<6> AWS region identifier, such as `us-east-1`.

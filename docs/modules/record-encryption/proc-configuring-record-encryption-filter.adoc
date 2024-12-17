@@ -50,10 +50,10 @@ is to be encrypted with the key name matching the topic name, prefixed by the st
 <5> How long after creation of a DEK before it becomes eligible for rotation. On the **next** encryption request, the cache will asynchronously create a new DEK.  Encryption requests will continue to use the old DEK until the new DEK is ready.
 <6> How long after creation of a DEK until it is removed from the cache. This setting puts an upper bound on how long a DEK can remain cached.
 <7> The maximum number of records any DEK should be used to encrypt. After this limit is hit, that DEK will be destroyed and a new one created.
-
-NOTE: `encryptionDekRefreshAfterWriteSeconds` and `encryptionDekExpireAfterWriteSeconds` help govern the "originator usage period" of the DEK. That is the period of time the DEK will be used to encrypt records.  Keeping the period short helps reduce the blast radius in the event that DEK key material is leaked. However, there is a trade-off. The additional KMS API calls will increase produce/consume latency and may increase your KMS provider costs. +
-      +
-      `maxEncryptionsPerDek` helps prevent key exhaustion by placing an upper limit of the amount of times that a DEK may be used to encrypt records.
++
+`encryptionDekRefreshAfterWriteSeconds` and `encryptionDekExpireAfterWriteSeconds` help govern the "originator usage period" of the DEK. That is the period of time the DEK will be used to encrypt records.  Keeping the period short helps reduce the blast radius in the event that DEK key material is leaked. However, there is a trade-off. The additional KMS API calls will increase produce/consume latency and may increase your KMS provider costs. 
++
+`maxEncryptionsPerDek` helps prevent key exhaustion by placing an upper limit of the amount of times that a DEK may be used to encrypt records.
 
 . Verify that the encryption has been applied to the specified topics by producing messages through the proxy and then consuming directly and indirectly from the Kafka cluster.
 

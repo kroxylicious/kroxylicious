@@ -20,7 +20,7 @@ The administrator must have permissions to create keys in AWS KMS.
 As a starting point, the built-in AWS policy `AWSKeyManagementServicePowerUser` confers sufficient key management privileges.
 
 To get started, use the following commands to set up an administrator with permissions suitable for managing encryption keys in KMS through an AWS Cloud Shell.
-This example illustrates using the user name`kroxylicious-admin`, but you can choose a different name if preferred.  
+This example illustrates using the user name `kroxylicious-admin`, but you can choose a different name if preferred.  
 Adjust the instructions accordingly if you use a different user name.
 
 [source,shell]
@@ -36,9 +36,10 @@ aws iam create-login-profile --user-name ${ADMIN} --password ${INITIAL_PASSWORD}
 echo Now log in at ${CONSOLE_URL}  with user name ${ADMIN} password ${INITIAL_PASSWORD} and change the password.
 ----
 
+[id='con-aws-kms-setup-policy-{context}']
 == Create an alias-based policy for KEK aliases
 
-Create an alias based policy granting permissions to use keys aliased by the established alias naming convention.
+Create an alias-based policy granting permissions to use keys aliased by the established alias naming convention.
 
 [source,shell]
 ----
@@ -75,9 +76,9 @@ aws iam create-policy --policy-name KroxyliciousRecordEncryption --policy-docume
 
 The filter must authenticate to AWS in order to perform envelope encryption operations, such as generating and decrypting DEKs.
 
-include::con-aws-kms-setup-application-identity-long-term.adoc[leveloffset=+1]
+include::proc-aws-kms-setup-application-identity-long-term.adoc[leveloffset=+1]
 ifdef::include-aws-kms-service-config-identity-ec2-metadata[]
-include::con-aws-kms-setup-application-identity-ec2-metadata.adoc[leveloffset=+1]
+include::proc-aws-kms-setup-application-identity-ec2-metadata.adoc[leveloffset=+1]
 endif::[]
 
 
