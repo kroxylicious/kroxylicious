@@ -85,7 +85,7 @@ public class AbstractST implements TestSeparator {
             LOGGER.warn("Teardown was skipped because SKIP_TEARDOWN was set to 'true'");
         }
         LOGGER.info(String.join("", Collections.nCopies(76, SEPARATOR_CHAR)));
-        LOGGER.info(String.format("%s Test Suite - FINISHED", testInfo.getTestClass().get().getName()));
+        LOGGER.info("{} Test Suite - FINISHED", testInfo.getTestClass().get().getName());
     }
 
     /**
