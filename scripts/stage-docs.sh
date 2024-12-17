@@ -125,8 +125,7 @@ cp -R "${KROXYLICIOUS_DOCS_LOCATION}" "${WEBSITE_DOCS_LOCATION}/_files"
 rm -f "${WEBSITE_DOCS_LOCATION}/_files/README.md"
 
 echo "Creating AsciiDoc entrypoint file at ${WEBSITE_DOCS_LOCATION}/index.adoc"
-RELEASE_DOCS_INDEX_TEMPLATE="
----
+RELEASE_DOCS_INDEX_TEMPLATE="---
 title: Kroxylicious Proxy ${RELEASE_TAG}
 ---
 
