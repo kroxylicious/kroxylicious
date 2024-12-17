@@ -35,7 +35,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
     private static final int MAX_ATTEMPTS = 3;
-
     /**
     * The encryption version used on the produce path.
     * Note that the encryption version used on the fetch path is read from the
@@ -182,6 +181,6 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme,
                                   @NonNull Dek<E> dek) {
         dek.destroyForEncrypt();
-        dekCache.invalidate(encryptionScheme);
+        dekCache.invalidate(encryptionScheme, dek);
     }
 }
