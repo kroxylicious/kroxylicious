@@ -55,8 +55,8 @@ public class ResourceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
     private static ResourceManager instance;
     private static String koDeploymentName = Constants.KO_DEPLOYMENT_NAME;
-    private static final ThreadLocal<ExtensionContext> testContext = new ThreadLocal<>();
-    public static final Map<String, Stack<ResourceItem>> STORED_RESOURCES = new LinkedHashMap<>();
+    private static ExtensionContext testContext;
+    public static final Map<String, Stack<ResourceItem<?>>> STORED_RESOURCES = new LinkedHashMap<>();
 
     private ResourceManager() {
     }
@@ -74,11 +74,11 @@ public class ResourceManager {
     }
 
     public static void setTestContext(ExtensionContext context) {
-        testContext.set(context);
+        testContext = context;
     }
 
     public static ExtensionContext getTestContext() {
-        return testContext.get();
+        return testContext;
     }
 
     /**
@@ -151,7 +151,7 @@ public class ResourceManager {
             synchronized (this) {
                 STORED_RESOURCES.computeIfAbsent(getTestContext().getDisplayName(), k -> new Stack<>());
                 STORED_RESOURCES.get(getTestContext().getDisplayName()).push(
-                        new ResourceItem<T>(() -> deleteResource(resource), resource));
+                        new ResourceItem<>(() -> deleteResource(resource), resource));
             }
         }
 
@@ -217,10 +217,10 @@ public class ResourceManager {
                 // stack has no elements
                 new AtomicInteger(0);
         while (STORED_RESOURCES.containsKey(getTestContext().getDisplayName()) && numberOfResources.get() > 0) {
-            Stack<ResourceItem> stack = STORED_RESOURCES.get(getTestContext().getDisplayName());
+            Stack<ResourceItem<?>> stack = STORED_RESOURCES.get(getTestContext().getDisplayName());
 
             while (!stack.isEmpty()) {
-                ResourceItem resourceItem = stack.pop();
+                ResourceItem<?> resourceItem = stack.pop();
 
                 try {
                     resourceItem.getThrowableRunner().run();
@@ -240,10 +240,10 @@ public class ResourceManager {
      */
     @SuppressWarnings(value = "unchecked")
     public final <T extends HasMetadata> void synchronizeResources() {
-        Stack<ResourceItem> resources = STORED_RESOURCES.get(getTestContext().getDisplayName());
+        Stack<ResourceItem<?>> resources = STORED_RESOURCES.get(getTestContext().getDisplayName());
 
         // sync all resources
-        for (ResourceItem resource : resources) {
+        for (ResourceItem<?> resource : resources) {
             if (resource.getResource() == null) {
                 continue;
             }
