@@ -29,6 +29,11 @@ Format `<github issue/pr number>: <short description>`.
 
 * The deprecated EnvelopeEncryption filter is now removed.  Use RecordEncryption instead.
 * The deprecated forwardPartialRequests option has been removed from the Record Validation Filter.
+* This release upgrades Kroxylicious to Jackson 2.18 which "[improves](https://github.com/FasterXML/jackson-databind/issues/4785#issuecomment-2463105965)" how jackson handles constructor detection which may lead to issues with filter config.
+If after the upgrade you observe issues similar to
+`com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Invalid type definition for type `com.fasterxml.jackson.databind.tofix.CreatorResolutionTest$HostPort`: Argument #0 of Creator [method com.fasterxml.jackson.databind.tofix.CreatorResolutionTest$HostPort#parse(java.lang.String)] has no property name (and is not Injectable): can not use as property-based Creator`
+then you need to add `@JsonCreator(mode = JsonCreator.Mode.DELEGATING)` to the constructor one expects Jackson to use.
+
 
 ## 0.8.0
 
