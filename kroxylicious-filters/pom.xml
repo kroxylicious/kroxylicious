@@ -13,7 +13,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.9.0</version>
+        <version>0.10.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-filter-parent</artifactId>
