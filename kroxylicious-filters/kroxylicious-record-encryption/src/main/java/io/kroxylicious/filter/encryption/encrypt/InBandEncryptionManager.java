@@ -12,6 +12,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.IntFunction;
 
+import io.kroxylicious.filter.encryption.dek.DestroyedDekException;
+
 import org.apache.kafka.common.errors.NetworkException;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
@@ -128,7 +130,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                             bufferAllocator);
                     return CompletableFuture.completedFuture(encryptedMemoryRecords);
                 }
-                catch (ExhaustedDekException e) {
+                catch (DestroyedDekException | ExhaustedDekException e) {
                     rotateKeyContext(encryptionScheme, dek);
                     // fall through to recursive call below...
                 }
