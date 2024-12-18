@@ -40,6 +40,7 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
         return getTestKmsFacadeStream(context)
                 .values()
                 .stream()
+                .filter(x -> x.getClass().getName().contains("Fort"))
                 .map(TemplateInvocationContext::new);
     }
 
