@@ -7,10 +7,7 @@
 
 # simple script to build and run the operator
 cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" || exit
-cd ..
-echo "building operator maven project"
-mvn package --projects :kroxylicious-operator --also-make -DskipTests
-cd kroxylicious-operator || exit
+cd .. || exit
 
 if ! minikube status
 then
@@ -20,8 +17,9 @@ fi
 
 echo "building operator image in minikube"
 KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
-minikube image build . -t quay.io/kroxylicious/operator:latest --build-opt=build-arg=KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION}"
+minikube image build . -f Dockerfile.operator -t quay.io/kroxylicious/operator:latest --build-opt=build-arg=KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION}"
 
+cd kroxylicious-operator || exit
 echo "installing kafka (no-op if already installed)"
 kubectl create namespace kafka
 kubectl create -n kafka -f 'https://strimzi.io/install/latest?namespace=kafka'

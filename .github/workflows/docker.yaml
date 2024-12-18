@@ -55,13 +55,11 @@ jobs:
           build-args: |
             KROXYLICIOUS_VERSION=${{ env.RELEASE_VERSION }} 
           tags: ${{ env.PROXY_IMAGE }}:${{ env.RELEASE_VERSION }}
-      - name: Maven build operator code
-        run: |
-          mvn package --projects :kroxylicious-operator --also-make -DskipTests -B
       - name: Build and maybe push Operator image
         uses: docker/build-push-action@v6
         with:
-          context: ./kroxylicious-operator/
+          context: .
+          file: ./Dockerfile.operator
           platforms: linux/amd64,linux/arm64
           push: ${{ endsWith(env.RELEASE_VERSION, 'SNAPSHOT') }}
           build-args: |
