@@ -47,11 +47,11 @@ class DekTest {
 
     @ParameterizedTest
     @MethodSource("io.kroxylicious.filter.encryption.dek.CipherManagerTest#allCipherManagers")
-    void encryptorThrowsExhaustedDekExceptionOnDekWithZeroEncryptions(CipherManager cipherManager) {
+    void encryptorThrowsDestroyedDekExceptionOnDekWithZeroEncryptions(CipherManager cipherManager) {
         var key = makeKey();
         var dek = new Dek<>("edek", key, cipherManager, 0);
         assertThatThrownBy(() -> dek.encryptor(1))
-                .isExactlyInstanceOf(ExhaustedDekException.class);
+                .isExactlyInstanceOf(DestroyedDekException.class);
     }
 
     @NonNull
@@ -486,7 +486,7 @@ class DekTest {
 
         assertThatThrownBy(() -> dek.encryptor(1))
                 .describedAs("Expect to not be able to get another encoder")
-                .isExactlyInstanceOf(ExhaustedDekException.class);
+                .isExactlyInstanceOf(DestroyedDekException.class);
 
         // Note, we use a common buffer backing both the plaintext and the ciphertext so that we're testing that
         // encrypt() is copy-safe.
