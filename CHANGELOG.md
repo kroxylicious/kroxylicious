@@ -6,7 +6,12 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+## 0.9.0
 
+* [#1668](https://github.com/kroxylicious/kroxylicious/pull/1668) Bump apicurio-registry.version from 2.6.5.Final to 2.6.6.Final
+* [#1667](https://github.com/kroxylicious/kroxylicious/pull/1667) Bump io.micrometer:micrometer-bom from 1.14.1 to 1.14.2
+* [#1666](https://github.com/kroxylicious/kroxylicious/pull/1666) Bump org.apache.logging.log4j:log4j-bom from 2.24.2 to 2.24.3 
+* [#1294](https://github.com/kroxylicious/kroxylicious/issues/1294) AWS KMS - support authentication from instance metadata of EC2
 * [#1657](https://github.com/kroxylicious/kroxylicious/pull/1657) Remove forwardPartialRequests feature of record validation filter
 * [#1635](https://github.com/kroxylicious/kroxylicious/pull/1635) Handle ApiVersions unsupported version downgrade
 * [#1648](https://github.com/kroxylicious/kroxylicious/pull/1648) Add test-only feature mechanism to Proxy configuration
@@ -25,6 +30,11 @@ Format `<github issue/pr number>: <short description>`.
 
 * The deprecated EnvelopeEncryption filter is now removed.  Use RecordEncryption instead.
 * The deprecated forwardPartialRequests option has been removed from the Record Validation Filter.
+* This release upgrades Kroxylicious to Jackson 2.18 which "[improves](https://github.com/FasterXML/jackson-databind/issues/4785#issuecomment-2463105965)" how jackson handles constructor detection which may lead to issues with filter config.
+If after the upgrade you observe issues similar to
+`com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Invalid type definition for type `com.fasterxml.jackson.databind.tofix.CreatorResolutionTest$HostPort`: Argument #0 of Creator [method com.fasterxml.jackson.databind.tofix.CreatorResolutionTest$HostPort#parse(java.lang.String)] has no property name (and is not Injectable): can not use as property-based Creator`
+then you need to add `@JsonCreator(mode = JsonCreator.Mode.DELEGATING)` to the constructor one expects Jackson to use.
+
 
 ## 0.8.0
 

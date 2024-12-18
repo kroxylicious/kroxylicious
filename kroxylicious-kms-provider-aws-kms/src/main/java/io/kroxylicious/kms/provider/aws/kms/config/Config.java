@@ -17,31 +17,30 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
- * Configuration for the Vault KMS service.
+ * Configuration for the AWS KMS service.
  *
- * @param endpointUrl URL of the Vault Transit Engine e.g. {@code https://myhashicorpvault:8200/v1/transit}
- * @param accessKey AWS accessKey
- * @param secretKey the password provider that will provide the Vault token.
+ * @param endpointUrl URL of the AWS KMS e.g. {@code https://kms.us-east-1.amazonaws.com}
+ * @param accessKey accessKey (deprecated) use longTermCredentialsProviderConfig
+ * @param secretKey secretKey (deprecated) use longTermCredentialsProviderConfig
+ * @param longTermCredentialsProviderConfig config for long-term credentials (i.e. access key id and secret access key).
+ * @param ec2MetadataCredentialsProviderConfig config obtaining credentials from EC2 metadata
  * @param region AWS region
+ * @param tls TLS settings
  */
+public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
+                     @JsonProperty(value = "accessKey", required = false) PasswordProvider accessKey,
+                     @JsonProperty(value = "secretKey", required = false) PasswordProvider secretKey,
+                     @JsonProperty(value = "longTermCredentials", required = false) LongTermCredentialsProviderConfig longTermCredentialsProviderConfig,
+                     @JsonProperty(value = "ec2MetadataCredentials", required = false) Ec2MetadataCredentialsProviderConfig ec2MetadataCredentialsProviderConfig,
+                     @JsonProperty(value = "region", required = true) String region,
+                     @JsonProperty(value = "tls", required = false) Tls tls) {
 
-public record Config(
-                     @JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @JsonProperty(required = true) PasswordProvider accessKey,
-                     @JsonProperty(required = true) PasswordProvider secretKey,
-                     @JsonProperty(required = true) String region,
-                     Tls tls) {
     public Config {
         Objects.requireNonNull(endpointUrl);
         Objects.requireNonNull(region);
-        Objects.requireNonNull(accessKey);
-        Objects.requireNonNull(secretKey);
     }
 
-    @NonNull
     public SSLContext sslContext() {
         try {
             if (tls == null) {
@@ -55,4 +54,5 @@ public record Config(
             throw new SslConfigurationException(e);
         }
     }
+
 }
