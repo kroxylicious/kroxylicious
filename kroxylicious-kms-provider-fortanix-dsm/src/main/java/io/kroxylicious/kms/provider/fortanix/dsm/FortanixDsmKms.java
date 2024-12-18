@@ -75,6 +75,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     };
     static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String ALIAS_PREFIX = "alias/";
+    private static final String BATCH_ENCRYPT_CIPHER_MODE = "CipherMode";
 
     private final String apiKey;
     private final Duration timeout;
@@ -130,10 +131,10 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
             // encrypt
 
-            final EncryptRequest info = new EncryptRequest(kekRef, new EncryptRequest.Request(kekRef, "AES", dek.getEncoded(), null, null, 0, null));
+            var batchEncryptRequest = List.of(new EncryptRequest(kekRef, new EncryptRequest.Request("AES", dek.getEncoded(), BATCH_ENCRYPT_CIPHER_MODE, null, null, 0, null)));
             return getSessionAuthResponse()
-                    .thenApply(s -> createRequest(info, "/crypto/v1/keys/batch/encrypt", s))
-                    .thenCompose(request -> sendAsync("", request, LIST_ENCRYPT_RESPONSE_TYPE_REF, u -> new UnknownAliasException(kekRef)))
+                    .thenApply(s -> createRequest(batchEncryptRequest, "/crypto/v1/keys/batch/encrypt", s))
+                    .thenCompose(request -> sendAsync("", request, LIST_ENCRYPT_RESPONSE_TYPE_REF, KmsException::new))
                     .thenApply(x -> new DekPair<>(new FortanixDsmKmsEdek(kekRef, x.get(0).cipher()), dek));
         }
         catch (KmsException e) {

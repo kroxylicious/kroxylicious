@@ -21,11 +21,14 @@ public record EncryptRequest(@JsonProperty(value = "kid") @NonNull String keyId,
         Objects.requireNonNull(request);
     }
 
-    public record Request(@JsonProperty(value = "key") @NonNull String keyId,
-                          @JsonProperty(value = "alg") @NonNull String alg,
-                          @JsonProperty(value = "plain") byte[] plain,
-                          @JsonProperty(value = "iv", required = false) byte[] iv,
-                          @JsonProperty(value = "ad", required = false) byte[] ad,
-                          @JsonProperty(value = "tag_len", required = false) int tagLen,
-                          @JsonProperty(value = "label", required = false) String label) {}
+    public record Request(
+            @JsonProperty(value = "alg") @NonNull String alg,
+            @JsonProperty(value = "plain") byte[] plain,
+            @JsonProperty(value = "mode") String mode,
+            @JsonProperty(value = "iv", required = false) byte[] iv,
+            @JsonProperty(value = "ad", required = false) byte[] ad,
+            @JsonProperty(value = "tag_len", required = false) int tagLen,
+            @JsonProperty(value = "label", required = false) String label
+    ) {
+    }
 }
