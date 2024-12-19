@@ -11,7 +11,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +18,6 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
-import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
@@ -33,7 +31,6 @@ import static org.assertj.core.api.BDDAssumptions.given;
 /**
  * The Kroxylicious system tests.
  */
-@ExtendWith(KroxyliciousExtension.class)
 class KroxyliciousST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousST.class);
     private static Kroxylicious kroxylicious;

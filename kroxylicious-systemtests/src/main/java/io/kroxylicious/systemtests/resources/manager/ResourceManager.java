@@ -7,8 +7,14 @@
 package io.kroxylicious.systemtests.resources.manager;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Stack;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,13 +29,22 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.ConditionStatus;
 import io.kroxylicious.systemtests.k8s.HelmClient;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.ResourceCondition;
+import io.kroxylicious.systemtests.resources.ResourceItem;
 import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
 import io.kroxylicious.systemtests.resources.kroxylicious.ConfigMapResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.DeploymentResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.SecretResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.ServiceResource;
+import io.kroxylicious.systemtests.resources.kubernetes.ClusterOperatorCustomResourceDefinition;
+import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleBindingResource;
+import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleResource;
+import io.kroxylicious.systemtests.resources.kubernetes.NamespaceResource;
+import io.kroxylicious.systemtests.resources.kubernetes.RoleResource;
+import io.kroxylicious.systemtests.resources.kubernetes.ServiceAccountResource;
+import io.kroxylicious.systemtests.resources.operator.BundleResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaUserResource;
@@ -43,6 +58,9 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class ResourceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
     private static ResourceManager instance;
+    private static String koDeploymentName = Constants.KO_DEPLOYMENT_NAME;
+    private static ExtensionContext testContext;
+    private static final Map<String, Stack<ResourceItem<?>>> storedResources = new LinkedHashMap<>();
 
     private ResourceManager() {
     }
@@ -57,6 +75,18 @@ public class ResourceManager {
             instance = new ResourceManager();
         }
         return instance;
+    }
+
+    public static void setTestContext(ExtensionContext context) {
+        testContext = context;
+    }
+
+    public static ExtensionContext getTestContext() {
+        return testContext;
+    }
+
+    public static Map<String, Stack<ResourceItem<?>>> getStoredResources() {
+        return storedResources;
     }
 
     /**
@@ -75,8 +105,23 @@ public class ResourceManager {
             new ServiceResource(),
             new ConfigMapResource(),
             new DeploymentResource(),
-            new SecretResource()
+            new SecretResource(),
+            new BundleResource(),
+            new ClusterRoleBindingResource(),
+            new RoleResource(),
+            new ClusterRoleResource(),
+            new NamespaceResource(),
+            new ServiceAccountResource(),
+            new ClusterOperatorCustomResourceDefinition()
     };
+
+    public static String getKoDeploymentName() {
+        return koDeploymentName;
+    }
+
+    public static void setKoDeploymentName(String newName) {
+        koDeploymentName = newName;
+    }
 
     /**
      * Create resource without wait.
@@ -110,6 +155,12 @@ public class ResourceManager {
 
             assert type != null;
             type.create(resource);
+
+            synchronized (this) {
+                storedResources.computeIfAbsent(getTestContext().getDisplayName(), k -> new Stack<>());
+                storedResources.get(getTestContext().getDisplayName()).push(
+                        new ResourceItem<>(() -> deleteResource(resource), resource));
+            }
         }
 
         if (waitReady) {
@@ -118,9 +169,10 @@ public class ResourceManager {
                 if (Objects.equals(resource.getKind(), KafkaTopic.RESOURCE_KIND)) {
                     continue;
                 }
+                assert type != null;
                 if (!waitResourceCondition(resource, ResourceCondition.readiness(type))) {
-                    throw new RuntimeException(String.format("Timed out waiting for %s %s/%s to be ready", resource.getKind(), resource.getMetadata().getNamespace(),
-                            resource.getMetadata().getName()));
+                    throw new KubeClusterException.InvalidResource(String.format("Timed out waiting for %s %s/%s to be ready",
+                            resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
                 }
             }
         }
@@ -148,13 +200,65 @@ public class ResourceManager {
             try {
                 type.delete(resource);
                 if (!waitResourceCondition(resource, ResourceCondition.deletion())) {
-                    throw new RuntimeException(
-                            String.format("Timed out deleting %s %s/%s", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
+                    throw new KubeClusterException.InvalidResource(String.format("Timed out deleting %s %s/%s",
+                            resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
                 }
             }
             catch (Exception e) {
                 LOGGER.error("Failed to delete {} {}/{}", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName(), e);
             }
+        }
+    }
+
+    public void deleteResources() {
+        if (!storedResources.containsKey(getTestContext().getDisplayName()) || storedResources.get(getTestContext().getDisplayName()).isEmpty()) {
+            LOGGER.info("In context {} is everything deleted", getTestContext().getDisplayName());
+        }
+        else {
+            LOGGER.info("Deleting all resources for {}", getTestContext().getDisplayName());
+        }
+
+        // if stack is created for specific test suite or test case
+        AtomicInteger numberOfResources = storedResources.get(getTestContext().getDisplayName()) != null
+                ? new AtomicInteger(storedResources.get(getTestContext().getDisplayName()).size())
+                :
+                // stack has no elements
+                new AtomicInteger(0);
+        while (storedResources.containsKey(getTestContext().getDisplayName()) && numberOfResources.get() > 0) {
+            Stack<ResourceItem<?>> stack = storedResources.get(getTestContext().getDisplayName());
+
+            while (!stack.isEmpty()) {
+                ResourceItem<?> resourceItem = stack.pop();
+
+                try {
+                    resourceItem.getThrowableRunner().run();
+                }
+                catch (Exception e) {
+                    LOGGER.atTrace().log(Arrays.toString(e.getStackTrace()));
+                }
+                numberOfResources.decrementAndGet();
+            }
+        }
+        storedResources.remove(getTestContext().getDisplayName());
+    }
+
+    /**
+     * Synchronizing all resources which are inside specific extension context.
+     * @param <T> type of the resource which inherits from HasMetadata f.e Kafka, KafkaConnect, Pod, Deployment etc..
+     */
+    @SuppressWarnings(value = "unchecked")
+    public final <T extends HasMetadata> void synchronizeResources() {
+        Stack<ResourceItem<?>> resources = storedResources.get(getTestContext().getDisplayName());
+
+        // sync all resources
+        for (ResourceItem<?> resource : resources) {
+            if (resource.getResource() == null) {
+                continue;
+            }
+            ResourceType<T> type = findResourceType((T) resource.getResource());
+
+            assert type != null;
+            waitResourceCondition((T) resource.getResource(), ResourceCondition.readiness(type));
         }
     }
 
