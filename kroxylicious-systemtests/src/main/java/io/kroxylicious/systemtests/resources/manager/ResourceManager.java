@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.resources;
+package io.kroxylicious.systemtests.resources.manager;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -14,6 +14,10 @@ import java.util.Objects;
 import java.util.Stack;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import io.kroxylicious.systemtests.resources.ResourceCondition;
+import io.kroxylicious.systemtests.resources.ResourceItem;
+import io.kroxylicious.systemtests.resources.ResourceOperation;
+import io.kroxylicious.systemtests.resources.ResourceType;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

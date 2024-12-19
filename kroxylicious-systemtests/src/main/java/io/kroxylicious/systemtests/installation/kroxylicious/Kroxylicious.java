@@ -15,7 +15,7 @@ import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
-import io.kroxylicious.systemtests.resources.ResourceManager;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;

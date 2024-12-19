@@ -43,7 +43,7 @@ import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.k8s.exception.UnknownInstallationType;
 import io.kroxylicious.systemtests.resources.ResourceItem;
-import io.kroxylicious.systemtests.resources.ResourceManager;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleBindingResource;
 import io.kroxylicious.systemtests.templates.kubernetes.ClusterRoleBindingTemplates;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
@@ -190,7 +190,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                             .endMetadata()
                             .build());
                     break;
-                case Constants.CONFIG_MAP:
+                case Constants.CONFIG_MAP_KIND:
                     ConfigMap configMap = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, ConfigMap.class);
                     ResourceManager.getInstance().createResourceWithWait(new ConfigMapBuilder(configMap)
                             .editMetadata()

@@ -120,7 +120,7 @@ public interface Constants {
     String CUSTOM_RESOURCE_DEFINITION = "CustomResourceDefinition";
     String CLUSTER_ROLE = "ClusterRole";
     String CLUSTER_ROLE_BINDING = "ClusterRoleBinding";
-    String CONFIG_MAP = "ConfigMap";
+    String CONFIG_MAP_KIND = "ConfigMap";
     String CUSTOM_RESOURCE_DEFINITION_SHORT = "Crd";
     String JOB = "Job";
     String NAMESPACE = "Namespace";

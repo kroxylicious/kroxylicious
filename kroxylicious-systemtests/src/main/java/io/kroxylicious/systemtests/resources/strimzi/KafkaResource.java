@@ -12,7 +12,7 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaList;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.resources.ResourceManager;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
 

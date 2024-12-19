@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.systemtests.installation.strimzi.Strimzi;
 import io.kroxylicious.systemtests.interfaces.TestSeparator;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
-import io.kroxylicious.systemtests.resources.ResourceManager;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 /**

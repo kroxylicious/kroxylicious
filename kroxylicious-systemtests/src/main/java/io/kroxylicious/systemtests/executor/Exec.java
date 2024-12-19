@@ -369,7 +369,7 @@ public class Exec {
             process = builder.start();
         }
         catch (IOException e) {
-            throw new UncheckedIOException(e);
+            throw new RuntimeException(e);
         }
         return process.pid();
     }

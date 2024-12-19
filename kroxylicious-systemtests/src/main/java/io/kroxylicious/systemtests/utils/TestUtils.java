@@ -49,7 +49,7 @@ public class TestUtils {
      * @param fileName the file name
      * @return the resources URI
      */
-    public static URI getResourceURI(String fileName) {
+    public static URI getResourcesURI(String fileName) {
         URI overrideFile;
         var resource = TestUtils.class.getClassLoader().getResource(fileName);
         try {

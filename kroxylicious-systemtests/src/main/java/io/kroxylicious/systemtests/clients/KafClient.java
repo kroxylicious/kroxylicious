@@ -27,7 +27,6 @@ import io.kroxylicious.systemtests.clients.records.KafConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
-import io.kroxylicious.systemtests.utils.ReadWriteUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
 import edu.umd.cs.findbugs.annotations.Nullable;

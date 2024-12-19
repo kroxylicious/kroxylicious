@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.resources.ResourceManager;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -52,7 +52,7 @@ public class Strimzi {
 
         ResourceManager.helmClient().namespace(deploymentNamespace).installByContainerImage(STRIMZI_HELM_REPOSITORY, STRIMZI_SERVICE_NAME,
                 Optional.of(Environment.STRIMZI_VERSION),
-                Optional.of(Path.of(TestUtils.getResourceURI("helm_strimzi_overrides.yaml"))),
+                Optional.of(Path.of(TestUtils.getResourcesURI("helm_strimzi_overrides.yaml"))),
                 Optional.empty());
     }
 

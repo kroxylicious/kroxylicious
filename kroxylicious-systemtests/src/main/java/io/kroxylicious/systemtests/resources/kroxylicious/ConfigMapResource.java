@@ -23,7 +23,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class ConfigMapResource implements ResourceType<ConfigMap> {
     @Override
     public String getKind() {
-        return Constants.CONFIG_MAP;
+        return Constants.CONFIG_MAP_KIND;
     }
 
     @Override

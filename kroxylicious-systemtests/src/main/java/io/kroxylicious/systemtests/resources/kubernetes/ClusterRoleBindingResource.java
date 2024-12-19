@@ -14,7 +14,7 @@ import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
-import io.kroxylicious.systemtests.resources.ResourceManager;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.resources.ResourceType;
 import io.kroxylicious.systemtests.utils.ReadWriteUtils;
 
