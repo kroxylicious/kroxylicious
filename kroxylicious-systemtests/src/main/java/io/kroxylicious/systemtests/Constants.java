@@ -11,7 +11,7 @@ import java.time.Duration;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
 /**
- * The type Constants.
+ * The interface Constants.
  */
 public interface Constants {
 
