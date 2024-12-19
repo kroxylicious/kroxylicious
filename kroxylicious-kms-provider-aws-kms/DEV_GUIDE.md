@@ -29,11 +29,11 @@ your Kafka client off-EC2.
    ```
 8. Scp a Kroxylicious dist to the EC2 instance.
    ```bash
-   scp  -i "~/.ssh/MyEC2KeyPair.pem" /kroxylicious-app-0.9.0-SNAPSHOT-bin.zip ec2-user@ec2-xxx-xxx-xxx-xxx.compute-1.amazonaws.com:.
+   scp  -i "~/.ssh/MyEC2KeyPair.pem" /kroxylicious-app-*-SNAPSHOT-bin.zip ec2-user@ec2-xxx-xxx-xxx-xxx.compute-1.amazonaws.com:.
    ```
 9. Back on the EC2 instance, unzip Kroxylicious
    ```bash
-   unzip kroxylicious-app-0.9.0-SNAPSHOT-bin.zip
+   unzip kroxylicious-app-*-SNAPSHOT-bin.zip
    ```
 10. Create a config file for Kroxylicious updating the virtual clusters bootstrap address to the public address of the EC2 instance.
     ```yaml
@@ -63,7 +63,7 @@ your Kafka client off-EC2.
     ```
 11. Run kroxylicious with logs turned up to see the action of the EC2 provider.
     ```bash
-    KROXYLICIOUS_APP_LOG_LEVEL=DEBUG ./kroxylicious-app-0.9.0-SNAPSHOT/bin/kroxylicious-start.sh -c config.yaml
+    KROXYLICIOUS_APP_LOG_LEVEL=DEBUG ./kroxylicious-app-*-SNAPSHOT/bin/kroxylicious-start.sh -c config.yaml
     ```
 12. Create a KEK in AWS KMS (see user docs) and send/receive some messages.
     ```bash
