@@ -12,9 +12,9 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaList;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
