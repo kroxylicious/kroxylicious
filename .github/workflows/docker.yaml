@@ -22,7 +22,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: ${{ vars.REGISTRY_SERVER != '' && vars.REGISTRY_USERNAME != '' && vars.REGISTRY_DESTINATION != '' }}
+    if: ${{ vars.REGISTRY_SERVER != '' && vars.REGISTRY_USERNAME != '' && vars.REGISTRY_ORGANISATION != '' && vars.PROXY_IMAGE_NAME != '' && vars.OPERATOR_IMAGE_NAME != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,16 +35,18 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - name: Set Release version env variable
+      - name: Set env variables
         run: |
           echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
+          echo "PROXY_IMAGE=${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}" >> $GITHUB_ENV
+          echo "OPERATOR_IMAGE=${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}" >> $GITHUB_ENV
       - name: Login to container registry
         uses: docker/login-action@v3
         with:
           registry: ${{ vars.REGISTRY_SERVER }}
           username: ${{ vars.REGISTRY_USERNAME }}
           password: ${{ secrets.REGISTRY_TOKEN }}
-      - name: Build
+      - name: Build and push Proxy image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -52,4 +54,14 @@ jobs:
           push: true
           build-args: |
             KROXYLICIOUS_VERSION=${{ env.RELEASE_VERSION }} 
-          tags: ${{ vars.REGISTRY_DESTINATION }}:${{ env.RELEASE_VERSION }}
+          tags: ${{ env.PROXY_IMAGE }}:${{ env.RELEASE_VERSION }}
+      - name: Build and maybe push Operator image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.operator
+          platforms: linux/amd64,linux/arm64
+          push: ${{ endsWith(env.RELEASE_VERSION, 'SNAPSHOT') }}
+          build-args: |
+            KROXYLICIOUS_VERSION=${{ env.RELEASE_VERSION }}
+          tags: ${{ env.OPERATOR_IMAGE }}:${{ env.RELEASE_VERSION }},${{ env.OPERATOR_IMAGE }}:latest

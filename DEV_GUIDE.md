@@ -437,9 +437,10 @@ To enable the docker workflow, you need to configure three repository [variables
 and one repository [secret](https://docs.github.com/en/actions/security-guides/using-secrets-in-github-actions).
 
 * `REGISTRY_SERVER` variable - the server of the container registry service e.g. `quay.io` or `docker.io`
+* `REGISTRY_ORGANISATION` variable - the organization of the container registry service e.g. `kroxylicious` or `yourusername`
+* `PROXY_IMAGE_NAME` variable - the image name e.g. `kroxylicious`
+* `OPERATOR_IMAGE_NAME` variable - the image name e.g. `operator`
 * `REGISTRY_USERNAME` variable - your username on the service (or username of your robot account)
-* `REGISTRY_DESTINATION` variable - the push destination (without tag portion) e.g. `quay.io/<my org>/kroxylicious`
-
 * `REGISTRY_TOKEN` secret - the access token that corresponds to `REGISTRY_USERNAME` 
 
 The workflow will push the container image to `${REGISTRY_DESTINATION}` so ensure that the `${REGISTRY_USERNAME}` user has sufficient write privileges. 
