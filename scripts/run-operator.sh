@@ -19,7 +19,8 @@ then
 fi
 
 echo "building operator image in minikube"
-minikube image build . -t quay.io/kroxylicious/operator:latest --build-opt=build-arg=KROXYLICIOUS_VERSION=0.9.0-SNAPSHOT
+KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
+minikube image build . -t quay.io/kroxylicious/operator:latest --build-opt=build-arg=KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION}"
 
 echo "installing kafka (no-op if already installed)"
 kubectl create namespace kafka
