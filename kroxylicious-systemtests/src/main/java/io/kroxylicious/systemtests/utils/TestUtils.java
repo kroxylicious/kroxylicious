@@ -6,8 +6,17 @@
 
 package io.kroxylicious.systemtests.utils;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.systemtests.Environment;
 
@@ -17,11 +26,61 @@ import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
  * The type Test utils.
  */
 public class TestUtils {
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     public static final String USER_PATH = System.getProperty("user.dir");
     private static final Pattern IMAGE_PATTERN_FULL_PATH = Pattern.compile("^(?<registry>[^/]*)/(?<org>[^/]*)/(?<image>[^:]*):(?<tag>.*)$");
     private static final Pattern IMAGE_PATTERN = Pattern.compile("^(?<org>[^/]*)/(?<image>[^:]*):(?<tag>.*)$");
 
     private TestUtils() {
+    }
+
+    /**
+     * Gets default posix file permissions.
+     *
+     * @return the default posix file permissions
+     */
+    public static FileAttribute<Set<PosixFilePermission>> getDefaultPosixFilePermissions() {
+        return PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
+    }
+
+    /**
+     * Gets resources URI.
+     *
+     * @param fileName the file name
+     * @return the resources URI
+     */
+    public static URI getResourceURI(String fileName) {
+        URI overrideFile;
+        var resource = TestUtils.class.getClassLoader().getResource(fileName);
+        try {
+            if (resource == null) {
+                throw new IllegalArgumentException("Cannot find resource " + fileName + " on classpath");
+            }
+            overrideFile = resource.toURI();
+        }
+        catch (URISyntaxException e) {
+            throw new IllegalStateException("Cannot determine file system path for " + resource, e);
+        }
+        return overrideFile;
+    }
+
+    /**
+     * Is valid json.
+     *
+     * @param value the value
+     * @return the boolean
+     */
+    public static boolean isValidJson(String value) {
+        if (value == null || value.isEmpty()) {
+            return false;
+        }
+        try {
+            OBJECT_MAPPER.readTree(value);
+        }
+        catch (IOException e) {
+            return false;
+        }
+        return true;
     }
 
     /**

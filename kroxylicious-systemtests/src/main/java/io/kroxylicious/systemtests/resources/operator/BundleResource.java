@@ -16,7 +16,7 @@ import io.skodjob.testframe.enums.InstallType;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.ResourceType;
-import io.kroxylicious.systemtests.resources.kubernetes.DeploymentResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.DeploymentResource;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 

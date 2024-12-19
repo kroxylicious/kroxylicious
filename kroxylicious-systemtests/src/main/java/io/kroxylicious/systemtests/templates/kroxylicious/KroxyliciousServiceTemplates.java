@@ -24,7 +24,7 @@ public class KroxyliciousServiceTemplates {
     public static ServiceBuilder defaultKroxyService(String namespaceName) {
         return new ServiceBuilder()
                 .withApiVersion("v1")
-                .withKind(Constants.SERVICE)
+                .withKind(Constants.SERVICE_KIND)
                 .withNewMetadata()
                 .withName(Constants.KROXY_SERVICE_NAME)
                 .withNamespace(namespaceName)

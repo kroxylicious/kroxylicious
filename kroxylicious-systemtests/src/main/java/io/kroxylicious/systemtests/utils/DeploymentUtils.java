@@ -10,6 +10,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -110,7 +111,7 @@ public class DeploymentUtils {
      * @throws IOException the io exception
      */
     public static FileInputStream getDeploymentFileFromURL(String url) throws IOException {
-        File deploymentFile = ReadWriteUtils.tempFile("deploy", ".yaml");
+        File deploymentFile = Files.createTempFile("deploy", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
         FileUtils.copyURLToFile(
                 URI.create(url).toURL(),
                 deploymentFile,
@@ -129,7 +130,7 @@ public class DeploymentUtils {
      */
     public static boolean checkLoadBalancerIsWorking(String namespace) {
         Service service = new ServiceBuilder()
-                .withKind(Constants.SERVICE)
+                .withKind(Constants.SERVICE_KIND)
                 .withNewMetadata()
                 .withName(TEST_LOAD_BALANCER_NAME)
                 .withNamespace(namespace)
@@ -289,11 +290,6 @@ public class DeploymentUtils {
         }
     }
 
-    public static String getPodName(String namespace, String name) {
-        List<Pod> pods = kubeClient(namespace).listPods(namespace, kubeClient().getPodSelectorFromDeployment(namespace, name));
-        return pods.get(pods.size() - 1).getMetadata().getName();
-    }
-
     private record TimeoutLoggingEvaluationListener(Supplier<String> messageSupplier) implements ConditionEvaluationListener<PodStatus> {
         @Override
         public void onTimeout(TimeoutEvent timeoutEvent) {
@@ -347,42 +343,5 @@ public class DeploymentUtils {
         String address = route.getSpec().getHost();
         LOGGER.debug("Deduced route address for service: {} as: {}", serviceName, address);
         return address;
-    }
-
-    /**
-     * Gets number of replicas.
-     *
-     * @param deploymentNamespace the deployment namespace
-     * @param deploymentName the deployment name
-     * @return the number of replicas
-     */
-    public static int getNumberOfReplicas(String deploymentNamespace, String deploymentName) {
-        LOGGER.info("Getting number of replicas..");
-        return kubeClient().getDeployment(deploymentNamespace, deploymentName).getStatus().getReplicas();
-    }
-
-    /**
-     * Scale replicas to.
-     *
-     * @param deploymentNamespace the deployment namespace
-     * @param deploymentName the deployment name
-     * @param scaledTo the number of replicas to scale up/down
-     * @param timeout the timeout
-     */
-    public static void scaleReplicasTo(String deploymentNamespace, String deploymentName, int scaledTo, Duration timeout) {
-        LOGGER.info("Scaling number of replicas to {}..", scaledTo);
-        kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(deploymentName).scale(scaledTo);
-        await().atMost(timeout).pollInterval(Duration.ofSeconds(1))
-                .until(() -> getNumberOfReplicas(deploymentNamespace, deploymentName) == scaledTo
-                        && kubeClient().isDeploymentReady(deploymentNamespace, deploymentName));
-    }
-
-    /**
-     * Get cluster IP
-     *
-     * @return the cluster IP
-     */
-    public static String getClusterIP(String deploymentNamespace, String deploymentName) {
-        return kubeClient().getService(deploymentNamespace, deploymentName).getSpec().getClusterIP();
     }
 }

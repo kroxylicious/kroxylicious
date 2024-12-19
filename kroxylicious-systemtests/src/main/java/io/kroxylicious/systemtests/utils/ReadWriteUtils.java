@@ -9,61 +9,19 @@ package io.kroxylicious.systemtests.utils;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
-import java.util.Set;
-import java.util.UUID;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 
 /**
  * Class with various utility methods for reading and writing files and objects
  */
 public final class ReadWriteUtils {
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final YAMLFactory WRITE_YAML_FACTORY = YAMLFactory.builder()
-            .disable(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID)
-            .build();
     private static final ObjectMapper READ_YAML_OBJECT_MAPPER = new ObjectMapper(new YAMLFactory());
-    private static final ObjectMapper WRITE_YAML_OBJECT_MAPPER = new ObjectMapper(WRITE_YAML_FACTORY);
-    private static final ObjectMapper WRITE_YAML_NO_START_MARKER_OBJECT_MAPPER = new ObjectMapper(
-            WRITE_YAML_FACTORY.disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER));
 
     private ReadWriteUtils() {
         // All static methods
-    }
-
-    /**
-     * Read the classpath resource with the given resourceName and return the URI
-     *
-     * @param cls           The class relative to which the resource will be loaded.
-     * @param resourceName  The name of the file stored in resources
-     *
-     * @return  The URI of the resource
-     */
-    public static URI getResourceURI(Class<?> cls, String resourceName) {
-        URL url = null;
-        try {
-            url = cls.getClassLoader().getResource(resourceName);
-            if (url == null) {
-                throw new IllegalArgumentException("Cannot find resource " + resourceName + " on classpath");
-            }
-            return url.toURI();
-        }
-        catch (URISyntaxException e) {
-            throw new IllegalStateException("Cannot determine file system path for " + url, e);
-        }
     }
 
     /**
@@ -100,85 +58,5 @@ public final class ReadWriteUtils {
      */
     public static <T> T readObjectFromYamlFilepath(String yamlPath, Class<T> c) {
         return readObjectFromYamlFilepath(new File(yamlPath), c);
-    }
-
-    /**
-     * Converts an object into YAML
-     *
-     * @param <T>    Type of the object
-     * @param instance The resource that should be converted to YAML
-     * @param indent the indent
-     * @return String with the YAML representation of the object
-     */
-    public static <T> String writeObjectToYamlString(T instance, int indent) {
-        try {
-            if (indent > 0) {
-                return WRITE_YAML_NO_START_MARKER_OBJECT_MAPPER.writeValueAsString(instance).indent(indent).trim();
-            }
-            return WRITE_YAML_OBJECT_MAPPER.writeValueAsString(instance).trim();
-        }
-        catch (JsonProcessingException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    /**
-     * Is valid json.
-     *
-     * @param value the value
-     * @return the boolean
-     */
-    public static boolean isValidJson(String value) {
-        if (value == null || value.isEmpty()) {
-            return false;
-        }
-        try {
-            OBJECT_MAPPER.readTree(value);
-        }
-        catch (IOException e) {
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * Writes text into a file
-     *
-     * @param filePath  Path of the file where the text will be written
-     * @param text      The text that will be written into the file
-     */
-    public static void writeFile(Path filePath, String text) {
-        try {
-            Files.writeString(filePath, text, Charset.defaultCharset());
-        }
-        catch (IOException e) {
-            throw new IllegalStateException("Unable to generate file on Path: " + filePath, e);
-        }
-    }
-
-    /**
-     * Creates an empty file in the default temporary-file directory, using the given prefix and suffix.
-     *
-     * @param prefix    The prefix of the empty file (default: UUID).
-     * @param suffix    The suffix of the empty file (default: .tmp).
-     *
-     * @return The empty file just created.
-     */
-    public static File tempFile(String prefix, String suffix) {
-        File file;
-        prefix = prefix == null ? UUID.randomUUID().toString() : prefix;
-        suffix = suffix == null ? ".tmp" : suffix;
-        try {
-            file = Files.createTempFile(prefix, suffix, getDefaultPosixFilePermissions()).toFile();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        file.deleteOnExit();
-        return file;
-    }
-
-    private static FileAttribute<Set<PosixFilePermission>> getDefaultPosixFilePermissions() {
-        return PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
     }
 }

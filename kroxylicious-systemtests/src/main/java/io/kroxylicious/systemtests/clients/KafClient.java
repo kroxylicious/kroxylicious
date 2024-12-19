@@ -118,7 +118,7 @@ public class KafClient implements KafkaClient {
     }
 
     private List<String> extractRecordLinesFromLog(String log) {
-        return Stream.of(log.split("\n")).filter(ReadWriteUtils::isValidJson).toList();
+        return Stream.of(log.split("\n")).filter(TestUtils::isValidJson).toList();
     }
 
     private List<ConsumerRecord> getConsumerRecords(String topicName, List<String> logRecords) {

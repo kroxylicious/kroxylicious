@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
-import io.kroxylicious.systemtests.utils.ReadWriteUtils;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static org.awaitility.Awaitility.await;
 
@@ -54,9 +54,15 @@ public class KroxyliciousApp implements Runnable {
     }
 
     private Path generateKroxyliciousConfiguration() {
-        File configFile = ReadWriteUtils.tempFile("config", ".yaml");
-        ReadWriteUtils.writeFile(configFile.toPath(), KroxyliciousConfigMapTemplates.getDefaultExternalKroxyliciousConfigMap(clusterIp));
-        return configFile.toPath();
+        try {
+            File configFile = Files.createTempFile("config", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
+            Files.writeString(configFile.toPath(), KroxyliciousConfigMapTemplates.getDefaultExternalKroxyliciousConfigMap(clusterIp));
+            configFile.deleteOnExit();
+            return configFile.toPath();
+        }
+        catch (IOException e) {
+            throw new IllegalStateException("Unable to generate kroxylicious configuration file", e);
+        }
     }
 
     private static Path resolveStartScript(Path targetPath) {

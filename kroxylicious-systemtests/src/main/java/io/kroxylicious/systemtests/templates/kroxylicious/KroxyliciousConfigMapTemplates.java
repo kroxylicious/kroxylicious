@@ -6,17 +6,27 @@
 
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
+import java.io.UncheckedIOException;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
+
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
-import io.kroxylicious.systemtests.utils.ReadWriteUtils;
 
 /**
  * The type Kroxylicious config templates.
  */
 public final class KroxyliciousConfigMapTemplates {
+    private static final YAMLFactory FACTORY = YAMLFactory.builder()
+            .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+            .build();
+    private static final ObjectMapper YAML_OBJECT_MAPPER = new ObjectMapper(FACTORY);
 
     private KroxyliciousConfigMapTemplates() {
     }
@@ -69,9 +79,21 @@ public final class KroxyliciousConfigMapTemplates {
                       template: "KEK_${topicName}"
                     experimental:
                       %s
-                """.formatted(testKmsFacade.getKmsServiceClass().getSimpleName(),
-                ReadWriteUtils.writeObjectToYamlString(testKmsFacade.getKmsServiceConfig(), 6),
-                ReadWriteUtils.writeObjectToYamlString(experimentalKmsConfig, 6));
+                """.formatted(testKmsFacade.getKmsServiceClass().getSimpleName(), getNestedYaml(testKmsFacade.getKmsServiceConfig(), 6),
+                getNestedYaml(experimentalKmsConfig, 6));
+    }
+
+    private static String getNestedYaml(Object config, int indent) {
+        String configYaml;
+
+        try {
+            configYaml = YAML_OBJECT_MAPPER.writeValueAsString(config).indent(indent).trim();
+        }
+        catch (JsonProcessingException e) {
+            throw new UncheckedIOException(e);
+        }
+
+        return configYaml;
     }
 
     private static String getRecordEncryptionConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {

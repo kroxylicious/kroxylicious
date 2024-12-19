@@ -20,7 +20,9 @@ import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTemplates;
-import io.kroxylicious.systemtests.utils.DeploymentUtils;
+
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.awaitility.Awaitility.await;
 
 /**
  * The type Kroxylicious.
@@ -101,7 +103,8 @@ public class Kroxylicious {
      * @return the number of replicas
      */
     public int getNumberOfReplicas() {
-        return DeploymentUtils.getNumberOfReplicas(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME);
+        LOGGER.info("Getting number of replicas..");
+        return kubeClient().getDeployment(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME).getStatus().getReplicas();
     }
 
     /**
@@ -110,7 +113,7 @@ public class Kroxylicious {
      * @return the bootstrap
      */
     public String getBootstrap() {
-        String clusterIP = DeploymentUtils.getClusterIP(deploymentNamespace, Constants.KROXY_SERVICE_NAME);
+        String clusterIP = kubeClient().getService(deploymentNamespace, Constants.KROXY_SERVICE_NAME).getSpec().getClusterIP();
         if (clusterIP == null || clusterIP.isEmpty()) {
             throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
         }
@@ -126,6 +129,9 @@ public class Kroxylicious {
      * @param timeout the timeout
      */
     public void scaleReplicasTo(int scaledTo, Duration timeout) {
-        DeploymentUtils.scaleReplicasTo(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME, scaledTo, timeout);
+        LOGGER.info("Scaling number of replicas to {}..", scaledTo);
+        kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(Constants.KROXY_DEPLOYMENT_NAME).scale(scaledTo);
+        await().atMost(timeout).pollInterval(Duration.ofSeconds(1))
+                .until(() -> getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME));
     }
 }

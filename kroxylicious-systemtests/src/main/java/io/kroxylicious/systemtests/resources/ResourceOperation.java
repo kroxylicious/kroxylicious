@@ -66,7 +66,7 @@ public class ResourceOperation {
      */
     public static long getTimeoutForResourceDeletion(String kind) {
         return switch (kind) {
-            case Kafka.RESOURCE_KIND, Constants.POD -> Duration.ofMinutes(5).toMillis();
+            case Kafka.RESOURCE_KIND, Constants.POD_KIND -> Duration.ofMinutes(5).toMillis();
             default -> Duration.ofMinutes(3).toMillis();
         };
     }

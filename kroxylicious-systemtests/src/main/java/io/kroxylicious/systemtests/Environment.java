@@ -37,7 +37,6 @@ public class Environment {
     private static final String KROXY_VERSION_ENV = "KROXYLICIOUS_VERSION";
     private static final String KROXY_IMAGE_REPO_ENV = "KROXYLICIOUS_IMAGE_REPO";
     private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
-    public static final String STRIMZI_FEATURE_GATES_ENV = "STRIMZI_FEATURE_GATES";
     private static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
     private static final String VAULT_CHART_VERSION_ENV = "VAULT_CHART_VERSION";
     private static final String AWS_LOCALSTACK_CHART_VERSION_ENV = "AWS_LOCALSTACK_CHART_VERSION";
@@ -90,15 +89,14 @@ public class Environment {
     /**
      * The default value for skipping the teardown locally.
      */
-    private static final String SKIP_TEARDOWN_DEFAULT = "false";
-    private static final String STRIMZI_FEATURE_GATES_DEFAULT = "";
+    private static final boolean SKIP_TEARDOWN_DEFAULT = false;
     public static final String KROXY_ORG_DEFAULT = KROXY_IMAGE_REPO_DEFAULT.split("/")[1];
     public static final String KROXY_TAG_DEFAULT = "latest";
     public static final String KROXY_REGISTRY_DEFAULT = KROXY_IMAGE_REPO_DEFAULT.split("/")[0];
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
     private static final String VAULT_CHART_VERSION_DEFAULT = "0.27.0";
     private static final String AWS_LOCALSTACK_CHART_VERSION_DEFAULT = "0.6.15";
-    private static final String SKIP_STRIMZI_INSTALL_DEFAULT = "false";
+    private static final boolean SKIP_STRIMZI_INSTALL_DEFAULT = false;
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
     private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("java.io.tmpdir");
     public static final String AWS_ACCESS_KEY_ID_DEFAULT = "test";
@@ -125,13 +123,11 @@ public class Environment {
     /**
      * SKIP_TEARDOWN env variable assignment.
      */
-    public static final boolean SKIP_TEARDOWN = Boolean.parseBoolean(ENVIRONMENT_VARIABLES.getOrDefault(SKIP_TEARDOWN_ENV, SKIP_TEARDOWN_DEFAULT));
-
-    public static final String STRIMZI_FEATURE_GATES = ENVIRONMENT_VARIABLES.getOrDefault(STRIMZI_FEATURE_GATES_ENV, STRIMZI_FEATURE_GATES_DEFAULT);
+    public static final boolean SKIP_TEARDOWN = ENVIRONMENT_VARIABLES.getOrDefault(SKIP_TEARDOWN_ENV, Boolean::parseBoolean, SKIP_TEARDOWN_DEFAULT);
 
     public static final String CONTAINER_CONFIG_PATH = ENVIRONMENT_VARIABLES.getOrDefault(CONTAINER_CONFIG_PATH_ENV, CONTAINER_CONFIG_PATH_DEFAULT);
 
-    public static final boolean SKIP_STRIMZI_INSTALL = Boolean.parseBoolean(ENVIRONMENT_VARIABLES.getOrDefault(SKIP_STRIMZI_INSTALL_ENV, SKIP_STRIMZI_INSTALL_DEFAULT));
+    public static final boolean SKIP_STRIMZI_INSTALL = ENVIRONMENT_VARIABLES.getOrDefault(SKIP_STRIMZI_INSTALL_ENV, Boolean::parseBoolean, SKIP_STRIMZI_INSTALL_DEFAULT);
 
     public static final String VAULT_CHART_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(VAULT_CHART_VERSION_ENV, VAULT_CHART_VERSION_DEFAULT);
 

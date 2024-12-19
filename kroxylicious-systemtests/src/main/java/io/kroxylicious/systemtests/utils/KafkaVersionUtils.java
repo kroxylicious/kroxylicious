@@ -11,9 +11,6 @@ package io.kroxylicious.systemtests.utils;
  */
 public class KafkaVersionUtils {
 
-    private KafkaVersionUtils() {
-    }
-
     /**
      * Gets kafka protocol version.
      *

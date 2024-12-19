@@ -288,10 +288,6 @@ public class KubeClient {
         return client.services().inNamespace(namespaceName).withName(deploymentName).get();
     }
 
-    public List<ServiceAccount> listServiceAccounts(String namespaceName) {
-        return client.serviceAccounts().inNamespace(namespaceName).list().getItems();
-    }
-
     /**
      * Method for creating the specified ServiceAccount.
      * In case that the ServiceAccount is already created, it is being updated.
@@ -339,10 +335,6 @@ public class KubeClient {
     // ===========================
     // ---------> ROLES <---------
     // ===========================
-
-    public List<ClusterRole> listClusterRoles() {
-        return client.rbac().clusterRoles().list().getItems();
-    }
 
     /**
      * Method for creating the specified ClusterRole.

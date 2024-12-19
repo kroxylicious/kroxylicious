@@ -25,7 +25,7 @@ import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
-import io.kroxylicious.systemtests.utils.ReadWriteUtils;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.getInstance;
@@ -106,7 +106,7 @@ public class Vault {
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
                 Optional.of(Environment.VAULT_CHART_VERSION),
-                Optional.of(Path.of(ReadWriteUtils.getResourceURI(getClass(), "helm_vault_overrides.yaml"))),
+                Optional.of(Path.of(TestUtils.getResourceURI("helm_vault_overrides.yaml"))),
                 Optional.of(Map.of("server.dev.devRootToken", vaultRootToken,
                         "global.openshift", String.valueOf(openshiftCluster),
                         "server.route.enabled", String.valueOf(openshiftCluster),

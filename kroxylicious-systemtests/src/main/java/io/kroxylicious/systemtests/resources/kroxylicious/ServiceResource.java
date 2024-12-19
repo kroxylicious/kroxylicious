@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.resources.kubernetes;
+package io.kroxylicious.systemtests.resources.kroxylicious;
 
 import java.util.concurrent.TimeUnit;
 
@@ -26,7 +26,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class ServiceResource implements ResourceType<Service> {
     @Override
     public String getKind() {
-        return Constants.SERVICE;
+        return Constants.SERVICE_KIND;
     }
 
     @Override

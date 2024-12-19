@@ -4,10 +4,9 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.systemtests.resources.kubernetes;
+package io.kroxylicious.systemtests.resources.kroxylicious;
 
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -68,12 +67,12 @@ public class DeploymentResource implements ResourceType<Deployment> {
         return kubeClient().getClient().resources(Deployment.class, DeploymentList.class);
     }
 
-    public static void replaceDeployment(String namespaceName, Consumer<Deployment> editor, String deploymentName) {
-        Deployment toBeReplaced = kubeClient().getClient().resources(Deployment.class, DeploymentList.class).inNamespace(namespaceName).withName(deploymentName).get();
-        editor.accept(toBeReplaced);
-        kubeClient().getClient().resources(Deployment.class, DeploymentList.class).inNamespace(namespaceName).resource(toBeReplaced).update();
-    }
-
+    /**
+     * Gets deployment from yaml.
+     *
+     * @param yamlPath the yaml path
+     * @return the deployment from yaml
+     */
     public static Deployment getDeploymentFromYaml(String yamlPath) {
         return ReadWriteUtils.readObjectFromYamlFilepath(yamlPath, Deployment.class);
     }
