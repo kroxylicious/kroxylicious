@@ -6,14 +6,19 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
-import io.kroxylicious.systemtests.resources.operator.SetUpKroxyliciousOperator;
+import io.skodjob.testframe.enums.InstallType;
+import io.skodjob.testframe.installation.InstallationMethod;
+
+import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.k8s.exception.UnknownInstallationType;
+import io.kroxylicious.systemtests.resources.operator.KroxyliciousOperatorBundleInstaller;
 
 /**
  * The type Kroxylicious operator.
  */
 public class KroxyliciousOperator {
-    private final String deploymentNamespace;
-    private SetUpKroxyliciousOperator setUpKroxyliciousOperator;
+    private final InstallationMethod installationMethod;
+    private final String installationNamespace;
 
     /**
      * Instantiates a new Kroxylicious operator.
@@ -21,21 +26,28 @@ public class KroxyliciousOperator {
      * @param deploymentNamespace the deployment namespace
      */
     public KroxyliciousOperator(String deploymentNamespace) {
-        this.deploymentNamespace = deploymentNamespace;
+        this.installationNamespace = deploymentNamespace;
+        this.installationMethod = getInstallationMethod();
     }
 
     /**
      * Deploy.
      */
     public void deploy() {
-        setUpKroxyliciousOperator = new SetUpKroxyliciousOperator(deploymentNamespace);
-        setUpKroxyliciousOperator.install();
+        installationMethod.install();
     }
 
     /**
      * Delete.
      */
     public void delete() {
-        setUpKroxyliciousOperator.delete();
+        installationMethod.delete();
+    }
+
+    private InstallationMethod getInstallationMethod() {
+        if (Environment.INSTALL_TYPE != InstallType.Yaml) {
+            throw new UnknownInstallationType("Installation type " + Environment.INSTALL_TYPE + " not supported");
+        }
+        return new KroxyliciousOperatorBundleInstaller().getDefaultBuilder(installationNamespace).createBundleInstallation();
     }
 }

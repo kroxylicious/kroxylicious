@@ -12,9 +12,9 @@ import java.util.Map;
 
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.skodjob.testframe.enums.InstallType;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.enums.DeploymentType;
 import io.kroxylicious.systemtests.resources.ResourceType;
 import io.kroxylicious.systemtests.resources.kubernetes.DeploymentResource;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -190,7 +190,7 @@ public class BundleResource implements ResourceType<Deployment> {
                 .editMetadata()
                 .withName(name)
                 .withNamespace(namespaceInstallTo)
-                .addToLabels(Constants.DEPLOYMENT_TYPE, DeploymentType.BUNDLE.name())
+                .addToLabels(Constants.DEPLOYMENT_TYPE, InstallType.Yaml.name())
                 .endMetadata()
                 .editSpec()
                 .withReplicas(this.replicas)
