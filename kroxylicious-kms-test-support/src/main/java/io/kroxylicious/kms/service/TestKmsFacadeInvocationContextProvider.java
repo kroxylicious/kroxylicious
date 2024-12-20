@@ -8,7 +8,9 @@ package io.kroxylicious.kms.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -30,6 +32,9 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
     private static final ExtensionContext.Namespace STORE_NAMESPACE = ExtensionContext.Namespace.create("TEST_KMS");
     private static final String FACADE_FACTORIES = "KMS_FACADE_FACTORIES";
 
+    private static final Pattern FACADE_CLASS_NAME_FILTER = Optional.ofNullable(System.getenv("KMS_FACADE_CLASS_NAME_FILTER")).map(Pattern::compile)
+            .orElse(Pattern.compile(".*"));
+
     @Override
     public boolean supportsTestTemplate(ExtensionContext context) {
         return true;
@@ -40,6 +45,7 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
         return getTestKmsFacadeStream(context)
                 .values()
                 .stream()
+                .filter(f -> FACADE_CLASS_NAME_FILTER.matcher(f.getClass().getName()).matches())
                 .map(TemplateInvocationContext::new);
     }
 
