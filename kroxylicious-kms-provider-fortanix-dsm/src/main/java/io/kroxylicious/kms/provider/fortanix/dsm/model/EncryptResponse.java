@@ -13,16 +13,26 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Encrypt response.
+ *
+ * @param status status code
+ * @param error error message
+ * @param body encrypt response body
+ */
+
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record EncryptResponse(
         @JsonProperty(value = "status", required = true) int status,
-        @JsonProperty(value = "body", required = true) @NonNull Response body) {
+        @JsonProperty(value = "error") String error,
+        @JsonProperty(value = "body", required = true) Response body) implements ResponseBodyContainer<EncryptResponse.Response> {
 
-    public EncryptResponse {
-        Objects.requireNonNull(body);
-    }
-
+    /**
+     * @param cipher Encrypted ciphertext bytes.
+     * @param iv The initialization vector used during encryption. This is only applicable for certain symmetric encryption modes.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
+    @SuppressWarnings("java:S6218") // we don't need EncryptResponse equality
     public record Response(
             @JsonProperty(value = "cipher", required = true) @NonNull byte[] cipher,
             @JsonProperty(value = "iv", required = true) @NonNull byte[] iv

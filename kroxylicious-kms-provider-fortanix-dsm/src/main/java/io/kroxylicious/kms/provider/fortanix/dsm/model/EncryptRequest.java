@@ -17,13 +17,14 @@ public record EncryptRequest(@JsonProperty(value = "kid") @NonNull String keyId,
                              @JsonProperty(value = "request") @NonNull Request request) {
 
     public static final String BATCH_ENCRYPT_CIPHER_MODE = "CBC";
-    public static final String AES_WRAP_ALGO = "AES_256/GCM/NoPadding";
+    public static final String AES = "AES";
 
     public EncryptRequest {
         Objects.requireNonNull(keyId);
         Objects.requireNonNull(request);
     }
 
+    @SuppressWarnings("java:S6218") // we don't need EncryptResponse equality
     public record Request(
             @JsonProperty(value = "alg") @NonNull String alg,
             @JsonProperty(value = "plain") byte[] plain,
@@ -33,6 +34,6 @@ public record EncryptRequest(@JsonProperty(value = "kid") @NonNull String keyId,
     }
     @NonNull
     public static EncryptRequest createWrapRequest(@NonNull String kid, byte[] plaintext) {
-        return new EncryptRequest(kid, new Request("AES", plaintext, BATCH_ENCRYPT_CIPHER_MODE));
+        return new EncryptRequest(kid, new Request(AES, plaintext, BATCH_ENCRYPT_CIPHER_MODE));
     }
 }

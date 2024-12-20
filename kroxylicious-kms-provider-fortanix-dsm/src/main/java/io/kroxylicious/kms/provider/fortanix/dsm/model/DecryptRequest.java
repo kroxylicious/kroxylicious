@@ -12,11 +12,36 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-@SuppressWarnings("java:S6218") // we don't need DecryptRequest equality
-public record DecryptRequest(@JsonProperty(value = "KeyId") @NonNull String keyId,
-                             @JsonProperty(value = "CiphertextBlob") @NonNull byte[] ciphertextBlob) {
-    public DecryptRequest {
-        Objects.requireNonNull(keyId);
-        Objects.requireNonNull(ciphertextBlob);
+/**
+ *
+ * @param kid UUID of the sobject
+ * @param request request
+ */
+public record DecryptRequest(@JsonProperty(value = "kid", required = true) @NonNull String kid,
+                             @JsonProperty(value = "request", required = true) @NonNull DecryptRequest.Request request) {
+    /**
+     *
+     * @param alg A cryptographic algorithm (AES etc)
+     * @param mode cipher mode
+     * @param iv The initialization vector to use,
+     * @param cipher Ciphertext bytes to be decrypted.
+     */
+    @SuppressWarnings("java:S6218") // we don't need EncryptResponse equality
+    public record Request(
+            @JsonProperty(value = "alg", required = true) String alg,
+            @JsonProperty(value = "mode", required = true) String mode,
+            @JsonProperty(value = "iv", required = true) byte[] iv,
+            @JsonProperty(value = "cipher") @NonNull byte[] cipher) {
+        public Request {
+            Objects.requireNonNull(alg);
+            Objects.requireNonNull(mode);
+            Objects.requireNonNull(iv);
+        }
     }
+
+    @NonNull
+    public static DecryptRequest createUnwrapRequest(@NonNull String kid, byte[] iv, byte[] plaintext) {
+        return new DecryptRequest(kid, new DecryptRequest.Request(EncryptRequest.AES, EncryptRequest.BATCH_ENCRYPT_CIPHER_MODE, iv, plaintext));
+    }
+
 }

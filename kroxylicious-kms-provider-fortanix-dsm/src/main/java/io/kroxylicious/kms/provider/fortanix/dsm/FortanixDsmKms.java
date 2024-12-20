@@ -34,9 +34,9 @@ import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.EncryptRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.EncryptResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateDataKeyResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.ResponseBodyContainer;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectDescriptor;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectResponse;
@@ -47,7 +47,6 @@ import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
-import io.kroxylicious.kms.service.UnknownKeyException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -73,9 +72,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     };
     private static final TypeReference<List<EncryptResponse>> LIST_ENCRYPT_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
-    private static final TypeReference<GenerateDataKeyResponse> GENERATE_DATA_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
-    };
-    private static final TypeReference<DecryptResponse> DECRYPT_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<List<DecryptResponse>> LIST_DECRYPT_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<ErrorResponse> ERROR_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
@@ -154,26 +151,15 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
     private CompletionStage<DekPair<FortanixDsmKmsEdek>> wrapExportedTransientKey(@NonNull String kekRef, @NonNull SecurityObjectResponse exportedKey,
                                                                                   @NonNull CompletableFuture<SessionAuthResponse> sessionFuture) {
-        var secretKey = new SecretKeySpec(exportedKey.value(),  "AES");
+        var secretKey = DestroyableRawSecretKey.takeOwnershipOf(exportedKey.value(),  "AES");
         var batchEncryptRequests = List.of(EncryptRequest.createWrapRequest(kekRef, exportedKey.value()));
 
         return sessionFuture
                 .thenApply(s -> createRequest(batchEncryptRequests, "/crypto/v1/keys/batch/encrypt", s))
                 .thenCompose(request -> sendAsync("", request, LIST_ENCRYPT_RESPONSE_TYPE_REF, KmsException::new))
-                .thenApply(encryptResponses -> toSingleEncryptResponseBody(encryptResponses))
+                .thenApply(this::singletonListToValue)
+                .thenApply(this::validateResponseBody)
                 .thenApply(encryptResponse -> new DekPair<>(new FortanixDsmKmsEdek(kekRef, encryptResponse.cipher(), encryptResponse.iv()), secretKey));
-    }
-
-    private EncryptResponse.Response toSingleEncryptResponseBody(List<EncryptResponse> encryptResponses) {
-        var num = encryptResponses.size();
-        if (num != 1) {
-            throw new KmsException("expecting exactly one response, got " + num);
-        }
-        var r = encryptResponses.get(0);
-        if (r.status() != 200) {
-            throw new KmsException("encrypt response has unexpected status code : " + r.status());
-        }
-        return r.body();
     }
 
     /**
@@ -184,10 +170,15 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     @NonNull
     @Override
     public CompletionStage<SecretKey> decryptEdek(@NonNull FortanixDsmKmsEdek edek) {
-        final DecryptRequest decryptRequest = new DecryptRequest(edek.kekRef(), edek.edek());
-        var request = createRequest(decryptRequest, null, null);
-        return sendAsync(edek.kekRef(), request, DECRYPT_RESPONSE_TYPE_REF, UnknownKeyException::new)
-                .thenApply(response -> DestroyableRawSecretKey.takeOwnershipOf(response.plaintext(), AES_KEY_ALGO));
+        var sessionFuture = getSessionAuthResponse();
+
+        final var batchEncryptRequests = List.of(DecryptRequest.createUnwrapRequest(edek.kekRef(), edek.iv(), edek.edek()));
+        return sessionFuture
+                .thenApply(s -> createRequest(batchEncryptRequests, "/crypto/v1/keys/batch/decrypt", s))
+                .thenCompose(request -> sendAsync(edek.kekRef(), request, LIST_DECRYPT_RESPONSE_TYPE_REF, KmsException::new))
+                .thenApply(this::singletonListToValue)
+                .thenApply(this::validateResponseBody)
+                .thenApply(response -> DestroyableRawSecretKey.takeOwnershipOf(response.plain(), AES_KEY_ALGO));
     }
 
     /**
@@ -289,6 +280,21 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         catch (JsonProcessingException e) {
             throw new UncheckedIOException("Failed to create request body", e);
         }
+    }
+
+    private <R> R singletonListToValue(List<R> encryptResponses) {
+        var num = encryptResponses.size();
+        if (num != 1) {
+            throw new KmsException("expecting list to contained exactly one response, but it contains:" + num);
+        }
+        return encryptResponses.get(0);
+    }
+
+    private <R> R validateResponseBody(ResponseBodyContainer<R> encryptResponse) {
+        if (encryptResponse.status() != 200) {
+            throw new KmsException("encrypt response has unexpected status code : " + encryptResponse.status());
+        }
+        return encryptResponse.body();
     }
 
 }
