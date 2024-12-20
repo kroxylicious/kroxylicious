@@ -7,17 +7,21 @@
 package io.kroxylicious.kms.provider.fortanix.dsm;
 
 import java.net.URI;
+import java.util.Optional;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class FortanixDsmKmsTestKmsFacade extends AbstractFortanixDsmKmsTestKmsFacade {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FortanixDsmKmsTestKmsFacade.class);
     private static final String FORTANIX_ADMIN_API_KEY = System.getenv().get("FORTANIX_ADMIN_API_KEY");
     private static final String FORTANIX_API_ENDPOINT = System.getenv().get("FORTANIX_API_ENDPOINT");
+    private static final String FORTANIX_GROUP_UUID = System.getenv().get("FORTANIX_GROUP_UUID");
 
     static final boolean AVAILABLE;
     static {
@@ -54,7 +58,12 @@ public class FortanixDsmKmsTestKmsFacade extends AbstractFortanixDsmKmsTestKmsFa
 
     @Override
     protected String getApiKey() {
-        var apiKey = FORTANIX_ADMIN_API_KEY;
-        return apiKey;
+        return FORTANIX_ADMIN_API_KEY;
+    }
+
+    @NonNull
+    @Override
+    protected @Nullable UUID getGroupUuid() {
+        return Optional.ofNullable(UUID.fromString(FORTANIX_GROUP_UUID)).orElse(null);
     }
 }

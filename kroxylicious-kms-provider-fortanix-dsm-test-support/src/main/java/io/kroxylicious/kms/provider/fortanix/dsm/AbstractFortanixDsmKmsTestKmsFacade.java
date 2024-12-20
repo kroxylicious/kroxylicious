@@ -13,6 +13,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,7 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -53,7 +55,6 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
     };
     private static final TypeReference<InfoResponse> INFO_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
-    public static final String KEY_GROUP = "eae3d454-825f-40e6-abd4-1b7e978e1687";
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 
     private SessionAuthResponse session;
@@ -72,6 +73,9 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
 
     @NonNull
     protected abstract URI getEndpointUrl();
+
+    @Nullable
+    protected abstract UUID getGroupUuid();
 
     @Override
     public Config getKmsServiceConfig() {
@@ -97,8 +101,10 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
 
         var sessionResponse = getSessionAuthResponse();
 
+        URI resolve = getEndpointUrl().resolve(getGroupUuid() != null ? ("/crypto/v1/keys?group_id=" + getGroupUuid()) : "/crypto/v1/keys");
+
         var keyListRequest = HttpRequest.newBuilder()
-                .uri(getEndpointUrl().resolve("/crypto/v1/keys?group_id=" + KEY_GROUP))
+                .uri(resolve)
                 .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
                 .GET()
                 .build();
@@ -128,7 +134,7 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
         public void generateKek(String alias) {
             var sessionResponse = getSessionAuthResponse();
 
-            var generateRequest = new SecurityObjectRequest(alias, 256, "AES", false, List.of("ENCRYPT", "DECRYPT", "APPMANAGEABLE"), KEY_GROUP);
+            var generateRequest = new SecurityObjectRequest(alias, 256, "AES", false, List.of("ENCRYPT", "DECRYPT", "APPMANAGEABLE"), getGroupUuid());
             var request = createRequest("/crypto/v1/keys", generateRequest, sessionResponse);
             var response = sendRequest(alias, request, SECURITY_OBJECT_RESPONSE_TYPE_REF);
             LOGGER.trace("generateKek {} -> {}", alias, response);

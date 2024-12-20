@@ -30,7 +30,7 @@ public record SecurityObjectRequest(@JsonProperty("name") String name,
                                     @JsonProperty(value = "obj_type", required = true) String objType,
                                     @JsonProperty("transient") boolean transientSo,
                                     @JsonProperty("key_ops") List<String> keyOps,
-                                    @JsonProperty("group_id") String groupId) {
+                                    @JsonProperty("group_id") java.util.UUID groupId) {
     public SecurityObjectRequest {
         Objects.requireNonNull(objType);
     }

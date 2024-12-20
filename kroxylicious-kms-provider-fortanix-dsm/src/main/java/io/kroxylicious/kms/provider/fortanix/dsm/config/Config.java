@@ -23,11 +23,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * Configuration for the Fortanix DSM JMS service.
  *
  * @param endpointUrl URL of the Vault Transit Engine e.g. {@code https://myhashicorpvault:8200/v1/transit}
- * @param apiKey AWS apiKey
+ * @param apiKey Fortanix apiKey
  */
 
-public record Config(
-                     @JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
+public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
                      @JsonProperty(required = true) PasswordProvider apiKey,
                      Tls tls) {
     public Config {
