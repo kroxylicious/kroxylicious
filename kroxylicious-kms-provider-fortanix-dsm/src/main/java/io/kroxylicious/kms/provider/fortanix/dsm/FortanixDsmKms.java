@@ -22,7 +22,6 @@ import java.util.function.Function;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -66,7 +65,6 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
     private static final TypeReference<SecurityObjectResponse> SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
-
 
     private static final TypeReference<InfoResponse> INFO_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
@@ -138,7 +136,9 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
                     .thenApply(s -> createRequest(transientKeyRequest, "/crypto/v1/keys", s))
                     .thenCompose(request -> sendAsync("", request, SECURITY_OBJECT_RESPONSE_TYPE_REF, KmsException::new))
 
-                    .thenCombine(sessionFuture, (transientKeyResponse, s) -> createRequest(new SecurityObjectDescriptor(null, transientKeyResponse.transientKey()), "/crypto/v1/keys/export", s))
+                    .thenCombine(sessionFuture,
+                            (transientKeyResponse, s) -> createRequest(new SecurityObjectDescriptor(null, transientKeyResponse.transientKey()), "/crypto/v1/keys/export",
+                                    s))
                     .thenCompose(request -> sendAsync("", request, SECURITY_OBJECT_RESPONSE_TYPE_REF, KmsException::new))
 
                     .thenCompose(export -> wrapExportedTransientKey(kekRef, export, sessionFuture));
@@ -151,7 +151,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
     private CompletionStage<DekPair<FortanixDsmKmsEdek>> wrapExportedTransientKey(@NonNull String kekRef, @NonNull SecurityObjectResponse exportedKey,
                                                                                   @NonNull CompletableFuture<SessionAuthResponse> sessionFuture) {
-        var secretKey = DestroyableRawSecretKey.takeOwnershipOf(exportedKey.value(),  "AES");
+        var secretKey = DestroyableRawSecretKey.takeOwnershipOf(exportedKey.value(), "AES");
         var batchEncryptRequests = List.of(EncryptRequest.createWrapRequest(kekRef, exportedKey.value()));
 
         return sessionFuture

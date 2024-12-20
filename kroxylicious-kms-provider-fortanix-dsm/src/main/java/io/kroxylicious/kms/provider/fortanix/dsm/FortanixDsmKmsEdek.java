@@ -6,10 +6,10 @@
 
 package io.kroxylicious.kms.provider.fortanix.dsm;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import java.util.Arrays;
 import java.util.Objects;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A Fortanix DSM Encrypted Dek.
@@ -21,6 +21,9 @@ import java.util.Objects;
 record FortanixDsmKmsEdek(@NonNull String kekRef,
                           @NonNull byte[] edek,
                           @NonNull byte[] iv) {
+
+    public static final int IV_LENGTH = 16;
+
     FortanixDsmKmsEdek {
         Objects.requireNonNull(kekRef);
         Objects.requireNonNull(edek);
@@ -31,8 +34,8 @@ record FortanixDsmKmsEdek(@NonNull String kekRef,
         if (edek.length == 0) {
             throw new IllegalArgumentException("edek cannot be empty");
         }
-        if (iv.length == 0) {
-            throw new IllegalArgumentException("iv cannot be empty");
+        if (iv.length != IV_LENGTH) {
+            throw new IllegalArgumentException("iv must be 16 bytes");
         }
     }
 

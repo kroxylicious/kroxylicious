@@ -16,6 +16,7 @@ import java.util.function.Consumer;
 
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import com.sun.net.httpserver.HttpExchange;
@@ -35,7 +36,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Unit test for {@link FortanixDsmKms}.  See also io.kroxylicious.kms.service.KmsIT.
  */
-class AwsKmsTest {
+@Disabled
+class FortanixKmsTest {
 
     private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
 

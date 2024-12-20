@@ -23,9 +23,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record EncryptResponse(
-        @JsonProperty(value = "status", required = true) int status,
-        @JsonProperty(value = "error") String error,
-        @JsonProperty(value = "body", required = true) Response body) implements ResponseBodyContainer<EncryptResponse.Response> {
+                              @JsonProperty(value = "status", required = true) int status,
+                              @JsonProperty(value = "error") String error,
+                              @JsonProperty(value = "body", required = true) Response body)
+        implements ResponseBodyContainer<EncryptResponse.Response> {
 
     /**
      * @param cipher Encrypted ciphertext bytes.
@@ -34,9 +35,8 @@ public record EncryptResponse(
     @JsonIgnoreProperties(ignoreUnknown = true)
     @SuppressWarnings("java:S6218") // we don't need EncryptResponse equality
     public record Response(
-            @JsonProperty(value = "cipher", required = true) @NonNull byte[] cipher,
-            @JsonProperty(value = "iv", required = true) @NonNull byte[] iv
-    ) {
+                           @JsonProperty(value = "cipher", required = true) @NonNull byte[] cipher,
+                           @JsonProperty(value = "iv", required = true) @NonNull byte[] iv) {
 
         public Response {
             Objects.requireNonNull(cipher);

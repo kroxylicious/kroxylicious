@@ -29,6 +29,7 @@ import static org.apache.kafka.common.utils.Utils.utf8Length;
  *     <li>version byte (currently always zero)</li>
  *     <li>Protobuf Unsigned varint to hold the number of bytes required to hold the UTF-8 representation of the kekRef.</li>
  *     <li>UTF-8 representation of the kefRef.</li>
+ *     <li>Bytes of the iv (AES uses 128-bit blocks, so a 128-bit IV, so <b>>must</b be 16 bytes).</li>
  *     <li>Bytes of the edek.</li>
  * </ol>
  * @see <a href="https://protobuf.dev/programming-guides/encoding/">Protobuf Encodings</a>
@@ -57,12 +58,21 @@ class FortanixDsmKmsEdekSerde implements Serde<FortanixDsmKmsEdek> {
         var kekRefLength = toIntExact(readUnsignedVarint(buffer));
         var kekRef = utf8(buffer, kekRefLength);
         buffer.position(buffer.position() + kekRefLength);
+        if (kekRef.isEmpty()) {
+            throw new IllegalArgumentException("keyRef cannot be empty");
+        }
+
+        var iv = new byte[FortanixDsmKmsEdek.IV_LENGTH];
+        if (buffer.remaining() < iv.length) {
+            throw new IllegalArgumentException("too few bytes remain for iv");
+        }
+        buffer.get(iv);
 
         int edekLength = buffer.remaining();
         var edek = new byte[edekLength];
         buffer.get(edek);
 
-        return new FortanixDsmKmsEdek(kekRef, edek, null);
+        return new FortanixDsmKmsEdek(kekRef, edek, iv);
     }
 
     @Override
@@ -72,6 +82,7 @@ class FortanixDsmKmsEdekSerde implements Serde<FortanixDsmKmsEdek> {
         return 1 // version byte
                 + sizeOfUnsignedVarint(kekRefLen) // varint to store length of kek
                 + kekRefLen // n bytes for the utf-8 encoded kek
+                + edek.iv().length
                 + edek.edek().length; // n for the bytes of the edek
     }
 
@@ -83,6 +94,7 @@ class FortanixDsmKmsEdekSerde implements Serde<FortanixDsmKmsEdek> {
         buffer.put(VERSION_0);
         writeUnsignedVarint(keyRefBuf.length, buffer);
         buffer.put(keyRefBuf);
+        buffer.put(edek.iv());
         buffer.put(edek.edek());
     }
 }

@@ -6,12 +6,12 @@
 
 package io.kroxylicious.kms.provider.fortanix.dsm.model;
 
+import java.util.Objects;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-
-import java.util.Objects;
 
 /**
  * Decrypt response.
@@ -24,8 +24,8 @@ import java.util.Objects;
 @SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
 public record DecryptResponse(@JsonProperty(value = "status") int status,
                               @JsonProperty(value = "error") String error,
-                              @JsonProperty(value = "body") Response body) implements ResponseBodyContainer<DecryptResponse.Response> {
-
+                              @JsonProperty(value = "body") Response body)
+        implements ResponseBodyContainer<DecryptResponse.Response> {
 
     /**
      * @param plain Decrypted plaintext bytes.

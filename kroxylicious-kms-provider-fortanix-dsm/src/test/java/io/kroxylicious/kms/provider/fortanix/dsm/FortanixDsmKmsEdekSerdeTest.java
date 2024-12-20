@@ -22,11 +22,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class FortanixDsmKmsEdekSerdeTest {
 
     private static final String KEY_REF = "1234abcd-12ab-34cd-56ef-1234567890ab";
+    private static final byte[] EDEK = { 1, 2, 3 };
+    static final byte[] IV = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+    static final byte[] ANOTHER_IV = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0 };
     private final Serde<FortanixDsmKmsEdek> serde = FortanixDsmKmsEdekSerde.instance();
 
     @Test
     void shouldRoundTrip() {
-        var edek = new FortanixDsmKmsEdek(KEY_REF, new byte[]{ 1, 2, 3 }, null);
+        var edek = new FortanixDsmKmsEdek(KEY_REF, EDEK, IV);
         var buf = ByteBuffer.allocate(serde.sizeOf(edek));
         serde.serialize(edek, buf);
         buf.flip();
@@ -36,22 +39,23 @@ class FortanixDsmKmsEdekSerdeTest {
 
     @Test
     void sizeOf() {
-        var edek = new FortanixDsmKmsEdek(KEY_REF, new byte[]{ 1 }, null);
-        var expectedSize = 1 + 1 + 36 + 1;
+        var edek = new FortanixDsmKmsEdek(KEY_REF, new byte[]{ 1 }, IV);
+        var expectedSize = 1 + 1 + 36 + 16 + 1;
         var size = serde.sizeOf(edek);
         assertThat(size).isEqualTo(expectedSize);
     }
 
     static Stream<Arguments> deserializeErrors() {
         return Stream.of(
-                Arguments.of("wrong version", new byte[]{ 1 }),
-                Arguments.of("nokek", new byte[]{ 0, 0 }),
-                Arguments.of("noekekbytes", new byte[]{ 0, 3, 'A', 'B', 'C' }));
+                Arguments.argumentSet("wrong version", new byte[]{ 1 }),
+                Arguments.argumentSet("nokek", new byte[]{ 0, 0 }),
+                Arguments.argumentSet("noivbytes", new byte[]{ 0, 3, 'A', 'B', 'C' }),
+                Arguments.argumentSet("noivbytes", new byte[]{ 0, 3, 'A', 'B', 'C', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 }));
     }
 
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest
     @MethodSource
-    void deserializeErrors(String name, byte[] serializedBytes) {
+    void deserializeErrors(byte[] serializedBytes) {
         var buf = ByteBuffer.wrap(serializedBytes);
         assertThatThrownBy(() -> serde.deserialize(buf))
                 .isInstanceOf(IllegalArgumentException.class);

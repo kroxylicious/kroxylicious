@@ -12,7 +12,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-
 public record EncryptRequest(@JsonProperty(value = "kid") @NonNull String keyId,
                              @JsonProperty(value = "request") @NonNull Request request) {
 
@@ -26,12 +25,12 @@ public record EncryptRequest(@JsonProperty(value = "kid") @NonNull String keyId,
 
     @SuppressWarnings("java:S6218") // we don't need EncryptResponse equality
     public record Request(
-            @JsonProperty(value = "alg") @NonNull String alg,
-            @JsonProperty(value = "plain") byte[] plain,
-            @JsonProperty(value = "mode") String mode
-    ) {
+                          @JsonProperty(value = "alg") @NonNull String alg,
+                          @JsonProperty(value = "plain") byte[] plain,
+                          @JsonProperty(value = "mode") String mode) {
 
     }
+
     @NonNull
     public static EncryptRequest createWrapRequest(@NonNull String kid, byte[] plaintext) {
         return new EncryptRequest(kid, new Request(AES, plaintext, BATCH_ENCRYPT_CIPHER_MODE));

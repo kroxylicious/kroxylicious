@@ -28,10 +28,10 @@ public record DecryptRequest(@JsonProperty(value = "kid", required = true) @NonN
      */
     @SuppressWarnings("java:S6218") // we don't need EncryptResponse equality
     public record Request(
-            @JsonProperty(value = "alg", required = true) String alg,
-            @JsonProperty(value = "mode", required = true) String mode,
-            @JsonProperty(value = "iv", required = true) byte[] iv,
-            @JsonProperty(value = "cipher") @NonNull byte[] cipher) {
+                          @JsonProperty(value = "alg", required = true) String alg,
+                          @JsonProperty(value = "mode", required = true) String mode,
+                          @JsonProperty(value = "iv", required = true) byte[] iv,
+                          @JsonProperty(value = "cipher") @NonNull byte[] cipher) {
         public Request {
             Objects.requireNonNull(alg);
             Objects.requireNonNull(mode);

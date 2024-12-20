@@ -6,11 +6,10 @@
 
 package io.kroxylicious.kms.provider.fortanix.dsm.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
-
 import java.util.List;
 import java.util.Objects;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * Encapsulates the request for a new security object within Fortanix DSM.
@@ -22,7 +21,7 @@ import java.util.Objects;
  * @param keyOps Array of key operations (EXPORT, ENCRYPT, etc.)
  * @param groupId UUID of the group which the security object belongs to.
  *
- * @link <a href="https://support.fortanix.com/apidocs/generate-a-new-security-object">generate-a-new-security-object</a>
+ * @see <a href="https://support.fortanix.com/apidocs/generate-a-new-security-object">generate-a-new-security-object</a>
  */
 public record SecurityObjectRequest(@JsonProperty("name") String name,
                                     @JsonProperty("key_size") int keySize,

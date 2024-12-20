@@ -11,9 +11,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SecurityObjectDescriptor(
-        @JsonProperty("kid") String kid,
-        @JsonProperty("transient_key") String transientKey
-) {
+                                       @JsonProperty("kid") String kid,
+                                       @JsonProperty("transient_key") String transientKey) {
     public SecurityObjectDescriptor {
         if (kid == null && transientKey == null) {
             throw new NullPointerException();
