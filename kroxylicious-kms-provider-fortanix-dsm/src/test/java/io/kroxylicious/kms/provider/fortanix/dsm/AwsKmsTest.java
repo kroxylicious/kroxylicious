@@ -109,7 +109,7 @@ class AwsKmsTest {
             assertThat(aliasStage)
                     .succeedsWithin(Duration.ofSeconds(5))
                     .extracting(DekPair::edek)
-                    .isEqualTo(new FortanixDsmKmsEdek("alias", ciphertextBlobBytes));
+                    .isEqualTo(new FortanixDsmKmsEdek("alias", ciphertextBlobBytes, null));
 
             assertThat(aliasStage)
                     .succeedsWithin(Duration.ofSeconds(5))
@@ -132,7 +132,7 @@ class AwsKmsTest {
         var expectedKey = DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES");
 
         withMockAwsWithSingleResponse(response, kms -> {
-            Assertions.assertThat(kms.decryptEdek(new FortanixDsmKmsEdek("kek", "unused".getBytes(StandardCharsets.UTF_8))))
+            Assertions.assertThat(kms.decryptEdek(new FortanixDsmKmsEdek("kek", "unused".getBytes(StandardCharsets.UTF_8), null)))
                     .succeedsWithin(Duration.ofSeconds(5))
                     .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
                     .matches(key -> SecretKeyUtils.same(key, expectedKey));

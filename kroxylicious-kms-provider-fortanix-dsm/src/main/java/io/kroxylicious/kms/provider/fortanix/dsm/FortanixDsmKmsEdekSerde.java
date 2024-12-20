@@ -62,7 +62,7 @@ class FortanixDsmKmsEdekSerde implements Serde<FortanixDsmKmsEdek> {
         var edek = new byte[edekLength];
         buffer.get(edek);
 
-        return new FortanixDsmKmsEdek(kekRef, edek);
+        return new FortanixDsmKmsEdek(kekRef, edek, null);
     }
 
     @Override

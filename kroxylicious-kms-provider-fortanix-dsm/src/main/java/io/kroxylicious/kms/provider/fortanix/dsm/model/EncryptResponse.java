@@ -14,15 +14,24 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record EncryptResponse(@JsonProperty(value = "kid") @NonNull String kid,
-                              @JsonProperty(value = "cipher") @NonNull byte[] cipher,
-                              @JsonProperty(value = "iv") @NonNull byte[] iv,
-                              @JsonProperty(value = "tag") @NonNull byte[] tag) {
+public record EncryptResponse(
+        @JsonProperty(value = "status", required = true) int status,
+        @JsonProperty(value = "body", required = true) @NonNull Response body) {
 
     public EncryptResponse {
-        Objects.requireNonNull(kid);
-        Objects.requireNonNull(cipher);
-        Objects.requireNonNull(iv);
-        Objects.requireNonNull(tag);
+        Objects.requireNonNull(body);
     }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Response(
+            @JsonProperty(value = "cipher", required = true) @NonNull byte[] cipher,
+            @JsonProperty(value = "iv", required = true) @NonNull byte[] iv
+    ) {
+
+        public Response {
+            Objects.requireNonNull(cipher);
+            Objects.requireNonNull(iv);
+        }
+    }
+
 }

@@ -24,8 +24,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DeleteAliasRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateSecurityObjectRequest;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateSecurityObjectResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.KeyResponse;
@@ -53,7 +53,7 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
 
     private static final TypeReference<List<KeyResponse>> KEY_LIST_RESPONSE_RESPONSE = new TypeReference<>() {
     };
-    private static final TypeReference<GenerateSecurityObjectResponse> GENERATE_SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<SecurityObjectResponse> GENERATE_SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<InfoResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
@@ -136,7 +136,7 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
         public void generateKek(String alias) {
             var sessionResponse = getSessionAuthResponse();
 
-            var generateRequest = new GenerateSecurityObjectRequest(alias, 256, "AES", KEY_GROUP);
+            var generateRequest = new SecurityObjectRequest(alias, 256, "AES", false, List.of("ENCRYPT", "DECRYPT", "APPMANAGEABLE"), KEY_GROUP);
             var request = createRequest("/crypto/v1/keys", generateRequest, sessionResponse);
             var response = sendRequest(alias, request, GENERATE_SECURITY_OBJECT_RESPONSE_TYPE_REF);
             LOGGER.trace("generateKek {} -> {}", alias, response);

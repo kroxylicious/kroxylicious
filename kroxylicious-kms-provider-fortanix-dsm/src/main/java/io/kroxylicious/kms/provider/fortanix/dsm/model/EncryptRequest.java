@@ -12,9 +12,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-@SuppressWarnings("java:S6218") // we don't need DecryptRequest equality
+
 public record EncryptRequest(@JsonProperty(value = "kid") @NonNull String keyId,
                              @JsonProperty(value = "request") @NonNull Request request) {
+
+    public static final String BATCH_ENCRYPT_CIPHER_MODE = "CBC";
+    public static final String AES_WRAP_ALGO = "AES_256/GCM/NoPadding";
 
     public EncryptRequest {
         Objects.requireNonNull(keyId);
@@ -24,11 +27,12 @@ public record EncryptRequest(@JsonProperty(value = "kid") @NonNull String keyId,
     public record Request(
             @JsonProperty(value = "alg") @NonNull String alg,
             @JsonProperty(value = "plain") byte[] plain,
-            @JsonProperty(value = "mode") String mode,
-            @JsonProperty(value = "iv", required = false) byte[] iv,
-            @JsonProperty(value = "ad", required = false) byte[] ad,
-            @JsonProperty(value = "tag_len", required = false) int tagLen,
-            @JsonProperty(value = "label", required = false) String label
+            @JsonProperty(value = "mode") String mode
     ) {
+
+    }
+    @NonNull
+    public static EncryptRequest createWrapRequest(@NonNull String kid, byte[] plaintext) {
+        return new EncryptRequest(kid, new Request("AES", plaintext, BATCH_ENCRYPT_CIPHER_MODE));
     }
 }

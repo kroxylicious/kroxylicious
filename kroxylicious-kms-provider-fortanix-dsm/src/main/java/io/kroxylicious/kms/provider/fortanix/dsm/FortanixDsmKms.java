@@ -12,7 +12,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.List;
@@ -21,9 +20,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
-import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -38,6 +37,9 @@ import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.GenerateDataKeyResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectDescriptor;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectRequest;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SessionAuthResponse;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
@@ -52,8 +54,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
- * An implementation of the KMS interface backed by <a href="https://www.fortanix.com/platform/data-security-manager">Fortanix DSM</a>.
- * <br/>
+ * An implementation of the KMS interface backed by <a href="https://www.fortanix.com/platform/data-security-manager">Fortanix DSM</a> implemented using
+ * the <a href="https://support.fortanix.com/apidocs/">REST API</a>.
  */
 public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
@@ -62,6 +64,10 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
     private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<>() {
     };
+
+    private static final TypeReference<SecurityObjectResponse> SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<>() {
+    };
+
 
     private static final TypeReference<InfoResponse> INFO_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
@@ -75,7 +81,6 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     };
     static final String AUTHORIZATION_HEADER = "Authorization";
     public static final String ALIAS_PREFIX = "alias/";
-    private static final String BATCH_ENCRYPT_CIPHER_MODE = "CipherMode";
 
     private final String apiKey;
     private final Duration timeout;
@@ -127,15 +132,19 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     @Override
     public CompletionStage<DekPair<FortanixDsmKmsEdek>> generateDekPair(@NonNull String kekRef) {
         try {
-            var dek = DestroyableRawSecretKey.toDestroyableKey(this.aes.generateKey());
 
-            // encrypt
+            var transientKeyRequest = new SecurityObjectRequest(null, 256, "AES", true, List.of("EXPORT"), null);
 
-            var batchEncryptRequest = List.of(new EncryptRequest(kekRef, new EncryptRequest.Request("AES", dek.getEncoded(), BATCH_ENCRYPT_CIPHER_MODE, null, null, 0, null)));
-            return getSessionAuthResponse()
-                    .thenApply(s -> createRequest(batchEncryptRequest, "/crypto/v1/keys/batch/encrypt", s))
-                    .thenCompose(request -> sendAsync("", request, LIST_ENCRYPT_RESPONSE_TYPE_REF, KmsException::new))
-                    .thenApply(x -> new DekPair<>(new FortanixDsmKmsEdek(kekRef, x.get(0).cipher()), dek));
+            var sessionFuture = getSessionAuthResponse();
+
+            return sessionFuture
+                    .thenApply(s -> createRequest(transientKeyRequest, "/crypto/v1/keys", s))
+                    .thenCompose(request -> sendAsync("", request, SECURITY_OBJECT_RESPONSE_TYPE_REF, KmsException::new))
+
+                    .thenCombine(sessionFuture, (transientKeyResponse, s) -> createRequest(new SecurityObjectDescriptor(null, transientKeyResponse.transientKey()), "/crypto/v1/keys/export", s))
+                    .thenCompose(request -> sendAsync("", request, SECURITY_OBJECT_RESPONSE_TYPE_REF, KmsException::new))
+
+                    .thenCompose(export -> wrapExportedTransientKey(kekRef, export, sessionFuture));
         }
         catch (KmsException e) {
             return CompletableFuture.failedFuture(e);
@@ -143,15 +152,28 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
     }
 
-    private static final String AES_WRAP_ALGO = "AES_256/GCM/NoPadding";
+    private CompletionStage<DekPair<FortanixDsmKmsEdek>> wrapExportedTransientKey(@NonNull String kekRef, @NonNull SecurityObjectResponse exportedKey,
+                                                                                  @NonNull CompletableFuture<SessionAuthResponse> sessionFuture) {
+        var secretKey = new SecretKeySpec(exportedKey.value(),  "AES");
+        var batchEncryptRequests = List.of(EncryptRequest.createWrapRequest(kekRef, exportedKey.value()));
 
-    private static Cipher aesGcm() {
-        try {
-            return Cipher.getInstance(AES_WRAP_ALGO);
+        return sessionFuture
+                .thenApply(s -> createRequest(batchEncryptRequests, "/crypto/v1/keys/batch/encrypt", s))
+                .thenCompose(request -> sendAsync("", request, LIST_ENCRYPT_RESPONSE_TYPE_REF, KmsException::new))
+                .thenApply(encryptResponses -> toSingleEncryptResponseBody(encryptResponses))
+                .thenApply(encryptResponse -> new DekPair<>(new FortanixDsmKmsEdek(kekRef, encryptResponse.cipher(), encryptResponse.iv()), secretKey));
+    }
+
+    private EncryptResponse.Response toSingleEncryptResponseBody(List<EncryptResponse> encryptResponses) {
+        var num = encryptResponses.size();
+        if (num != 1) {
+            throw new KmsException("expecting exactly one response, got " + num);
         }
-        catch (GeneralSecurityException e) {
-            throw new KmsException(e);
+        var r = encryptResponses.get(0);
+        if (r.status() != 200) {
+            throw new KmsException("encrypt response has unexpected status code : " + r.status());
         }
+        return r.body();
     }
 
     /**
