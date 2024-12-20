@@ -4,6 +4,14 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+from registry.access.redhat.com/ubi9/openjdk-17:1.20 as builder
+
+user root
+workdir /opt/kroxylicious
+copy . .
+run mvn -q -B clean package -Pdist -Dquick
+user 185
+
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.2
 
 ARG JAVA_VERSION=17
@@ -46,7 +54,7 @@ RUN set -ex; \
         chmod +x /usr/bin/tini; \
     fi
 
-COPY target/kroxylicious-operator-${KROXYLICIOUS_VERSION}-bin/kroxylicious-operator-${KROXYLICIOUS_VERSION} /opt/kroxylicious-operator
+COPY --from=builder /opt/kroxylicious/kroxylicious-operator/target/kroxylicious-operator-${KROXYLICIOUS_VERSION}-bin/kroxylicious-operator-${KROXYLICIOUS_VERSION} /opt/kroxylicious-operator
 
 RUN if [[ -n "${CURRENT_USER}" && "${CURRENT_USER}" != "root" ]] ; then groupadd -r -g "${CURRENT_USER_UID}" "${CURRENT_USER}" && useradd -m -r -u "${CURRENT_USER_UID}" -g "${CURRENT_USER}" "${CURRENT_USER}"; fi
 
