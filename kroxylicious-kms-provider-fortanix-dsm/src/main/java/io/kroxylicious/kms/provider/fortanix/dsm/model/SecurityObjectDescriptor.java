@@ -9,12 +9,21 @@ package io.kroxylicious.kms.provider.fortanix.dsm.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Fortanix key descriptor looking up by kid, name or transient key id.
+ *
+ *
+ * @param kid kid
+ * @param name key name
+ * @param transientKey transient key name
+ */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SecurityObjectDescriptor(
                                        @JsonProperty("kid") String kid,
+                                       @JsonProperty("name") String name,
                                        @JsonProperty("transient_key") String transientKey) {
     public SecurityObjectDescriptor {
-        if (kid == null && transientKey == null) {
+        if (kid == null && name == null && transientKey == null) {
             throw new NullPointerException();
         }
     }

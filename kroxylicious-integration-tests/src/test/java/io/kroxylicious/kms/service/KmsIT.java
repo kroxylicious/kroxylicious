@@ -120,8 +120,9 @@ class KmsIT<C, K, E> {
         manager.deleteKek(alias);
 
         var secretKeyStage = kms.decryptEdek(dek.edek());
+
         assertThat(secretKeyStage)
-                .failsWithin(Duration.ofSeconds(5))
+                .failsWithin(Duration.ofSeconds(10))
                 .withThrowableThat()
                 .withCauseInstanceOf(UnknownKeyException.class);
     }

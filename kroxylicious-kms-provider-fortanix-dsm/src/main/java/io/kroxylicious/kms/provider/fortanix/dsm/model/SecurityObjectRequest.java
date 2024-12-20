@@ -9,6 +9,7 @@ package io.kroxylicious.kms.provider.fortanix.dsm.model;
 import java.util.List;
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -23,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *
  * @see <a href="https://support.fortanix.com/apidocs/generate-a-new-security-object">generate-a-new-security-object</a>
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public record SecurityObjectRequest(@JsonProperty("name") String name,
                                     @JsonProperty("key_size") int keySize,
                                     @JsonProperty(value = "obj_type", required = true) String objType,

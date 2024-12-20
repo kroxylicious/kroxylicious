@@ -21,7 +21,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param body decrypt response body
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
 public record DecryptResponse(@JsonProperty(value = "status") int status,
                               @JsonProperty(value = "error") String error,
                               @JsonProperty(value = "body") Response body)
@@ -31,6 +30,7 @@ public record DecryptResponse(@JsonProperty(value = "status") int status,
      * @param plain Decrypted plaintext bytes.
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
+    @SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
     public record Response(@JsonProperty(value = "plain") @NonNull byte[] plain) {
         public Response {
             Objects.requireNonNull(plain);

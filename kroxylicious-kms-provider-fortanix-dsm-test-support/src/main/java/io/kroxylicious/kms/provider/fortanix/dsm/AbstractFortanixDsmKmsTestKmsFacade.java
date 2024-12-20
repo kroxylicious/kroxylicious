@@ -22,20 +22,16 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.DeleteAliasRequest;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.ErrorResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.InfoResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.KeyResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.RotateKeyRequest;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.ScheduleKeyDeletionRequest;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.ScheduleKeyDeletionResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectDescriptor;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SessionAuthResponse;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -46,20 +42,15 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractFortanixDsmKmsTestKmsFacade.class);
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final int MINIMUM_ALLOWED_EXPIRY_DAYS = 7;
 
     private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<>() {
     };
 
     private static final TypeReference<List<KeyResponse>> KEY_LIST_RESPONSE_RESPONSE = new TypeReference<>() {
     };
-    private static final TypeReference<SecurityObjectResponse> GENERATE_SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<SecurityObjectResponse> SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
-    private static final TypeReference<InfoResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
-    };
-    private static final TypeReference<ScheduleKeyDeletionResponse> SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF = new TypeReference<>() {
-    };
-    private static final TypeReference<ErrorResponse> ERROR_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<InfoResponse> INFO_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     public static final String KEY_GROUP = "eae3d454-825f-40e6-abd4-1b7e978e1687";
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
@@ -96,12 +87,12 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
     @Override
     public final void stop() {
 
-        deleteAllkeys();
+        deleteAllKeys();
 
         stopKms();
     }
 
-    private void deleteAllkeys() {
+    private void deleteAllKeys() {
 
         var sessionResponse = getSessionAuthResponse();
 
@@ -138,58 +129,76 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
 
             var generateRequest = new SecurityObjectRequest(alias, 256, "AES", false, List.of("ENCRYPT", "DECRYPT", "APPMANAGEABLE"), KEY_GROUP);
             var request = createRequest("/crypto/v1/keys", generateRequest, sessionResponse);
-            var response = sendRequest(alias, request, GENERATE_SECURITY_OBJECT_RESPONSE_TYPE_REF);
+            var response = sendRequest(alias, request, SECURITY_OBJECT_RESPONSE_TYPE_REF);
             LOGGER.trace("generateKek {} -> {}", alias, response);
 
         }
 
         @Override
         public InfoResponse read(String alias) {
-            final InfoRequest describeKey = new InfoRequest(FortanixDsmKms.ALIAS_PREFIX + alias);
-            var request = createRequest(null, describeKey, null);
-            return sendRequest(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF);
+            var descriptor = new SecurityObjectDescriptor(null, alias, null);
+            return read(descriptor);
+        }
+
+        private InfoResponse read(SecurityObjectDescriptor descriptor) {
+            var sessionResponse = getSessionAuthResponse();
+            var request = createRequest("/crypto/v1/keys/info", descriptor, sessionResponse);
+            return sendRequest(descriptor.toString(), request, INFO_KEY_RESPONSE_TYPE_REF);
         }
 
         @Override
         public void deleteKek(String alias) {
+            var sessionResponse = getSessionAuthResponse();
+
             var key = read(alias);
-            var keyId = key.kid();
-            final ScheduleKeyDeletionRequest request = new ScheduleKeyDeletionRequest(keyId, MINIMUM_ALLOWED_EXPIRY_DAYS);
-            var scheduleDeleteRequest = createRequest(null, request, null);
+            // var keyDestroyRequest = HttpRequest.newBuilder()
+            // .uri(getEndpointUrl().resolve("/crypto/v1/keys/" + key.kid() + "/destroy"))
+            // .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
+            // .POST(HttpRequest.BodyPublishers.noBody())
+            // .build();
+            // sendRequestExpectingNoResponse(keyDestroyRequest);
 
-            sendRequest(keyId, scheduleDeleteRequest, SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF);
+            var keyDeleteRequest = HttpRequest.newBuilder()
+                    .uri(getEndpointUrl().resolve("/crypto/v1/keys/" + key.kid()))
+                    .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
+                    .DELETE()
+                    .build();
+            sendRequestExpectingNoResponse(keyDeleteRequest);
 
-            final DeleteAliasRequest deleteAlias = new DeleteAliasRequest(FortanixDsmKms.ALIAS_PREFIX + alias);
-            var deleteAliasRequest = createRequest(null, deleteAlias, null);
-            sendRequestExpectingNoResponse(deleteAliasRequest);
+            // FIXME: Seems we need to wait about a second until the key actually goes away
+            try {
+                Thread.sleep(1000L);
+            }
+            catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+
+            // haven't found a good way to poll to check that it is actually gone.
+            // vvvv doesn't work
+            // do {
+            // try {
+            // Thread.sleep(1000L);
+            // read(new SecurityObjectDescriptor(key.kid(), null, null));
+            // }
+            // catch (UnknownKeyException e) {
+            // break;
+            // }
+            // catch (InterruptedException e) {
+            // Thread.currentThread().interrupt();
+            // throw new RuntimeException(e);
+            // }
+            //
+            // } while (true);
         }
 
         @Override
         public void rotateKek(String alias) {
-            var key = read(alias);
-            final RotateKeyRequest rotateKey = new RotateKeyRequest(key.kid());
-            var rotateKeyRequest = createRequest(null, rotateKey, null);
-            try {
-                sendRequestExpectingNoResponse(rotateKeyRequest);
-            }
-            catch (AwsNotImplementException e) {
-                pseudoRotate(alias);
-            }
-        }
+            var sessionResponse = getSessionAuthResponse();
 
-        private void pseudoRotate(String alias) {
-            // RotateKeyOnDemand is not implemented in localstack.
-            // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
-            // https://github.com/localstack/localstack/issues/10723
-
-            // mimic rotate by creating a new key and repoint the alias at it, leaving the original key in place.
-            // final GenerateSecurityObjectRequest request = new GenerateSecurityObjectRequest(alias,);
-            // var keyRequest = createRequest(request, null);
-            // var createKeyResponse = sendRequest(alias, keyRequest, CREATE_KEY_RESPONSE_TYPE_REF);
-            //
-            // final UpdateAliasRequest update = new UpdateAliasRequest(createKeyResponse.kid(), FortanixDsmKms.ALIAS_PREFIX + alias);
-            // var aliasRequest = createRequest(update, null);
-            // sendRequestExpectingNoResponse(aliasRequest);
+            final var descriptor = new SecurityObjectDescriptor(null, alias, null);
+            var rekeyRequest = createRequest("/crypto/v1/keys/rekey", descriptor, sessionResponse);
+            sendRequest(alias, rekeyRequest, SECURITY_OBJECT_RESPONSE_TYPE_REF);
         }
     }
 
@@ -239,11 +248,9 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
     }
 
     private void checkForError(String key, URI uri, int statusCode, HttpResponse<byte[]> response) {
-        // AWS API states that only the 200 response is currently used.
-        // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
         if (!isHttpSuccess(statusCode)) {
-            if (statusCode == 501) {
-                throw new AwsNotImplementException("AWS does not implement %s".formatted(uri));
+            if (statusCode == 404) {
+                throw new UnknownKeyException(key);
             }
             var body = new String(response.body(), UTF_8);
             throw new IllegalStateException(
@@ -256,9 +263,6 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
         try {
             var response = client.send(request, HttpResponse.BodyHandlers.discarding());
             if (!isHttpSuccess(response.statusCode())) {
-                if (response.statusCode() == 501) {
-                    throw new AwsNotImplementException("AWS do not implement %s".formatted(request.uri()));
-                }
                 throw new IllegalStateException("Unexpected response: %d to request %s".formatted(response.statusCode(), request.uri()));
             }
         }

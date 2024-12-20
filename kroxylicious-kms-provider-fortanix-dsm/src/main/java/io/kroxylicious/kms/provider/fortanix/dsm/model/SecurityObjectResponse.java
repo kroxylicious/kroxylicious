@@ -16,6 +16,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param value Security object stored as byte array (populated by export)
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
+@SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
 public record SecurityObjectResponse(@JsonProperty(value = "kid", required = false) String kid,
                                      @JsonProperty(value = "transient_key", required = false) String transientKey,
                                      @JsonProperty(value = "value", required = false) byte[] value) {

@@ -22,10 +22,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record EncryptResponse(
-                              @JsonProperty(value = "status", required = true) int status,
+public record EncryptResponse(@JsonProperty(value = "status", required = true) int status,
                               @JsonProperty(value = "error") String error,
-                              @JsonProperty(value = "body", required = true) Response body)
+                              @JsonProperty(value = "body") Response body)
         implements ResponseBodyContainer<EncryptResponse.Response> {
 
     /**
