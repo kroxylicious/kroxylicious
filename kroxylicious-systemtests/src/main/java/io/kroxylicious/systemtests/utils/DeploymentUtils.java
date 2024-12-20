@@ -18,6 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -71,13 +72,14 @@ public class DeploymentUtils {
      * @param namespaceName the namespace name
      * @param deploymentName the deployment name
      */
-    public static void waitForDeploymentReady(String namespaceName, String deploymentName) {
+    public static boolean waitForDeploymentReady(String namespaceName, String deploymentName) {
         LOGGER.info("Waiting for Deployment: {}/{} to be ready", namespaceName, deploymentName);
 
         await().atMost(READINESS_TIMEOUT).pollInterval(Constants.POLL_INTERVAL_FOR_RESOURCE_READINESS)
                 .until(() -> kubeClient(namespaceName).isDeploymentReady(namespaceName, deploymentName));
 
         LOGGER.info("Deployment: {}/{} is ready", namespaceName, deploymentName);
+        return true;
     }
 
     /**
@@ -167,7 +169,7 @@ public class DeploymentUtils {
      * @param podName the pod name
      * @param timeout the timeout
      */
-    public static void waitForDeploymentRunning(String namespaceName, String podName, Duration timeout) {
+    public static boolean waitForDeploymentRunning(String namespaceName, String podName, Duration timeout) {
         LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, podName);
         waitForLeavingPendingPhase(namespaceName, podName);
         await().alias("await pod to be running or succeeded")
@@ -175,6 +177,21 @@ public class DeploymentUtils {
                 .pollInterval(Duration.ofMillis(500))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
                         && kubeClient().isDeploymentRunning(namespaceName, podName));
+        return true;
+    }
+
+    public static boolean waitForDeploymentRunning(String namespaceName, String deploymentName, int expectedPods, Duration timeout) {
+        LOGGER.info("Waiting for deployment: {}/{} to be running", namespaceName, deploymentName);
+        List<Pod> pods = kubeClient().listPods(namespaceName, kubeClient().getPodSelectorFromDeployment(namespaceName, deploymentName));
+
+        AtomicInteger runningPods = new AtomicInteger();
+        pods.forEach(p -> {
+            if (waitForDeploymentRunning(namespaceName, p.getMetadata().getName(), timeout)) {
+                runningPods.getAndIncrement();
+            }
+        });
+
+        return runningPods.get() == expectedPods;
     }
 
     private static void waitForLeavingPendingPhase(String namespaceName, String podName) {

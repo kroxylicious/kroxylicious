@@ -8,14 +8,21 @@ package io.kroxylicious.systemtests;
 
 import java.time.Duration;
 
+import io.kroxylicious.systemtests.utils.TestUtils;
+
 /**
  * The interface Constants.
  */
 public interface Constants {
+
     /**
      * The deployment name for kroxylicous
      */
+    String KROXYLICIOUS = "kroxylicious";
     String KROXY_DEPLOYMENT_NAME = "kroxylicious-proxy";
+    String KO_DEPLOYMENT_NAME = "kroxylicious-operator";
+    String KO_NAMESPACE = "kroxylicious-operator";
+
     /**
      * The service name for kroxylicious. Used for the bootstrap url
      */
@@ -56,30 +63,6 @@ public interface Constants {
      * Kind of kafka node pools
      */
     String KAFKA_NODE_POOL_KIND = "KafkaNodePool";
-    /**
-     * Kind of pods
-     */
-    String POD_KIND = "Pod";
-
-    /**
-     * Kind of config maps
-     */
-    String CONFIG_MAP_KIND = "ConfigMap";
-
-    /**
-     * Kind of jobs
-     */
-    String JOB = "Job";
-
-    /**
-     * Kind of services
-     */
-    String SERVICE_KIND = "Service";
-
-    /**
-     * Kind of secret
-     */
-    String SECRET_KIND = "Secret";
 
     /**
      * Load balancer type name.
@@ -125,11 +108,27 @@ public interface Constants {
     Duration GLOBAL_POLL_INTERVAL_MEDIUM = Duration.ofSeconds(10);
     Duration GLOBAL_STATUS_TIMEOUT = Duration.ofMinutes(3);
     Duration GLOBAL_TIMEOUT_SHORT = Duration.ofMinutes(2);
+    Duration KO_OPERATION_TIMEOUT_DEFAULT = Duration.ofMinutes(5);
+    Duration KO_OPERATION_TIMEOUT_SHORT = Duration.ofSeconds(30);
+    Duration KO_OPERATION_TIMEOUT_MEDIUM = Duration.ofMinutes(2);
 
     /**
      * Kubernetes related constants
      */
     String DEPLOYMENT = "Deployment";
+    String DEPLOYMENT_TYPE = "deployment-type";
+    String CUSTOM_RESOURCE_DEFINITION = "CustomResourceDefinition";
+    String CLUSTER_ROLE = "ClusterRole";
+    String CLUSTER_ROLE_BINDING = "ClusterRoleBinding";
+    String CONFIG_MAP_KIND = "ConfigMap";
+    String CUSTOM_RESOURCE_DEFINITION_SHORT = "Crd";
+    String JOB = "Job";
+    String NAMESPACE = "Namespace";
+    String POD_KIND = "Pod";
+    String ROLE = "Role";
+    String SECRET_KIND = "Secret";
+    String SERVICE_KIND = "Service";
+    String SERVICE_ACCOUNT = "ServiceAccount";
 
     /**
      * Test clients image url
@@ -173,4 +172,21 @@ public interface Constants {
     String SCRAPER_LABEL_VALUE = "scraper";
     String SCRAPER_NAME = "Scraper";
     String DEPLOYMENT_TYPE_LABEL_KEY = "deployment-type";
+
+    /**
+     * Basic paths to examples
+     */
+    String PATH_TO_OPERATOR = TestUtils.USER_PATH + "/../kroxylicious-operator";
+    String PATH_TO_OPERATOR_EXAMPLES = PATH_TO_OPERATOR + "/examples";
+    String PATH_TO_OPERATOR_INSTALL_FILES = PATH_TO_OPERATOR + "/install";
+
+    /**
+     * Auxiliary variable for kroxylicious operator deployment
+     */
+    String WATCH_ALL_NAMESPACES = "*";
+
+    /**
+     * Auxiliary variables for storing data across our tests
+     */
+    String PREPARE_OPERATOR_ENV_KEY = "PREPARE_OPERATOR_ENV";
 }
