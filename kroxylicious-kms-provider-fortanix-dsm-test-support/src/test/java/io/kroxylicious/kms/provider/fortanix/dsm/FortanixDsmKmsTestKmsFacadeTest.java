@@ -6,19 +6,27 @@
 
 package io.kroxylicious.kms.provider.fortanix.dsm;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.AbstractTestKmsFacadeTest;
+import io.kroxylicious.kms.service.TestKekManager.AlreadyExistsException;
 import io.kroxylicious.kms.service.UnknownAliasException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 class FortanixDsmKmsTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, String, FortanixDsmKmsEdek> {
 
     FortanixDsmKmsTestKmsFacadeTest() {
         super(new FortanixDsmKmsTestKmsFacadeFactory());
+    }
+
+    @BeforeEach
+    void beforeEach() {
+        assumeThat(FortanixDsmKmsTestKmsFacade.AVAILABLE).isTrue();
     }
 
     @Test
@@ -38,8 +46,7 @@ class FortanixDsmKmsTestKmsFacadeTest extends AbstractTestKmsFacadeTest<Config, 
             manager.generateKek(ALIAS);
 
             assertThatThrownBy(() -> manager.generateKek(ALIAS))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("400");
+                    .isInstanceOf(AlreadyExistsException.class);
         }
     }
 

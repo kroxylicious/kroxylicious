@@ -30,8 +30,9 @@ import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SessionAuthResponse;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
+import io.kroxylicious.kms.service.TestKekManager.AlreadyExistsException;
 import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kms.service.UnknownKeyException;
+import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -250,7 +251,10 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
     private void checkForError(String key, URI uri, int statusCode, HttpResponse<byte[]> response) {
         if (!isHttpSuccess(statusCode)) {
             if (statusCode == 404) {
-                throw new UnknownKeyException(key);
+                throw new UnknownAliasException(key);
+            }
+            else if (statusCode == 409) {
+                throw new AlreadyExistsException(key);
             }
             var body = new String(response.body(), UTF_8);
             throw new IllegalStateException(
