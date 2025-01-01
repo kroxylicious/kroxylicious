@@ -23,6 +23,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLHandshakeException;
@@ -47,6 +48,8 @@ import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.FilePassword;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.SslProtocol;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -346,6 +349,234 @@ class TlsIT extends BaseIT {
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_SuccessfulTlsWithProtocolsAllowed(KafkaCluster cluster) throws Exception {
+        var bootstrapServers = cluster.getBootstrapServers();
+
+        // Cipher we want to use
+        AllowDeny<SslProtocol> protocols = new AllowDeny<>(Set.of(SslProtocol.TLSv1_2), null);
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .withProtocols(protocols)
+                        .endTls()
+                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword(),
+                                // Accepted Protocol matches what we want to use
+                                SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, SslProtocol.TLSv1_2.getSslProtocol()))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_UnsuccessfulTlsWithProtocolsAllowed(KafkaCluster cluster) throws Exception {
+        var bootstrapServers = cluster.getBootstrapServers();
+
+        // Protocol we want to use
+        AllowDeny<SslProtocol> protocols = new AllowDeny<>(Set.of(SslProtocol.TLSv1_2), null);
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .withProtocols(protocols)
+                        .endTls()
+                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword(),
+                                // Accepted Protocol doesn't match what we want to use
+                                SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, SslProtocol.TLSv1_3.getSslProtocol()))) {
+            // Server will only allow us to use TLSv1.3
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .hasRootCauseMessage("Received fatal alert: protocol_version");
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_SuccessfulTlsWithProtocolsDenied(KafkaCluster cluster) throws Exception {
+        var bootstrapServers = cluster.getBootstrapServers();
+
+        // Protocol we want to use
+        AllowDeny<SslProtocol> protocols = new AllowDeny<>(null, Set.of(SslProtocol.TLSv1_3));
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .withProtocols(protocols)
+                        .endTls()
+                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword(),
+                                // Accepted Protocol matches what we want to use even with a denied protocol
+                                SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, SslProtocol.TLSv1_2.getSslProtocol() + "," + SslProtocol.TLSv1_3.getSslProtocol()))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_SuccessfulTlsWithCipherSuitesAllowed(KafkaCluster cluster) throws Exception {
+        var bootstrapServers = cluster.getBootstrapServers();
+
+        // Cipher we want to use
+        AllowDeny<String> cipherSuites = new AllowDeny<>(Set.of("TLS_CHACHA20_POLY1305_SHA256"), null);
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .withCipherSuites(cipherSuites)
+                        .endTls()
+                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword(),
+                                // Accepted Cipher matches what we want to use
+                                SslConfigs.SSL_CIPHER_SUITES_CONFIG, "TLS_CHACHA20_POLY1305_SHA256"))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_UnsuccessfulTlsWithCipherSuitesAllowed(KafkaCluster cluster) throws Exception {
+        var bootstrapServers = cluster.getBootstrapServers();
+
+        // Cipher we want to use
+        AllowDeny<String> cipherSuites = new AllowDeny<>(Set.of("TLS_AES_128_GCM_SHA256"), null);
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .withCipherSuites(cipherSuites)
+                        .endTls()
+                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword(),
+                                // Accepted Cipher doesn't match what we want to use
+                                SslConfigs.SSL_CIPHER_SUITES_CONFIG, "TLS_CHACHA20_POLY1305_SHA256"))) {
+            // Server will only allow us to use TLS_CHACHA20_POLY1305_SHA256 and we only want to use TLS_AES_128_GCM_SHA256
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .hasRootCauseMessage("Received fatal alert: handshake_failure");
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_SuccessfulTlsWithCipherSuitesAllowedAndDenied(KafkaCluster cluster) throws Exception {
+        var bootstrapServers = cluster.getBootstrapServers();
+
+        // Cipher we want to use
+        AllowDeny<String> cipherSuites = new AllowDeny<>(Set.of("TLS_CHACHA20_POLY1305_SHA256"), Set.of("TLS_AES_128_GCM_SHA256"));
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(bootstrapServers)
+                        .endTargetCluster()
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .withCipherSuites(cipherSuites)
+                        .endTls()
+                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword(),
+                                // Accepted Cipher matches what we want to use
+                                SslConfigs.SSL_CIPHER_SUITES_CONFIG, "TLS_CHACHA20_POLY1305_SHA256"))) {
             // do some work to ensure connection is opened
             final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
