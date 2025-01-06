@@ -44,11 +44,12 @@ spec:
               type: object
               properties:
                 type:
-                  description: The Java class name of the filter implementation
+                  description: The Java class name of the filter implementation.
                   type: string
                 config:
-                  description: The filter's configuration, as a JSON or YAML string
-                  type: string
+                  description: The filter's configuration.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
             status:
               type: object
               properties:

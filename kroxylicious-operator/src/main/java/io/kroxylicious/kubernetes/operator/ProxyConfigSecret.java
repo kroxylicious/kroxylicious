@@ -155,14 +155,8 @@ public class ProxyConfigSecret
                     && "Filter".equals(matchingFilterApi.kind())) {
                 Map<String, Object> spec = (Map<String, Object>) filt.getAdditionalProperties().get("spec");
                 String type = (String) spec.get("type");
-                String config = (String) spec.get("config");
-                try {
-                    var f = OBJECT_MAPPER.readTree(config);
-                    return new FilterDefinition(type, f);
-                }
-                catch (JsonProcessingException e) {
-                    throw new RuntimeException(e);
-                }
+                Object config = spec.get("config");
+                return new FilterDefinition(type, config);
             }
             else {
                 return filterDefFromFilterResource(matchingFilterApi.className(), filt);
