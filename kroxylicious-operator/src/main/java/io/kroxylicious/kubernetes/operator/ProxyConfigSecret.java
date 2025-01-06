@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
@@ -150,7 +151,22 @@ public class ProxyConfigSecret
                     .orElseThrow(() -> unknownFilterKind(cluster, filterRef));
 
             var filt = filterResourceFromRef(cluster, context, filterRef);
-            return filterDefFromFilterResource(matchingFilterApi.className(), filt);
+            if ("filter.kroxylicious.io".equals(matchingFilterApi.group())
+                    && "Filter".equals(matchingFilterApi.kind())) {
+                Map<String, Object> spec = (Map<String, Object>) filt.getAdditionalProperties().get("spec");
+                String type = (String) spec.get("type");
+                String config = (String) spec.get("config");
+                try {
+                    var f = OBJECT_MAPPER.readTree(config);
+                    return new FilterDefinition(type, f);
+                }
+                catch (JsonProcessingException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            else {
+                return filterDefFromFilterResource(matchingFilterApi.className(), filt);
+            }
         }).toList();
     }
 

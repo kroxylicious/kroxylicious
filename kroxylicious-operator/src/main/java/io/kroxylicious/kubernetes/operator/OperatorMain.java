@@ -26,6 +26,7 @@ public class OperatorMain {
     public static void main(String[] args) {
         // TODO read these from some configuration CR
         var runtimeDecl = new RuntimeDecl(List.of(
+                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "Filter", ""),
                 new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "RecordEncryption", "io.kroxylicious.filter.encryption.RecordEncryption"),
                 new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "RecordValidation", "io.kroxylicious.filter.validation.RecordValidation")));
         Operator operator = new Operator();

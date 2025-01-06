@@ -4,7 +4,7 @@ For the purposes of this example we use
 * an in-cluster Kafka provided by [Strimzi](https://strimzi.io/)
 * an in-cluster KMS provided by Hashicorp Vault
 
-As such this example should work more-or-less any Kube cluster which is able to pull the necessary images. But note that Strimzi also supports other KMSes.
+As such this example should work more-or-less any Kube cluster which is able to pull the necessary images. But note that Kroxylicious also supports other KMSes.
 
 To try this example out:
 1. Install kubectl
