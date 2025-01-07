@@ -26,8 +26,7 @@ public class OperatorMain {
     public static void main(String[] args) {
         // TODO read these from some configuration CR
         var runtimeDecl = new RuntimeDecl(List.of(
-                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "Filter", "")
-        ));
+                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "Filter", "")));
         Operator operator = new Operator();
         operator.installShutdownHook(Duration.ofSeconds(10));
         try {
