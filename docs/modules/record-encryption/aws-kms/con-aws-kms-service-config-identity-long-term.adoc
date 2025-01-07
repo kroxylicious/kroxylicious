@@ -3,7 +3,7 @@
 // con-aws-kms-service-config.adoc
 
 
-. Configuration for authenticating with a long-term IAM identity
+.Configuration for authenticating with a long-term IAM identity
 [source, yaml]
 ----
 kms: AwsKmsService                                            # <1>
@@ -18,8 +18,9 @@ kmsConfig:
   region: <region>                                            # <6>
 ----
 <1> Specifies the name of the KMS provider. Use `AwsKmsService`.
-<2> AWS KMS endpoint URL,  which must include the `https://` scheme.
+<2> AWS KMS endpoint URL, which must include the `https://` scheme.
 <3> (Optional) TLS trust configuration.
-<4> File containing the AWS Access Key Id.
-<5> File containing the AWS Secret Access Key.
-<6> AWS region identifier (e.g. `us-east-1`).
+<4> File containing the AWS access key ID.
+<5> File containing the AWS secret access key.
+<6> The AWS region identifier, such as `us-east-1`, specifying where your KMS resources are located. 
+This must match the region of the KMS endpoint you're using.
