@@ -158,7 +158,7 @@ public class ProxyConfigSecret
                 return new FilterDefinition(type, config);
             }
             else {
-                return filterDefFromFilterResource(matchingFilterApi.className(), filt);
+                throw unknownFilterKind(cluster, filterRef);
             }
         }).toList();
     }

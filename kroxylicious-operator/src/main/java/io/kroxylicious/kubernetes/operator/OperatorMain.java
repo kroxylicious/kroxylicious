@@ -16,6 +16,8 @@ import io.javaoperatorsdk.operator.Operator;
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * The {@code main} method entrypoint for the operator
  */
@@ -25,8 +27,7 @@ public class OperatorMain {
 
     public static void main(String[] args) {
         // TODO read these from some configuration CR
-        var runtimeDecl = new RuntimeDecl(List.of(
-                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "Filter", "")));
+        var runtimeDecl = getRuntimeDecl();
         Operator operator = new Operator();
         operator.installShutdownHook(Duration.ofSeconds(10));
         try {
@@ -39,5 +40,12 @@ public class OperatorMain {
             LOGGER.error("Operator has thrown exception during startup. Will now exit.", e);
             System.exit(1);
         }
+    }
+
+    @NonNull
+    static RuntimeDecl getRuntimeDecl() {
+        var runtimeDecl = new RuntimeDecl(List.of(
+                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "Filter")));
+        return runtimeDecl;
     }
 }
