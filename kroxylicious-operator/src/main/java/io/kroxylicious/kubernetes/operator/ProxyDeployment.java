@@ -107,7 +107,7 @@ public class ProxyDeployment
         // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
-                .withImage("quay.io/kroxylicious/kroxylicious:0.9.0-SNAPSHOT")
+                .withImage("quay.io/kroxylicious/kroxylicious:0.10.0-SNAPSHOT")
                 .withArgs("--config", ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
                 // volume mount
                 .addNewVolumeMount()

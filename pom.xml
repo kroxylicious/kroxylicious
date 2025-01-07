@@ -13,7 +13,7 @@
 
     <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-parent</artifactId>
-    <version>0.9.0-SNAPSHOT</version>
+    <version>0.10.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -35,24 +35,25 @@
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
-        <freemarker.version>2.3.33</freemarker.version>
-        <guava.version>33.3.1-jre</guava.version>
+        <disruptor.version>4.0.0</disruptor.version>
+        <freemarker.version>2.3.34</freemarker.version>
+        <guava.version>33.4.0-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.18.1</jackson.version>
-        <junit.version>5.11.3</junit.version>
+        <junit.version>5.11.4</junit.version>
         <kafka.version>3.9.0</kafka.version>
         <kroxy.extension.version>0.10.0</kroxy.extension.version>
         <log4j.version>2.24.3</log4j.version>
         <caffeine.version>3.1.8</caffeine.version>
         <picocli.version>4.7.6</picocli.version>
-        <netty.version>4.1.115.Final</netty.version>
+        <netty.version>4.1.116.Final</netty.version>
         <netty.io_uring.version>0.0.25.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
-        <assertj-core.version>3.26.3</assertj-core.version>
-        <mockito.version>5.14.2</mockito.version>
-        <micrometer.version>1.14.1</micrometer.version>
+        <assertj-core.version>3.27.2</assertj-core.version>
+        <mockito.version>5.15.2</mockito.version>
+        <micrometer.version>1.14.2</micrometer.version>
         <slf4j.version>2.0.16</slf4j.version>
         <sundr-builder-annotations.version>0.200.0</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.8.6</spotbugs-annotations.version>
@@ -60,12 +61,12 @@
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.0.7</apicurio-schema-validation.version>
-        <apicurio-registry.version>2.6.5.Final</apicurio-registry.version>
+        <apicurio-registry.version>2.6.6.Final</apicurio-registry.version>
         <apicurio-common.version>0.1.18.Final</apicurio-common.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
-        <strimzi.version>0.44.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
+        <strimzi.version>0.45.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
         <kubernetes-client.version>6.13.4</kubernetes-client.version>
         <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.9</maven.core.version>
@@ -254,6 +255,11 @@
                 <version>${log4j.version}</version>
                 <scope>import</scope>
                 <type>pom</type>
+            </dependency>
+            <dependency>
+                <groupId>com.lmax</groupId>
+                <artifactId>disruptor</artifactId>
+                <version>${disruptor.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.freemarker</groupId>
