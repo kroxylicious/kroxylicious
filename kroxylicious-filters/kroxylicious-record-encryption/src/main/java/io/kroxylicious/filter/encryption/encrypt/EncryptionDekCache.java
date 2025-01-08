@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,7 @@ import io.kroxylicious.filter.encryption.config.CipherSpec;
 import io.kroxylicious.filter.encryption.dek.CipherSpecResolver;
 import io.kroxylicious.filter.encryption.dek.Dek;
 import io.kroxylicious.filter.encryption.dek.DekManager;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -39,6 +41,7 @@ public class EncryptionDekCache<K, E> {
 
     public static final int NO_MAX_CACHE_SIZE = -1;
     private CipherSpecResolver cipherSpecResolver;
+    private final AtomicLong invalidationCount = new AtomicLong(0L);
 
     private record CacheKey<K>(K kek, CipherSpec cipherSpec) {}
 
@@ -120,12 +123,36 @@ public class EncryptionDekCache<K, E> {
     }
 
     /**
-     * Discard any cached DEK for the KEK in the given {@code encryptionScheme}.
+     * Discard the cached DEK for the KEK in the given {@code encryptionScheme}. This uses a
+     * CAS style so that multiple threads can redundantly invalidate the same cache key.
      * This method may block if a DEK for the given {@code encryptionScheme} is in the process
      * of being loaded.
      * @param encryptionScheme The KEK for the DEK to discard.
+     * @param dek The DEK to discard.
      */
-    public void invalidate(@NonNull EncryptionScheme<K> encryptionScheme) {
-        dekCache.synchronous().invalidate(cacheKey(encryptionScheme));
+    public void invalidate(@NonNull EncryptionScheme<K> encryptionScheme, @NonNull Dek<E> dek) {
+        dekCache.asMap().computeIfPresent(cacheKey(encryptionScheme), (kCacheKey, dekCompletableFuture) -> {
+            if (dekCompletableFuture.isDone() && !dekCompletableFuture.isCompletedExceptionally() && dekCompletableFuture.join() == dek) {
+                invalidationCount.incrementAndGet();
+                return null;
+            }
+            else {
+                return dekCompletableFuture;
+            }
+        });
+    }
+
+    /**
+     * The count of how many times we have invalidated a mapping from the underlying cache. This
+     * may differ from the number of calls to {@linkplain #invalidate(EncryptionScheme, Dek)}
+     * because the cache is shared across threads and parallel invalidation of a Dek will
+     * only result in a single removal of that mapping. This was introduced to help test that we
+     * do not unexpectedly invalidate any mappings under parallel load.
+     *
+     * @return number of times a mapping has been removed from the underlying cache
+     */
+    @VisibleForTesting
+    long invalidationCount() {
+        return invalidationCount.get();
     }
 }
