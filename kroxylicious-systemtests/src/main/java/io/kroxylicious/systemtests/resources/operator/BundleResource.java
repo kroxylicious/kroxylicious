@@ -64,13 +64,16 @@ public class BundleResource implements ResourceType<Deployment> {
     @Override
     @SuppressFBWarnings(value = "RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE")
     public boolean waitForReadiness(Deployment resource) {
-        return resource != null
+        boolean resourceNonNull = resource != null
                 && resource.getMetadata() != null
                 && resource.getMetadata().getName() != null
-                && resource.getStatus() != null
-                && DeploymentUtils.waitForDeploymentReady(resource.getMetadata().getNamespace(), resource.getMetadata().getName())
-                && DeploymentUtils.waitForDeploymentRunning(resource.getMetadata().getNamespace(), resource.getMetadata().getName(),
-                        resource.getSpec().getReplicas(), Constants.GLOBAL_STATUS_TIMEOUT);
+                && resource.getStatus() != null;
+        if (resourceNonNull) {
+            DeploymentUtils.waitForDeploymentReady(resource.getMetadata().getNamespace(), resource.getMetadata().getName());
+            return DeploymentUtils.waitForDeploymentRunning(resource.getMetadata().getNamespace(), resource.getMetadata().getName(),
+                    resource.getSpec().getReplicas(), Constants.GLOBAL_STATUS_TIMEOUT);
+        }
+        return false;
     }
 
     // this is for resourceTypes inside ResourceManager
