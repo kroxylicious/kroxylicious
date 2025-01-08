@@ -8,7 +8,8 @@ package io.kroxylicious.kubernetes.operator;
 
 import org.junit.jupiter.api.Test;
 
-class OperatorMainTest {
+class OperatorMainIT {
+    // This is an IT because it depends on having a running Kube cluster
 
     @Test
     void run() {
