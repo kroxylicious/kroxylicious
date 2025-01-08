@@ -27,7 +27,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.clusters.Filters;
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
-import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinition;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
@@ -143,32 +142,19 @@ public class ProxyConfigSecret
             return List.of();
         }
         return filters.stream().map(filterRef -> {
-            RuntimeDecl runtimeDecl = SharedKafkaProxyContext.runtimeDecl(context);
-            FilterApiDecl matchingFilterApi = runtimeDecl.filterApis().stream()
-                    .filter(decl -> matches(decl, filterRef))
-                    .findFirst()
-                    .orElseThrow(() -> unknownFilterKind(cluster, filterRef));
-
-            var filt = filterResourceFromRef(cluster, context, filterRef);
+            FilterApiDecl matchingFilterApi = FilterApiDecl.GENERIC_FILTER;
             if ("filter.kroxylicious.io".equals(matchingFilterApi.group())
                     && "Filter".equals(matchingFilterApi.kind())) {
+                var filt = filterResourceFromRef(cluster, context, filterRef);
                 Map<String, Object> spec = (Map<String, Object>) filt.getAdditionalProperties().get("spec");
                 String type = (String) spec.get("type");
                 Object config = spec.get("config");
                 return new FilterDefinition(type, config);
             }
             else {
-                throw unknownFilterKind(cluster, filterRef);
+                throw new InvalidClusterException(ClusterCondition.filterKindNotKnown(cluster.getName(), filterRef.getName(), filterRef.getKind()));
             }
         }).toList();
-    }
-
-    @NonNull
-    private static InvalidClusterException unknownFilterKind(Clusters cluster, Filters filterRef) {
-        return new InvalidClusterException(ClusterCondition.filterKindNotKnown(
-                cluster.getName(),
-                filterRef.getName(),
-                filterRef.getKind()));
     }
 
     @NonNull
@@ -183,8 +169,7 @@ public class ProxyConfigSecret
 
     @NonNull
     private static FilterDefinition filterDefFromFilterResource(String filterClassName, GenericKubernetesResource filterResource) {
-        Object spec = filterResource.getAdditionalProperties().get("spec");
-        return new FilterDefinition(filterClassName, spec);
+        return new FilterDefinition(filterClassName, filterResource.getAdditionalProperties().get("spec"));
     }
 
     @NonNull
