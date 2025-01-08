@@ -26,12 +26,19 @@ import io.micrometer.core.instrument.binder.system.FileDescriptorMetrics;
 import io.micrometer.core.instrument.binder.system.ProcessorMetrics;
 import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-public class StandardBindersHook implements MicrometerConfigurationHook {
-    private static final Logger log = LoggerFactory.getLogger(StandardBindersHook.class);
-    private final StandardBindersHookConfig config;
-    private final List<AutoCloseable> closeableBinders = new CopyOnWriteArrayList<>();
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+@Plugin(configType = StandardBindersHook.StandardBindersHookConfig.class)
+public class StandardBindersHook implements MicrometerConfigurationHookService<StandardBindersHook.StandardBindersHookConfig> {
+
+    @NonNull
+    @Override
+    public MicrometerConfigurationHook build(StandardBindersHookConfig config) {
+        return new Hook(config);
+    }
 
     public static class StandardBindersHookConfig {
         private final List<String> binderNames;
@@ -42,53 +49,60 @@ public class StandardBindersHook implements MicrometerConfigurationHook {
         }
     }
 
-    public StandardBindersHook(StandardBindersHookConfig config) {
-        if (config == null) {
-            throw new IllegalArgumentException("config should be non-null");
-        }
-        this.config = config;
-    }
+    static class Hook implements MicrometerConfigurationHook {
+        private static final Logger log = LoggerFactory.getLogger(StandardBindersHook.class);
+        private final StandardBindersHookConfig config;
+        private final List<AutoCloseable> closeableBinders = new CopyOnWriteArrayList<>();
 
-    @Override
-    public void configure(MeterRegistry targetRegistry) {
-        for (String binderName : this.config.binderNames) {
-            MeterBinder binder = getBinder(binderName);
-            binder.bindTo(targetRegistry);
-            if (binder instanceof AutoCloseable closeable) {
-                this.closeableBinders.add(closeable);
+        @VisibleForTesting
+        Hook(StandardBindersHookConfig config) {
+            if (config == null) {
+                throw new IllegalArgumentException("config should be non-null");
             }
-            log.info("bound {} to micrometer registry", binderName);
+            this.config = config;
         }
 
-    }
-
-    @Override
-    public void close() {
-        closeableBinders.forEach(closeable -> {
-            try {
-                closeable.close();
+        @Override
+        public void configure(MeterRegistry targetRegistry) {
+            for (String binderName : this.config.binderNames) {
+                MeterBinder binder = getBinder(binderName);
+                binder.bindTo(targetRegistry);
+                if (binder instanceof AutoCloseable closeable) {
+                    this.closeableBinders.add(closeable);
+                }
+                log.info("bound {} to micrometer registry", binderName);
             }
-            catch (Exception e) {
-                log.warn("Ignoring exception whilst closing standard binder {}", closeable.getClass(), e);
-            }
-        });
-    }
 
-    @VisibleForTesting
-    protected MeterBinder getBinder(String binderName) {
-        return switch (binderName) {
-            case "UptimeMetrics" -> new UptimeMetrics();
-            case "ProcessorMetrics" -> new ProcessorMetrics();
-            case "FileDescriptorMetrics" -> new FileDescriptorMetrics();
-            case "ClassLoaderMetrics" -> new ClassLoaderMetrics();
-            case "JvmCompilationMetrics" -> new JvmCompilationMetrics();
-            case "JvmGcMetrics" -> new JvmGcMetrics();
-            case "JvmHeapPressureMetrics" -> new JvmHeapPressureMetrics();
-            case "JvmInfoMetrics" -> new JvmInfoMetrics();
-            case "JvmMemoryMetrics" -> new JvmMemoryMetrics();
-            case "JvmThreadMetrics" -> new JvmThreadMetrics();
-            default -> throw new IllegalArgumentException("no binder available for " + binderName);
-        };
+        }
+
+        @Override
+        public void close() {
+            closeableBinders.forEach(closeable -> {
+                try {
+                    closeable.close();
+                }
+                catch (Exception e) {
+                    log.warn("Ignoring exception whilst closing standard binder {}", closeable.getClass(), e);
+                }
+            });
+        }
+
+        @VisibleForTesting
+        protected MeterBinder getBinder(String binderName) {
+            return switch (binderName) {
+                case "UptimeMetrics" -> new UptimeMetrics();
+                case "ProcessorMetrics" -> new ProcessorMetrics();
+                case "FileDescriptorMetrics" -> new FileDescriptorMetrics();
+                case "ClassLoaderMetrics" -> new ClassLoaderMetrics();
+                case "JvmCompilationMetrics" -> new JvmCompilationMetrics();
+                case "JvmGcMetrics" -> new JvmGcMetrics();
+                case "JvmHeapPressureMetrics" -> new JvmHeapPressureMetrics();
+                case "JvmInfoMetrics" -> new JvmInfoMetrics();
+                case "JvmMemoryMetrics" -> new JvmMemoryMetrics();
+                case "JvmThreadMetrics" -> new JvmThreadMetrics();
+                default -> throw new IllegalArgumentException("no binder available for " + binderName);
+            };
+        }
     }
 
 }

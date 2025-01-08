@@ -122,7 +122,7 @@ public final class KafkaProxy implements AutoCloseable {
             portConflictDefector.validate(virtualClusters, adminHttpHostPort);
 
             var availableCores = Runtime.getRuntime().availableProcessors();
-            meterRegistries = new MeterRegistries(micrometerConfig);
+            meterRegistries = new MeterRegistries(pfr, micrometerConfig);
 
             this.adminEventGroup = buildNettyEventGroups("admin", availableCores, config.isUseIoUring());
             this.serverEventGroup = buildNettyEventGroups("server", availableCores, config.isUseIoUring());
