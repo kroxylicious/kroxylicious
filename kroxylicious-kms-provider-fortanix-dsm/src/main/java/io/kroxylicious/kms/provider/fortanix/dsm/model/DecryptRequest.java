@@ -13,36 +13,41 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Decrypt request from Fortanix DSM REST API.
+ * Decrypt request to Fortanix DSM REST API, {@code /crypto/v1/decrypt}.
  *
- * @param kid UUID of the secure object
- * @param request request
+ * @param key UUID of the secure object
+ * @param alg A cryptographic algorithm (AES etc)
+ * @param mode cipher mode
+ * @param iv The initialization vector to use,
+ * @param cipher Ciphertext bytes to be decrypted.
  */
-public record DecryptRequest(@JsonProperty(value = "kid", required = true) @NonNull String kid,
-                             @JsonProperty(value = "request", required = true) @NonNull DecryptRequest.Request request) {
-    /**
-     *
-     * @param alg A cryptographic algorithm (AES etc)
-     * @param mode cipher mode
-     * @param iv The initialization vector to use,
-     * @param cipher Ciphertext bytes to be decrypted.
-     */
-    @SuppressWarnings("java:S6218") // we don't need EncryptResponse equality
-    public record Request(
-                          @JsonProperty(value = "alg", required = true) String alg,
-                          @JsonProperty(value = "mode", required = true) String mode,
-                          @JsonProperty(value = "iv", required = true) byte[] iv,
-                          @JsonProperty(value = "cipher") @NonNull byte[] cipher) {
-        public Request {
-            Objects.requireNonNull(alg);
-            Objects.requireNonNull(mode);
-            Objects.requireNonNull(iv);
-        }
+@SuppressWarnings("java:S6218") // we don't need EncryptRequest equality
+public record DecryptRequest(@JsonProperty(value = "key", required = true) SecurityObjectDescriptor key,
+                             @JsonProperty(value = "alg", required = true) String alg,
+                             @JsonProperty(value = "mode", required = true) String mode,
+                             @JsonProperty(value = "iv", required = true) byte[] iv,
+                             @JsonProperty(value = "cipher") byte[] cipher) {
+    public DecryptRequest {
+        Objects.requireNonNull(key);
+        Objects.requireNonNull(alg);
+        Objects.requireNonNull(mode);
+        Objects.requireNonNull(iv);
+        Objects.requireNonNull(cipher);
     }
 
     @NonNull
     public static DecryptRequest createUnwrapRequest(@NonNull String kid, byte[] iv, byte[] plaintext) {
-        return new DecryptRequest(kid, new DecryptRequest.Request(EncryptRequest.AES, EncryptRequest.BATCH_ENCRYPT_CIPHER_MODE, iv, plaintext));
+        return new DecryptRequest(new SecurityObjectDescriptor(kid, null, null), EncryptRequest.AES, EncryptRequest.BATCH_ENCRYPT_CIPHER_MODE, iv, plaintext);
     }
 
+    @Override
+    public String toString() {
+        return "DecryptRequest{" +
+                "key=" + key +
+                ", alg='" + alg + '\'' +
+                ", mode='" + mode + '\'' +
+                ", iv='*********'" +
+                ", cipher='*********" +
+                '}';
+    }
 }

@@ -11,36 +11,31 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
- * Encrypt response from Fortanix DSM REST API.
+ * Encrypt response from Fortanix DSM REST API, {@code /crypto/v1/encrypt}.
  *
- * @param status status code
- * @param error error message
- * @param body encrypt response body
+ * @param kid The ID of the key used for encryption. Returned for non-transient keys.
+ * @param cipher Encrypted ciphertext bytes.
+ * @param iv The initialization vector used during encryption. This is only applicable for certain symmetric encryption modes.
  */
-
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record EncryptResponse(@JsonProperty(value = "status", required = true) int status,
-                              @JsonProperty(value = "error") String error,
-                              @JsonProperty(value = "body") Response body)
-        implements ResponseBodyContainer<EncryptResponse.Response> {
+@SuppressWarnings("java:S6218") // we don't need EncryptResponse equality
+public record EncryptResponse(
+                              @JsonProperty(value = "kid", required = false) String kid,
+                              @JsonProperty(value = "cipher", required = true) byte[] cipher,
+                              @JsonProperty(value = "iv", required = true) byte[] iv) {
 
-    /**
-     * @param cipher Encrypted ciphertext bytes.
-     * @param iv The initialization vector used during encryption. This is only applicable for certain symmetric encryption modes.
-     */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    @SuppressWarnings("java:S6218") // we don't need EncryptResponse equality
-    public record Response(
-                           @JsonProperty(value = "cipher", required = true) @NonNull byte[] cipher,
-                           @JsonProperty(value = "iv", required = true) @NonNull byte[] iv) {
-
-        public Response {
-            Objects.requireNonNull(cipher);
-            Objects.requireNonNull(iv);
-        }
+    public EncryptResponse {
+        Objects.requireNonNull(cipher);
+        Objects.requireNonNull(iv);
     }
 
+    @Override
+    public String toString() {
+        return "EncryptResponse{" +
+                "key='" + kid + '\'' +
+                ", cipher='*********'" +
+                ", iv='*********'" +
+                '}';
+    }
 }

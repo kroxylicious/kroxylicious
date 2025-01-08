@@ -33,7 +33,6 @@ import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.DecryptResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.EncryptRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.EncryptResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.model.ResponseBodyContainer;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectDescriptor;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectResponse;
@@ -64,9 +63,9 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     private static final TypeReference<SecurityObjectResponse> SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<SecurityObjectResponse>() {
     };
 
-    private static final TypeReference<List<EncryptResponse>> LIST_ENCRYPT_RESPONSE_TYPE_REF = new TypeReference<List<EncryptResponse>>() {
+    private static final TypeReference<EncryptResponse> ENCRYPT_RESPONSE_TYPE_REF = new TypeReference<EncryptResponse>() {
     };
-    private static final TypeReference<List<DecryptResponse>> LIST_DECRYPT_RESPONSE_TYPE_REF = new TypeReference<List<DecryptResponse>>() {
+    private static final TypeReference<DecryptResponse> LIST_DECRYPT_RESPONSE_TYPE_REF = new TypeReference<DecryptResponse>() {
     };
     public static final String AUTHORIZATION_HEADER = "Authorization";
 
@@ -105,7 +104,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
      *
      * @see <a href="https://support.fortanix.com/apidocs/generate-a-new-security-object">https://support.fortanix.com/apidocs/generate-a-new-security-object</a>
      * @see <a href="https://support.fortanix.com/apidocs/get-the-details-and-value-of-a-particular-exportable-security-object">https://support.fortanix.com/apidocs/get-the-details-and-value-of-a-particular-exportable-security-object</a>
-     * @see <a href="https://support.fortanix.com/apidocs/batch-encrypt-with-one-or-more-keys">https://support.fortanix.com/apidocs/batch-encrypt-with-one-or-more-keys</a>
+     * @see <a href="https://support.fortanix.com/apidocs/encrypt-data-using-a-symmetric-or-asymmetric-key">https://support.fortanix.com/apidocs/encrypt-data-using-a-symmetric-or-asymmetric-key</a>
      */
     @NonNull
     @Override
@@ -139,34 +138,30 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     private CompletionStage<DekPair<FortanixDsmKmsEdek>> wrapExportedTransientKey(@NonNull String kekRef, @NonNull SecurityObjectResponse exportedKey,
                                                                                   @NonNull CompletionStage<Session> sessionFuture) {
         var secretKey = DestroyableRawSecretKey.takeOwnershipOf(exportedKey.value(), "AES");
-        var batchEncryptRequests = List.of(EncryptRequest.createWrapRequest(kekRef, exportedKey.value()));
+        var encryptRequest = EncryptRequest.createWrapRequest(kekRef, exportedKey.value());
 
         return sessionFuture
-                .thenApply(session -> createRequest(batchEncryptRequests, "/crypto/v1/keys/batch/encrypt", session))
-                .thenCompose(request -> sendAsync(request, LIST_ENCRYPT_RESPONSE_TYPE_REF,
+                .thenApply(session -> createRequest(encryptRequest, "/crypto/v1/encrypt", session))
+                .thenCompose(request -> sendAsync(request, ENCRYPT_RESPONSE_TYPE_REF,
                         (uri, statusCode) -> getStatusException(uri, statusCode, () -> new UnknownKeyException(kekRef))))
-                .thenApply(this::singletonListToValue)
-                .thenApply(encryptResponse -> validateResponseBody(encryptResponse, kekRef))
                 .thenApply(encryptResponse -> new DekPair<>(new FortanixDsmKmsEdek(kekRef, encryptResponse.iv(), encryptResponse.cipher()), secretKey));
     }
 
     /**
      * {@inheritDoc}
      * <br/>
-     * @see <a href="https://support.fortanix.com/apidocs/batch-decrypt-with-one-or-more-keys">https://support.fortanix.com/apidocs/batch-decrypt-with-one-or-more-keys</a>
+     * @see <a href="https://support.fortanix.com/apidocs/decrypt-data-using-a-symmetric-or-asymmetric-key">https://support.fortanix.com/apidocs/decrypt-data-using-a-symmetric-or-asymmetric-key</a>
     */
     @NonNull
     @Override
     public CompletionStage<SecretKey> decryptEdek(@NonNull FortanixDsmKmsEdek edek) {
         var sessionFuture = getSessionAuthResponse();
 
-        final var batchEncryptRequests = List.of(DecryptRequest.createUnwrapRequest(edek.kekRef(), edek.iv(), edek.edek()));
+        final var decryptRequest = DecryptRequest.createUnwrapRequest(edek.kekRef(), edek.iv(), edek.edek());
         return sessionFuture
-                .thenApply(session -> createRequest(batchEncryptRequests, "/crypto/v1/keys/batch/decrypt", session))
+                .thenApply(session -> createRequest(decryptRequest, "/crypto/v1/decrypt", session))
                 .thenCompose(request -> sendAsync(request, LIST_DECRYPT_RESPONSE_TYPE_REF,
                         (uri, status) -> getStatusException(uri, status, () -> new UnknownKeyException(edek.kekRef()))))
-                .thenApply(this::singletonListToValue)
-                .thenApply(encryptResponse -> validateResponseBody(encryptResponse, edek.kekRef()))
                 .thenApply(response -> DestroyableRawSecretKey.takeOwnershipOf(response.plain(), AES_KEY_ALGO));
     }
 
@@ -268,25 +263,6 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         catch (JsonProcessingException e) {
             throw new UncheckedIOException("Failed to create request body", e);
         }
-    }
-
-    private <R> R singletonListToValue(List<R> encryptResponses) {
-        var num = encryptResponses.size();
-        if (num != 1) {
-            throw new KmsException("expecting list to contained exactly one response, but it contains:" + num);
-        }
-        return encryptResponses.get(0);
-    }
-
-    private <R> R validateResponseBody(ResponseBodyContainer<R> container, String kekRef) {
-        int status = container.status();
-        if (status != 200) {
-            if (status == 404) {
-                throw new UnknownKeyException(kekRef);
-            }
-            throw new KmsException("encrypt response has unexpected status code : " + status);
-        }
-        return container.body();
     }
 
 }

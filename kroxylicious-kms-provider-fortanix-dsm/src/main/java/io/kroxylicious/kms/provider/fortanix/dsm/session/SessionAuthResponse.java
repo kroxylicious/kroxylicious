@@ -38,7 +38,7 @@ public record SessionAuthResponse(@JsonProperty("token_type") String tokenType,
         return "SessionAuthResponse{" +
                 "tokenType='" + tokenType + '\'' +
                 ", expiresIn=" + expiresIn +
-                ", accessToken='*************'" +
+                ", accessToken='*********'" +
                 ", entityId='" + entityId + '\'' +
                 ", allowedMfaMethods=" + allowedMfaMethods +
                 '}';
