@@ -29,7 +29,7 @@ class FortanixDsmKmsEdekSerdeTest {
 
     @Test
     void shouldRoundTrip() {
-        var edek = new FortanixDsmKmsEdek(KEY_REF, EDEK, IV);
+        var edek = new FortanixDsmKmsEdek(KEY_REF, IV, EDEK);
         var buf = ByteBuffer.allocate(serde.sizeOf(edek));
         serde.serialize(edek, buf);
         buf.flip();
@@ -39,7 +39,7 @@ class FortanixDsmKmsEdekSerdeTest {
 
     @Test
     void sizeOf() {
-        var edek = new FortanixDsmKmsEdek(KEY_REF, new byte[]{ 1 }, IV);
+        var edek = new FortanixDsmKmsEdek(KEY_REF, IV, new byte[]{ 1 });
         var expectedSize = 1 + 1 + 36 + 16 + 1;
         var size = serde.sizeOf(edek);
         assertThat(size).isEqualTo(expectedSize);

@@ -13,8 +13,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
+ * Decrypt request from Fortanix DSM REST API.
  *
- * @param kid UUID of the sobject
+ * @param kid UUID of the secure object
  * @param request request
  */
 public record DecryptRequest(@JsonProperty(value = "kid", required = true) @NonNull String kid,

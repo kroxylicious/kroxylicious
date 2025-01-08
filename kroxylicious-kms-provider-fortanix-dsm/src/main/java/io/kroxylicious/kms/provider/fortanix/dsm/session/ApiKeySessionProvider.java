@@ -67,7 +67,7 @@ public class ApiKeySessionProvider implements SessionProvider {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<>() {
+    private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<SessionAuthResponse>() {
     };
     private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final Duration HTTP_CONNECT_TIMEOUT = Duration.ofSeconds(10);
@@ -128,7 +128,7 @@ public class ApiKeySessionProvider implements SessionProvider {
             executorService.execute(() -> refreshCredential(newCredFuture));
             return newCredFuture.minimalCompletionStage();
         }
-        else if (isExpired(witness) || witness.isCompletedExceptionally()) {
+        else if (witness.isCompletedExceptionally() || isExpired(witness)) {
             // current credential is expired, or it has been completed exceptionally.
             // throw it away and generate a new one.
             // we don't normally expect to follow the expired path as the preemptive refresh ought to have
@@ -140,19 +140,19 @@ public class ApiKeySessionProvider implements SessionProvider {
         return witness.minimalCompletionStage();
     }
 
-    private void scheduleCredentialRefresh(long delay) {
-        LOGGER.debug("Scheduling refresh of Fortanix session in {}ms", delay);
+    private void scheduleCredentialRefresh(long delayMs) {
+        LOGGER.debug("Scheduling refresh of Fortanix session in {}ms", delayMs);
 
         var refreshedCredFuture = new CompletableFuture<Session>();
         executorService.schedule(() -> {
             refreshCredential(refreshedCredFuture);
             refreshedCredFuture.thenApply(sc -> {
                 var previous = current.getAndSet(refreshedCredFuture);
-                // the previous future have been already complete, but for safety, complete it anyway.
-                Optional.ofNullable(previous).ifPresent(f -> f.complete(sc));
+                // the previous future should have been already completed, but for safety, complete it anyway.
+                Optional.ofNullable(previous).ifPresent(future -> future.complete(sc));
                 return null;
             });
-        }, delay, TimeUnit.MILLISECONDS);
+        }, delayMs, TimeUnit.MILLISECONDS);
     }
 
     private boolean isExpired(CompletableFuture<Session> witness) {

@@ -24,9 +24,9 @@ class FortanixDsmKmsEdekTest {
 
     public static Stream<Arguments> illegalDeks() {
         return Stream.of(
-                argumentSet("empty kek", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("", new byte[]{ 1 }, IV)),
-                argumentSet("empty bytes", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("k", new byte[]{}, IV)),
-                argumentSet("empty iv", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("", new byte[]{ 1 }, new byte[]{})));
+                argumentSet("empty kek", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("", IV, new byte[]{ 1 })),
+                argumentSet("empty bytes", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("k", IV, new byte[]{})),
+                argumentSet("empty iv", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("", new byte[]{}, new byte[]{ 1 })));
     }
 
     @ParameterizedTest
@@ -40,11 +40,11 @@ class FortanixDsmKmsEdekTest {
     @SuppressWarnings("java:S5853")
     void equalsAndHashCode() {
 
-        var edek1 = new FortanixDsmKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 }, IV);
-        var edek2 = new FortanixDsmKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 }, IV);
-        var keyRefDiffer = new FortanixDsmKmsEdek("keyrefX", new byte[]{ (byte) 1, (byte) 2, (byte) 3 }, IV);
-        var edekBytesDiffer = new FortanixDsmKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 4 }, IV);
-        var edekIvBytesDiffer = new FortanixDsmKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 }, ANOTHER_IV);
+        var edek1 = new FortanixDsmKmsEdek("keyref", IV, new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        var edek2 = new FortanixDsmKmsEdek("keyref", IV, new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        var keyRefDiffer = new FortanixDsmKmsEdek("keyrefX", IV, new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        var edekBytesDiffer = new FortanixDsmKmsEdek("keyref", IV, new byte[]{ (byte) 1, (byte) 2, (byte) 4 });
+        var edekIvBytesDiffer = new FortanixDsmKmsEdek("keyref", ANOTHER_IV, new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
 
         assertThat(edek1)
                 .isEqualTo(edek1)
@@ -71,7 +71,7 @@ class FortanixDsmKmsEdekTest {
 
     @Test
     void toStringFormation() {
-        var edek = new FortanixDsmKmsEdek("keyref", new byte[]{ (byte) 1, (byte) 2, (byte) 3 }, IV);
-        assertThat(edek).hasToString("FortanixDsmKmsEdek{keyRef=keyref, edek=[1, 2, 3], iv=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]}");
+        var edek = new FortanixDsmKmsEdek("keyref", IV, new byte[]{ (byte) 1, (byte) 2, (byte) 3 });
+        assertThat(edek).hasToString("FortanixDsmKmsEdek{keyRef=keyref, iv=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], edek=[1, 2, 3]}");
     }
 }

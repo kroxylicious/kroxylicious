@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Decrypt response.
+ * Decrypt response from Fortanix DSM REST API.
  *
  * @param status status code
  * @param error error message

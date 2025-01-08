@@ -53,20 +53,20 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
- * An implementation of the KMS interface backed by <a href="https://www.fortanix.com/platform/data-security-manager">Fortanix DSM</a> implemented using
- * the <a href="https://support.fortanix.com/apidocs/">REST API</a>.
+ * An implementation of the KMS interface backed by <a href="https://www.fortanix.com/platform/data-security-manager">Fortanix DSM</a>.
+ * It uses its <a href="https://support.fortanix.com/apidocs/">REST API</a>.
  */
 public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String AES_KEY_ALGO = "AES";
 
-    private static final TypeReference<SecurityObjectResponse> SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<SecurityObjectResponse> SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<SecurityObjectResponse>() {
     };
 
-    private static final TypeReference<List<EncryptResponse>> LIST_ENCRYPT_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<List<EncryptResponse>> LIST_ENCRYPT_RESPONSE_TYPE_REF = new TypeReference<List<EncryptResponse>>() {
     };
-    private static final TypeReference<List<DecryptResponse>> LIST_DECRYPT_RESPONSE_TYPE_REF = new TypeReference<>() {
+    private static final TypeReference<List<DecryptResponse>> LIST_DECRYPT_RESPONSE_TYPE_REF = new TypeReference<List<DecryptResponse>>() {
     };
     public static final String AUTHORIZATION_HEADER = "Authorization";
 
@@ -79,7 +79,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     private final URI fortanixDsmUrl;
     private final SessionProvider sessionProvider;
 
-    FortanixDsmKms(URI fortanixDsmUrl, Duration timeout, SSLContext sslContext, SessionProvider sessionProvider) {
+    FortanixDsmKms(@NonNull URI fortanixDsmUrl, @NonNull SessionProvider sessionProvider, @Nullable Duration timeout, @Nullable SSLContext sslContext) {
         this.fortanixDsmUrl = Objects.requireNonNull(fortanixDsmUrl);
         this.sessionProvider = Objects.requireNonNull(sessionProvider);
         this.timeout = timeout;
@@ -118,7 +118,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
             var sessionFuture = getSessionAuthResponse();
 
             return sessionFuture
-                    .thenApply(s -> createRequest(transientKeyRequest, "/crypto/v1/keys", s))
+                    .thenApply(session -> createRequest(transientKeyRequest, "/crypto/v1/keys", session))
                     .thenCompose(request -> sendAsync(request, SECURITY_OBJECT_RESPONSE_TYPE_REF, FortanixDsmKms::getStatusException))
 
                     .thenCombine(sessionFuture,
@@ -142,12 +142,12 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         var batchEncryptRequests = List.of(EncryptRequest.createWrapRequest(kekRef, exportedKey.value()));
 
         return sessionFuture
-                .thenApply(s -> createRequest(batchEncryptRequests, "/crypto/v1/keys/batch/encrypt", s))
+                .thenApply(session -> createRequest(batchEncryptRequests, "/crypto/v1/keys/batch/encrypt", session))
                 .thenCompose(request -> sendAsync(request, LIST_ENCRYPT_RESPONSE_TYPE_REF,
                         (uri, statusCode) -> getStatusException(uri, statusCode, () -> new UnknownKeyException(kekRef))))
                 .thenApply(this::singletonListToValue)
                 .thenApply(encryptResponse -> validateResponseBody(encryptResponse, kekRef))
-                .thenApply(encryptResponse -> new DekPair<>(new FortanixDsmKmsEdek(kekRef, encryptResponse.cipher(), encryptResponse.iv()), secretKey));
+                .thenApply(encryptResponse -> new DekPair<>(new FortanixDsmKmsEdek(kekRef, encryptResponse.iv(), encryptResponse.cipher()), secretKey));
     }
 
     /**
@@ -162,7 +162,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
         final var batchEncryptRequests = List.of(DecryptRequest.createUnwrapRequest(edek.kekRef(), edek.iv(), edek.edek()));
         return sessionFuture
-                .thenApply(s -> createRequest(batchEncryptRequests, "/crypto/v1/keys/batch/decrypt", s))
+                .thenApply(session -> createRequest(batchEncryptRequests, "/crypto/v1/keys/batch/decrypt", session))
                 .thenCompose(request -> sendAsync(request, LIST_DECRYPT_RESPONSE_TYPE_REF,
                         (uri, status) -> getStatusException(uri, status, () -> new UnknownKeyException(edek.kekRef()))))
                 .thenApply(this::singletonListToValue)
@@ -180,7 +180,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     public CompletionStage<String> resolveAlias(@NonNull String alias) {
         var descriptor = new SecurityObjectDescriptor(null, alias, null);
         return getSessionAuthResponse()
-                .thenApply(s -> createRequest(descriptor, "/crypto/v1/keys/info", s))
+                .thenApply(session -> createRequest(descriptor, "/crypto/v1/keys/info", session))
                 .thenCompose(request -> sendAsync(request, SECURITY_OBJECT_RESPONSE_TYPE_REF,
                         (uri, status) -> getStatusException(uri, status, () -> new UnknownAliasException(alias))))
                 .thenApply(SecurityObjectResponse::kid);

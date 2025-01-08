@@ -21,7 +21,7 @@
     <artifactId>kroxylicious-kms-provider-fortanix-dsm</artifactId>
 
     <name>Fortanix DSM</name>
-    <description>A KMS provider backed by a remote instance of Fortanix DSM</description>
+    <description>A KMS provider backed by a remote instance of Fortanix Data Security Manager (DSM)</description>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->

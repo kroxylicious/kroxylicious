@@ -20,7 +20,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * An implementation of the {@link KmsService} interface backed by a remote instance of AWS KMS.
+ * An implementation of the {@link KmsService} backed by <a href="https://www.fortanix.com/platform/data-security-manager">Fortanix DSM</a>.
  */
 @Plugin(configType = Config.class)
 public class FortanixDsmKmsService implements KmsService<Config, String, FortanixDsmKmsEdek> {
@@ -51,7 +51,7 @@ public class FortanixDsmKmsService implements KmsService<Config, String, Fortani
     public FortanixDsmKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");
         return new FortanixDsmKms(config.endpointUrl(),
-                Duration.ofSeconds(20), config.sslContext(), sessionProvider);
+                sessionProvider, Duration.ofSeconds(20), config.sslContext());
     }
 
     @Override

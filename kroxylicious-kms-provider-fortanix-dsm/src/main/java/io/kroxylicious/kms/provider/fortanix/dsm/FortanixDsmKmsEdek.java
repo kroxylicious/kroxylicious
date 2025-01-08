@@ -15,27 +15,27 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * A Fortanix DSM Encrypted Dek.
  *
  * @param kekRef - kek reference.
+ * @param iv dek iv bytes
  * @param edek - edek bytes
- * @param iv iv bytes
  */
 record FortanixDsmKmsEdek(@NonNull String kekRef,
-                          @NonNull byte[] edek,
-                          @NonNull byte[] iv) {
+                          @NonNull byte[] iv,
+                          @NonNull byte[] edek) {
 
     public static final int IV_LENGTH = 16;
 
     FortanixDsmKmsEdek {
         Objects.requireNonNull(kekRef);
-        Objects.requireNonNull(edek);
         Objects.requireNonNull(iv);
+        Objects.requireNonNull(edek);
         if (kekRef.isEmpty()) {
             throw new IllegalArgumentException("keyRef cannot be empty");
         }
-        if (edek.length == 0) {
-            throw new IllegalArgumentException("edek cannot be empty");
-        }
         if (iv.length != IV_LENGTH) {
             throw new IllegalArgumentException("iv must be 16 bytes");
+        }
+        if (edek.length == 0) {
+            throw new IllegalArgumentException("edek cannot be empty");
         }
     }
 
@@ -53,7 +53,7 @@ record FortanixDsmKmsEdek(@NonNull String kekRef,
             return false;
         }
         FortanixDsmKmsEdek that = (FortanixDsmKmsEdek) o;
-        return Objects.equals(kekRef, that.kekRef) && Arrays.equals(edek, that.edek) && Arrays.equals(iv, that.iv);
+        return Objects.equals(kekRef, that.kekRef) && Arrays.equals(iv, that.iv) && Arrays.equals(edek, that.edek);
     }
 
     /**
@@ -63,7 +63,7 @@ record FortanixDsmKmsEdek(@NonNull String kekRef,
     @Override
     public int hashCode() {
         int result = Objects.hashCode(kekRef);
-        result = 31 * result + Arrays.hashCode(edek) + Arrays.hashCode(iv);
+        result = 31 * result + Arrays.hashCode(iv) + Arrays.hashCode(edek);
         return result;
     }
 
@@ -75,8 +75,8 @@ record FortanixDsmKmsEdek(@NonNull String kekRef,
     public String toString() {
         return "FortanixDsmKmsEdek{" +
                 "keyRef=" + kekRef +
-                ", edek=" + Arrays.toString(edek) +
                 ", iv=" + Arrays.toString(iv) +
+                ", edek=" + Arrays.toString(edek) +
                 '}';
     }
 }

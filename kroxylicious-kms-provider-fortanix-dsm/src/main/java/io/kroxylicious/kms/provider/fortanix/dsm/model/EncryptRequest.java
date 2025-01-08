@@ -12,6 +12,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * Encrypt request to the Fortanix DSM REST API.
+ *
+ * @param keyId key id that will be used to perform the encryption
+ * @param request encryption request
+ */
 public record EncryptRequest(@JsonProperty(value = "kid") @NonNull String keyId,
                              @JsonProperty(value = "request") @NonNull Request request) {
 

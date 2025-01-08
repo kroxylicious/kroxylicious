@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Encapsulates the request for a new security object within Fortanix DSM.
+ * Security object request to the Fortanix DSM REST API.
  *
  * @param name Name of the security object.
  * @param keySize Key size of the security object in bits.

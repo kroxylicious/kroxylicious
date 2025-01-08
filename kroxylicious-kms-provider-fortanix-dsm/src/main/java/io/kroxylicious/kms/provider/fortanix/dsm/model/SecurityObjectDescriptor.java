@@ -10,8 +10,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Fortanix key descriptor looking up by kid, name or transient key id.
- *
+ * Fortanix key descriptor capable of expressing a security object by kid, name or transient key id.
  *
  * @param kid kid
  * @param name key name

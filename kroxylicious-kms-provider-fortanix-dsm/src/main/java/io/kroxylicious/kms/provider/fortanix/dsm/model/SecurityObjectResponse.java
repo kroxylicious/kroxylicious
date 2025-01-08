@@ -10,11 +10,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * A security object.
+ * Security object response from the Fortanix DSM REST API.
  *
  * @param kid kid
- * @param transientKey transient key
- * @param value Security object stored as byte array (populated by export)
+ * @param transientKey transient key name
+ * @param value key material (populated by the export endpoint only)
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @SuppressWarnings("java:S6218") // we don't need SecurityObjectResponse equality
@@ -25,5 +25,14 @@ public record SecurityObjectResponse(@JsonProperty(value = "kid", required = fal
         if (kid == null && transientKey == null && value == null) {
             throw new NullPointerException();
         }
+    }
+
+    @Override
+    public String toString() {
+        return "SecurityObjectResponse{" +
+                "kid='" + kid + '\'' +
+                ", transientKey='" + transientKey + '\'' +
+                ", value=" + (value == null ? "<not present>" : "*********") +
+                '}';
     }
 }
