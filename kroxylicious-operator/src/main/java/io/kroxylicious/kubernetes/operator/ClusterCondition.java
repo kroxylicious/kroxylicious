@@ -14,6 +14,11 @@ public record ClusterCondition(String cluster, ConditionType type, Status status
         return new ClusterCondition(cluster, ConditionType.Accepted, Status.TRUE, null, null);
     }
 
+    static ClusterCondition filterInvalid(String cluster, String filterName, String reason) {
+        return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, "Invalid",
+                "Filter \"" + filterName + "\" is invalid: " + reason);
+    }
+
     static ClusterCondition filterNotExists(String cluster, String filterName) {
         return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, "Invalid",
                 "Filter \"" + filterName + "\" does not exist.");

@@ -6,9 +6,12 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -19,8 +22,11 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class ConfigurationTest {
@@ -299,6 +305,122 @@ class ConfigurationTest {
         var expectedJson = MAPPER.reader().readValue(expected, JsonNode.class);
         var diff = JsonDiff.asJson(actualJson, expectedJson);
         assertThat(diff).isEmpty();
+    }
+
+    @Test
+    void shouldGenerateUniqueNamed() {
+        List<FilterDefinition> filters = List.of(
+                new FilterDefinition("Bar", "1"),
+                new FilterDefinition("Foo", "2"),
+                new FilterDefinition("Bar", "3"));
+        assertThat(Configuration.namedFilterDefinitions(filters)).isEqualTo(List.of(
+                new NamedFilterDefinition("Bar-0", "Bar", "1"),
+                new NamedFilterDefinition("Foo", "Foo", "2"),
+                new NamedFilterDefinition("Bar-1", "Bar", "3")));
+    }
+
+    @Test
+    void shouldRejectBothFiltersAndFilterDefinitions() {
+        List<NamedFilterDefinition> filterDefinitions = List.of(new NamedFilterDefinition("", "", ""));
+        List<FilterDefinition> filters = List.of(new FilterDefinition("", ""));
+        assertThatThrownBy(() -> new Configuration(null,
+                filterDefinitions,
+                null,
+                null,
+                filters,
+                null,
+                false,
+                Optional.empty()))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessage("`filters` and `filterDefinitions` can't both be set");
+    }
+
+    @Test
+    void shouldRejectFilterDefinitionsWithSameName() {
+        List<NamedFilterDefinition> filterDefinitions = List.of(
+                new NamedFilterDefinition("foo", "", ""),
+                new NamedFilterDefinition("foo", "", ""));
+        assertThatThrownBy(() -> new Configuration(null,
+                filterDefinitions,
+                null,
+                null,
+                null,
+                null,
+                false,
+                Optional.empty()))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessage("`filterDefinitions` contains multiple items with the same names: [foo]");
+    }
+
+    @Test
+    void shouldRejectMissingDefaultFilter() {
+        assertThatThrownBy(() -> new Configuration(List.of(),
+                List.of("missing"),
+                null,
+                false,
+                null,
+                null,
+                Optional.empty()))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessage("`defaultFilters` references filters not defined in `filterDefinitions`: [missing]");
+    }
+
+    @Test
+    void shouldRejectMissingClusterFilter() {
+        assertThatThrownBy(() -> new Configuration(
+                List.of(),
+                null,
+                Map.of("vc1", new VirtualCluster(null, null, null, false, false, List.of("missing"))),
+                false,
+                null,
+                null,
+                Optional.empty()))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessage("`virtualClusters.vc1.filterRefs` references filters not defined in `filterDefinitions`: [missing]");
+    }
+
+    @Test
+    void virtualClusterModelShouldUseCorrectFilters() {
+        // Given
+        List<NamedFilterDefinition> filterDefinitions = List.of(
+                new NamedFilterDefinition("foo", "Foo", ""),
+                new NamedFilterDefinition("bar", "Bar", ""));
+        VirtualCluster direct = new VirtualCluster(new TargetCluster("y:9092", Optional.empty()),
+                new ClusterNetworkAddressConfigProviderDefinition("PortPerBrokerClusterNetworkAddressConfigProvider",
+                        new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("example.com", 3), null,
+                                null, null, null)),
+                Optional.empty(),
+                false,
+                false,
+                List.of("foo")); // filters defined on cluster
+
+        VirtualCluster defaulted = new VirtualCluster(new TargetCluster("x:9092", Optional.empty()),
+                new ClusterNetworkAddressConfigProviderDefinition("PortPerBrokerClusterNetworkAddressConfigProvider",
+                        new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("example.com", 3), null,
+                                null, null, null)),
+                Optional.empty(),
+                false,
+                false,
+                null); // filters not defined => should default to the top level
+
+        Configuration configuration = new Configuration(
+                filterDefinitions,
+                List.of("bar"),
+                Map.of("direct", direct,
+                        "defaulted", defaulted),
+                false,
+                null,
+                null,
+                Optional.empty());
+
+        // When
+        var model = configuration.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
+
+        // Then
+        var directModel = model.stream().filter(x -> x.getClusterName().equals("direct")).findFirst().get();
+        var defaultModel = model.stream().filter(x -> x.getClusterName().equals("defaulted")).findFirst().get();
+        assertThat(directModel.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Foo");
+        assertThat(defaultModel.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Bar");
     }
 
 }

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import org.assertj.core.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 class OperatorMainIT {
@@ -13,6 +14,7 @@ class OperatorMainIT {
 
     @Test
     void run() {
+        Assumptions.assumeThat(OperatorTestUtils.isKubeClientAvailable()).describedAs("Test requires a viable kube client").isTrue();
         OperatorMain.run();
     }
 

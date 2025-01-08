@@ -29,6 +29,7 @@ public class SingleFilterFactoryInstanceTest {
     public void afterEach() {
         if (mockTester != null) {
             mockTester.close();
+            InvocationCountingFilterFactory.assertAllClosedAndResetCounts();
         }
     }
 
@@ -43,7 +44,8 @@ public class SingleFilterFactoryInstanceTest {
                         .build()));
 
         // Then
-        InvocationCountingFilterFactory.assertInvocationCount(configInstance, 1);
+        InvocationCountingFilterFactory.assertInitializationCount(configInstance, 1);
+
     }
 
     @Test
@@ -58,8 +60,8 @@ public class SingleFilterFactoryInstanceTest {
                 .addToFilters(new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstanceB).build()));
 
         // Then
-        InvocationCountingFilterFactory.assertInvocationCount(configInstanceA, 1);
-        InvocationCountingFilterFactory.assertInvocationCount(configInstanceB, 1);
+        InvocationCountingFilterFactory.assertInitializationCount(configInstanceA, 1);
+        InvocationCountingFilterFactory.assertInitializationCount(configInstanceB, 1);
     }
 
 }
