@@ -5,10 +5,12 @@
 #
 
 ---
-kind: One
-apiVersion: org.example.one/v1
+kind: Filter
+apiVersion: filter.kroxylicious.io/v1alpha1
 metadata:
-  name: filter-one
+  name: filter-two
   namespace: proxy-ns
 spec:
-  filterOneConfig: true
+  type: com.example.what.Ever
+  config:
+    filterTwoConfig: 42

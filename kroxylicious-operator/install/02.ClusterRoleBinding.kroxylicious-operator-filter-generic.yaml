@@ -10,7 +10,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: kroxylicious-operator-filter-record-validation
+  name: kroxylicious-operator-filter-generic
   labels:
     app.kubernetes.io/name: kroxylicious
     app.kubernetes.io/component: operator
@@ -20,5 +20,5 @@ subjects:
     namespace: kroxylicious-operator
 roleRef:
   kind: ClusterRole
-  name: kroxylicious-operator-filter-record-validation
+  name: kroxylicious-operator-filter-generic
   apiGroup: rbac.authorization.k8s.io

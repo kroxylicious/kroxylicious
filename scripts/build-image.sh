@@ -58,6 +58,7 @@ if [[ -z ${REGISTRY_DESTINATION:-} ]]; then
 fi
 
 IMAGE="${REGISTRY_DESTINATION}:${KROXYLICIOUS_VERSION}"
+CONTAINERFILE="${CONTAINERFILE:-Dockerfile}"
 
 if [ -n "${IMAGE_EXPIRY:-}" ]; then
   LABELS+=("quay.expires-after=${IMAGE_EXPIRY}")
@@ -67,7 +68,7 @@ LABEL_ARGS=$(array_to_arg_line "label" "${LABELS[@]:""}")
 TAG_ARGS=$(array_to_arg_line "tag" "${IMAGE_TAGS[@]:""}")
 
 # shellcheck disable=SC2086 #we are passing additional arguments here so word splitting is intended
-${CONTAINER_ENGINE} build -t "${IMAGE}" ${LABEL_ARGS} ${TAG_ARGS} \
+${CONTAINER_ENGINE} build -f "${CONTAINERFILE}" -t "${IMAGE}" ${LABEL_ARGS} ${TAG_ARGS} \
                                         --build-arg "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" \
                                         --build-arg "CURRENT_USER=${USER}" \
                                         --build-arg "CURRENT_USER_UID=$(id -u)" \

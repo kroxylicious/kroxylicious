@@ -16,9 +16,9 @@ spec:
     upstream:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
     filters:
-      - group: org.example.one
-        kind: One
+      - group: filter.kroxylicious.io
+        kind: Filter
         name: filter-one
-      - group: com.example.two
-        kind: Two
+      - group: filter.kroxylicious.io
+        kind: Filter
         name: filter-two

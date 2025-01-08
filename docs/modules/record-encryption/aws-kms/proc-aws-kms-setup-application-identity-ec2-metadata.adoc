@@ -1,0 +1,88 @@
+// file included in the following:
+//
+// con-aws-kms-setup.adoc
+
+[id='proc-aws-kms-setup-application-ec2-metadata-{context}']
+
+= Authenticating using AWS EC2 metadata
+
+[role="_abstract"]
+This procedure describes how to use AWS EC2 metadata for the Record Encryption filter to authenticate to AWS KMS.
+The process involves creating a trust policy, creating an IAM role, and attaching an alias-based policy that grants permissions to perform KMS operations on specific KEKs.
+
+The filter authenticates using the temporary credentials retrieved from {aws}/AWSEC2/latest/UserGuide/iam-roles-for-amazon-ec2.html#instance-metadata-security-credentials[EC2 instance metadata].
+
+.Prerequisites
+
+* Access to the AWS CLI with sufficient permissions to create and manage IAM users.
+* xref:con-aws-kms-setup-policy-{context}[An alias-based policy created for the Record Encryption filter]. 
+
+.Procedure
+
+. Create a trust policy:
++
+[source,shell]
+----
+cat > trustpolicy << EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "sts:AssumeRole"
+            ],
+            "Principal": {
+                "Service": [
+                    "ec2.amazonaws.com"
+                ]
+            }
+        }
+    ]
+}
+EOF
+----
++
+The trust policy specifies that the EC2 instance can assume the role, enabling it to retrieve and use temporary credentials for authentication.
+
+. Create the IAM role using the trust policy:
++
+[source,shell]
+----
+aws iam create-role --role-name KroxyliciousInstance --assume-role-policy-document file://trustpolicy
+----
++
+This example uses `KroxyliciousInstance` as the role name, but you can substitute a different name if necessary.
+
+. Attach the alias-based policy to the role:
++
+[source,shell]
+----
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+aws iam attach-role-policy --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KroxyliciousRecordEncryption --role-name KroxyliciousInstance
+----
++
+This step grants the role permission to perform KMS operations on KEKs that use the alias naming convention defined in the `KroxyliciousRecordEncryption` policy.
+
+. Verify that the policy has been successfully attached:
++
+[source,shell]
+----
+aws iam list-attached-role-policies --role-name KroxyliciousInstance
+----
+
+. Associate the role with the EC2 instance:  
++
+[source,shell]
+----
+aws ec2 associate-iam-instance-profile --instance-id <EC2_instance_id> --iam-instance-profile Name="KroxyliciousInstance"
+----
++
+Replace `<EC2_instance_id>` with the instance ID of each AWS EC2 instance hosting a Kroxylicious instance.
+
+. Verify that the role has been associated with the EC2 instance:
++ 
+[source,shell]
+----
+aws ec2 describe-iam-instance-profile-associations --filters Name=instance-id,Values=<EC2_instance_id>
+----

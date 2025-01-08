@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NOCOLOR='\033[0m'
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-. "${SCRIPT_DIR}/../../scripts/common.sh"
+. "${SCRIPT_DIR}/../../../scripts/common.sh"
 
 KAFKA_TOOL_SUFFIX=".sh"
 if [ "$OS" = 'Darwin'  ]; then

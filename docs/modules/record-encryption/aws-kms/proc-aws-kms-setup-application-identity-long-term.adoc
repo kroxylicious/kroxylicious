@@ -1,0 +1,49 @@
+// file included in the following:
+//
+// con-aws-kms-setup.adoc
+
+[id='proc-aws-kms-setup-application-identity-long-term-{context}']
+
+= Authenticating using long-term IAM identity
+
+[role="_abstract"]
+This procedure describes how to create a long-term IAM identity for the Record Encryption filter to authenticate to AWS KMS. 
+The process involves creating an IAM user and access key, and attaching an alias-based policy that grants permissions to perform KMS operations on specific KEKs.
+
+NOTE: Do not enable console access for this user. 
+The filter requires only API access, and console access would unnecessarily increase the security risk.
+
+.Prerequisites
+
+* Access to the AWS CLI with sufficient permissions to create and manage IAM users.
+* xref:con-aws-kms-setup-policy-{context}[An alias-based policy created for the Record Encryption filter]. 
+
+.Procedure
+
+. Create the IAM user and access key: 
++
+[source,shell]
+----
+aws iam create-user --user-name kroxylicious
+aws iam create-access-key --user-name kroxylicious
+----
++
+This example uses `kroxylicious` as the user name, but you can substitute a different name if necessary.
+
+. Attach the alias-based policy to the IAM identity: 
++
+[source,shell]
+----
+AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+aws iam attach-user-policy --user-name kroxylicious --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/KroxyliciousRecordEncryption"
+----
++
+This step grants the user permission to perform KMS operations on KEKs that use the alias naming convention defined in the `KroxyliciousRecordEncryption` policy.
+
+. Verify that the policy has been successfully attached:
++
+[source,shell]
+----
+aws iam list-attached-user-policies --user-name kroxylicious
+----
+
