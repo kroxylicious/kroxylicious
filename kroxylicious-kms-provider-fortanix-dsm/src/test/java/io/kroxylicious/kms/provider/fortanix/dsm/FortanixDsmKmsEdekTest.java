@@ -26,7 +26,7 @@ class FortanixDsmKmsEdekTest {
         return Stream.of(
                 argumentSet("empty kek", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("", IV, new byte[]{ 1 })),
                 argumentSet("empty bytes", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("k", IV, new byte[]{})),
-                argumentSet("empty iv", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("", new byte[]{}, new byte[]{ 1 })));
+                argumentSet("empty iv", (Supplier<FortanixDsmKmsEdek>) () -> new FortanixDsmKmsEdek("k", new byte[]{}, new byte[]{ 1 })));
     }
 
     @ParameterizedTest

@@ -21,7 +21,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param iv The initialization vector to use,
  * @param cipher Ciphertext bytes to be decrypted.
  */
-@SuppressWarnings("java:S6218") // we don't need EncryptRequest equality
+@SuppressWarnings("java:S6218") // we don't need DecryptRequest equality
 public record DecryptRequest(@JsonProperty(value = "key", required = true) SecurityObjectDescriptor key,
                              @JsonProperty(value = "alg", required = true) String alg,
                              @JsonProperty(value = "mode", required = true) String mode,
@@ -33,6 +33,13 @@ public record DecryptRequest(@JsonProperty(value = "key", required = true) Secur
         Objects.requireNonNull(mode);
         Objects.requireNonNull(iv);
         Objects.requireNonNull(cipher);
+        if (iv.length == 0) {
+            throw new IllegalArgumentException("iv cannot be empty");
+        }
+        if (cipher.length == 0) {
+            throw new IllegalArgumentException("cipher cannot be empty");
+        }
+
     }
 
     @NonNull
@@ -47,7 +54,7 @@ public record DecryptRequest(@JsonProperty(value = "key", required = true) Secur
                 ", alg='" + alg + '\'' +
                 ", mode='" + mode + '\'' +
                 ", iv='*********'" +
-                ", cipher='*********" +
+                ", cipher='*********'" +
                 '}';
     }
 }

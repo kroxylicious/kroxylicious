@@ -164,12 +164,6 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
             var sessionResponse = getSessionAuthResponse();
 
             var key = read(alias);
-            // var keyDestroyRequest = HttpRequest.newBuilder()
-            // .uri(getEndpointUrl().resolve("/crypto/v1/keys/" + key.kid() + "/destroy"))
-            // .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
-            // .POST(HttpRequest.BodyPublishers.noBody())
-            // .build();
-            // sendRequestExpectingNoResponse(keyDestroyRequest);
 
             var keyDeleteRequest = HttpRequest.newBuilder()
                     .uri(getEndpointUrl().resolve("/crypto/v1/keys/" + key.kid()))
@@ -179,6 +173,8 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
             sendRequestExpectingNoResponse(keyDeleteRequest);
 
             // FIXME: Seems we need to wait about a second until the key actually goes away
+            // reproducer: https://github.com/k-wall/envelope-encryption-with-fortanix/pull/3
+            // raised with https://github.com/ffaruqui
             try {
                 Thread.sleep(1000L);
             }
@@ -186,23 +182,6 @@ public abstract class AbstractFortanixDsmKmsTestKmsFacade implements TestKmsFaca
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
-
-            // haven't found a good way to poll to check that it is actually gone.
-            // vvvv doesn't work
-            // do {
-            // try {
-            // Thread.sleep(1000L);
-            // read(new SecurityObjectDescriptor(key.kid(), null, null));
-            // }
-            // catch (UnknownKeyException e) {
-            // break;
-            // }
-            // catch (InterruptedException e) {
-            // Thread.currentThread().interrupt();
-            // throw new RuntimeException(e);
-            // }
-            //
-            // } while (true);
         }
 
         @Override

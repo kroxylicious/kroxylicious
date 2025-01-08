@@ -32,8 +32,12 @@ public record EncryptRequest(@JsonProperty(value = "key", required = true) Secur
     public EncryptRequest {
         Objects.requireNonNull(key);
         Objects.requireNonNull(alg);
-        Objects.requireNonNull(plain);
         Objects.requireNonNull(mode);
+        Objects.requireNonNull(plain);
+        if (plain.length == 0) {
+            throw new IllegalArgumentException("plain cannot be empty");
+        }
+
     }
 
     @NonNull

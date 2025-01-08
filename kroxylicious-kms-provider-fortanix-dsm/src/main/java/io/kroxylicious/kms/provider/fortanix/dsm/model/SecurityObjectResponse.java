@@ -22,8 +22,11 @@ public record SecurityObjectResponse(@JsonProperty(value = "kid", required = fal
                                      @JsonProperty(value = "transient_key", required = false) String transientKey,
                                      @JsonProperty(value = "value", required = false) byte[] value) {
     public SecurityObjectResponse {
-        if (kid == null && transientKey == null && value == null) {
-            throw new NullPointerException();
+        if (kid == null && transientKey == null) {
+            throw new NullPointerException("Requires a key identifier");
+        }
+        if (value != null && value.length == 0) {
+            throw new IllegalArgumentException("If value is present, value is required");
         }
     }
 

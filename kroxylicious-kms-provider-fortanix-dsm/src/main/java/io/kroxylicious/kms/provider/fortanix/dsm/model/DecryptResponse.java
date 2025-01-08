@@ -25,6 +25,9 @@ public record DecryptResponse(
 
     public DecryptResponse {
         Objects.requireNonNull(plain);
+        if (plain.length == 0) {
+            throw new IllegalArgumentException("plain cannot be empty");
+        }
     }
 
     @Override

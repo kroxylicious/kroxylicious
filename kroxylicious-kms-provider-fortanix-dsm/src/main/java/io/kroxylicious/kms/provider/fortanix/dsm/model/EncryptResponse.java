@@ -28,12 +28,19 @@ public record EncryptResponse(
     public EncryptResponse {
         Objects.requireNonNull(cipher);
         Objects.requireNonNull(iv);
+        if (iv.length == 0) {
+            throw new IllegalArgumentException("iv cannot be empty");
+        }
+        if (cipher.length == 0) {
+            throw new IllegalArgumentException("cipher cannot be empty");
+        }
+
     }
 
     @Override
     public String toString() {
         return "EncryptResponse{" +
-                "key='" + kid + '\'' +
+                "kid='" + kid + '\'' +
                 ", cipher='*********'" +
                 ", iv='*********'" +
                 '}';
