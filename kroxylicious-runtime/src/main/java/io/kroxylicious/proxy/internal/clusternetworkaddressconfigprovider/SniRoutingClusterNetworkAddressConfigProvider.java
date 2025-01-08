@@ -12,8 +12,12 @@ import java.util.regex.Pattern;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
 import io.kroxylicious.proxy.service.HostPort;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.EXPECTED_TOKEN_SET;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validatePortSpecifier;
@@ -31,64 +35,75 @@ import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider
  *  *    client in the Metadata response so must be resolvable by the client.  One pattern is supported: {@code $(nodeId)} which interpolates the node id into the address.
  * </ul>
  */
-public class SniRoutingClusterNetworkAddressConfigProvider implements ClusterNetworkAddressConfigProvider {
-
-    private final HostPort bootstrapAddress;
-    private final String brokerAddressPattern;
-    private final Pattern brokerAddressNodeIdCapturingRegex;
-
-    /**
-     * Creates the provider.
-     *
-     * @param config configuration
-     */
-    public SniRoutingClusterNetworkAddressConfigProvider(SniRoutingClusterNetworkAddressConfigProviderConfig config) {
-        this.bootstrapAddress = config.bootstrapAddress;
-        this.brokerAddressPattern = config.brokerAddressPattern;
-        this.brokerAddressNodeIdCapturingRegex = config.brokerAddressNodeIdCapturingRegex;
+@Plugin(configType = SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig.class)
+public class SniRoutingClusterNetworkAddressConfigProvider implements
+        ClusterNetworkAddressConfigProviderService<SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig> {
+    @NonNull
+    @Override
+    public ClusterNetworkAddressConfigProvider build(SniRoutingClusterNetworkAddressConfigProviderConfig config) {
+        return new Provider(config);
     }
 
-    @Override
-    public HostPort getClusterBootstrapAddress() {
-        return this.bootstrapAddress;
-    }
+    private static class Provider implements ClusterNetworkAddressConfigProvider {
 
-    @Override
-    public HostPort getBrokerAddress(int nodeId) {
-        if (nodeId < 0) {
-            // nodeIds of < 0 have special meaning to kafka.
-            throw new IllegalArgumentException("nodeId cannot be less than zero");
+        private final HostPort bootstrapAddress;
+        private final String brokerAddressPattern;
+        private final Pattern brokerAddressNodeIdCapturingRegex;
+
+        /**
+         * Creates the provider.
+         *
+         * @param config configuration
+         */
+        private Provider(SniRoutingClusterNetworkAddressConfigProviderConfig config) {
+            this.bootstrapAddress = config.bootstrapAddress;
+            this.brokerAddressPattern = config.brokerAddressPattern;
+            this.brokerAddressNodeIdCapturingRegex = config.brokerAddressNodeIdCapturingRegex;
         }
-        // TODO: consider introducing an cache (LRU?)
-        return new HostPort(BrokerAddressPatternUtils.replaceLiteralNodeId(brokerAddressPattern, nodeId), bootstrapAddress.port());
-    }
 
-    @Override
-    public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
-        if (brokerAddress.port() != bootstrapAddress.port()) {
+        @Override
+        public HostPort getClusterBootstrapAddress() {
+            return this.bootstrapAddress;
+        }
+
+        @Override
+        public HostPort getBrokerAddress(int nodeId) {
+            if (nodeId < 0) {
+                // nodeIds of < 0 have special meaning to kafka.
+                throw new IllegalArgumentException("nodeId cannot be less than zero");
+            }
+            // TODO: consider introducing an cache (LRU?)
+            return new HostPort(BrokerAddressPatternUtils.replaceLiteralNodeId(brokerAddressPattern, nodeId), bootstrapAddress.port());
+        }
+
+        @Override
+        public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
+            if (brokerAddress.port() != bootstrapAddress.port()) {
+                return null;
+            }
+            var matcher = brokerAddressNodeIdCapturingRegex.matcher(brokerAddress.host());
+            if (matcher.matches()) {
+                var nodeId = matcher.group(1);
+                try {
+                    return Integer.valueOf(nodeId);
+                }
+                catch (NumberFormatException e) {
+                    throw new IllegalStateException("unexpected exception parsing : '%s'".formatted(nodeId), e);
+                }
+            }
             return null;
         }
-        var matcher = brokerAddressNodeIdCapturingRegex.matcher(brokerAddress.host());
-        if (matcher.matches()) {
-            var nodeId = matcher.group(1);
-            try {
-                return Integer.valueOf(nodeId);
-            }
-            catch (NumberFormatException e) {
-                throw new IllegalStateException("unexpected exception parsing : '%s'".formatted(nodeId), e);
-            }
+
+        @Override
+        public Set<Integer> getSharedPorts() {
+            return Set.of(bootstrapAddress.port());
         }
-        return null;
-    }
 
-    @Override
-    public Set<Integer> getSharedPorts() {
-        return Set.of(bootstrapAddress.port());
-    }
+        @Override
+        public boolean requiresTls() {
+            return true;
+        }
 
-    @Override
-    public boolean requiresTls() {
-        return true;
     }
 
     /**

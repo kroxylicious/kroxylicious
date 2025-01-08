@@ -1,0 +1,2 @@
+io.kroxylicious.proxy.micrometer.CommonTagsHook
+io.kroxylicious.proxy.micrometer.StandardBindersHook

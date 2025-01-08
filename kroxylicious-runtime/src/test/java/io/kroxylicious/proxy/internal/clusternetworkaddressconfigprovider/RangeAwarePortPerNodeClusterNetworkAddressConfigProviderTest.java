@@ -18,6 +18,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.IntRangeSpec;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.NamedRangeSpec;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -40,7 +41,7 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
 
     @Test
     void brokerAddressSingleRange() {
-        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(
+        ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)))));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(new HostPort("broker0.kafka.example.com", 1236));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(new HostPort("broker1.kafka.example.com", 1237));
@@ -49,7 +50,7 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
     @Test
     void brokerAddressPortsInferredFromBootstrapIfNotExplicitlySupplied() {
         List<NamedRangeSpec> namedRangeSpecs = List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)));
-        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(
+        ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
                         BOOSTRAP_HOSTPORT, "broker$(nodeId).kafka.example.com",
                         null, namedRangeSpecs));
@@ -60,7 +61,7 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
     @Test
     void brokerAddressInferredFromBootstrapIfNotExplicitlySupplied() {
         List<NamedRangeSpec> namedRangeSpecs = List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)));
-        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(
+        ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
                         BOOSTRAP_HOSTPORT, null,
                         null, namedRangeSpecs));
@@ -123,7 +124,7 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
     @Test
     void getClusterBootstrap() {
         List<NamedRangeSpec> namedRangeSpecs = List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)));
-        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(
+        ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
                         BOOSTRAP_HOSTPORT, "broker$(nodeId).kafka.example.com",
                         1236, namedRangeSpecs));
@@ -132,14 +133,14 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
 
     @Test
     void exclusivePortsSingleRange() {
-        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(
+        ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)))));
         assertThat(provider.getExclusivePorts()).containsExactly(1235, 1236, 1237);
     }
 
     @Test
     void discoveryAddressMapSingleRange() {
-        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(
+        ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)))));
 
         Map<Integer, HostPort> expected = Map.of(
@@ -150,7 +151,7 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
 
     @Test
     void brokerAddressMultipleRanges() {
-        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(
+        ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(new HostPort("broker0.kafka.example.com", 1236));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(new HostPort("broker1.kafka.example.com", 1237));
@@ -160,7 +161,7 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
 
     @Test
     void brokerAddressUnknownNodeId() {
-        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(
+        ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))));
         String expectedMessage = "Cannot generate node address for node id 5 as it is not contained in the ranges defined for provider with downstream bootstrap "
                 + BOOTSTRAP;
@@ -169,7 +170,7 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
 
     @Test
     void discoveryAddressMapMultipleRanges() {
-        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(
+        ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))));
 
         Map<Integer, HostPort> expected = Map.of(
@@ -221,7 +222,7 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
 
     @Test
     void exclusivePortsMultipleRanges() {
-        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(
+        ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))));
         assertThat(provider.getExclusivePorts()).containsExactly(1235, 1236, 1237, 1238, 1239);
     }

@@ -8,12 +8,13 @@ package io.kroxylicious.proxy.config;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
-public record MicrometerDefinition(@JsonProperty(required = true) String type,
-                                   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type") @JsonTypeIdResolver(MicrometerHookConfigTypeIdResolver.class) Object config) {
+import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookService;
+import io.kroxylicious.proxy.plugin.PluginImplConfig;
+import io.kroxylicious.proxy.plugin.PluginImplName;
+
+public record MicrometerDefinition(@PluginImplName(MicrometerConfigurationHookService.class) String type,
+                                   @PluginImplConfig(implNameProperty = "type") Object config) {
 
     @JsonCreator
     public MicrometerDefinition {

@@ -50,7 +50,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
 
     @Test
     void getBrokerAddress() {
-        var provider = new SniRoutingClusterNetworkAddressConfigProvider(
+        var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
                 new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("boot.kafka:1234"),
                         "broker-$(nodeId).kafka"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(HostPort.parse("broker-0.kafka:1234"));
@@ -71,7 +71,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void getBrokerIdFromBrokerAddress(String name, @ConvertWith(HostPortConverter.class) HostPort address, Integer expected) {
-        var provider = new SniRoutingClusterNetworkAddressConfigProvider(
+        var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
                 new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("boot.kafka:1234"),
                         "broker-$(nodeId).kafka"));
 
@@ -80,7 +80,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
 
     @Test
     void badNodeId() {
-        assertThrows(IllegalArgumentException.class, () -> new SniRoutingClusterNetworkAddressConfigProvider(
+        assertThrows(IllegalArgumentException.class, () -> new SniRoutingClusterNetworkAddressConfigProvider().build(
                 new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("boot.kafka:1234"), "broker-$(nodeId).kafka"))
                 .getBrokerAddress(-1));
     }

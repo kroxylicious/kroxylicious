@@ -17,9 +17,20 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tag;
 
-public class CommonTagsHook implements MicrometerConfigurationHook {
+import io.kroxylicious.proxy.plugin.Plugin;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+@Plugin(configType = CommonTagsHook.CommonTagsHookConfig.class)
+public class CommonTagsHook implements MicrometerConfigurationHookService<CommonTagsHook.CommonTagsHookConfig> {
 
     private static final Logger log = LoggerFactory.getLogger(CommonTagsHook.class);
+
+    @NonNull
+    @Override
+    public MicrometerConfigurationHook build(CommonTagsHookConfig config) {
+        return new Hook(config);
+    }
 
     public static class CommonTagsHookConfig {
         private final Map<String, String> commonTags;
@@ -30,20 +41,22 @@ public class CommonTagsHook implements MicrometerConfigurationHook {
         }
     }
 
-    private final CommonTagsHookConfig config;
+    private static class Hook implements MicrometerConfigurationHook {
+        private final CommonTagsHookConfig config;
 
-    public CommonTagsHook(CommonTagsHookConfig config) {
-        if (config == null) {
-            throw new IllegalArgumentException("config must be non null");
+        private Hook(CommonTagsHookConfig config) {
+            if (config == null) {
+                throw new IllegalArgumentException("config must be non null");
+            }
+            this.config = config;
         }
-        this.config = config;
-    }
 
-    @Override
-    public void configure(MeterRegistry targetRegistry) {
-        List<Tag> tags = config.commonTags.entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).collect(Collectors.toList());
-        targetRegistry.config().commonTags(tags);
-        log.info("configured micrometer registry with tags: {}", tags);
+        @Override
+        public void configure(MeterRegistry targetRegistry) {
+            List<Tag> tags = config.commonTags.entrySet().stream().map(entry -> Tag.of(entry.getKey(), entry.getValue())).collect(Collectors.toList());
+            targetRegistry.config().commonTags(tags);
+            log.info("configured micrometer registry with tags: {}", tags);
+        }
     }
 
 }

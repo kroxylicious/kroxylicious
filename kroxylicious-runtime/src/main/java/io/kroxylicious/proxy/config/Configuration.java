@@ -37,9 +37,9 @@ public record Configuration(@Nullable AdminHttpConfiguration adminHttp,
         return useIoUring();
     }
 
-    public @NonNull List<io.kroxylicious.proxy.model.VirtualCluster> virtualClusterModel() {
+    public @NonNull List<io.kroxylicious.proxy.model.VirtualCluster> virtualClusterModel(PluginFactoryRegistry pfr) {
         return virtualClusters.entrySet().stream()
-                .map(entry -> entry.getValue().toVirtualClusterModel(entry.getKey()))
+                .map(entry -> entry.getValue().toVirtualClusterModel(pfr, entry.getKey()))
                 .toList();
     }
 }
