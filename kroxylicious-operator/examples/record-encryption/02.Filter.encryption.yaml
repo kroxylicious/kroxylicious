@@ -5,13 +5,15 @@
 #
 
 ---
-kind: RecordEncryption
+kind: Filter
 apiVersion: filter.kroxylicious.io/v1alpha1
 metadata:
   name: encryption
   namespace: my-proxy
 spec:
-  kms: Foo
-  kmsConfig: {}
-  selector: Bar
-  selectorConfig: {}
+  type: io.kroxylicious.filter.encryption.RecordEncryption
+  config:
+    kms: Foo
+    kmsConfig: {}
+    selector: Bar
+    selectorConfig: {}

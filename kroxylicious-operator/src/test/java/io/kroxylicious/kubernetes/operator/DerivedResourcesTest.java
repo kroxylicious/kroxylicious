@@ -48,7 +48,6 @@ import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
@@ -205,7 +204,6 @@ class DerivedResourcesTest {
             assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
 
             unusedFiles.remove(input);
-            unusedFiles.remove(testDir.resolve("operator-config.yaml"));
             unusedFiles.removeAll(childFilesMatching(testDir, "in-*"));
 
             Context<KafkaProxy> context;
@@ -312,8 +310,7 @@ class DerivedResourcesTest {
 
         doReturn(resourceContext).when(context).managedDependentResourceContext();
 
-        var configFile = testDir.resolve("operator-config.yaml");
-        var runtimeDecl = Files.exists(configFile) ? configFromFile(configFile) : new RuntimeDecl(List.of());
+        var runtimeDecl = OperatorMain.runtimeDecl();
         Set<GenericKubernetesResource> filterInstances = new HashSet<>();
         for (var filterApi : runtimeDecl.filterApis()) {
             String fileName = "in-" + filterApi.kind() + "-*.yaml";

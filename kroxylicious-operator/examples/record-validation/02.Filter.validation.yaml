@@ -5,10 +5,12 @@
 #
 
 ---
-kind: RecordValidation
+kind: Filter
 apiVersion: filter.kroxylicious.io/v1alpha1
 metadata:
   name: validation
   namespace: my-proxy
 spec:
-  # ...
+  type: io.kroxylicious.proxy.filter.validation.RecordValidation
+  config:
+    # ...
