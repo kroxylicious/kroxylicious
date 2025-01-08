@@ -27,11 +27,10 @@ public class OperatorMain {
 
     public static void main(String[] args) {
         // TODO read these from some configuration CR
-        var runtimeDecl = getRuntimeDecl();
         Operator operator = new Operator();
         operator.installShutdownHook(Duration.ofSeconds(10));
         try {
-            var registeredController = operator.register(new ProxyReconciler(runtimeDecl));
+            var registeredController = operator.register(new ProxyReconciler(runtimeDecl()));
             // TODO couple the health of the registeredController to the operator's HTTP healthchecks
             operator.start();
             LOGGER.info("Operator started.");
@@ -43,7 +42,7 @@ public class OperatorMain {
     }
 
     @NonNull
-    static RuntimeDecl getRuntimeDecl() {
+    static RuntimeDecl runtimeDecl() {
         var runtimeDecl = new RuntimeDecl(List.of(
                 new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "Filter")));
         return runtimeDecl;

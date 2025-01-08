@@ -48,7 +48,6 @@ import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
@@ -311,7 +310,7 @@ class DerivedResourcesTest {
 
         doReturn(resourceContext).when(context).managedDependentResourceContext();
 
-        var runtimeDecl = OperatorMain.getRuntimeDecl();
+        var runtimeDecl = OperatorMain.runtimeDecl();
         Set<GenericKubernetesResource> filterInstances = new HashSet<>();
         for (var filterApi : runtimeDecl.filterApis()) {
             String fileName = "in-" + filterApi.kind() + "-*.yaml";
