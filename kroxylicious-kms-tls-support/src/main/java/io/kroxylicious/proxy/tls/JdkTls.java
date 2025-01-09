@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.hashicorp.vault.config;
+package io.kroxylicious.proxy.tls;
 
 import java.io.FileInputStream;
 import java.security.KeyStore;
@@ -38,7 +38,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Encapsulates parameters for an TLS connection with Vault.
+ * Encapsulates parameters for an TLS connection with AWS.
  *
  * @param tls tls configuration
  *
@@ -50,7 +50,7 @@ public record JdkTls(Tls tls) {
 
     public JdkTls {
         if (tls != null && tls.key() != null) {
-            logger.warn("TLS key material is currently not supported by the vault client");
+            logger.warn("TLS key material is currently not supported by this client");
         }
     }
 
@@ -111,7 +111,7 @@ public record JdkTls(Tls tls) {
             public KeyManager[] visit(io.kroxylicious.proxy.config.tls.KeyStore keyStore) {
                 try {
                     if (keyStore.isPemType()) {
-                        throw new SslConfigurationException("PEM is not supported by vault KMS yet");
+                        throw new SslConfigurationException("PEM is not supported by this client");
                     }
                     KeyStore store = KeyStore.getInstance(keyStore.getType());
                     char[] storePassword = passwordOrNull(keyStore.storePasswordProvider());

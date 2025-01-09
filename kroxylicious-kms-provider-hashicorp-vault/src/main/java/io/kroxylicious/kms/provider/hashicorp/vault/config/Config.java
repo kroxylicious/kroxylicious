@@ -16,6 +16,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.tls.JdkTls;
+import io.kroxylicious.proxy.tls.SslConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
