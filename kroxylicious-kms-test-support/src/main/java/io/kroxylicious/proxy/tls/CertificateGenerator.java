@@ -135,11 +135,11 @@ public class CertificateGenerator {
     private static Path buildTrustStore(X509Certificate cert, String password, String suffix, String type) {
         try {
             File certFile = createTempFile("trust", suffix);
-            java.security.KeyStore pkcs12Store = java.security.KeyStore.getInstance(type);
-            pkcs12Store.load(null, null);
-            pkcs12Store.setCertificateEntry(ALIAS, cert);
+            java.security.KeyStore store = java.security.KeyStore.getInstance(type);
+            store.load(null, null);
+            store.setCertificateEntry(ALIAS, cert);
             char[] pass = password != null ? password.toCharArray() : null;
-            pkcs12Store.store(new FileOutputStream(certFile), pass);
+            store.store(new FileOutputStream(certFile), pass);
             return certFile.toPath();
         }
         catch (Exception e) {
@@ -184,16 +184,16 @@ public class CertificateGenerator {
     public static KeyStore createJksKeystore(KeyPair privateKeyPem, X509Certificate x509Certificate, String storePassword, String keyPassword) {
         try {
             File tempFile = createTempFile("keystore", "jks");
-            java.security.KeyStore store = java.security.KeyStore.getInstance("JKS");
+            java.security.KeyStore store = java.security.KeyStore.getInstance(JKS);
             store.load(null);
-            store.setKeyEntry("alias", privateKeyPem.getPrivate(), keyPassword.toCharArray(), new Certificate[]{ x509Certificate });
+            store.setKeyEntry(ALIAS, privateKeyPem.getPrivate(), keyPassword.toCharArray(), new Certificate[]{ x509Certificate });
             try (FileOutputStream stream = new FileOutputStream(tempFile)) {
                 store.store(stream, storePassword.toCharArray());
             }
             Path path = tempFile.toPath();
             Path storePasswordFile = writeToTempFile(storePassword);
             Path keyPasswordFile = writeToTempFile(keyPassword);
-            return new KeyStore(path, "JKS", storePassword, storePasswordFile, keyPassword, keyPasswordFile);
+            return new KeyStore(path, JKS, storePassword, storePasswordFile, keyPassword, keyPasswordFile);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
