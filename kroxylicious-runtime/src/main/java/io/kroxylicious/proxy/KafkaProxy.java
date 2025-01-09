@@ -281,6 +281,7 @@ public final class KafkaProxy implements AutoCloseable {
             serverEventGroup = null;
             metricsChannel = null;
             meterRegistries = null;
+            filterChainFactory = null;
             shutdown.complete(null);
             LOGGER.info("Shut down completed.");
 

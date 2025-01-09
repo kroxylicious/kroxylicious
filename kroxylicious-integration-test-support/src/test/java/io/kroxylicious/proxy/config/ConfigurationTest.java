@@ -308,7 +308,7 @@ class ConfigurationTest {
     }
 
     @Test
-    void shouldGenerateUniqueNamed() {
+    void shouldGenerateUniqueNames() {
         List<FilterDefinition> filters = List.of(
                 new FilterDefinition("Bar", "1"),
                 new FilterDefinition("Foo", "2"),
