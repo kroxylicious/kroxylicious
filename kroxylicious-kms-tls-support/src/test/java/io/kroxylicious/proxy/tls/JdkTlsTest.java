@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kms.provider.hashicorp.vault.config;
+package io.kroxylicious.proxy.tls;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -20,7 +20,6 @@ import javax.net.ssl.X509TrustManager;
 
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.kms.provider.hashicorp.vault.CertificateGenerator;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyPair;
@@ -28,9 +27,9 @@ import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 
-import static io.kroxylicious.kms.provider.hashicorp.vault.CertificateGenerator.createJksKeystore;
-import static io.kroxylicious.kms.provider.hashicorp.vault.CertificateGenerator.generateRsaKeyPair;
-import static io.kroxylicious.kms.provider.hashicorp.vault.CertificateGenerator.generateSelfSignedX509Certificate;
+import static io.kroxylicious.proxy.tls.CertificateGenerator.createJksKeystore;
+import static io.kroxylicious.proxy.tls.CertificateGenerator.generateRsaKeyPair;
+import static io.kroxylicious.proxy.tls.CertificateGenerator.generateSelfSignedX509Certificate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -164,7 +163,7 @@ class JdkTlsTest {
         KeyStore store = new KeyStore("/tmp/pem", null, null, "PEM");
         assertThatThrownBy(() -> {
             JdkTls.getKeyManagers(store);
-        }).isInstanceOf(SslConfigurationException.class).hasMessageContaining("PEM is not supported by vault KMS yet");
+        }).isInstanceOf(SslConfigurationException.class).hasMessageContaining("PEM is not supported by this client");
     }
 
     @Test

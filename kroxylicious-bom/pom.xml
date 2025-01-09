@@ -125,6 +125,12 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-kms-tls-support</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory</artifactId>
                 <version>${project.version}</version>
             </dependency>
