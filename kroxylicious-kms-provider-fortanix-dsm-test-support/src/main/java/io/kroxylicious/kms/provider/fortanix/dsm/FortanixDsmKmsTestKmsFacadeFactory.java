@@ -10,9 +10,9 @@ import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 
 /**
- * Factory for {@link FortanixDsmKmsTestKmsFacade}s.
+ * Factory for the FortanixDsm test facade.
  */
-public class FortanixDsmKmsTestKmsFacadeFactory extends AbstractFortanixDsmKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, FortanixDsmKmsEdek> {
+public class FortanixDsmKmsTestKmsFacadeFactory implements TestKmsFacadeFactory<Config, String, FortanixDsmKmsEdek> {
     /**
      * {@inheritDoc}
      */
