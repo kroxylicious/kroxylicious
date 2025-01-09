@@ -30,7 +30,7 @@ import io.kroxylicious.kms.provider.fortanix.dsm.model.KeyResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectDescriptor;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectRequest;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectResponse;
-import io.kroxylicious.kms.provider.fortanix.dsm.session.SessionAuthResponse;
+import io.kroxylicious.kms.provider.fortanix.dsm.session.ApiKeySessionProvider;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKekManager.AlreadyExistsException;
@@ -64,7 +64,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  *     </tr>
  * </table>
  */
-public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, FortanixDsmKmsEdek> {
+class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, FortanixDsmKmsEdek> {
     private static final Logger LOGGER = LoggerFactory.getLogger(FortanixDsmKmsTestKmsFacade.class);
     private static final String TEST_RUN_INSTANCE_ID_METADATA_KEY = "testInstance";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -81,9 +81,6 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
         }
     }
 
-    private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<>() {
-    };
-
     private static final TypeReference<List<KeyResponse>> KEY_LIST_RESPONSE_RESPONSE = new TypeReference<>() {
     };
     private static final TypeReference<SecurityObjectResponse> SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<>() {
@@ -92,9 +89,9 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
     private final String testRunInstance = UUID.randomUUID().toString();
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 
-    private SessionAuthResponse session; // FIXME - use the provider?
+    private ApiKeySessionProvider adminSessionProvider;
 
-    protected FortanixDsmKmsTestKmsFacade() {
+    FortanixDsmKmsTestKmsFacade() {
     }
 
     @Override
@@ -104,12 +101,18 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
 
     @Override
     public void start() {
-        // testing against cloud, nothing to do
+        var adminConfig = new Config(getEndpointUrl(), new ApiKeySessionProviderConfig(new InlinePassword(getAdminApiKey()), null), null);
+        adminSessionProvider = new ApiKeySessionProvider(adminConfig);
     }
 
     @Override
     public final void stop() {
-        deleteTestKeks();
+        try {
+            deleteTestKeks();
+        }
+        finally {
+            Optional.ofNullable(adminSessionProvider).ifPresent(ApiKeySessionProvider::close);
+        }
     }
 
     @NonNull
@@ -137,9 +140,7 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
 
     private void deleteTestKeks() {
 
-        var sessionResponse = getSessionAuthResponse();
-
-        var keys = listAllKeys(sessionResponse);
+        var keys = listAllKeys();
         keys.stream()
                 .filter(k1 -> Optional.ofNullable(k1.customMetadata())
                         .map(m -> m.get(TEST_RUN_INSTANCE_ID_METADATA_KEY))
@@ -149,7 +150,7 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
 
                     var keyDeleteRequest = HttpRequest.newBuilder()
                             .uri(getEndpointUrl().resolve("/crypto/v1/keys/" + k.kid()))
-                            .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
+                            .header(FortanixDsmKms.AUTHORIZATION_HEADER, getSessionHeader())
                             .DELETE()
                             .build();
 
@@ -158,10 +159,10 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
 
     }
 
-    private List<KeyResponse> listAllKeys(SessionAuthResponse sessionResponse) {
+    private List<KeyResponse> listAllKeys() {
         var keyListRequest = HttpRequest.newBuilder()
                 .uri(getEndpointUrl().resolve("/crypto/v1/keys"))
-                .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
+                .header(FortanixDsmKms.AUTHORIZATION_HEADER, getSessionHeader())
                 .GET()
                 .build();
 
@@ -177,11 +178,9 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
 
         @Override
         public void generateKek(String alias) {
-            var sessionResponse = getSessionAuthResponse();
-
             var generateRequest = new SecurityObjectRequest(alias, 256, "AES", false, List.of("ENCRYPT", "DECRYPT", "APPMANAGEABLE"),
                     Map.of(TEST_RUN_INSTANCE_ID_METADATA_KEY, testRunInstance));
-            var request = createRequest("/crypto/v1/keys", generateRequest, sessionResponse);
+            var request = createRequest("/crypto/v1/keys", generateRequest);
             sendRequest(alias, request, SECURITY_OBJECT_RESPONSE_TYPE_REF);
         }
 
@@ -192,20 +191,17 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
         }
 
         private SecurityObjectResponse read(SecurityObjectDescriptor descriptor) {
-            var sessionResponse = getSessionAuthResponse();
-            var request = createRequest("/crypto/v1/keys/info", descriptor, sessionResponse);
+            var request = createRequest("/crypto/v1/keys/info", descriptor);
             return sendRequest(descriptor.toString(), request, SECURITY_OBJECT_RESPONSE_TYPE_REF);
         }
 
         @Override
         public void deleteKek(String alias) {
-            var sessionResponse = getSessionAuthResponse();
-
             var key = read(alias);
 
             var keyDeleteRequest = HttpRequest.newBuilder()
                     .uri(getEndpointUrl().resolve("/crypto/v1/keys/" + key.kid()))
-                    .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
+                    .header(FortanixDsmKms.AUTHORIZATION_HEADER, getSessionHeader())
                     .DELETE()
                     .build();
             sendRequestExpectingNoResponse(keyDeleteRequest);
@@ -224,39 +220,25 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
 
         @Override
         public void rotateKek(String alias) {
-            var sessionResponse = getSessionAuthResponse();
-
             final var descriptor = new SecurityObjectDescriptor(null, alias, null);
-            var rekeyRequest = createRequest("/crypto/v1/keys/rekey", descriptor, sessionResponse);
+            var rekeyRequest = createRequest("/crypto/v1/keys/rekey", descriptor);
             sendRequest(alias, rekeyRequest, SECURITY_OBJECT_RESPONSE_TYPE_REF);
         }
     }
 
-    private HttpRequest createRequest(String path, Object request, SessionAuthResponse sessionResponse) {
+    private HttpRequest createRequest(String path, Object request) {
         var body = encodeJson(request).getBytes(UTF_8);
 
         return HttpRequest.newBuilder()
                 .uri(getEndpointUrl().resolve(path))
-                .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionResponse.tokenType() + " " + sessionResponse.accessToken())
+                .header(FortanixDsmKms.AUTHORIZATION_HEADER, getSessionHeader())
                 .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                 .build();
     }
 
-    private SessionAuthResponse getSessionAuthResponse() {
-        if (this.session == null) {
-            var sessionRequest = createSessionRequest();
-            this.session = sendRequest("session", sessionRequest, SESSION_AUTH_RESPONSE);
-        }
-        return this.session;
-    }
-
-    private HttpRequest createSessionRequest() {
-
-        return HttpRequest.newBuilder()
-                .uri(getEndpointUrl().resolve("/sys/v1/session/auth"))
-                .header(FortanixDsmKms.AUTHORIZATION_HEADER, "Basic " + getAdminApiKey())
-                .POST(HttpRequest.BodyPublishers.noBody())
-                .build();
+    @NonNull
+    private String getSessionHeader() {
+        return adminSessionProvider.getSession().toCompletableFuture().join().authorizationHeader();
     }
 
     private <R> R sendRequest(String key, HttpRequest request, TypeReference<R> valueTypeRef) {
