@@ -36,7 +36,6 @@ public record NamedFilterDefinition(
         if (!NAME_PATTERN.matcher(name).matches()) {
             throw new IllegalArgumentException("Invalid filter name '" + name + "' (should match '" + NAME_PATTERN.pattern() + "')");
         }
-        // TODO should probably constrain the allowd chars in the name
         Objects.requireNonNull(type);
     }
 

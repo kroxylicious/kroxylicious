@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.config;
 
 import org.junit.jupiter.api.Test;
 
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class NamedFilterDefinitionTest {
@@ -15,12 +16,12 @@ class NamedFilterDefinitionTest {
     @Test
     void shouldAcceptValidNames() {
         // Should work without throwing
-        new NamedFilterDefinition("a", "", "");
-        new NamedFilterDefinition("1", "", "");
-        new NamedFilterDefinition("a1", "", "");
-        new NamedFilterDefinition("a1.b2", "", "");
-        new NamedFilterDefinition("a1.B2-C3.d4", "", "");
-        new NamedFilterDefinition("io.kroxylicious.proxy.internal.filter.OptionalConfigFactory", "", "");
+        assertThatCode(() -> new NamedFilterDefinition("a", "", "")).doesNotThrowAnyException();
+        assertThatCode(() -> new NamedFilterDefinition("1", "", "")).doesNotThrowAnyException();
+        assertThatCode(() -> new NamedFilterDefinition("a1", "", "")).doesNotThrowAnyException();
+        assertThatCode(() -> new NamedFilterDefinition("a1.b2", "", "")).doesNotThrowAnyException();
+        assertThatCode(() -> new NamedFilterDefinition("a1.B2-C3.d4", "", "")).doesNotThrowAnyException();
+        assertThatCode(() -> new NamedFilterDefinition("io.kroxylicious.proxy.internal.filter.OptionalConfigFactory", "", "")).doesNotThrowAnyException();
     }
 
     @Test
@@ -28,7 +29,8 @@ class NamedFilterDefinitionTest {
         assertThatThrownBy(() -> new NamedFilterDefinition("", "", ""))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid filter name '' (should match '[a-z0-9A-Z](?:[a-z0-9A-Z_.-]{0,251}[a-z0-9A-Z])?')");
-        assertThatThrownBy(() -> new NamedFilterDefinition("x".repeat(254), "", ""))
+        String tooLong = "x".repeat(254);
+        assertThatThrownBy(() -> new NamedFilterDefinition(tooLong, "", ""))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> new NamedFilterDefinition(".foo", "", ""))
                 .isInstanceOf(IllegalArgumentException.class);
