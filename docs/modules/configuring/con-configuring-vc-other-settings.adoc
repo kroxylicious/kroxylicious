@@ -1,0 +1,25 @@
+[id='ref-configuring-vc-other-settings-{context}']
+= Configuring other Virtual Cluster settings
+
+== Per-virtual cluster logging
+
+You can enable low level logging on a per-virtual cluster basis.
+The `logNetwork` property controls logging of information about requests and responses at the network level, before they've been decoded into Kafka requests and responses.
+The `logFrames` property controls logging of the decoded requests and responses.
+
+
+[id='con-configuring-vc-logging-{context}']
+.Configuration fragment showing logging properties
+[source,yaml]
+----
+# ...
+virtualClusters:
+  my-cluster-proxy:
+    # ...
+    logNetwork: true <1>
+    logFrames: true <2>
+    # ...
+----
+<1> Enables low-level network logging for the virtual cluster.
+<2> Enables low-level protocol frame logging for the virtual cluster.
+
