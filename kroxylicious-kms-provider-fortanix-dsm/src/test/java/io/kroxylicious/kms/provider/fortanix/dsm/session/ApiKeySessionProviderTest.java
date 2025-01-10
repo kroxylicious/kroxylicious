@@ -23,16 +23,18 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.client.WireMock;
 
 import io.kroxylicious.kms.provider.fortanix.dsm.config.ApiKeySessionProviderConfig;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+import static io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms.AUTHORIZATION_HEADER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
@@ -80,8 +82,8 @@ class ApiKeySessionProviderTest {
 
         server.stubFor(
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
-                        .willReturn(WireMock.aResponse()
-                                .withBody(SESSION_AUTH_RESPONSE)));
+                        .withHeader(AUTHORIZATION_HEADER, containing("Basic "))
+                        .willReturn(aResponse().withBody(SESSION_AUTH_RESPONSE)));
 
     }
 
@@ -115,8 +117,7 @@ class ApiKeySessionProviderTest {
     void ignoresAdditionalPropertiesInResponse() {
         server.stubFor(
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
-                        .willReturn(WireMock.aResponse()
-                                .withBody(SESSION_AUTH_RESPONSE_WITH_ADDITIONAL_PROPERTIES)));
+                        .willReturn(aResponse().withBody(SESSION_AUTH_RESPONSE_WITH_ADDITIONAL_PROPERTIES)));
 
         try (var provider = new ApiKeySessionProvider(config)) {
             var session = provider.getSession();
@@ -161,7 +162,7 @@ class ApiKeySessionProviderTest {
 
         server.stubFor(
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
-                        .willReturn(WireMock.aResponse()
+                        .willReturn(aResponse()
                                 .withBody(toJson(initial))));
 
         try (var provider = new ApiKeySessionProvider(config, Clock.fixed(now, ZoneId.systemDefault()))) {
@@ -173,8 +174,7 @@ class ApiKeySessionProviderTest {
             var refreshed = createTestCredential("Bearer", expiresInSecs, "secondToken");
             server.stubFor(
                     post(urlEqualTo(SESSION_AUTH_ENDPOINT))
-                            .willReturn(WireMock.aResponse()
-                                    .withBody(toJson(refreshed))));
+                            .willReturn(aResponse().withBody(toJson(refreshed))));
 
             await().atMost(Duration.ofSeconds(5))
                     .untilAsserted(() -> {
@@ -192,9 +192,9 @@ class ApiKeySessionProviderTest {
      */
     @Test
     void expiredSessionRefreshed() {
-        var factorSoLargePreemptiveRefreshBeAfterExpiry = 2.0;
+        var factorSoLargePreemptiveRefreshWillBeAfterExpiry = 2.0;
         var expiresInSecs = 10;
-        var cfg = new ApiKeySessionProviderConfig(new InlinePassword("apiKey"), factorSoLargePreemptiveRefreshBeAfterExpiry);
+        var cfg = new ApiKeySessionProviderConfig(new InlinePassword("apiKey"), factorSoLargePreemptiveRefreshWillBeAfterExpiry);
         var now = Instant.now();
         var clock = mock(Clock.class);
         when(clock.instant()).thenReturn(now);
@@ -203,8 +203,7 @@ class ApiKeySessionProviderTest {
 
         server.stubFor(
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
-                        .willReturn(WireMock.aResponse()
-                                .withBody(toJson(initial))));
+                        .willReturn(aResponse().withBody(toJson(initial))));
 
         try (var provider = new ApiKeySessionProvider(new Config(URI.create(server.baseUrl()), cfg, null), clock)) {
             var sessionStage = provider.getSession();
@@ -215,7 +214,7 @@ class ApiKeySessionProviderTest {
             var refreshed = createTestCredential("Bearer", expiresInSecs, "secondToken");
             server.stubFor(
                     post(urlEqualTo(SESSION_AUTH_ENDPOINT))
-                            .willReturn(WireMock.aResponse()
+                            .willReturn(aResponse()
                                     .withBody(toJson(refreshed))));
 
             // advance time so that the initial token has past its expiration.
@@ -229,12 +228,47 @@ class ApiKeySessionProviderTest {
         }
     }
 
+    /**
+     * This test ensures if a session is invalidated, the next call gets a new session.
+     */
+    @Test
+    void invalidatedSessionGetsRefreshed() {
+        var factorSoLargePreemptiveRefreshWillBeAfterExpiry = 2.0;
+        var expiresInSecs = 10;
+        var cfg = new ApiKeySessionProviderConfig(new InlinePassword("apiKey"), factorSoLargePreemptiveRefreshWillBeAfterExpiry);
+
+        var initial = createTestCredential("Bearer", expiresInSecs, "firstToken");
+
+        server.stubFor(
+                post(urlEqualTo(SESSION_AUTH_ENDPOINT))
+                        .willReturn(aResponse().withBody(toJson(initial))));
+
+        try (var provider = new ApiKeySessionProvider(new Config(URI.create(server.baseUrl()), cfg, null))) {
+            var sessionStage = provider.getSession();
+            assertThat(sessionStage)
+                    .succeedsWithin(Duration.ofSeconds(1))
+                    .satisfies(s -> assertThat(s.authorizationHeader()).isEqualTo("Bearer firstToken"));
+
+            var session = sessionStage.toCompletableFuture().join();
+            session.invalidate();
+
+            var refreshed = createTestCredential("Bearer", expiresInSecs, "secondToken");
+            server.stubFor(
+                    post(urlEqualTo(SESSION_AUTH_ENDPOINT))
+                            .willReturn(aResponse().withBody(toJson(refreshed))));
+
+            sessionStage = provider.getSession();
+            assertThat(sessionStage)
+                    .succeedsWithin(Duration.ofSeconds(1))
+                    .satisfies(s -> assertThat(s.authorizationHeader()).isEqualTo("Bearer secondToken"));
+        }
+    }
+
     @Test
     void sessionAuthRequestFails() {
         server.stubFor(
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
-                        .willReturn(WireMock.aResponse()
-                                .withStatus(500)));
+                        .willReturn(aResponse().withStatus(500)));
 
         try (var provider = new ApiKeySessionProvider(config)) {
             var result = provider.getSession();
@@ -250,8 +284,7 @@ class ApiKeySessionProviderTest {
     void securityCredentialRetrievedAfterRequestFails() {
         server.stubFor(
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
-                        .willReturn(WireMock.aResponse()
-                                .withStatus(500)));
+                        .willReturn(aResponse().withStatus(500)));
 
         try (var provider = new ApiKeySessionProvider(config)) {
             var result = provider.getSession();
@@ -264,7 +297,7 @@ class ApiKeySessionProviderTest {
             var initial = createTestCredential("Bearer", 10, "firstToken");
             server.stubFor(
                     post(urlEqualTo(SESSION_AUTH_ENDPOINT))
-                            .willReturn(WireMock.aResponse()
+                            .willReturn(aResponse()
                                     .withBody(toJson(initial))));
 
             result = provider.getSession();

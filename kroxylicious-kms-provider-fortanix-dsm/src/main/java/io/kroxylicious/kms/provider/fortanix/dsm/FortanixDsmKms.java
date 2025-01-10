@@ -11,11 +11,13 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.Builder;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -109,23 +111,29 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     @NonNull
     @Override
     public CompletionStage<DekPair<FortanixDsmKmsEdek>> generateDekPair(@NonNull String kekRef) {
+        var sessionFuture = getSessionFuture();
         var dekName = "dek-" + UUID.randomUUID();
-        var transientKeyRequest = new SecurityObjectRequest(dekName, 256, "AES", true, List.of("EXPORT"), Map.of());
+        return sessionFuture
+                .thenCompose(session -> createTransientKey(dekName, session))
+                .thenCompose(transientKey -> exportTransientKey(dekName, transientKey, sessionFuture))
+                .thenCompose(exportedKey -> wrapExportedTransientKey(kekRef, exportedKey, sessionFuture));
+    }
 
-        var sessionFuture = getSessionAuthResponse();
+    private CompletionStage<SecurityObjectResponse> createTransientKey(@NonNull String dekName, @NonNull Session session) {
+        var transientKeySo = new SecurityObjectRequest(dekName, 256, "AES", true, List.of("EXPORT"), Map.of());
+        var requestBuilder = createRequestBuilder(transientKeySo, "/crypto/v1/keys");
+
+        return sendAsync(requestBuilder, SECURITY_OBJECT_RESPONSE_TYPE_REF, FortanixDsmKms::getStatusException, session);
+    }
+
+    private CompletionStage<SecurityObjectResponse> exportTransientKey(@NonNull String dekName, @NonNull SecurityObjectResponse transientKeyResponse,
+                                                                       @NonNull CompletionStage<Session> sessionFuture) {
+        var requestBuilder = createRequestBuilder(new SecurityObjectDescriptor(null, null, transientKeyResponse.transientKey()),
+                "/crypto/v1/keys/export");
 
         return sessionFuture
-                .thenApply(session -> createRequest(transientKeyRequest, "/crypto/v1/keys", session))
-                .thenCompose(request -> sendAsync(request, SECURITY_OBJECT_RESPONSE_TYPE_REF, FortanixDsmKms::getStatusException))
-
-                .thenCombine(sessionFuture,
-                        (transientKeyResponse, s) -> createRequest(new SecurityObjectDescriptor(null, null, transientKeyResponse.transientKey()),
-                                "/crypto/v1/keys/export",
-                                s))
-                .thenCompose(request -> sendAsync(request, SECURITY_OBJECT_RESPONSE_TYPE_REF,
-                        (uri, status) -> getStatusException(uri, status, () -> new UnknownKeyException(dekName))))
-
-                .thenCompose(export -> wrapExportedTransientKey(kekRef, export, sessionFuture));
+                .thenCompose(session -> sendAsync(requestBuilder, SECURITY_OBJECT_RESPONSE_TYPE_REF,
+                        (uri, status) -> getStatusException(uri, status, () -> new UnknownKeyException(dekName)), session));
     }
 
     private CompletionStage<DekPair<FortanixDsmKmsEdek>> wrapExportedTransientKey(@NonNull String kekRef, @NonNull SecurityObjectResponse exportedKey,
@@ -133,10 +141,10 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         var secretKey = DestroyableRawSecretKey.takeOwnershipOf(exportedKey.value(), "AES");
         var encryptRequest = EncryptRequest.createWrapRequest(kekRef, exportedKey.value());
 
+        var requestBuilder = createRequestBuilder(encryptRequest, "/crypto/v1/encrypt");
         return sessionFuture
-                .thenApply(session -> createRequest(encryptRequest, "/crypto/v1/encrypt", session))
-                .thenCompose(request -> sendAsync(request, ENCRYPT_RESPONSE_TYPE_REF,
-                        (uri, statusCode) -> getStatusException(uri, statusCode, () -> new UnknownKeyException(kekRef))))
+                .thenCompose(session -> sendAsync(requestBuilder, ENCRYPT_RESPONSE_TYPE_REF,
+                        (uri, statusCode) -> getStatusException(uri, statusCode, () -> new UnknownKeyException(kekRef)), session))
                 .thenApply(encryptResponse -> new DekPair<>(new FortanixDsmKmsEdek(kekRef, encryptResponse.iv(), encryptResponse.cipher()), secretKey));
     }
 
@@ -148,13 +156,13 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     @NonNull
     @Override
     public CompletionStage<SecretKey> decryptEdek(@NonNull FortanixDsmKmsEdek edek) {
-        var sessionFuture = getSessionAuthResponse();
+        var sessionFuture = getSessionFuture();
 
-        final var decryptRequest = DecryptRequest.createUnwrapRequest(edek.kekRef(), edek.iv(), edek.edek());
+        var decryptRequest = DecryptRequest.createUnwrapRequest(edek.kekRef(), edek.iv(), edek.edek());
+        var requestBuilder = createRequestBuilder(decryptRequest, "/crypto/v1/decrypt");
         return sessionFuture
-                .thenApply(session -> createRequest(decryptRequest, "/crypto/v1/decrypt", session))
-                .thenCompose(request -> sendAsync(request, DECRYPT_RESPONSE_TYPE_REF,
-                        (uri, status) -> getStatusException(uri, status, () -> new UnknownKeyException(edek.kekRef()))))
+                .thenCompose(session -> sendAsync(requestBuilder, DECRYPT_RESPONSE_TYPE_REF,
+                        (uri, status) -> getStatusException(uri, status, () -> new UnknownKeyException(edek.kekRef())), session))
                 .thenApply(response -> DestroyableRawSecretKey.takeOwnershipOf(response.plain(), AES_KEY_ALGO));
     }
 
@@ -166,16 +174,44 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     @NonNull
     @Override
     public CompletionStage<String> resolveAlias(@NonNull String alias) {
+        var sessionFuture = getSessionFuture();
         var descriptor = new SecurityObjectDescriptor(null, alias, null);
-        return getSessionAuthResponse()
-                .thenApply(session -> createRequest(descriptor, "/crypto/v1/keys/info", session))
-                .thenCompose(request -> sendAsync(request, SECURITY_OBJECT_RESPONSE_TYPE_REF,
-                        (uri, status) -> getStatusException(uri, status, () -> new UnknownAliasException(alias))))
+        var requestBuilder = createRequestBuilder(descriptor, "/crypto/v1/keys/info");
+        return sessionFuture
+                .thenCompose(session -> sendAsync(requestBuilder, SECURITY_OBJECT_RESPONSE_TYPE_REF,
+                        (uri, status) -> getStatusException(uri, status, () -> new UnknownAliasException(alias)), session))
                 .thenApply(SecurityObjectResponse::kid);
     }
 
-    private <T> CompletableFuture<T> sendAsync(HttpRequest request, TypeReference<T> valueTypeRef, BiFunction<URI, Integer, KmsException> exceptionSupplier) {
+    @NonNull
+    @Override
+    public Serde<FortanixDsmKmsEdek> edekSerde() {
+        return FortanixDsmKmsEdekSerde.instance();
+    }
+
+    @NonNull
+    private URI getEndpointUrl() {
+        return fortanixDsmUrl;
+    }
+
+    private Builder createRequestBuilder(Object request, String path) {
+        var body = getBody(request).getBytes(UTF_8);
+
+        return HttpRequest.newBuilder()
+                .uri(getEndpointUrl().resolve(path))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body));
+    }
+
+    private <T> CompletableFuture<T> sendAsync(Builder requestBuilder, TypeReference<T> valueTypeRef, BiFunction<URI, Integer, KmsException> exceptionSupplier,
+                                               Session session) {
+
+        var request = requestBuilder.header(AUTHORIZATION_HEADER, session.authorizationHeader())
+                .build();
+
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+                .thenApply(response -> invalidateSessionIfNecessary(session, response))
                 .thenApply(response -> checkResponseStatus(response, exceptionSupplier))
                 .thenApply(HttpResponse::body)
                 .thenApply(bytes -> decodeJson(valueTypeRef, bytes));
@@ -188,6 +224,21 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    /**
+     * If the response has indicates an authorization error it is likely the server has invalidated
+     * the session (before its expiry).  If this case we invalidate the session.
+     * @param session session
+     * @param response response
+     * @return response
+     */
+    @NonNull
+    private static HttpResponse<byte[]> invalidateSessionIfNecessary(@NonNull Session session, @NonNull HttpResponse<byte[]> response) {
+        if (Set.of(401, 403).contains(response.statusCode())) {
+            session.invalidate();
+        }
+        return response;
     }
 
     @NonNull
@@ -221,34 +272,6 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         return cause;
     }
 
-    @NonNull
-    @Override
-    public Serde<FortanixDsmKmsEdek> edekSerde() {
-        return FortanixDsmKmsEdekSerde.instance();
-    }
-
-    @NonNull
-    private URI getEndpointUrl() {
-        return fortanixDsmUrl;
-    }
-
-    private HttpRequest createRequest(Object request, String path, Session sessionAuth) {
-
-        var body = getBody(request).getBytes(UTF_8);
-
-        return HttpRequest.newBuilder()
-                .uri(getEndpointUrl().resolve(path))
-                .header(FortanixDsmKms.AUTHORIZATION_HEADER, sessionAuth.authorizationHeader())
-                .header("Content-Type", "application/json")
-                .header("Accept", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
-                .build();
-    }
-
-    private CompletionStage<Session> getSessionAuthResponse() {
-        return sessionProvider.getSession();
-    }
-
     private String getBody(Object obj) {
         try {
             return OBJECT_MAPPER.writeValueAsString(obj);
@@ -256,6 +279,10 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         catch (JsonProcessingException e) {
             throw new UncheckedIOException("Failed to create request body", e);
         }
+    }
+
+    private CompletionStage<Session> getSessionFuture() {
+        return sessionProvider.getSession();
     }
 
 }

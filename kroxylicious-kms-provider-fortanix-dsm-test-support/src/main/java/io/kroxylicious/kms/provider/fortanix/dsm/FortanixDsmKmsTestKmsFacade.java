@@ -42,6 +42,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms.AUTHORIZATION_HEADER;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
@@ -235,7 +236,7 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
 
             return HttpRequest.newBuilder()
                     .uri(getEndpointUrl().resolve(path))
-                    .header(FortanixDsmKms.AUTHORIZATION_HEADER, getSessionHeader())
+                    .header(AUTHORIZATION_HEADER, getSessionHeader())
                     .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                     .build();
         }
@@ -264,7 +265,7 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
     private List<KeyResponse> listAllKeys() {
         var keyListRequest = HttpRequest.newBuilder()
                 .uri(getEndpointUrl().resolve("/crypto/v1/keys"))
-                .header(FortanixDsmKms.AUTHORIZATION_HEADER, getSessionHeader())
+                .header(AUTHORIZATION_HEADER, getSessionHeader())
                 .GET()
                 .build();
 
@@ -274,7 +275,7 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
     private void deleteKid(String kid) {
         var keyDeleteRequest = HttpRequest.newBuilder()
                 .uri(getEndpointUrl().resolve("/crypto/v1/keys/" + kid))
-                .header(FortanixDsmKms.AUTHORIZATION_HEADER, getSessionHeader())
+                .header(AUTHORIZATION_HEADER, getSessionHeader())
                 .DELETE()
                 .build();
         sendRequestExpectingNoResponse(kid, keyDeleteRequest);

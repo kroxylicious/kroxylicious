@@ -35,13 +35,14 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.ApiKeySessionProviderConfig;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms.AUTHORIZATION_HEADER;
 
 /**
  * Provider that obtains a {@link Session} using a Fortanix Api Key.
@@ -60,11 +61,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * The implementation does not make use of the /sys/v1/session/refresh or /sys/v1/session/reauth
  * endoints.  Instead it recreates the session from scratch on expiry.   This is deliberate decision -
  * the transient keys created by {@link io.kroxylicious.kms.service.Kms#generateDekPair(Object)} are
- * cached within Fortanix DSM server side session.  These only get removed when the session ends.
+ * cached within Fortanix DSM <b>server side</b> session.  These only get removed when the session ends.
  * </p>
- *
- * TODO - allow caller to indicate that the session has gone stale (i.e. before expiry, say in the case
- *        where the server side is restarted)
  */
 public class ApiKeySessionProvider implements SessionProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiKeySessionProvider.class);
@@ -132,7 +130,7 @@ public class ApiKeySessionProvider implements SessionProvider {
             executorService.execute(() -> refreshCredential(newCredFuture));
             return newCredFuture.minimalCompletionStage();
         }
-        else if (witness.isCompletedExceptionally() || isExpired(witness)) {
+        else if (witness.isCompletedExceptionally() || witness.isCancelled() || isExpired(witness)) {
             // current credential is expired, or it has been completed exceptionally.
             // throw it away and generate a new one.
             // we don't normally expect to follow the expired path as the preemptive refresh ought to have
@@ -208,7 +206,7 @@ public class ApiKeySessionProvider implements SessionProvider {
         var providedPassword = this.config.apiKeyConfig().apiKey().getProvidedPassword();
         return HttpRequest.newBuilder()
                 .uri(config.endpointUrl().resolve(SESSION_AUTH_ENDPOINT))
-                .header(FortanixDsmKms.AUTHORIZATION_HEADER, "Basic " + providedPassword)
+                .header(AUTHORIZATION_HEADER, "Basic " + providedPassword)
                 .timeout(HTTP_REQUEST_TIMEOUT)
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
@@ -228,6 +226,21 @@ public class ApiKeySessionProvider implements SessionProvider {
             @Override
             public Instant expiration() {
                 return expiration;
+            }
+
+            @Override
+            public void invalidate() {
+                // Need to check that we still are the current session.
+                try {
+                    var future = current.get();
+                    Optional.ofNullable(future)
+                            .map(f -> f.getNow(null))
+                            .filter(cs -> cs == this)
+                            .ifPresent(cs -> current.compareAndSet(future, null));
+                }
+                catch (CancellationException | CompletionException e) {
+                    // ignore - getSession handles these conditions.
+                }
             }
         };
     }

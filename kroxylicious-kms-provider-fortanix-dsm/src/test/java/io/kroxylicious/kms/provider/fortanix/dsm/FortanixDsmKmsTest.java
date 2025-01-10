@@ -53,6 +53,10 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * Unit test for {@link FortanixDsmKms}.  See also io.kroxylicious.kms.service.KmsIT.
@@ -69,6 +73,7 @@ class FortanixDsmKmsTest {
     private static WireMockServer server;
     private FortanixDsmKmsService kmsService;
     private FortanixDsmKms kms;
+    private Config config;
 
     @BeforeAll
     public static void initMockRegistry() {
@@ -83,7 +88,7 @@ class FortanixDsmKmsTest {
 
     @BeforeEach
     void setUp() {
-        Config config = new Config(URI.create(server.baseUrl()), new ApiKeySessionProviderConfig(new InlinePassword("apiKey"), 0.80), null);
+        config = new Config(URI.create(server.baseUrl()), new ApiKeySessionProviderConfig(new InlinePassword("apiKey"), 0.80), null);
 
         kmsService = new FortanixDsmKmsService(new StubSessionProviderFactory());
         kmsService.initialize(config);
@@ -138,7 +143,33 @@ class FortanixDsmKmsTest {
                 .withThrowableThat()
                 .withCauseInstanceOf(KmsException.class)
                 .withMessageContaining("crypto/v1/keys/info, HTTP status code 500");
+    }
 
+    @Test
+    void unauthorizedResponseInvalidatesSession() {
+        var spFactory = mock(SessionProviderFactory.class);
+        var sp = mock(SessionProvider.class);
+        var session = mock(Session.class);
+        when(spFactory.createSessionProvider(config)).thenReturn(sp);
+        when(sp.getSession()).thenReturn(CompletableFuture.completedStage(session));
+        when(session.authorizationHeader()).thenReturn("auth header");
+
+        try (var service = new FortanixDsmKmsService(spFactory)) {
+            service.initialize(config);
+            var k = service.buildKms();
+
+            server.stubFor(post(urlEqualTo(KEYS_INFO_ENDPOINT))
+                    .willReturn(aResponse().withStatus(403)));
+
+            var aliasStage = k.resolveAlias("alias");
+            assertThat(aliasStage)
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableThat()
+                    .withCauseInstanceOf(KmsException.class)
+                    .withMessageContaining("crypto/v1/keys/info, HTTP status code 403");
+
+            verify(session, times(1)).invalidate();
+        }
     }
 
     @Test
@@ -232,6 +263,11 @@ class FortanixDsmKmsTest {
                 @Override
                 public Instant expiration() {
                     return Instant.MAX;
+                }
+
+                @Override
+                public void invalidate() {
+                    // not required.
                 }
             };
             var sessionStage = CompletableFuture.<Session> completedStage(session);
