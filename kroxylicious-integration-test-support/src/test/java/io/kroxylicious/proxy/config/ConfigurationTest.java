@@ -357,8 +357,10 @@ class ConfigurationTest {
     @Test
     void shouldRejectMissingDefaultFilter() {
         Optional<Map<String, Object>> development = Optional.empty();
-        assertThatThrownBy(() -> new Configuration(List.of(),
-                List.of("missing"),
+        List<NamedFilterDefinition> filterDefinitions = List.of();
+        List<String> defaultFilters = List.of("missing");
+        assertThatThrownBy(() -> new Configuration(filterDefinitions,
+                defaultFilters,
                 null,
                 false,
                 null,
