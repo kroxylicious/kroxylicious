@@ -61,4 +61,28 @@ class FortanixDsmKmsEdekSerdeTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void deserialiseV0() {
+        var v0 = new byte[]{
+                0, // version
+                36, // kek length
+                49, 50, 51, 52, 97, 98, 99, 100, 45, 49, 50, 97, 98, 45, 51, 52, 99, 100, 45, 53, 54, 101, 102, 45, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 97, 98, // kek
+                0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                1, 2, 3 };
+
+        var deserialized = serde.deserialize(ByteBuffer.wrap(v0));
+        assertThat(deserialized).isEqualTo(new FortanixDsmKmsEdek(KEY_REF, IV, EDEK));
+    }
+
+    @Test
+    void serialisesAsV0() {
+        var edek = new FortanixDsmKmsEdek(KEY_REF, IV, EDEK);
+        var buf = ByteBuffer.allocate(serde.sizeOf(edek));
+        serde.serialize(edek, buf);
+        buf.flip();
+        var version = buf.get();
+        assertThat(version).isZero();
+    }
+
+
 }
