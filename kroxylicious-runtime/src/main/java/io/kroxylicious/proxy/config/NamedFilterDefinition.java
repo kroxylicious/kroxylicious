@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.config;
 
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -27,9 +28,16 @@ public record NamedFilterDefinition(
                                     @PluginImplName(FilterFactory.class) @JsonProperty(required = true) String type,
                                     @PluginImplConfig(implNameProperty = "type") Object config) {
 
+    private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9A-Z](?:[a-z0-9_.-]*[a-z0-9A-Z])?");
+
     @JsonCreator
     public NamedFilterDefinition {
         Objects.requireNonNull(name);
+        if (name.length() == 0
+                || type.length() > 63
+                || !NAME_PATTERN.matcher(name).matches()) {
+            throw new IllegalArgumentException("Invalid filter name " + name);
+        }
         // TODO should probably constrain the allowd chars in the name
         Objects.requireNonNull(type);
     }
