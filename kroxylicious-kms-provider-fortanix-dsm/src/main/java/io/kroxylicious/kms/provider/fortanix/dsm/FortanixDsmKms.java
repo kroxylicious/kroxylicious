@@ -51,6 +51,8 @@ import io.kroxylicious.kms.service.UnknownKeyException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.AES;
+import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.EXPORT_KEY_OPS;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
@@ -60,7 +62,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final String AES_KEY_ALGO = "AES";
 
     private static final TypeReference<SecurityObjectResponse> SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<SecurityObjectResponse>() {
     };
@@ -120,7 +121,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     }
 
     private CompletionStage<SecurityObjectResponse> createTransientKey(@NonNull String dekName, @NonNull Session session) {
-        var transientKeySo = new SecurityObjectRequest(dekName, 256, "AES", true, List.of("EXPORT"), Map.of());
+        var transientKeySo = new SecurityObjectRequest(dekName, 256, AES, true, List.of(EXPORT_KEY_OPS), Map.of());
         var requestBuilder = createRequestBuilder(transientKeySo, "/crypto/v1/keys");
 
         return sendAsync(requestBuilder, SECURITY_OBJECT_RESPONSE_TYPE_REF, FortanixDsmKms::getStatusException, session);
@@ -163,7 +164,7 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         return sessionFuture
                 .thenCompose(session -> sendAsync(requestBuilder, DECRYPT_RESPONSE_TYPE_REF,
                         (uri, status) -> getStatusException(uri, status, () -> new UnknownKeyException(edek.kekRef())), session))
-                .thenApply(response -> DestroyableRawSecretKey.takeOwnershipOf(response.plain(), AES_KEY_ALGO));
+                .thenApply(response -> DestroyableRawSecretKey.takeOwnershipOf(response.plain(), AES));
     }
 
     /**

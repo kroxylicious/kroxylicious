@@ -12,6 +12,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.AES;
+import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.BATCH_ENCRYPT_CIPHER_MODE;
+
 /**
  * Decrypt request to Fortanix DSM REST API, {@code /crypto/v1/decrypt}.
  *
@@ -44,7 +47,7 @@ public record DecryptRequest(@JsonProperty(value = "key", required = true) Secur
 
     @NonNull
     public static DecryptRequest createUnwrapRequest(@NonNull String kid, byte[] iv, byte[] plaintext) {
-        return new DecryptRequest(new SecurityObjectDescriptor(kid, null, null), EncryptRequest.AES, EncryptRequest.BATCH_ENCRYPT_CIPHER_MODE, iv, plaintext);
+        return new DecryptRequest(new SecurityObjectDescriptor(kid, null, null), AES, BATCH_ENCRYPT_CIPHER_MODE, iv, plaintext);
     }
 
     @Override

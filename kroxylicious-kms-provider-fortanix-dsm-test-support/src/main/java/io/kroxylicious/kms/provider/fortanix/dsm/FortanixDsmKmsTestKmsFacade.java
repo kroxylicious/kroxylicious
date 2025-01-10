@@ -26,6 +26,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.fortanix.dsm.config.ApiKeySessionProviderConfig;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
+import io.kroxylicious.kms.provider.fortanix.dsm.model.Constants;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.KeyResponse;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectDescriptor;
 import io.kroxylicious.kms.provider.fortanix.dsm.model.SecurityObjectRequest;
@@ -168,7 +169,7 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
          */
         @Override
         public void generateKek(String alias) {
-            var generateRequest = new SecurityObjectRequest(alias, 256, "AES", false, List.of("ENCRYPT", "DECRYPT", "APPMANAGEABLE"),
+            var generateRequest = new SecurityObjectRequest(alias, 256, Constants.AES, false, List.of("ENCRYPT", "DECRYPT", "APPMANAGEABLE"),
                     Map.of(TEST_RUN_INSTANCE_ID_METADATA_KEY, testRunInstance));
             var request = createRequest("/crypto/v1/keys", generateRequest);
             sendRequest(alias, request, SECURITY_OBJECT_RESPONSE_TYPE_REF);

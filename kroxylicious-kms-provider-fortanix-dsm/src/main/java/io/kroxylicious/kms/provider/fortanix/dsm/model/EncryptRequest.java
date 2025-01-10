@@ -12,6 +12,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.AES;
+import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.BATCH_ENCRYPT_CIPHER_MODE;
+
 /**
  * Encrypt request to the Fortanix DSM REST API, {@code /crypto/v1/encrypt}.
  *
@@ -25,9 +28,6 @@ public record EncryptRequest(@JsonProperty(value = "key", required = true) Secur
                              @JsonProperty(value = "alg", required = true) String alg,
                              @JsonProperty(value = "mode", required = true) String mode,
                              @JsonProperty(value = "plain", required = true) byte[] plain) {
-
-    public static final String BATCH_ENCRYPT_CIPHER_MODE = "CBC";
-    public static final String AES = "AES";
 
     public EncryptRequest {
         Objects.requireNonNull(key);
