@@ -32,40 +32,43 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class FilterChainFactory implements AutoCloseable {
 
-    private static final class Wrapper implements AutoCloseable {
+    /**
+     * Manages the lifesystem of a filter instance, initializing it on construction and closing it in {@link #close()}
+     */
+    private static final class Wrapper {
 
         private final FilterFactory<? super Object, ? super Object> filterFactory;
-        private final Object config;
+        private final NamedFilterDefinition filterDefinition;
         private final Object initResult;
         private final AtomicBoolean closed = new AtomicBoolean(false);
 
         private Wrapper(FilterFactoryContext context,
-                        String instanceName,
-                        FilterFactory<? super Object, ? super Object> filterFactory,
-                        Object config) {
+                        NamedFilterDefinition filterDefinition,
+                        FilterFactory<? super Object, ? super Object> filterFactory) {
             this.filterFactory = filterFactory;
-            this.config = config;
+            this.filterDefinition = filterDefinition;
+            Object config = filterDefinition.config();
             try {
                 initResult = filterFactory.initialize(context, config);
             }
             catch (Exception e) {
-                throw new PluginConfigurationException("Exception initializing filter factory " + instanceName + " with config " + config + ": " + e.getMessage(), e);
+                throw new PluginConfigurationException(
+                        "Exception initializing filter factory " + filterDefinition.name() + " with config " + config + ": " + e.getMessage(), e);
             }
         }
 
         public Filter create(FilterFactoryContext context) {
             if (closed.get()) {
-                throw new IllegalStateException("Filter factory is closed");
+                throw new IllegalStateException("Filter factory " + filterDefinition.name() + " is closed");
             }
             try {
                 return filterFactory.createFilter(context, initResult);
             }
             catch (Exception e) {
-                throw new PluginConfigurationException("Exception instantiating filter using factory " + filterFactory, e);
+                throw new PluginConfigurationException("Exception instantiating filter " + filterDefinition.name() + " using factory " + filterFactory, e);
             }
         }
 
-        @Override
         public void close() {
             if (!this.closed.getAndSet(true)) {
                 filterFactory.close(initResult);
@@ -76,7 +79,7 @@ public class FilterChainFactory implements AutoCloseable {
         public String toString() {
             return "Wrapper[" +
                     "filterFactory=" + filterFactory + ", " +
-                    "config=" + config + ']';
+                    "filterDefinition=" + filterDefinition + ']';
         }
 
     }
@@ -113,11 +116,11 @@ public class FilterChainFactory implements AutoCloseable {
                     FilterFactory<? super Object, ? super Object> filterFactory = pluginFactory.pluginInstance(fd.type());
                     Class<?> configType = pluginFactory.configType(fd.type());
                     if (fd.config() == null || configType.isInstance(fd.config())) {
-                        Wrapper uninitializedFilterFactory = new Wrapper(context, fd.name(), filterFactory, fd.config());
+                        Wrapper uninitializedFilterFactory = new Wrapper(context, fd, filterFactory);
                         this.initialized.put(fd.name(), uninitializedFilterFactory);
                     }
                     else {
-                        throw new PluginConfigurationException("accepts config of type " +
+                        throw new PluginConfigurationException("Filter " + fd.name() + " accepts config of type " +
                                 configType.getName() + " but provided with config of type " + fd.config().getClass().getName() + "]");
                     }
                 }
@@ -133,6 +136,7 @@ public class FilterChainFactory implements AutoCloseable {
     @Override
     public void close() {
         RuntimeException firstThrown = null;
+        // Close in reverse order of initialization
         var list = new ArrayList<>(initialized.values());
         for (int i = list.size() - 1; i >= 0; i--) {
             Wrapper wrapper = list.get(i);

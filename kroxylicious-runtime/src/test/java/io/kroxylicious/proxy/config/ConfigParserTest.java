@@ -28,7 +28,6 @@ import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
-import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -401,7 +400,8 @@ class ConfigParserTest {
 
     @Test
     void shouldThrowWhenSerializingUnserializableObject() {
-        var config = new Configuration((AdminHttpConfiguration) null, null, List.of(new FilterDefinition("", new NonSerializableConfig(""))), null, false,
+        var config = new Configuration(List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))),
+                List.of("foo"), null, false, null, null,
                 Optional.empty());
 
         ConfigParser cp = new ConfigParser();

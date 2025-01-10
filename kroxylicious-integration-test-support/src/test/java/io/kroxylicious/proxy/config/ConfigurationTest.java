@@ -323,6 +323,7 @@ class ConfigurationTest {
     void shouldRejectBothFiltersAndFilterDefinitions() {
         List<NamedFilterDefinition> filterDefinitions = List.of(new NamedFilterDefinition("", "", ""));
         List<FilterDefinition> filters = List.of(new FilterDefinition("", ""));
+        Optional<Map<String, Object>> development = Optional.empty();
         assertThatThrownBy(() -> new Configuration(null,
                 filterDefinitions,
                 null,
@@ -330,7 +331,7 @@ class ConfigurationTest {
                 filters,
                 null,
                 false,
-                Optional.empty()))
+                development))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("`filters` and `filterDefinitions` can't both be set");
     }
@@ -340,6 +341,7 @@ class ConfigurationTest {
         List<NamedFilterDefinition> filterDefinitions = List.of(
                 new NamedFilterDefinition("foo", "", ""),
                 new NamedFilterDefinition("foo", "", ""));
+        Optional<Map<String, Object>> development = Optional.empty();
         assertThatThrownBy(() -> new Configuration(null,
                 filterDefinitions,
                 null,
@@ -347,34 +349,38 @@ class ConfigurationTest {
                 null,
                 null,
                 false,
-                Optional.empty()))
+                development))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("`filterDefinitions` contains multiple items with the same names: [foo]");
     }
 
     @Test
     void shouldRejectMissingDefaultFilter() {
+        Optional<Map<String, Object>> development = Optional.empty();
         assertThatThrownBy(() -> new Configuration(List.of(),
                 List.of("missing"),
                 null,
                 false,
                 null,
                 null,
-                Optional.empty()))
+                development))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("`defaultFilters` references filters not defined in `filterDefinitions`: [missing]");
     }
 
     @Test
     void shouldRejectMissingClusterFilter() {
+        Optional<Map<String, Object>> development = Optional.empty();
+        List<NamedFilterDefinition> filterDefinitions = List.of();
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
-                List.of(),
+                filterDefinitions,
                 null,
-                Map.of("vc1", new VirtualCluster(null, null, null, false, false, List.of("missing"))),
+                virtualClusters,
                 false,
                 null,
                 null,
-                Optional.empty()))
+                development))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("`virtualClusters.vc1.filterRefs` references filters not defined in `filterDefinitions`: [missing]");
     }

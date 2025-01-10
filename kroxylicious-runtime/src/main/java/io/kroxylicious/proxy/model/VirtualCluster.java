@@ -62,7 +62,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                           Optional<Tls> tls,
                           boolean logNetwork,
                           boolean logFrames) {
-        this(clusterName, targetCluster, clusterNetworkAddressConfigProvider, tls, logNetwork, logFrames, null);
+        this(clusterName, targetCluster, clusterNetworkAddressConfigProvider, tls, logNetwork, logFrames, List.of());
     }
 
     public VirtualCluster(String clusterName,

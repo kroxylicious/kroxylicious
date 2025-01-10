@@ -19,7 +19,6 @@ import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.config.Features;
@@ -155,7 +154,7 @@ class KafkaProxyTest {
     @Test
     void invalidConfigurationForFeatures() {
         Optional<Map<String, Object>> a = Optional.of(Map.of("a", "b"));
-        Configuration configuration = new Configuration(null, null, List.<FilterDefinition> of(), null, false, a);
+        Configuration configuration = new Configuration(List.of(), null, null, false, null, null, a);
         Features features = Features.defaultFeatures();
         assertThatThrownBy(() -> {
             KafkaProxy.validate(configuration, features);

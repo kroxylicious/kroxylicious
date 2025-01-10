@@ -56,9 +56,7 @@ public class InvocationCountingFilterFactory implements FilterFactory<Invocation
             assertThat(closeCounts.get(uuid)).hasValue(entry.getValue().intValue());
         }
         // Nothing what closed that wasn't initialized
-        closeCounts.keySet().forEach(uuid -> {
-            assertThat(initializeCounts).containsKey(uuid);
-        });
+        assertThat(closeCounts.keySet()).isEqualTo(initializeCounts.keySet());
 
         initializeCounts.clear();
         closeCounts.clear();
