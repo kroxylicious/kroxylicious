@@ -84,5 +84,4 @@ class FortanixDsmKmsEdekSerdeTest {
         assertThat(version).isZero();
     }
 
-
 }

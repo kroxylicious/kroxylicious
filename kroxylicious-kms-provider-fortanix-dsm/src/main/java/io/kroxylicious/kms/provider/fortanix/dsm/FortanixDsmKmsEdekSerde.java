@@ -34,6 +34,7 @@ import static org.apache.kafka.common.utils.Utils.utf8Length;
  * </ol>
  * @see <a href="https://protobuf.dev/programming-guides/encoding/">Protobuf Encodings</a>
  */
+@SuppressWarnings("java:S6548") // use of singleton is the right pattern
 class FortanixDsmKmsEdekSerde implements Serde<FortanixDsmKmsEdek> {
 
     private static final FortanixDsmKmsEdekSerde INSTANCE = new FortanixDsmKmsEdekSerde();
