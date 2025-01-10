@@ -28,15 +28,13 @@ public record NamedFilterDefinition(
                                     @PluginImplName(FilterFactory.class) @JsonProperty(required = true) String type,
                                     @PluginImplConfig(implNameProperty = "type") Object config) {
 
-    private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9A-Z](?:[a-z0-9_.-]*[a-z0-9A-Z])?");
+    private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9A-Z](?:[a-z0-9A-Z_.-]{0,251}[a-z0-9A-Z])?");
 
     @JsonCreator
     public NamedFilterDefinition {
         Objects.requireNonNull(name);
-        if (name.length() == 0
-                || type.length() > 63
-                || !NAME_PATTERN.matcher(name).matches()) {
-            throw new IllegalArgumentException("Invalid filter name " + name);
+        if (!NAME_PATTERN.matcher(name).matches()) {
+            throw new IllegalArgumentException("Invalid filter name '" + name + "' (should match '" + NAME_PATTERN.pattern() + "')");
         }
         // TODO should probably constrain the allowd chars in the name
         Objects.requireNonNull(type);

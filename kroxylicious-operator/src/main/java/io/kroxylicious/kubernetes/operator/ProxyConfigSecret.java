@@ -135,7 +135,7 @@ public class ProxyConfigSecret
 
     @NonNull
     private static String filterDefinitionName(Filters filterCrRef) {
-        return filterCrRef.getName() + ":" + filterCrRef.getKind() + "." + filterCrRef.getGroup();
+        return filterCrRef.getName() + "." + filterCrRef.getKind() + "." + filterCrRef.getGroup();
     }
 
     @NonNull

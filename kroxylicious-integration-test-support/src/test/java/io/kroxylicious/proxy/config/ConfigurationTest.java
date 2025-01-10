@@ -321,7 +321,7 @@ class ConfigurationTest {
 
     @Test
     void shouldRejectBothFiltersAndFilterDefinitions() {
-        List<NamedFilterDefinition> filterDefinitions = List.of(new NamedFilterDefinition("", "", ""));
+        List<NamedFilterDefinition> filterDefinitions = List.of(new NamedFilterDefinition("foo", "", ""));
         List<FilterDefinition> filters = List.of(new FilterDefinition("", ""));
         Optional<Map<String, Object>> development = Optional.empty();
         assertThatThrownBy(() -> new Configuration(null,
