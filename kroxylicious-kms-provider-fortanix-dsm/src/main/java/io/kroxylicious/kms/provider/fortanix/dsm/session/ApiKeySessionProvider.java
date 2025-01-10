@@ -56,9 +56,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * If an error occurs whilst retrieving the credential, the next call will cause the
  * provider to try again.  A progressive backoff is applied to retry attempts.
  * </p>
+ * <p>
+ * The implementation does not make use of the /sys/v1/session/refresh or /sys/v1/session/reauth
+ * endoints.  Instead it recreates the session from scratch on expiry.   This is deliberate decision -
+ * the transient keys created by {@link io.kroxylicious.kms.service.Kms#generateDekPair(Object)} are
+ * cached within Fortanix DSM server side session.  These only get removed when the session ends.
+ * </p>
  *
- * TODO - consider using /sys/v1/session/refresh (or /sys/v1/session/reauth) endpoint to refresh existing session,
- *        rather than starting over from scratch
  * TODO - allow caller to indicate that the session has gone stale (i.e. before expiry, say in the case
  *        where the server side is restarted)
  */
