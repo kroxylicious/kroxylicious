@@ -21,4 +21,4 @@ virtualClusters:
         bootstrapAddress: localhost:9192
     logNetwork: true
     logFrames: true
-filters:
+defaultFilters:

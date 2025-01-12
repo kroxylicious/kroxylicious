@@ -18,12 +18,17 @@ virtualClusters:
         bootstrapAddress: localhost:9192
     logNetwork: false
     logFrames: false
-filters:
-  - type: SampleProduceRequestFilterFactory
+filterDefinitions:
+  - name: produce-request-filter
+    type: SampleProduceRequestFilterFactory
     config:
       findValue: foo
       replacementValue: bar
-  - type: SampleFetchResponseFilterFactory
+  - name: fetch-response-filter
+    type: SampleFetchResponseFilterFactory
     config:
       findValue: bar
       replacementValue: baz
+defaultFilters:
+  - produce-request-filter
+  - fetch-response-filter
