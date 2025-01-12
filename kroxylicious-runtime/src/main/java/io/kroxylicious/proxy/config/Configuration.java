@@ -134,14 +134,16 @@ public record Configuration(
     }
 
     /**
+     * @deprecated This will be removed when support for {@code filters} is removed.
      * @return NamedFilterDefinition for all the filters defined in the configuration, generating names if the config specified {@link #filters()}.
      */
-    public @NonNull List<NamedFilterDefinition> namedFilterDefinitions() {
+    @Deprecated(since = "0.10.0", forRemoval = true)
+    public @NonNull List<NamedFilterDefinition> toNamedFilterDefinitions() {
         if (filterDefinitions != null) {
             return filterDefinitions;
         }
         else {
-            return namedFilterDefinitions(filters != null ? filters : List.of());
+            return toNamedFilterDefinitions(filters != null ? filters : List.of());
         }
     }
 
@@ -153,7 +155,7 @@ public record Configuration(
      * @return The named filters.
      */
     @NonNull
-    public static List<NamedFilterDefinition> namedFilterDefinitions(List<FilterDefinition> filters) {
+    public static List<NamedFilterDefinition> toNamedFilterDefinitions(List<FilterDefinition> filters) {
         var multipleTypes = filters.stream()
                 .collect(Collectors.groupingBy(FilterDefinition::type))
                 .entrySet().stream()
@@ -200,7 +202,7 @@ public record Configuration(
             filterDefinitions = resolveFilterNames(filterDefinitionsByName, defaultFilters);
         }
         else {
-            filterDefinitions = namedFilterDefinitions(filters != null ? filters : List.of());
+            filterDefinitions = toNamedFilterDefinitions(filters != null ? filters : List.of());
         }
         return filterDefinitions;
     }

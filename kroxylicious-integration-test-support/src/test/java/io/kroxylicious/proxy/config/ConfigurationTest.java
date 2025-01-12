@@ -313,7 +313,7 @@ class ConfigurationTest {
                 new FilterDefinition("Bar", "1"),
                 new FilterDefinition("Foo", "2"),
                 new FilterDefinition("Bar", "3"));
-        assertThat(Configuration.namedFilterDefinitions(filters)).isEqualTo(List.of(
+        assertThat(Configuration.toNamedFilterDefinitions(filters)).isEqualTo(List.of(
                 new NamedFilterDefinition("Bar-0", "Bar", "1"),
                 new NamedFilterDefinition("Foo", "Foo", "2"),
                 new NamedFilterDefinition("Bar-1", "Bar", "3")));

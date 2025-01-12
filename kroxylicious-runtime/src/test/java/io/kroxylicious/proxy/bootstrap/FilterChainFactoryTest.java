@@ -158,7 +158,7 @@ class FilterChainFactoryTest {
     @Test
     void shouldReturnInvalidFilterNameIfFilterRequiresConfigAndNoneIsSupplied() {
         // Given
-        final List<NamedFilterDefinition> filters = Configuration.namedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
+        final List<NamedFilterDefinition> filters = Configuration.toNamedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
                 new FilterDefinition(TestFilterFactory.class.getName(), null)));
 
         // When
@@ -171,7 +171,7 @@ class FilterChainFactoryTest {
     @Test
     void shouldReturnInvalidFilterNamesForAllFiltersWithoutRequiredConfig() {
         // Given
-        final List<NamedFilterDefinition> filters = Configuration.namedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), null),
+        final List<NamedFilterDefinition> filters = Configuration.toNamedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), null),
                 new FilterDefinition(TestFilterFactory.class.getName(), null),
                 new FilterDefinition(OptionalConfigFactory.class.getName(), null)));
 
@@ -186,7 +186,7 @@ class FilterChainFactoryTest {
     void shouldPassValidationWhenAllFiltersHaveConfiguration() {
         // Given
         final List<NamedFilterDefinition> filterDefinitions = Configuration
-                .namedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
+                .toNamedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
                         new FilterDefinition(TestFilterFactory.class.getName(), config)));
 
         // When
@@ -200,7 +200,7 @@ class FilterChainFactoryTest {
     void shouldPassValidationWhenFiltersWithOptionalConfigurationAreMissingConfiguration() {
         // Given
         final List<NamedFilterDefinition> filterDefinitions = Configuration
-                .namedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
+                .toNamedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
                         new FilterDefinition(TestFilterFactory.class.getName(), config),
                         new FilterDefinition(OptionalConfigFactory.class.getName(), null)));
 
@@ -214,7 +214,7 @@ class FilterChainFactoryTest {
     void shouldFailValidationIfRequireConfigMissing() {
         // Given
         final FilterDefinition requiredConfig = new FilterDefinition(RequiresConfigFactory.class.getName(), null);
-        List<NamedFilterDefinition> list = Configuration.namedFilterDefinitions(List.of(requiredConfig));
+        List<NamedFilterDefinition> list = Configuration.toNamedFilterDefinitions(List.of(requiredConfig));
 
         // When
 
@@ -230,7 +230,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, Configuration.namedFilterDefinitions(List.of(requiredConfig)))).isNotNull();
+        assertThat(new FilterChainFactory(pfr, Configuration.toNamedFilterDefinitions(List.of(requiredConfig)))).isNotNull();
     }
 
     @Test
@@ -241,7 +241,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, Configuration.namedFilterDefinitions(List.of(requiredConfig)))).isNotNull();
+        assertThat(new FilterChainFactory(pfr, Configuration.toNamedFilterDefinitions(List.of(requiredConfig)))).isNotNull();
     }
 
     @Test
@@ -252,11 +252,11 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, Configuration.namedFilterDefinitions(List.of(missingConfig)))).isNotNull();
+        assertThat(new FilterChainFactory(pfr, Configuration.toNamedFilterDefinitions(List.of(missingConfig)))).isNotNull();
     }
 
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {
-        List<NamedFilterDefinition> filterDefinitions1 = Configuration.namedFilterDefinitions(filterDefinitions);
+        List<NamedFilterDefinition> filterDefinitions1 = Configuration.toNamedFilterDefinitions(filterDefinitions);
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, filterDefinitions1);
         NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(context, filterDefinitions1);
@@ -278,7 +278,7 @@ class FilterChainFactoryTest {
         var onClose1 = new Counter();
         var onInitialize2 = new Counter();
         var onClose2 = new Counter();
-        List<NamedFilterDefinition> list = Configuration.namedFilterDefinitions(List.of(
+        List<NamedFilterDefinition> list = Configuration.toNamedFilterDefinitions(List.of(
                 new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, null, null,
                         onInitialize1::increment, onClose1::increment)),
                 new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig("foo", null, null,
@@ -305,7 +305,7 @@ class FilterChainFactoryTest {
         var onClose1 = new Counter();
         var onInitialize2 = new Counter();
         var onClose2 = new Counter();
-        List<NamedFilterDefinition> list = Configuration.namedFilterDefinitions(List.of(
+        List<NamedFilterDefinition> list = Configuration.toNamedFilterDefinitions(List.of(
                 new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, null, null,
                         onInitialize1::increment, onClose1::increment)),
                 new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, "foo", null,
@@ -353,7 +353,7 @@ class FilterChainFactoryTest {
         FlakyConfig flakyConfig2 = new FlakyConfig(null, null, "foo",
                 ((Consumer<FlakyConfig>) onInitialize2::increment).andThen(initializeOrder::add),
                 ((Consumer<FlakyConfig>) onClose2::increment).andThen(closeOrder::add));
-        List<NamedFilterDefinition> list = Configuration.namedFilterDefinitions(List.of(
+        List<NamedFilterDefinition> list = Configuration.toNamedFilterDefinitions(List.of(
                 new FilterDefinition(FlakyFactory.class.getName(), flakyConfig1),
                 new FilterDefinition(FlakyFactory.class.getName(), flakyConfig2)));
         try (var fcf = new FilterChainFactory(pfr, list)) {

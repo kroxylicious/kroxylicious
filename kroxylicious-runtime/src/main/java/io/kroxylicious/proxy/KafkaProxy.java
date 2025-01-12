@@ -131,7 +131,7 @@ public final class KafkaProxy implements AutoCloseable {
 
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
-            this.filterChainFactory = new FilterChainFactory(pfr, config.namedFilterDefinitions());
+            this.filterChainFactory = new FilterChainFactory(pfr, config.toNamedFilterDefinitions());
 
             var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
