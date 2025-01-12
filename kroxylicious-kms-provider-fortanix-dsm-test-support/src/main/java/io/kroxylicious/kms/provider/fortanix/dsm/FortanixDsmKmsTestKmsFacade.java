@@ -117,7 +117,7 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
     @Override
     public void start() {
         var adminConfig = new Config(getEndpointUrl(), new ApiKeySessionProviderConfig(new InlinePassword(getAdminApiKey()), null), null);
-        adminSessionProvider = new ApiKeySessionProvider(adminConfig);
+        adminSessionProvider = new ApiKeySessionProvider(adminConfig, client);
     }
 
     @Override

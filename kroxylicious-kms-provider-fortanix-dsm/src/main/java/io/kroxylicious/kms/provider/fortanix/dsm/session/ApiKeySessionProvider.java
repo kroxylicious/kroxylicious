@@ -77,7 +77,6 @@ public class ApiKeySessionProvider implements SessionProvider {
     private static final TypeReference<SessionAuthResponse> SESSION_AUTH_RESPONSE = new TypeReference<SessionAuthResponse>() {
     };
     private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(10);
-    private static final Duration HTTP_CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final double DEFAULT_CREDENTIALS_LIFETIME_FACTOR = 0.80;
     public static final String SESSION_AUTH_ENDPOINT = "/sys/v1/session/auth";
     public static final String SESSION_TERMINATE_ENDPOINT = "/sys/v1/session/terminate";
@@ -98,15 +97,17 @@ public class ApiKeySessionProvider implements SessionProvider {
      * Creates a session provider that uses an Api Key to authenticate.
      *
      * @param config config.
+     * @param client
      */
-    public ApiKeySessionProvider(@NonNull Config config) {
-        this(config, Clock.systemUTC());
+    public ApiKeySessionProvider(@NonNull Config config, @NonNull HttpClient client) {
+        this(config, client, Clock.systemUTC());
     }
 
     @VisibleForTesting
-    ApiKeySessionProvider(@NonNull Config config, @NonNull Clock systemClock) {
+    ApiKeySessionProvider(@NonNull Config config, @NonNull HttpClient client, @NonNull Clock systemClock) {
         Objects.requireNonNull(config);
         Objects.requireNonNull(systemClock);
+        Objects.requireNonNull(client);
         this.config = config;
         this.systemClock = systemClock;
         this.lifetimeFactor = Optional.ofNullable(config.apiKeyConfig().sessionLifetimeFactor()).orElse(DEFAULT_CREDENTIALS_LIFETIME_FACTOR);
@@ -115,15 +116,7 @@ public class ApiKeySessionProvider implements SessionProvider {
             thread.setDaemon(true);
             return thread;
         });
-        this.client = createClient();
-    }
-
-    private HttpClient createClient() {
-        var builder = HttpClient.newBuilder();
-        return builder
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .connectTimeout(HTTP_CONNECT_TIMEOUT)
-                .build();
+        this.client = client;
     }
 
     @NonNull

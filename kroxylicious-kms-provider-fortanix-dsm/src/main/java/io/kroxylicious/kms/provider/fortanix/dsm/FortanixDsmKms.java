@@ -13,7 +13,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.Builder;
 import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,7 +24,6 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import javax.crypto.SecretKey;
-import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -72,7 +70,6 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     };
     public static final String AUTHORIZATION_HEADER = "Authorization";
 
-    private final Duration timeout;
     private final HttpClient client;
 
     /**
@@ -81,22 +78,10 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     private final URI fortanixDsmUrl;
     private final SessionProvider sessionProvider;
 
-    FortanixDsmKms(@NonNull URI fortanixDsmUrl, @NonNull SessionProvider sessionProvider, @Nullable Duration timeout, @Nullable SSLContext sslContext) {
+    FortanixDsmKms(@NonNull URI fortanixDsmUrl, @NonNull SessionProvider sessionProvider, @NonNull HttpClient client) {
         this.fortanixDsmUrl = Objects.requireNonNull(fortanixDsmUrl);
         this.sessionProvider = Objects.requireNonNull(sessionProvider);
-        this.timeout = timeout;
-        this.client = createClient(sslContext);
-    }
-
-    private HttpClient createClient(SSLContext sslContext) {
-        HttpClient.Builder builder = HttpClient.newBuilder();
-        if (sslContext != null) {
-            builder.sslContext(sslContext);
-        }
-        return builder
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .connectTimeout(timeout)
-                .build();
+        this.client = Objects.requireNonNull(client);
     }
 
     /**

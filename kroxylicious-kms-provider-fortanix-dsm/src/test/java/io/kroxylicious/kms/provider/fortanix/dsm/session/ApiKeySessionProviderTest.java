@@ -8,6 +8,7 @@ package io.kroxylicious.kms.provider.fortanix.dsm.session;
 
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -66,6 +67,7 @@ class ApiKeySessionProviderTest {
 
     private static WireMockServer server;
     private Config config;
+    private HttpClient client;
 
     @BeforeAll
     public static void initMockRegistry() {
@@ -81,6 +83,7 @@ class ApiKeySessionProviderTest {
     @BeforeEach
     void setUp() {
         config = new Config(URI.create(server.baseUrl()), new ApiKeySessionProviderConfig(new InlinePassword("apiKey"), 0.20), null);
+        client = HttpClient.newBuilder().build();
 
         server.stubFor(
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
@@ -99,7 +102,7 @@ class ApiKeySessionProviderTest {
 
     @Test
     void rejectsNullConfig() {
-        assertThatThrownBy(() -> new ApiKeySessionProvider(null))
+        assertThatThrownBy(() -> new ApiKeySessionProvider(null, client))
                 .isInstanceOf(NullPointerException.class);
     }
 
@@ -107,7 +110,7 @@ class ApiKeySessionProviderTest {
     void sessionEstablishedSuccessfully() {
         var fixedClock = Clock.fixed(Instant.EPOCH, ZoneId.systemDefault());
 
-        try (var provider = new ApiKeySessionProvider(config, fixedClock)) {
+        try (var provider = new ApiKeySessionProvider(config, client, fixedClock)) {
             var session = provider.getSession();
             assertThat(session)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -124,7 +127,7 @@ class ApiKeySessionProviderTest {
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
                         .willReturn(aResponse().withBody(SESSION_AUTH_RESPONSE_WITH_ADDITIONAL_PROPERTIES)));
 
-        try (var provider = new ApiKeySessionProvider(config)) {
+        try (var provider = new ApiKeySessionProvider(config, client)) {
             var session = provider.getSession();
             assertThat(session)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -138,7 +141,7 @@ class ApiKeySessionProviderTest {
         var now = Instant.now();
         var fixedClock = Clock.fixed(now, ZoneId.systemDefault());
 
-        try (var provider = new ApiKeySessionProvider(config, fixedClock)) {
+        try (var provider = new ApiKeySessionProvider(config, client, fixedClock)) {
             var sessionStage = provider.getSession();
             assertThat(sessionStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -170,7 +173,7 @@ class ApiKeySessionProviderTest {
                         .willReturn(aResponse()
                                 .withBody(toJson(initial))));
 
-        try (var provider = new ApiKeySessionProvider(config, Clock.fixed(now, ZoneId.systemDefault()))) {
+        try (var provider = new ApiKeySessionProvider(config, client, Clock.fixed(now, ZoneId.systemDefault()))) {
             var sessionStage = provider.getSession();
             assertThat(sessionStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -206,7 +209,7 @@ class ApiKeySessionProviderTest {
                         .willReturn(aResponse()
                                 .withBody(toJson(initial))));
 
-        try (var provider = new ApiKeySessionProvider(config, Clock.fixed(now, ZoneId.systemDefault()))) {
+        try (var provider = new ApiKeySessionProvider(config, client, Clock.fixed(now, ZoneId.systemDefault()))) {
             var sessionStage = provider.getSession();
             assertThat(sessionStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -243,7 +246,7 @@ class ApiKeySessionProviderTest {
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
                         .willReturn(aResponse().withBody(toJson(initial))));
 
-        try (var provider = new ApiKeySessionProvider(new Config(URI.create(server.baseUrl()), cfg, null), clock)) {
+        try (var provider = new ApiKeySessionProvider(new Config(URI.create(server.baseUrl()), cfg, null), client, clock)) {
             var sessionStage = provider.getSession();
             assertThat(sessionStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -281,7 +284,7 @@ class ApiKeySessionProviderTest {
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
                         .willReturn(aResponse().withBody(toJson(initial))));
 
-        try (var provider = new ApiKeySessionProvider(new Config(URI.create(server.baseUrl()), cfg, null))) {
+        try (var provider = new ApiKeySessionProvider(new Config(URI.create(server.baseUrl()), cfg, null), client)) {
             var sessionStage = provider.getSession();
             assertThat(sessionStage)
                     .succeedsWithin(Duration.ofSeconds(1))
@@ -308,7 +311,7 @@ class ApiKeySessionProviderTest {
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
                         .willReturn(aResponse().withStatus(500)));
 
-        try (var provider = new ApiKeySessionProvider(config)) {
+        try (var provider = new ApiKeySessionProvider(config, client)) {
             var result = provider.getSession();
             assertThat(result)
                     .failsWithin(Duration.ofSeconds(1))
@@ -324,7 +327,7 @@ class ApiKeySessionProviderTest {
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
                         .willReturn(aResponse().withStatus(500)));
 
-        try (var provider = new ApiKeySessionProvider(config)) {
+        try (var provider = new ApiKeySessionProvider(config, client)) {
             var result = provider.getSession();
             assertThat(result)
                     .failsWithin(Duration.ofSeconds(1))
@@ -348,7 +351,7 @@ class ApiKeySessionProviderTest {
     @Test
     @SuppressWarnings("java:S2699")
     void idempotentClose() {
-        var provider = new ApiKeySessionProvider(config);
+        var provider = new ApiKeySessionProvider(config, client);
         provider.close();
         provider.close(); // should complete without error.
     }

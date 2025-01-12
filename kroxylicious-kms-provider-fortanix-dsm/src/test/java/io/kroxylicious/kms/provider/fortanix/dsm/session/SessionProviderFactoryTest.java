@@ -7,6 +7,7 @@
 package io.kroxylicious.kms.provider.fortanix.dsm.session;
 
 import java.net.URI;
+import java.net.http.HttpClient;
 
 import org.junit.jupiter.api.Test;
 
@@ -21,24 +22,26 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SessionProviderFactoryTest {
 
+    private final HttpClient client = HttpClient.newBuilder().build();
+
     @Test
     void constructsProvider() {
         var config = new Config(URI.create("https://localhost"), new ApiKeySessionProviderConfig(new InlinePassword("key"), null), null);
-        try (var sessionProvider = DEFAULT.createSessionProvider(config)) {
+        try (var sessionProvider = DEFAULT.createSessionProvider(config, client)) {
             assertThat(sessionProvider).isNotNull();
         }
     }
 
     @Test
     void rejectsNullConfig() {
-        assertThatThrownBy(() -> DEFAULT.createSessionProvider(null))
+        assertThatThrownBy(() -> DEFAULT.createSessionProvider(null, client))
                 .isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void missingConfig() {
         var config = new Config(URI.create("https://localhost"), null, null);
-        assertThatThrownBy(() -> DEFAULT.createSessionProvider(config))
+        assertThatThrownBy(() -> DEFAULT.createSessionProvider(config, client))
                 .isInstanceOf(KmsException.class);
     }
 }

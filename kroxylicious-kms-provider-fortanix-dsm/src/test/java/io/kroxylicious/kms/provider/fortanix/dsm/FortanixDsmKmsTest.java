@@ -8,6 +8,7 @@ package io.kroxylicious.kms.provider.fortanix.dsm;
 
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -53,6 +54,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -150,7 +152,7 @@ class FortanixDsmKmsTest {
         var spFactory = mock(SessionProviderFactory.class);
         var sp = mock(SessionProvider.class);
         var session = mock(Session.class);
-        when(spFactory.createSessionProvider(config)).thenReturn(sp);
+        when(spFactory.createSessionProvider(any(Config.class), any(HttpClient.class))).thenReturn(sp);
         when(sp.getSession()).thenReturn(CompletableFuture.completedStage(session));
         when(session.authorizationHeader()).thenReturn("auth header");
 
@@ -250,7 +252,7 @@ class FortanixDsmKmsTest {
     private static class StubSessionProviderFactory implements SessionProviderFactory {
         @NonNull
         @Override
-        public SessionProvider createSessionProvider(@NonNull Config config) {
+        public SessionProvider createSessionProvider(@NonNull Config config, HttpClient client) {
             var session = new Session() {
 
                 @NonNull
