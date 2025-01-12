@@ -93,7 +93,6 @@ public class ApiKeySessionProvider implements SessionProvider {
     @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
     private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
     private final Double lifetimeFactor;
-    private Session session;
 
     /**
      * Creates a session provider that uses an Api Key to authenticate.
