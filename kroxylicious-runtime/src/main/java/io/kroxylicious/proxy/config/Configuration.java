@@ -114,8 +114,7 @@ public record Configuration(
                          @Nullable List<FilterDefinition> filters,
                          List<MicrometerDefinition> micrometer,
                          boolean useIoUring,
-                         @NonNull Optional<Map<String, Object>> development
-    ) {
+                         @NonNull Optional<Map<String, Object>> development) {
         this(adminHttp, null, null, virtualClusters, filters, micrometer, useIoUring, development);
     }
 
@@ -123,11 +122,11 @@ public record Configuration(
      * This constructor uses the new style `defaultFilters` and `filterDefinitions` parameters instead of the deprecated `filters`.
      */
     public Configuration(
-            @Nullable AdminHttpConfiguration adminHttp, @Nullable List<NamedFilterDefinition> filterDefinitions,
-            @Nullable List<String> defaultFilters,
-            Map<String, VirtualCluster> virtualClusters,
-            List<MicrometerDefinition> micrometer, boolean useIoUring,
-            @NonNull Optional<Map<String, Object>> development) {
+                         @Nullable AdminHttpConfiguration adminHttp, @Nullable List<NamedFilterDefinition> filterDefinitions,
+                         @Nullable List<String> defaultFilters,
+                         Map<String, VirtualCluster> virtualClusters,
+                         List<MicrometerDefinition> micrometer, boolean useIoUring,
+                         @NonNull Optional<Map<String, Object>> development) {
         this(adminHttp, filterDefinitions, defaultFilters, virtualClusters, null, micrometer, useIoUring, development);
     }
 
