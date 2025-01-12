@@ -25,14 +25,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * The root of the proxy configuration.
- * @param adminHttp
- * @param filterDefinitions A list of named filter definitions (names must be unique)
- * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filterRefs()}.
- * @param virtualClusters The virtual clusters
- * @param filters Deprecated. The filter definitions to be used for all virtual clusters. Can only be specified if {@link #filterDefinitions()} is null.
- * @param micrometer The micrometer config
- * @param useIoUring true to use iouring
- * @param development Development options
  */
 @JsonPropertyOrder({ "adminHttp", "filterDefinitions", "defaultFilters", "virtualClusters", "filters", "micrometer", "useIoUring", "development" })
 public record Configuration(
@@ -40,7 +32,7 @@ public record Configuration(
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
                             Map<String, VirtualCluster> virtualClusters,
-                            @Nullable List<FilterDefinition> filters,
+                            @Deprecated @Nullable List<FilterDefinition> filters,
                             List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             @NonNull Optional<Map<String, Object>> development) {
@@ -58,6 +50,19 @@ public record Configuration(
         }
     }
 
+    /**
+     * Specifying {@code filters} is deprecated.
+     * Use the {@link Configuration#Configuration(AdminHttpConfiguration, List, List, Map, List, boolean, Optional)} constructor instead.
+     * @param adminHttp
+     * @param filterDefinitions A list of named filter definitions (names must be unique)
+     * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filterRefs()}.
+     * @param virtualClusters The virtual clusters
+     * @param filters Deprecated. The filter definitions to be used for all virtual clusters. Can only be specified if {@link #filterDefinitions()} is null.
+     * @param micrometer The micrometer config
+     * @param useIoUring true to use iouring
+     * @param development Development options
+     */
+    @Deprecated(since = "0.10.0", forRemoval = true)
     @JsonCreator
     public Configuration {
         Objects.requireNonNull(development);
@@ -90,7 +95,7 @@ public record Configuration(
 
     /**
      * @deprecated This constructor is currently retained to be source compatible the call sites that are passing the deprecated `filters` parameter.
-     * Replaced by {@link #Configuration(List, List, Map, boolean, List, AdminHttpConfiguration, Optional)}.
+     * Replaced by {@link #Configuration(AdminHttpConfiguration, List, List, Map, List, boolean, Optional)}.
      */
     @Deprecated(since = "0.10.0", forRemoval = true)
     public Configuration(
@@ -100,7 +105,6 @@ public record Configuration(
                          List<MicrometerDefinition> micrometer,
                          boolean useIoUring,
                          @NonNull Optional<Map<String, Object>> development
-
     ) {
         this(adminHttp, null, null, virtualClusters, filters, micrometer, useIoUring, development);
     }
@@ -109,13 +113,11 @@ public record Configuration(
      * This constructor uses the new style `defaultFilters` and `filterDefinitions` parameters instead of the deprecated `filters`.
      */
     public Configuration(
-                         @Nullable List<NamedFilterDefinition> filterDefinitions,
-                         @Nullable List<String> defaultFilters,
-                         Map<String, VirtualCluster> virtualClusters,
-                         boolean useIoUring,
-                         List<MicrometerDefinition> micrometer,
-                         @Nullable AdminHttpConfiguration adminHttp,
-                         @NonNull Optional<Map<String, Object>> development) {
+            @Nullable AdminHttpConfiguration adminHttp, @Nullable List<NamedFilterDefinition> filterDefinitions,
+            @Nullable List<String> defaultFilters,
+            Map<String, VirtualCluster> virtualClusters,
+            List<MicrometerDefinition> micrometer, boolean useIoUring,
+            @NonNull Optional<Map<String, Object>> development) {
         this(adminHttp, filterDefinitions, defaultFilters, virtualClusters, null, micrometer, useIoUring, development);
     }
 

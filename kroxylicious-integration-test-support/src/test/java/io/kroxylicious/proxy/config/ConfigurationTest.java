@@ -359,12 +359,10 @@ class ConfigurationTest {
         Optional<Map<String, Object>> development = Optional.empty();
         List<NamedFilterDefinition> filterDefinitions = List.of();
         List<String> defaultFilters = List.of("missing");
-        assertThatThrownBy(() -> new Configuration(filterDefinitions,
+        assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
                 defaultFilters,
                 null,
-                false,
-                null,
-                null,
+                null, false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("`defaultFilters` references filters not defined in `filterDefinitions`: [missing]");
@@ -376,12 +374,10 @@ class ConfigurationTest {
         List<NamedFilterDefinition> filterDefinitions = List.of();
         Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
-                filterDefinitions,
+                null, filterDefinitions,
                 null,
                 virtualClusters,
-                false,
-                null,
-                null,
+                null, false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("`virtualClusters.vc1.filterRefs` references filters not defined in `filterDefinitions`: [missing]");
@@ -412,13 +408,11 @@ class ConfigurationTest {
                 null); // filters not defined => should default to the top level
 
         Configuration configuration = new Configuration(
-                filterDefinitions,
+                null, filterDefinitions,
                 List.of("bar"),
                 Map.of("direct", direct,
                         "defaulted", defaulted),
-                false,
-                null,
-                null,
+                null, false,
                 Optional.empty());
 
         // When

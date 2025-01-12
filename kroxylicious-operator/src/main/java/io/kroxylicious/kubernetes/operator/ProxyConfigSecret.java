@@ -114,12 +114,11 @@ public class ProxyConfigSecret
                         LinkedHashMap::new));
 
         Configuration configuration = new Configuration(
-                filterDefinitions,
+                new AdminHttpConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())), filterDefinitions,
                 null, // no defaultFilters <= each of the virtualClusters specifies its own
                 virtualClusters,
-                false,
-                List.of(), // micrometer
-                new AdminHttpConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())),
+                List.of(), false,
+                // micrometer
                 Optional.empty());
 
         return toYaml(configuration);
