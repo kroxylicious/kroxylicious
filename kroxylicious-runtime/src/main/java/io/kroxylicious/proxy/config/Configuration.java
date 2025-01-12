@@ -15,6 +15,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -36,6 +39,8 @@ public record Configuration(
                             List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             @NonNull Optional<Map<String, Object>> development) {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
     private static void checkNamedFiltersAreDefined(Set<String> filterDefsByName,
                                                     @Nullable List<String> filterNames,
@@ -90,6 +95,11 @@ public record Configuration(
                 var virtualCluster = entry.getValue();
                 checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filterRefs(), "virtualClusters." + virtualClusterName + ".filterRefs");
             }
+        }
+
+        if (filters != null) {
+            LOGGER.warn("Configuration using 'filters' is deprecated and will be removed in a future release. "
+                    + "Configurations should be updated to use 'filterDefinitions' and 'defaultFilters'.");
         }
     }
 
