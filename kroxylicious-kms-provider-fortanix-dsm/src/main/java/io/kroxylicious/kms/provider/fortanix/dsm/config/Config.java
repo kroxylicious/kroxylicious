@@ -24,11 +24,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * Configuration for the Fortanix DSM KMS service.
  *
  * @param endpointUrl URL of the Fortanix DSM e.g. {@code https://api.uk.smartkey.io}
- * @param apiKeyConfig  config for Api Key authentication
+ * @param apiKeySessionProviderConfig  config for Api Key authentication
  */
 
 public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @JsonProperty(value = "apiKey") ApiKeySessionProviderConfig apiKeyConfig,
+                     @JsonProperty(value = "apiKeySessionProvider") ApiKeySessionProviderConfig apiKeySessionProviderConfig,
                      Tls tls) {
     public Config {
         Objects.requireNonNull(endpointUrl);

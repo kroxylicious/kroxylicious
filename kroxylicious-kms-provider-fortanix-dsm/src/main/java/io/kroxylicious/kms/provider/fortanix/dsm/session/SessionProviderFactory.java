@@ -37,7 +37,7 @@ public interface SessionProviderFactory {
             Objects.requireNonNull(config);
             Objects.requireNonNull(client);
             var configException = new KmsException("Config %s must define exactly one session provider".formatted(config));
-            if (config.apiKeyConfig() != null) {
+            if (config.apiKeySessionProviderConfig() != null) {
                 return new ApiKeySessionProvider(config, client);
             }
             else {

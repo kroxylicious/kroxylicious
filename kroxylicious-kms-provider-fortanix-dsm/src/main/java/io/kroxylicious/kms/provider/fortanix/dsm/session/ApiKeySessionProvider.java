@@ -110,7 +110,7 @@ public class ApiKeySessionProvider implements SessionProvider {
         Objects.requireNonNull(client);
         this.config = config;
         this.systemClock = systemClock;
-        this.lifetimeFactor = Optional.ofNullable(config.apiKeyConfig().sessionLifetimeFactor()).orElse(DEFAULT_CREDENTIALS_LIFETIME_FACTOR);
+        this.lifetimeFactor = Optional.ofNullable(config.apiKeySessionProviderConfig().sessionLifetimeFactor()).orElse(DEFAULT_CREDENTIALS_LIFETIME_FACTOR);
         this.executorService = Executors.newSingleThreadScheduledExecutor(r -> {
             var thread = new Thread(r, ApiKeySessionProviderConfig.class.getName() + "thread");
             thread.setDaemon(true);
@@ -210,7 +210,7 @@ public class ApiKeySessionProvider implements SessionProvider {
     }
 
     private HttpRequest createSessionAuthRequest() {
-        var providedPassword = this.config.apiKeyConfig().apiKey().getProvidedPassword();
+        var providedPassword = this.config.apiKeySessionProviderConfig().apiKey().getProvidedPassword();
         return HttpRequest.newBuilder()
                 .uri(config.endpointUrl().resolve(SESSION_AUTH_ENDPOINT))
                 .header(AUTHORIZATION_HEADER, "Basic " + providedPassword)
