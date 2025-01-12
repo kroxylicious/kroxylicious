@@ -333,7 +333,7 @@ class ConfigurationTest {
                 false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("`filters` and `filterDefinitions` can't both be set");
+                .hasMessage("'filters' and 'filterDefinitions' can't both be set");
     }
 
     @Test
@@ -351,7 +351,7 @@ class ConfigurationTest {
                 false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("`filterDefinitions` contains multiple items with the same names: [foo]");
+                .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
     }
 
     @Test
@@ -365,7 +365,7 @@ class ConfigurationTest {
                 null, false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("`defaultFilters` references filters not defined in `filterDefinitions`: [missing]");
+                .hasMessage("'defaultFilters' references filters not defined in 'filterDefinitions': [missing]");
     }
 
     @Test
@@ -380,7 +380,28 @@ class ConfigurationTest {
                 null, false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("`virtualClusters.vc1.filterRefs` references filters not defined in `filterDefinitions`: [missing]");
+                .hasMessage("'virtualClusters.vc1.filterRefs' references filters not defined in 'filterDefinitions': [missing]");
+    }
+
+    @Test
+    void shouldRejectUnusedFilterDefinition() {
+        Optional<Map<String, Object>> development = Optional.empty();
+        List<NamedFilterDefinition> filterDefinitions = List.of(
+                new NamedFilterDefinition("used1", "", ""),
+                new NamedFilterDefinition("unused", "", ""),
+                new NamedFilterDefinition("used2", "", "")
+
+        );
+
+        List<String> defaultFilters = List.of("used1");
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, false, false, List.of("used2")));
+        assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
+                defaultFilters,
+                virtualClusters,
+                null, false,
+                development))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessage("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': [unused]");
     }
 
     @Test

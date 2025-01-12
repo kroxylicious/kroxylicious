@@ -6,7 +6,9 @@
 package io.kroxylicious.proxy.config;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -14,6 +16,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +55,7 @@ public record Configuration(
                 .filter(filterName -> !filterDefsByName.contains(filterName))
                 .toList();
         if (!unknown.isEmpty()) {
-            throw new IllegalConfigurationException("`" + componentName + "` references filters not defined in `filterDefinitions`: " + unknown);
+            throw new IllegalConfigurationException("'" + componentName + "' references filters not defined in 'filterDefinitions': " + unknown);
         }
     }
 
@@ -73,7 +77,7 @@ public record Configuration(
         Objects.requireNonNull(development);
         // Enforce post condition: filters and filterDefinitions are not both set
         if (filters != null && filterDefinitions != null) {
-            throw new IllegalConfigurationException("`filters` and `filterDefinitions` can't both be set");
+            throw new IllegalConfigurationException("'filters' and 'filterDefinitions' can't both be set");
         }
 
         // Enforce post condition: filterDefinitions have a unique name
@@ -81,7 +85,7 @@ public record Configuration(
             Map<String, List<NamedFilterDefinition>> groupdByName = filterDefinitions.stream().collect(Collectors.groupingBy(NamedFilterDefinition::name));
             var duplicatedNames = groupdByName.entrySet().stream().filter(entry -> entry.getValue().size() > 1).map(Map.Entry::getKey).toList();
             if (!duplicatedNames.isEmpty()) {
-                throw new IllegalConfigurationException("`filterDefinitions` contains multiple items with the same names: " + duplicatedNames);
+                throw new IllegalConfigurationException("'filterDefinitions' contains multiple items with the same names: " + duplicatedNames);
             }
         }
 
@@ -94,6 +98,19 @@ public record Configuration(
                 var virtualClusterName = entry.getKey();
                 var virtualCluster = entry.getValue();
                 checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filterRefs(), "virtualClusters." + virtualClusterName + ".filterRefs");
+            }
+        }
+
+        // Every filter defined in the filterDefinitions is used somewhere
+        if (filterDefinitions != null) {
+            var defined = filterDefinitions.stream().map(NamedFilterDefinition::name).collect(Collectors.toCollection(HashSet::new));
+            Stream.concat(Stream.of(defaultFilters), virtualClusters.values().stream()
+                    .map(VirtualCluster::filterRefs)
+                    .filter(Objects::nonNull))
+                    .flatMap(Collection::stream)
+                            .forEach(defined::remove);
+            if (!defined.isEmpty()) {
+                throw new IllegalConfigurationException("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': " + defined);
             }
         }
 
