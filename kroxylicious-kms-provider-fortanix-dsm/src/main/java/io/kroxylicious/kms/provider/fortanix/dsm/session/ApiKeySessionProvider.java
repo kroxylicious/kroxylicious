@@ -22,9 +22,12 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -59,9 +62,11 @@ import static io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms.AUTHORIZA
  * </p>
  * <p>
  * The implementation does not make use of the /sys/v1/session/refresh or /sys/v1/session/reauth
- * endoints.  Instead it recreates the session from scratch on expiry.   This is deliberate decision -
- * the transient keys created by {@link io.kroxylicious.kms.service.Kms#generateDekPair(Object)} are
- * cached within Fortanix DSM <b>server side</b> session.  These only get removed when the session ends.
+ * endoints.  Instead it recreates the session from scratch before the expiry (advised by the server in
+ * the session/auth response. This is deliberate decision - the transient keys created by
+ * {@link io.kroxylicious.kms.service.Kms#generateDekPair(Object)} are cached within Fortanix DSM
+ * <b>server side</b> session.  These only get removed when the session ends.  If we didn't let the
+ * session end, these would accumulate and cause a server side issue.
  * </p>
  */
 public class ApiKeySessionProvider implements SessionProvider {
@@ -75,6 +80,7 @@ public class ApiKeySessionProvider implements SessionProvider {
     private static final Duration HTTP_CONNECT_TIMEOUT = Duration.ofSeconds(10);
     private static final double DEFAULT_CREDENTIALS_LIFETIME_FACTOR = 0.80;
     public static final String SESSION_AUTH_ENDPOINT = "/sys/v1/session/auth";
+    public static final String SESSION_TERMINATE_ENDPOINT = "/sys/v1/session/terminate";
 
     private final Clock systemClock;
     private final AtomicReference<CompletableFuture<Session>> current = new AtomicReference<>();
@@ -87,6 +93,7 @@ public class ApiKeySessionProvider implements SessionProvider {
     @SuppressWarnings({ "java:S2245", "java:S2119" }) // Random used for backoff jitter, it does not need to be securely random.
     private final ExponentialBackoff backoff = new ExponentialBackoff(500, 2, 60000, new Random().nextDouble());
     private final Double lifetimeFactor;
+    private Session session;
 
     /**
      * Creates a session provider that uses an Api Key to authenticate.
@@ -150,8 +157,16 @@ public class ApiKeySessionProvider implements SessionProvider {
             refreshCredential(refreshedCredFuture);
             refreshedCredFuture.thenApply(sc -> {
                 var previous = current.getAndSet(refreshedCredFuture);
-                // the previous future should have been already completed, but for safety, complete it anyway.
-                Optional.ofNullable(previous).ifPresent(future -> future.complete(sc));
+                Optional.ofNullable(previous).ifPresent(future -> {
+                    if (future.isDone()) {
+                        terminateSessionOnServer(previous);
+                    }
+                    else {
+                        // the previous future should have been already completed, but for safety, complete it anyway.
+                        future.complete(sc);
+                    }
+                });
+
                 return null;
             });
         }, delayMs, TimeUnit.MILLISECONDS);
@@ -254,6 +269,39 @@ public class ApiKeySessionProvider implements SessionProvider {
         }
     }
 
+    /**
+     * Uses <a href="https://support.fortanix.com/apidocs/terminate-the-current-session">session/terminate</a> to
+     * end the last session.  This will allow the server side to clean up resources in a timely way.
+     * @param stage session future.
+     */
+    private void terminateSessionOnServer(@NonNull CompletionStage<Session> stage) {
+
+        try {
+            var s = stage.toCompletableFuture().getNow(null);
+            if (s != null) {
+                var terminateRequest = HttpRequest.newBuilder()
+                        .uri(config.endpointUrl().resolve(SESSION_TERMINATE_ENDPOINT))
+                        .header(AUTHORIZATION_HEADER, s.authorizationHeader())
+                        .timeout(HTTP_REQUEST_TIMEOUT)
+                        .POST(HttpRequest.BodyPublishers.noBody())
+                        .build();
+                client.sendAsync(terminateRequest, HttpResponse.BodyHandlers.discarding())
+                        .thenApply(ApiKeySessionProvider::checkResponseStatus)
+                        .thenApply(r -> {
+                            LOGGER.debug("Terminated previous session (response code {})", r.statusCode());
+                            return null;
+                        })
+                        .exceptionally(t -> {
+                            LOGGER.warn("Failed to terminate previous session (ignored). Raise log level to DEBUG to see the cause", LOGGER.isDebugEnabled() ? t : null);
+                            return null;
+                        });
+            }
+        }
+        catch (CancellationException | CompletionException e) {
+            // ignore
+        }
+    }
+
     @NonNull
     private static <O> HttpResponse<O> checkResponseStatus(@NonNull HttpResponse<O> response) {
         var statusCode = response.statusCode();
@@ -268,7 +316,21 @@ public class ApiKeySessionProvider implements SessionProvider {
 
     @Override
     public void close() {
-        executorService.shutdownNow();
+        try {
+            if (!executorService.isShutdown()) {
+                executorService.submit(() -> Optional.ofNullable(current.get()).ifPresent(this::terminateSessionOnServer))
+                        .get(5, TimeUnit.SECONDS);
+            }
+        }
+        catch (RejectedExecutionException | ExecutionException | TimeoutException e) {
+            // ignore - we don't care if we fail to terminate
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        finally {
+            executorService.shutdownNow();
+        }
     }
 
     private static <B> String bodyToString(B body) {

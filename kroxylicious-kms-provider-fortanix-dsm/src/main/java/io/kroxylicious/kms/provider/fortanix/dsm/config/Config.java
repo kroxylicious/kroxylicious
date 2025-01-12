@@ -21,7 +21,7 @@ import io.kroxylicious.proxy.tls.SslConfigurationException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Configuration for the Fortanix DSM JMS service.
+ * Configuration for the Fortanix DSM KMS service.
  *
  * @param endpointUrl URL of the Fortanix DSM e.g. {@code https://api.uk.smartkey.io}
  * @param apiKeyConfig  config for Api Key authentication

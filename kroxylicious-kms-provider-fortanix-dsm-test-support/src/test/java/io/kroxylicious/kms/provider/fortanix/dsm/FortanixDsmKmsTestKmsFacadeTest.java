@@ -71,6 +71,9 @@ class FortanixDsmKmsTestKmsFacadeTest {
         server.stubFor(
                 post(urlEqualTo("/sys/v1/session/auth"))
                         .willReturn(aResponse().withBody(SESSION_AUTH_RESPONSE)));
+        server.stubFor(
+                post(urlEqualTo("/sys/v1/session/terminate"))
+                        .willReturn(aResponse().withStatus(204)));
         facade = new FortanixDsmKmsTestKmsFacade(Optional.of(URI.create(server.baseUrl())), Optional.of("unused"), Optional.of("unused")) {
             @Override
             protected void deleteTestKeks() {
