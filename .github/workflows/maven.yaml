@@ -64,12 +64,20 @@ jobs:
         if: github.ref_name != 'main' || env.SONAR_TOKEN_SET != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # These variables/secrets support the Fortanix/KMS integration tests.   If the secrets are absent, the
+          # tests will be skipped.
+          KROYXLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ vars.KROYXLICIOUS_KMS_FORTANIX_API_ENDPOINT }}
+          KROYXLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROYXLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
+          KROYXLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROYXLICIOUS_KMS_FORTANIX_API_KEY }}
         run: mvn -B clean verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
       - name: 'Build Kroxylicious maven project on main with Sonar'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KROYXLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ vars.KROYXLICIOUS_KMS_FORTANIX_API_ENDPOINT }}
+          KROYXLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROYXLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
+          KROYXLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROYXLICIOUS_KMS_FORTANIX_API_KEY }}
         run: mvn -B clean verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar -Dsonar.projectKey=kroxylicious_kroxylicious
       - name: Save PR number to file
         if: github.event_name == 'pull_request' && ${{ matrix.os }} == 'ubuntu-latest'
