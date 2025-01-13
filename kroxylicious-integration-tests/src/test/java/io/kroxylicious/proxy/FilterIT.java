@@ -48,6 +48,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.ForwardingStyle;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory;
@@ -501,9 +502,11 @@ class FilterIT {
         var encoded1 = encode(topic1.name(), ByteBuffer.wrap(bytes)).array();
         var encoded2 = encode(topic2.name(), ByteBuffer.wrap(bytes)).array();
 
+        NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder("filter-1", FetchResponseTransformationFilterFactory.class.getName());
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(FetchResponseTransformationFilterFactory.class.getName())
-                        .withConfig("transformation", TestDecoderFactory.class.getName()).build());
+                .addToFilterDefinitions(filterDefinitionBuilder
+                        .withConfig("transformation", TestDecoderFactory.class.getName()).build())
+                .addToDefaultFilters(filterDefinitionBuilder.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Serdes.String(), Serdes.ByteArray(),

@@ -37,8 +37,8 @@ import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
 import io.kroxylicious.filter.encryption.config.EncryptionVersion;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
-import io.kroxylicious.proxy.config.FilterDefinition;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.ClientConfig;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -134,7 +134,8 @@ class RecordEncryptionDeserializationCompatibilityIT {
     void testRecordsCanBeDeserialized(EncryptionVersion ignoredVersion, String ignoredName, TestCase testCase, KafkaCluster cluster, Producer<byte[], byte[]> producer)
             throws Exception {
         producer.send(testCase.producerRecord()).get(5, TimeUnit.SECONDS);
-        try (var tester = kroxyliciousTester(proxy(cluster).addToFilters(buildEncryptionFilterDefinition()))) {
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition();
+        try (var tester = kroxyliciousTester(proxy(cluster).addToFilterDefinitions(namedFilterDefinition).addToDefaultFilters(namedFilterDefinition.name()))) {
             Map<String, Object> config = Map.of(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString(), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
             Consumer<String, String> consumer = tester.consumer(config);
             consumer.subscribe(List.of(ENCRYPTED_AES_TOPIC));
@@ -160,7 +161,8 @@ class RecordEncryptionDeserializationCompatibilityIT {
     void generateData(EncryptionVersion ignoredVersion, String ignoredName, TestCase testCase, KafkaCluster cluster,
                       @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "encryption") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") Consumer<byte[], byte[]> consumer)
             throws ExecutionException, InterruptedException, TimeoutException {
-        try (var tester = kroxyliciousTester(proxy(cluster).addToFilters(buildEncryptionFilterDefinition()))) {
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition();
+        try (var tester = kroxyliciousTester(proxy(cluster).addToFilterDefinitions(namedFilterDefinition).addToDefaultFilters(namedFilterDefinition.name()))) {
             tester.producer().send(testCase.expected.producerRecord(ENCRYPTED_AES_TOPIC)).get(5, TimeUnit.SECONDS);
             consumer.subscribe(List.of(ENCRYPTED_AES_TOPIC));
             ConsumerRecords<byte[], byte[]> poll = consumer.poll(Duration.ofSeconds(5));
@@ -184,12 +186,12 @@ class RecordEncryptionDeserializationCompatibilityIT {
         return value == null ? "null" : Base64.getEncoder().encodeToString(value);
     }
 
-    private FilterDefinition buildEncryptionFilterDefinition() {
+    private NamedFilterDefinition buildEncryptionFilterDefinition() {
         byte[] kekSecret = Base64.getDecoder().decode(PRE_EXISTING_AES_KEK_SECRET_BYTES);
         // when we add support for more ciphers, we could add additional topics with the relevant key material for that cipher
         List<UnitTestingKmsService.Kek> existingKeks = List.of(
                 new UnitTestingKmsService.Kek(PRE_EXISTING_AES_KEK_UUID, kekSecret, "AES", ENCRYPTED_AES_TOPIC));
-        return new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
+        return new NamedFilterDefinitionBuilder("filter-2", RecordEncryption.class.getSimpleName())
                 .withConfig("kms", UnitTestingKmsService.class.getSimpleName())
                 .withConfig("kmsConfig", new UnitTestingKmsService.Config(12, 128, existingKeks))
                 .withConfig("selector", TemplateKekSelector.class.getSimpleName())
