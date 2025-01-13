@@ -405,6 +405,22 @@ class ConfigurationTest {
     }
 
     @Test
+    void shouldRejectVirtualClusterFiltersWhenTopLevelFilters() {
+        Optional<Map<String, Object>> development = Optional.empty();
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, false, false, List.of()));
+        assertThatThrownBy(() -> new Configuration(
+                null,
+                null,
+                null,
+                virtualClusters,
+                List.<FilterDefinition>of(),
+                null, false,
+                development))
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessage("'filters' cannot be specified on a virtual cluster when 'filters' is defined at the top level.");
+    }
+
+    @Test
     void virtualClusterModelShouldUseCorrectFilters() {
         // Given
         List<NamedFilterDefinition> filterDefinitions = List.of(

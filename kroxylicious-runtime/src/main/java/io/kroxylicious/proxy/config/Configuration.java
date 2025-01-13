@@ -118,6 +118,13 @@ public record Configuration(
             }
         }
 
+        if (filters != null && virtualClusters != null && virtualClusters.values().stream()
+                .map(VirtualCluster::filters)
+                .anyMatch(Objects::nonNull)) {
+            throw new IllegalConfigurationException(
+                    "'filters' cannot be specified on a virtual cluster when 'filters' is defined at the top level.");
+        }
+
         if (filters != null) {
             LOGGER.warn("The 'filters' configuration property is deprecated and will be removed in a future release. "
                     + "Configurations should be updated to use 'filterDefinitions' and 'defaultFilters'.");
