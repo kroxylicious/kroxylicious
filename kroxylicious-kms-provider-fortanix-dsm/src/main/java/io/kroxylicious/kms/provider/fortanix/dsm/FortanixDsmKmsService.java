@@ -34,6 +34,9 @@ public class FortanixDsmKmsService implements KmsService<Config, String, Fortani
     private SessionProvider sessionProvider;
     private HttpClient client;
 
+    /**
+     * Creates the Fortanix DSM KMS service.
+     */
     public FortanixDsmKmsService() {
         this(SessionProviderFactory.DEFAULT);
     }
@@ -63,8 +66,8 @@ public class FortanixDsmKmsService implements KmsService<Config, String, Fortani
         Optional.ofNullable(sessionProvider).ifPresent(SessionProvider::close);
     }
 
-    public static HttpClient createClient(SSLContext sslContext, Duration timeout1) {
-        HttpClient.Builder builder = HttpClient.newBuilder();
+    private static HttpClient createClient(SSLContext sslContext, Duration timeout1) {
+        var builder = HttpClient.newBuilder();
         if (sslContext != null) {
             builder.sslContext(sslContext);
         }

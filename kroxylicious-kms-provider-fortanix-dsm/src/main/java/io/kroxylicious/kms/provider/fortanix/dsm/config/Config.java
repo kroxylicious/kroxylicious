@@ -25,15 +25,29 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  *
  * @param endpointUrl URL of the Fortanix DSM e.g. {@code https://api.uk.smartkey.io}
  * @param apiKeySessionProviderConfig  config for Api Key authentication
+ * @param tls tls configuration
  */
 
 public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
                      @JsonProperty(value = "apiKeySessionProvider") ApiKeySessionProviderConfig apiKeySessionProviderConfig,
                      Tls tls) {
+    /**
+     *
+     * Configuration for the Fortanix DSM KMS service.
+     *
+     * @param endpointUrl URL of the Fortanix DSM e.g. {@code https://api.uk.smartkey.io}
+     * @param apiKeySessionProviderConfig  config for Api Key authentication
+     * @param tls tls configuration
+     */
     public Config {
         Objects.requireNonNull(endpointUrl);
     }
 
+    /**
+     * Creates SSL context for the given configuration.
+     *
+     * @return SSL context
+     */
     @NonNull
     public SSLContext sslContext() {
         try {

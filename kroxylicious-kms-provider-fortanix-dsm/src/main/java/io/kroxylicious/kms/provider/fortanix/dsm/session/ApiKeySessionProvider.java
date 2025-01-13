@@ -78,8 +78,8 @@ public class ApiKeySessionProvider implements SessionProvider {
     };
     private static final Duration HTTP_REQUEST_TIMEOUT = Duration.ofSeconds(10);
     private static final double DEFAULT_CREDENTIALS_LIFETIME_FACTOR = 0.80;
-    public static final String SESSION_AUTH_ENDPOINT = "/sys/v1/session/auth";
-    public static final String SESSION_TERMINATE_ENDPOINT = "/sys/v1/session/terminate";
+    static final String SESSION_AUTH_ENDPOINT = "/sys/v1/session/auth";
+    static final String SESSION_TERMINATE_ENDPOINT = "/sys/v1/session/terminate";
 
     private final Clock systemClock;
     private final AtomicReference<CompletableFuture<Session>> current = new AtomicReference<>();
@@ -97,7 +97,7 @@ public class ApiKeySessionProvider implements SessionProvider {
      * Creates a session provider that uses an Api Key to authenticate.
      *
      * @param config config.
-     * @param client
+     * @param client configured HTTP client
      */
     public ApiKeySessionProvider(@NonNull Config config, @NonNull HttpClient client) {
         this(config, client, Clock.systemUTC());

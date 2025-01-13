@@ -25,6 +25,13 @@ public record EncryptResponse(
                               @JsonProperty(value = "cipher", required = true) byte[] cipher,
                               @JsonProperty(value = "iv", required = true) byte[] iv) {
 
+    /**
+     * Encrypt response from Fortanix DSM REST API, {@code /crypto/v1/encrypt}.
+     *
+     * @param kid The ID of the key used for encryption. Returned for non-transient keys.
+     * @param cipher Encrypted ciphertext bytes.
+     * @param iv The initialization vector used during encryption. This is only applicable for certain symmetric encryption modes.
+     */
     public EncryptResponse {
         Objects.requireNonNull(cipher);
         Objects.requireNonNull(iv);

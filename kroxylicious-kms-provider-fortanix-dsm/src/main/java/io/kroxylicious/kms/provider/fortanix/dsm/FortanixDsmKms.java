@@ -68,6 +68,9 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     };
     private static final TypeReference<DecryptResponse> DECRYPT_RESPONSE_TYPE_REF = new TypeReference<DecryptResponse>() {
     };
+    /**
+     * HTTP Authentication header name.
+     */
     public static final String AUTHORIZATION_HEADER = "Authorization";
 
     private final HttpClient client;

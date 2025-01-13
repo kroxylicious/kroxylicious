@@ -23,6 +23,12 @@ public record DecryptResponse(
                               @JsonProperty(value = "kid", required = false) String kid,
                               @JsonProperty(value = "plain", required = true) byte[] plain) {
 
+    /**
+     * Decrypt response from Fortanix DSM REST API, @code /crypto/v1/decrypt}.
+     *
+     * @param kid The ID of the key used for encryption. Returned for non-transient keys.
+     * @param plain Decrypted plaintext bytes.
+     */
     public DecryptResponse {
         Objects.requireNonNull(plain);
         if (plain.length == 0) {

@@ -85,10 +85,16 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
     private static final TypeReference<SecurityObjectResponse> SECURITY_OBJECT_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
 
+    private static boolean loggedWarning;
+
     private final String testRunInstance = UUID.randomUUID().toString();
     private final HttpClient client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<URI> endpointUri;
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<String> apiKey;
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<String> adminApiKey;
 
     private ApiKeySessionProvider adminSessionProvider;
@@ -96,10 +102,17 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
     FortanixDsmKmsTestKmsFacade() {
         this(KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT, KROXYLICIOUS_KMS_FORTANIX_API_KEY, KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY);
         if (!isAvailable()) {
-            LOGGER.info(
-                    "Environment variables KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT, KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY and KROXYLICIOUS_KMS_FORTANIX_API_KEY are not defined, tests requiring the Fortanix KMS will be skipped");
+            logUnavailabilty();
         }
 
+    }
+
+    private static void logUnavailabilty() {
+        if (!loggedWarning) {
+            LOGGER.warn(
+                    "Environment variables KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT, KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY and KROXYLICIOUS_KMS_FORTANIX_API_KEY are not defined, tests requiring the Fortanix KMS will be skipped");
+            loggedWarning = true;
+        }
     }
 
     @VisibleForTesting

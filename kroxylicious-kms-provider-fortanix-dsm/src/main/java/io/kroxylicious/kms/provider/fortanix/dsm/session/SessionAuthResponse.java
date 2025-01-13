@@ -27,6 +27,15 @@ public record SessionAuthResponse(@JsonProperty("token_type") String tokenType,
                                   @JsonProperty("access_token") String accessToken,
                                   @JsonProperty("entity_id") String entityId,
                                   @JsonProperty(value = "allowed_mfa_methods", required = false) List<String> allowedMfaMethods) {
+    /**
+     * A session auth response.
+     *
+     * @param tokenType token type
+     * @param expiresIn expiration value (in seconds)
+     * @param accessToken access token
+     * @param entityId entity id
+     * @param allowedMfaMethods MFA methods
+     */
     public SessionAuthResponse {
         Objects.requireNonNull(tokenType);
         Objects.requireNonNull(accessToken);

@@ -31,6 +31,17 @@ public record SecurityObjectRequest(@JsonProperty("name") String name,
                                     @JsonProperty("transient") boolean transientSo,
                                     @JsonProperty("key_ops") List<String> keyOps,
                                     @JsonProperty("custom_metadata") Map<String, Object> customMetadata) {
+    /**
+     * Security object request to the Fortanix DSM REST API.
+     *
+     * @param name Name of the security object.
+     * @param keySize Key size of the security object in bits.
+     * @param objType Type of security object (AES, RSA etc.)
+     * @param transientSo If set to true, the security object will cease to exist after session ends.
+     * @param keyOps Array of key operations (EXPORT, ENCRYPT, etc.)
+     * @param customMetadata User managed field for adding custom metadata to the security object.
+     * @see <a href="https://support.fortanix.com/apidocs/generate-a-new-security-object">generate-a-new-security-object</a>
+     */
     public SecurityObjectRequest {
         Objects.requireNonNull(objType);
     }

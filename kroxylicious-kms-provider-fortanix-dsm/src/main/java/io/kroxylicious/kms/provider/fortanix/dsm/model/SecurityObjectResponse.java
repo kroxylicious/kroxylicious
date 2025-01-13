@@ -21,6 +21,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record SecurityObjectResponse(@JsonProperty(value = "kid", required = false) String kid,
                                      @JsonProperty(value = "transient_key", required = false) String transientKey,
                                      @JsonProperty(value = "value", required = false) byte[] value) {
+    /**
+     * Security object response from the Fortanix DSM REST API.
+     *
+     * @param kid kid
+     * @param transientKey transient key name
+     * @param value key material (populated by the export endpoint only)
+     */
     public SecurityObjectResponse {
         if (kid == null && transientKey == null) {
             throw new NullPointerException("Requires a key identifier");

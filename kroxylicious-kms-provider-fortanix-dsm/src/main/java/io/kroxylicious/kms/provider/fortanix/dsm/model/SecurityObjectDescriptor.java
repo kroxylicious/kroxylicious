@@ -21,6 +21,13 @@ public record SecurityObjectDescriptor(
                                        @JsonProperty("kid") String kid,
                                        @JsonProperty("name") String name,
                                        @JsonProperty("transient_key") String transientKey) {
+    /**
+     * Fortanix key descriptor capable of expressing a security object by kid, name or transient key id.
+     *
+     * @param kid kid
+     * @param name key name
+     * @param transientKey transient key name
+     */
     public SecurityObjectDescriptor {
         if (kid == null && name == null && transientKey == null) {
             throw new NullPointerException();

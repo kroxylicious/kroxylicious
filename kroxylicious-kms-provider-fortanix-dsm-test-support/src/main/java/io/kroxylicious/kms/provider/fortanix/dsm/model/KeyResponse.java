@@ -11,6 +11,12 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Key response.
+ *
+ * @param kid key identifier.
+ * @param customMetadata custom metadata
+ */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record KeyResponse(@JsonProperty(value = "kid") String kid,
                           @JsonProperty(value = "custom_metadata") Map<String, Object> customMetadata) {}

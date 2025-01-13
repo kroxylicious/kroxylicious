@@ -29,6 +29,14 @@ public record EncryptRequest(@JsonProperty(value = "key", required = true) Secur
                              @JsonProperty(value = "mode", required = true) String mode,
                              @JsonProperty(value = "plain", required = true) byte[] plain) {
 
+    /**
+     * Encrypt request to the Fortanix DSM REST API, {@code /crypto/v1/encrypt}.
+     *
+     * @param key Uniquely identifies a persisted or transient secure object.
+     * @param alg A cryptographic algorithm.
+     * @param mode cipher mode
+     * @param plain Plaintext bytes to be encrypted.
+     */
     public EncryptRequest {
         Objects.requireNonNull(key);
         Objects.requireNonNull(alg);
@@ -40,6 +48,13 @@ public record EncryptRequest(@JsonProperty(value = "key", required = true) Secur
 
     }
 
+    /**
+     * Factory method to create a wrap request.
+     *
+     * @param kid kid
+     * @param plaintext plaintext
+     * @return encrypt request
+     */
     @NonNull
     public static EncryptRequest createWrapRequest(@NonNull String kid, byte[] plaintext) {
         return new EncryptRequest(new SecurityObjectDescriptor(kid, null, null), AES, BATCH_ENCRYPT_CIPHER_MODE, plaintext);

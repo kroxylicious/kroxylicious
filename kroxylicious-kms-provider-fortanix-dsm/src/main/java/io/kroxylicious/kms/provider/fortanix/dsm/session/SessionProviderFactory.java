@@ -24,12 +24,15 @@ public interface SessionProviderFactory {
      * Creates a session provider.
      *
      * @param config configuration
-     * @param client
+     * @param client http client
      * @return session provider.
      */
     @NonNull
     SessionProvider createSessionProvider(@NonNull Config config, HttpClient client);
 
+    /**
+     * Default session provider implementation.
+     */
     SessionProviderFactory DEFAULT = new SessionProviderFactory() {
         @NonNull
         @Override
