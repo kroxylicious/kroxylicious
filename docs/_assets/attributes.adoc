@@ -37,6 +37,10 @@
 //Vault links
 :hashicorp-vault: https://developer.hashicorp.com/vault
 
+//Fortanix DSM links
+:fortanix-dsm: https://www.fortanix.com/platform/data-security-manager
+:fortanix-support: https://support.fortanix.com/
+
 //AWS links
 :aws:  https://docs.aws.amazon.com/
 
@@ -44,4 +48,5 @@
 :apicurio-docs: https://www.apicur.io/registry/docs/apicurio-registry/{ApicurioVersion}/
 
 // Conditional inclusion flags
+:include-fortanix-dsm-kms: 1
 :include-aws-kms-service-config-identity-ec2-metadata: 1

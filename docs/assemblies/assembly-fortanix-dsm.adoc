@@ -1,0 +1,13 @@
+// file included in the following:
+//
+// assembly-record-encryption-filter.adoc
+
+[id='assembly-fortanix-dsm-{context}']
+= Setting up Fortanix Data Security Manager (DSM)
+
+[role="_abstract"]
+To use Fortanix Data Security Manager (DSM) with the Record Encryption filter, use the following setup:
+
+include::../modules/record-encryption/fortanix-dsm/con-fortanix-dsm-setup.adoc[leveloffset=+1]
+include::../modules/record-encryption/fortanix-dsm/con-fortanix-dsm-service-config.adoc[leveloffset=+1]
+include::../modules/record-encryption/fortanix-dsm/con-fortanix-dsm-key-creation.adoc[leveloffset=+1]

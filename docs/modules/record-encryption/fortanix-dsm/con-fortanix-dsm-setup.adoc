@@ -1,0 +1,60 @@
+// file included in the following:
+//
+// assembly-hashicorp-fortanix-dsm.adoc
+
+[id='con-fortanix-dsm-setup-{context}']
+= Setup
+
+The filter integrates with the {fortanix-dsm}[Fortanix Data Security Manager (DSM)].  Both
+Fortanix DSM software-as-a service (SaaS) or an on-premise installation are supported.
+
+These instructions assume that you are using the
+{fortanix-support}/docs/clients-command-line-interface-cli-for-fortanix-data-security-manager[Fortanix DSM CLI,]
+but you may use the Fortanix DSM UI if preferred.
+
+[#_fortanix_dsm_cluster_url]
+== Fortanix DSM Cluster URL
+
+The Record Encryption filter needs the URL of the Fortanix DSM Cluster to be used.
+
+If you are using SaaS, the URL will look like https://smartkey.io/[`https://<region>.smartkey.io`] where `region` is an
+identifier such as `amer`.  See{fortanix-support}/docs/configure-api-client for more details.
+
+If using an on-premises instance, talk to the group responsible for it within your organization to find out
+the URL you should use.
+
+== Establish the naming convention for keys within Fortanix DSM
+
+Establish a naming convention for keys to keep the filter’s keys separate from those used by other systems.
+Here, we use a prefix of `KEK_` for filter key name.
+
+Choose which Fortanix DSM group(s) will be used to keep the keys.  Here, we assume a group name of `topic-keks`.
+
+Adjust the instructions if a different conventions are used.
+
+== Role of the administrator
+
+To use the filter, an administrator (or administrative process) must create the encryption keys within Fortanix DSM that
+will be used to encrypt the records. The organization deploying the Record Encryption filter is responsible for managing
+this administrator or process.
+
+The administrator must have permissions to create keys with Fortanix DSM.
+
+== Establish an application identity for the filter
+
+The filter must authenticate to Fortanix DSM in order to perform the encryption and decryption operations.
+Therefore, a Fortanix DSM App with sufficient permissions must be created for the filter.
+
+[source,shell]
+----
+sdkms-cli --api-endpoint https://<region>.smartkey.io create-app --name kroxylicious --default-group topic-keks --groups topic-keks
+----
+
+Now get the api-key for the app.
+
+[source,shell]
+----
+sdkms-cli --api-endpoint https://<region>.smartkey.io get-app-api-key --name kroxylicious
+----
+
+The filter will use this api-key to authenticate to Fortanix DSM.  You'll need the api-key later on.

@@ -28,5 +28,8 @@ include::../modules/record-encryption/con-record-encryption-overview.adoc[levelo
 include::assembly-hashicorp-vault.adoc[leveloffset=+1]
 //setting up AWS KMS
 include::assembly-aws-kms.adoc[leveloffset=+1]
+ifdef::include-fortanix-dsm-kms[]
+include::assembly-fortanix-dsm.adoc[leveloffset=+1]
+endif::[]
 //configuring the record encryption filter
 include::../modules/record-encryption/proc-configuring-record-encryption-filter.adoc[leveloffset=+1]
