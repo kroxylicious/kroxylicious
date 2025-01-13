@@ -35,16 +35,17 @@ class ConfigurationTest {
     private final ConfigParser configParser = new ConfigParser();
 
     public static Stream<Arguments> fluentApiConfigYamlFidelity() {
+        NamedFilterDefinition filter = new NamedFilterDefinitionBuilder("filter-1", ExampleFilterFactory.class.getSimpleName())
+                .withConfig("examplePlugin", "ExamplePluginInstance",
+                        "examplePluginConfig", Map.of("pluginKey", "pluginValue"))
+                .build();
         return Stream.of(argumentSet("Top level",
                 new ConfigurationBuilder().withUseIoUring(true).build(),
                 """
                         useIoUring: true"""),
-                argumentSet("With filter",
+                argumentSet("With filters",
                         new ConfigurationBuilder()
-                                .addToFilters(new FilterDefinitionBuilder(ExampleFilterFactory.class.getSimpleName())
-                                        .withConfig("examplePlugin", "ExamplePluginInstance",
-                                                "examplePluginConfig", Map.of("pluginKey", "pluginValue"))
-                                        .build())
+                                .addToFilters(filter.asFilterDefinition())
                                 .build(),
                         """
                                     filters:
@@ -53,6 +54,22 @@ class ConfigurationTest {
                                         examplePlugin: ExamplePluginInstance
                                         examplePluginConfig:
                                           pluginKey: pluginValue
+                                """),
+                argumentSet("With filterDefinitions",
+                        new ConfigurationBuilder()
+                                .addToFilterDefinitions(filter)
+                                .addToDefaultFilters(filter.name())
+                                .build(),
+                        """
+                                    filterDefinitions:
+                                    - name: filter-1
+                                      type: ExampleFilterFactory
+                                      config:
+                                        examplePlugin: ExamplePluginInstance
+                                        examplePluginConfig:
+                                          pluginKey: pluginValue
+                                    defaultFilters:
+                                      - filter-1
                                 """),
                 argumentSet("With Virtual Cluster",
                         new ConfigurationBuilder()
@@ -320,6 +337,7 @@ class ConfigurationTest {
     }
 
     @Test
+    @SuppressWarnings("java:S5738")
     void shouldRejectBothFiltersAndFilterDefinitions() {
         List<NamedFilterDefinition> filterDefinitions = List.of(new NamedFilterDefinition("foo", "", ""));
         List<FilterDefinition> filters = List.of(new FilterDefinition("", ""));
@@ -337,6 +355,7 @@ class ConfigurationTest {
     }
 
     @Test
+    @SuppressWarnings("java:S5738")
     void shouldRejectFilterDefinitionsWithSameName() {
         List<NamedFilterDefinition> filterDefinitions = List.of(
                 new NamedFilterDefinition("foo", "", ""),
@@ -405,6 +424,7 @@ class ConfigurationTest {
     }
 
     @Test
+    @SuppressWarnings("java:S5738")
     void shouldRejectVirtualClusterFiltersWhenTopLevelFilters() {
         Optional<Map<String, Object>> development = Optional.empty();
         Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, false, false, List.of()));

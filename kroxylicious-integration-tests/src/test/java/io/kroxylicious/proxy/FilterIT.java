@@ -47,7 +47,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.ForwardingStyle;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
@@ -91,7 +91,8 @@ import static org.awaitility.Awaitility.await;
 class FilterIT {
 
     private static final String PLAINTEXT = "Hello, world!";
-    private static final FilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new FilterDefinitionBuilder(RejectingCreateTopicFilterFactory.class.getName());
+    private static final NamedFilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new NamedFilterDefinitionBuilder(RejectingCreateTopicFilterFactory.class.getName(),
+            RejectingCreateTopicFilterFactory.class.getName());
 
     @Test
     void reversibleEncryption() {
@@ -184,7 +185,8 @@ class FilterIT {
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
+                .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name());
 
         var topicName = UUID.randomUUID().toString();
         try (var tester = kroxyliciousTester(config);
@@ -212,7 +214,9 @@ class FilterIT {
                 .withConfig("withCloseConnection", withCloseConnection,
                         "forwardingStyle", forwardingStyle)
                 .build();
-        try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(rejectFilter));
+        try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+                .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name()));
                 var requestClient = tester.simpleTestClient()) {
 
             if (forwardingStyle == ForwardingStyle.ASYNCHRONOUS_REQUEST_TO_BROKER) {
@@ -278,13 +282,15 @@ class FilterIT {
 
     private void doSupportsForwardDeferredByAsynchronousRequest(RequestResponseMarkingFilterFactory.Direction direction, String name,
                                                                 ForwardingStyle forwardingStyle) {
-        var markingFilter = new FilterDefinitionBuilder(RequestResponseMarkingFilterFactory.class.getName())
+        var markingFilter = new NamedFilterDefinitionBuilder(name, RequestResponseMarkingFilterFactory.class.getName())
                 .withConfig("keysToMark", Set.of(LIST_TRANSACTIONS),
                         "direction", Set.of(direction),
                         "name", name,
                         "forwardingStyle", forwardingStyle)
                 .build();
-        try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap).addToFilters(markingFilter));
+        try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+                .addToFilterDefinitions(markingFilter)
+                .addToDefaultFilters(name));
                 var kafkaClient = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(LIST_TRANSACTIONS, LIST_TRANSACTIONS.latestVersion(), new ListTransactionsResponseData()));
             ApiVersionsResponseData apiVersionsResponseData = new ApiVersionsResponseData();
@@ -317,7 +323,8 @@ class FilterIT {
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
-                .addToFilters(REJECTING_CREATE_TOPIC_FILTER.build());
+                .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name());
 
         var name = UUID.randomUUID().toString();
         try (var tester = kroxyliciousTester(config);
@@ -352,9 +359,12 @@ class FilterIT {
         var expectedEncoded1 = encode(topic1.name(), ByteBuffer.wrap(bytes)).array();
         var expectedEncoded2 = encode(topic2.name(), ByteBuffer.wrap(bytes)).array();
 
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(ProduceRequestTransformationFilterFactory.class.getName(),
+                ProduceRequestTransformationFilterFactory.class.getName())
+                .withConfig("transformation", TestEncoderFactory.class.getName()).build();
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(ProduceRequestTransformationFilterFactory.class.getName())
-                        .withConfig("transformation", TestEncoderFactory.class.getName()).build());
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
@@ -384,7 +394,8 @@ class FilterIT {
     void requestFiltersCanRespondWithoutProxyingRespondsInCorrectOrder() throws Exception {
 
         try (var tester = mockKafkaKroxyliciousTester(
-                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build()));
+                s -> proxy(s).addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                        .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name()));
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
@@ -406,7 +417,8 @@ class FilterIT {
     void clientsCanSendMultipleMessagesImmediately() {
 
         try (var tester = mockKafkaKroxyliciousTester(
-                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build()));
+                s -> proxy(s).addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                        .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name()));
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
@@ -423,7 +435,8 @@ class FilterIT {
     void zeroAckProduceRequestsDoNotInterfereWithResponseReorderingLogic() throws Exception {
 
         try (var tester = mockKafkaKroxyliciousTester(
-                s -> proxy(s).addToFilters(REJECTING_CREATE_TOPIC_FILTER.build()));
+                s -> proxy(s).addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                        .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name()));
                 var client = tester.simpleTestClient()) {
             tester.addMockResponseForApiKey(new ResponsePayload(METADATA, METADATA.latestVersion(), new MetadataResponseData()));
             tester.dropWhen(zeroAckProduceRequestMatcher());
@@ -448,9 +461,11 @@ class FilterIT {
     // this checks that Kroxy can handle the basics of forwarding them.
     @Test
     void shouldModifyZeroAckProduceMessage(KafkaCluster cluster, Topic topic) throws Exception {
+        String className = ProduceRequestTransformationFilterFactory.class.getName();
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(ProduceRequestTransformationFilterFactory.class.getName())
-                        .withConfig("transformation", TestEncoderFactory.class.getName()).build());
+                .addToFilterDefinitions(new NamedFilterDefinitionBuilder(className, className)
+                        .withConfig("transformation", TestEncoderFactory.class.getName()).build())
+                .addToDefaultFilters(className);
 
         var expectedEncoded = encode(topic.name(), ByteBuffer.wrap(PLAINTEXT.getBytes(StandardCharsets.UTF_8))).array();
 

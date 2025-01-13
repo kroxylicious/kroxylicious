@@ -110,6 +110,7 @@ public final class KafkaProxy implements AutoCloseable {
      * Starts this proxy.
      * @return This proxy.
      */
+    @SuppressWarnings("java:S5738")
     public KafkaProxy startup() throws InterruptedException {
         if (running.getAndSet(true)) {
             throw new IllegalStateException("This proxy is already running");

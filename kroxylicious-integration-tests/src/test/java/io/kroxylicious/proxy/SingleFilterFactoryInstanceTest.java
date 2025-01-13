@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
@@ -34,7 +35,7 @@ public class SingleFilterFactoryInstanceTest {
     }
 
     @Test
-    void shouldOnlyInitialiseFilterFactoryOnce() {
+    void shouldOnlyInitialiseFilterFactoryOnce_filters() {
         // Given
         final UUID configInstance = UUID.randomUUID();
 
@@ -49,7 +50,7 @@ public class SingleFilterFactoryInstanceTest {
     }
 
     @Test
-    void shouldInitialiseOncePerConfig() {
+    void shouldInitialiseOncePerConfig_filters() {
         // Given
         final UUID configInstanceA = UUID.randomUUID();
         final UUID configInstanceB = UUID.randomUUID();
@@ -58,6 +59,41 @@ public class SingleFilterFactoryInstanceTest {
         mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
                 .addToFilters(new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstanceA).build())
                 .addToFilters(new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstanceB).build()));
+
+        // Then
+        InvocationCountingFilterFactory.assertInitializationCount(configInstanceA, 1);
+        InvocationCountingFilterFactory.assertInitializationCount(configInstanceB, 1);
+    }
+
+    @Test
+    void shouldOnlyInitialiseFilterFactoryOnce_filterDefinitions() {
+        // Given
+        final UUID configInstance = UUID.randomUUID();
+
+        // When
+        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+                .addToFilterDefinitions(new NamedFilterDefinitionBuilder("one", "InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstance)
+                        .build())
+                .addToDefaultFilters("one"));
+
+        // Then
+        InvocationCountingFilterFactory.assertInitializationCount(configInstance, 1);
+
+    }
+
+    @Test
+    void shouldInitialiseOncePerConfig_filterDefinitions() {
+        // Given
+        final UUID configInstanceA = UUID.randomUUID();
+        final UUID configInstanceB = UUID.randomUUID();
+
+        // When
+        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+                .addToFilterDefinitions(
+                        new NamedFilterDefinitionBuilder("one", "InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstanceA).build())
+                .addToFilterDefinitions(
+                        new NamedFilterDefinitionBuilder("two", "InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstanceB).build())
+                .addToDefaultFilters("one", "two"));
 
         // Then
         InvocationCountingFilterFactory.assertInitializationCount(configInstanceA, 1);

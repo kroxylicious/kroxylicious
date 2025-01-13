@@ -22,8 +22,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
-import io.kroxylicious.proxy.config.FilterDefinition;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.OutOfBandSendFilterFactory;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory;
@@ -56,10 +56,10 @@ public class OutOfBandRequestIT {
     @Test
     void testOutOfBandMessageInterceptedByUpstreamFilters() {
         // this filter should not intercept the out-of-band request or response, it will not either message with its name
-        FilterDefinition downstreamFilter = addAddUnknownTaggedFieldToMessagesWithApiKey("downstreamOfOutOfBandFilter", CREATE_TOPICS);
-        FilterDefinition outOfBandSender = outOfBandSender(CREATE_TOPICS, FILTER_NAME_TAG);
+        NamedFilterDefinition downstreamFilter = addAddUnknownTaggedFieldToMessagesWithApiKey("downstreamOfOutOfBandFilter", CREATE_TOPICS);
+        NamedFilterDefinition outOfBandSender = outOfBandSender(CREATE_TOPICS, FILTER_NAME_TAG);
         // this filter should intercept the out-of-band request and response, it will tag both messages with its name
-        FilterDefinition upstreamFilter = addAddUnknownTaggedFieldToMessagesWithApiKey("upstreamOfOutOfBandFilter", CREATE_TOPICS);
+        NamedFilterDefinition upstreamFilter = addAddUnknownTaggedFieldToMessagesWithApiKey("upstreamOfOutOfBandFilter", CREATE_TOPICS);
         try (var tester = createMockTesterWithFilters(downstreamFilter, outOfBandSender, upstreamFilter);
                 var client = tester.simpleTestClient()) {
             givenMockReturnsArbitraryCreateTopicResponse(tester);
@@ -78,18 +78,22 @@ public class OutOfBandRequestIT {
         tester.addMockResponseForApiKey(new ResponsePayload(DESCRIBE_CLUSTER, DESCRIBE_CLUSTER.latestVersion(), message));
     }
 
-    private static MockServerKroxyliciousTester createMockTesterWithFilters(FilterDefinition... definitions) {
-        List<FilterDefinition> filterDefs = Arrays.stream(definitions).toList();
-        return KroxyliciousTesters.mockKafkaKroxyliciousTester(s -> KroxyliciousConfigUtils.proxy(s).addAllToFilters(filterDefs));
+    private static MockServerKroxyliciousTester createMockTesterWithFilters(NamedFilterDefinition... definitions) {
+        List<NamedFilterDefinition> filterDefs = Arrays.stream(definitions).toList();
+        return KroxyliciousTesters.mockKafkaKroxyliciousTester(s -> KroxyliciousConfigUtils.proxy(s)
+                .addAllToFilterDefinitions(filterDefs)
+                .addAllToDefaultFilters(filterDefs.stream().map(NamedFilterDefinition::name).toList()));
     }
 
-    private static FilterDefinition outOfBandSender(ApiKeys apiKeyToSend, int tagToCollect) {
-        return new FilterDefinitionBuilder(OutOfBandSendFilterFactory.class.getName()).withConfig(Map.of("apiKeyToSend", apiKeyToSend, "tagToCollect", tagToCollect))
+    private static NamedFilterDefinition outOfBandSender(ApiKeys apiKeyToSend, int tagToCollect) {
+        String className = OutOfBandSendFilterFactory.class.getName();
+        return new NamedFilterDefinitionBuilder(className, className).withConfig(Map.of("apiKeyToSend", apiKeyToSend, "tagToCollect", tagToCollect))
                 .build();
     }
 
-    private static FilterDefinition addAddUnknownTaggedFieldToMessagesWithApiKey(String name, ApiKeys apiKeys) {
-        return new FilterDefinitionBuilder(RequestResponseMarkingFilterFactory.class.getName()).withConfig("name", name, "keysToMark", Set.of(apiKeys)).build();
+    private static NamedFilterDefinition addAddUnknownTaggedFieldToMessagesWithApiKey(String name, ApiKeys apiKeys) {
+        String className = RequestResponseMarkingFilterFactory.class.getName();
+        return new NamedFilterDefinitionBuilder(className + "-" + name, className).withConfig("name", name, "keysToMark", Set.of(apiKeys)).build();
     }
 
     private static void andMessageFromOutOfBandRequestToMockHadTagAddedByUpstreamFilterOnly(MockServerKroxyliciousTester tester) {

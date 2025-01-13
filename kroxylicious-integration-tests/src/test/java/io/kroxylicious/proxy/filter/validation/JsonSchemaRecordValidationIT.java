@@ -46,7 +46,8 @@ import io.apicurio.registry.serde.jsonschema.JsonSchemaSerde;
 import io.apicurio.rest.client.util.IoUtil;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -280,11 +281,14 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     private static ConfigurationBuilder createGlobalIdRecordValidationConfig(KafkaCluster cluster, Topic topic, String ruleType, long globalId) {
+        String className = RecordValidation.class.getName();
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
+                List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
+                        Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", globalId)))))
+                .build();
         return proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic.name()), ruleType,
-                                Map.of("schemaValidationConfig", Map.of("apicurioRegistryUrl", APICURIO_REGISTRY_URL, "apicurioGlobalId", globalId)))))
-                        .build());
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
     }
 
     private static <T, S> org.apache.kafka.clients.consumer.Consumer<T, S> consumeFromEarliestOffsets(KroxyliciousTester tester, Serde<T> keySerde,
