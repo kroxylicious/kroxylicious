@@ -54,17 +54,17 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * <table>
  *     <caption>Environment variables required for Fortanix DSM test facade</caption>
  *     <tr>
- *         <td>FORTANIX_API_ENDPOINT</td>
+ *         <td>KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT</td>
  *         <td>Endpoint URL of the Fortanix e.g. <a href="https://api.uk.smartkey.io/">https://api.uk.smartkey.io/</a></td>
  *     </tr>
  *     <tr>
- *         <td>FORTANIX_ADMIN_API_KEY</td>
+ *         <td>KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY</td>
  *         <td>API key for the Fortanix - this will be used by the test facade. This user needs
  *             privileges to perform actions like create/delete/rotate keys.</td>
  *     </tr>
  *     <tr>
- *         <td>FORTANIX_API_KEY</td>
- *         <td>API key for the Fortanix - this will be used by the production code.</td>
+ *         <td>KROXYLICIOUS_KMS_FORTANIX_API_KEY</td>
+ *         <td>API key for the Fortanix - this will be used by the production KMS code.</td>
  *     </tr>
  * </table>
  */
@@ -73,11 +73,12 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
     private static final String TEST_RUN_INSTANCE_ID_METADATA_KEY = "testInstance";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static final Optional<URI> FORTANIX_API_ENDPOINT = Optional.ofNullable(System.getenv().get("FORTANIX_API_ENDPOINT")).map(URI::create);
+    private static final Optional<URI> KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT = Optional.ofNullable(System.getenv().get("KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT"))
+            .map(URI::create);
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static final Optional<String> FORTANIX_ADMIN_API_KEY = Optional.ofNullable(System.getenv().get("FORTANIX_ADMIN_API_KEY"));
+    private static final Optional<String> KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY = Optional.ofNullable(System.getenv().get("KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY"));
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static final Optional<String> FORTANIX_API_KEY = Optional.ofNullable(System.getenv().get("FORTANIX_API_KEY"));
+    private static final Optional<String> KROXYLICIOUS_KMS_FORTANIX_API_KEY = Optional.ofNullable(System.getenv().get("KROXYLICIOUS_KMS_FORTANIX_API_KEY"));
 
     private static final TypeReference<List<KeyResponse>> KEY_LIST_RESPONSE_RESPONSE = new TypeReference<>() {
     };
@@ -93,10 +94,10 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
     private ApiKeySessionProvider adminSessionProvider;
 
     FortanixDsmKmsTestKmsFacade() {
-        this(FORTANIX_API_ENDPOINT, FORTANIX_API_KEY, FORTANIX_ADMIN_API_KEY);
+        this(KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT, KROXYLICIOUS_KMS_FORTANIX_API_KEY, KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY);
         if (!isAvailable()) {
             LOGGER.info(
-                    "Environment variables FORTANIX_API_ENDPOINT, FORTANIX_ADMIN_API_KEY and FORTANIX_API_KEY are not defined, tests requiring the Fortanix KMS will be skipped");
+                    "Environment variables KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT, KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY and KROXYLICIOUS_KMS_FORTANIX_API_KEY are not defined, tests requiring the Fortanix KMS will be skipped");
         }
 
     }
