@@ -380,7 +380,7 @@ class ConfigurationTest {
                 null, false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("'virtualClusters.vc1.filterRefs' references filters not defined in 'filterDefinitions': [missing]");
+                .hasMessage("'virtualClusters.vc1.filters' references filters not defined in 'filterDefinitions': [missing]");
     }
 
     @Test
@@ -413,7 +413,7 @@ class ConfigurationTest {
                 null,
                 null,
                 virtualClusters,
-                List.<FilterDefinition>of(),
+                List.<FilterDefinition> of(),
                 null, false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)

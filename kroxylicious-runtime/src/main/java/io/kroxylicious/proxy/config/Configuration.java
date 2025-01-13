@@ -95,7 +95,7 @@ public record Configuration(
             for (var entry : virtualClusters.entrySet()) {
                 var virtualClusterName = entry.getKey();
                 var virtualCluster = entry.getValue();
-                checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualClusterName + ".filterRefs");
+                checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualClusterName + ".filters");
             }
         }
 
@@ -231,9 +231,9 @@ public record Configuration(
     private List<NamedFilterDefinition> namedFilterDefinitionsForCluster(Map<String, NamedFilterDefinition> filterDefinitionsByName,
                                                                          VirtualCluster virtualCluster) {
         List<NamedFilterDefinition> filterDefinitions;
-        List<String> clusterFilterRefs = virtualCluster.filters();
-        if (clusterFilterRefs != null) {
-            filterDefinitions = resolveFilterNames(filterDefinitionsByName, clusterFilterRefs);
+        List<String> clusterFilters = virtualCluster.filters();
+        if (clusterFilters != null) {
+            filterDefinitions = resolveFilterNames(filterDefinitionsByName, clusterFilters);
         }
         else if (defaultFilters != null) {
             filterDefinitions = resolveFilterNames(filterDefinitionsByName, defaultFilters);
