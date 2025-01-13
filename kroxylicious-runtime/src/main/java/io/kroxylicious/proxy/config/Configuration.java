@@ -62,7 +62,7 @@ public record Configuration(
      * Use the {@link Configuration#Configuration(AdminHttpConfiguration, List, List, Map, List, boolean, Optional)} constructor instead.
      * @param adminHttp
      * @param filterDefinitions A list of named filter definitions (names must be unique)
-     * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filterRefs()}.
+     * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filters()}.
      * @param virtualClusters The virtual clusters
      * @param filters Deprecated. The filter definitions to be used for all virtual clusters. Can only be specified if {@link #filterDefinitions()} is null.
      * @param micrometer The micrometer config
@@ -95,7 +95,7 @@ public record Configuration(
             for (var entry : virtualClusters.entrySet()) {
                 var virtualClusterName = entry.getKey();
                 var virtualCluster = entry.getValue();
-                checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filterRefs(), "virtualClusters." + virtualClusterName + ".filterRefs");
+                checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualClusterName + ".filterRefs");
             }
         }
 
@@ -107,7 +107,7 @@ public record Configuration(
             }
             if (virtualClusters != null) {
                 virtualClusters.values().stream()
-                        .map(VirtualCluster::filterRefs)
+                        .map(VirtualCluster::filters)
                         .filter(Objects::nonNull)
                         .flatMap(Collection::stream)
                         .forEach(defined::remove);
@@ -224,7 +224,7 @@ public record Configuration(
     private List<NamedFilterDefinition> namedFilterDefinitionsForCluster(Map<String, NamedFilterDefinition> filterDefinitionsByName,
                                                                          VirtualCluster virtualCluster) {
         List<NamedFilterDefinition> filterDefinitions;
-        List<String> clusterFilterRefs = virtualCluster.filterRefs();
+        List<String> clusterFilterRefs = virtualCluster.filters();
         if (clusterFilterRefs != null) {
             filterDefinitions = resolveFilterNames(filterDefinitionsByName, clusterFilterRefs);
         }

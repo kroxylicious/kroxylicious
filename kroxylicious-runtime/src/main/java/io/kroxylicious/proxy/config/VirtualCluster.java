@@ -22,7 +22,7 @@ public record VirtualCluster(TargetCluster targetCluster,
                              @JsonProperty() Optional<Tls> tls,
                              boolean logNetwork,
                              boolean logFrames,
-                             @Nullable List<String> filterRefs) {
+                             @Nullable List<String> filters) {
 
     public io.kroxylicious.proxy.model.VirtualCluster toVirtualClusterModel(@NonNull PluginFactoryRegistry pfr,
                                                                             @NonNull List<NamedFilterDefinition> filterDefinitions,
