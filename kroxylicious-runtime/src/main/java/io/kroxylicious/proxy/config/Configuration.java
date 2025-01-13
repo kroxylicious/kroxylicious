@@ -16,8 +16,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,18 +102,24 @@ public record Configuration(
         // Every filter defined in the filterDefinitions is used somewhere
         if (filterDefinitions != null) {
             var defined = filterDefinitions.stream().map(NamedFilterDefinition::name).collect(Collectors.toCollection(HashSet::new));
-            Stream.concat(Stream.of(defaultFilters), virtualClusters.values().stream()
-                    .map(VirtualCluster::filterRefs)
-                    .filter(Objects::nonNull))
-                    .flatMap(Collection::stream)
-                            .forEach(defined::remove);
+            if (defaultFilters != null) {
+                defaultFilters.forEach(defined::remove);
+            }
+            if (virtualClusters != null) {
+                virtualClusters.values().stream()
+                        .map(VirtualCluster::filterRefs)
+                        .filter(Objects::nonNull)
+                        .flatMap(Collection::stream)
+                        .forEach(defined::remove);
+            }
             if (!defined.isEmpty()) {
-                throw new IllegalConfigurationException("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': " + defined);
+                throw new IllegalConfigurationException(
+                        "'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': " + defined);
             }
         }
 
         if (filters != null) {
-            LOGGER.warn("Configuration using 'filters' is deprecated and will be removed in a future release. "
+            LOGGER.warn("The 'filters' configuration property is deprecated and will be removed in a future release. "
                     + "Configurations should be updated to use 'filterDefinitions' and 'defaultFilters'.");
         }
     }

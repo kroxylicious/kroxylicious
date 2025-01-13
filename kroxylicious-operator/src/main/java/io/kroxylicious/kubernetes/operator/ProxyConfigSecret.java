@@ -7,11 +7,14 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -99,19 +102,9 @@ public class ProxyConfigSecret
 
         List<Clusters> clusters = ResourcesUtil.distinctClusters(primary);
 
-        List<NamedFilterDefinition> filterDefinitions = clusters.stream()
-                .flatMap(cluster -> filterDefinitions(cluster, context).stream())
-                .distinct()
-                .sorted(Comparator.comparing(NamedFilterDefinition::name))
-                .toList();
+        List<NamedFilterDefinition> filterDefinitions = buildFilterDefinitions(context, clusters);
 
-        var virtualClusters = clusters.stream()
-                .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
-                .collect(Collectors.toMap(
-                        Clusters::getName,
-                        cluster -> getVirtualCluster(primary, cluster),
-                        (v1, v2) -> v1, // Dupes handled below
-                        LinkedHashMap::new));
+        var virtualClusters = buildVirtualClusters(primary, context, clusters);
 
         Configuration configuration = new Configuration(
                 new AdminHttpConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())), filterDefinitions,
@@ -122,6 +115,38 @@ public class ProxyConfigSecret
                 Optional.empty());
 
         return toYaml(configuration);
+    }
+
+    @NonNull
+    private static LinkedHashMap<String, VirtualCluster> buildVirtualClusters(KafkaProxy primary, Context<KafkaProxy> context, List<Clusters> clusters) {
+        var virtualClusters = clusters.stream()
+                .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
+                .collect(Collectors.toMap(
+                        Clusters::getName,
+                        cluster -> getVirtualCluster(primary, cluster),
+                        (v1, v2) -> v1, // Dupes handled below
+                        LinkedHashMap::new));
+        return virtualClusters;
+    }
+
+    @NonNull
+    private static List<NamedFilterDefinition> buildFilterDefinitions(Context<KafkaProxy> context, List<Clusters> clusters) {
+        List<NamedFilterDefinition> filterDefinitions = new ArrayList<>();
+        Set<NamedFilterDefinition> uniqueValues = new HashSet<>();
+        for (Clusters cluster1 : clusters) {
+            try {
+                for (NamedFilterDefinition namedFilterDefinition : filterDefinitions(cluster1, context)) {
+                    if (uniqueValues.add(namedFilterDefinition)) {
+                        filterDefinitions.add(namedFilterDefinition);
+                    }
+                }
+            }
+            catch (InvalidClusterException e) {
+                SharedKafkaProxyContext.addClusterCondition(context, cluster1, e.accepted());
+            }
+        }
+        filterDefinitions.sort(Comparator.comparing(NamedFilterDefinition::name));
+        return filterDefinitions;
     }
 
     private static List<String> filterNamesForCluster(Clusters cluster) {
@@ -144,21 +169,17 @@ public class ProxyConfigSecret
         return Optional.ofNullable(cluster.getFilters()).orElse(List.of()).stream().map(filterCrRef -> {
 
             String filterDefinitionName = filterDefinitionName(filterCrRef);
-            try {
-                var filterCr = filterResourceFromRef(cluster, context, filterCrRef);
-                if (filterCr.getAdditionalProperties().get("spec") instanceof Map<?, ?> spec) {
-                    String type = (String) spec.get("type");
-                    Object config = spec.get("config");
-                    return new NamedFilterDefinition(filterDefinitionName, type, config);
-                }
-                else {
-                    throw new InvalidClusterException(ClusterCondition.filterInvalid(cluster.getName(), filterDefinitionName, "`spec` was not an `object`."));
-                }
+
+            var filterCr = filterResourceFromRef(cluster, context, filterCrRef);
+            if (filterCr.getAdditionalProperties().get("spec") instanceof Map<?, ?> spec) {
+                String type = (String) spec.get("type");
+                Object config = spec.get("config");
+                return new NamedFilterDefinition(filterDefinitionName, type, config);
             }
-            catch (InvalidClusterException e) {
-                SharedKafkaProxyContext.addClusterCondition(context, cluster, e.accepted());
-                return new NamedFilterDefinition(filterDefinitionName, "", "");
+            else {
+                throw new InvalidClusterException(ClusterCondition.filterInvalid(cluster.getName(), filterDefinitionName, "`spec` was not an `object`."));
             }
+
         }).toList();
     }
 
