@@ -25,7 +25,7 @@ public class ScraperTemplates {
         Map<String, String> label = new HashMap<>();
 
         label.put(Constants.SCRAPER_LABEL_KEY, Constants.SCRAPER_LABEL_VALUE);
-        label.put(Constants.DEPLOYMENT_TYPE_LABEL_KEY, Constants.SCRAPER_NAME);
+        label.put(Constants.DEPLOYMENT_TYPE, Constants.SCRAPER_NAME);
         String kroxyRepoUrl = Environment.KROXY_IMAGE_REPO + (Environment.KROXY_IMAGE_REPO.endsWith(":") ? "" : ":");
         String scraperImage = kroxyRepoUrl + Environment.KROXY_VERSION;
 

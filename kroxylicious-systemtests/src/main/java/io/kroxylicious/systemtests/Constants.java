@@ -173,7 +173,6 @@ public final class Constants {
     public static final String SCRAPER_LABEL_KEY = "user-test-app";
     public static final String SCRAPER_LABEL_VALUE = "scraper";
     public static final String SCRAPER_NAME = "Scraper";
-    public static final String DEPLOYMENT_TYPE_LABEL_KEY = "deployment-type";
 
     /**
      * Basic paths to examples
