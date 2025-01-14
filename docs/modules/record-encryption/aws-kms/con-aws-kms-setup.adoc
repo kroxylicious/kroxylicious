@@ -13,8 +13,9 @@ Adjust the instructions if a different naming convention is used.
 
 == Role of the administrator
 
-To use the filter, an administrator (or administrative process) must create the encryption keys within AWS KMS that will be used to encrypt the records.
-The organization deploying the Record Encryption filter is responsible for managing this administrator or process.
+To use the filter, an administrator (or administrative process) must create the encryption keys within AWS KMS that will
+be used by the link:../con-record-encryption-overview.adoc#_envelope_encryption[envelope encryption] process. The
+organization deploying the Record Encryption filter is responsible for managing this administrator or process.
 
 The administrator must have permissions to create keys in AWS KMS.
 As a starting point, the built-in AWS policy `AWSKeyManagementServicePowerUser` confers sufficient key management privileges.

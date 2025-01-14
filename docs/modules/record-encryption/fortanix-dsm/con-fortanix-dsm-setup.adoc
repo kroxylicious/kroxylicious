@@ -18,7 +18,7 @@ but you may use the Fortanix DSM UI if preferred.
 The Record Encryption filter needs the URL of the Fortanix DSM Cluster to be used.
 
 If you are using SaaS, the URL will look like https://smartkey.io/[`https://<region>.smartkey.io`] where `region` is an
-identifier such as `amer`.  See{fortanix-support}/docs/configure-api-client for more details.
+identifier such as `amer`.  See {fortanix-support}/docs/configure-api-client for more details.
 
 If using an on-premises instance, talk to the group responsible for it within your organization to find out
 the URL you should use.
@@ -35,7 +35,8 @@ Adjust the instructions if a different conventions are used.
 == Role of the administrator
 
 To use the filter, an administrator (or administrative process) must create the encryption keys within Fortanix DSM that
-will be used to encrypt the records. The organization deploying the Record Encryption filter is responsible for managing
+will be used by the link:../con-record-encryption-overview.adoc#_envelope_encryption[envelope encryption] process. The
+organization deploying the Record Encryption filter is responsible for managing
 this administrator or process.
 
 The administrator must have permissions to create keys with Fortanix DSM.
