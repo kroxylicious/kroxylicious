@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1715](https://github.com/kroxylicious/kroxylicious/issues/1715) Deprecate `bootstrap_servers`, replacing it with `bootstrapServers` 
 * [#1698](https://github.com/kroxylicious/kroxylicious/pull/1698) Bump netty.io_uring.version from 0.0.25.Final to 0.0.26.Final #1698
 * [#1672](https://github.com/kroxylicious/kroxylicious/pull/1672) Limited Fortanix DSM backed KMS integration
 * [#1709](https://github.com/kroxylicious/kroxylicious/pull/1709) Deprecate the existing top level `filters` configuration property; add support for named `filterDefinitions`, which can be scoped to a cluster.

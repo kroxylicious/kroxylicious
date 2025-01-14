@@ -40,7 +40,7 @@ your Kafka client off-EC2.
      virtualClusters:
        demo:
          targetCluster:
-           bootstrap_servers: localhost:9092
+           bootstrapServers: localhost:9092
          clusterNetworkAddressConfigProvider:
            type: PortPerBrokerClusterNetworkAddressConfigProvider
            config:

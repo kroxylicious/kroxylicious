@@ -17,7 +17,7 @@ data:
     virtualClusters:
       my-cluster-proxy:
         targetCluster:
-          bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+          bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
           tls:
             trust:
               storeFile: /opt/kroxylicious/trust/ca.p12

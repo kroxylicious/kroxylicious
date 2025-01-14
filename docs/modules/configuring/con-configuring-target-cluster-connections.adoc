@@ -16,7 +16,7 @@ This option is suitable if the target cluster is using a TLS certificate signed 
 virtualClusters:
   my-cluster-proxy:
     targetCluster:
-      bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls: {}                                         
       #...
 ----
@@ -29,7 +29,7 @@ If it is using a TLS certificate signed by a private CA, you must add truststore
 virtualClusters:
   my-cluster-proxy:
     targetCluster:
-      bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
         trust:
           storeFile: <path>/trust.p12 # <1>                
@@ -50,7 +50,7 @@ For mTLS, you can add keystore configuration for the virtual cluster too.
 virtualClusters:
   my-cluster-proxy:
     targetCluster:
-      bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093:9092
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093:9092
       tls:
         key:
           privateKeyFile: <path>/client.key # <1>
@@ -71,7 +71,7 @@ For the purposes of testing outside of a production environment, you can set the
 virtualClusters:
   my-cluster-proxy:
     targetCluster:
-      bootstrap_servers: myprivatecluster:9092
+      bootstrapServers: myprivatecluster:9092
       tls:
         trust:
           insecure: true                                

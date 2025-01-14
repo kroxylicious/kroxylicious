@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -17,7 +18,7 @@ import io.kroxylicious.proxy.service.HostPort;
 /**
  * Represents the target (upstream) kafka cluster.
  */
-public record TargetCluster(@JsonProperty(value = "bootstrap_servers", required = true) String bootstrapServers,
+public record TargetCluster(@JsonProperty(value = "bootstrapServers", required = true) @JsonAlias("bootstrap_servers") String bootstrapServers,
                             @JsonProperty(value = "tls") Optional<Tls> tls) {
 
     /**

@@ -20,7 +20,7 @@ adminHttp: # <1>
     virtualClusters: # <2>
       my-cluster-proxy: # <3>
         targetCluster:
-          bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093 # <4>
+          bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093 # <4>
           tls: # <5>
             trust:
               storeFile: /opt/proxy/trust/ca.p12
