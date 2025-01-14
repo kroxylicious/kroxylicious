@@ -39,14 +39,14 @@ class ConfigurationTest {
     void shouldParseOldBootstrapServers() throws IOException {
         var vc = MAPPER.reader().readValue(
                 """
-                        targetCluster:
-                          bootstrap_servers: kafka.example:1234
-                        clusterNetworkAddressConfigProvider:
-                          type: SniRoutingClusterNetworkAddressConfigProvider
-                          config:
-                            bootstrapAddress: cluster1:9192
-                            brokerAddressPattern: broker-$(nodeId)
-                  """, VirtualCluster.class);
+                              targetCluster:
+                                bootstrap_servers: kafka.example:1234
+                              clusterNetworkAddressConfigProvider:
+                                type: SniRoutingClusterNetworkAddressConfigProvider
+                                config:
+                                  bootstrapAddress: cluster1:9192
+                                  brokerAddressPattern: broker-$(nodeId)
+                        """, VirtualCluster.class);
 
         TargetCluster targetCluster = vc.targetCluster();
         assertThat(targetCluster).isNotNull();
