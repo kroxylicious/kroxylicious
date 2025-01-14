@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
 import io.fabric8.openshift.client.OpenShiftClient;
 
+import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -107,7 +108,8 @@ public class Vault {
         ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
                 Optional.of(Environment.VAULT_CHART_VERSION),
                 Optional.of(Path.of(TestUtils.getResourcesURI("helm_vault_overrides.yaml"))),
-                Optional.of(Map.of("server.dev.devRootToken", vaultRootToken,
+                Optional.of(Map.of("server.image.repository", Constants.DOCKER_REGISTRY_GCR_MIRROR + "/" + VAULT_HELM_CHART_NAME,
+                        "server.dev.devRootToken", vaultRootToken,
                         "global.openshift", String.valueOf(openshiftCluster),
                         "server.route.enabled", String.valueOf(openshiftCluster),
                         "server.route.host", VAULT_SERVICE_NAME + "." + getIngressDomain(openshiftCluster),
