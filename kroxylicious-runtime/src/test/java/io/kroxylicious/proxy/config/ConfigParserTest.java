@@ -249,7 +249,7 @@ class ConfigParserTest {
                         brokerStartPort: 9193
                 """);
         // When
-        final List<io.kroxylicious.proxy.model.VirtualCluster> actualValidClusters = configurationModel.virtualClusterModel();
+        final List<io.kroxylicious.proxy.model.VirtualCluster> actualValidClusters = configurationModel.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
 
         // Then
         assertThat(actualValidClusters).singleElement().extracting("clusterName").isEqualTo("myAwesomeCluster");

@@ -8,8 +8,7 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Map;
 
-import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookContributor;
-import io.kroxylicious.proxy.service.ContributionManager;
+import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookService;
 
 public class MicrometerDefinitionBuilder extends AbstractDefinitionBuilder<MicrometerDefinition> {
     public MicrometerDefinitionBuilder(String type) {
@@ -18,8 +17,9 @@ public class MicrometerDefinitionBuilder extends AbstractDefinitionBuilder<Micro
 
     @Override
     protected MicrometerDefinition buildInternal(String type, Map<String, Object> config) {
-        Class<?> result = ContributionManager.INSTANCE.getDefinition(MicrometerConfigurationHookContributor.class, type).configurationType();
-
-        return new MicrometerDefinition(type, mapper.convertValue(config, result));
+        ServiceBasedPluginFactoryRegistry registry = new ServiceBasedPluginFactoryRegistry();
+        PluginFactory<MicrometerConfigurationHookService> factory = registry.pluginFactory(MicrometerConfigurationHookService.class);
+        Class<?> configType = factory.configType(type);
+        return new MicrometerDefinition(type, mapper.convertValue(config, configType));
     }
 }

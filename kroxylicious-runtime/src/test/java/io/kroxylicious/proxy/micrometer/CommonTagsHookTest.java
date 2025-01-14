@@ -23,13 +23,13 @@ class CommonTagsHookTest {
     @Test
     void testNullConfig() {
         assertThatThrownBy(() -> {
-            new CommonTagsHook(null);
+            new CommonTagsHook().build(null);
         }).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testCommonTags() {
-        CommonTagsHook commonTagsHook = new CommonTagsHook(new CommonTagsHook.CommonTagsHookConfig(Map.of("a", "b")));
+        MicrometerConfigurationHook commonTagsHook = new CommonTagsHook().build(new CommonTagsHook.CommonTagsHookConfig(Map.of("a", "b")));
         MeterRegistry registry = givenRegistryConfiguredWith(commonTagsHook);
         Meter meter = whenCreateArbitraryMeter(registry);
         thenTagEquals(meter, "a", "b");
@@ -37,7 +37,7 @@ class CommonTagsHookTest {
 
     @Test
     void testNullCommonTagsMap() {
-        CommonTagsHook commonTagsHook = new CommonTagsHook(new CommonTagsHook.CommonTagsHookConfig(null));
+        MicrometerConfigurationHook commonTagsHook = new CommonTagsHook().build(new CommonTagsHook.CommonTagsHookConfig(null));
         MeterRegistry registry = givenRegistryConfiguredWith(commonTagsHook);
         Meter meter = whenCreateArbitraryMeter(registry);
         thenTagsEmpty(meter);
@@ -45,19 +45,10 @@ class CommonTagsHookTest {
 
     @Test
     void testEmptyCommonTagsMap() {
-        CommonTagsHook commonTagsHook = new CommonTagsHook(new CommonTagsHook.CommonTagsHookConfig(new HashMap<>()));
+        MicrometerConfigurationHook commonTagsHook = new CommonTagsHook().build(new CommonTagsHook.CommonTagsHookConfig(new HashMap<>()));
         MeterRegistry registry = givenRegistryConfiguredWith(commonTagsHook);
         Meter meter = whenCreateArbitraryMeter(registry);
         thenTagsEmpty(meter);
-    }
-
-    @Test
-    void testContributor() {
-        CommonTagsContributor contributor = new CommonTagsContributor();
-        assertThat(contributor.getConfigType()).isEqualTo(CommonTagsHook.CommonTagsHookConfig.class);
-        assertThat(contributor.requiresConfiguration()).isTrue();
-        MicrometerConfigurationHook hook = contributor.createInstance(() -> new CommonTagsHook.CommonTagsHookConfig(Map.of()));
-        assertThat(hook).isNotNull().isInstanceOf(CommonTagsHook.class);
     }
 
     private static void thenTagsEmpty(Meter counter) {

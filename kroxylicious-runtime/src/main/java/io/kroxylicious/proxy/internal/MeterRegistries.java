@@ -22,20 +22,20 @@ import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import io.kroxylicious.proxy.config.MicrometerDefinition;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHook;
-import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookContributor;
-import io.kroxylicious.proxy.service.ContributionManager;
+import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookService;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
-
-import static io.kroxylicious.proxy.service.Context.wrap;
 
 public class MeterRegistries implements AutoCloseable {
     private final PrometheusMeterRegistry prometheusMeterRegistry;
 
     private static final Logger logger = LoggerFactory.getLogger(MeterRegistries.class);
+    private final PluginFactoryRegistry pfr;
     private final List<MicrometerConfigurationHook> hooks;
 
-    public MeterRegistries(List<MicrometerDefinition> micrometerConfig) {
+    public MeterRegistries(PluginFactoryRegistry pfr, List<MicrometerDefinition> micrometerConfig) {
+        this.pfr = pfr;
         this.hooks = registerHooks(micrometerConfig);
         this.prometheusMeterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
         Metrics.addRegistry(prometheusMeterRegistry);
@@ -45,8 +45,7 @@ public class MeterRegistries implements AutoCloseable {
         CompositeMeterRegistry globalRegistry = Metrics.globalRegistry;
         preventDifferentTagNameRegistration(globalRegistry);
         var configurationHooks = micrometerConfig.stream()
-                .map(f -> (MicrometerConfigurationHook) ContributionManager.INSTANCE.createInstance(MicrometerConfigurationHookContributor.class, f.type(),
-                        wrap(f.config())))
+                .map(f -> pfr.pluginFactory(MicrometerConfigurationHookService.class).pluginInstance(f.type()).build(f.config()))
                 .toList();
         configurationHooks.forEach(micrometerConfigurationHook -> micrometerConfigurationHook.configure(globalRegistry));
         return configurationHooks;

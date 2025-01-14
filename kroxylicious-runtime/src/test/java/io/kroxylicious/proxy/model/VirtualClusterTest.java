@@ -30,6 +30,7 @@ import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
 import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,7 +60,7 @@ class VirtualClusterTest {
         final PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),
                 "localhost", 19092, 0, 1);
-        final PortPerBrokerClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider(
+        final ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
                 clusterNetworkAddressConfigProviderConfig);
 
         // When
@@ -85,7 +86,7 @@ class VirtualClusterTest {
         final PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),
                 "localhost", 19092, 0, 1);
-        final PortPerBrokerClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider(
+        final ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
                 clusterNetworkAddressConfigProviderConfig);
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
 
@@ -138,7 +139,7 @@ class VirtualClusterTest {
         final PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),
                 "localhost", 19092, 0, 1);
-        final PortPerBrokerClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider(
+        final ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
                 clusterNetworkAddressConfigProviderConfig);
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", tls);
 

@@ -55,10 +55,6 @@
             <artifactId>kafka-clients</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
-        </dependency>
-        <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
@@ -90,19 +86,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcpkix-jdk18on</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.bouncycastle</groupId>
-            <artifactId>bcprov-jdk18on</artifactId>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-test-support</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-test-support</artifactId>
-            <scope>test</scope>
+            <artifactId>kroxylicious-kms-tls-support</artifactId>
         </dependency>
     </dependencies>
 

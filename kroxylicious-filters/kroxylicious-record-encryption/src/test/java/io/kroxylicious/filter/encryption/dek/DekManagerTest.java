@@ -111,7 +111,7 @@ class DekManagerTest {
         var decrypted = dm.decryptEdek(inMemoryEdekSerde.deserialize(edekBuffer), cipherManager).toCompletableFuture().join();
 
         // Then
-        assertThatThrownBy(() -> decrypted.encryptor(1)).isExactlyInstanceOf(ExhaustedDekException.class);
+        assertThatThrownBy(() -> decrypted.encryptor(1)).isExactlyInstanceOf(DestroyedDekException.class);
         var decodedPlaintext = ByteBuffer.allocate(plaintext.capacity());
         decrypted.decryptor().decrypt(ciphertext[0], aad, params[0], decodedPlaintext);
         assertThat(new String(decodedPlaintext.array(), StandardCharsets.UTF_8)).isEqualTo("hello, world");

@@ -90,7 +90,7 @@ public final class KafkaProxy implements AutoCloseable {
     public KafkaProxy(@NonNull PluginFactoryRegistry pfr, @NonNull Configuration config, @NonNull Features features) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
-        this.virtualClusters = config.virtualClusterModel();
+        this.virtualClusters = config.virtualClusterModel(pfr);
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
     }
@@ -122,7 +122,7 @@ public final class KafkaProxy implements AutoCloseable {
             portConflictDefector.validate(virtualClusters, adminHttpHostPort);
 
             var availableCores = Runtime.getRuntime().availableProcessors();
-            meterRegistries = new MeterRegistries(micrometerConfig);
+            meterRegistries = new MeterRegistries(pfr, micrometerConfig);
 
             this.adminEventGroup = buildNettyEventGroups("admin", availableCores, config.isUseIoUring());
             this.serverEventGroup = buildNettyEventGroups("server", availableCores, config.isUseIoUring());

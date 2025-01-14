@@ -20,6 +20,8 @@ import org.testcontainers.vault.VaultContainer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.kroxylicious.proxy.tls.CertificateGenerator;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class TestVault implements Closeable {
@@ -34,6 +36,7 @@ public class TestVault implements Closeable {
     private static final int TLS_PORT = 8202;
 
     private TestVault(CertificateGenerator.Keys serverKeys, CertificateGenerator.Keys clientKeys) {
+
         if (clientKeys != null && serverKeys == null) {
             throw new IllegalArgumentException("server TLS key/cert must be supplied if we want to configure client TLS auth");
         }

@@ -108,13 +108,16 @@ public final class Dek<E> {
         if (numEncryptions <= 0) {
             throw new IllegalArgumentException();
         }
+        if (!outstandingCryptors.acquireEncryptorUsage()) {
+            throw new DestroyedDekException();
+        }
         if (remainingEncryptions.addAndGet(-numEncryptions) >= 0) {
-            if (!outstandingCryptors.acquireEncryptorUsage()) {
-                throw new DestroyedDekException();
-            }
             return new Encryptor(cipherManager, atomicKey.get(), numEncryptions);
         }
-        throw new ExhaustedDekException("This DEK does not have " + numEncryptions + " encryptions available");
+        else {
+            outstandingCryptors.releaseEncryptorUsage();
+            throw new ExhaustedDekException("This DEK does not have " + numEncryptions + " encryptions available");
+        }
     }
 
     /**

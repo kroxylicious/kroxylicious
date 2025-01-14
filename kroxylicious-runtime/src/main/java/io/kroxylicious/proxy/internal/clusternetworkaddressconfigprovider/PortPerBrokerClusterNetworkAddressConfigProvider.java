@@ -12,7 +12,12 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
 import io.kroxylicious.proxy.service.HostPort;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A ClusterNetworkAddressConfigProvider implementation that uses a separate port per broker endpoint.
@@ -28,15 +33,14 @@ import io.kroxylicious.proxy.service.HostPort;
  *    <li>{@code numberOfBrokerPorts} (optional) defines the maximum number of broker ports that will be permitted. If omitted, it is defaulted to {$code 3}.</li>
  * </ul>
  */
-public class PortPerBrokerClusterNetworkAddressConfigProvider extends RangeAwarePortPerNodeClusterNetworkAddressConfigProvider {
+@Plugin(configType = PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig.class)
+public class PortPerBrokerClusterNetworkAddressConfigProvider
+        implements ClusterNetworkAddressConfigProviderService<PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig> {
 
-    /**
-     * Creates the provider.
-     *
-     * @param config configuration
-     */
-    public PortPerBrokerClusterNetworkAddressConfigProvider(PortPerBrokerClusterNetworkAddressConfigProviderConfig config) {
-        super(config.rangeAwareConfig);
+    @NonNull
+    @Override
+    public ClusterNetworkAddressConfigProvider build(PortPerBrokerClusterNetworkAddressConfigProviderConfig config) {
+        return new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(config.rangeAwareConfig);
     }
 
     /**
@@ -44,7 +48,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider extends RangeAware
      */
     public static class PortPerBrokerClusterNetworkAddressConfigProviderConfig {
         @JsonIgnore
-        private final RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rangeAwareConfig;
+        private final RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rangeAwareConfig;
         private final HostPort bootstrapAddress;
         @SuppressWarnings("java:S1068") // included for serialization fidelity
         private final String brokerAddressPattern;
@@ -70,10 +74,13 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider extends RangeAware
             if (this.numberOfBrokerPorts < 1) {
                 throw new IllegalArgumentException("numberOfBrokerPorts cannot be less than 1");
             }
-            rangeAwareConfig = new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(this.bootstrapAddress,
+            rangeAwareConfig = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
+                    this.bootstrapAddress,
                     this.brokerAddressPattern,
                     this.brokerStartPort,
-                    List.of(new NamedRangeSpec("brokers", new IntRangeSpec(this.lowestTargetBrokerId, this.lowestTargetBrokerId + this.numberOfBrokerPorts))));
+                    List.of(new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.NamedRangeSpec("brokers",
+                            new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.IntRangeSpec(this.lowestTargetBrokerId,
+                                    this.lowestTargetBrokerId + this.numberOfBrokerPorts))));
         }
 
         public HostPort getBootstrapAddress() {

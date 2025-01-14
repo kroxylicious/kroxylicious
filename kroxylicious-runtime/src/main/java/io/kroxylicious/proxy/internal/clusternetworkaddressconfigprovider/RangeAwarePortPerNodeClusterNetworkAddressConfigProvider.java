@@ -23,7 +23,9 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -47,108 +49,65 @@ import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider
  *    <li>{@code nodeIdRanges} (required) defines the node id ranges present in the target cluster</li>
  * </ul>
  */
-public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements ClusterNetworkAddressConfigProvider {
+@Plugin(configType = RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig.class)
+public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
+        ClusterNetworkAddressConfigProviderService<RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig> {
 
-    private final HostPort bootstrapAddress;
-    private final String nodeAddressPattern;
-    private final Set<Integer> exclusivePorts;
-    private final Map<Integer, Integer> nodeIdToPort;
-
-    /**
-     * Creates the provider.
-     *
-     * @param config configuration
-     */
-    public RangeAwarePortPerNodeClusterNetworkAddressConfigProvider(RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig config) {
-        this.bootstrapAddress = config.bootstrapAddress;
-        this.nodeAddressPattern = config.nodeAddressPattern;
-        this.nodeIdToPort = config.nodeIdToPort;
-        var allExclusivePorts = new HashSet<>(nodeIdToPort.values());
-        allExclusivePorts.add(bootstrapAddress.port());
-        this.exclusivePorts = Collections.unmodifiableSet(allExclusivePorts);
-    }
-
+    @NonNull
     @Override
-    public HostPort getClusterBootstrapAddress() {
-        return this.bootstrapAddress;
+    public ClusterNetworkAddressConfigProvider build(RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig config) {
+        return new Provider(config);
     }
 
-    @Override
-    public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
-        if (!nodeIdToPort.containsKey(nodeId)) {
-            throw new IllegalArgumentException(
-                    "Cannot generate node address for node id %d as it is not contained in the ranges defined for provider with downstream bootstrap %s"
-                            .formatted(
-                                    nodeId,
-                                    bootstrapAddress));
-        }
-        int port = nodeIdToPort.get(nodeId);
-        return new HostPort(BrokerAddressPatternUtils.replaceLiteralNodeId(nodeAddressPattern, nodeId), port);
-    }
+    private static class Provider implements ClusterNetworkAddressConfigProvider {
+        private final HostPort bootstrapAddress;
+        private final String nodeAddressPattern;
+        private final Set<Integer> exclusivePorts;
+        private final Map<Integer, Integer> nodeIdToPort;
 
-    @Override
-    public Set<Integer> getExclusivePorts() {
-        return this.exclusivePorts;
-    }
-
-    @Override
-    public Map<Integer, HostPort> discoveryAddressMap() {
-        return nodeIdToPort.keySet().stream()
-                .collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
-    }
-
-    /**
-     * @param startInclusive the (inclusive) initial value
-     * @param endExclusive the exclusive upper bound
-     */
-    public record IntRangeSpec(@JsonInclude(JsonInclude.Include.ALWAYS) @JsonProperty(required = true) int startInclusive,
-                               @JsonInclude(JsonInclude.Include.ALWAYS) @JsonProperty(required = true) int endExclusive) {
-
-        public Range range() {
-            return new Range(startInclusive, endExclusive);
-        }
-    }
-
-    private record NamedRange(@NonNull String name, @NonNull Range range) {
-        public NamedRange {
-            Objects.requireNonNull(name, "name was null");
-            Objects.requireNonNull(range, "range was null");
-        }
-
-        public boolean isDistinctFrom(NamedRange rangeB) {
-            return range.isDistinctFrom(rangeB.range);
+        /**
+         * Creates the provider.
+         *
+         * @param config configuration
+         */
+        private Provider(RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig config) {
+            this.bootstrapAddress = config.bootstrapAddress;
+            this.nodeAddressPattern = config.nodeAddressPattern;
+            this.nodeIdToPort = config.nodeIdToPort;
+            var allExclusivePorts = new HashSet<>(nodeIdToPort.values());
+            allExclusivePorts.add(bootstrapAddress.port());
+            this.exclusivePorts = Collections.unmodifiableSet(allExclusivePorts);
         }
 
         @Override
-        public String toString() {
-            return name + ":" + range;
-        }
-    }
-
-    /**
-     * @param name the name of this range
-     * @param rangeSpec specification of the range
-     */
-    public record NamedRangeSpec(@JsonProperty(required = true) String name,
-                                 @JsonProperty(required = true, value = "range") IntRangeSpec rangeSpec) {
-
-        NamedRange range() {
-            return new NamedRange(name, tryBuildRange());
-        }
-
-        private Range tryBuildRange() {
-            try {
-                return rangeSpec.range();
-            }
-            catch (Exception e) {
-                throw new IllegalArgumentException("invalid nodeIdRange: " + name + ", " + e.getMessage(), e);
-            }
+        public HostPort getClusterBootstrapAddress() {
+            return this.bootstrapAddress;
         }
 
         @Override
-        public String toString() {
-            return name + ":" + rangeSpec.range();
+        public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
+            if (!nodeIdToPort.containsKey(nodeId)) {
+                throw new IllegalArgumentException(
+                        "Cannot generate node address for node id %d as it is not contained in the ranges defined for provider with downstream bootstrap %s"
+                                .formatted(
+                                        nodeId,
+                                        bootstrapAddress));
+            }
+            int port = nodeIdToPort.get(nodeId);
+            return new HostPort(BrokerAddressPatternUtils.replaceLiteralNodeId(nodeAddressPattern, nodeId), port);
         }
+
+        @Override
+        public Set<Integer> getExclusivePorts() {
+            return this.exclusivePorts;
+        }
+
+        @Override
+        public Map<Integer, HostPort> discoveryAddressMap() {
+            return nodeIdToPort.keySet().stream()
+                    .collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
+        }
+
     }
 
     /**
@@ -263,6 +222,60 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
                 throw new IllegalArgumentException("some nodeIdRanges collided (one or more node ids are duplicated in the following ranges): "
                         + collisions.stream().map(RangeCollision::toString).collect(Collectors.joining(", ")));
             }
+        }
+    }
+
+    /**
+     * @param startInclusive the (inclusive) initial value
+     * @param endExclusive the exclusive upper bound
+     */
+    public record IntRangeSpec(@JsonInclude(JsonInclude.Include.ALWAYS) @JsonProperty(required = true) int startInclusive,
+                               @JsonInclude(JsonInclude.Include.ALWAYS) @JsonProperty(required = true) int endExclusive) {
+
+        public Range range() {
+            return new Range(startInclusive, endExclusive);
+        }
+    }
+
+    private record NamedRange(@NonNull String name, @NonNull Range range) {
+        public NamedRange {
+            Objects.requireNonNull(name, "name was null");
+            Objects.requireNonNull(range, "range was null");
+        }
+
+        public boolean isDistinctFrom(NamedRange rangeB) {
+            return range.isDistinctFrom(rangeB.range);
+        }
+
+        @Override
+        public String toString() {
+            return name + ":" + range;
+        }
+    }
+
+    /**
+     * @param name the name of this range
+     * @param rangeSpec specification of the range
+     */
+    public record NamedRangeSpec(@JsonProperty(required = true) String name,
+                                 @JsonProperty(required = true, value = "range") IntRangeSpec rangeSpec) {
+
+        NamedRange range() {
+            return new NamedRange(name, tryBuildRange());
+        }
+
+        private Range tryBuildRange() {
+            try {
+                return rangeSpec.range();
+            }
+            catch (Exception e) {
+                throw new IllegalArgumentException("invalid nodeIdRange: " + name + ", " + e.getMessage(), e);
+            }
+        }
+
+        @Override
+        public String toString() {
+            return name + ":" + rangeSpec.range();
         }
     }
 

@@ -248,7 +248,7 @@ class RecordEncryptionFilterIT {
     // in the external KMS a new EDEK will be generated using the new key.
     @TestTemplate
     void edekExpiry(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade,
-                    @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "rotation-test") @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") KafkaConsumer<byte[], byte[]> directConsumer)
+                    @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "rotation-test") KafkaConsumer<byte[], byte[]> directConsumer)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
@@ -264,29 +264,20 @@ class RecordEncryptionFilterIT {
                 .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
                 .build());
 
-        var messageBeforeKeyRotation = "hello world, old key";
-        var messageAfterKeyRotation = "hello world, new key";
+        var message = "hello world";
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer()) {
-            producer.send(new ProducerRecord<>(topic.name(), messageBeforeKeyRotation)).get(5, TimeUnit.SECONDS);
+            // first message will cause an edek to be created (and cached)
+            producer.send(new ProducerRecord<>(topic.name(), message)).get(5, TimeUnit.SECONDS);
 
-            Thread.sleep(edekExpiry.toMillis());
-            // refreshAfterWrite is asynchronous, so it is likely the first message triggers the refresh but uses the existing cached EDEK
-            producer.send(new ProducerRecord<>(topic.name(), messageAfterKeyRotation)).get(5, TimeUnit.SECONDS);
-            producer.send(new ProducerRecord<>(topic.name(), messageAfterKeyRotation)).get(5, TimeUnit.SECONDS);
-            producer.send(new ProducerRecord<>(topic.name(), messageAfterKeyRotation)).get(5, TimeUnit.SECONDS);
-
-            // check we can decrypt
-            try (var consumer = tester.consumer()) {
-                consumer.subscribe(List.of(topic.name()));
-                var records = consumer.poll(Duration.ofSeconds(2));
-                assertThat(records.iterator())
-                        .toIterable()
-                        .extracting(ConsumerRecord::value)
-                        .containsExactly(messageBeforeKeyRotation, messageAfterKeyRotation, messageAfterKeyRotation, messageAfterKeyRotation);
-            }
-
-            assertMoreThanOneEdekUsed(topic, directConsumer);
+            await().pollDelay(edekExpiry)
+                    .pollInterval(Duration.ofMillis(100))
+                    .atMost(Duration.ofSeconds(30))
+                    .untilAsserted(() -> {
+                        // async edek refresh will be trigger by the arrival of a message after edekExpiry
+                        producer.send(new ProducerRecord<>(topic.name(), message)).get(5, TimeUnit.SECONDS);
+                        assertMoreThanOneEdekUsed(topic, directConsumer);
+                    });
         }
     }
 
@@ -343,7 +334,9 @@ class RecordEncryptionFilterIT {
     }
 
     private static void assertMoreThanOneEdekUsed(Topic topic, KafkaConsumer<byte[], byte[]> directConsumer) {
-        directConsumer.subscribe(List.of(topic.name()));
+        var partitions = List.of(new TopicPartition(topic.name(), 0));
+        directConsumer.assign(partitions);
+        directConsumer.seekToBeginning(partitions);
         ConsumerRecords<byte[], byte[]> records = directConsumer.poll(Duration.ofSeconds(2));
         Set<BytesEdek> edeks = StreamSupport.stream(records.spliterator(), false).map(kafkaRecord -> {
             List<byte[]> encryptionVersions = StreamSupport.stream(kafkaRecord.headers().headers(EncryptionHeader.ENCRYPTION_HEADER_NAME).spliterator(), false)

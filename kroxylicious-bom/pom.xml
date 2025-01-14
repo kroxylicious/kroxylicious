@@ -125,6 +125,12 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-kms-tls-support</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -138,6 +144,12 @@
             <dependency>
                 <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-kms-provider-aws-kms</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-kms-provider-fortanix-dsm</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -200,6 +212,12 @@
             <dependency>
                 <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-kms-provider-aws-kms-test-support</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-kms-provider-fortanix-dsm-test-support</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

@@ -6,6 +6,11 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#1672](https://github.com/kroxylicious/kroxylicious/pull/1672) Limited Fortanix DSM backed KMS integration
+* [#1643](https://github.com/kroxylicious/kroxylicious/pull/1643) Improve Encryption DEK co-ordination across threads
+* [#1705](https://github.com/kroxylicious/kroxylicious/pull/1705) Replace usages of Contributor with new Plugin mechanism and delete Contributor
+
 ## 0.9.0
 
 * [#1668](https://github.com/kroxylicious/kroxylicious/pull/1668) Bump apicurio-registry.version from 2.6.5.Final to 2.6.6.Final
