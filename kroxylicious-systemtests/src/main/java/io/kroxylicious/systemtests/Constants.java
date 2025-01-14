@@ -12,6 +12,10 @@ import java.time.Duration;
  * The interface Constants.
  */
 public final class Constants {
+
+    private Constants() {
+    }
+
     /**
      * The deployment name for kroxylicous
      */
