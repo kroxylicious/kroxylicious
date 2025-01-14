@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1698](https://github.com/kroxylicious/kroxylicious/pull/1698) Bump netty.io_uring.version from 0.0.25.Final to 0.0.26.Final #1698
 * [#1672](https://github.com/kroxylicious/kroxylicious/pull/1672) Limited Fortanix DSM backed KMS integration
 * [#1643](https://github.com/kroxylicious/kroxylicious/pull/1643) Improve Encryption DEK co-ordination across threads
 * [#1705](https://github.com/kroxylicious/kroxylicious/pull/1705) Replace usages of Contributor with new Plugin mechanism and delete Contributor
