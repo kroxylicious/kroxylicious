@@ -12,6 +12,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -36,8 +38,8 @@ class ConfigurationTest {
     private final ConfigParser configParser = new ConfigParser();
 
     @Test
-    void shouldParseOldBootstrapServers() throws IOException {
-        var vc = MAPPER.reader().readValue(
+    void shouldAcceptOldBootstrapServers() throws IOException {
+        var vc = MAPPER.readValue(
                 """
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
@@ -51,6 +53,42 @@ class ConfigurationTest {
         TargetCluster targetCluster = vc.targetCluster();
         assertThat(targetCluster).isNotNull();
         assertThat(targetCluster.bootstrapServers()).isEqualTo("kafka.example:1234");
+    }
+
+    @Test
+    void shouldRejectOldAndNewBootstrapServers() throws IOException {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                                  targetCluster:
+                                    bootstrap_servers: kafka.example:1234
+                                    bootstrapServers: kafka.example:1234
+                                  clusterNetworkAddressConfigProvider:
+                                    type: SniRoutingClusterNetworkAddressConfigProvider
+                                    config:
+                                      bootstrapAddress: cluster1:9192
+                                      brokerAddressPattern: broker-$(nodeId)
+                            """, VirtualCluster.class);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'bootstrapServers' and 'bootstrap_servers' cannot both be specified in a target cluster.");
+    }
+
+    @Test
+    void shouldRequireOldOrNewBootstrapServers() throws IOException {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                                  targetCluster: {}
+                                  clusterNetworkAddressConfigProvider:
+                                    type: SniRoutingClusterNetworkAddressConfigProvider
+                                    config:
+                                      bootstrapAddress: cluster1:9192
+                                      brokerAddressPattern: broker-$(nodeId)
+                            """, VirtualCluster.class);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'bootstrapServers' is required in a target cluster.");
     }
 
     public static Stream<Arguments> fluentApiConfigYamlFidelity() {
