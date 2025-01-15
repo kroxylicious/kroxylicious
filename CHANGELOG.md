@@ -17,6 +17,7 @@ Format `<github issue/pr number>: <short description>`.
 ### Changes, deprecations and removals
 
 * The top level `filters` configuration property is deprecated. Configurations should use `filterDefinitions` and `defaultFilters` instead.
+* The `bootstrap_servers` property of a virtual cluster's `targetCluster` is deprecated. It is replaced by a property called `bootstrapServers`.
 
 ## 0.9.0
 
