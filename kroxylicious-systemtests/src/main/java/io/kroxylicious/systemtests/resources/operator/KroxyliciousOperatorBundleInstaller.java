@@ -8,6 +8,9 @@
 package io.kroxylicious.systemtests.resources.operator;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,24 +27,15 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.PreconditionViolationException;
 
-import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Namespace;
-import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import io.fabric8.kubernetes.api.model.ServiceAccount;
-import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
-import io.fabric8.kubernetes.api.model.rbac.Role;
-import io.fabric8.kubernetes.api.model.rbac.RoleBuilder;
 import io.skodjob.testframe.installation.InstallationMethod;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
-import io.kroxylicious.systemtests.k8s.exception.UnknownInstallationType;
 import io.kroxylicious.systemtests.resources.ResourceItem;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleBindingResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
@@ -160,52 +154,73 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .toList();
 
         for (File operatorFile : operatorFiles) {
+//            try {
+//                kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).create();
+//            }
+//            catch (FileNotFoundException e) {
+//                throw new UncheckedIOException(e);
+//            }
+
             final String resourceType = operatorFile.getName().split("\\.")[1];
 
             switch (resourceType) {
                 case Constants.NAMESPACE:
                     Namespace namespace = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, Namespace.class);
-                    ResourceManager.getInstance().createResourceWithWait(new NamespaceBuilder(namespace)
-                            .editMetadata()
-                            .endMetadata()
-                            .build());
+                    if (!NamespaceUtils.isNamespaceCreated(namespace.getMetadata().getNamespace())) {
+                        try {
+                            kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).create();
+                        }
+                        catch (FileNotFoundException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    }
+//                    ResourceManager.getInstance().createResourceWithWait(new NamespaceBuilder(namespace)
+//                            .editMetadata()
+//                            .endMetadata()
+//                            .build());
                     break;
-                case Constants.ROLE:
-                    Role role = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, Role.class);
-                    ResourceManager.getInstance().createResourceWithWait(new RoleBuilder(role)
-                            .editMetadata()
-                            .withNamespace(namespaceName)
-                            .endMetadata()
-                            .build());
-                    break;
-                case Constants.CLUSTER_ROLE:
-                    ClusterRole clusterRole = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile.getAbsolutePath(), ClusterRole.class);
-                    ResourceManager.getInstance().createResourceWithWait(clusterRole);
-                    break;
-                case Constants.SERVICE_ACCOUNT:
-                    ServiceAccount serviceAccount = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, ServiceAccount.class);
-                    ResourceManager.getInstance().createResourceWithWait(new ServiceAccountBuilder(serviceAccount)
-                            .editMetadata()
-                            .withNamespace(namespaceName)
-                            .endMetadata()
-                            .build());
-                    break;
-                case Constants.CONFIG_MAP_KIND:
-                    ConfigMap configMap = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, ConfigMap.class);
-                    ResourceManager.getInstance().createResourceWithWait(new ConfigMapBuilder(configMap)
-                            .editMetadata()
-                            .withNamespace(namespaceName)
-                            .withName(kroxyliciousOperatorName)
-                            .endMetadata()
-                            .build());
-                    break;
-                case Constants.CUSTOM_RESOURCE_DEFINITION_SHORT:
-                    CustomResourceDefinition customResourceDefinition = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, CustomResourceDefinition.class);
-                    ResourceManager.getInstance().createResourceWithWait(customResourceDefinition);
-                    break;
+//                case Constants.ROLE:
+//                    Role role = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, Role.class);
+//                    ResourceManager.getInstance().createResourceWithWait(new RoleBuilder(role)
+//                            .editMetadata()
+//                            .withNamespace(namespaceName)
+//                            .endMetadata()
+//                            .build());
+//                    break;
+//                case Constants.CLUSTER_ROLE:
+//                    ClusterRole clusterRole = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile.getAbsolutePath(), ClusterRole.class);
+//                    ResourceManager.getInstance().createResourceWithWait(clusterRole);
+//                    break;
+//                case Constants.SERVICE_ACCOUNT:
+//                    ServiceAccount serviceAccount = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, ServiceAccount.class);
+//                    ResourceManager.getInstance().createResourceWithWait(new ServiceAccountBuilder(serviceAccount)
+//                            .editMetadata()
+//                            .withNamespace(namespaceName)
+//                            .endMetadata()
+//                            .build());
+//                    break;
+//                case Constants.CONFIG_MAP_KIND:
+//                    ConfigMap configMap = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, ConfigMap.class);
+//                    ResourceManager.getInstance().createResourceWithWait(new ConfigMapBuilder(configMap)
+//                            .editMetadata()
+//                            .withNamespace(namespaceName)
+//                            .withName(kroxyliciousOperatorName)
+//                            .endMetadata()
+//                            .build());
+//                    break;
+//                case Constants.CUSTOM_RESOURCE_DEFINITION_SHORT:
+//                    CustomResourceDefinition customResourceDefinition = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, CustomResourceDefinition.class);
+//                    ResourceManager.getInstance().createResourceWithWait(customResourceDefinition);
+//                    break;
                 default:
-                    LOGGER.error("Unknown installation resource type: {}", resourceType);
-                    throw new UnknownInstallationType("Unknown installation resource type:" + resourceType);
+//                    LOGGER.error("Unknown installation resource type: {}", resourceType);
+//                    throw new UnknownInstallationType("Unknown installation resource type:" + resourceType);
+                    try {
+                        kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).create();
+                    }
+                    catch (FileNotFoundException e) {
+                        throw new UncheckedIOException(e);
+                    }
             }
         }
     }
