@@ -33,6 +33,7 @@
 
 //java links
 :java-17-javadoc: https://docs.oracle.com/en/java/javase/17/docs/api
+:java-17-specs: https://docs.oracle.com/en/java/javase/17/docs/specs
 
 //Vault links
 :hashicorp-vault: https://developer.hashicorp.com/vault
