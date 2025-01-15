@@ -13,7 +13,8 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 CFG=02-no-filters/config.yaml
 ENDPOINT=kroxylicious:9092
 
-KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
+KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach
+#KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
 
 setKroxyliciousContainerIdPID
 
