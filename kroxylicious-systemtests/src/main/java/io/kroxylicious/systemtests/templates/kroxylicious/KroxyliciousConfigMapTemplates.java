@@ -111,7 +111,7 @@ public final class KroxyliciousConfigMapTemplates {
                         bootstrapAddress: localhost:9292
                         brokerAddressPattern: %s
                     targetCluster:
-                      bootstrap_servers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
+                      bootstrapServers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     logFrames: false
                 filters:
                 %s
@@ -127,7 +127,7 @@ public final class KroxyliciousConfigMapTemplates {
                 virtualClusters:
                   demo:
                     targetCluster:
-                      bootstrap_servers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
+                      bootstrapServers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
@@ -153,7 +153,7 @@ public final class KroxyliciousConfigMapTemplates {
                 virtualClusters:
                   demo:
                     targetCluster:
-                      bootstrap_servers: %s:9094
+                      bootstrapServers: %s:9094
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:

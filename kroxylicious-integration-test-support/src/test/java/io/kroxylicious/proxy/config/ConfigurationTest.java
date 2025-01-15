@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -18,6 +19,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
@@ -33,6 +35,60 @@ class ConfigurationTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
     private final ConfigParser configParser = new ConfigParser();
+
+    @Test
+    void shouldAcceptOldBootstrapServers() throws IOException {
+        var vc = MAPPER.readValue(
+                """
+                              targetCluster:
+                                bootstrap_servers: kafka.example:1234
+                              clusterNetworkAddressConfigProvider:
+                                type: SniRoutingClusterNetworkAddressConfigProvider
+                                config:
+                                  bootstrapAddress: cluster1:9192
+                                  brokerAddressPattern: broker-$(nodeId)
+                        """, VirtualCluster.class);
+
+        TargetCluster targetCluster = vc.targetCluster();
+        assertThat(targetCluster).isNotNull();
+        assertThat(targetCluster.bootstrapServers()).isEqualTo("kafka.example:1234");
+    }
+
+    @Test
+    void shouldRejectOldAndNewBootstrapServers() throws IOException {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                                  targetCluster:
+                                    bootstrap_servers: kafka.example:1234
+                                    bootstrapServers: kafka.example:1234
+                                  clusterNetworkAddressConfigProvider:
+                                    type: SniRoutingClusterNetworkAddressConfigProvider
+                                    config:
+                                      bootstrapAddress: cluster1:9192
+                                      brokerAddressPattern: broker-$(nodeId)
+                            """, VirtualCluster.class);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'bootstrapServers' and 'bootstrap_servers' cannot both be specified in a target cluster.");
+    }
+
+    @Test
+    void shouldRequireOldOrNewBootstrapServers() throws IOException {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                                  targetCluster: {}
+                                  clusterNetworkAddressConfigProvider:
+                                    type: SniRoutingClusterNetworkAddressConfigProvider
+                                    config:
+                                      bootstrapAddress: cluster1:9192
+                                      brokerAddressPattern: broker-$(nodeId)
+                            """, VirtualCluster.class);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("'bootstrapServers' is required in a target cluster.");
+    }
 
     public static Stream<Arguments> fluentApiConfigYamlFidelity() {
         NamedFilterDefinition filter = new NamedFilterDefinitionBuilder("filter-1", ExampleFilterFactory.class.getSimpleName())
@@ -88,7 +144,7 @@ class ConfigurationTest {
                                 virtualClusters:
                                   demo:
                                     targetCluster:
-                                      bootstrap_servers: kafka.example:1234
+                                      bootstrapServers: kafka.example:1234
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
@@ -119,7 +175,7 @@ class ConfigurationTest {
                                 virtualClusters:
                                   demo:
                                     targetCluster:
-                                      bootstrap_servers: kafka.example:1234
+                                      bootstrapServers: kafka.example:1234
                                     tls:
                                        key:
                                          certificateFile: /tmp/cert
@@ -162,7 +218,7 @@ class ConfigurationTest {
                                 virtualClusters:
                                   demo:
                                     targetCluster:
-                                      bootstrap_servers: kafka.example:1234
+                                      bootstrapServers: kafka.example:1234
                                     tls:
                                        key:
                                          certificateFile: /tmp/cert
@@ -198,7 +254,7 @@ class ConfigurationTest {
                                 virtualClusters:
                                   demo:
                                     targetCluster:
-                                      bootstrap_servers: kafka.example:1234
+                                      bootstrapServers: kafka.example:1234
                                       tls: {}
                                     clusterNetworkAddressConfigProvider:
                                       type: SniRoutingClusterNetworkAddressConfigProvider
@@ -230,7 +286,7 @@ class ConfigurationTest {
                                 virtualClusters:
                                   demo:
                                     targetCluster:
-                                      bootstrap_servers: kafka.example:1234
+                                      bootstrapServers: kafka.example:1234
                                       tls:
                                          trust:
                                             storeFile: /tmp/client.jks
@@ -267,7 +323,7 @@ class ConfigurationTest {
                                 virtualClusters:
                                   demo:
                                     targetCluster:
-                                      bootstrap_servers: kafka.example:1234
+                                      bootstrapServers: kafka.example:1234
                                       tls:
                                          trust:
                                             storeFile: /tmp/client.jks
@@ -300,7 +356,7 @@ class ConfigurationTest {
                                 virtualClusters:
                                   demo:
                                     targetCluster:
-                                      bootstrap_servers: kafka.example:1234
+                                      bootstrapServers: kafka.example:1234
                                       tls:
                                          trust:
                                             insecure: true

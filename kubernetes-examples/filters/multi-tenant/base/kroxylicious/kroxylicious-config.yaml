@@ -22,7 +22,7 @@ data:
     virtualClusters:
       devenv1:
         targetCluster:
-          bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+          bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
         clusterNetworkAddressConfigProvider:
           type: PortPerBrokerClusterNetworkAddressConfigProvider
           config:
@@ -31,7 +31,7 @@ data:
         logFrames: false
       devenv2:
         targetCluster:
-          bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+          bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
         clusterNetworkAddressConfigProvider:
           type: PortPerBrokerClusterNetworkAddressConfigProvider
           config:

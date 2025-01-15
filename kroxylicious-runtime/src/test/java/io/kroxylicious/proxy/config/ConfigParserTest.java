@@ -64,7 +64,7 @@ class ConfigParserTest {
                         virtualClusters:
                           demo1:
                             targetCluster:
-                              bootstrap_servers: kafka.example:1234
+                              bootstrapServers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
                               type: PortPerBrokerClusterNetworkAddressConfigProvider
                               config:
@@ -77,7 +77,7 @@ class ConfigParserTest {
                         virtualClusters:
                           demo1:
                             targetCluster:
-                              bootstrap_servers: kafka.example:1234
+                              bootstrapServers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
                               type: RangeAwarePortPerNodeClusterNetworkAddressConfigProvider
                               config:
@@ -94,7 +94,7 @@ class ConfigParserTest {
                         virtualClusters:
                           demo1:
                             targetCluster:
-                              bootstrap_servers: kafka.example:1234
+                              bootstrapServers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
                               type: SniRoutingClusterNetworkAddressConfigProvider
                               config:
@@ -111,7 +111,7 @@ class ConfigParserTest {
                                     password: password
                                   storeType: JKS
                             targetCluster:
-                              bootstrap_servers: kafka.example:1234
+                              bootstrapServers: kafka.example:1234
                               tls:
                                 trust:
                                  storeFile: /tmp/foo.jks
@@ -134,7 +134,7 @@ class ConfigParserTest {
                                     passwordFile: /tmp/password.txt
                                   storeType: JKS
                             targetCluster:
-                              bootstrap_servers: kafka.example:1234
+                              bootstrapServers: kafka.example:1234
                               tls:
                                 trust:
                                  storeFile: /tmp/foo.jks
@@ -239,7 +239,7 @@ class ConfigParserTest {
                 virtualClusters:
                   myAwesomeCluster:
                     targetCluster:
-                      bootstrap_servers: kafka.example:1234
+                      bootstrapServers: kafka.example:1234
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
@@ -264,7 +264,7 @@ class ConfigParserTest {
                 virtualClusters:
                   demo1:
                     targetCluster:
-                      bootstrap_servers: kafka.example:1234
+                      bootstrapServers: kafka.example:1234
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
@@ -274,7 +274,7 @@ class ConfigParserTest {
                         brokerStartPort: 9193
                   demo1:
                     targetCluster:
-                      bootstrap_servers: magic-kafka.example:1234
+                      bootstrapServers: magic-kafka.example:1234
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
