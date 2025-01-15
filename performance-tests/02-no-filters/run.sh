@@ -14,9 +14,11 @@ CFG=02-no-filters/config.yaml
 ENDPOINT=kroxylicious:9092
 
 KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach
-until [ "`docker inspect -f {{.State.Running}} kroxylicious`" == "true" ]; do
-    sleep 0.1;
-done;
+until nc -z $(docker inspect --format='{{.NetworkSettings.IPAddress}}' kroxylicious) 9092
+do
+    echo "waiting for kroxylicious container..."
+    sleep 0.5
+done
 #KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
 
 setKroxyliciousContainerIdPID
