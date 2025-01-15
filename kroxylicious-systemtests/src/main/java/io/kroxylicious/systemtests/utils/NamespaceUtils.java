@@ -28,6 +28,16 @@ public class NamespaceUtils {
     }
 
     /**
+     * Is namespace created boolean.
+     *
+     * @param namespace the namespace
+     * @return the boolean
+     */
+    public static boolean isNamespaceCreated(String namespace) {
+        return kubeClient().getNamespace(namespace) != null;
+    }
+
+    /**
      * Delete namespace with wait.
      *
      * @param namespace the namespace
@@ -48,13 +58,13 @@ public class NamespaceUtils {
      */
     public static void createNamespaceWithWait(String namespace) {
         LOGGER.info("Creating namespace: {}", namespace);
-        if (kubeClient().getNamespace(namespace) != null) {
+        if (isNamespaceCreated(namespace)) {
             LOGGER.warn("Namespace was already created!");
             return;
         }
         kubeClient().createNamespace(namespace);
         await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
-                .until(() -> kubeClient().getNamespace(namespace) != null);
+                .until(() -> isNamespaceCreated(namespace));
 
         LOGGER.info("Namespace: {} created", namespace);
     }
