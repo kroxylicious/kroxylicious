@@ -18,15 +18,20 @@ virtualClusters:
         bootstrapAddress: kroxylicious:9092
     logNetwork: false
     logFrames: false
-filters:
-- type: ProduceRequestTransformationFilterFactory
+filterDefinitions:
+- name: produce
+  type: ProduceRequestTransformationFilterFactory
   config:
     transformation: UpperCasing
     transformationConfig:
       charset: UTF-8
-- type: FetchResponseTransformationFilterFactory
+- name: fetch
+  type: FetchResponseTransformationFilterFactory
   config:
     transformation: UpperCasing
     transformationConfig:
       charset: UTF-8
 
+defaultFilters:
+  - produce
+  - fetch

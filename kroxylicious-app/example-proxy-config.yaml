@@ -18,9 +18,12 @@ virtualClusters:
         bootstrapAddress: localhost:9192
     logNetwork: false
     logFrames: false
-filters:
-#- type: ProduceRequestTransformationFilterFactory
+filterDefinitions:
+#- name: toUpper
+#  type: ProduceRequestTransformationFilterFactory
 #  config:
 #    transformation: UpperCasing
 #    transformationConfig:
 #      charset: UTF-8
+#defaultFilters:
+#  - toUpper

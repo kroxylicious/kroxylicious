@@ -40,7 +40,8 @@ import org.testcontainers.utility.DockerImageName;
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.test.tester.SimpleMetric;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
@@ -185,6 +186,12 @@ class OauthBearerValidationIT {
     }
 
     private ConfigurationBuilder getConfiguredProxyBuilder() {
+        NamedFilterDefinition filterDefinition = new NamedFilterDefinitionBuilder(
+                "oauth",
+                OauthBearerValidation.class.getName())
+                .withConfig("jwksEndpointUrl", JWKS_ENDPOINT_URL,
+                        "expectedAudience", EXPECTED_AUDIENCE)
+                .build();
         return proxy(cluster)
                 .withNewAdminHttp()
                 .withNewEndpoints()
@@ -192,11 +199,8 @@ class OauthBearerValidationIT {
                 .endPrometheus()
                 .endEndpoints()
                 .endAdminHttp()
-                .addToFilters(new FilterDefinitionBuilder(
-                        OauthBearerValidation.class.getName())
-                        .withConfig("jwksEndpointUrl", JWKS_ENDPOINT_URL,
-                                "expectedAudience", EXPECTED_AUDIENCE)
-                        .build());
+                .addToFilterDefinitions(filterDefinition)
+                .addToDefaultFilters(filterDefinition.name());
     }
 
     @NonNull

@@ -61,6 +61,7 @@ class FeaturesTest {
 
     @ParameterizedTest
     @MethodSource
+    @SuppressWarnings("java:S5738")
     void supportsValidTestConfiguration(Features features, Map<String, Object> config) {
         Configuration configuration = new Configuration(null, null, List.of(), null, false, Optional.ofNullable(config));
         List<String> errorMessages = features.supports(configuration);
@@ -68,6 +69,7 @@ class FeaturesTest {
     }
 
     @Test
+    @SuppressWarnings("java:S5738")
     void supportsReturnsErrorOnTestConfigurationPresentWithFeatureDisabled() {
         Optional<Map<String, Object>> a = Optional.of(Map.of("a", "b"));
         Configuration configuration = new Configuration(null, null, List.of(), null, false, a);

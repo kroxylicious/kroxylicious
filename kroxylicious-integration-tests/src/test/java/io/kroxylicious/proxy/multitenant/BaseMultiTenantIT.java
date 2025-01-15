@@ -41,7 +41,7 @@ import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.BaseIT;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilterFactory;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
@@ -94,7 +94,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
     }
 
     static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator, Map<String, Object> filterConfig) {
-        var filterBuilder = new FilterDefinitionBuilder(MultiTenantTransformationFilterFactory.class.getName());
+        var filterBuilder = new NamedFilterDefinitionBuilder("filter-1", MultiTenantTransformationFilterFactory.class.getName());
         Optional.ofNullable(filterConfig).ifPresent(filterBuilder::withConfig);
         return new ConfigurationBuilder()
                 .addToVirtualClusters(TENANT_1_CLUSTER, new VirtualClusterBuilder()
@@ -127,7 +127,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .endKeyStoreKey()
                         .endTls()
                         .build())
-                .addToFilters(filterBuilder.build());
+                .addToFilterDefinitions(filterBuilder.build())
+                .addToDefaultFilters(filterBuilder.name());
     }
 
     Consumer<String, String> getConsumerWithConfig(KroxyliciousTester tester, String virtualCluster, String groupId, Map<String, Object> baseConfig,

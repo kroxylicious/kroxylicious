@@ -24,7 +24,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.FixedClientIdFilterFactory;
 import io.kroxylicious.test.ApiMessageSampleGenerator;
 import io.kroxylicious.test.ApiMessageSampleGenerator.ApiAndVersion;
@@ -62,8 +62,10 @@ public class ProxyRpcTest {
 
     @BeforeAll
     public static void beforeAll() {
+        NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder("filter-3", FixedClientIdFilterFactory.class.getName());
         mockTester = mockKafkaKroxyliciousTester(mockBootstrap -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder(FixedClientIdFilterFactory.class.getName()).withConfig("clientId", "fixed").build()));
+                .addToFilterDefinitions(filterDefinitionBuilder.withConfig("clientId", "fixed").build())
+                .addToDefaultFilters(filterDefinitionBuilder.name()));
     }
 
     @BeforeEach

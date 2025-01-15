@@ -6,6 +6,7 @@
 package io.kroxylicious.proxy.model;
 
 import java.io.UncheckedIOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
@@ -46,6 +48,8 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     private final ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider;
 
+    private final List<NamedFilterDefinition> filters;
+
     private final Optional<SslContext> upstreamSslContext;
 
     private final Optional<SslContext> downstreamSslContext;
@@ -58,12 +62,23 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                           Optional<Tls> tls,
                           boolean logNetwork,
                           boolean logFrames) {
+        this(clusterName, targetCluster, clusterNetworkAddressConfigProvider, tls, logNetwork, logFrames, List.of());
+    }
+
+    public VirtualCluster(String clusterName,
+                          TargetCluster targetCluster,
+                          ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
+                          Optional<Tls> tls,
+                          boolean logNetwork,
+                          boolean logFrames,
+                          @NonNull List<NamedFilterDefinition> filters) {
         this.clusterName = clusterName;
         this.tls = tls;
         this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.clusterNetworkAddressConfigProvider = clusterNetworkAddressConfigProvider;
+        this.filters = filters;
 
         validateTLsSettings(clusterNetworkAddressConfigProvider, tls);
         validatePortUsage(clusterNetworkAddressConfigProvider);
@@ -242,5 +257,9 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         if (clusterNetworkAddressConfigProvider.requiresTls() && (tls.isEmpty() || !tls.get().definesKey())) {
             throw new IllegalStateException("Cluster endpoint provider requires server TLS, but this virtual cluster does not define it.");
         }
+    }
+
+    public @NonNull List<NamedFilterDefinition> getFilters() {
+        return filters;
     }
 }

@@ -297,15 +297,21 @@ class KafkaProxyInitializerTest {
         when(vcb.upstreamTarget()).thenReturn(new HostPort("upstream.broker.kafka", 9090));
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         final KafkaProxyInitializer.InitalizerNetFilter initalizerNetFilter = new KafkaProxyInitializer.InitalizerNetFilter(mock(SaslDecodePredicate.class),
-                channel, vcb, pfr, fcf, (virtualCluster1, upstreamNodes) -> null,
-                new ApiVersionsIntersectFilter(apiVersionsService), new ApiVersionsDowngradeFilter(apiVersionsService));
+                channel,
+                vcb,
+                pfr,
+                fcf,
+                List.of(),
+                (virtualCluster1, upstreamNodes) -> null,
+                new ApiVersionsIntersectFilter(apiVersionsService),
+                new ApiVersionsDowngradeFilter(apiVersionsService));
         final NetFilter.NetFilterContext netFilterContext = mock(NetFilter.NetFilterContext.class);
 
         // When
         initalizerNetFilter.selectServer(netFilterContext);
 
         // Then
-        verify(fcf).createFilters(any(FilterFactoryContext.class));
+        verify(fcf).createFilters(any(FilterFactoryContext.class), any(List.class));
     }
 
     @Test

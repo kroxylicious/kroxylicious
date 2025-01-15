@@ -18,7 +18,8 @@ virtualClusters:
         bootstrapAddress: kroxylicious:9092
     logNetwork: false
     logFrames: false
-filters:
+filterDefinitions:
+- name: encrypt
 - type: RecordEncryption
   config:
     kms: VaultKmsService
@@ -29,3 +30,5 @@ filters:
     selector: TemplateKekSelector
     selectorConfig:
       template: "KEK_${topicName}"
+defaultFilters:
+  - encrypt

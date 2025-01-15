@@ -11,9 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.assertj.core.api.Assumptions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -25,8 +25,6 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientBuilder;
-import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -50,17 +48,8 @@ class ProxyReconcilerIT {
 
     @BeforeAll
     static void checkKubeAvailable() {
-        boolean haveKube;
-        client = new KubernetesClientBuilder().build();
-        try {
-            client.namespaces().list();
-            haveKube = true;
-        }
-        catch (KubernetesClientException e) {
-            haveKube = false;
-            client.close();
-        }
-        Assumptions.assumeTrue(haveKube, "Test requires a viable kube client");
+        client = OperatorTestUtils.kubeClientIfAvailable();
+        Assumptions.assumeThat(client).describedAs("Test requires a viable kube client").isNotNull();
     }
 
     @RegisterExtension
