@@ -1,0 +1,58 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kroxylicious-proxy
+  labels:
+    app: kroxylicious
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kroxylicious
+  template:
+    metadata:
+      labels:
+        app: kroxylicious
+    spec:
+      containers:
+      - name: kroxylicious
+        image: quay.io/kroxylicious/kroxylicious:0.10.0-SNAPSHOT
+        imagePullPolicy: Always
+        args: ["--config", "/opt/kroxylicious/config/config.yaml"]
+        ports:
+        - containerPort: 9190
+          name: metrics
+        - containerPort: 9092
+        volumeMounts:
+        - name: config-volume
+          mountPath: /opt/kroxylicious/config/config.yaml
+          subPath: config.yaml
+        - name: kafka-cluster-ca-cert
+          readOnly: true
+          mountPath: /opt/kroxylicious/trust
+        - name: kroxy-server-key-material-volume
+          readOnly: true
+          mountPath: /opt/kroxylicious/server/key-material
+        - name: kroxy-server-keystore-password-volume
+          readOnly: true
+          mountPath: /opt/kroxylicious/server/keystore-password
+      volumes:
+      - name: config-volume
+        configMap:
+          name: kroxylicious-config
+      - name: kafka-cluster-ca-cert
+        secret:
+          secretName: my-cluster-cluster-ca-cert
+      - name: kroxy-server-key-material-volume
+        secret:
+          secretName: kroxy-server-key-material
+      - name: kroxy-server-keystore-password-volume
+        secret:
+          secretName: kroxy-server-keystore-password
