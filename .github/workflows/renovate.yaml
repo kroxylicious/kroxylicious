@@ -1,7 +1,29 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
 name: Renovate
+
+# Renovates Kroxylicious - current scope is to update container references in code.
+#
+# If secret `KROXYLICIOUS_GITHUB_READWRITE_TOKEN` is available, it will be used for the
+# interactions.  Otherwise, the action's initiator's token is used.
 on:
   schedule:
-    - cron: '0/30 * * * *'
+    - cron: '0 0/9 * * 1-5'
   workflow_dispatch:
 jobs:
   renovate:
@@ -20,4 +42,5 @@ jobs:
         env:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_ONBOARDING: "false"
+          RENOVATE_GIT_AUTHOR: "${GITHUB_ACTOR_ID}+${GITHUB_ACTOR}@users.noreply.github.com"
           LOG_LEVEL: debug
