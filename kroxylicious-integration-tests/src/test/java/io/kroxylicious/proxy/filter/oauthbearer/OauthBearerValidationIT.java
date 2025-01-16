@@ -96,6 +96,7 @@ class OauthBearerValidationIT {
         oauthServer.setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*started server on address.*"));
         oauthServer.addFixedExposedPort(OAUTH_SERVER_PORT, OAUTH_SERVER_PORT);
         oauthServer.withEnv("SERVER_PORT", OAUTH_SERVER_PORT + "");
+        oauthServer.withEnv("LOG_LEVEL", "DEBUG"); // required to for the startup message to be logged.
         oauthServer.start();
     }
 
