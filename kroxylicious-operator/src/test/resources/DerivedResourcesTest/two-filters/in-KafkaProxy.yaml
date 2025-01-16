@@ -11,8 +11,19 @@ metadata:
   name: example
   namespace: proxy-ns
 spec:
+  listeners:
+    - name: my-listener
+      port: 9092
+      protocol: kafka-tls
+      tls:
+        certificateRefs:
+          - kind: Secret
+            name: kroxy-server-key-material
   clusters:
   - name: "foo"
+    advertisedBrokers: [ 0 ]
+    hostnames:
+      - my-cluster-%.proxy-ns.svc.cluster.local
     upstream:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
     filters:

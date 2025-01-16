@@ -11,9 +11,20 @@ metadata:
   name: example
   namespace: proxy-ns
 spec:
+  listeners:
+    - name: my-listener
+      port: 9092
+      protocol: kafka-tls
+      tls:
+        certificateRefs:
+          - kind: Secret
+            name: kroxy-server-key-material
   clusters:
     - name: "foo"
       # This cluster should be absent from the output proxy-operator-operator-operator-config.yaml, because there is no Two with name missing
+      advertisedBrokers: [ 0 ]
+      hostnames:
+        - my-cluster-%.proxy-ns.svc.cluster.local
       upstream:
         bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
       filters:
@@ -25,6 +36,9 @@ spec:
           name: missing # this does not exist
     - name: "bar"
       # This cluster should be present in the output proxy-operator-operator-operator-config.yaml, because both these filters exist
+      advertisedBrokers: [ 0 ]
+      hostnames:
+        - my-cluster-2-%.proxy-ns.svc.cluster.local
       upstream:
         bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
       filters:

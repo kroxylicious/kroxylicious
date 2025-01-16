@@ -12,31 +12,20 @@ metadata:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
     app.kubernetes.io/part-of: "kafka"
-    app.kubernetes.io/instance: "example"
+    app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"
-  name: "bar"
+  name: "my-cluster-bootstrap"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "example"
+      name: "twocluster"
 spec:
   ports:
-    - name: "bar-9392"
-      port: 9392
-      protocol: "TCP"
-      targetPort: 9392
-    - name: "bar-9393"
-      port: 9393
-      protocol: "TCP"
-      targetPort: 9393
-    - name: "bar-9394"
-      port: 9394
-      protocol: "TCP"
-      targetPort: 9394
-    - name: "bar-9395"
-      port: 9395
-      protocol: "TCP"
-      targetPort: 9395
+  - name: "tls"
+    port: 9092
+    protocol: "TCP"
+    targetPort: 9092
   selector:
     app: "kroxylicious"
+  type: "ClusterIP"

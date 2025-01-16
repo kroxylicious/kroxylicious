@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -38,7 +39,9 @@ import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -119,14 +122,14 @@ public class ProxyConfigSecret
 
     @NonNull
     private static LinkedHashMap<String, VirtualCluster> buildVirtualClusters(KafkaProxy primary, Context<KafkaProxy> context, List<Clusters> clusters) {
-        var virtualClusters = clusters.stream()
+        return clusters.stream()
                 .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
+                .flatMap(cluster -> getNamedVirtualClusters(primary, cluster))
                 .collect(Collectors.toMap(
-                        Clusters::getName,
-                        cluster -> getVirtualCluster(primary, cluster),
+                        cluster -> cluster.name,
+                        cluster -> cluster.virtualCluster,
                         (v1, v2) -> v1, // Dupes handled below
                         LinkedHashMap::new));
-        return virtualClusters;
     }
 
     @NonNull
@@ -205,22 +208,30 @@ public class ProxyConfigSecret
                 .orElseThrow(() -> resourceNotFound(cluster, filterRef));
     }
 
-    private static VirtualCluster getVirtualCluster(KafkaProxy primary,
-                                                    Clusters cluster) {
-        var o = ResourcesUtil.distinctClusters(primary);
-        var clusterNum = o.indexOf(cluster);
+    private record NamedVirtualCluster(String name, VirtualCluster virtualCluster) {
 
+    }
+
+    private static Stream<NamedVirtualCluster> getNamedVirtualClusters(KafkaProxy primary, Clusters cluster) {
+        ClusterSniExposition exposition = ClusterSniExposition.planExposition(primary, cluster);
+        return exposition.getExpositions().stream().map(e -> {
+            String virtualCluster = cluster.getName() + "-" + e.listener().getName() + "-" + e.sniBootstrapHostname();
+            return new NamedVirtualCluster(virtualCluster, getVirtualCluster(primary, cluster, e));
+        });
+    }
+
+    private static VirtualCluster getVirtualCluster(KafkaProxy primary,
+                                                    Clusters cluster,
+                                                    ClusterSniExposition.HostnameExposition exposition) {
+        TlsSecrets tlsSecrets = TlsSecrets.tlsSecretsFor(primary).get(0); // todo - determine how to select different certs per virtual cluster
         return new VirtualCluster(
                 new TargetCluster(cluster.getUpstream().getBootstrapServers(), Optional.empty()),
                 new ClusterNetworkAddressConfigProviderDefinition(
-                        "PortPerBrokerClusterNetworkAddressConfigProvider",
-                        new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
-                                new HostPort("localhost", 9292 + (100 * clusterNum)),
-                                ClusterService.absoluteServiceHost(primary, cluster),
-                                null,
-                                null,
-                                null)),
-                Optional.empty(),
+                        "SniRoutingClusterNetworkAddressConfigProvider",
+                        new SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig(
+                                new HostPort(exposition.sniBootstrapHostname(), exposition.listener().getPort()),
+                                exposition.sniBrokerPattern())),
+                Optional.of(new Tls(new KeyPair(tlsSecrets.privateKeyPath().toString(), tlsSecrets.certificatePath().toString(), null), null, null, null)),
                 false, false,
                 filterNamesForCluster(cluster));
     }

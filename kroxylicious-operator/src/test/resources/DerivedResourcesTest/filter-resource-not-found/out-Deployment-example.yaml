@@ -40,15 +40,18 @@ spec:
           ports:
             - containerPort: 9190
               name: "metrics"
-            - containerPort: 9392
-            - containerPort: 9393
-            - containerPort: 9394
-            - containerPort: 9395
+            - containerPort: 9092
+              name: "my-listener"
           volumeMounts:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
               subPath: "proxy-config.yaml"
+            - mountPath: "/opt/kroxylicious/secrets/tls/my-listener/kroxy-server-key-material"
+              name: "tls-secrets-my-listener-kroxy-server-key-material"
       volumes:
         - name: "config-volume"
           secret:
             secretName: "example"
+        - name: "tls-secrets-my-listener-kroxy-server-key-material"
+          secret:
+            secretName: "kroxy-server-key-material"

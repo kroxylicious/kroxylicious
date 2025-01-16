@@ -84,17 +84,25 @@ public class ProxyDeployment
                 .map(ObjectMeta::getLabels)
                 .orElse(Map.of());
         // @formatter:off
+
+        TlsSecrets tlsSecrets = TlsSecrets.tlsSecretsFor(primary).get(0);
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
                     .addToLabels(labelsFromSpec)
                     .addToLabels(podLabels())
                 .endMetadata()
                 .editOrNewSpec()
-                    .withContainers(proxyContainer(primary, context))
+                    .withContainers(proxyContainer(primary, context, tlsSecrets))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewSecret()
                             .withSecretName(ProxyConfigSecret.secretName(primary))
+                        .endSecret()
+                    .endVolume()
+                    .addNewVolume()
+                        .withName(tlsSecrets.volumeName())
+                        .withNewSecret()
+                            .withSecretName(tlsSecrets.secretName())
                         .endSecret()
                     .endVolume()
                 .endSpec()
@@ -103,7 +111,8 @@ public class ProxyDeployment
     }
 
     private static Container proxyContainer(KafkaProxy primary,
-                                            Context<KafkaProxy> context) {
+                                            Context<KafkaProxy> context,
+                                            TlsSecrets tlsSecrets) {
         // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
@@ -115,21 +124,21 @@ public class ProxyDeployment
                     .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
                     .withSubPath(ProxyConfigSecret.CONFIG_YAML_KEY)
                 .endVolumeMount()
+                .addNewVolumeMount()
+                    .withName(tlsSecrets.volumeName())
+                    .withMountPath(tlsSecrets.path().toString())
+                .endVolumeMount()
                 // metrics port
                 .addNewPort()
                     .withContainerPort(METRICS_PORT)
                     .withName("metrics")
                 .endPort();
         // broker ports
-        for (var cluster : primary.getSpec().getClusters()) {
-            if (!SharedKafkaProxyContext.isBroken(context, cluster)) {
-                for (var portEntry : ClusterService.clusterPorts(primary, context, cluster).entrySet()) {
-                    containerBuilder.addNewPort()
-                            .withContainerPort(portEntry.getKey())
-                            // .withName(portEntry.getValue())
-                            .endPort();
-                }
-            }
+        for (var listener : primary.getSpec().getListeners()) {
+            containerBuilder.addNewPort()
+                    .withContainerPort(listener.getPort())
+                    .withName(listener.getName())
+                    .endPort();
         }
         return containerBuilder.build();
         // @formatter:on

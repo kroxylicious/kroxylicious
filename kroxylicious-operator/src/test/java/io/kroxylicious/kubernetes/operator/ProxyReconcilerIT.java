@@ -6,10 +6,13 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.security.KeyPair;
+import java.security.cert.X509Certificate;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.assertj.core.api.Assumptions;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -21,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -41,14 +45,18 @@ class ProxyReconcilerIT {
     public static final String RESOURCE_NAME = "test-proxy";
     public static final String CLUSTER_FOO = "foo";
     public static final String CLUSTER_FOO_BOOTSTRAP = "my-cluster-kafka-bootstrap.foo.svc.cluster.local:9092";
+    public static final List<String> CLUSTER_FOO_SERVICE_NAMES = List.of("foo-bootstrap", "foo-broker-0");
     public static final String CLUSTER_BAR = "bar";
     public static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
+    public static final List<String> CLUSTER_BAR_SERVICE_NAMES = List.of("bar-bootstrap", "bar-broker-0");
+    public static final List<String> ALL_SERVICE_NAMES = Stream.concat(CLUSTER_FOO_SERVICE_NAMES.stream(), CLUSTER_BAR_SERVICE_NAMES.stream()).toList();
 
     static KubernetesClient client;
 
     @BeforeAll
     static void checkKubeAvailable() {
         client = OperatorTestUtils.kubeClientIfAvailable();
+
         Assumptions.assumeThat(client).describedAs("Test requires a viable kube client").isNotNull();
     }
 
@@ -73,6 +81,8 @@ class ProxyReconcilerIT {
     }
 
     KafkaProxy doCreate() {
+        createCertificates();
+
         final var cr = extension.create(testResource());
 
         await().alias("Secret as expected").untilAsserted(() -> {
@@ -93,17 +103,31 @@ class ProxyReconcilerIT {
                     .anyMatch(vol -> vol.getSecret() != null
                             && vol.getSecret().getSecretName().equals(ProxyConfigSecret.secretName(cr)));
         });
-        await().alias("cluster Services as expected").untilAsserted(() -> {
-            for (var cluster : cr.getSpec().getClusters()) {
-                var service = extension.get(Service.class, ClusterService.serviceName(cluster));
+        for (String expectedServiceName : ALL_SERVICE_NAMES) {
+            await().alias("Service " + expectedServiceName + " as expected").untilAsserted(() -> {
+                var service = extension.get(Service.class, expectedServiceName);
                 assertThat(service).isNotNull()
                         .extracting(svc -> svc.getSpec().getSelector())
                         .describedAs("Service's selector should select proxy pods")
                         .isEqualTo(ProxyDeployment.podLabels());
-            }
-        });
-
+            });
+        }
         return cr;
+    }
+
+    private void createCertificates() {
+        KeyPair keyPair = CertificateGenerator.generateRsaKeyPair();
+        X509Certificate cert = CertificateGenerator.generateSelfSignedX509Certificate(keyPair);
+        String certPem = CertificateGenerator.toCertPem(cert);
+        String rsaPrivateKeyPem = CertificateGenerator.toRsaPrivateKeyPem(keyPair);
+        Map<String, String> secretData = Map.of("tls.key", rsaPrivateKeyPem, "tls.crt", certPem);
+        var certSecret = new SecretBuilder()
+                .withNewMetadata()
+                .withName("cert")
+                .endMetadata()
+                .withStringData(secretData)
+                .build();
+        extension.create(certSecret);
     }
 
     @Test
@@ -119,12 +143,12 @@ class ProxyReconcilerIT {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
             assertThat(deployment).isNull();
         });
-        await().alias("Services were deleted").untilAsserted(() -> {
-            for (var cluster : cr.getSpec().getClusters()) {
-                var service = extension.get(Service.class, ClusterService.serviceName(cluster));
+        for (String expectedServiceName : ALL_SERVICE_NAMES) {
+            await().alias("Service " + expectedServiceName + " was deleted").untilAsserted(() -> {
+                var service = extension.get(Service.class, expectedServiceName);
                 assertThat(service).isNull();
-            }
-        });
+            });
+        }
         LOGGER.atInfo().log("Test finished");
     }
 
@@ -151,22 +175,26 @@ class ProxyReconcilerIT {
                     .contains(CLUSTER_BAR_BOOTSTRAP);
         });
 
-        await().untilAsserted(() -> {
-            var service = extension.get(Service.class, CLUSTER_FOO);
-            assertThat(service)
-                    .describedAs("Expect Service for cluster 'foo' to have been deleted")
-                    .isNull();
-        });
+        for (String expectedServiceName : CLUSTER_FOO_SERVICE_NAMES) {
+            await().alias("Service " + expectedServiceName + " was deleted").untilAsserted(() -> {
+                var service = extension.get(Service.class, expectedServiceName);
+                assertThat(service)
+                        .describedAs("Expect Service " + expectedServiceName + " for cluster 'foo' to have been deleted")
+                        .isNull();
+            });
+        }
 
-        await().untilAsserted(() -> {
-            var service = extension.get(Service.class, CLUSTER_BAR);
-            assertThat(service)
-                    .describedAs("Expect Service for cluster 'bar' to still exist")
-                    .isNotNull()
-                    .extracting(svc -> svc.getSpec().getSelector())
-                    .describedAs("Service's selector should select proxy pods")
-                    .isEqualTo(ProxyDeployment.podLabels());
-        });
+        for (String expectedServiceName : CLUSTER_BAR_SERVICE_NAMES) {
+            await().untilAsserted(() -> {
+                var service = extension.get(Service.class, expectedServiceName);
+                assertThat(service)
+                        .describedAs("Expect Service " + expectedServiceName + " for cluster 'bar' to still exist")
+                        .isNotNull()
+                        .extracting(svc -> svc.getSpec().getSelector())
+                        .describedAs("Service's selector should select proxy pods")
+                        .isEqualTo(ProxyDeployment.podLabels());
+            });
+        }
         LOGGER.atInfo().log("Test finished");
     }
 
@@ -183,14 +211,29 @@ class ProxyReconcilerIT {
                     .withName(RESOURCE_NAME)
                 .endMetadata()
                 .withNewSpec()
+                    .addNewListener()
+                        .withName("my-listener")
+                        .withPort(9092)
+                        .withProtocol("kafka-tls")
+                        .withNewTls()
+                            .addNewCertificateRef()
+                                .withName("cert")
+                                .withKind("Secret")
+                            .endCertificateRef()
+                        .endTls()
+                    .endListener()
                     .addNewCluster()
                         .withName(CLUSTER_FOO)
+                            .withAdvertisedBrokers(0)
+                            .withHostnames("foo-%.default.svc.cluster.local")
                         .withNewUpstream()
                             .withBootstrapServers(CLUSTER_FOO_BOOTSTRAP)
                         .endUpstream()
                     .endCluster()
                     .addNewCluster()
                         .withName(CLUSTER_BAR)
+                        .withAdvertisedBrokers(0)
+                        .withHostnames("bar-%.default.svc.cluster.local")
                         .withNewUpstream()
                             .withBootstrapServers(CLUSTER_BAR_BOOTSTRAP)
                         .endUpstream()
