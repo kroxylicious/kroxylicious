@@ -14,7 +14,9 @@ CFG=02-no-filters/config.yaml
 ENDPOINT=kroxylicious:9092
 
 KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach
-until [ "$(docker inspect -f {{.State.Running}} kroxylicious)" == "true" ]; do
+RUNNING=$(docker inspect -f {{.State.Running}} kroxylicious)
+echo "running = $RUNNING"
+until [ "$RUNNING" == "true" ]; do
     sleep 0.1;
 done;
 #KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
