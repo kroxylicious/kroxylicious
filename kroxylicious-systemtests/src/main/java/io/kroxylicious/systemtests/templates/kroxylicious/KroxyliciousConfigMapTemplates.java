@@ -69,7 +69,8 @@ public final class KroxyliciousConfigMapTemplates {
 
     private static String buildEncryptionFilter(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
         return """
-                - type: RecordEncryption
+                - name: encrypt
+                  type: RecordEncryption
                   config:
                     kms: %s
                     kmsConfig:
@@ -113,8 +114,10 @@ public final class KroxyliciousConfigMapTemplates {
                     targetCluster:
                       bootstrapServers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     logFrames: false
-                filters:
+                filterDefinitions:
                 %s
+                defaultFilters:
+                  - encrypt
                 """
                 .formatted(Constants.KROXY_SERVICE_NAME, clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, configYaml);
     }
