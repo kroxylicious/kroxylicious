@@ -66,7 +66,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.DOUBLE;
 @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 class OauthBearerValidationIT {
 
-    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:2.1.8");
+    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:2.1.10");
 
     private static final int OAUTH_SERVER_PORT = 28089;
     private static final String JWKS_ENDPOINT_URL = "http://localhost:" + OAUTH_SERVER_PORT + "/default/jwks";
