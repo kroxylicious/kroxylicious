@@ -9,7 +9,6 @@
 The Record Encryption filter uses envelope encryption to encrypt records with symmetric encryption keys. 
 The filter encrypts records from produce requests and decrypts records from fetch responses.
 
-[#_envelope_encryption]
 Envelope encryption::
 Envelope encryption is an industry-standard technique suited for encrypting large volumes of data in an efficient manner.
 Data is encrypted with a Data Encryption Key (DEK).
