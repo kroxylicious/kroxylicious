@@ -21,6 +21,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## 0.9.0
 
+* [#1006](https://github.com/kroxylicious/kroxylicious/pull/1660) Allow CipherSuites and TLS Protocols to be passed via Configuration
 * [#1668](https://github.com/kroxylicious/kroxylicious/pull/1668) Bump apicurio-registry.version from 2.6.5.Final to 2.6.6.Final
 * [#1667](https://github.com/kroxylicious/kroxylicious/pull/1667) Bump io.micrometer:micrometer-bom from 1.14.1 to 1.14.2
 * [#1666](https://github.com/kroxylicious/kroxylicious/pull/1666) Bump org.apache.logging.log4j:log4j-bom from 2.24.2 to 2.24.3 
