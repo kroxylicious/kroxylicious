@@ -57,6 +57,24 @@
         "(?<depName>quay.io/kroxylicious/kaf):(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java"],
+      "matchStrings": [
+        "AWS_LOCALSTACK_CHART_VERSION_DEFAULT = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "localstack/helm-charts"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java"],
+      "matchStrings": [
+        "VAULT_CHART_VERSION_DEFAULT = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "hashicorp/vault-helm",
+      "datasourceTemplate": "github-tags"
     }
   ]
 }
