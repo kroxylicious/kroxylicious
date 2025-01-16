@@ -87,8 +87,9 @@ NOTE: The client's identity, as established through TLS client authentication, i
 For more information, see the {github-issues}/issues/1637[related issue].
 
 You may restrict the TLS protocols by either specifying an allow list of TLS protocols to be enabled, or
-specify a deny list of those protocols that should be disallowed. If you do not specify which protocols are to be used,
-the virtual cluster will use the defaults provided by the platform.
+specify a deny list of those protocols that should be disallowed from the platform's default. If you specify
+both an allow and a deny list, the deny list will be applied to be the allow list. If neither an allow nor a deny
+list is specified, the virtual cluster will use the defaults provided by the platform.
 
 When the client connects, the client and the virtual cluster will negotiate the highest mutually acceptable TLS protocol.
 If the two have no protocols in common, the connection will fail.
@@ -125,8 +126,9 @@ virtualClusters:
 <1> List of TLS protocols to be disallowed.
 
 You may restrict the TLS cipher suite by either specifying an allow list of cipher suite to be enabled, in preference
-order, or specify a deny list of those cipher suite that should be disallowed. If you do not specify which cipher suites
-are to be used, the virtual cluster will use the default cipher suites (and preference order) provided by the platform.
+order, or specify a deny list of those cipher suite that should be disallowed from the platform's default. If you specify
+both an allow and a deny list, the deny list will be applied to be the allow list. If neither an allow nor a deny
+list is specified, the virtual cluster will use the default cipher suites (and preference order) provided by the platform.
 
 When the client connects, the client and the virtual cluster will negotiate the most preferred mutually acceptable cipher
 suite. If the two have no cipher suites in common, the connection will fail.
