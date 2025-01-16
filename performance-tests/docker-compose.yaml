@@ -31,7 +31,7 @@ services:
     networks:
       - perf_network
   vault:
-    image: ${VAULT_IMAGE:-docker.io/hashicorp/vault:1.15}
+    image: ${VAULT_IMAGE:-hashicorp/vault:1.15}
     hostname: vault
     container_name: vault
     ports:

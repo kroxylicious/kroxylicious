@@ -66,7 +66,8 @@ import static org.assertj.core.api.InstanceOfAssertFactories.DOUBLE;
 @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
 class OauthBearerValidationIT {
 
-    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server").withTag("2.1.8");
+    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:2.1.10");
+
     private static final int OAUTH_SERVER_PORT = 28089;
     private static final String JWKS_ENDPOINT_URL = "http://localhost:" + OAUTH_SERVER_PORT + "/default/jwks";
     private static final URI OAUTH_ENDPOINT_URL = URI.create(JWKS_ENDPOINT_URL).resolve("/");
@@ -95,6 +96,7 @@ class OauthBearerValidationIT {
         oauthServer.setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*started server on address.*"));
         oauthServer.addFixedExposedPort(OAUTH_SERVER_PORT, OAUTH_SERVER_PORT);
         oauthServer.withEnv("SERVER_PORT", OAUTH_SERVER_PORT + "");
+        oauthServer.withEnv("LOG_LEVEL", "DEBUG"); // required to for the startup message to be logged.
         oauthServer.start();
     }
 
