@@ -14,7 +14,7 @@ import org.apache.kafka.common.InvalidRecordException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -33,11 +33,13 @@ class ProduceRequestValidationIT extends RecordValidationBaseIT {
 
     @Test
     void validJsonProduceAcceptedUsingDeprecatedFactoryName(KafkaCluster cluster, Topic topic) {
+        NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder(SIMPLE_NAME, SIMPLE_NAME);
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(SIMPLE_NAME).withConfig("rules",
+                .addToFilterDefinitions(filterDefinitionBuilder.withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
                                 Map.of("syntacticallyCorrectJson", Map.of()))))
-                        .build());
+                        .build())
+                .addToDefaultFilters(filterDefinitionBuilder.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -55,11 +57,13 @@ class ProduceRequestValidationIT extends RecordValidationBaseIT {
 
     @Test
     void invalidJsonProduceRejected(KafkaCluster cluster, Topic topic) {
+        NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder(SIMPLE_NAME, SIMPLE_NAME);
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(SIMPLE_NAME).withConfig("rules",
+                .addToFilterDefinitions(filterDefinitionBuilder.withConfig("rules",
                         List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
                                 Map.of("syntacticallyCorrectJson", Map.of()))))
-                        .build());
+                        .build())
+                .addToDefaultFilters(filterDefinitionBuilder.name());
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));

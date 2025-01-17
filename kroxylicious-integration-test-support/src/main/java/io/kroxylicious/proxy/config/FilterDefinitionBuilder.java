@@ -10,6 +10,7 @@ import java.util.Map;
 
 import io.kroxylicious.proxy.filter.FilterFactory;
 
+@Deprecated
 public class FilterDefinitionBuilder extends AbstractDefinitionBuilder<FilterDefinition> {
     public FilterDefinitionBuilder(String type) {
         super(type);

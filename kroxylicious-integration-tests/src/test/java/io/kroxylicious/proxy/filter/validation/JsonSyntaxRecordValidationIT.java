@@ -15,8 +15,8 @@ import org.apache.kafka.common.InvalidRecordException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.proxy.config.FilterDefinition;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -37,8 +37,10 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void invalidJsonProduceRejected(KafkaCluster cluster, Topic topic) {
+        NamedFilterDefinition filterDef = createFilterDef(topic);
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(topic));
+                .addToFilterDefinitions(filterDef)
+                .addToDefaultFilters(filterDef.name());
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var invalid = producer.send(new ProducerRecord<>(topic.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
@@ -50,8 +52,10 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     void invalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
+        NamedFilterDefinition filterDef = createFilterDef(topic1);
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(topic1));
+                .addToFilterDefinitions(filterDef)
+                .addToDefaultFilters(filterDef.name());
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
             var rejected = producer.send(new ProducerRecord<>(topic1.name(), "my-key", SYNTACTICALLY_INCORRECT_JSON));
@@ -72,8 +76,10 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     void invalidJsonProduceRejectedUsingTransaction(KafkaCluster cluster, Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
+        NamedFilterDefinition filterDef = createFilterDef(topic1);
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(topic1));
+                .addToFilterDefinitions(filterDef)
+                .addToDefaultFilters(filterDef.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000, TRANSACTIONAL_ID_CONFIG, randomUUID().toString()))) {
@@ -92,8 +98,10 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     void singleValidationFailureCausesRejectionOfWholeBatch(KafkaCluster cluster, Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
+        NamedFilterDefinition filterDef = createFilterDef(topic1);
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(topic1));
+                .addToFilterDefinitions(filterDef)
+                .addToDefaultFilters(filterDef.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
@@ -109,8 +117,10 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     void singleValidationFailureCausesRejectionOfWholeBatchSameTopic(KafkaCluster cluster, @TopicPartitions(2) Topic topic) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
+        NamedFilterDefinition filterDef = createFilterDef(topic);
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(topic));
+                .addToFilterDefinitions(filterDef)
+                .addToDefaultFilters(filterDef.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(LINGER_MS_CONFIG, 5000))) {
@@ -124,8 +134,10 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void validJsonProduceAccepted(KafkaCluster cluster, Topic topic) {
+        NamedFilterDefinition filterDef = createFilterDef(topic);
         var config = proxy(cluster)
-                .addToFilters(createFilterDef(topic));
+                .addToFilterDefinitions(filterDef)
+                .addToDefaultFilters(filterDef.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -142,11 +154,14 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
     @Test
     void allowNulls(KafkaCluster cluster, Topic topic) {
+        String className = RecordValidation.class.getName();
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
+                List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
+                        Map.of("allowNulls", true, "syntacticallyCorrectJson", Map.of()))))
+                .build();
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
-                                Map.of("allowNulls", true, "syntacticallyCorrectJson", Map.of()))))
-                        .build());
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -164,11 +179,14 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     @Test
     void rejectNulls(KafkaCluster cluster, Topic topic) {
 
+        String className = RecordValidation.class.getName();
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
+                List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
+                        Map.of("allowNulls", false, "syntacticallyCorrectJson", Map.of()))))
+                .build();
         var config = proxy(cluster)
-                .addToFilters(new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
-                        List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
-                                Map.of("allowNulls", false, "syntacticallyCorrectJson", Map.of()))))
-                        .build());
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -177,8 +195,9 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
         }
     }
 
-    private FilterDefinition createFilterDef(Topic... topics) {
-        return new FilterDefinitionBuilder(RecordValidation.class.getName()).withConfig("rules",
+    private NamedFilterDefinition createFilterDef(Topic... topics) {
+        String className = RecordValidation.class.getName();
+        return new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
                 List.of(Map.of("topicNames", Arrays.stream(topics).map(Topic::name).toList(), "valueRule",
                         Map.of("syntacticallyCorrectJson", Map.of()))))
                 .build();

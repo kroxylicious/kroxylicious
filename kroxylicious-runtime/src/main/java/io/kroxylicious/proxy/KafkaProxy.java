@@ -110,6 +110,7 @@ public final class KafkaProxy implements AutoCloseable {
      * Starts this proxy.
      * @return This proxy.
      */
+    @SuppressWarnings("java:S5738")
     public KafkaProxy startup() throws InterruptedException {
         if (running.getAndSet(true)) {
             throw new IllegalStateException("This proxy is already running");
@@ -131,7 +132,8 @@ public final class KafkaProxy implements AutoCloseable {
 
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
-            this.filterChainFactory = new FilterChainFactory(pfr, config.filters());
+            this.filterChainFactory = new FilterChainFactory(pfr, config.toNamedFilterDefinitions());
+
             var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
             var plainServerBootstrap = buildServerBootstrap(serverEventGroup,

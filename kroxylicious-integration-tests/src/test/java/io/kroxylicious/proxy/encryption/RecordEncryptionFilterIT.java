@@ -59,8 +59,8 @@ import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryTestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeInvocationContextProvider;
-import io.kroxylicious.proxy.config.FilterDefinition;
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.ClientConfig;
@@ -93,7 +93,9 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer();
@@ -118,7 +120,9 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString()));
@@ -147,7 +151,9 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString()));
@@ -183,7 +189,9 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString()));
@@ -221,7 +229,9 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer1 = tester.producer();
@@ -256,13 +266,15 @@ class RecordEncryptionFilterIT {
         var builder = proxy(cluster);
         // 1 second is the current minimum configurable value
         Duration edekExpiry = Duration.ofSeconds(1);
-        builder.addToFilters(new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
+        NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder("encrypt", RecordEncryption.class.getSimpleName());
+        builder.addToFilterDefinitions(filterDefinitionBuilder
                 .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
                 .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
                 .withConfig("experimental", Map.of("encryptionDekRefreshAfterWriteSeconds", edekExpiry.toSeconds()))
                 .withConfig("selector", TemplateKekSelector.class.getSimpleName())
                 .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
-                .build());
+                .build())
+                .addToDefaultFilters(filterDefinitionBuilder.name());
 
         var message = "hello world";
         try (var tester = kroxyliciousTester(builder);
@@ -290,7 +302,8 @@ class RecordEncryptionFilterIT {
         var builder = proxy(cluster);
         // 1 second is the current minimum configurable value
         Duration edekExpiry = Duration.ofSeconds(1);
-        builder.addToFilters(new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
+        NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder("encrypt", RecordEncryption.class.getSimpleName());
+        builder.addToFilterDefinitions(filterDefinitionBuilder
                 .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
                 .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
                 .withConfig("experimental", Map.of(
@@ -298,7 +311,8 @@ class RecordEncryptionFilterIT {
                         "maxEncryptionsPerDek", 1))
                 .withConfig("selector", TemplateKekSelector.class.getSimpleName())
                 .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
-                .build());
+                .build())
+                .addToDefaultFilters(filterDefinitionBuilder.name());
         var messageOne = "hello world";
         var messageTwo = "hello world2";
         final String clientId = "producer-" + topic.name();
@@ -355,7 +369,9 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         var messageBeforeKeyRotation = "hello world, old key";
         var messageAfterKeyRotation = "hello world, new key";
@@ -386,7 +402,9 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer()) {
@@ -413,7 +431,9 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer();
@@ -443,7 +463,9 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer();
@@ -475,7 +497,9 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(encryptedTopic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.LINGER_MS_CONFIG, 1000, ProducerConfig.BATCH_SIZE_CONFIG, 2));
@@ -514,7 +538,9 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var proxyProducer = tester.producer();
@@ -576,7 +602,9 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        builder.addToFilters(buildEncryptionFilterDefinition(testKmsFacade));
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
 
         try (var tester = kroxyliciousTester(builder);
                 var producer = tester.producer(Map.of(ProducerConfig.LINGER_MS_CONFIG, 0));
@@ -611,8 +639,8 @@ class RecordEncryptionFilterIT {
 
     }
 
-    private FilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
-        return new FilterDefinitionBuilder(RecordEncryption.class.getSimpleName())
+    private NamedFilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
+        return new NamedFilterDefinitionBuilder("filter-1", RecordEncryption.class.getSimpleName())
                 .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
                 .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
                 .withConfig("selector", TemplateKekSelector.class.getSimpleName())
