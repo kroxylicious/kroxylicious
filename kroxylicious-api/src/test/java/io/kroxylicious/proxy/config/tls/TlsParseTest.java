@@ -7,6 +7,8 @@
 package io.kroxylicious.proxy.config.tls;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Set;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,8 @@ class TlsParseTest {
         Tls tls = readTls(json);
         assertThat(tls.trust()).isNull();
         assertThat(tls.key()).isNull();
+        assertThat(tls.cipherSuites()).isNull();
+        assertThat(tls.protocols()).isNull();
     }
 
     @Test
@@ -43,7 +47,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new InsecureTls(true)));
+        assertThat(tls).isEqualTo(new Tls(null, new InsecureTls(true), null, null));
     }
 
     @Test
@@ -90,7 +94,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", null, null)));
+        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", null, null), null, null));
     }
 
     @Test
@@ -103,7 +107,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", null, null)));
+        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", null, null), null, null));
     }
 
     @Test
@@ -136,7 +140,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new InlinePassword("changeit"), null)));
+        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new InlinePassword("changeit"), null), null, null));
     }
 
     @Test
@@ -186,7 +190,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null)));
+        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), null, null));
     }
 
     @Test
@@ -202,7 +206,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null)));
+        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), null, null));
     }
 
     @Test
@@ -221,7 +225,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null, new ServerOptions(TlsClientAuth.REQUIRED))));
+        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null, new ServerOptions(TlsClientAuth.REQUIRED)), null, null));
     }
 
     @Test
@@ -238,7 +242,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), "PKCS12")));
+        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), "PKCS12"), null, null));
     }
 
     @Test
@@ -252,7 +256,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(new KeyPair("/tmp/key", "/tmp/cert", null), null));
+        assertThat(tls).isEqualTo(new Tls(new KeyPair("/tmp/key", "/tmp/cert", null), null, null, null));
     }
 
     @Test
@@ -328,7 +332,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(new KeyPair("/tmp/key", "/tmp/cert", new InlinePassword("changeit")), null));
+        assertThat(tls).isEqualTo(new Tls(new KeyPair("/tmp/key", "/tmp/cert", new InlinePassword("changeit")), null, null, null));
     }
 
     @Test
@@ -345,7 +349,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(new KeyPair("/tmp/key", "/tmp/cert", new FilePassword("/tmp/pass")), null));
+        assertThat(tls).isEqualTo(new Tls(new KeyPair("/tmp/key", "/tmp/cert", new FilePassword("/tmp/pass")), null, null, null));
     }
 
     @Test
@@ -358,7 +362,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", null, null, null), null));
+        assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", null, null, null), null, null, null));
     }
 
     @Test
@@ -374,7 +378,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", new InlinePassword("changeit"), null, null), null));
+        assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", new InlinePassword("changeit"), null, null), null, null, null));
     }
 
     @Test
@@ -390,7 +394,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", null, new InlinePassword("changeit"), null), null));
+        assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", null, new InlinePassword("changeit"), null), null, null, null));
     }
 
     @Test
@@ -406,7 +410,7 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", null, new FilePassword("/tmp/pass"), null), null));
+        assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", null, new FilePassword("/tmp/pass"), null), null, null, null));
     }
 
     @Test
@@ -439,7 +443,60 @@ class TlsParseTest {
                 }
                 """;
         Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", new FilePassword("/tmp/pass"), null, null), null));
+        assertThat(tls).isEqualTo(new Tls(new KeyStore("/tmp/store", new FilePassword("/tmp/pass"), null, null), null, null, null));
+    }
+
+    @Test
+    void testCipherSuitesProvider() throws IOException {
+        String json = """
+                {
+                    "cipherSuites": {
+                        "allowed": [
+                            "ALLOWED_CIPHER_SUITE_1",
+                            "ALLOWED_CIPHER_SUITE_2",
+                            "ALLOWED_CIPHER_SUITE_3"
+                        ],
+                        "denied": [
+                            "DENIED_CIPHER_SUITE_1",
+                            "DENIED_CIPHER_SUITE_2",
+                            "DENIED_CIPHER_SUITE_3"
+                        ]
+                    }
+                }
+                """;
+        Tls tls = readTls(json);
+        assertThat(tls).isEqualTo(new Tls(
+                null,
+                null,
+                new AllowDeny<>(
+                        List.of("ALLOWED_CIPHER_SUITE_1", "ALLOWED_CIPHER_SUITE_2", "ALLOWED_CIPHER_SUITE_3"),
+                        Set.of("DENIED_CIPHER_SUITE_1", "DENIED_CIPHER_SUITE_2", "DENIED_CIPHER_SUITE_3")),
+                null));
+    }
+
+    @Test
+    void testEnabledProtocolsProvider() throws IOException {
+        String json = """
+                {
+                    "protocols": {
+                        "allowed": [
+                            "TLSv1.2",
+                            "TLSv1.3"
+                        ],
+                        "denied": [
+                            "TLSv1.1"
+                        ]
+                    }
+                }
+                """;
+        Tls tls = readTls(json);
+        assertThat(tls).isEqualTo(new Tls(
+                null,
+                null,
+                null,
+                new AllowDeny<>(
+                        List.of("TLSv1.2", "TLSv1.3"),
+                        Set.of("TLSv1.1"))));
     }
 
     private Tls readTls(String json) throws IOException {
