@@ -27,10 +27,13 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java"],
+      "fileMatch": ["kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java",
+                    "kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml"],
       "matchStrings": [
-        "DockerImageName\\.parse\\(\"(?<depName>localstack/localstack):(?<currentValue>\\d+\\.\\d+)\"\\)"
+        "DockerImageName\\.parse\\(\"localstack/localstack:(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
+        "tag:.*\"(?<currentValue>\\d+\\.\\d+.\\d+)\""
       ],
+      "depNameTemplate": "localstack/localstack",
       "datasourceTemplate": "docker"
     },
     {
