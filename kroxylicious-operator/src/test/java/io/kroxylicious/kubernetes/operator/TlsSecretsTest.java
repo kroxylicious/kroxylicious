@@ -43,7 +43,7 @@ class TlsSecretsTest {
                 .endSpec()
                 .build();
         List<TlsSecrets> tlsSecrets = TlsSecrets.tlsSecretsFor(proxy);
-        TlsSecrets expected = expectedSecret(LISTENER_NAME, SECRET_NAME);
+        TlsSecrets expected = expectedSecret(LISTENER_NAME, SECRET_NAME, 0);
         assertThat(tlsSecrets).containsExactly(expected);
         assertNoCollisions(tlsSecrets);
     }
@@ -71,8 +71,8 @@ class TlsSecretsTest {
                 .endSpec()
                 .build();
         List<TlsSecrets> tlsSecrets = TlsSecrets.tlsSecretsFor(proxy);
-        TlsSecrets first = expectedSecret(LISTENER_NAME, SECRET_NAME);
-        TlsSecrets second = expectedSecret(LISTENER_NAME, SECRET_NAME2);
+        TlsSecrets first = expectedSecret(LISTENER_NAME, SECRET_NAME, 0);
+        TlsSecrets second = expectedSecret(LISTENER_NAME, SECRET_NAME2, 1);
         assertThat(tlsSecrets).containsExactly(first, second);
         assertNoCollisions(tlsSecrets);
     }
@@ -111,16 +111,16 @@ class TlsSecretsTest {
                 .endSpec()
                 .build();
         List<TlsSecrets> tlsSecrets = TlsSecrets.tlsSecretsFor(proxy);
-        TlsSecrets first = expectedSecret(LISTENER_NAME, SECRET_NAME);
-        TlsSecrets second = expectedSecret(LISTENER_NAME2, SECRET_NAME);
-        TlsSecrets third = expectedSecret(LISTENER_NAME2, SECRET_NAME2);
+        TlsSecrets first = expectedSecret(LISTENER_NAME, SECRET_NAME, 0);
+        TlsSecrets second = expectedSecret(LISTENER_NAME2, SECRET_NAME, 1);
+        TlsSecrets third = expectedSecret(LISTENER_NAME2, SECRET_NAME2, 2);
         assertThat(tlsSecrets).containsExactly(first, second, third);
         assertNoCollisions(tlsSecrets);
     }
 
-    private static @NonNull TlsSecrets expectedSecret(String listenerName, String secretName) {
+    private static @NonNull TlsSecrets expectedSecret(String listenerName, String secretName, int volumeNameIndex) {
         String mountPath = "/opt/kroxylicious/secrets/tls/" + listenerName + "/" + secretName;
-        String expectedVolumeName = "tls-secrets-" + listenerName + "-" + secretName;
+        String expectedVolumeName = "tls-secrets-" + volumeNameIndex;
         return new TlsSecrets(Path.of(mountPath), expectedVolumeName, secretName);
     }
 

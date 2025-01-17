@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
@@ -18,9 +19,10 @@ public record TlsSecrets(Path path, String volumeName, String secretName) {
     private static final String KEY = "tls.key";
 
     public static List<TlsSecrets> tlsSecretsFor(KafkaProxy proxy) {
+        final AtomicInteger counter = new AtomicInteger(0);
         return proxy.getSpec().getListeners().stream().flatMap(listeners -> listeners.getTls().getCertificateRefs().stream().map(cert -> {
             Path resolve = TLS_SECRETS_ROOT_DIR.resolve(listeners.getName()).resolve(cert.getName());
-            return new TlsSecrets(resolve, "tls-secrets-" + listeners.getName() + "-" + cert.getName(), cert.getName());
+            return new TlsSecrets(resolve, "tls-secrets-" + counter.getAndIncrement(), cert.getName());
         })).toList();
     }
 

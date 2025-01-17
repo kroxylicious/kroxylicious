@@ -47,11 +47,11 @@ spec:
               name: "config-volume"
               subPath: "proxy-config.yaml"
             - mountPath: "/opt/kroxylicious/secrets/tls/my-listener/kroxy-server-key-material"
-              name: "tls-secrets-my-listener-kroxy-server-key-material"
+              name: "tls-secrets-0"
       volumes:
         - name: "config-volume"
           secret:
             secretName: "twocluster"
-        - name: "tls-secrets-my-listener-kroxy-server-key-material"
+        - name: "tls-secrets-0"
           secret:
             secretName: "kroxy-server-key-material"
