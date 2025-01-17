@@ -27,6 +27,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -194,8 +195,15 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers));
         }
 
-        final NetFilter netFilter = new InitalizerNetFilter(dp, ch, binding, pfr, filterChainFactory, endpointReconciler,
-                new ApiVersionsIntersectFilter(apiVersionsService), new ApiVersionsDowngradeFilter(apiVersionsService));
+        final NetFilter netFilter = new InitalizerNetFilter(dp,
+                ch,
+                binding,
+                pfr,
+                filterChainFactory,
+                binding.virtualCluster().getFilters(),
+                endpointReconciler,
+                new ApiVersionsIntersectFilter(apiVersionsService),
+                new ApiVersionsDowngradeFilter(apiVersionsService));
         var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster);
 
         pipeline.addLast("netHandler", frontendHandler);
@@ -212,6 +220,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         private final VirtualClusterBinding binding;
         private final PluginFactoryRegistry pfr;
         private final FilterChainFactory filterChainFactory;
+        private final List<NamedFilterDefinition> filterDefinitions;
         private final EndpointReconciler endpointReconciler;
         private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
         private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
@@ -221,6 +230,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                             VirtualClusterBinding binding,
                             PluginFactoryRegistry pfr,
                             FilterChainFactory filterChainFactory,
+                            List<NamedFilterDefinition> filterDefinitions,
                             EndpointReconciler endpointReconciler,
                             ApiVersionsIntersectFilter apiVersionsIntersectFilter,
                             ApiVersionsDowngradeFilter apiVersionsDowngradeFilter) {
@@ -230,6 +240,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             this.binding = binding;
             this.pfr = pfr;
             this.filterChainFactory = filterChainFactory;
+            this.filterDefinitions = filterDefinitions;
             this.endpointReconciler = endpointReconciler;
             this.apiVersionsIntersectFilter = apiVersionsIntersectFilter;
             this.apiVersionsDowngradeFilter = apiVersionsDowngradeFilter;
@@ -241,11 +252,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                     : FilterAndInvoker.build(apiVersionsIntersectFilter);
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
-            List<FilterAndInvoker> customProtocolFilters = filterChainFactory.createFilters(filterContext);
+            List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(FilterAndInvoker.build(apiVersionsDowngradeFilter));
-            filters.addAll(customProtocolFilters);
+            filters.addAll(filterChain);
             if (binding.restrictUpstreamToMetadataDiscovery()) {
                 filters.addAll(FilterAndInvoker.build(new EagerMetadataLearner()));
             }

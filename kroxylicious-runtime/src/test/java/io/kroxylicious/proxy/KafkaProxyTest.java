@@ -39,7 +39,7 @@ class KafkaProxyTest {
                    virtualClusters:
                      demo1:
                        targetCluster:
-                         bootstrap_servers: kafka.example:1234
+                         bootstrapServers: kafka.example:1234
                        clusterNetworkAddressConfigProvider:
                          type: PortPerBrokerClusterNetworkAddressConfigProvider
                          config:
@@ -61,7 +61,7 @@ class KafkaProxyTest {
                 virtualClusters:
                   demo1:
                     targetCluster:
-                      bootstrap_servers: kafka.example:1234
+                      bootstrapServers: kafka.example:1234
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
@@ -69,7 +69,7 @@ class KafkaProxyTest {
                         numberOfBrokerPorts: 1
                   demo2:
                     targetCluster:
-                      bootstrap_servers: kafka.example:1234
+                      bootstrapServers: kafka.example:1234
                     clusterNetworkAddressConfigProvider:
                       type: PortPerBrokerClusterNetworkAddressConfigProvider
                       config:
@@ -80,7 +80,7 @@ class KafkaProxyTest {
                         virtualClusters:
                           demo1:
                             targetCluster:
-                              bootstrap_servers: kafka.example:1234
+                              bootstrapServers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
                               type: PortPerBrokerClusterNetworkAddressConfigProvider
                               config:
@@ -89,7 +89,7 @@ class KafkaProxyTest {
                                 numberOfBrokerPorts: 2
                           demo2:
                             targetCluster:
-                              bootstrap_servers: kafka.example:1234
+                              bootstrapServers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
                               type: PortPerBrokerClusterNetworkAddressConfigProvider
                               config:
@@ -119,7 +119,7 @@ class KafkaProxyTest {
                         bootstrapAddress: cluster1:9192
                         brokerAddressPattern:  broker-$(nodeId)
                     targetCluster:
-                      bootstrap_servers: kafka.example:1234
+                      bootstrapServers: kafka.example:1234
                 """, "Cluster endpoint provider requires server TLS, but this virtual cluster does not define it"));
     }
 
@@ -154,7 +154,7 @@ class KafkaProxyTest {
     @Test
     void invalidConfigurationForFeatures() {
         Optional<Map<String, Object>> a = Optional.of(Map.of("a", "b"));
-        Configuration configuration = new Configuration(null, null, List.of(), null, false, a);
+        Configuration configuration = new Configuration(null, List.of(), null, null, null, false, a);
         Features features = Features.defaultFeatures();
         assertThatThrownBy(() -> {
             KafkaProxy.validate(configuration, features);

@@ -26,10 +26,11 @@ data:
             bootstrapAddress: minikube:30192
         targetCluster:
           # declares the kafka cluster that is being proxied
-          bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+          bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
         logFrames: false
-    filters:
-    - type: RecordEncryption
+    filterDefinitions:
+    - name: encrypt
+      type: RecordEncryption
       config:
         kms: VaultKmsService
         kmsConfig:
@@ -39,3 +40,5 @@ data:
         selector: TemplateKekSelector
         selectorConfig:
           template: "${topicName}"
+    defaultFilters:
+      - encrypt

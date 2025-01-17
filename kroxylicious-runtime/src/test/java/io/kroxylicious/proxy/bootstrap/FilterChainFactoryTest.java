@@ -21,7 +21,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
 
+import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.FilterDefinition;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactory;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
@@ -102,7 +104,7 @@ class FilterChainFactoryTest {
     void testNullFiltersInConfigResultsInEmptyList() {
         EventLoop eventLoop = new DefaultEventLoop();
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, null);
-        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr));
+        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr), null);
         assertNotNull(filters, "Filters list should not be null");
         assertTrue(filters.isEmpty(), "Filters list should be empty");
     }
@@ -156,8 +158,8 @@ class FilterChainFactoryTest {
     @Test
     void shouldReturnInvalidFilterNameIfFilterRequiresConfigAndNoneIsSupplied() {
         // Given
-        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
-                new FilterDefinition(TestFilterFactory.class.getName(), null));
+        final List<NamedFilterDefinition> filters = Configuration.toNamedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
+                new FilterDefinition(TestFilterFactory.class.getName(), null)));
 
         // When
         var ex = assertThrows(PluginConfigurationException.class, () -> new FilterChainFactory(pfr, filters));
@@ -169,9 +171,9 @@ class FilterChainFactoryTest {
     @Test
     void shouldReturnInvalidFilterNamesForAllFiltersWithoutRequiredConfig() {
         // Given
-        final List<FilterDefinition> filters = List.of(new FilterDefinition(TestFilterFactory.class.getName(), null),
+        final List<NamedFilterDefinition> filters = Configuration.toNamedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), null),
                 new FilterDefinition(TestFilterFactory.class.getName(), null),
-                new FilterDefinition(OptionalConfigFactory.class.getName(), null));
+                new FilterDefinition(OptionalConfigFactory.class.getName(), null)));
 
         // When
         var ex = assertThrows(PluginConfigurationException.class, () -> new FilterChainFactory(pfr, filters));
@@ -183,8 +185,9 @@ class FilterChainFactoryTest {
     @Test
     void shouldPassValidationWhenAllFiltersHaveConfiguration() {
         // Given
-        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
-                new FilterDefinition(TestFilterFactory.class.getName(), config));
+        final List<NamedFilterDefinition> filterDefinitions = Configuration
+                .toNamedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
+                        new FilterDefinition(TestFilterFactory.class.getName(), config)));
 
         // When
 
@@ -196,9 +199,10 @@ class FilterChainFactoryTest {
     @Test
     void shouldPassValidationWhenFiltersWithOptionalConfigurationAreMissingConfiguration() {
         // Given
-        final List<FilterDefinition> filterDefinitions = List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
-                new FilterDefinition(TestFilterFactory.class.getName(), config),
-                new FilterDefinition(OptionalConfigFactory.class.getName(), null));
+        final List<NamedFilterDefinition> filterDefinitions = Configuration
+                .toNamedFilterDefinitions(List.of(new FilterDefinition(TestFilterFactory.class.getName(), config),
+                        new FilterDefinition(TestFilterFactory.class.getName(), config),
+                        new FilterDefinition(OptionalConfigFactory.class.getName(), null)));
 
         // When
 
@@ -210,7 +214,7 @@ class FilterChainFactoryTest {
     void shouldFailValidationIfRequireConfigMissing() {
         // Given
         final FilterDefinition requiredConfig = new FilterDefinition(RequiresConfigFactory.class.getName(), null);
-        List<FilterDefinition> list = List.of(requiredConfig);
+        List<NamedFilterDefinition> list = Configuration.toNamedFilterDefinitions(List.of(requiredConfig));
 
         // When
 
@@ -226,7 +230,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, List.of(requiredConfig))).isNotNull();
+        assertThat(new FilterChainFactory(pfr, Configuration.toNamedFilterDefinitions(List.of(requiredConfig)))).isNotNull();
     }
 
     @Test
@@ -237,7 +241,7 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, List.of(requiredConfig))).isNotNull();
+        assertThat(new FilterChainFactory(pfr, Configuration.toNamedFilterDefinitions(List.of(requiredConfig)))).isNotNull();
     }
 
     @Test
@@ -248,13 +252,14 @@ class FilterChainFactoryTest {
         // When
 
         // Then
-        assertThat(new FilterChainFactory(pfr, List.of(missingConfig))).isNotNull();
+        assertThat(new FilterChainFactory(pfr, Configuration.toNamedFilterDefinitions(List.of(missingConfig)))).isNotNull();
     }
 
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<FilterDefinition> filterDefinitions) {
-        FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, filterDefinitions);
+        List<NamedFilterDefinition> filterDefinitions1 = Configuration.toNamedFilterDefinitions(filterDefinitions);
+        FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, filterDefinitions1);
         NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
-        List<FilterAndInvoker> filters = filterChainFactory.createFilters(context);
+        List<FilterAndInvoker> filters = filterChainFactory.createFilters(context, filterDefinitions1);
         return assertThat(filters).hasSameSizeAs(filterDefinitions);
     }
 
@@ -273,11 +278,11 @@ class FilterChainFactoryTest {
         var onClose1 = new Counter();
         var onInitialize2 = new Counter();
         var onClose2 = new Counter();
-        List<FilterDefinition> list = List.of(
+        List<NamedFilterDefinition> list = Configuration.toNamedFilterDefinitions(List.of(
                 new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, null, null,
                         onInitialize1::increment, onClose1::increment)),
                 new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig("foo", null, null,
-                        onInitialize2::increment, onClose2::increment)));
+                        onInitialize2::increment, onClose2::increment))));
 
         // When
 
@@ -300,11 +305,11 @@ class FilterChainFactoryTest {
         var onClose1 = new Counter();
         var onInitialize2 = new Counter();
         var onClose2 = new Counter();
-        List<FilterDefinition> list = List.of(
+        List<NamedFilterDefinition> list = Configuration.toNamedFilterDefinitions(List.of(
                 new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, null, null,
                         onInitialize1::increment, onClose1::increment)),
                 new FilterDefinition(FlakyFactory.class.getName(), new FlakyConfig(null, "foo", null,
-                        onInitialize2::increment, onClose2::increment)));
+                        onInitialize2::increment, onClose2::increment))));
         NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
 
         try (var fcf = new FilterChainFactory(pfr, list)) {
@@ -315,7 +320,7 @@ class FilterChainFactoryTest {
             // When
 
             // Then
-            assertThatThrownBy(() -> fcf.createFilters(context))
+            assertThatThrownBy(() -> fcf.createFilters(context, list))
                     .isExactlyInstanceOf(PluginConfigurationException.class)
                     .cause()
                     .isExactlyInstanceOf(RuntimeException.class)
@@ -348,9 +353,9 @@ class FilterChainFactoryTest {
         FlakyConfig flakyConfig2 = new FlakyConfig(null, null, "foo",
                 ((Consumer<FlakyConfig>) onInitialize2::increment).andThen(initializeOrder::add),
                 ((Consumer<FlakyConfig>) onClose2::increment).andThen(closeOrder::add));
-        List<FilterDefinition> list = List.of(
+        List<NamedFilterDefinition> list = Configuration.toNamedFilterDefinitions(List.of(
                 new FilterDefinition(FlakyFactory.class.getName(), flakyConfig1),
-                new FilterDefinition(FlakyFactory.class.getName(), flakyConfig2));
+                new FilterDefinition(FlakyFactory.class.getName(), flakyConfig2)));
         try (var fcf = new FilterChainFactory(pfr, list)) {
             // When
             assertThat(onInitialize1.count).isEqualTo(1);

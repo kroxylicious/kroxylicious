@@ -1,0 +1,62 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-cluster-proxy
+spec:
+  selector:
+    app: kroxylicious
+  type: ClusterIP
+  ports:
+  - name: port-9092
+    protocol: TCP
+    port: 9092
+    targetPort: 9092
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-cluster-proxy-broker-0
+spec:
+  selector:
+    app: kroxylicious
+  type: ClusterIP
+  ports:
+  - name: port-9092
+    protocol: TCP
+    port: 9092
+    targetPort: 9092
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-cluster-proxy-broker-1
+spec:
+  selector:
+    app: kroxylicious
+  type: ClusterIP
+  ports:
+  - name: port-9092
+    protocol: TCP
+    port: 9092
+    targetPort: 9092
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-cluster-proxy-broker-2
+spec:
+  selector:
+    app: kroxylicious
+  type: ClusterIP
+  ports:
+  - name: port-9092
+    protocol: TCP
+    port: 9092
+    targetPort: 9092

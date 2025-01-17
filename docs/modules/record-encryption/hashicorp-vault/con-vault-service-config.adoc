@@ -5,8 +5,8 @@
 [id='con-vault-service-config-{context}']
 = Configuring the HashiCorp Vault KMS
 
-For HashiCorp Vault, the KMS configuration looks like this.  Use the Vault Token and Vault Transit Engine URL values that
-you gathered above.
+For HashiCorp Vault, the KMS configuration looks like this.
+Use the Vault Token and Vault Transit Engine URL values from the KMS setup.
 
 [source, yaml]
 ----
@@ -19,9 +19,9 @@ kmsConfig:
 
 ----
 <1> Specifies the name of the KMS provider. Use `VaultKmsService`.
-<2> link:../con-vault-setup.adoc#_vault_transit_engine_url[Vault Transit Engine URL] including the protocol part, i.e. `https:` or `http:`
+<2> xref:con-vault-setup-{context}[Vault Transit Engine URL] including the protocol part, such as `https:` or `http:`.
 <3> (Optional) TLS trust configuration.
-<4> File containing the Vault Token
+<4> File containing the Vault Token.
 
 For TLS trust and TLS client authentication configuration, the filter accepts the same TLS parameters as xref:con-deploying-upstream-tls-{context}[Upstream TLS]
 except the `PEM` store type is currently https://github.com/kroxylicious/kroxylicious/issues/933[not supported].

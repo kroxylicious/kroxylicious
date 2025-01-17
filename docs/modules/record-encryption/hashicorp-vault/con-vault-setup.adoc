@@ -10,7 +10,6 @@ Engine*].
 Vault does not enable the Transit Engine by default.
 It must be {hashicorp-vault}/docs/secrets/transit#setup[enabled] before it can be used by the filter.
 
-[#_vault_transit_engine_url]
 == Vault Transit Engine URL
 
 The Vault Transit Engine URL is required so the filter knows the location of the Transit Engine within the

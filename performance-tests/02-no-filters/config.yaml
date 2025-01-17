@@ -11,11 +11,11 @@ adminHttp:
 virtualClusters:
   demo:
     targetCluster:
-      bootstrap_servers: broker1:9092
+      bootstrapServers: broker1:9092
     clusterNetworkAddressConfigProvider:
       type: PortPerBrokerClusterNetworkAddressConfigProvider
       config:
         bootstrapAddress: kroxylicious:9092
     logNetwork: false
     logFrames: false
-filters: []
+defaultFilters: []
