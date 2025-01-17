@@ -19,6 +19,7 @@ _Why are you making this pull request?_
 
 _Please go through this checklist and make sure all applicable tasks have been done_
 
+- [ ] PR raised from a fork of this repository and made from a branch rather than main. 
 - [ ] Write tests
 - [ ] Update documentation
 - [ ] Make sure all unit/integration tests pass
