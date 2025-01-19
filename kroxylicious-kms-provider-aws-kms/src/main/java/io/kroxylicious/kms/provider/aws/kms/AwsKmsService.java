@@ -16,6 +16,7 @@ import io.kroxylicious.kms.provider.aws.kms.credentials.CredentialsProviderFacto
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.proxy.tls.TlsHttpClientConfigurator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -50,10 +51,11 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
     @Override
     public AwsKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");
+        var tlsConfigurator = new TlsHttpClientConfigurator(config.tls());
         return new AwsKms(config.endpointUrl(),
                 credentialsProvider,
                 config.region(),
-                Duration.ofSeconds(20), config.sslContext());
+                Duration.ofSeconds(20), tlsConfigurator);
     }
 
     @Override

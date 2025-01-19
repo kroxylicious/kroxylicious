@@ -15,13 +15,14 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
 import javax.crypto.SecretKey;
-import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -67,11 +68,15 @@ public class VaultKms implements Kms<String, VaultEdek> {
     private final URI vaultTransitEngineUrl;
     private final String vaultToken;
 
-    VaultKms(URI vaultTransitEngineUrl, String vaultToken, Duration timeout, SSLContext sslContext) {
+    VaultKms(@NonNull URI vaultTransitEngineUrl, @NonNull String vaultToken, @NonNull Duration timeout, @NonNull UnaryOperator<HttpClient.Builder> tlsConfigurator) {
+        Objects.requireNonNull(vaultTransitEngineUrl);
+        Objects.requireNonNull(vaultToken);
+        Objects.requireNonNull(timeout);
+        Objects.requireNonNull(tlsConfigurator);
         this.vaultTransitEngineUrl = ensureEndsInSlash(validateTransitPath(vaultTransitEngineUrl));
         this.vaultToken = vaultToken;
         this.timeout = timeout;
-        vaultClient = createClient(sslContext);
+        this.vaultClient = createClient(tlsConfigurator);
     }
 
     private URI validateTransitPath(URI vaultTransitEngineUrl) {
@@ -88,16 +93,16 @@ public class VaultKms implements Kms<String, VaultEdek> {
         return uri.resolve(uri.getPath() + "/").normalize();
     }
 
-    @VisibleForTesting
-    HttpClient createClient(SSLContext sslContext) {
-        HttpClient.Builder builder = HttpClient.newBuilder();
-        if (sslContext != null) {
-            builder.sslContext(sslContext);
-        }
-        return builder
+    private HttpClient createClient(UnaryOperator<HttpClient.Builder> tlsConfigurator) {
+        return tlsConfigurator.apply(HttpClient.newBuilder())
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(timeout)
                 .build();
+    }
+
+    @VisibleForTesting
+    HttpClient getHttpClient() {
+        return vaultClient;
     }
 
     /**

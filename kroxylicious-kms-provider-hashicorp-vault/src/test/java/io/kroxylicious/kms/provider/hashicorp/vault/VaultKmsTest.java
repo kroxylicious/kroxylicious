@@ -9,13 +9,10 @@ package io.kroxylicious.kms.provider.hashicorp.vault;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.stream.Stream;
-
-import javax.net.ssl.SSLContext;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterAll;
@@ -47,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VaultKmsTest {
 
+    private static final Duration TIMEOUT = Duration.ofMillis(500);
     private static WireMockServer server;
     private VaultKmsService vaultKmsService;
     private VaultKms kms;
@@ -196,24 +194,19 @@ class VaultKmsTest {
                 .matches(key -> SecretKeyUtils.same((DestroyableRawSecretKey) key, expectedKey));
     }
 
-    @SuppressWarnings("resource")
     @Test
-    void testConnectionTimeout() throws NoSuchAlgorithmException {
+    void appliesConnectionTimeout() {
         var uri = URI.create("http://test:8080/v1/transit");
-        Duration timeout = Duration.ofMillis(500);
-        VaultKms vaultKms = new VaultKms(uri, "token", timeout, null);
-        SSLContext sslContext = SSLContext.getDefault();
-        var client = vaultKms.createClient(sslContext);
-        assertThat(client.connectTimeout()).hasValue(timeout);
+        var vaultKms = new VaultKms(uri, "token", TIMEOUT, builder -> builder);
+        assertThat(vaultKms.getHttpClient().connectTimeout()).hasValue(TIMEOUT);
     }
 
     @Test
-    void testRequestTimeoutConfiguredOnRequests() {
+    void appliesRequestTimeoutConfiguredOnRequests() {
         var uri = URI.create("http://test:8080/v1/transit");
-        Duration timeout = Duration.ofMillis(500);
-        VaultKms vaultKms = new VaultKms(uri, "token", timeout, null);
+        var vaultKms = new VaultKms(uri, "token", TIMEOUT, builder -> builder);
         HttpRequest build = vaultKms.createVaultRequest().uri(uri).build();
-        assertThat(build.timeout()).hasValue(timeout);
+        assertThat(build.timeout()).hasValue(TIMEOUT);
     }
 
     static Stream<Arguments> acceptableVaultTransitEnginePaths() {
@@ -229,7 +222,7 @@ class VaultKmsTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("acceptableVaultTransitEnginePaths")
     void acceptsVaultTransitEnginePaths(String name, URI uri, String expected) {
-        var vaultKms = new VaultKms(uri, "token", Duration.ofMillis(500), null);
+        var vaultKms = new VaultKms(uri, "token", TIMEOUT, builder -> builder);
         assertThat(vaultKms.getVaultTransitEngineUri())
                 .extracting(URI::getPath)
                 .isEqualTo(expected);
@@ -249,7 +242,7 @@ class VaultKmsTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("unacceptableVaultTransitEnginePaths")
     void detectsUnacceptableVaultTransitEnginePaths(String name, URI uri) {
-        assertThatThrownBy(() -> new VaultKms(uri, "token", Duration.ZERO, null))
+        assertThatThrownBy(() -> new VaultKms(uri, "token", Duration.ZERO, builder -> builder))
                 .isInstanceOf(IllegalArgumentException.class);
 
     }

@@ -7,18 +7,11 @@
 package io.kroxylicious.kms.provider.fortanix.dsm.config;
 
 import java.net.URI;
-import java.security.NoSuchAlgorithmException;
 import java.util.Objects;
-
-import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.tls.JdkTls;
-import io.kroxylicious.proxy.tls.SslConfigurationException;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Configuration for the Fortanix DSM KMS service.
@@ -43,23 +36,4 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
         Objects.requireNonNull(endpointUrl);
     }
 
-    /**
-     * Creates SSL context for the given configuration.
-     *
-     * @return SSL context
-     */
-    @NonNull
-    public SSLContext sslContext() {
-        try {
-            if (tls == null) {
-                return SSLContext.getDefault();
-            }
-            else {
-                return new JdkTls(tls).sslContext();
-            }
-        }
-        catch (NoSuchAlgorithmException e) {
-            throw new SslConfigurationException(e);
-        }
-    }
 }

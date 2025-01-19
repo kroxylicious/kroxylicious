@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1743](https://github.com/kroxylicious/kroxylicious/pull/1743) Apply TLS protocol and cipher suite restrictions to HTTP Clients used by KMS impls too
 * [#1380](https://github.com/kroxylicious/kroxylicious/issues/1380) Deprecated FilterFactoryContext#eventLoop() is removed.
 * [#1747](https://github.com/kroxylicious/kroxylicious/pull/1747) Bump io.micrometer:micrometer-bom from 1.14.2 to 1.14.3
 * [#1745](https://github.com/kroxylicious/kroxylicious/pull/1745) Bump com.github.ben-manes.caffeine:caffeine from 3.1.8 to 3.2.0

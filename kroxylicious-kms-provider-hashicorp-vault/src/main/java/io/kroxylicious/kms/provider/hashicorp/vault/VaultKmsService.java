@@ -12,6 +12,7 @@ import java.util.Objects;
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.tls.TlsHttpClientConfigurator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -34,8 +35,9 @@ public class VaultKmsService implements KmsService<Config, String, VaultEdek> {
     @Override
     public VaultKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");
+        var tlsConfigurator = new TlsHttpClientConfigurator(config.tls());
         return new VaultKms(config.vaultTransitEngineUrl(), config.vaultToken().getProvidedPassword(), Duration.ofSeconds(20),
-                config.sslContext());
+                tlsConfigurator);
     }
 
 }
