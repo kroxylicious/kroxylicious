@@ -16,4 +16,5 @@ public interface KeyProviderVisitor<T> {
 
     T visit(KeyStore keyStore);
 
+    T visit(KeyPairSet keyPairSet);
 }
