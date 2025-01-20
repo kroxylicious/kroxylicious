@@ -17,11 +17,14 @@
       "customType": "regex",
       "fileMatch": [
         "kroxylicious-kms-provider-hashicorp-vault-test-support/src/main/java/io/kroxylicious/kms/provider/hashicorp/vault/VaultTestKmsFacade.java",
+        "kroxylicious-kms-provider-hashicorp-vault/src/test/java/io/kroxylicious/kms/provider/hashicorp/vault/TestVault.java",
+        "kroxylicious-systemtests/src/main/resources/helm_vault_overrides.yaml",
         "performance-tests/docker-compose.yaml"
       ],
       "matchStrings": [
-        "DockerImageName\\.parse\\(\"(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+)\"\\)",
-        "image:.*(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+)"
+        "DockerImageName\\.parse\\(\"(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
+        "image:.*(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)",
+        "tag:.*\"(?<currentValue>\\d+\\.\\d+.\\d+)\""
       ],
       "datasourceTemplate": "docker"
     },

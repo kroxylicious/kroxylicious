@@ -75,7 +75,7 @@ The script understands the following environment variables.
 | KAFKA_IMAGE                           | Kafka native image.  Defaults to use the image that match the `kafka.version' of the project |
 | KAFKA_TOOL_IMAGE                      | Kafka tooling image.  Defaults to use Kafka image published by the Strimzi project that      |
 |                                       | `strimzi.version` property of the project.                                                   |
-| VAULT_IMAGE                           | HashiCorp Vault image. Defaults to `docker.io/hashicorp/vault:1.15`                          |
+| VAULT_IMAGE                           | HashiCorp Vault image.                                                                       |
 
 # Jenkins pipeline for performance
 
