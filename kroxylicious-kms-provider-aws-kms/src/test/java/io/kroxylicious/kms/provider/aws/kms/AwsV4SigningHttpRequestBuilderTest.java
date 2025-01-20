@@ -6,9 +6,6 @@
 
 package io.kroxylicious.kms.provider.aws.kms;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -17,8 +14,15 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -29,15 +33,20 @@ import org.junit.jupiter.params.provider.ValueSource;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.sun.net.httpserver.Headers;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.http.HttpHeader;
+import com.github.tomakehurst.wiremock.http.HttpHeaders;
+import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
+import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 
 import io.kroxylicious.kms.provider.aws.kms.credentials.LongTermCredentialsProvider;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AwsV4SigningHttpRequestBuilderTest {
@@ -48,7 +57,32 @@ class AwsV4SigningHttpRequestBuilderTest {
     private static final String SECRET_KEY = "secret";
     private static final String REGION = "us-east-1";
     private static final String SERVICE = "kms";
-    public static final URI TEST_URI = URI.create("http://localhost:1234");
+    private static final URI TEST_URI = URI.create("http://localhost:1234");
+
+    private static WireMockServer server;
+
+    @BeforeAll
+    public static void initMockServer() {
+        server = new WireMockServer(wireMockConfig().port(4566));
+        server.start();
+    }
+
+    @AfterAll
+    public static void shutdownMockServer() {
+        server.shutdown();
+    }
+
+    @BeforeEach
+    void beforeEach() {
+        server.stubFor(
+                post(urlEqualTo("/"))
+                        .willReturn(aResponse().withStatus(200)));
+    }
+
+    @AfterEach
+    void afterEach() {
+        server.resetAll();
+    }
 
     static Stream<Arguments> requestSigning() throws Exception {
         try (var knownGoodYaml = AwsV4SigningHttpRequestBuilderTest.class.getResourceAsStream("/io/kroxylicious/kms/provider/aws/kms/known_good.yaml")) {
@@ -72,26 +106,22 @@ class AwsV4SigningHttpRequestBuilderTest {
     @MethodSource
     void requestSigning(String testName, TestDef testDef) throws Exception {
 
-        var requestHeaderCatching = new RequestHeaderCatchingHandler();
-        var server = httpServer(testDef.url.getPort(), requestHeaderCatching);
         var client = HttpClient.newHttpClient();
-        try {
-            var builder = AwsV4SigningHttpRequestBuilder.newBuilder(
-                    LongTermCredentialsProvider.fixedCredentials(testDef.accessKeyId, testDef.secretAccessKey()), testDef.region(),
-                    testDef.service(),
-                    testDef.requestTime());
-            testDef.apply(builder);
-            var request = builder.build();
+        var builder = AwsV4SigningHttpRequestBuilder.newBuilder(
+                LongTermCredentialsProvider.fixedCredentials(testDef.accessKeyId, testDef.secretAccessKey()), testDef.region(),
+                testDef.service(),
+                testDef.requestTime());
+        testDef.apply(builder);
+        var request = builder.build();
 
-            client.send(request, HttpResponse.BodyHandlers.discarding());
-            var actualHeaders = requestHeaderCatching.getHeaders();
+        client.send(request, HttpResponse.BodyHandlers.discarding());
 
-            assertThat(actualHeaders)
-                    .containsAllEntriesOf(testDef.expectedHeaders());
-        }
-        finally {
-            server.stop(0);
-        }
+        assertThat(server.getAllServeEvents())
+                .singleElement()
+                .extracting(ServeEvent::getRequest)
+                .extracting(LoggedRequest::getHeaders)
+                .extracting(HttpHeaders::all, InstanceOfAssertFactories.list(HttpHeader.class))
+                .containsAll(testDef.getExpectedHeaders());
     }
 
     @Test
@@ -215,32 +245,13 @@ class AwsV4SigningHttpRequestBuilderTest {
                     throw new UnsupportedOperationException(method() + " is not supported.");
             }
         }
-    }
 
-    private static HttpServer httpServer(int port, HttpHandler handler) {
-        try {
-            var server = HttpServer.create(new InetSocketAddress(port), 0);
-            server.createContext("/", handler);
-            server.start();
-            return server;
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
+        Set<HttpHeader> getExpectedHeaders() {
+            return expectedHeaders.entrySet()
+                    .stream()
+                    .map(e -> new HttpHeader(e.getKey(), e.getValue()))
+                    .collect(Collectors.toSet());
 
-    private static class RequestHeaderCatchingHandler implements HttpHandler {
-        private Headers headers;
-
-        @Override
-        public void handle(HttpExchange exchange) throws IOException {
-            headers = exchange.getRequestHeaders();
-            exchange.sendResponseHeaders(200, 0);
-            exchange.getResponseBody().close();
-        }
-
-        public Headers getHeaders() {
-            return headers;
         }
     }
 }
