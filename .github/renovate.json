@@ -68,7 +68,9 @@
         "AWS_LOCALSTACK_CHART_VERSION_DEFAULT = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
       ],
       "datasourceTemplate": "github-tags",
-      "depNameTemplate": "localstack/helm-charts"
+      "depNameTemplate": "localstack/helm-charts",
+      "extractVersionTemplate": "^localstack-(?<version>.*)$",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$"
     },
     {
       "customType": "regex",
