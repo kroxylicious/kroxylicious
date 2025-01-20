@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.security.KeyException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.List;
 import java.util.stream.Stream;
 
 import javax.crypto.BadPaddingException;
@@ -20,9 +21,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.BADPASS;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.JKS;
@@ -36,6 +40,8 @@ import static io.kroxylicious.proxy.config.tls.TlsTestConstants.STOREPASS;
 import static io.kroxylicious.proxy.config.tls.TlsTestConstants.getResourceLocationOnFilesystem;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
 class NettyKeyProviderTest {
 
@@ -67,7 +73,7 @@ class NettyKeyProviderTest {
             throws Exception {
         var keyStore = new NettyKeyProvider(new KeyStore(getResourceLocationOnFilesystem(storeFile), storePassword, keyPassword, storeType));
 
-        var sslContext = keyStore.forServer().build();
+        var sslContext = keyStore.forServer(null).build();
         assertThat(sslContext).isNotNull();
         assertThat(sslContext.isServer()).isTrue();
     }
@@ -76,7 +82,7 @@ class NettyKeyProviderTest {
     void serverKeyStoreFileNotFound() {
         var keyStore = new NettyKeyProvider(new KeyStore(NOT_EXIST, null, null, null));
 
-        assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(IOException.class).hasMessageContaining(NOT_EXIST);
+        assertThatCode(() -> keyStore.forServer(null)).hasRootCauseInstanceOf(IOException.class).hasMessageContaining(NOT_EXIST);
     }
 
     @Test
@@ -86,7 +92,7 @@ class NettyKeyProviderTest {
                 null,
                 null));
 
-        assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+        assertThatCode(() -> keyStore.forServer(null)).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }
 
     @Test
@@ -96,7 +102,7 @@ class NettyKeyProviderTest {
                 BADPASS,
                 null));
 
-        assertThatCode(keyStore::forServer).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
+        assertThatCode(() -> keyStore.forServer(null)).hasRootCauseInstanceOf(UnrecoverableKeyException.class);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -143,9 +149,32 @@ class NettyKeyProviderTest {
     void serverKeyPair() throws Exception {
         var keyPair = new NettyKeyProvider(
                 new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server.key"), TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), null));
-        var sslContext = keyPair.forServer().build();
+        var sslContext = keyPair.forServer(null).build();
         assertThat(sslContext).isNotNull();
         assertThat(sslContext.isServer()).isTrue();
+    }
+
+    @Test
+    void serverKeyPairSet() throws Exception {
+        KeyPair pair = new KeyPair(getResourceLocationOnFilesystem("server.key"), getResourceLocationOnFilesystem("server.crt"), null);
+        var keyPair = new NettyKeyProvider(new KeyPairSet(List.of(pair)));
+        ClusterNetworkAddressConfigProvider mockProvider = Mockito.mock(ClusterNetworkAddressConfigProvider.class);
+        // localhost matches the CN=localhost subject principal of server.crt
+        when(mockProvider.getClusterBootstrapAddress()).thenReturn(new HostPort("localhost", 9092));
+        var sslContext = keyPair.forServer(mockProvider).build();
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContext.isServer()).isTrue();
+    }
+
+    @Test
+    void serverKeyPairSetNoCertMatchesBootstrapHost() {
+        KeyPair pair = new KeyPair(getResourceLocationOnFilesystem("server.key"), getResourceLocationOnFilesystem("server.crt"), null);
+        var keyPair = new NettyKeyProvider(new KeyPairSet(List.of(pair)));
+        ClusterNetworkAddressConfigProvider mockProvider = Mockito.mock(ClusterNetworkAddressConfigProvider.class);
+        when(mockProvider.getClusterBootstrapAddress()).thenReturn(new HostPort("mismatched", 9092));
+        assertThatThrownBy(() -> keyPair.forServer(mockProvider)).isInstanceOf(SslContextBuildException.class).cause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No key pair found with certificate containing VirtualCluster hostnames: [mismatched] in SubjectAlternativeNames or common name");
     }
 
     @Test
@@ -153,7 +182,7 @@ class NettyKeyProviderTest {
         var keyPair = new NettyKeyProvider(new KeyPair(TlsTestConstants.getResourceLocationOnFilesystem("server_encrypted.key"),
                 TlsTestConstants.getResourceLocationOnFilesystem("server.crt"), new InlinePassword("keypass")));
 
-        var sslContext = keyPair.forServer().build();
+        var sslContext = keyPair.forServer(null).build();
         assertThat(sslContext).isNotNull();
         assertThat(sslContext.isServer()).isTrue();
     }
@@ -206,7 +235,7 @@ class NettyKeyProviderTest {
     private AbstractThrowableAssert<?, ? extends Throwable> doFailingKeyPairTest(String privateKeyFile, String certificateFile,
                                                                                  PasswordProvider keyPassword, boolean forServer) {
         var keyPair = new NettyKeyProvider(new KeyPair(privateKeyFile, certificateFile, keyPassword));
-        return assertThatCode(forServer ? keyPair::forServer : keyPair::forClient)
+        return assertThatCode(forServer ? () -> keyPair.forServer(null) : keyPair::forClient)
                 .hasMessageContaining("Error building SSLContext");
     }
 

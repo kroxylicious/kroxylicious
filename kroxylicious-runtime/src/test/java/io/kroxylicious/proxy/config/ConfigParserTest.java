@@ -124,6 +124,28 @@ class ConfigParserTest {
                                 bootstrapAddress: cluster1:9192
                                 brokerAddressPattern: broker-$(nodeId)
                         """),
+                Arguments.of("Downstream TLS with key pair set", """
+                        virtualClusters:
+                          demo1:
+                            tls:
+                                key:
+                                  keyPairs:
+                                    - privateKeyFile: /tmp/tls.key
+                                      certificateFile: /tmp/tls.crt
+                            targetCluster:
+                              bootstrapServers: kafka.example:1234
+                              tls:
+                                trust:
+                                 storeFile: /tmp/foo.jks
+                                 storePassword:
+                                   password: password
+                                 storeType: JKS
+                            clusterNetworkAddressConfigProvider:
+                              type: SniRoutingClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: cluster1:9192
+                                brokerAddressPattern: broker-$(nodeId)
+                        """),
                 Arguments.of("Downstream/Upstream TLS with password files", """
                         virtualClusters:
                           demo1:

@@ -229,7 +229,8 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
     private Optional<SslContext> buildDownstreamSslContext() {
         return tls.map(tlsConfiguration -> {
             try {
-                var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
+                var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new)
+                        .map(nettyKeyProvider -> nettyKeyProvider.forServer(clusterNetworkAddressConfigProvider))
                         .orElseThrow();
 
                 configureCipherSuites(sslContextBuilder, tlsConfiguration);

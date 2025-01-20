@@ -10,13 +10,17 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 import javax.net.ssl.KeyManagerFactory;
 
 import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.HostPort;
 
 public class NettyKeyProvider {
 
@@ -36,19 +40,11 @@ public class NettyKeyProvider {
 
     public SslContextBuilder forClient() {
         SslContextBuilder client = SslContextBuilder.forClient();
-        return configureBuilder(client::keyManager, client::keyManager);
-    }
-
-    public SslContextBuilder forServer() {
-        return configureBuilder(SslContextBuilder::forServer, SslContextBuilder::forServer);
-    }
-
-    private SslContextBuilder configureBuilder(SslContextBuilderA a, SslContextBuilderB b) {
         return this.delegate.accept(new KeyProviderVisitor<>() {
             @Override
             public SslContextBuilder visit(KeyPair keyPair) {
                 try {
-                    return a.keyManager(new File(keyPair.certificateFile()), new File(keyPair.privateKeyFile()),
+                    return client.keyManager(new File(keyPair.certificateFile()), new File(keyPair.privateKeyFile()),
                             Optional.ofNullable(keyPair.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
                 }
                 catch (Exception e) {
@@ -62,15 +58,69 @@ public class NettyKeyProvider {
                     var keyStoreFile = new File(keyStore.storeFile());
 
                     if (keyStore.isPemType()) {
-                        return a.keyManager(keyStoreFile, keyStoreFile,
+                        return client.keyManager(keyStoreFile, keyStoreFile,
                                 Optional.ofNullable(keyStore.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
                     }
                     else {
-                        return b.keyManager(keyManagerFactory(keyStore));
+                        return client.keyManager(keyManagerFactory(keyStore));
                     }
                 }
                 catch (Exception e) {
                     throw new SslContextBuildException("Error building SSLContext for KeyStore: " + keyStore, e);
+                }
+            }
+
+            @Override
+            public SslContextBuilder visit(KeyPairSet keyPairSet) {
+                throw new RuntimeException("KeyPairSet is not supported for client key");
+            }
+        });
+    }
+
+    public SslContextBuilder forServer(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider) {
+        return this.delegate.accept(new KeyProviderVisitor<>() {
+            @Override
+            public SslContextBuilder visit(KeyPair keyPair) {
+                try {
+                    return SslContextBuilder.forServer(new File(keyPair.certificateFile()), new File(keyPair.privateKeyFile()),
+                            Optional.ofNullable(keyPair.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
+                }
+                catch (Exception e) {
+                    throw new SslContextBuildException("Error building SSLContext for KeyPair: " + keyPair, e);
+                }
+            }
+
+            @Override
+            public SslContextBuilder visit(KeyStore keyStore) {
+                try {
+                    var keyStoreFile = new File(keyStore.storeFile());
+
+                    if (keyStore.isPemType()) {
+                        return SslContextBuilder.forServer(keyStoreFile, keyStoreFile,
+                                Optional.ofNullable(keyStore.keyPasswordProvider()).map(PasswordProvider::getProvidedPassword).orElse(null));
+                    }
+                    else {
+                        return ((SslContextBuilderB) SslContextBuilder::forServer).keyManager(keyManagerFactory(keyStore));
+                    }
+                }
+                catch (Exception e) {
+                    throw new SslContextBuildException("Error building SSLContext for KeyStore: " + keyStore, e);
+                }
+            }
+
+            @Override
+            public SslContextBuilder visit(KeyPairSet keyPairSet) {
+                try {
+                    Set<String> hostnames = new HashSet<>();
+                    hostnames.add(clusterNetworkAddressConfigProvider.getClusterBootstrapAddress().host());
+                    for (HostPort value : clusterNetworkAddressConfigProvider.discoveryAddressMap().values()) {
+                        hostnames.add(value.host());
+                    }
+                    KeyPair keyPair = keyPairSet.getKeyPair(hostnames);
+                    return visit(keyPair);
+                }
+                catch (Exception e) {
+                    throw new SslContextBuildException("Error building SSLContext for KeyPairSet: " + keyPairSet, e);
                 }
             }
         });
