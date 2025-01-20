@@ -152,7 +152,7 @@ class ConfigParseTest {
                 }
                 """;
         Config config = readConfig(json);
-        Config expected = new Config(URI.create("https://vault"), new InlinePassword("token"), new Tls(null, new InsecureTls(true)));
+        Config expected = new Config(URI.create("https://vault"), new InlinePassword("token"), new Tls(null, new InsecureTls(true), null, null));
         assertThat(config).isEqualTo(expected);
     }
 
