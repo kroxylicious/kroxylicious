@@ -15,6 +15,10 @@ then
   minikube start
 fi
 
+echo "install cert-manager"
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.0/cert-manager.yaml
+kubectl wait deployment/cert-manager-webhook --for=condition=Available=True --timeout=300s -n cert-manager
+
 echo "building operator image in minikube"
 KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
 minikube image build . -f Dockerfile.operator -t quay.io/kroxylicious/operator:latest --build-opt=build-arg=KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION}"
@@ -58,3 +62,9 @@ else
   echo "something went wrong!"
   exit 1
 fi
+
+echo 'to produce'
+echo 'kubectl exec -it -nkafka my-cluster-dual-role-0 -- bash -c "echo $(kubectl get secret -n my-proxy kroxy-server-key-material -o json | jq -r ".data.\"tls.crt\"") | base64 -d > /tmp/certo && ./bin/kafka-console-producer.sh --bootstrap-server my-cluster-bootstrap.my-proxy.svc.cluster.local:9092 --topic my-topic --producer-property ssl.truststore.type=PEM --producer-property security.protocol=SSL --producer-property ssl.truststore.location=/tmp/certo"'
+
+echo 'to consume'
+echo 'kubectl exec -it -nkafka my-cluster-dual-role-0 -- bash -c "echo $(kubectl get secret -n my-proxy kroxy-server-key-material -o json | jq -r ".data.\"tls.crt\"") | base64 -d > /tmp/certo && ./bin/kafka-console-consumer.sh --bootstrap-server my-cluster-bootstrap.my-proxy.svc.cluster.local:9092 --topic my-topic --from-beginning --consumer-property ssl.truststore.type=PEM --consumer-property security.protocol=SSL --consumer-property ssl.truststore.location=/tmp/certo"'
