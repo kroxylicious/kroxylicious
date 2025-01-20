@@ -14,6 +14,7 @@ import java.util.Arrays;
 
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 import org.testcontainers.vault.VaultContainer;
 
@@ -28,7 +29,7 @@ public class TestVault implements Closeable {
     public static final int PLAIN_PORT = 8200;
     private static final String VAULT_TOKEN = "token";
 
-    private static final String HASHICORP_VAULT = "hashicorp/vault:1.15";
+    private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.18.3");
 
     private final VaultContainer<?> vault;
     private final URI endpoint;
@@ -115,7 +116,4 @@ public class TestVault implements Closeable {
         }, "vault", "write", "-f", "transit/keys/%s".formatted(keyId));
     }
 
-    public String rootToken() {
-        return VAULT_TOKEN;
-    }
 }
