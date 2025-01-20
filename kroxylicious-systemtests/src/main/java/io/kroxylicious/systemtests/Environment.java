@@ -81,7 +81,7 @@ public class Environment {
     private static final String STRIMZI_FEATURE_GATES_DEFAULT = "";
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
     private static final String VAULT_CHART_VERSION_DEFAULT = "0.27.0";
-    private static final String AWS_LOCALSTACK_CHART_VERSION_DEFAULT = "0.6.15";
+    private static final String AWS_LOCALSTACK_CHART_VERSION_DEFAULT = "0.6.20";
     private static final String SKIP_STRIMZI_INSTALL_DEFAULT = "false";
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
     private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("java.io.tmpdir");
