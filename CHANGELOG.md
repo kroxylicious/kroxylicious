@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1745](https://github.com/kroxylicious/kroxylicious/pull/1745) Bump com.github.ben-manes.caffeine:caffeine from 3.1.8 to 3.2.0
 * [#1006](https://github.com/kroxylicious/kroxylicious/pull/1660) Allow CipherSuites and TLS Protocols to be passed via Configuration
 * [#1715](https://github.com/kroxylicious/kroxylicious/issues/1715) Deprecate `bootstrap_servers`, replacing it with `bootstrapServers` 
 * [#1698](https://github.com/kroxylicious/kroxylicious/pull/1698) Bump netty.io_uring.version from 0.0.25.Final to 0.0.26.Final #1698
