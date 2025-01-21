@@ -1,0 +1,33 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: server-certificate
+  namespace: my-proxy
+spec:
+  isCA: true
+  commonName: my-cluster-bootstrap.my-proxy.svc.cluster.local
+  secretName: kroxy-server-key-material
+  privateKey:
+    algorithm: RSA
+    size: 4096
+    # Note the cert-manager default is PKCS1. The tls.key generated won't work with Kroxylicious unless you put
+    # Bouncy Castle in the classpath.  PKCS8 works without the classpath addition.
+    encoding: PKCS8
+  dnsNames:
+    - my-cluster-bootstrap.my-proxy.svc.cluster.local
+    - my-cluster-broker-0.my-proxy.svc.cluster.local
+    - my-cluster-broker-1.my-proxy.svc.cluster.local
+    - my-cluster-broker-2.my-proxy.svc.cluster.local
+  usages:
+    - server auth
+  issuerRef:
+    name: selfsigned-issuer
+    kind: Issuer
+    group: cert-manager.io

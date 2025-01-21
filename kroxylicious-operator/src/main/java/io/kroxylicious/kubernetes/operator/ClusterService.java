@@ -6,12 +6,10 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Service;
@@ -40,92 +38,45 @@ public class ClusterService
         super(Service.class);
     }
 
-    /**
-     * @return The {@code metadata.name} of the desired {@code Service}.
-     */
-    static String serviceName(Clusters cluster) {
-        Objects.requireNonNull(cluster);
-        return cluster.getName();
-    }
-
-    /**
-     * @return the fully qualified service hostname
-     */
-    static String absoluteServiceHost(KafkaProxy primary, Clusters cluster) {
-        return serviceName(cluster) + "." + primary.getMetadata().getNamespace() + ".svc.cluster.local";
-    }
-
-    /**
-     * The inverse of {@link #serviceName(Clusters)}
-     * @param service A service
-     * @return  The name of the cluster corresponding to the given Service
-     */
-    static String clusterName(Service service) {
-        return service.getMetadata().getName();
-    }
-
-    static Map<Integer, String> clusterPorts(KafkaProxy primary, Context<KafkaProxy> context, Clusters cluster) {
-        var clusters = primary.getSpec().getClusters();
-        for (int clusterNum = 0; clusterNum < clusters.size(); clusterNum++) {
-            if (clusters.get(clusterNum).getName().equals(cluster.getName())) {
-                if (SharedKafkaProxyContext.isBroken(context, cluster)) {
-                    return Map.of();
-                }
-                int startPort = 9292 + (100 * clusterNum);
-                int numBrokerPorts = 4;
-                return IntStream.range(startPort, startPort + numBrokerPorts).boxed()
-                        .collect(Collectors.<Integer, Integer, String, TreeMap<Integer, String>> toMap(
-                                portNum -> portNum,
-                                portNum -> cluster.getName() + "-" + portNum,
-                                (v1, v2) -> {
-                                    throw new IllegalStateException();
-                                },
-                                TreeMap::new));
-            }
-        }
-        throw new IllegalArgumentException("Couldn't find cluster with name " + cluster.getName());
-    }
-
-    protected Service clusterService(KafkaProxy primary,
-                                     Context<KafkaProxy> context,
-                                     Clusters cluster) {
-        // @formatter:off
-        var serviceSpecBuilder = new ServiceBuilder()
-                .withNewMetadata()
-                    .withName(serviceName(cluster))
-                    .withNamespace(primary.getMetadata().getNamespace())
-                    .addToLabels(standardLabels(primary))
-                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
-                .endMetadata()
-                .withNewSpec()
-                    .withSelector(ProxyDeployment.podLabels());
-        for (var portNumEntry : clusterPorts(primary, context, cluster).entrySet()) {
-            serviceSpecBuilder = serviceSpecBuilder
-                    .addNewPort()
-                        .withName(portNumEntry.getValue())
-                        .withPort(portNumEntry.getKey())
-                        .withTargetPort(new IntOrString(portNumEntry.getKey()))
-                        .withProtocol("TCP")
-                    .endPort();
-        }
-
-        return serviceSpecBuilder
-                .endSpec()
-                .build();
-        // @formatter:on
-    }
-
     @Override
     public Map<String, Service> desiredResources(
                                                  KafkaProxy primary,
                                                  Context<KafkaProxy> context) {
         var clusters = ResourcesUtil.distinctClusters(primary);
-
         return clusters.stream()
                 .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
+                .flatMap(cluster -> servicesFor(cluster, primary))
                 .collect(Collectors.toMap(
-                        Clusters::getName,
-                        cluster -> clusterService(primary, context, cluster)));
+                        s -> s.getMetadata().getName(),
+                        s -> s));
+    }
+
+    private Stream<Service> servicesFor(Clusters cluster, KafkaProxy primary) {
+        ClusterSniExposition exposition = ClusterSniExposition.planExposition(primary, cluster);
+        return exposition.getExpositions().stream().sorted().flatMap(host -> servicesFor(host, primary));
+    }
+
+    private Stream<Service> servicesFor(ClusterSniExposition.HostnameExposition exposition, KafkaProxy primary) {
+        return exposition.services().stream().map(service -> {
+            var serviceSpecBuilder = new ServiceBuilder()
+                    .withNewMetadata()
+                    .withName(service.name())
+                    .withNamespace(primary.getMetadata().getNamespace())
+                    .addToLabels(standardLabels(primary))
+                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
+                    .endMetadata()
+                    .withNewSpec()
+                    .withType(service.type())
+                    .withSelector(ProxyDeployment.podLabels());
+            Integer port = exposition.listener().getPort();
+            serviceSpecBuilder.addNewPort()
+                    .withName("tls")
+                    .withPort(port)
+                    .withTargetPort(new IntOrString(port))
+                    .withProtocol("TCP")
+                    .endPort();
+            return serviceSpecBuilder.endSpec().build();
+        });
     }
 
     @Override
@@ -136,7 +87,7 @@ public class ClusterService
                 .getSecondaryResources(primary);
         return secondaryResources.stream()
                 .collect(Collectors.toMap(
-                        ClusterService::clusterName,
+                        (s) -> s.getMetadata().getName(), // TODO what should this map to? Used to be that service name == vcluster name, no longer
                         Function.identity()));
     }
 }

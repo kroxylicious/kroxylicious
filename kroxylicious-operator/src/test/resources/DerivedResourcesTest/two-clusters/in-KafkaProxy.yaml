@@ -11,10 +11,24 @@ metadata:
   name: twocluster
   namespace: proxy-ns
 spec:
+  listeners:
+    - name: my-listener
+      port: 9092
+      protocol: kafka-tls
+      tls:
+        certificateRefs:
+          - kind: Secret
+            name: kroxy-server-key-material
   clusters:
     - name: foo
+      advertisedBrokers: [ 0 ]
+      hostnames:
+        - my-cluster-%.proxy-ns.svc.cluster.local
       upstream:
         bootstrapServers: first-kafka.kafka1.svc.cluster.local:9092
     - name: bar
+      advertisedBrokers: [ 0 ]
+      hostnames:
+        - my-cluster-2-%.proxy-ns.svc.cluster.local
       upstream:
         bootstrapServers: second-kafka.kafka2.svc.cluster.local:9092

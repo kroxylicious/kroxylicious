@@ -1,0 +1,31 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/component: "proxy"
+  name: "my-cluster-bootstrap"
+  namespace: "proxy-ns"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "minimal"
+spec:
+  ports:
+  - name: "tls"
+    port: 9092
+    protocol: "TCP"
+    targetPort: 9092
+  selector:
+    app: "kroxylicious"
+  type: "ClusterIP"
