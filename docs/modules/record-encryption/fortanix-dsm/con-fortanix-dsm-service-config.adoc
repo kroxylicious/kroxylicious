@@ -1,0 +1,22 @@
+// file included in the following:
+//
+// assembly-fortanix-dsm.adoc
+
+[id='con-fortanix-dsm-service-config-{context}']
+= Configuring the Fortanix DSM KMS
+
+For Fortanix DSM, the KMS configuration looks like this. Use the API key and Fortanix DSM Cluster URL values from the
+KMS setup.
+
+[source, yaml]
+----
+kms: FortanixDsmKmsService                                    # <1>
+kmsConfig:
+  endpointUrl: <Fortanix DSM Cluster URL>                     # <2>
+  apiKeySessionProvider:
+    apiKey:
+      passwordFile: /opt/fortanix-dsm/api-key                 # <3>
+----
+<1> Specifies the name of the KMS provider. Use `FortanixDsmKmsService`.
+<2> xref:con-fortanix-dsm-setup-{context}[Fortanix DSM Cluster URL] including the protocol part, such as `https:` or `http:`.
+<3> File containing the API key.
