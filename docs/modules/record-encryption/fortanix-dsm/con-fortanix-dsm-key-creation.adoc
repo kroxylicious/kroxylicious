@@ -1,0 +1,29 @@
+// file included in the following:
+//
+// assembly-fortanix-dsm.adoc
+
+[id='con-fortanix-dsm-key-creation-{context}']
+= Creating Fortanix DSM keys
+
+As the administrator, create AES-256 symmetric keys following your key naming convention and belonging to the required group.
+When creating keys specify the key operations as `ENCRYPT,DECRYPT,APPMANAGEABLE`.
+These are the minimal permissions required for record encryption to function.
+
+Identify the ID of the group to contain the keys:
+
+[source, shell]
+----
+GROUP_ID=$(sdkms-cli  --api-endpoint https://<region>.smartkey.io list-groups | grep topic-keks | awk '{print $1}')
+----
+
+For example, here we extract the ID of the group named `topic-keks`.
+
+Create a key and associate it with the group:
+
+[source, shell]
+----
+KEY_NAME="KEK_<name>"
+sdkms-cli  --api-endpoint https://<region>.smartkey.io create-key --obj-type AES --key-size 256 --group-id ${GROUP_ID} --name ${KEY_NAME} --key-ops ENCRYPT,DECRYPT,APPMANAGEABLE
+----
+
+TIP: It is recommended to use a key rotation policy.
