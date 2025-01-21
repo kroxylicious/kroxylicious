@@ -54,7 +54,8 @@
         "DockerImageName\\.parse\\(\"(?<depName>quay.io/apicurio/apicurio-registry-mem):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.Final)\"\\)"
       ],
       "datasourceTemplate": "docker",
-      "extractVersionTemplate": "^(?<version>.*)\\.Final$"
+      "extractVersionTemplate": "^(?<version>.*)\\.Final$",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.Final$"
     },
     {
       "customType": "regex",
