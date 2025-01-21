@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: "proxy"
-          image: "quay.io/kroxylicious/kroxylicious:0.10.0-SNAPSHOT"
+          image: "quay.io/kroxylicious/kroxylicious:${project.version}"
           args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
