@@ -7,20 +7,19 @@ doing the following:
 
 * If the upstream is using a private CA, use the `trust` properties to configure a truststore for the target cluster.
 
-* If you wish to use mutual TLS, use the `key` property to specify the certificate that will be used by the virtual
-  cluster will use to identify itself to the upstream.
+* If you want to use mutual TLS, specify the certificate with the `key` property to identify the virtual cluster to the upstream.
 
-* If desired, you may restrict the TLS protocols and/or cipher suites that may be used to form the TLS connection.
+* If required, you can restrict the TLS protocols and cipher suites that are used to form the TLS connection.
 
 NOTE: TLS is recommended on Kafka clients and virtual clusters for production configurations.
 
 Examples below illustrate how these steps may be done.
 
-Using an empty object (`{}`) enables TLS using the platform's defaults.  This means that platform trust, and
+Using an empty object (`{}`) enables TLS using the platform's defaults. This means that platform trust, and
 default protocols and cipher suites will be used. This option is suitable if the upstream cluster is using a TLS
-certificate signed by a public CA and the platform's defaults are acceptable to you.
+certificate signed by a public CA and the platform's defaults are suitable.
 
-.Example - enabling the target cluster to use TLS using platform defaults
+.Example enabling TLS for a target cluster using platform defaults
 [source,yaml]
 ----
 virtualClusters:
@@ -32,9 +31,9 @@ virtualClusters:
 ----
 
 If it is using a TLS certificate signed by a private CA, you must add truststore configuration for the target cluster.
-The example illustrates using PKCS #12 formatted. PEM format is supported too.
+The example illustrates using PKCS #12 format. PEM format is supported too.
 
-.Example - specifying a truststore
+.Example specifying a truststore
 [source,yaml]
 ----
 virtualClusters:
@@ -53,8 +52,9 @@ virtualClusters:
 <2> Password to access the public Kafka cluster CA certificate.
 <3> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
 
-For mutual TLS, add a keystore configuration for the virtual cluster.  The example illustrates using a PEM formatted
-server certificate/key pair. A PKCS #12 key store is supported too.
+For mutual TLS, add a keystore configuration for the virtual cluster.  
+The following example uses a PEM format server certificate and key pair. 
+PKCS #12 keystore format is supported too.
 
 .Example - configuring mutual TLS
 [source,yaml]
@@ -74,7 +74,7 @@ virtualClusters:
 
 The TLS protocols and cipher suites available to the TLS connection may also be configured.
 
-.Example - restricting the TLS protocols using an allow list
+.Example restricting TLS protocols using an allow list
 [source,yaml]
 ----
 virtualClusters:
@@ -88,9 +88,9 @@ virtualClusters:
           - TLSv1.3
           - TLSv1.2
 ----
-<1> List of TLS protocols to be allowed.
+<1> List of allowed TLS protocols.
 
-.Example - restricting the TLS protocols using a deny list
+.Example restricting TLS protocols using a deny list
 
 [source,yaml]
 ----
@@ -104,9 +104,9 @@ virtualClusters:
           allow:  # <1>
           - TLSv1.1
 ----
-<1> List of TLS protocols to be disallowed.
+<1> List of disallowed TLS protocols.
 
-.Example - restricting the cipher suite using an allow list
+.Example restricting cipher suites using an allow list
 
 [source,yaml]
 ----
@@ -121,9 +121,9 @@ virtualClusters:
           - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
           - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
 ----
-<1> List of cipher suites to be allowed.
+<1> List of allowed cipher suites.
 
-.Example - restricting the cipher suites using a deny list
+.Example restricting cipher suites using a deny list
 
 [source,yaml]
 ----
@@ -138,7 +138,7 @@ virtualClusters:
           deny:  # <1>
           - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
 ----
-<1> List of cipher suites to be disallowed.
+<1> List of disallowed cipher suites.
 
 For the purposes of testing (that is, outside a production environment), you can set the `insecure` property to `true`
 to disable TLS trust checks (hostname verification and certificate validation) so that the Kroxylicious can connect to
