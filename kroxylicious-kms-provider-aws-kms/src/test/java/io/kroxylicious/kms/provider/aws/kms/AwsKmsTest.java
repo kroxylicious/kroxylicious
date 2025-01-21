@@ -6,21 +6,20 @@
 
 package io.kroxylicious.kms.provider.aws.kms;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
-import java.util.function.Consumer;
+import java.util.Optional;
 
-import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
+import com.github.tomakehurst.wiremock.WireMockServer;
 
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
@@ -31,6 +30,12 @@ import io.kroxylicious.kms.service.SecretKeyUtils;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -39,6 +44,36 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AwsKmsTest {
 
     private static final Base64.Decoder BASE64_DECODER = Base64.getDecoder();
+
+    private static WireMockServer server;
+    private AwsKmsService awsKmsService;
+    private AwsKms kms;
+
+    @BeforeAll
+    public static void initMockServer() {
+        server = new WireMockServer(wireMockConfig().dynamicPort());
+        server.start();
+    }
+
+    @AfterAll
+    public static void shutdownMockServer() {
+        server.shutdown();
+    }
+
+    @BeforeEach
+    public void beforeEach() {
+        var longTermCredentialsProviderConfig = new LongTermCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret"));
+        var config = new Config(URI.create(server.baseUrl()), null, null, longTermCredentialsProviderConfig, null, "us-west-2", null);
+        awsKmsService = new AwsKmsService();
+        awsKmsService.initialize(config);
+        kms = awsKmsService.buildKms();
+    }
+
+    @AfterEach
+    void afterEach() {
+        Optional.ofNullable(awsKmsService).ifPresent(AwsKmsService::close);
+        server.resetAll();
+    }
 
     @Test
     void resolveAlias() {
@@ -52,12 +87,17 @@ class AwsKmsTest {
                 }
                 """;
         var expectedKeyId = "1234abcd-12ab-34cd-56ef-1234567890ab";
-        withMockAwsWithSingleResponse(response, kms -> {
-            var aliasStage = kms.resolveAlias("alias");
-            assertThat(aliasStage)
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .isEqualTo(expectedKeyId);
-        });
+
+        server.stubFor(
+                post(urlEqualTo("/"))
+                        .withHeader("X-Amz-Target", equalTo("TrentService.DescribeKey"))
+                        .withRequestBody(matchingJsonPath("$.KeyId", equalTo("alias/alias")))
+                        .willReturn(aResponse().withBody(response)));
+
+        var aliasStage = kms.resolveAlias("alias");
+        assertThat(aliasStage)
+                .succeedsWithin(Duration.ofSeconds(5))
+                .isEqualTo(expectedKeyId);
     }
 
     @Test
@@ -68,26 +108,33 @@ class AwsKmsTest {
                     "message": "Invalid keyId 'foo'"}
                 }
                 """;
-        withMockAwsWithSingleResponse(response, 400, kms -> {
-            var aliasStage = kms.resolveAlias("alias");
-            assertThat(aliasStage)
-                    .failsWithin(Duration.ofSeconds(5))
-                    .withThrowableThat()
-                    .withCauseInstanceOf(UnknownAliasException.class)
-                    .withMessageContaining("key 'alias' is not found");
-        });
+
+        server.stubFor(
+                post(urlEqualTo("/"))
+                        .withHeader("X-Amz-Target", equalTo("TrentService.DescribeKey"))
+                        .willReturn(aResponse().withBody(response).withStatus(400)));
+
+        var aliasStage = kms.resolveAlias("alias");
+        assertThat(aliasStage)
+                .failsWithin(Duration.ofSeconds(5))
+                .withThrowableThat()
+                .withCauseInstanceOf(UnknownAliasException.class)
+                .withMessageContaining("key 'alias' is not found");
     }
 
     @Test
     void resolveAliasInternalServerError() {
-        withMockAwsWithSingleResponse(null, 500, kms -> {
-            var aliasStage = kms.resolveAlias("alias");
-            assertThat(aliasStage)
-                    .failsWithin(Duration.ofSeconds(5))
-                    .withThrowableThat()
-                    .withCauseInstanceOf(KmsException.class)
-                    .withMessageContaining("Operation failed");
-        });
+        server.stubFor(
+                post(urlEqualTo("/"))
+                        .withHeader("X-Amz-Target", equalTo("TrentService.DescribeKey"))
+                        .willReturn(aResponse().withStatus(500)));
+
+        var aliasStage = kms.resolveAlias("alias");
+        assertThat(aliasStage)
+                .failsWithin(Duration.ofSeconds(5))
+                .withThrowableThat()
+                .withCauseInstanceOf(KmsException.class)
+                .withMessageContaining("Operation failed");
     }
 
     @Test
@@ -100,24 +147,31 @@ class AwsKmsTest {
                   "Plaintext": "VdzKNHGzUAzJeRBVY+uUmofUGGiDzyB3+i9fVkh3piw="
                 }
                 """;
+
+        server.stubFor(
+                post(urlEqualTo("/"))
+                        .withHeader("X-Amz-Target", equalTo("TrentService.GenerateDataKey"))
+                        .withRequestBody(matchingJsonPath("$.KeyId", equalTo("kek")))
+                        .willReturn(aResponse().withBody(response)));
+
         var ciphertextBlobBytes = BASE64_DECODER.decode(
                 "AQEDAHjRYf5WytIc0C857tFSnBaPn2F8DgfmThbJlGfR8P3WlwAAAH4wfAYJKoZIhvcNAQcGoG8wbQIBADBoBgkqhkiG9w0BBwEwHgYJYIZIAWUDBAEuMBEEDEFogLqPWZconQhwHAIBEIA7d9AC7GeJJM34njQvg4Wf1d5sw0NIo1MrBqZa+YdhV8MrkBQPeac0ReRVNDt9qleAt+SHgIRF8P0H+7U=");
         var plainTextBytes = BASE64_DECODER.decode("VdzKNHGzUAzJeRBVY+uUmofUGGiDzyB3+i9fVkh3piw=");
         var expectedKey = DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES");
 
-        withMockAwsWithSingleResponse(response, awsKms -> {
-            var aliasStage = awsKms.generateDekPair("alias");
-            assertThat(aliasStage)
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .extracting(DekPair::edek)
-                    .isEqualTo(new AwsKmsEdek("alias", ciphertextBlobBytes));
+        var dekStage = kms.generateDekPair("kek");
+        assertThat(dekStage)
+                .succeedsWithin(Duration.ofSeconds(5))
+                .satisfies(dekPair -> {
+                    assertThat(dekPair)
+                            .extracting(DekPair::edek)
+                            .isEqualTo(new AwsKmsEdek("kek", ciphertextBlobBytes));
 
-            assertThat(aliasStage)
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .extracting(DekPair::dek)
-                    .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
-                    .matches(key -> SecretKeyUtils.same(key, expectedKey));
-        });
+                    assertThat(dekPair)
+                            .extracting(DekPair::dek)
+                            .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
+                            .matches(key -> SecretKeyUtils.same(key, expectedKey));
+                });
     }
 
     @Test
@@ -130,67 +184,19 @@ class AwsKmsTest {
                   "Plaintext": "VGhpcyBpcyBEYXkgMSBmb3IgdGhlIEludGVybmV0Cg==",
                   "EncryptionAlgorithm": "SYMMETRIC_DEFAULT"
                 }""";
+
+        server.stubFor(
+                post(urlEqualTo("/"))
+                        .withHeader("X-Amz-Target", equalTo("TrentService.Decrypt"))
+                        .withRequestBody(matchingJsonPath("$.KeyId", equalTo("kek")))
+                        .willReturn(aResponse().withBody(response)));
+
         var expectedKey = DestroyableRawSecretKey.takeCopyOf(plainTextBytes, "AES");
 
-        withMockAwsWithSingleResponse(response, kms -> {
-            Assertions.assertThat(kms.decryptEdek(new AwsKmsEdek("kek", "unused".getBytes(StandardCharsets.UTF_8))))
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
-                    .matches(key -> SecretKeyUtils.same(key, expectedKey));
-        });
+        var keyStage = kms.decryptEdek(new AwsKmsEdek("kek", "unused".getBytes(StandardCharsets.UTF_8)));
+        assertThat(keyStage)
+                .succeedsWithin(Duration.ofSeconds(5))
+                .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
+                .matches(key -> SecretKeyUtils.same(key, expectedKey));
     }
-
-    void withMockAwsWithSingleResponse(String response, Consumer<AwsKms> consumer) {
-        withMockAwsWithSingleResponse(response, 200, consumer);
-    }
-
-    @SuppressWarnings("resource")
-    void withMockAwsWithSingleResponse(String response, int statusCode, Consumer<AwsKms> consumer) {
-        HttpHandler handler = statusCode >= 500 ? new ErrorResponse(statusCode) : new StaticResponse(statusCode, response);
-        HttpServer httpServer = httpServer(handler);
-        try {
-            var address = httpServer.getAddress();
-            var awsAddress = "http://127.0.0.1:" + address.getPort();
-            var longTermCredentialsProviderConfig = new LongTermCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret"));
-            var config = new Config(URI.create(awsAddress), null, null, longTermCredentialsProviderConfig, null, "us-west-2", null);
-            var awsKmsService = new AwsKmsService();
-            awsKmsService.initialize(config);
-            var service = awsKmsService.buildKms();
-            consumer.accept(service);
-        }
-        finally {
-            httpServer.stop(0);
-        }
-    }
-
-    public static HttpServer httpServer(HttpHandler handler) {
-        try {
-            HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-            server.createContext("/", handler);
-            server.start();
-            return server;
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private record StaticResponse(int statusCode, String response) implements HttpHandler {
-        @Override
-        public void handle(HttpExchange e) throws IOException {
-            e.sendResponseHeaders(statusCode, response.length());
-            try (var os = e.getResponseBody()) {
-                os.write(response.getBytes(StandardCharsets.UTF_8));
-            }
-        }
-    }
-
-    private record ErrorResponse(int statusCode) implements HttpHandler {
-        @Override
-        public void handle(HttpExchange e) throws IOException {
-            e.sendResponseHeaders(500, -1);
-            e.close();
-        }
-    }
-
 }
