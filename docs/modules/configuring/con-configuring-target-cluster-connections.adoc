@@ -56,7 +56,7 @@ For mutual TLS, add a keystore configuration for the virtual cluster.
 The following example uses a PEM format server certificate and key pair. 
 PKCS #12 keystore format is supported too.
 
-.Example - configuring mutual TLS
+.Example configuring mutual TLS
 [source,yaml]
 ----
 virtualClusters:
@@ -144,7 +144,7 @@ For the purposes of testing (that is, outside a production environment), you can
 to disable TLS trust checks (hostname verification and certificate validation) so that the Kroxylicious can connect to
 any Kafka cluster.
 
-.Example - configuration disable TLS trust checks
+.Example configuration to disable TLS trust checks
 [source,yaml]
 ----
 virtualClusters:
