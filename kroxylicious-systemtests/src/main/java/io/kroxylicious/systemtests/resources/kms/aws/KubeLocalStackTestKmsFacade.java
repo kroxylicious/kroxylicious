@@ -9,10 +9,7 @@ package io.kroxylicious.systemtests.resources.kms.aws;
 import java.net.URI;
 
 import io.kroxylicious.kms.provider.aws.kms.AbstractAwsKmsTestKmsFacade;
-import io.kroxylicious.kms.provider.aws.kms.AwsKmsTestKmsFacade;
 import io.kroxylicious.systemtests.installation.kms.aws.LocalStack;
-import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
-import io.kroxylicious.systemtests.utils.VersionComparator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -38,12 +35,6 @@ public class KubeLocalStackTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     @Override
     public void startKms() {
         localStack.deploy();
-        String installedVersion = getLocalStackVersion();
-        String expectedVersion = AwsKmsTestKmsFacade.LOCALSTACK_IMAGE.getVersionPart();
-        if (!isCorrectVersionInstalled(installedVersion, expectedVersion)) {
-            throw new KubeClusterException("LocalStack version installed " + installedVersion + " does not match with the expected: '"
-                    + expectedVersion + "'");
-        }
     }
 
     @Override
@@ -55,20 +46,6 @@ public class KubeLocalStackTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     @Override
     protected URI getAwsUrl() {
         return localStack.getAwsKmsUrl();
-    }
-
-    /**
-     * Gets LocalStack version.
-     *
-     * @return the LocalStack version
-     */
-    public String getLocalStackVersion() {
-        return localStack.getLocalStackVersionInstalled();
-    }
-
-    private boolean isCorrectVersionInstalled(String installedVersion, String expectedVersion) {
-        VersionComparator comparator = new VersionComparator(installedVersion);
-        return comparator.compareTo(expectedVersion) == 0;
     }
 
     @Override

@@ -17,20 +17,26 @@
       "customType": "regex",
       "fileMatch": [
         "kroxylicious-kms-provider-hashicorp-vault-test-support/src/main/java/io/kroxylicious/kms/provider/hashicorp/vault/VaultTestKmsFacade.java",
+        "kroxylicious-kms-provider-hashicorp-vault/src/test/java/io/kroxylicious/kms/provider/hashicorp/vault/TestVault.java",
+        "kroxylicious-systemtests/src/main/resources/helm_vault_overrides.yaml",
         "performance-tests/docker-compose.yaml"
       ],
       "matchStrings": [
-        "DockerImageName\\.parse\\(\"(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+)\"\\)",
-        "image:.*(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+)"
+        "DockerImageName\\.parse\\(\"(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
+        "image:.*(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)",
+        "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
       ],
       "datasourceTemplate": "docker"
     },
     {
       "customType": "regex",
-      "fileMatch": ["kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java"],
+      "fileMatch": ["kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java",
+                    "kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml"],
       "matchStrings": [
-        "DockerImageName\\.parse\\(\"(?<depName>localstack/localstack):(?<currentValue>\\d+\\.\\d+)\"\\)"
+        "DockerImageName\\.parse\\(\"localstack/localstack:(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
+        "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
       ],
+      "depNameTemplate": "localstack/localstack",
       "datasourceTemplate": "docker"
     },
     {
@@ -45,9 +51,11 @@
       "customType": "regex",
       "fileMatch": ["kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/validation/JsonSchemaRecordValidationIT.java"],
       "matchStrings": [
-        "DockerImageName\\.parse\\(\"(?<depName>quay.io/apicurio/apicurio-registry-mem):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.Final)"
+        "DockerImageName\\.parse\\(\"(?<depName>quay.io/apicurio/apicurio-registry-mem):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.Final)\"\\)"
       ],
-      "datasourceTemplate": "docker"
+      "datasourceTemplate": "docker",
+      "extractVersionTemplate": "^(?<version>.*)\\.Final$",
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.Final$"
     },
     {
       "customType": "regex",

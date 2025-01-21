@@ -29,8 +29,6 @@ public class Environment {
     private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
     public static final String STRIMZI_FEATURE_GATES_ENV = "STRIMZI_FEATURE_GATES";
     private static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
-    private static final String VAULT_CHART_VERSION_ENV = "VAULT_CHART_VERSION";
-    private static final String AWS_LOCALSTACK_CHART_VERSION_ENV = "AWS_LOCALSTACK_CHART_VERSION";
     private static final String SKIP_STRIMZI_INSTALL_ENV = "SKIP_STRIMZI_INSTALL";
     private static final String KAFKA_CLIENT_ENV = "KAFKA_CLIENT";
     private static final String STRIMZI_VERSION_ENV = "STRIMZI_VERSION";
@@ -80,8 +78,6 @@ public class Environment {
     private static final String SKIP_TEARDOWN_DEFAULT = "false";
     private static final String STRIMZI_FEATURE_GATES_DEFAULT = "";
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
-    private static final String VAULT_CHART_VERSION_DEFAULT = "0.27.0";
-    private static final String AWS_LOCALSTACK_CHART_VERSION_DEFAULT = "0.6.15";
     private static final String SKIP_STRIMZI_INSTALL_DEFAULT = "false";
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
     private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("java.io.tmpdir");
@@ -116,10 +112,6 @@ public class Environment {
     public static final String CONTAINER_CONFIG_PATH = getOrDefault(CONTAINER_CONFIG_PATH_ENV, CONTAINER_CONFIG_PATH_DEFAULT);
 
     public static final boolean SKIP_STRIMZI_INSTALL = Boolean.parseBoolean(getOrDefault(SKIP_STRIMZI_INSTALL_ENV, SKIP_STRIMZI_INSTALL_DEFAULT));
-
-    public static final String VAULT_CHART_VERSION = getOrDefault(VAULT_CHART_VERSION_ENV, VAULT_CHART_VERSION_DEFAULT);
-
-    public static final String AWS_LOCALSTACK_CHART_VERSION = getOrDefault(AWS_LOCALSTACK_CHART_VERSION_ENV, AWS_LOCALSTACK_CHART_VERSION_DEFAULT);
 
     public static final String KAFKA_CLIENT = getOrDefault(KAFKA_CLIENT_ENV, KAFKA_CLIENT_DEFAULT);
 
