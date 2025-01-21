@@ -36,6 +36,17 @@
             <artifactId>kroxylicious-api</artifactId>
         </dependency>
 
+        <!-- project dependencies - test -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-tls-support</artifactId>
+        </dependency>
+
         <!-- third party dependencies - build and compile -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -86,13 +97,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-test-support</artifactId>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-tls-support</artifactId>
         </dependency>
     </dependencies>
 

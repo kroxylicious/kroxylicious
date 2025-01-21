@@ -6,50 +6,75 @@
 
 package io.kroxylicious.kms.provider.hashicorp.vault;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.Base64;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
-import java.util.function.Consumer;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import com.sun.net.httpserver.HttpServer;
+import com.github.tomakehurst.wiremock.WireMockServer;
 
 import io.kroxylicious.kms.provider.hashicorp.vault.config.Config;
+import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.DestroyableRawSecretKey;
+import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.SecretKeyUtils;
 import io.kroxylicious.kms.service.UnknownAliasException;
-import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class VaultKmsTest {
 
-    @Test
-    void resolveWithUnknownKeyReusesConnection() {
-        assertReusesConnectionsOn404(vaultKms -> {
-            assertThat(vaultKms.resolveAlias("alias")).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-                    .withCauseInstanceOf(UnknownAliasException.class);
-        });
+    private static WireMockServer server;
+    private VaultKmsService vaultKmsService;
+    private VaultKms kms;
+
+    @BeforeAll
+    public static void initMockServer() {
+        server = new WireMockServer(wireMockConfig().dynamicPort());
+        server.start();
+    }
+
+    @AfterAll
+    public static void shutdownMockServer() {
+        server.shutdown();
+    }
+
+    @BeforeEach
+    public void beforeEach() {
+        var vaultAddress = URI.create(server.baseUrl()).resolve("/v1/transit");
+        var config = new Config(vaultAddress, new InlinePassword("token"), null);
+        vaultKmsService = new VaultKmsService();
+        vaultKmsService.initialize(config);
+        kms = vaultKmsService.buildKms();
+    }
+
+    @AfterEach
+    void afterEach() {
+        Optional.ofNullable(vaultKmsService).ifPresent(VaultKmsService::close);
+        server.resetAll();
     }
 
     @Test
@@ -76,19 +101,41 @@ class VaultKmsTest {
                   }
                 }
                 """;
-        withMockVaultWithSingleResponse(response, vaultKms -> {
-            assertThat(vaultKms.resolveAlias("alias"))
-                    .succeedsWithin(Duration.ofSeconds(5))
-                    .isEqualTo("resolved");
-        });
+
+        server.stubFor(get(urlEqualTo("/v1/transit/keys/alias"))
+                .willReturn(aResponse().withBody(response)));
+
+        assertThat(kms.resolveAlias("alias"))
+                .succeedsWithin(Duration.ofSeconds(5))
+                .isEqualTo("resolved");
     }
 
     @Test
-    void generatedDekPairWithUnknownKeyReusesConnection() {
-        assertReusesConnectionsOn404(vaultKms -> {
-            assertThat(vaultKms.generateDekPair("alias")).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-                    .withCauseInstanceOf(UnknownKeyException.class);
-        });
+    void resolveAliasNotFound() {
+        server.stubFor(
+                get(urlEqualTo("/v1/transit/keys/alias"))
+                        .willReturn(aResponse().withStatus(404)));
+
+        var aliasStage = kms.resolveAlias("alias");
+        assertThat(aliasStage)
+                .failsWithin(Duration.ofSeconds(5))
+                .withThrowableThat()
+                .withCauseInstanceOf(UnknownAliasException.class)
+                .withMessageContaining("key 'alias' is not found");
+    }
+
+    @Test
+    void resolveAliasInternalServerError() {
+        server.stubFor(
+                get(urlEqualTo("/v1/transit/keys/alias"))
+                        .willReturn(aResponse().withStatus(500)));
+
+        var aliasStage = kms.resolveAlias("alias");
+        assertThat(aliasStage)
+                .failsWithin(Duration.ofSeconds(5))
+                .withThrowableThat()
+                .withCauseInstanceOf(KmsException.class)
+                .withMessageContaining("fail to retrieve key 'alias', HTTP status code 500");
     }
 
     @Test
@@ -96,6 +143,8 @@ class VaultKmsTest {
         String plaintext = "dGhlIHF1aWNrIGJyb3duIGZveAo=";
         String ciphertext = "vault:v1:abcdefgh";
         byte[] decoded = Base64.getDecoder().decode(plaintext);
+        var expectedKey = DestroyableRawSecretKey.takeCopyOf(decoded, "AES");
+
         var response = """
                 {
                   "data": {
@@ -104,19 +153,22 @@ class VaultKmsTest {
                   }
                 }
                 """.formatted(plaintext, ciphertext);
-        withMockVaultWithSingleResponse(response, vaultKms -> {
-            assertThat(vaultKms.generateDekPair("alias")).succeedsWithin(Duration.ofSeconds(5))
-                    .matches(dekPair -> Objects.equals(dekPair.edek(), new VaultEdek("alias", ciphertext.getBytes(StandardCharsets.UTF_8))))
-                    .matches(dekPair -> SecretKeyUtils.same((DestroyableRawSecretKey) dekPair.dek(), DestroyableRawSecretKey.takeCopyOf(decoded, "AES")));
-        });
-    }
 
-    @Test
-    void decryptEdekWithUnknownKeyReusesConnection() {
-        assertReusesConnectionsOn404(vaultKms -> {
-            assertThat(vaultKms.decryptEdek(new VaultEdek("unknown", new byte[]{ 1 }))).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
-                    .withCauseInstanceOf(UnknownKeyException.class);
-        });
+        server.stubFor(post(urlEqualTo("/v1/transit/datakey/plaintext/kekref"))
+                .willReturn(aResponse().withBody(response)));
+
+        assertThat(kms.generateDekPair("kekref"))
+                .succeedsWithin(Duration.ofSeconds(5))
+                .satisfies(dekPair -> {
+                    assertThat(dekPair)
+                            .extracting(DekPair::edek)
+                            .isEqualTo(new VaultEdek("kekref", ciphertext.getBytes(StandardCharsets.UTF_8)));
+                    assertThat(dekPair)
+                            .extracting(DekPair::dek)
+                            .asInstanceOf(InstanceOfAssertFactories.type(DestroyableRawSecretKey.class))
+                            .matches(key -> SecretKeyUtils.same(key, expectedKey));
+                });
+
     }
 
     @Test
@@ -125,6 +177,8 @@ class VaultKmsTest {
         byte[] edekBytes = Base64.getDecoder().decode(edek);
         String plaintext = "qWruWwlmc7USk6uP41LZBs+gLVfkFWChb+jKivcWK0c=";
         byte[] plaintextBytes = Base64.getDecoder().decode(plaintext);
+        var expectedKey = DestroyableRawSecretKey.takeCopyOf(plaintextBytes, "AES");
+
         var response = """
                 {
                   "data": {
@@ -132,20 +186,24 @@ class VaultKmsTest {
                   }
                 }
                 """.formatted(plaintext);
-        withMockVaultWithSingleResponse(response, vaultKms -> {
-            assertThat(vaultKms.decryptEdek(new VaultEdek("kek", edekBytes))).succeedsWithin(Duration.ofSeconds(5))
-                    .isInstanceOf(DestroyableRawSecretKey.class)
-                    .matches(key -> SecretKeyUtils.same((DestroyableRawSecretKey) key, DestroyableRawSecretKey.takeCopyOf(plaintextBytes, "AES")));
-        });
+
+        server.stubFor(post(urlEqualTo("/v1/transit/decrypt/kekref"))
+                .willReturn(aResponse().withBody(response)));
+
+        assertThat(kms.decryptEdek(new VaultEdek("kekref", edekBytes)))
+                .succeedsWithin(Duration.ofSeconds(5))
+                .isInstanceOf(DestroyableRawSecretKey.class)
+                .matches(key -> SecretKeyUtils.same((DestroyableRawSecretKey) key, expectedKey));
     }
 
+    @SuppressWarnings("resource")
     @Test
     void testConnectionTimeout() throws NoSuchAlgorithmException {
         var uri = URI.create("http://test:8080/v1/transit");
         Duration timeout = Duration.ofMillis(500);
-        VaultKms kms = new VaultKms(uri, "token", timeout, null);
+        VaultKms vaultKms = new VaultKms(uri, "token", timeout, null);
         SSLContext sslContext = SSLContext.getDefault();
-        var client = kms.createClient(sslContext);
+        var client = vaultKms.createClient(sslContext);
         assertThat(client.connectTimeout()).hasValue(timeout);
     }
 
@@ -153,8 +211,8 @@ class VaultKmsTest {
     void testRequestTimeoutConfiguredOnRequests() {
         var uri = URI.create("http://test:8080/v1/transit");
         Duration timeout = Duration.ofMillis(500);
-        VaultKms kms = new VaultKms(uri, "token", timeout, null);
-        HttpRequest build = kms.createVaultRequest().uri(uri).build();
+        VaultKms vaultKms = new VaultKms(uri, "token", timeout, null);
+        HttpRequest build = vaultKms.createVaultRequest().uri(uri).build();
         assertThat(build.timeout()).hasValue(timeout);
     }
 
@@ -171,8 +229,8 @@ class VaultKmsTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource("acceptableVaultTransitEnginePaths")
     void acceptsVaultTransitEnginePaths(String name, URI uri, String expected) {
-        var kms = new VaultKms(uri, "token", Duration.ofMillis(500), null);
-        assertThat(kms.getVaultTransitEngineUri())
+        var vaultKms = new VaultKms(uri, "token", Duration.ofMillis(500), null);
+        assertThat(vaultKms.getVaultTransitEngineUri())
                 .extracting(URI::getPath)
                 .isEqualTo(expected);
 
@@ -194,80 +252,6 @@ class VaultKmsTest {
         assertThatThrownBy(() -> new VaultKms(uri, "token", Duration.ZERO, null))
                 .isInstanceOf(IllegalArgumentException.class);
 
-    }
-
-    void withMockVaultWithSingleResponse(String response, Consumer<VaultKms> consumer) {
-        HttpHandler handler = new StaticResponse(200, response);
-        HttpServer httpServer = httpServer(handler);
-        try {
-            InetSocketAddress address = httpServer.getAddress();
-            String vaultAddress = "http://127.0.0.1:" + address.getPort() + "/v1/transit";
-            var config = new Config(URI.create(vaultAddress), new InlinePassword("token"), null);
-            @SuppressWarnings("resource")
-            var vaultKmsService = new VaultKmsService();
-            vaultKmsService.initialize(config);
-            var service = vaultKmsService.buildKms();
-            consumer.accept(service);
-        }
-        finally {
-            httpServer.stop(0);
-        }
-    }
-
-    public static HttpServer httpServer(HttpHandler handler) {
-        try {
-            HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-            server.createContext("/", handler);
-            server.start();
-            return server;
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private void assertReusesConnectionsOn404(Consumer<VaultKms> consumer) {
-        RemotePortTrackingHandler handler = new RemotePortTrackingHandler();
-        HttpServer httpServer = httpServer(handler);
-        try (var vaultKmsService = new VaultKmsService()) {
-            InetSocketAddress address = httpServer.getAddress();
-            String vaultAddress = "http://127.0.0.1:" + address.getPort() + "/v1/transit";
-            var config = new Config(URI.create(vaultAddress), new InlinePassword("token"), null);
-            vaultKmsService.initialize(config);
-            VaultKms kms = vaultKmsService.buildKms();
-            for (int i = 0; i < 5; i++) {
-                consumer.accept(kms);
-            }
-            assertThat(handler.remotePorts).hasSize(1);
-        }
-        finally {
-            httpServer.stop(0);
-        }
-    }
-
-    record StaticResponse(int statusCode, String response) implements HttpHandler {
-        @Override
-        public void handle(HttpExchange t) throws IOException {
-            t.sendResponseHeaders(statusCode, response.length());
-            try (OutputStream os = t.getResponseBody()) {
-                os.write(response.getBytes(StandardCharsets.UTF_8));
-            }
-        }
-    }
-
-    static class RemotePortTrackingHandler implements HttpHandler {
-
-        final Set<Integer> remotePorts = new HashSet<>();
-
-        @Override
-        public void handle(HttpExchange t) throws IOException {
-            remotePorts.add(t.getRemoteAddress().getPort());
-            String response = "not-json 123";
-            t.sendResponseHeaders(404, response.length());
-            try (OutputStream os = t.getResponseBody()) {
-                os.write(response.getBytes(StandardCharsets.UTF_8));
-            }
-        }
     }
 
 }
