@@ -24,7 +24,7 @@
       "matchStrings": [
         "DockerImageName\\.parse\\(\"(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
         "image:.*(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)",
-        "tag:.*\"(?<currentValue>\\d+\\.\\d+.\\d+)\""
+        "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
       ],
       "datasourceTemplate": "docker"
     },
@@ -51,9 +51,10 @@
       "customType": "regex",
       "fileMatch": ["kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/validation/JsonSchemaRecordValidationIT.java"],
       "matchStrings": [
-        "DockerImageName\\.parse\\(\"(?<depName>quay.io/apicurio/apicurio-registry-mem):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.Final)"
+        "DockerImageName\\.parse\\(\"(?<depName>quay.io/apicurio/apicurio-registry-mem):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.Final)\"\\)"
       ],
-      "datasourceTemplate": "docker"
+      "datasourceTemplate": "docker",
+      "extractVersionTemplate": "^(?<version>.*)\\.Final$"
     },
     {
       "customType": "regex",
@@ -63,26 +64,6 @@
         "(?<depName>quay.io/kroxylicious/kaf):(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "datasourceTemplate": "docker"
-    },
-    {
-      "customType": "regex",
-      "fileMatch": ["kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java"],
-      "matchStrings": [
-        "AWS_LOCALSTACK_CHART_VERSION_DEFAULT = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
-      ],
-      "datasourceTemplate": "github-tags",
-      "depNameTemplate": "localstack/helm-charts",
-      "extractVersionTemplate": "^localstack-(?<version>.*)$",
-      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$"
-    },
-    {
-      "customType": "regex",
-      "fileMatch": ["kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java"],
-      "matchStrings": [
-        "VAULT_CHART_VERSION_DEFAULT = \"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
-      ],
-      "depNameTemplate": "hashicorp/vault-helm",
-      "datasourceTemplate": "github-tags"
     }
   ]
 }

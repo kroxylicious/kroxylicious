@@ -98,7 +98,7 @@ public class LocalStack implements AwsKmsClient {
         NamespaceUtils.createNamespaceWithWait(deploymentNamespace);
         ResourceManager.helmClient().addRepository(LOCALSTACK_HELM_REPOSITORY_NAME, LOCALSTACK_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(LOCALSTACK_HELM_CHART_NAME, LOCALSTACK_SERVICE_NAME,
-                Optional.of(Environment.AWS_LOCALSTACK_CHART_VERSION),
+                Optional.empty(),
                 Optional.of(Path.of(TestUtils.getResourcesURI("helm_localstack_overrides.yaml"))),
                 Optional.of(Map.of("image.repository", Constants.DOCKER_REGISTRY_GCR_MIRROR + "/" + LOCALSTACK_HELM_CHART_NAME)));
     }

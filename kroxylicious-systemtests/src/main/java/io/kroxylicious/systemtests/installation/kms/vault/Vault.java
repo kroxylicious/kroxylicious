@@ -20,7 +20,6 @@ import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
 import io.fabric8.openshift.client.OpenShiftClient;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
@@ -106,7 +105,7 @@ public class Vault {
         NamespaceUtils.createNamespaceWithWait(deploymentNamespace);
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
-                Optional.of(Environment.VAULT_CHART_VERSION),
+                Optional.empty(),
                 Optional.of(Path.of(TestUtils.getResourcesURI("helm_vault_overrides.yaml"))),
                 Optional.of(Map.of("server.image.repository", Constants.DOCKER_REGISTRY_GCR_MIRROR + "/" + VAULT_HELM_CHART_NAME,
                         "server.dev.devRootToken", vaultRootToken,
