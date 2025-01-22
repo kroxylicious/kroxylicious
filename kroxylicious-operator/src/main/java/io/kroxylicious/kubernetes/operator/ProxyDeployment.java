@@ -42,7 +42,7 @@ public class ProxyDeployment
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     public static final int METRICS_PORT = 9190;
     private static final String KROXYLICIOUS_IMAGE = getOperandImage();
-    public static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
+    static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
     public ProxyDeployment() {
         super(Deployment.class);
