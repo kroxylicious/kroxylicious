@@ -186,6 +186,11 @@
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.junit-pioneer</groupId>
+            <artifactId>junit-pioneer</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -262,28 +267,30 @@
                     </packageOverrides>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- https://junit-pioneer.org/docs/environment-variables/#warnings-for-reflective-access -->
+                    <argLine>
+                        --add-opens java.base/java.util=ALL-UNNAMED
+                        --add-opens java.base/java.lang=ALL-UNNAMED
+                    </argLine>
+                </configuration>
+            </plugin>
         </plugins>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
-                <includes>
-                    <include>kroxylicious-image.properties</include>
-                </includes>
-                <filtering>true</filtering>
             </resource>
             <resource>
-                <directory>src/main/resources</directory>
-                <includes>
-                    <include>*.yml</include>
-                </includes>
+                <directory>src/main/resources-filtered</directory>
+                <filtering>true</filtering>
             </resource>
         </resources>
         <testResources>
             <testResource>
-                <directory>src/test/resources</directory>
-                <includes>
-                    <include>**/*.yaml</include>
-                </includes>
+                <directory>src/test/resources-filtered</directory>
                 <filtering>true</filtering>
             </testResource>
         </testResources>

@@ -10,6 +10,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -22,6 +25,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 
@@ -32,11 +36,13 @@ import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 public class ProxyDeployment
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeployment.class);
     public static final String CONFIG_VOLUME = "config-volume";
     public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     public static final int METRICS_PORT = 9190;
     private static final String KROXYLICIOUS_IMAGE = getOperandImage();
+    public static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
     public ProxyDeployment() {
         super(Deployment.class);
@@ -138,9 +144,11 @@ public class ProxyDeployment
         // @formatter:on
     }
 
-    private static String getOperandImage() {
-        var envImage = System.getenv().get("KROXYLICIOUS_IMAGE");
+    @VisibleForTesting
+    static String getOperandImage() {
+        var envImage = System.getenv().get(KROXYLICIOUS_IMAGE_ENV_VAR);
         if (envImage != null && !envImage.isBlank()) {
+            LOGGER.info("Using Kroxylicious operand image ({}) from environment variable {}", envImage, KROXYLICIOUS_IMAGE_ENV_VAR);
             return envImage;
         }
         else {
@@ -156,6 +164,7 @@ public class ProxyDeployment
                 if (image == null || image.isEmpty()) {
                     throw new IllegalStateException("Classpath resource %s does not contain expected property %s".formatted(name, key));
                 }
+                LOGGER.info("Using Kroxylicious operand image ({}) from properties file {} on classpath", image, name);
                 return image;
             }
             catch (IOException ioe) {
