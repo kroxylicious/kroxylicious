@@ -117,7 +117,7 @@ class KafkaProxyTest {
                       type: SniRoutingClusterNetworkAddressConfigProvider
                       config:
                         bootstrapAddress: cluster1:9192
-                        brokerAddressPattern:  broker-$(nodeId)
+                        advertisedBrokerAddressPattern:  broker-$(nodeId)
                     targetCluster:
                       bootstrapServers: kafka.example:1234
                 """, "Cluster endpoint provider requires server TLS, but this virtual cluster does not define it"));

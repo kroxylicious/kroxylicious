@@ -106,6 +106,7 @@ class BrokerAddressFilterTest {
         filter = new BrokerAddressFilter(virtualCluster, endpointReconciler);
         invoker = getOnlyElement(FilterAndInvoker.build(filter)).invoker();
         lenient().when(virtualCluster.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
+        lenient().when(virtualCluster.getAdvertisedBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19200"));
 
         var nodeMap = Map.of(0, HostPort.parse("upstream:9199"));
         lenient().when(endpointReconciler.reconcile(Mockito.eq(virtualCluster), Mockito.eq(nodeMap)))

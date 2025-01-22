@@ -58,7 +58,7 @@
         value: downstream
       - op: replace
         path: "/nodeEndpoints/0/port"
-        value: 19199
+        value: 19200
   disabled: false
 - apiMessageType: FETCH
   description: Fetch v16 without nodeEndpoints

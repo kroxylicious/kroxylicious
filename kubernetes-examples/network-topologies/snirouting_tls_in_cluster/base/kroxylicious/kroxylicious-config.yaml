@@ -27,7 +27,7 @@ data:
           type: SniRoutingClusterNetworkAddressConfigProvider
           config:
             bootstrapAddress: my-cluster-proxy.kroxylicious:9092
-            brokerAddressPattern: my-cluster-proxy-broker-$(nodeId).kroxylicious
+            advertisedBrokerAddressPattern: my-cluster-proxy-broker-$(nodeId).kroxylicious
         logNetwork: false
         logFrames: false
         tls:
