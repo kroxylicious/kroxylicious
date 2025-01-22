@@ -31,7 +31,7 @@ KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.a
 STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
 KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
 KAFKA_TOOL_IMAGE=${KAFKA_TOOL_IMAGE:-quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}}
-KAFKA_IMAGE=${KAFKA_IMAGE:-"apache/kafka-native:${KAFKA_VERSION}"}
+KAFKA_IMAGE=${KAFKA_IMAGE:-"mirror.gcr.io/apache/kafka-native:${KAFKA_VERSION}"}
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-"quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}"}
 PERF_NETWORK=performance-tests_perf_network
 CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
@@ -263,8 +263,7 @@ if [ "$(uname)" != 'Darwin' ]; then
 fi
 ON_SHUTDOWN+=("deleteAsyncProfilerKroxy")
 
-runDockerCompose up --detach
-#runDockerCompose up --detach --wait kafka
+runDockerCompose up --detach --wait kafka
 
 # Warm up the broker - we do this separately as we might want a longer warm-up period
 doCreateTopic broker1:9092 warmup-topic

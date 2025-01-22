@@ -31,7 +31,7 @@ services:
     networks:
       - perf_network
   vault:
-    image: ${VAULT_IMAGE:-hashicorp/vault:1.18.3}
+    image: ${VAULT_IMAGE:-mirror.gcr.io/hashicorp/vault:1.18.3}
     hostname: vault
     container_name: vault
     ports:
