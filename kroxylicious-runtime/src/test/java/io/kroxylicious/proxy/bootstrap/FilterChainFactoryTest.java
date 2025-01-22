@@ -121,7 +121,7 @@ class FilterChainFactoryTest {
             assertThat(testFilterImpl.getContributorClass()).isEqualTo(TestFilterFactory.class);
             FilterDispatchExecutor filterDispatchExecutor = testFilterImpl.getContext().filterDispatchExecutor();
             assertThat(filterDispatchExecutor).isNotNull();
-            assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(filterDispatchExecutor);
+            assertThat(testFilterImpl.getContext().filterDispatchExecutor()).isSameAs(filterDispatchExecutor);
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
     }
@@ -136,14 +136,14 @@ class FilterChainFactoryTest {
                     assertThat(testFilterImpl.getContributorClass()).isEqualTo(factoryClass);
                     FilterDispatchExecutor filterDispatchExecutor = testFilterImpl.getContext().filterDispatchExecutor();
                     assertThat(filterDispatchExecutor).isNotNull();
-                    assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(filterDispatchExecutor);
+                    assertThat(testFilterImpl.getContext().filterDispatchExecutor()).isSameAs(filterDispatchExecutor);
                     assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
                 });
         listAssert.element(1).extracting(FilterAndInvoker::filter).isInstanceOfSatisfying(expectedFilterClass, testFilterImpl -> {
             assertThat(testFilterImpl.getContributorClass()).isEqualTo(factoryClass);
             FilterDispatchExecutor filterDispatchExecutor = testFilterImpl.getContext().filterDispatchExecutor();
             assertThat(filterDispatchExecutor).isNotNull();
-            assertThat(testFilterImpl.getContext().eventLoop()).isSameAs(filterDispatchExecutor);
+            assertThat(testFilterImpl.getContext().filterDispatchExecutor()).isSameAs(filterDispatchExecutor);
             assertThat(testFilterImpl.getExampleConfig()).isSameAs(config);
         });
     }

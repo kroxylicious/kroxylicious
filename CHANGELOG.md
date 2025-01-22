@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1380](https://github.com/kroxylicious/kroxylicious/issues/1380) Deprecated FilterFactoryContext#eventLoop() is removed.
 * [#1747](https://github.com/kroxylicious/kroxylicious/pull/1747) Bump io.micrometer:micrometer-bom from 1.14.2 to 1.14.3
 * [#1745](https://github.com/kroxylicious/kroxylicious/pull/1745) Bump com.github.ben-manes.caffeine:caffeine from 3.1.8 to 3.2.0
 * [#1006](https://github.com/kroxylicious/kroxylicious/pull/1660) Allow CipherSuites and TLS Protocols to be passed via Configuration
@@ -21,6 +22,8 @@ Format `<github issue/pr number>: <short description>`.
 
 * The top level `filters` configuration property is deprecated. Configurations should use `filterDefinitions` and `defaultFilters` instead.
 * The `bootstrap_servers` property of a virtual cluster's `targetCluster` is deprecated. It is replaced by a property called `bootstrapServers`.
+* As per deprecation notice made at 0.7.0, `ProduceValidationFilterFactory` filter is removed.  Use `RecordValidation` instead.
+* As per deprecation notice made at 0.7.0, `FilterFactoryContext#eventLoop()` is removed. Use `FilterFactoryContext#filterDispatchExecutor()` instead..
 
 ## 0.9.0
 
