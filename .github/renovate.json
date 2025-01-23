@@ -23,7 +23,7 @@
       ],
       "matchStrings": [
         "DockerImageName\\.parse\\(\"(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
-        "\"${DOCKER_REGISTRY}/(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)",
+        "(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)",
         "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
       ],
       "datasourceTemplate": "docker"
