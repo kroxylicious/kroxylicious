@@ -36,8 +36,7 @@ public class ClusterRoleBindingTemplates {
     public static List<ClusterRoleBinding> clusterRoleBindingsForAllNamespaces(String namespaceName, String koName) {
         return Arrays.asList(
                 getKroxyliciousOperatorDependentCrb(namespaceName, koName),
-                getKroxyliciousOperatorFilterRecordEncryptionCrb(namespaceName, koName),
-                getKroxyliciousOperatorFilterRecordValidationCrb(namespaceName, koName),
+                getKroxyliciousOperatorFilterGenericCrb(namespaceName, koName),
                 getKroxyliciousOperatorWatchedCrb(namespaceName, koName));
     }
 
@@ -64,12 +63,8 @@ public class ClusterRoleBindingTemplates {
         return baseClusterRoleBinding(namespaceName, koName + "-dependent");
     }
 
-    public static ClusterRoleBinding getKroxyliciousOperatorFilterRecordEncryptionCrb(final String namespaceName, final String koName) {
-        return baseClusterRoleBinding(namespaceName, koName + "-filter-record-encryption");
-    }
-
-    public static ClusterRoleBinding getKroxyliciousOperatorFilterRecordValidationCrb(final String namespaceName, final String koName) {
-        return baseClusterRoleBinding(namespaceName, koName + "-filter-record-validation");
+    public static ClusterRoleBinding getKroxyliciousOperatorFilterGenericCrb(final String namespaceName, final String koName) {
+        return baseClusterRoleBinding(namespaceName, koName + "-filter-generic");
     }
 
     public static ClusterRoleBinding getKroxyliciousOperatorWatchedCrb(final String namespaceName, final String koName) {

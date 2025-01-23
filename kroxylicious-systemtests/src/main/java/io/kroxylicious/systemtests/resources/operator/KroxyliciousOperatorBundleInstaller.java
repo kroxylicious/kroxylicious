@@ -28,14 +28,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.PreconditionViolationException;
 
 import io.fabric8.kubernetes.api.model.Namespace;
-import io.fabric8.kubernetes.api.model.NamespaceBuilder;
-import io.fabric8.kubernetes.api.model.ServiceAccount;
-import io.fabric8.kubernetes.api.model.ServiceAccountBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
-import io.fabric8.kubernetes.api.model.rbac.Role;
-import io.fabric8.kubernetes.api.model.rbac.RoleBuilder;
 import io.skodjob.testframe.installation.InstallationMethod;
 
 import io.kroxylicious.systemtests.Constants;
@@ -63,7 +57,8 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     private static final Logger LOGGER = LogManager.getLogger(KroxyliciousOperatorBundleInstaller.class);
     private static final String SEPARATOR = String.join("", Collections.nCopies(76, "="));
 
-    private static KubeClusterResource cluster = KubeClusterResource.getInstance();
+    private static final KubeClusterResource cluster = KubeClusterResource.getInstance();
+    private static List<File> operatorFiles;
 
     private final ExtensionContext extensionContext;
     private String kroxyliciousOperatorName;
@@ -83,6 +78,9 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             && ko.namespaceInstallTo == null &&
             ko.namespaceToWatch == null && ko.bindingsNamespaces == null && ko.operationTimeout == null && ko.reconciliationInterval == null
             && ko.testClassName == null && ko.testMethodName == null;
+
+    private static final Predicate<File> installFiles = file -> !file.getName().contains("Binding") && !file.getName().contains("Deployment");
+    private static final Predicate<File> clusterRoleBindingFiles = file -> file.getName().contains("ClusterRoleBinding");
 
     public KroxyliciousOperatorBundleInstaller() {
         this.namespaceInstallTo = Constants.KO_NAMESPACE;
@@ -128,6 +126,19 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         }
     }
 
+    private static List<File> getOperatorFiles() {
+        if (operatorFiles == null || operatorFiles.isEmpty()) {
+            operatorFiles = Arrays.stream(Objects.requireNonNull(new File(Constants.PATH_TO_OPERATOR_INSTALL_FILES).listFiles())).sorted()
+                    .filter(File::isFile)
+                    .toList();
+        }
+        return operatorFiles;
+    }
+
+    private static List<File> getFilteredOperatorFiles(Predicate<File> predicate) {
+        return getOperatorFiles().stream().filter(predicate).toList();
+    }
+
     private boolean isKroxyliciousOperatorNamespaceNotCreated() {
         return extensionContext == null
                 || extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(Constants.PREPARE_OPERATOR_ENV_KEY + namespaceInstallTo) == null;
@@ -154,81 +165,29 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
      * Configuration files are loaded from kroxylicious-operator directory.
      */
     public void applyClusterOperatorInstallFiles(String namespaceName) {
-        List<File> operatorFiles = Arrays.stream(Objects.requireNonNull(new File(Constants.PATH_TO_OPERATOR_INSTALL_FILES).listFiles())).sorted()
-                .filter(File::isFile)
-                .filter(file -> !file.getName().contains("Binding") && !file.getName().contains("Deployment"))
-                .toList();
-
-        for (File operatorFile : operatorFiles) {
-//            try {
-//                kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).create();
-//            }
-//            catch (FileNotFoundException e) {
-//                throw new UncheckedIOException(e);
-//            }
-
+        for (File operatorFile : getFilteredOperatorFiles(installFiles)) {
             final String resourceType = operatorFile.getName().split("\\.")[1];
 
-            switch (resourceType) {
-                case Constants.NAMESPACE:
-                    Namespace namespace = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, Namespace.class);
-//                    if (!NamespaceUtils.isNamespaceCreated(namespace.getMetadata().getName())) {
-//                        try {
-//                            kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).create();
-//                        }
-//                        catch (FileNotFoundException e) {
-//                            throw new UncheckedIOException(e);
-//                        }
-//                    }
-                    ResourceManager.getInstance().createResourceWithWait(new NamespaceBuilder(namespace)
-                            .editMetadata()
-                            .endMetadata()
-                            .build());
-                    break;
-                case Constants.ROLE:
-                    Role role = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, Role.class);
-                    ResourceManager.getInstance().createResourceWithWait(new RoleBuilder(role)
-                            .editMetadata()
-                            .withNamespace(namespaceName)
-                            .endMetadata()
-                            .build());
-                    break;
-                case Constants.CLUSTER_ROLE:
-                    ClusterRole clusterRole = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile.getAbsolutePath(), ClusterRole.class);
-                    ResourceManager.getInstance().createResourceWithWait(clusterRole);
-                    break;
-                case Constants.SERVICE_ACCOUNT:
-                    ServiceAccount serviceAccount = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, ServiceAccount.class);
-                    ResourceManager.getInstance().createResourceWithWait(new ServiceAccountBuilder(serviceAccount)
-                            .editMetadata()
-                            .withNamespace(namespaceName)
-                            .endMetadata()
-                            .build());
-                    break;
-//                case Constants.CONFIG_MAP_KIND:
-//                    ConfigMap configMap = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, ConfigMap.class);
-//                    ResourceManager.getInstance().createResourceWithWait(new ConfigMapBuilder(configMap)
-//                            .editMetadata()
-//                            .withNamespace(namespaceName)
-//                            .withName(kroxyliciousOperatorName)
-//                            .endMetadata()
-//                            .build());
-//                    break;
-//                case Constants.CUSTOM_RESOURCE_DEFINITION_SHORT:
-//                    CustomResourceDefinition customResourceDefinition = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, CustomResourceDefinition.class);
-//                    ResourceManager.getInstance().createResourceWithWait(customResourceDefinition);
-//                    break;
-                default:
-//                    LOGGER.error("Unknown installation resource type: {}", resourceType);
-//                    throw new UnknownInstallationType("Unknown installation resource type:" + resourceType);
+            if (resourceType.equals(Constants.NAMESPACE)) {
+                Namespace namespace = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, Namespace.class);
+                if (!NamespaceUtils.isNamespaceCreated(namespace.getMetadata().getName())) {
                     try {
-                        kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath()))
-                                .inNamespace(namespaceName)
-                                .create();
+                        kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).create();
                     }
                     catch (FileNotFoundException e) {
                         throw new UncheckedIOException(e);
                     }
+                }
+            }
+            else {
+                try {
+                    kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath()))
+                            .inNamespace(namespaceName)
+                            .create();
+                }
+                catch (FileNotFoundException e) {
+                    throw new UncheckedIOException(e);
+                }
             }
         }
     }
@@ -256,12 +215,12 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
      */
     private void applyCrds() {
         String path = Constants.PATH_TO_OPERATOR + "/src/main/resources/META-INF/fabric8/";
-        List<File> operatorFiles = Arrays.stream(Objects.requireNonNull(new File(path).listFiles())).sorted()
+        List<File> crdFiles = Arrays.stream(Objects.requireNonNull(new File(path).listFiles())).sorted()
                 .filter(File::isFile)
                 .filter(file -> file.getName().contains("-v1"))
                 .toList();
-        for (File operatorFile : operatorFiles) {
-            CustomResourceDefinition customResourceDefinition = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, CustomResourceDefinition.class);
+        for (File crdFile : crdFiles) {
+            CustomResourceDefinition customResourceDefinition = ReadWriteUtils.readObjectFromYamlFilepath(crdFile, CustomResourceDefinition.class);
             ResourceManager.getInstance().createResourceWithWait(customResourceDefinition);
         }
     }
@@ -291,14 +250,9 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     }
 
     private static void applyClusterRoleBindings(String namespace) {
-        ClusterRoleBindingResource.clusterRoleBinding(namespace,
-                Constants.PATH_TO_OPERATOR_INSTALL_FILES + "/02.ClusterRoleBinding.kroxylicious-operator-dependent.yaml");
-        ClusterRoleBindingResource.clusterRoleBinding(namespace,
-                Constants.PATH_TO_OPERATOR_INSTALL_FILES + "/02.ClusterRoleBinding.kroxylicious-operator-filter-record-encryption.yaml");
-        ClusterRoleBindingResource.clusterRoleBinding(namespace,
-                Constants.PATH_TO_OPERATOR_INSTALL_FILES + "/02.ClusterRoleBinding.kroxylicious-operator-filter-record-validation.yaml");
-        ClusterRoleBindingResource.clusterRoleBinding(namespace,
-                Constants.PATH_TO_OPERATOR_INSTALL_FILES + "/02.ClusterRoleBinding.kroxylicious-operator-watched.yaml");
+        for(File clusterRoleBindingFile : getFilteredOperatorFiles(clusterRoleBindingFiles)) {
+            ClusterRoleBindingResource.clusterRoleBinding(namespace, clusterRoleBindingFile.getAbsolutePath());
+        }
     }
 
     @Override
@@ -403,11 +357,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             // clear all resources related to the extension context
             try {
                 if (!Environment.SKIP_TEARDOWN) {
-                    List<File> operatorFiles = Arrays.stream(Objects.requireNonNull(new File(Constants.PATH_TO_OPERATOR_INSTALL_FILES).listFiles())).sorted()
-                            .filter(File::isFile)
-                            .filter(file -> !file.getName().contains("Binding") && !file.getName().contains("Deployment"))
-                            .toList();
-                    for (File operatorFile : operatorFiles) {
+                    for (File operatorFile : getFilteredOperatorFiles(installFiles)) {
                         kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).inAnyNamespace().delete();
                     }
                     ResourceManager.getInstance().deleteResources();

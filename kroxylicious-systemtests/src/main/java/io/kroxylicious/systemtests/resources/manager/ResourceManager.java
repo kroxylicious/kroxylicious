@@ -40,10 +40,6 @@ import io.kroxylicious.systemtests.resources.kroxylicious.SecretResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.ServiceResource;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterOperatorCustomResourceDefinition;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleBindingResource;
-import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleResource;
-import io.kroxylicious.systemtests.resources.kubernetes.NamespaceResource;
-import io.kroxylicious.systemtests.resources.kubernetes.RoleResource;
-import io.kroxylicious.systemtests.resources.kubernetes.ServiceAccountResource;
 import io.kroxylicious.systemtests.resources.operator.BundleResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
@@ -108,10 +104,6 @@ public class ResourceManager {
             new SecretResource(),
             new BundleResource(),
             new ClusterRoleBindingResource(),
-            new RoleResource(),
-            new ClusterRoleResource(),
-            new NamespaceResource(),
-            new ServiceAccountResource(),
             new ClusterOperatorCustomResourceDefinition()
     };
 
