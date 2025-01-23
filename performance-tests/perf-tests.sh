@@ -30,32 +30,21 @@ KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
 DOCKER_REGISTRY="docker.io"
 if [ "${USE_DOCKER_MIRROR}" == "true" ]
 then
-  echo "Setting docker mirror"
   DOCKER_REGISTRY="mirror.gcr.io"
 fi
 
-echo "After Setting docker mirror"
 KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout -pl kroxylicious-systemtests)}
-echo "After Setting Kafka Version $KAFKA_VERSION"
-mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout
 STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
-echo "After Setting Strimzi Version $STRIMZI_VERSION"
 KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
-echo "After Setting KROXYLICIOUS_VERSION $KROXYLICIOUS_VERSION"
 KAFKA_TOOL_IMAGE=${KAFKA_TOOL_IMAGE:-quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}}
-echo "After Setting KAFKA_TOOL_IMAGE $KAFKA_TOOL_IMAGE"
 KAFKA_IMAGE=${KAFKA_IMAGE:-"${DOCKER_REGISTRY}/apache/kafka-native:${KAFKA_VERSION}"}
-echo "After Setting KAFKA_IMAGE $KAFKA_IMAGE"
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-"quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}"}
-echo "Before setting VAULT_IMAGE variable"
 VAULT_IMAGE=${VAULT_IMAGE:-"${DOCKER_REGISTRY}/hashicorp/vault:1.18.3"}
 PERF_NETWORK=performance-tests_perf_network
 CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
 LOADER_DIR=${LOADER_DIR:-"/tmp/asprof-extracted"}
-echo "Before exporting variables"
 export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE VAULT_IMAGE CONTAINER_ENGINE
 
-echo "After exporting variables"
 printf "KAFKA_VERSION: ${KAFKA_VERSION}\n"
 printf "STRIMZI_VERSION: ${STRIMZI_VERSION}\n"
 printf "KROXYLICIOUS_VERSION: ${KROXYLICIOUS_VERSION}\n"
