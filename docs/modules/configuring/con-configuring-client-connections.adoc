@@ -90,7 +90,8 @@ For more information, see the {github-issues}/issues/1637[related issue].
 
 You can restrict the TLS protocols by specifying either an allow list of TLS protocols to be enabled, or a deny list of
 TLS protocols to be disallowed from the platform's default.
-If both an allow and a deny list are specified, the result is the TLS protocols that are in allowed but not in denied.
+If both an allow and a deny list are specified, the resulting TLS protocols list includes only those protocols from the
+allow list that are not in the deny list.
 If neither list is specified, the virtual cluster uses the default TLS protocols provided by the platform.
 
 When the client connects, it negotiates the highest mutually acceptable TLS protocol with the virtual cluster.
@@ -129,7 +130,8 @@ virtualClusters:
 
 You can restrict the TLS cipher suite by specifying either an allow list of cipher suites to be enabled, in preference
 order, or a deny list of ciphers suites to be disallowed from the platform's default.
-If both an allow and a deny list are specified, the result is the cipher suites that are in allowed but not in denied.
+If both an allow and a deny list are specified, the resulting cipher suite list includes only those ciphers from the
+allow list that are not in the deny list.
 If neither list is specified, the virtual cluster uses the default cipher suites (and preference order) provided by the platform.
 
 When the client connects, it negotiates the most preferred mutually acceptable cipher suite with the virtual cluster. 
