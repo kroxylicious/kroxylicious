@@ -40,10 +40,12 @@ KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"
 KAFKA_TOOL_IMAGE=${KAFKA_TOOL_IMAGE:-quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}}
 KAFKA_IMAGE=${KAFKA_IMAGE:-"${DOCKER_REGISTRY}/apache/kafka-native:${KAFKA_VERSION}"}
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-"quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}"}
+echo "Before setting VAULT_IMAGE variable"
 VAULT_IMAGE=${VAULT_IMAGE:-"${DOCKER_REGISTRY}/hashicorp/vault:1.18.3"}
 PERF_NETWORK=performance-tests_perf_network
 CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
 LOADER_DIR=${LOADER_DIR:-"/tmp/asprof-extracted"}
+echo "Before exporting variables"
 export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE VAULT_IMAGE CONTAINER_ENGINE
 
 echo "After exporting variables"
