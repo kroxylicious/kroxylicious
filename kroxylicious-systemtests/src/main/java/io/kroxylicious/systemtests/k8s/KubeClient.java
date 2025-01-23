@@ -20,12 +20,9 @@ import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServiceAccount;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
-import io.fabric8.kubernetes.api.model.rbac.Role;
 import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -203,10 +200,21 @@ public class KubeClient {
         client.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).resource(deployment).create();
     }
 
+    /**
+     * Delete deployment.
+     *
+     * @param namespaceName the namespace name
+     * @param deploymentName the deployment name
+     */
     public void deleteDeployment(String namespaceName, String deploymentName) {
         client.apps().deployments().inNamespace(namespaceName).withName(deploymentName).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
     }
 
+    /**
+     * Update deployment.
+     *
+     * @param deployment the deployment
+     */
     public void updateDeployment(Deployment deployment) {
         client.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).resource(deployment).update();
     }
@@ -221,6 +229,13 @@ public class KubeClient {
         return client.apps().deployments().inNamespace(namespaceName).withName(deploymentName).get();
     }
 
+    /**
+     * Gets deployment name by prefix.
+     *
+     * @param namespaceName the namespace name
+     * @param deploymentNamePrefix the deployment name prefix
+     * @return the deployment name by prefix
+     */
     public String getDeploymentNameByPrefix(String namespaceName, String deploymentNamePrefix) {
         List<Deployment> prefixDeployments = client.apps().deployments().inNamespace(namespaceName).list().getItems().stream().filter(
                 rs -> rs.getMetadata().getName().startsWith(deploymentNamePrefix)).toList();
@@ -289,39 +304,6 @@ public class KubeClient {
     }
 
     /**
-     * Method for creating the specified ServiceAccount.
-     * In case that the ServiceAccount is already created, it is being updated.
-     * This can be caused by not cleared ServiceAccounts from other tests or in case we shut down the test before the cleanup
-     * phase.
-     * The skip of the cleanup phase can then break the CO installation - because the resource already exists.
-     * Without the update, we would need to manually remove all existing resources before running the test again.
-     * It should not have an impact on the functionality, we just update the ServiceAccount.
-     * @param serviceAccount ServiceAccount that we want to create or update
-     */
-    public void createOrUpdateServiceAccount(ServiceAccount serviceAccount) {
-        try {
-            client.serviceAccounts().inNamespace(serviceAccount.getMetadata().getNamespace()).resource(serviceAccount).create();
-        }
-        catch (KubernetesClientException e) {
-            if (e.getCode() == 409) {
-                LOGGER.info("ServiceAccount: {} is already created, going to update it", serviceAccount.getMetadata().getName());
-                client.serviceAccounts().inNamespace(serviceAccount.getMetadata().getNamespace()).resource(serviceAccount).update();
-            }
-            else {
-                throw e;
-            }
-        }
-    }
-
-    public void deleteServiceAccount(ServiceAccount serviceAccount) {
-        client.serviceAccounts().inNamespace(serviceAccount.getMetadata().getNamespace()).resource(serviceAccount).delete();
-    }
-
-    public ServiceAccount getServiceAccount(String namespaceName, String name) {
-        return client.serviceAccounts().inNamespace(namespaceName).withName(name).get();
-    }
-
-    /**
      * Logs in specific namespace string.
      *
      * @param namespaceName the namespace name
@@ -330,43 +312,6 @@ public class KubeClient {
      */
     public String logsInSpecificNamespace(String namespaceName, String podName) {
         return client.pods().inNamespace(namespaceName).withName(podName).getLog();
-    }
-
-    // ===========================
-    // ---------> ROLES <---------
-    // ===========================
-
-    /**
-     * Method for creating the specified ClusterRole.
-     * In case that the ClusterRole is already created, it is being updated.
-     * This can be caused by not cleared ClusterRoles from other tests or in case we shut down the test before the cleanup
-     * phase.
-     * The skip of the cleanup phase can then break the CO installation - because the resource already exists.
-     * Without the update, we would need to manually remove all existing resources before running the test again.
-     * It should not have an impact on the functionality, we just update the ClusterRole.
-     * @param clusterRole ClusterRole that we want to create or update
-     */
-    public void createOrUpdateClusterRoles(ClusterRole clusterRole) {
-        try {
-            client.rbac().clusterRoles().resource(clusterRole).create();
-        }
-        catch (KubernetesClientException e) {
-            if (e.getCode() == 409) {
-                LOGGER.info("ClusterRole: {} is already created, going to update it", clusterRole.getMetadata().getName());
-                client.rbac().clusterRoles().resource(clusterRole).update();
-            }
-            else {
-                throw e;
-            }
-        }
-    }
-
-    public void deleteClusterRole(ClusterRole clusterRole) {
-        client.rbac().clusterRoles().resource(clusterRole).delete();
-    }
-
-    public ClusterRole getClusterRole(String name) {
-        return client.rbac().clusterRoles().withName(name).get();
     }
 
     // ==================================
@@ -423,57 +368,53 @@ public class KubeClient {
         }
     }
 
+    /**
+     * Delete cluster role binding.
+     *
+     * @param clusterRoleBinding the cluster role binding
+     */
     public void deleteClusterRoleBinding(ClusterRoleBinding clusterRoleBinding) {
         client.rbac().clusterRoleBindings().resource(clusterRoleBinding).delete();
     }
 
+    /**
+     * Gets cluster role binding.
+     *
+     * @param name the name
+     * @return the cluster role binding
+     */
     public ClusterRoleBinding getClusterRoleBinding(String name) {
         return client.rbac().clusterRoleBindings().withName(name).get();
     }
 
+    /**
+     * List role bindings list.
+     *
+     * @param namespaceName the namespace name
+     * @return the list
+     */
     public List<RoleBinding> listRoleBindings(String namespaceName) {
         return client.rbac().roleBindings().inNamespace(namespaceName).list().getItems();
     }
 
+    /**
+     * Gets role binding.
+     *
+     * @param name the name
+     * @return the role binding
+     */
     public RoleBinding getRoleBinding(String name) {
         return client.rbac().roleBindings().inNamespace(getNamespace()).withName(name).get();
     }
 
+    /**
+     * Delete role binding.
+     *
+     * @param namespace the namespace
+     * @param name the name
+     */
     public void deleteRoleBinding(String namespace, String name) {
         client.rbac().roleBindings().inNamespace(namespace).withName(name).delete();
-    }
-
-    /**
-     * Method for creating the specified Role.
-     * In case that the Role is already created, it is being updated.
-     * This can be caused by not cleared Roles from other tests or in case we shut down the test before the cleanup
-     * phase.
-     * The skip of the cleanup phase can then break the CO installation - because the resource already exists.
-     * Without the update, we would need to manually remove all existing resources before running the test again.
-     * It should not have an impact on the functionality, we just update the Role.
-     * @param role Role that we want to create or update
-     */
-    public void createOrUpdateRole(Role role) {
-        try {
-            client.rbac().roles().inNamespace(getNamespace()).resource(role).create();
-        }
-        catch (KubernetesClientException e) {
-            if (e.getCode() == 409) {
-                LOGGER.info("Role: {} is already created, going to update it", role.getMetadata().getName());
-                client.rbac().roles().inNamespace(getNamespace()).resource(role).update();
-            }
-            else {
-                throw e;
-            }
-        }
-    }
-
-    public Role getRole(String name) {
-        return client.rbac().roles().inNamespace(getNamespace()).withName(name).get();
-    }
-
-    public void deleteRole(String namespace, String name) {
-        client.rbac().roles().inNamespace(namespace).withName(name).delete();
     }
 
     // =====================================
@@ -505,10 +446,21 @@ public class KubeClient {
         }
     }
 
+    /**
+     * Delete custom resource definition.
+     *
+     * @param resourceDefinition the resource definition
+     */
     public void deleteCustomResourceDefinition(CustomResourceDefinition resourceDefinition) {
         client.apiextensions().v1().customResourceDefinitions().resource(resourceDefinition).delete();
     }
 
+    /**
+     * Gets custom resource definition.
+     *
+     * @param name the name
+     * @return the custom resource definition
+     */
     public CustomResourceDefinition getCustomResourceDefinition(String name) {
         return client.apiextensions().v1().customResourceDefinitions().withName(name).get();
     }
