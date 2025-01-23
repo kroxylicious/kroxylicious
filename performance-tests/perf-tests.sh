@@ -28,8 +28,9 @@ NOCOLOR='\033[0m'
 KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
 
 DOCKER_REGISTRY="docker.io"
-if [ "${USE_DOCKER_MIRROR}" == "true" ] ;
+if [ "${USE_DOCKER_MIRROR}" == "true" ]
 then
+  echo "Setting docker mirror"
   DOCKER_REGISTRY="mirror.gcr.io"
 fi
 
