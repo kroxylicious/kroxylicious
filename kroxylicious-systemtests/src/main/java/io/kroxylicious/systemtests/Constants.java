@@ -123,11 +123,9 @@ public final class Constants {
     public static final String CLUSTER_ROLE = "ClusterRole";
     public static final String CLUSTER_ROLE_BINDING = "ClusterRoleBinding";
     public static final String CONFIG_MAP_KIND = "ConfigMap";
-    public static final String CUSTOM_RESOURCE_DEFINITION_SHORT = "Crd";
     public static final String JOB = "Job";
     public static final String NAMESPACE = "Namespace";
     public static final String POD_KIND = "Pod";
-    public static final String ROLE = "Role";
     public static final String SECRET_KIND = "Secret";
     public static final String SERVICE_KIND = "Service";
     public static final String SERVICE_ACCOUNT = "ServiceAccount";
