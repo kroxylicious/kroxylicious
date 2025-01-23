@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -95,10 +94,6 @@ public class FilterChainFactory implements AutoCloseable {
         }
         else {
             FilterFactoryContext context = new FilterFactoryContext() {
-                @Override
-                public ScheduledExecutorService eventLoop() {
-                    return null;
-                }
 
                 @Override
                 public FilterDispatchExecutor filterDispatchExecutor() {

@@ -6,6 +6,8 @@
 
 # Helm Overrides File for HashiCorp Vault used by the system tests.
 server:
+  image:
+    tag: 1.18.3
   dev:
     enabled: true
   ha:

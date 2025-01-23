@@ -62,20 +62,21 @@ Name                                      Consumed Mi  Consumed Mi/s  Consumed r
 
 The script understands the following environment variables.
 
-| Environment Variable                  | Description                                                                                  |
-|---------------------------------------|----------------------------------------------------------------------------------------------|
-| TEST                                  | Test(s) to run. This is a regular expression that matches the test directories.              |
-| NUM_RECORDS                           | Number of records produced/consumed by the test, defaults to 10000000                        |
-| WARM_UP_NUM_RECORDS_POST_BROKER_START | Warm up records sent after the broker is started, before the first test.                     |
-|                                       | The purpose of this is to ensure that the broker is warm.                                    |
-| WARM_UP_NUM_RECORDS_PRE_TEST          | Warm up records sent before each test.                                                       |
-|                                       | The purpose of this is to ensure that the proxy is warm.                                     |
-| RECORD_SIZE                           | Record size in bytes, defaults to 1024                                                       |
-| KROXYLICIOUS_IMAGE                    | Kroxylicious image.  Defaults to the last snapshot image produced from main by CI            |
-| KAFKA_IMAGE                           | Kafka native image.  Defaults to use the image that match the `kafka.version' of the project |
-| KAFKA_TOOL_IMAGE                      | Kafka tooling image.  Defaults to use Kafka image published by the Strimzi project that      |
-|                                       | `strimzi.version` property of the project.                                                   |
-| VAULT_IMAGE                           | HashiCorp Vault image. Defaults to `docker.io/hashicorp/vault:1.15`                          |
+| Environment Variable                   | Description                                                                                  |
+|----------------------------------------|----------------------------------------------------------------------------------------------|
+| TEST                                   | Test(s) to run. This is a regular expression that matches the test directories.              |
+| NUM_RECORDS                            | Number of records produced/consumed by the test, defaults to 10000000                        |
+| WARM_UP_NUM_RECORDS_POST_BROKER_START  | Warm up records sent after the broker is started, before the first test.                     |
+|                                        | The purpose of this is to ensure that the broker is warm.                                    |
+| WARM_UP_NUM_RECORDS_PRE_TEST           | Warm up records sent before each test.                                                       |
+|                                        | The purpose of this is to ensure that the proxy is warm.                                     |
+| RECORD_SIZE                            | Record size in bytes, defaults to 1024                                                       |
+| KROXYLICIOUS_IMAGE                     | Kroxylicious image.  Defaults to the last snapshot image produced from main by CI            |
+| KAFKA_IMAGE                            | Kafka native image.  Defaults to use the image that match the `kafka.version' of the project |
+| KAFKA_TOOL_IMAGE                       | Kafka tooling image.  Defaults to use Kafka image published by the Strimzi project that      |
+|                                        | `strimzi.version` property of the project.                                                   |
+| VAULT_IMAGE                            | HashiCorp Vault image.                                                                       |
+| USE_DOCKER_MIRROR                      | If `true` uses the gcr mirror to access docker images, otherwise uses docker hub repository  |
 
 # Jenkins pipeline for performance
 

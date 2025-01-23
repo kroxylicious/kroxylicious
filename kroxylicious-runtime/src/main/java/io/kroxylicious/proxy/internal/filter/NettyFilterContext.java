@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
-import java.util.concurrent.ScheduledExecutorService;
-
 import io.netty.channel.EventLoop;
 
 import io.kroxylicious.proxy.config.PluginFactory;
@@ -26,11 +24,6 @@ public class NettyFilterContext implements FilterFactoryContext {
                               PluginFactoryRegistry pluginFactoryRegistry) {
         this.dispatchExecutor = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
         this.pluginFactoryRegistry = pluginFactoryRegistry;
-    }
-
-    @Override
-    public ScheduledExecutorService eventLoop() {
-        return filterDispatchExecutor();
     }
 
     @Override
