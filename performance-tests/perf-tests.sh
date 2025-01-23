@@ -27,24 +27,30 @@ NOCOLOR='\033[0m'
 
 KROXYLICIOUS_CHECKOUT=${KROXYLICIOUS_CHECKOUT:-${PERF_TESTS_DIR}/..}
 
+DOCKER_REGISTRY="docker.io"
+if [ "${USE_DOCKER_MIRROR}" == "true" ]
+then
+  DOCKER_REGISTRY="mirror.gcr.io"
+fi
+
 KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout -pl kroxylicious-systemtests)}
 STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
 KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
 KAFKA_TOOL_IMAGE=${KAFKA_TOOL_IMAGE:-quay.io/strimzi/kafka:${STRIMZI_VERSION}-kafka-${KAFKA_VERSION}}
-KAFKA_IMAGE=${KAFKA_IMAGE:-"apache/kafka-native:${KAFKA_VERSION}"}
+KAFKA_IMAGE=${KAFKA_IMAGE:-"${DOCKER_REGISTRY}/apache/kafka-native:${KAFKA_VERSION}"}
 KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE:-"quay.io/kroxylicious/kroxylicious:${KROXYLICIOUS_VERSION}"}
+VAULT_IMAGE=${VAULT_IMAGE:-"${DOCKER_REGISTRY}/hashicorp/vault:1.18.3"}
 PERF_NETWORK=performance-tests_perf_network
 CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
 LOADER_DIR=${LOADER_DIR:-"/tmp/asprof-extracted"}
-export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE CONTAINER_ENGINE
-
-
+export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE VAULT_IMAGE CONTAINER_ENGINE
 
 printf "KAFKA_VERSION: ${KAFKA_VERSION}\n"
 printf "STRIMZI_VERSION: ${STRIMZI_VERSION}\n"
 printf "KROXYLICIOUS_VERSION: ${KROXYLICIOUS_VERSION}\n"
 printf "KAFKA_IMAGE: ${KAFKA_IMAGE}\n"
 printf "KROXYLICIOUS_IMAGE: ${KROXYLICIOUS_IMAGE}\n"
+printf "VAULT_IMAGE: ${VAULT_IMAGE}\n"
 
 
 runDockerCompose () {
