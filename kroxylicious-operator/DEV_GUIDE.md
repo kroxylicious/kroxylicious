@@ -47,13 +47,14 @@ Building the operator distribution
 mvn package
 ````
 
-should produce a `target/kroxylicious-operator-0.10.0-SNAPSHOT-bin` directory.
+should produce a directory matching `target/kroxylicious-operator-*-SNAPSHOT-bin`.
 
 Build the operator image. For development purposes you can use the minikube registry directly using `minikube image build`, which will be faster than alternatives like pushing to quay.io from your host only for kube to pull the same image right back when you deploy the operator.
 
 ```bash
+KROXYLICIOUS_VERSION=$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version --quiet -DforceStdout)
 minikube image build -f Dockerfile.operator  .. -t quay.io/kroxylicious/operator:latest \
---build-opt=build-arg=KROXYLICIOUS_VERSION=0.10.0-SNAPSHOT
+--build-opt=build-arg=KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}
 ```
 
 ## Installing the operator

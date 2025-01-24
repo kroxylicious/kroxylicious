@@ -13,14 +13,14 @@ metadata:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
     app.kubernetes.io/part-of: "kafka"
-    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
-  name: "minimal"
+  name: "example"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "minimal"
+      name: "example"
 spec:
   replicas: 1
   selector:
@@ -33,7 +33,7 @@ spec:
     spec:
       containers:
         - name: "proxy"
-          image: "quay.io/kroxylicious/kroxylicious:0.10.0-SNAPSHOT"
+          image: "quay.io/kroxylicious/kroxylicious:${project.version}"
           args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
@@ -51,4 +51,4 @@ spec:
       volumes:
         - name: "config-volume"
           secret:
-            secretName: "minimal"
+            secretName: "example"

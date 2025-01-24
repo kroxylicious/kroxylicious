@@ -13,14 +13,14 @@ metadata:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
     app.kubernetes.io/part-of: "kafka"
-    app.kubernetes.io/instance: "example"
+    app.kubernetes.io/instance: "use-pod-template-spec"
     app.kubernetes.io/component: "proxy"
-  name: "example"
-  namespace: "proxy-ns"
+  name: "use-pod-template-spec"
+  namespace: proxy-ns
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "example"
+      name: "use-pod-template-spec"
 spec:
   replicas: 1
   selector:
@@ -29,11 +29,12 @@ spec:
   template:
     metadata:
       labels:
+        environment: "production-from-podTemplate"
         app: "kroxylicious"
     spec:
       containers:
         - name: "proxy"
-          image: "quay.io/kroxylicious/kroxylicious:0.10.0-SNAPSHOT"
+          image: "quay.io/kroxylicious/kroxylicious:${project.version}"
           args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
@@ -51,4 +52,4 @@ spec:
       volumes:
         - name: "config-volume"
           secret:
-            secretName: "example"
+            secretName: "use-pod-template-spec"
