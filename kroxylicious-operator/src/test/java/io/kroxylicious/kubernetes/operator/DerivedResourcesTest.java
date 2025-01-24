@@ -169,7 +169,7 @@ class DerivedResourcesTest {
     }
 
     Stream<DynamicContainer> dependentResourcesShouldEqual(List<DesiredFn<KafkaProxy, ?>> list) {
-        var dir = Path.of("src", "test", "resources", DerivedResourcesTest.class.getSimpleName());
+        var dir = Path.of("target", "test-classes", DerivedResourcesTest.class.getSimpleName());
         return filesInDir(dir, Pattern.compile(".*")).stream()
                 .map(testDir -> {
                     String testCase = fileName(testDir);
