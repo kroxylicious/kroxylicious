@@ -2,15 +2,24 @@
 = Securing connections to target clusters
 
 [role="_abstract"]
-To secure a virtual cluster connection to a target cluster, configure TLS on the virtual cluster.
-The target cluster must already be configured to use TLS. 
+To secure connections from the virtual cluster to the upstream cluster, configure the target cluster's TLS setting by
+doing the following:
 
-Specify TLS for the virtual cluster configuration using `targetCluster.tls` properties 
+* If the upstream is using a private CA, use the `trust` properties to configure a truststore for the target cluster.
 
-Use an empty object (`{}`) to inherit trust from the underlying platform on which the cluster is running. 
-This option is suitable if the target cluster is using a TLS certificate signed by a public CA.
+* If you want to use mutual TLS, specify the certificate with the `key` property to identify the virtual cluster to the upstream.
 
-.Example target cluster configuration for TLS
+* If required, you can restrict the TLS protocols and cipher suites that are used to form the TLS connection.
+
+NOTE: TLS is recommended on Kafka clients and virtual clusters for production configurations.
+
+Examples below illustrate how these steps may be done.
+
+Using an empty object (`{}`) enables TLS using the platform's defaults. This means that platform trust, and
+default protocols and cipher suites will be used. This option is suitable if the upstream cluster is using a TLS
+certificate signed by a public CA and the platform's defaults are suitable.
+
+.Example enabling TLS for a target cluster using platform defaults
 [source,yaml]
 ----
 virtualClusters:
@@ -22,8 +31,9 @@ virtualClusters:
 ----
 
 If it is using a TLS certificate signed by a private CA, you must add truststore configuration for the target cluster.
+The example illustrates using PKCS #12 format. PEM format is supported too.
 
-.Example truststore configuration for a target cluster
+.Example specifying a truststore
 [source,yaml]
 ----
 virtualClusters:
@@ -42,36 +52,105 @@ virtualClusters:
 <2> Password to access the public Kafka cluster CA certificate.
 <3> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
 
-For mTLS, you can add keystore configuration for the virtual cluster too.
+For mutual TLS, add a keystore configuration for the virtual cluster.  
+The following example uses a PEM format server certificate and key pair. 
+PKCS #12 keystore format is supported too.
 
-.Example keystore and truststore configuration for mTLS
+.Example configuring mutual TLS
 [source,yaml]
 ----
 virtualClusters:
   my-cluster-proxy:
     targetCluster:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093:9092
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
         key:
           privateKeyFile: <path>/client.key # <1>
           certificateFile: <path>/client.crt # <2>
-        trust:
-          storeFile: <path>/server.crt
-          storeType: PEM
 # ...
 ----
 <1> Private key of the virtual cluster.
 <2> Public CA certificate of the virtual cluster.
 
-For the purposes of testing outside of a production environment, you can set the `insecure` property to `true` to turn off TLS so that the Kroxylicious can connect to any Kafka cluster.
+The TLS protocols and cipher suites available to the TLS connection may also be configured.
 
-.Example  configuration to turn off TLS
+.Example restricting TLS protocols using an allow list
 [source,yaml]
 ----
 virtualClusters:
   my-cluster-proxy:
     targetCluster:
-      bootstrapServers: myprivatecluster:9092
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        # ...
+        protocols:
+          allow:  # <1>
+          - TLSv1.3
+          - TLSv1.2
+----
+<1> List of allowed TLS protocols.
+
+.Example restricting TLS protocols using a deny list
+
+[source,yaml]
+----
+virtualClusters:
+  my-cluster-proxy:
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        # ...
+        protocols:
+          allow:  # <1>
+          - TLSv1.1
+----
+<1> List of disallowed TLS protocols.
+
+.Example restricting cipher suites using an allow list
+
+[source,yaml]
+----
+virtualClusters:
+  my-cluster-proxy:
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        # ...
+        protocols:
+          allowed:  # <1>
+          - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
+          - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+----
+<1> List of allowed cipher suites.
+
+.Example restricting cipher suites using a deny list
+
+[source,yaml]
+----
+virtualClusters:
+  demo:
+  my-cluster-proxy:
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+      tls:
+        # ...
+        protocols:
+          deny:  # <1>
+          - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
+----
+<1> List of disallowed cipher suites.
+
+For the purposes of testing (that is, outside a production environment), you can set the `insecure` property to `true`
+to disable TLS trust checks (hostname verification and certificate validation) so that the Kroxylicious can connect to
+any Kafka cluster.
+
+.Example configuration to disable TLS trust checks
+[source,yaml]
+----
+virtualClusters:
+  my-cluster-proxy:
+    targetCluster:
+      bootstrapServers: dev-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
         trust:
           insecure: true                                

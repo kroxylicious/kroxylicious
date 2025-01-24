@@ -2,7 +2,7 @@
 = Securing connections from clients
 
 [role="_abstract"]
-To secure client connections to virtual clusters, configure TLS on the virtual cluster by doing the following:
+To secure client connections to virtual clusters, configure TLS within the virtual cluster by doing the following:
 
 * Obtain a server certificate for the virtual cluster from a Certificate Authority (CA). +
 Ensure the certificate matches the names of the virtual cluster's bootstrap and broker addresses. +
@@ -11,11 +11,15 @@ This may require wildcard certificates and Subject Alternative Names (SANs).
 * Provide the TLS configuration using the `tls` properties in the virtual cluster's configuration to enable it to present the certificate to clients. 
 Depending on your certificate format, apply one of the following examples.
 
-* For mutual TLS, you may also use the `trust` properties to configure the virtual cluster to use TLS client authentication.
+* For mutual TLS, use the `trust` properties to configure the virtual cluster to use TLS client authentication.
+
+* If required, you can restrict the TLS protocols and cipher suites that are used to form the TLS connection.
+
+Examples below illustrate how these steps may be done.
 
 NOTE: TLS is recommended on Kafka clients and virtual clusters for production configurations.
 
-.Example PKCS #12 configuration
+.Example applying a PKCS #12 server certificate to a virtual cluster
 [source,yaml]
 ----
 virtualClusters:
@@ -35,7 +39,7 @@ virtualClusters:
 <3> (Optional) Password for the key. If a password is not specified, the keystore’s password is used to decrypt the key too.
 <4> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
 
-.Example PEM configuration
+.Example applying a PEM server certificate and key pair to a virtual cluster
 [source,yaml]
 ----
 virtualClusters:
@@ -56,7 +60,7 @@ You can configure the virtual cluster to require that clients present a certific
 The virtual cluster verifies that the client's certificate is signed by one of the CA certificates contained in a trust store.  
 If verification fails, the client's connection is refused.
 
-.Example to configure TLS client authentication using PKCS12 trust store
+.Example applying TLS client authentication using a PKCS #12 truststore
 [source,yaml]
 ----
 virtualClusters:
@@ -65,7 +69,7 @@ virtualClusters:
       key:
         # ...
       trust:
-        storeFile: <path>/trust.p12 #1 <1>
+        storeFile: <path>/trust.p12 # <1>
         storePassword:
           passwordFile: <path>/trust.password # <2>
         storeType: PKCS12 # <3>
@@ -82,4 +86,84 @@ If set to `REQUESTED`, the client is requested to present a certificate. If pres
 If set to `NONE`, client authentication is disabled.
 
 NOTE: The client's identity, as established through TLS client authentication, is currently not relayed to the target cluster. 
-For more information, see the https://github.com/kroxylicious/kroxylicious/issues/1637[related issue].
+For more information, see the {github-issues}/issues/1637[related issue].
+
+You can restrict the TLS protocols by specifying either an allow list of TLS protocols to be enabled, or a deny list of
+TLS protocols to be disallowed from the platform's default.
+If both an allow and a deny list are specified, the resulting list of TLS protocols includes only those protocols from the
+allow list that are not in the deny list.
+If neither list is specified, the virtual cluster uses the default TLS protocols provided by the platform.
+
+When the client connects, it negotiates the highest mutually acceptable TLS protocol with the virtual cluster.
+If the two have no protocols in common, the connection fails.
+
+The names of the TLS protocols are defined by {java-17-specs}/security/standard-names.html#sslcontext-algorithms[Java specification].
+
+.Example restricting TLS protocols using an allow list
+
+[source,yaml]
+----
+virtualClusters:
+  demo:
+    tls:
+      # ...
+      protocols:
+        allow:  # <1>
+        - TLSv1.3
+        - TLSv1.2
+----
+<1> List of allowed TLS protocols.
+
+.Example restricting TLS protocols using a deny list
+
+[source,yaml]
+----
+virtualClusters:
+  demo:
+    tls:
+      # ...
+      protocols:
+        deny:  # <1>
+        - TLSv1.1
+----
+<1> List of disallowed TLS protocols.
+
+You can restrict the TLS cipher suite by specifying either an allow list of cipher suites to be enabled, in preference
+order, or a deny list of ciphers suites to be disallowed from the platform's default.
+If both an allow and a deny list are specified, the resulting list of cipher suites includes only those ciphers from the
+allow list that are not in the deny list.
+If neither list is specified, the virtual cluster uses the default cipher suites (and preference order) provided by the platform.
+
+When the client connects, it negotiates the most preferred mutually acceptable cipher suite with the virtual cluster. 
+If the two have no cipher suites in common, the connection fails.
+
+The names of the cipher suite are defined by {java-17-specs}/security/standard-names.html#jsse-cipher-suite-names[Java specification].
+
+.Example restricting cipher suites using an allow list
+
+[source,yaml]
+----
+virtualClusters:
+  demo:
+    tls:
+      # ...
+      protocols:
+        allowed:  # <1>
+        - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
+        - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+----
+<1> List of allowed cipher suites in preference order.
+
+.Example restricting cipher suites using a deny list
+
+[source,yaml]
+----
+virtualClusters:
+  demo:
+    tls:
+      # ...
+      protocols:
+        deny:  # <1>
+        - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
+----
+<1> List of disallowed cipher suites.
