@@ -250,7 +250,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     }
 
     private static void applyClusterRoleBindings(String namespace) {
-        for(File clusterRoleBindingFile : getFilteredOperatorFiles(clusterRoleBindingFiles)) {
+        for (File clusterRoleBindingFile : getFilteredOperatorFiles(clusterRoleBindingFiles)) {
             ClusterRoleBindingResource.clusterRoleBinding(namespace, clusterRoleBindingFile.getAbsolutePath());
         }
     }
