@@ -22,7 +22,7 @@
         value: downstream
       - op: replace
         path: "/coordinators/0/port"
-        value: 19199
+        value: 19200
   disabled: false
 - apiMessageType: FIND_COORDINATOR
   version: 3
@@ -40,5 +40,5 @@
         value: downstream
       - op: replace
         path: "/port"
-        value: 19199
+        value: 19200
   disabled: false

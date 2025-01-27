@@ -101,6 +101,17 @@ class ConfigParserTest {
                                 bootstrapAddress: cluster1:9192
                                 brokerAddressPattern: broker-$(nodeId)
                         """),
+                Arguments.of("Virtual cluster (SniRouting) advertised port", """
+                        virtualClusters:
+                          demo1:
+                            targetCluster:
+                              bootstrapServers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: SniRoutingClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: cluster1:9192
+                                advertisedBrokerAddressPattern: brozker-$(nodeId):23
+                        """),
                 Arguments.of("Downstream/Upstream TLS with inline passwords", """
                         virtualClusters:
                           demo1:

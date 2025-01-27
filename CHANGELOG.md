@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1761](https://github.com/kroxylicious/kroxylicious/pull/1761) SNI exposition: user can control advertised broker port
 * [#1766](https://github.com/kroxylicious/kroxylicious/issues/1766) Bump apicurio-registry.version from 2.6.6.Final to 2.6.7.Final
 * [#1380](https://github.com/kroxylicious/kroxylicious/issues/1380) Deprecated FilterFactoryContext#eventLoop() is removed.
 * [#1747](https://github.com/kroxylicious/kroxylicious/pull/1747) Bump io.micrometer:micrometer-bom from 1.14.2 to 1.14.3
@@ -25,6 +26,9 @@ Format `<github issue/pr number>: <short description>`.
 * The `bootstrap_servers` property of a virtual cluster's `targetCluster` is deprecated. It is replaced by a property called `bootstrapServers`.
 * As per deprecation notice made at 0.7.0, `ProduceValidationFilterFactory` filter is removed.  Use `RecordValidation` instead.
 * As per deprecation notice made at 0.7.0, `FilterFactoryContext#eventLoop()` is removed. Use `FilterFactoryContext#filterDispatchExecutor()` instead..
+* SniRoutingClusterNetworkAddressConfigProvider configuration property `brokerAddressPattern` is deprecated. It is replaced by a property called
+`advertisedBrokerAddressPattern`. These properties now also support the user optionally specifying a port, which will be the port advertised to
+Kafka clients. This is to enable use-cases where Kroxylicious is behind some other proxy technology using a different port scheme.
 
 ## 0.9.0
 
