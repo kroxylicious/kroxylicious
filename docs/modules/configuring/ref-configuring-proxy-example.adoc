@@ -30,7 +30,7 @@ adminHttp: # <1>
           type: SniRoutingClusterNetworkAddressConfigProvider # <7>
           Config:
             bootstrapAddress: my-cluster-proxy.kafka:9092 # <8>
-            brokerAddressPattern: broker$(nodeId).my-cluster-proxy.kafka
+            advertisedBrokerAddressPattern: broker$(nodeId).my-cluster-proxy.kafka
         logNetwork: false # <9>
         logFrames: false
         tls: # <10>
