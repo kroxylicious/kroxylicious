@@ -73,7 +73,7 @@
         <awaitility.version>4.2.2</awaitility.version>
         <commons.io.version>2.18.0</commons.io.version>
         <testcontainers.version>1.20.4</testcontainers.version>
-        <bouncycastle.version>1.79</bouncycastle.version>
+        <bouncycastle.version>1.80</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.0.5</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.10.0</wiremock.version>
         <docker-java.version>3.4.1</docker-java.version>
