@@ -27,6 +27,7 @@
         <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <jacoco.argline/>
 
         <skipTests>false</skipTests>
         <skipITs>${skipTests}</skipITs>
@@ -745,6 +746,9 @@
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco-maven-plugin.version}</version>
+                    <configuration>
+                        <propertyName>jacoco.argline</propertyName>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>com.github.siom79.japicmp</groupId>
