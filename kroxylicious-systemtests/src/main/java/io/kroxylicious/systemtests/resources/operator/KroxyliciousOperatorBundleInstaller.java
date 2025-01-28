@@ -31,12 +31,12 @@ import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.skodjob.testframe.installation.InstallationMethod;
+import io.skodjob.testframe.resources.ResourceItem;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
-import io.kroxylicious.systemtests.resources.ResourceItem;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleBindingResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kubernetes.ClusterRoleBindingTemplates;

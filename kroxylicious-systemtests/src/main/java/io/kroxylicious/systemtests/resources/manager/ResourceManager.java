@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.skodjob.testframe.resources.ResourceItem;
 import io.strimzi.api.kafka.model.common.Spec;
 import io.strimzi.api.kafka.model.kafka.Status;
 import io.strimzi.api.kafka.model.topic.KafkaTopic;
@@ -31,7 +32,6 @@ import io.kroxylicious.systemtests.k8s.HelmClient;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.ResourceCondition;
-import io.kroxylicious.systemtests.resources.ResourceItem;
 import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
 import io.kroxylicious.systemtests.resources.kroxylicious.ConfigMapResource;
@@ -223,7 +223,7 @@ public class ResourceManager {
                 ResourceItem<?> resourceItem = stack.pop();
 
                 try {
-                    resourceItem.getThrowableRunner().run();
+                    resourceItem.throwableRunner().run();
                 }
                 catch (Exception e) {
                     LOGGER.atTrace().log(Arrays.toString(e.getStackTrace()));
@@ -244,13 +244,13 @@ public class ResourceManager {
 
         // sync all resources
         for (ResourceItem<?> resource : resources) {
-            if (resource.getResource() == null) {
+            if (resource.resource() == null) {
                 continue;
             }
-            ResourceType<T> type = findResourceType((T) resource.getResource());
+            ResourceType<T> type = findResourceType((T) resource.resource());
 
             assert type != null;
-            waitResourceCondition((T) resource.getResource(), ResourceCondition.readiness(type));
+            waitResourceCondition((T) resource.resource(), ResourceCondition.readiness(type));
         }
     }
 
