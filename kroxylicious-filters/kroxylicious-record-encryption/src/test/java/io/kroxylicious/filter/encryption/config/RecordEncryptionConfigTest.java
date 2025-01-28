@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -103,6 +104,18 @@ class RecordEncryptionConfigTest {
         assertThatThrownBy(config::kmsCache).isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    void defaultUnresolvedEncryptionPolicy() {
+        RecordEncryptionConfig config = new RecordEncryptionConfig("kms", 1L, "selector", 2L, Map.of(), null);
+        assertThat(config.unresolvedKeyPolicy()).isEqualTo(UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+    }
+
+    @Test
+    void specifiedUnresolvedEncryptionPolicy() {
+        RecordEncryptionConfig config = new RecordEncryptionConfig("kms", 1L, "selector", 2L, Map.of(), UnresolvedKeyPolicy.REJECT);
+        assertThat(config.unresolvedKeyPolicy()).isEqualTo(UnresolvedKeyPolicy.REJECT);
+    }
+
     private static @NonNull KmsCacheConfig getKmsCacheConfig(String key, Object value) {
         HashMap<String, Object> map = new HashMap<>();
         map.put(key, value);
@@ -111,7 +124,7 @@ class RecordEncryptionConfigTest {
     }
 
     private static @NonNull RecordEncryptionConfig createConfig(Map<String, Object> map) {
-        return new RecordEncryptionConfig("kms", 1L, "selector", 2L, map);
+        return new RecordEncryptionConfig("kms", 1L, "selector", 2L, map, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
     }
 
 }
