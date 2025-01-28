@@ -42,7 +42,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
+public class VirtualCluster {
     public static final int DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES = 104857600;
     private final String clusterName;
 
@@ -178,42 +178,34 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                 '}';
     }
 
-    @Override
     public HostPort getClusterBootstrapAddress() {
         return clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
     }
 
-    @Override
     public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
         return clusterNetworkAddressConfigProvider.getBrokerAddress(nodeId);
     }
 
-    @Override
     public Optional<String> getBindAddress() {
         return clusterNetworkAddressConfigProvider.getBindAddress();
     }
 
-    @Override
     public boolean requiresTls() {
         return clusterNetworkAddressConfigProvider.requiresTls();
     }
 
-    @Override
     public Set<Integer> getExclusivePorts() {
         return clusterNetworkAddressConfigProvider.getExclusivePorts();
     }
 
-    @Override
     public Set<Integer> getSharedPorts() {
         return clusterNetworkAddressConfigProvider.getSharedPorts();
     }
 
-    @Override
     public Map<Integer, HostPort> discoveryAddressMap() {
         return clusterNetworkAddressConfigProvider.discoveryAddressMap();
     }
 
-    @Override
     public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
         return clusterNetworkAddressConfigProvider.getBrokerIdFromBrokerAddress(brokerAddress);
     }
@@ -355,7 +347,6 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         return filters;
     }
 
-    @Override
     public HostPort getAdvertisedBrokerAddress(int nodeId) {
         return clusterNetworkAddressConfigProvider.getAdvertisedBrokerAddress(nodeId);
     }
