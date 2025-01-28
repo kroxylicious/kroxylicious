@@ -26,6 +26,11 @@ class KeyPairTest {
             public KeyPair visit(KeyStore keyStore) {
                 throw new RuntimeException("unexpected call to visit(KeyStore)");
             }
+
+            @Override
+            public KeyPair visit(KeyPairSet keyPairSet) {
+                throw new RuntimeException("unexpected call to visit(KeyPairSet)");
+            }
         });
         assertThat(result).isSameAs(keyProvider);
     }

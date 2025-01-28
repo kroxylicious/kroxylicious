@@ -53,6 +53,11 @@ class KeyStoreTest {
             public KeyStore visit(KeyStore keyStore) {
                 return keyStore;
             }
+
+            @Override
+            public KeyStore visit(KeyPairSet keyPairSet) {
+                throw new RuntimeException("unexpected call to visit(KeyPairSet)");
+            }
         });
         assertThat(result).isSameAs(keyProvider);
     }

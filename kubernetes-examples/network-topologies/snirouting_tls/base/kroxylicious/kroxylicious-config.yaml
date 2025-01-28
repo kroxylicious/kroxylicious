@@ -32,6 +32,30 @@ data:
         logFrames: false
         tls:
           key:
-            storeFile: /opt/kroxylicious/server/key-material/keystore.p12
-            storePassword:
-              passwordFile: /opt/kroxylicious/server/keystore-password/storePassword
+            keyPairs:
+              - privateKeyFile: /opt/kroxylicious/server/key-material/tls.key
+                certificateFile: /opt/kroxylicious/server/key-material/tls.crt
+              - privateKeyFile: /opt/kroxylicious/server/key-material-2/tls.key
+                certificateFile: /opt/kroxylicious/server/key-material-2/tls.crt
+      my-cluster-proxy-2:
+        targetCluster:
+          bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+          tls:
+            trust:
+              storeFile: /opt/kroxylicious/trust/ca.p12
+              storePassword:
+                passwordFile: /opt/kroxylicious/trust/ca.password
+        clusterNetworkAddressConfigProvider:
+          type: SniRoutingClusterNetworkAddressConfigProvider
+          config:
+            bootstrapAddress: mycluster-proxy-2.kafka:9092
+            brokerAddressPattern: broker$(nodeId).mycluster-proxy-2.kafka
+        logNetwork: false
+        logFrames: false
+        tls:
+          key:
+            keyPairs:
+              - privateKeyFile: /opt/kroxylicious/server/key-material/tls.key
+                certificateFile: /opt/kroxylicious/server/key-material/tls.crt
+              - privateKeyFile: /opt/kroxylicious/server/key-material-2/tls.key
+                certificateFile: /opt/kroxylicious/server/key-material-2/tls.crt

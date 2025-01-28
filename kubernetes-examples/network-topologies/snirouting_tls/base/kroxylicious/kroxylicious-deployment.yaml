@@ -40,6 +40,9 @@ spec:
         - name: kroxy-server-key-material-volume
           readOnly: true
           mountPath: /opt/kroxylicious/server/key-material
+        - name: kroxy-server-key-material-volume-2
+          readOnly: true
+          mountPath: /opt/kroxylicious/server/key-material-2
         - name: kroxy-server-keystore-password-volume
           readOnly: true
           mountPath: /opt/kroxylicious/server/keystore-password
@@ -53,6 +56,9 @@ spec:
       - name: kroxy-server-key-material-volume
         secret:
           secretName: kroxy-server-key-material
+      - name: kroxy-server-key-material-volume-2
+        secret:
+          secretName: kroxy-server-key-material-2
       - name: kroxy-server-keystore-password-volume
         secret:
           secretName: kroxy-server-keystore-password

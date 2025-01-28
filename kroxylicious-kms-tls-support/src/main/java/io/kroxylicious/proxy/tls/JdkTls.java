@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyPairSet;
 import io.kroxylicious.proxy.config.tls.KeyProvider;
 import io.kroxylicious.proxy.config.tls.KeyProviderVisitor;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
@@ -127,6 +128,11 @@ public record JdkTls(Tls tls) {
                 catch (Exception e) {
                     throw new SslConfigurationException(e);
                 }
+            }
+
+            @Override
+            public KeyManager[] visit(KeyPairSet keyPairSet) {
+                throw new SslConfigurationException("KeyPairSet is not supported by vault KMS yet");
             }
 
             @Nullable
