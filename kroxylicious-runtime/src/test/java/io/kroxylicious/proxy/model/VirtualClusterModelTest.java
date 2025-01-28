@@ -81,7 +81,7 @@ class VirtualClusterModelTest {
     @Test
     void delegatesToProviderForAdvertisedPort() {
         ClusterNetworkAddressConfigProvider mock = Mockito.mock(ClusterNetworkAddressConfigProvider.class);
-        VirtualClusterModel cluster = new VirtualClusterModel("cluster", new TargetCluster("bootstrap:9092", Optional.empty()), mock, Optional.empty(), false, false);
+        VirtualClusterModel cluster = new VirtualClusterModel("cluster", new TargetCluster("bootstrap:9092", Optional.empty()), mock, Optional.empty(), false, false, List.of());
         HostPort advertisedHostPort = new HostPort("broker", 55);
         when(mock.getAdvertisedBrokerAddress(0)).thenReturn(advertisedHostPort);
         assertThat(cluster.getAdvertisedBrokerAddress(0)).isEqualTo(advertisedHostPort);
@@ -97,10 +97,7 @@ class VirtualClusterModelTest {
 
         // When
 
-        final VirtualClusterModel virtualClusterModel = new VirtualClusterModel("wibble", new TargetCluster("bootstrap:9092", downstreamTls),
-                clusterNetworkAddressConfigProvider,
-                downstreamTls, false,
-                false);
+        final VirtualClusterModel virtualClusterModel = new VirtualClusterModel("wibble", new TargetCluster("bootstrap:9092", downstreamTls), clusterNetworkAddressConfigProvider, downstreamTls, false, false, List.of());
 
         // Then
         assertThat(virtualClusterModel).isNotNull().extracting("downstreamSslContext").isNotNull();
@@ -140,8 +137,7 @@ class VirtualClusterModelTest {
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
 
         // When
-        final VirtualClusterModel virtualClusterModel = new VirtualClusterModel("wibble", targetCluster, clusterNetworkAddressConfigProvider, downstreamTls, false,
-                false);
+        final VirtualClusterModel virtualClusterModel = new VirtualClusterModel("wibble", targetCluster, clusterNetworkAddressConfigProvider, downstreamTls, false, false, List.of());
 
         // Then
         assertThat(virtualClusterModel)
@@ -165,8 +161,7 @@ class VirtualClusterModelTest {
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", downstreamTls);
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualClusterModel("wibble", targetCluster, clusterNetworkAddressConfigProvider, Optional.empty(), false,
-                false))
+        assertThatThrownBy(() -> new VirtualClusterModel("wibble", targetCluster, clusterNetworkAddressConfigProvider, Optional.empty(), false, false, List.of()))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");
     }
@@ -190,8 +185,7 @@ class VirtualClusterModelTest {
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
 
         // When
-        final VirtualClusterModel virtualClusterModel = new VirtualClusterModel("wibble", targetCluster, clusterNetworkAddressConfigProvider, tls, false,
-                false);
+        final VirtualClusterModel virtualClusterModel = new VirtualClusterModel("wibble", targetCluster, clusterNetworkAddressConfigProvider, tls, false, false, List.of());
 
         // Then
         assertThat(virtualClusterModel)
@@ -225,8 +219,7 @@ class VirtualClusterModelTest {
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", Optional.empty());
 
         // When
-        final VirtualClusterModel virtualClusterModel = new VirtualClusterModel("wibble", targetCluster, clusterNetworkAddressConfigProvider, tls, false,
-                false);
+        final VirtualClusterModel virtualClusterModel = new VirtualClusterModel("wibble", targetCluster, clusterNetworkAddressConfigProvider, tls, false, false, List.of());
 
         // Then
         assertThat(virtualClusterModel)

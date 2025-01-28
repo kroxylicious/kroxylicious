@@ -106,12 +106,8 @@ class KafkaProxyInitializerTest {
 
     private VirtualClusterModel buildVirtualCluster(boolean logNetwork, boolean logFrames) {
         final Optional<Tls> tls = Optional.empty();
-        return new VirtualClusterModel("testCluster",
-                new TargetCluster("localhost:9090", tls),
-                mock(ClusterNetworkAddressConfigProvider.class),
-                tls,
-                logNetwork,
-                logFrames);
+        return new VirtualClusterModel("testCluster", new TargetCluster("localhost:9090", tls), mock(ClusterNetworkAddressConfigProvider.class), tls, logNetwork,
+                logFrames, List.of());
     }
 
     @Test

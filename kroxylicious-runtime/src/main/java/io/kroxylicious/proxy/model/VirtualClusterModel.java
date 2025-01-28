@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.model;
 import java.io.UncheckedIOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -62,15 +61,6 @@ public class VirtualClusterModel {
     private final Optional<SslContext> downstreamSslContext;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterModel.class);
-
-    public VirtualClusterModel(String clusterName,
-                               TargetCluster targetCluster,
-                               ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
-                               Optional<Tls> tls,
-                               boolean logNetwork,
-                               boolean logFrames) {
-        this(clusterName, targetCluster, clusterNetworkAddressConfigProvider, tls, logNetwork, logFrames, List.of());
-    }
 
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
