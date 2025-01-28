@@ -162,7 +162,7 @@ clusterNetworkAddressConfigProvider:
                                       
 In the SNI routing address configuration, the `advertisedBrokerAddressPattern` specification is mandatory, as it is required to generate routes for each broker.
 `advertisedBrokerAddressPattern` can optionally end with a port specifier, which is the port that will be advertised to the client. This is only relevant if
-Kroxylicious is being deployed behind another proxy using a different port scheme. For example:
+Kroxylicious is being deployed behind another proxy using a different port scheme, such as an secure OpenShift route on port 443. An example config snippet:
 
 .Example SNI routing address provider configuration with advertised port
 [source,yaml]
