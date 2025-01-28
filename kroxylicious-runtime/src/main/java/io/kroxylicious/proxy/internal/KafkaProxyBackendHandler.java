@@ -19,7 +19,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
@@ -33,9 +33,9 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     ChannelHandlerContext serverCtx;
     private boolean pendingServerFlushes;
 
-    public KafkaProxyBackendHandler(ProxyChannelStateMachine proxyChannelStateMachine, VirtualCluster virtualCluster) {
+    public KafkaProxyBackendHandler(ProxyChannelStateMachine proxyChannelStateMachine, VirtualClusterModel virtualClusterModel) {
         this.proxyChannelStateMachine = Objects.requireNonNull(proxyChannelStateMachine);
-        Optional<SslContext> upstreamSslContext = virtualCluster.getUpstreamSslContext();
+        Optional<SslContext> upstreamSslContext = virtualClusterModel.getUpstreamSslContext();
         this.sslContext = upstreamSslContext.orElse(null);
     }
 

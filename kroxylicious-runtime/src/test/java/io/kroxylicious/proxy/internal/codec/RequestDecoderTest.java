@@ -36,7 +36,7 @@ import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.proxy.internal.codec.ByteBufs.writeByteBuf;
-import static io.kroxylicious.proxy.model.VirtualCluster.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
+import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

@@ -36,7 +36,7 @@ import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -78,7 +78,7 @@ public abstract class FilterHarness {
 
         final TargetCluster targetCluster = mock(TargetCluster.class);
         when(targetCluster.bootstrapServersList()).thenReturn(TARGET_CLUSTER_BOOTSTRAP);
-        var testVirtualCluster = new VirtualCluster("TestVirtualCluster", targetCluster, mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(),
+        var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", targetCluster, mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(),
                 false, false);
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());

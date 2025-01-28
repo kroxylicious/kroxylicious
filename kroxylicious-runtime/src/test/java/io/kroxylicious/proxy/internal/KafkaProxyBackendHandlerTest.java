@@ -28,7 +28,7 @@ import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -55,7 +55,7 @@ class KafkaProxyBackendHandlerTest {
     void setUp() {
         outboundChannel = new EmbeddedChannel();
         kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine,
-                new VirtualCluster("wibble", new TargetCluster("localhost:9090", Optional.empty()),
+                new VirtualClusterModel("wibble", new TargetCluster("localhost:9090", Optional.empty()),
                         ADDRESS_CONFIG_PROVIDER, Optional.empty(), false, false));
         outboundChannel.pipeline().addFirst(kafkaProxyBackendHandler);
         outboundContext = outboundChannel.pipeline().firstContext();

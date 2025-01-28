@@ -25,7 +25,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 
 import io.kroxylicious.proxy.filter.NetFilter;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -47,7 +47,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     NetFilter netFilter;
 
     @Mock
-    VirtualCluster vc;
+    VirtualClusterModel vc;
 
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     ChannelHandlerContext clientCtx;

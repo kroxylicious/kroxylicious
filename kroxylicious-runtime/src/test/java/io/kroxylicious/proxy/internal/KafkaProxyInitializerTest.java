@@ -47,7 +47,7 @@ import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -85,12 +85,12 @@ class KafkaProxyInitializerTest {
     private ServiceBasedPluginFactoryRegistry pfr;
     private KafkaProxyInitializer kafkaProxyInitializer;
     private CompletionStage<VirtualClusterBinding> bindingStage;
-    private VirtualCluster virtualCluster;
+    private VirtualClusterModel virtualClusterModel;
     private FilterChainFactory filterChainFactory;
 
     @BeforeEach
     void setUp() {
-        virtualCluster = buildVirtualCluster(false, false);
+        virtualClusterModel = buildVirtualCluster(false, false);
         pfr = new ServiceBasedPluginFactoryRegistry();
         bindingStage = CompletableFuture.completedStage(vcb);
         filterChainFactory = new FilterChainFactory(pfr, List.of());
@@ -101,12 +101,12 @@ class KafkaProxyInitializerTest {
         when(channel.localAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 9099));
 
         when(serverSocketChannel.localAddress()).thenReturn(localhost);
-        when(vcb.virtualCluster()).thenReturn(virtualCluster);
+        when(vcb.virtualClusterModel()).thenReturn(virtualClusterModel);
     }
 
-    private VirtualCluster buildVirtualCluster(boolean logNetwork, boolean logFrames) {
+    private VirtualClusterModel buildVirtualCluster(boolean logNetwork, boolean logFrames) {
         final Optional<Tls> tls = Optional.empty();
-        return new VirtualCluster("testCluster",
+        return new VirtualClusterModel("testCluster",
                 new TargetCluster("localhost:9090", tls),
                 mock(ClusterNetworkAddressConfigProvider.class),
                 tls,
@@ -184,8 +184,8 @@ class KafkaProxyInitializerTest {
     @ValueSource(booleans = { true, false })
     void shouldAddCommonHandlersOnBindingComplete(boolean tls) {
         // Given
-        when(vcb.virtualCluster())
-                .thenReturn(virtualCluster);
+        when(vcb.virtualClusterModel())
+                .thenReturn(virtualClusterModel);
         kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
@@ -209,8 +209,8 @@ class KafkaProxyInitializerTest {
     @ValueSource(booleans = { true, false })
     void shouldAddFrameLoggerOnBindingComplete(boolean tls) {
         // Given
-        virtualCluster = buildVirtualCluster(false, true);
-        when(vcb.virtualCluster()).thenReturn(virtualCluster);
+        virtualClusterModel = buildVirtualCluster(false, true);
+        when(vcb.virtualClusterModel()).thenReturn(virtualClusterModel);
         kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
@@ -230,8 +230,8 @@ class KafkaProxyInitializerTest {
     @ValueSource(booleans = { true, false })
     void shouldAddNetworkLoggerOnBindingComplete(boolean tls) {
         // Given
-        virtualCluster = buildVirtualCluster(true, false);
-        when(vcb.virtualCluster()).thenReturn(virtualCluster);
+        virtualClusterModel = buildVirtualCluster(true, false);
+        when(vcb.virtualClusterModel()).thenReturn(virtualClusterModel);
         kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
@@ -251,8 +251,8 @@ class KafkaProxyInitializerTest {
     @ValueSource(booleans = { true, false })
     void shouldAddAuthnHandlersOnBindingComplete(boolean tls) {
         // Given
-        virtualCluster = buildVirtualCluster(true, false);
-        when(vcb.virtualCluster()).thenReturn(virtualCluster);
+        virtualClusterModel = buildVirtualCluster(true, false);
+        when(vcb.virtualClusterModel()).thenReturn(virtualClusterModel);
         final AuthenticateCallbackHandler plainHandler = mock(AuthenticateCallbackHandler.class);
         kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
                 pfr,
@@ -273,8 +273,8 @@ class KafkaProxyInitializerTest {
     @ValueSource(booleans = { true, false })
     void shouldNotAddAuthnHandlersWithoutConfiguredMechanism(boolean tls) {
         // Given
-        virtualCluster = buildVirtualCluster(true, false);
-        when(vcb.virtualCluster()).thenReturn(virtualCluster);
+        virtualClusterModel = buildVirtualCluster(true, false);
+        when(vcb.virtualClusterModel()).thenReturn(virtualClusterModel);
         kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,

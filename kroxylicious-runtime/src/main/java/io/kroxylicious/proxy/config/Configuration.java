@@ -24,6 +24,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -158,6 +161,27 @@ public record Configuration(
         this(adminHttp, filterDefinitions, defaultFilters, virtualClusters, null, micrometer, useIoUring, development);
     }
 
+    public static VirtualClusterModel toVirtualClusterModel(@NonNull VirtualCluster virtualCluster,
+                                                            @NonNull PluginFactoryRegistry pfr,
+                                                            @NonNull List<NamedFilterDefinition> filterDefinitions,
+                                                            @NonNull String virtualClusterNodeName) {
+
+        return new VirtualClusterModel(virtualClusterNodeName,
+                virtualCluster.targetCluster(),
+                buildAddressProviderService(virtualCluster, pfr),
+                virtualCluster.tls(),
+                virtualCluster.logNetwork(),
+                virtualCluster.logFrames(),
+                filterDefinitions);
+    }
+
+    private static ClusterNetworkAddressConfigProvider buildAddressProviderService(@NonNull VirtualCluster virtualCluster,
+                                                                                   @NonNull PluginFactoryRegistry registry) {
+        ClusterNetworkAddressConfigProviderService provider = registry.pluginFactory(ClusterNetworkAddressConfigProviderService.class)
+                .pluginInstance(virtualCluster.clusterNetworkAddressConfigProvider().type());
+        return provider.build(virtualCluster.clusterNetworkAddressConfigProvider().config());
+    }
+
     public @Nullable AdminHttpConfiguration adminHttpConfig() {
         return adminHttp();
     }
@@ -213,7 +237,7 @@ public record Configuration(
         return filterDefinitions;
     }
 
-    public @NonNull List<io.kroxylicious.proxy.model.VirtualCluster> virtualClusterModel(PluginFactoryRegistry pfr) {
+    public @NonNull List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
         var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
                 .stream()
                 .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
@@ -222,7 +246,7 @@ public record Configuration(
                 .map(entry -> {
                     VirtualCluster virtualCluster = entry.getValue();
                     List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
-                    return virtualCluster.toVirtualClusterModel(pfr, filterDefinitions, entry.getKey());
+                    return toVirtualClusterModel(virtualCluster, pfr, filterDefinitions, entry.getKey());
                 })
                 .toList();
     }

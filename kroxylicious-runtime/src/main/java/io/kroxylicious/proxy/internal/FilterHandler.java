@@ -47,7 +47,7 @@ import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -62,19 +62,19 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final FilterInvoker invoker;
     private final long timeoutMs;
     private final String sniHostname;
-    private final VirtualCluster virtualCluster;
+    private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private ChannelHandlerContext ctx;
     private PromiseFactory promiseFactory;
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualCluster virtualCluster, Channel inboundChannel) {
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualClusterModel virtualClusterModel, Channel inboundChannel) {
         this.filter = Objects.requireNonNull(filterAndInvoker).filter();
         this.invoker = filterAndInvoker.invoker();
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
-        this.virtualCluster = virtualCluster;
+        this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
     }
 
@@ -442,7 +442,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         public String getVirtualClusterName() {
-            return virtualCluster.getClusterName();
+            return virtualClusterModel.getClusterName();
         }
 
         @Override

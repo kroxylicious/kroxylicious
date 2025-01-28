@@ -42,7 +42,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class VirtualCluster {
+public class VirtualClusterModel {
     public static final int DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES = 104857600;
     private final String clusterName;
 
@@ -61,24 +61,24 @@ public class VirtualCluster {
 
     private final Optional<SslContext> downstreamSslContext;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualCluster.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterModel.class);
 
-    public VirtualCluster(String clusterName,
-                          TargetCluster targetCluster,
-                          ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
-                          Optional<Tls> tls,
-                          boolean logNetwork,
-                          boolean logFrames) {
+    public VirtualClusterModel(String clusterName,
+                               TargetCluster targetCluster,
+                               ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
+                               Optional<Tls> tls,
+                               boolean logNetwork,
+                               boolean logFrames) {
         this(clusterName, targetCluster, clusterNetworkAddressConfigProvider, tls, logNetwork, logFrames, List.of());
     }
 
-    public VirtualCluster(String clusterName,
-                          TargetCluster targetCluster,
-                          ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
-                          Optional<Tls> tls,
-                          boolean logNetwork,
-                          boolean logFrames,
-                          @NonNull List<NamedFilterDefinition> filters) {
+    public VirtualClusterModel(String clusterName,
+                               TargetCluster targetCluster,
+                               ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
+                               Optional<Tls> tls,
+                               boolean logNetwork,
+                               boolean logFrames,
+                               @NonNull List<NamedFilterDefinition> filters) {
         this.clusterName = clusterName;
         this.tls = tls;
         this.targetCluster = targetCluster;
