@@ -138,35 +138,35 @@ public class VirtualClusterModel {
     }
 
     public HostPort getClusterBootstrapAddress() {
-        return clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
+        return getClusterNetworkAddressConfigProvider().getClusterBootstrapAddress();
     }
 
     public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
-        return clusterNetworkAddressConfigProvider.getBrokerAddress(nodeId);
+        return getClusterNetworkAddressConfigProvider().getBrokerAddress(nodeId);
     }
 
     public Optional<String> getBindAddress() {
-        return clusterNetworkAddressConfigProvider.getBindAddress();
+        return getClusterNetworkAddressConfigProvider().getBindAddress();
     }
 
     public boolean requiresTls() {
-        return clusterNetworkAddressConfigProvider.requiresTls();
+        return getClusterNetworkAddressConfigProvider().requiresTls();
     }
 
     public Set<Integer> getExclusivePorts() {
-        return clusterNetworkAddressConfigProvider.getExclusivePorts();
+        return getClusterNetworkAddressConfigProvider().getExclusivePorts();
     }
 
     public Set<Integer> getSharedPorts() {
-        return clusterNetworkAddressConfigProvider.getSharedPorts();
+        return getClusterNetworkAddressConfigProvider().getSharedPorts();
     }
 
     public Map<Integer, HostPort> discoveryAddressMap() {
-        return clusterNetworkAddressConfigProvider.discoveryAddressMap();
+        return getClusterNetworkAddressConfigProvider().discoveryAddressMap();
     }
 
     public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
-        return clusterNetworkAddressConfigProvider.getBrokerIdFromBrokerAddress(brokerAddress);
+        return getClusterNetworkAddressConfigProvider().getBrokerIdFromBrokerAddress(brokerAddress);
     }
 
     public Optional<SslContext> getDownstreamSslContext() {
@@ -307,6 +307,6 @@ public class VirtualClusterModel {
     }
 
     public HostPort getAdvertisedBrokerAddress(int nodeId) {
-        return clusterNetworkAddressConfigProvider.getAdvertisedBrokerAddress(nodeId);
+        return getClusterNetworkAddressConfigProvider().getAdvertisedBrokerAddress(nodeId);
     }
 }
