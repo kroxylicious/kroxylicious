@@ -36,6 +36,7 @@ public class TestVault implements Closeable {
 
     private static final int TLS_PORT = 8202;
 
+    @SuppressWarnings("resource")
     private TestVault(CertificateGenerator.Keys serverKeys, CertificateGenerator.Keys clientKeys) {
 
         if (clientKeys != null && serverKeys == null) {

@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1743](https://github.com/kroxylicious/kroxylicious/pull/1743) Apply TLS protocol and cipher suite restrictions to HTTP Clients used by KMS impls too
 * [#1761](https://github.com/kroxylicious/kroxylicious/pull/1761) SNI exposition: user can control advertised broker port
 * [#1766](https://github.com/kroxylicious/kroxylicious/issues/1766) Bump apicurio-registry.version from 2.6.6.Final to 2.6.7.Final
 * [#1380](https://github.com/kroxylicious/kroxylicious/issues/1380) Deprecated FilterFactoryContext#eventLoop() is removed.

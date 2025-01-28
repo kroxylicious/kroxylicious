@@ -11,14 +11,14 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 
-import javax.net.ssl.SSLContext;
-
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.provider.fortanix.dsm.session.SessionProvider;
 import io.kroxylicious.kms.provider.fortanix.dsm.session.SessionProviderFactory;
 import io.kroxylicious.kms.service.KmsService;
+import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.proxy.tls.TlsHttpClientConfigurator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -50,7 +50,7 @@ public class FortanixDsmKmsService implements KmsService<Config, String, Fortani
     public void initialize(@NonNull Config config) {
         Objects.requireNonNull(config);
         this.config = config;
-        this.client = createClient(config.sslContext(), Duration.ofSeconds(20));
+        this.client = createClient(config.tls(), Duration.ofSeconds(20));
         this.sessionProvider = sessionProviderFactory.createSessionProvider(config, client);
     }
 
@@ -66,14 +66,11 @@ public class FortanixDsmKmsService implements KmsService<Config, String, Fortani
         Optional.ofNullable(sessionProvider).ifPresent(SessionProvider::close);
     }
 
-    private static HttpClient createClient(SSLContext sslContext, Duration timeout1) {
-        var builder = HttpClient.newBuilder();
-        if (sslContext != null) {
-            builder.sslContext(sslContext);
-        }
-        return builder
+    private static HttpClient createClient(Tls tls, Duration timeout) {
+        var tlsConfigurator = new TlsHttpClientConfigurator(tls);
+        return tlsConfigurator.apply(HttpClient.newBuilder())
                 .followRedirects(HttpClient.Redirect.NORMAL)
-                .connectTimeout(timeout1)
+                .connectTimeout(timeout)
                 .build();
     }
 

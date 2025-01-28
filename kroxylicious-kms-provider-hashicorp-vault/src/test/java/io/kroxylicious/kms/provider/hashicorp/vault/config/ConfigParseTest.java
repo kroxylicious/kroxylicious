@@ -10,8 +10,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 
-import javax.net.ssl.SSLContext;
-
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -26,7 +24,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ConfigParseTest {
-    private final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Test
     void vaultUrlAndInlineToken() throws IOException {
@@ -125,7 +123,6 @@ class ConfigParseTest {
         Config config = readConfig(json);
         assertThat(config.tls()).isNotNull();
         assertThat(config.tls().trust()).isNull();
-        assertThat(config.sslContext()).isSameAs(SSLContext.getDefault());
     }
 
     @Test
@@ -138,7 +135,6 @@ class ConfigParseTest {
                 """;
         Config config = readConfig(json);
         assertThat(config.tls()).isNull();
-        assertThat(config.sslContext()).isSameAs(SSLContext.getDefault());
     }
 
     // we do not need to exhaustively test serialization of Tls as it has its own coverage
@@ -156,7 +152,7 @@ class ConfigParseTest {
                 }
                 """;
         Config config = readConfig(json);
-        Config expected = new Config(URI.create("https://vault"), new InlinePassword("token"), new Tls(null, new InsecureTls(true)));
+        Config expected = new Config(URI.create("https://vault"), new InlinePassword("token"), new Tls(null, new InsecureTls(true), null, null));
         assertThat(config).isEqualTo(expected);
     }
 
