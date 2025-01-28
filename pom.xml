@@ -46,7 +46,7 @@
         <log4j.version>2.24.3</log4j.version>
         <caffeine.version>3.2.0</caffeine.version>
         <picocli.version>4.7.6</picocli.version>
-        <netty.version>4.1.116.Final</netty.version>
+        <netty.version>4.1.117.Final</netty.version>
         <netty.io_uring.version>0.0.26.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
@@ -61,7 +61,7 @@
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.0.7</apicurio-schema-validation.version>
-        <apicurio-registry.version>2.6.6.Final</apicurio-registry.version>
+        <apicurio-registry.version>2.6.7.Final</apicurio-registry.version>
         <apicurio-common.version>0.1.18.Final</apicurio-common.version>
         <jose4j.version>0.9.6</jose4j.version>
 
@@ -73,7 +73,7 @@
         <awaitility.version>4.2.2</awaitility.version>
         <commons.io.version>2.18.0</commons.io.version>
         <testcontainers.version>1.20.4</testcontainers.version>
-        <bouncycastle.version>1.79</bouncycastle.version>
+        <bouncycastle.version>1.80</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.0.5</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.10.0</wiremock.version>
         <docker-java.version>3.4.1</docker-java.version>

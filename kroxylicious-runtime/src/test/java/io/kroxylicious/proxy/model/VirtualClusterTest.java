@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
 
 import io.netty.buffer.ByteBufAllocator;
 
@@ -38,6 +39,7 @@ import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -45,6 +47,7 @@ import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
+import static org.mockito.Mockito.when;
 
 class VirtualClusterTest {
 
@@ -73,6 +76,15 @@ class VirtualClusterTest {
         String cert = TlsTestConstants.getResourceLocationOnFilesystem("server.crt");
         client = TlsTestConstants.getResourceLocationOnFilesystem("client.jks");
         keyPair = new KeyPair(privateKeyFile, cert, null);
+    }
+
+    @Test
+    void delegatesToProviderForAdvertisedPort() {
+        ClusterNetworkAddressConfigProvider mock = Mockito.mock(ClusterNetworkAddressConfigProvider.class);
+        VirtualCluster cluster = new VirtualCluster("cluster", new TargetCluster("bootstrap:9092", Optional.empty()), mock, Optional.empty(), false, false);
+        HostPort advertisedHostPort = new HostPort("broker", 55);
+        when(mock.getAdvertisedBrokerAddress(0)).thenReturn(advertisedHostPort);
+        assertThat(cluster.getAdvertisedBrokerAddress(0)).isEqualTo(advertisedHostPort);
     }
 
     @Test
