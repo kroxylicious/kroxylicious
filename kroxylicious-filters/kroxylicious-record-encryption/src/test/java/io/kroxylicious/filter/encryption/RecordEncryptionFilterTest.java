@@ -58,6 +58,7 @@ import io.kroxylicious.filter.encryption.config.TopicNameKekSelection;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.RequestNotSatisfiable;
+import io.kroxylicious.filter.encryption.policy.TopicEncryptionPolicyResolvers;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
@@ -141,7 +142,8 @@ class RecordEncryptionFilterTest {
         when(decryptionManager.decrypt(any(), anyInt(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("decrypt", "decrypt")));
 
-        encryptionFilter = new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run));
+        encryptionFilter = new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run),
+                TopicEncryptionPolicyResolvers.legacy());
     }
 
     @Test

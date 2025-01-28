@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -34,6 +35,7 @@ import io.kroxylicious.filter.encryption.config.TopicNameKekSelection;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
+import io.kroxylicious.filter.encryption.policy.TopicEncryptionPolicyResolver;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
@@ -56,15 +58,18 @@ public class RecordEncryptionFilter<K>
     private final EncryptionManager<K> encryptionManager;
     private final DecryptionManager decryptionManager;
     private final FilterThreadExecutor filterThreadExecutor;
+    private final TopicEncryptionPolicyResolver policyResolver;
 
     RecordEncryptionFilter(EncryptionManager<K> encryptionManager,
                            DecryptionManager decryptionManager,
                            TopicNameBasedKekSelector<K> kekSelector,
-                           @NonNull FilterThreadExecutor filterThreadExecutor) {
+                           @NonNull FilterThreadExecutor filterThreadExecutor,
+                           TopicEncryptionPolicyResolver policyResolver) {
         this.kekSelector = kekSelector;
         this.encryptionManager = encryptionManager;
         this.decryptionManager = decryptionManager;
         this.filterThreadExecutor = filterThreadExecutor;
+        this.policyResolver = policyResolver;
     }
 
     @Override
@@ -102,31 +107,36 @@ public class RecordEncryptionFilter<K>
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
         var topicNameToData = request.topicData().stream().collect(Collectors.toMap(TopicProduceData::name, Function.identity()));
-        CompletionStage<TopicNameKekSelection<K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet()));
-        return keks // figure out what keks we need
-                .thenCompose(kekSelection -> {
-                    var futures = kekSelection.topicNameToKekId().entrySet().stream().flatMap(e -> {
-                        String topicName = e.getKey();
-                        var kekId = e.getValue();
-                        TopicProduceData tpd = topicNameToData.get(topicName);
-                        return tpd.partitionData().stream().map(ppd -> {
-                            MemoryRecords records = (MemoryRecords) ppd.records();
-                            return encryptionManager.encrypt(
-                                    topicName,
-                                    ppd.index(),
-                                    new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
-                                    records,
-                                    context::createByteBufferOutputStream)
-                                    .thenApply(ppd::setRecords);
-                        });
-                    }).toList();
-                    return RecordEncryptionUtil.join(futures).thenApply(x -> request);
-                }).exceptionallyCompose(throwable -> {
-                    log.atWarn().setMessage("failed to encrypt records, cause message: {}")
-                            .addArgument(throwable.getMessage())
-                            .setCause(log.isDebugEnabled() ? throwable : null)
-                            .log();
-                    return CompletableFuture.failedStage(throwable);
+        Set<String> topicNames = topicNameToData.keySet();
+        return policyResolver.apply(topicNames).thenCompose(
+                topicNameToPolicy -> {
+                    Set<String> topicsToResolve = topicNames.stream().filter(t -> topicNameToPolicy.get(t).shouldAttemptKeyResolution()).collect(Collectors.toSet());
+                    CompletionStage<TopicNameKekSelection<K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicsToResolve));
+                    return keks // figure out what keks we need
+                            .thenCompose(kekSelection -> {
+                                var futures = kekSelection.topicNameToKekId().entrySet().stream().flatMap(e -> {
+                                    String topicName = e.getKey();
+                                    var kekId = e.getValue();
+                                    TopicProduceData tpd = topicNameToData.get(topicName);
+                                    return tpd.partitionData().stream().map(ppd -> {
+                                        MemoryRecords records = (MemoryRecords) ppd.records();
+                                        return encryptionManager.encrypt(
+                                                topicName,
+                                                ppd.index(),
+                                                new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
+                                                records,
+                                                context::createByteBufferOutputStream)
+                                                .thenApply(ppd::setRecords);
+                                    });
+                                }).toList();
+                                return RecordEncryptionUtil.join(futures).thenApply(x -> request);
+                            }).exceptionallyCompose(throwable -> {
+                                log.atWarn().setMessage("failed to encrypt records, cause message: {}")
+                                        .addArgument(throwable.getMessage())
+                                        .setCause(log.isDebugEnabled() ? throwable : null)
+                                        .log();
+                                return CompletableFuture.failedStage(throwable);
+                            });
                 });
     }
 

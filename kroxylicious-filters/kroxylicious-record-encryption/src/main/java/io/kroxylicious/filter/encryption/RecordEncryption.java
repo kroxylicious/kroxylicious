@@ -47,6 +47,7 @@ import io.kroxylicious.filter.encryption.kms.InstrumentedKms;
 import io.kroxylicious.filter.encryption.kms.KmsMetrics;
 import io.kroxylicious.filter.encryption.kms.MicrometerKmsMetrics;
 import io.kroxylicious.filter.encryption.kms.ResilientKms;
+import io.kroxylicious.filter.encryption.policy.TopicEncryptionPolicyResolvers;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -140,7 +141,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
         KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, sharedEncryptionContext.configuration().selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(), sharedEncryptionContext.configuration().selectorConfig());
-        return new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
+        return new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor, TopicEncryptionPolicyResolvers.legacy());
     }
 
     @NonNull
