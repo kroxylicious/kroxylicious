@@ -54,6 +54,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
+import io.kroxylicious.filter.encryption.config.TopicNameKekSelection;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.RequestNotSatisfiable;
@@ -125,14 +126,13 @@ class RecordEncryptionFilterTest {
         });
 
         final Map<String, String> topicNameToKekId = new HashMap<>();
-        topicNameToKekId.put(UNENCRYPTED_TOPIC, null);
         topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
 
         when(kekSelector.selectKek(anySet())).thenAnswer(invocationOnMock -> {
             Set<String> wanted = invocationOnMock.getArgument(0);
             var copy = new HashMap<>(topicNameToKekId);
             copy.keySet().retainAll(wanted);
-            return CompletableFuture.completedFuture(copy);
+            return CompletableFuture.completedFuture(new TopicNameKekSelection<>(topicNameToKekId, Set.of(UNENCRYPTED_TOPIC)));
         });
 
         when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any()))
