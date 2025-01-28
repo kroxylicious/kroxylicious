@@ -21,7 +21,7 @@ public abstract class TopicNameBasedKekSelector<K> {
      * Returns a completion stage whose value, on successful completion, is a topic name selection containing the
      * resolved key ids for topics which could be resolved, and a set of unresolved topic names.
      * @param topicNames A set of topic names
-     * @return A completion stage containing a topic name selection
+     * @return A completion stage for the topic name selection
      */
     public abstract @NonNull CompletionStage<TopicNameKekSelection<K>> selectKek(@NonNull Set<String> topicNames);
 }

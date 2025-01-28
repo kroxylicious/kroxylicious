@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
@@ -31,6 +32,7 @@ import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
 import io.kroxylicious.filter.encryption.config.TopicNameKekSelection;
+import io.kroxylicious.filter.encryption.config.UnresolvedKeyPolicy;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
@@ -56,15 +58,18 @@ public class RecordEncryptionFilter<K>
     private final EncryptionManager<K> encryptionManager;
     private final DecryptionManager decryptionManager;
     private final FilterThreadExecutor filterThreadExecutor;
+    private final UnresolvedKeyPolicy unresolvedKeyPolicy;
 
     RecordEncryptionFilter(EncryptionManager<K> encryptionManager,
                            DecryptionManager decryptionManager,
                            TopicNameBasedKekSelector<K> kekSelector,
-                           @NonNull FilterThreadExecutor filterThreadExecutor) {
+                           @NonNull FilterThreadExecutor filterThreadExecutor,
+                           UnresolvedKeyPolicy unresolvedKeyPolicy) {
         this.kekSelector = kekSelector;
         this.encryptionManager = encryptionManager;
         this.decryptionManager = decryptionManager;
         this.filterThreadExecutor = filterThreadExecutor;
+        this.unresolvedKeyPolicy = unresolvedKeyPolicy;
     }
 
     @Override
@@ -105,6 +110,10 @@ public class RecordEncryptionFilter<K>
         CompletionStage<TopicNameKekSelection<K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet()));
         return keks // figure out what keks we need
                 .thenCompose(kekSelection -> {
+                    Set<String> unresolvedTopicNames = kekSelection.unresolvedTopicNames();
+                    if (!unresolvedTopicNames.isEmpty() && unresolvedKeyPolicy == UnresolvedKeyPolicy.REJECT) {
+                        return CompletableFuture.failedFuture(new UnresolvedKeyException("failed to resolve key for: " + unresolvedTopicNames));
+                    }
                     var futures = kekSelection.topicNameToKekId().entrySet().stream().flatMap(e -> {
                         String topicName = e.getKey();
                         var kekId = e.getValue();
