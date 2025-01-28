@@ -99,7 +99,7 @@ public class KroxyliciousConfigUtils {
             return c.getBootstrapAddress().toString();
         }
         else if (provider.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig c) {
-            return c.getBootstrapAddress().toString();
+            return new HostPort(c.getBootstrapAddress().host(), c.getAdvertisedPort()).toString();
         }
         else {
             throw new IllegalStateException("I don't know how to handle ClusterEndpointConfigProvider type:" + provider.type());

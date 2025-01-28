@@ -35,10 +35,12 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
+import io.kroxylicious.net.PassthroughProxy;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
@@ -143,8 +145,66 @@ class ExpositionIT extends BaseIT {
         }
     }
 
+    /**
+     * This is to test the case where Kroxylicious is behind yet-another-proxy that may bind to a different port than
+     * Kroxylicious. For example OpenShift TLS passthrough Routes will listen on port 443 by default. The proxy container
+     * won't be running as root, so binding to 443 so all the ports align isn't straightforward. Instead, we make it
+     * possible for Kroxylicious to change the port it advertises its brokers at. So that clients will be told to connect
+     * to the advertised port (e.g. 443) rather than the listening port for the VirtualCluster.
+     */
     @Test
-    void exposesTwoSeparateUpstreamClustersUsingSniRouting(KafkaCluster cluster) throws Exception {
+    void exposesUpstreamClustersUsingSniRoutingBehindPassthroughProxy(KafkaCluster cluster) throws Exception {
+        try (var proxy = new PassthroughProxy(9192, "localhost")) {
+            var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".cluster");
+            var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
+            var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
+
+            var builder = new ConfigurationBuilder();
+
+            var base = new VirtualClusterBuilder()
+                    .withNewTargetCluster()
+                    .withBootstrapServers(cluster.getBootstrapServers())
+                    .endTargetCluster()
+                    .build();
+
+            var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern);
+
+            var virtualCluster = new VirtualClusterBuilder(base)
+                    .withClusterNetworkAddressConfigProvider(
+                            new ClusterNetworkAddressConfigProviderDefinitionBuilder(SniRoutingClusterNetworkAddressConfigProvider.class.getName())
+                                    .withConfig("bootstrapAddress", virtualClusterBootstrapPattern + ":9192",
+                                            "advertisedBrokerAddressPattern", virtualClusterBrokerAddressPattern + ":" + proxy.getLocalPort())
+                                    .build())
+                    .withNewTls()
+                    .withNewKeyStoreKey()
+                    .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
+                    .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
+                    .endKeyStoreKey()
+                    .endTls()
+                    .withLogNetwork(true)
+                    .withLogFrames(true)
+                    .build();
+            builder.addToVirtualClusters("cluster", virtualCluster);
+
+            try (var tester = kroxyliciousTester(builder)) {
+                // the tester is aware that it should connect to the Virtual Cluster's advertised port
+                try (var admin = tester.admin("cluster", Map.of(
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, keystoreTrustStorePair.clientTrustStore(),
+                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, keystoreTrustStorePair.password()))) {
+                    admin.describeCluster().nodes().get(5, TimeUnit.SECONDS).forEach(node -> {
+                        assertThat(node.port()).isEqualTo(proxy.getLocalPort());
+                    });
+                    // do some work to ensure virtual cluster is operational
+                    createTopic(admin, TOPIC, 1);
+                }
+            }
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "brokerAddressPattern", "advertisedBrokerAddressPattern" })
+    void exposesTwoSeparateUpstreamClustersUsingSniRouting(String brokerPatternProp, KafkaCluster cluster) throws Exception {
         var keystoreTrustStoreList = new ArrayList<KeystoreTrustStorePair>();
         var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".virtualcluster%d");
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
@@ -168,7 +228,7 @@ class ExpositionIT extends BaseIT {
                     .withClusterNetworkAddressConfigProvider(
                             new ClusterNetworkAddressConfigProviderDefinitionBuilder(SniRoutingClusterNetworkAddressConfigProvider.class.getName())
                                     .withConfig("bootstrapAddress", virtualClusterFQDN + ":9192",
-                                            "brokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i))
+                                            brokerPatternProp, virtualClusterBrokerAddressPattern.formatted(i))
                                     .build())
                     .withNewTls()
                     .withNewKeyStoreKey()
@@ -322,7 +382,7 @@ class ExpositionIT extends BaseIT {
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                 SniRoutingClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", SNI_BOOTSTRAP)
-                                                .withConfig("brokerAddressPattern", SNI_BROKER_ADDRESS_PATTERN)
+                                                .withConfig("advertisedBrokerAddressPattern", SNI_BROKER_ADDRESS_PATTERN)
                                                 .build()),
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, sniKeystoreTrustStorePair.clientTrustStore(),

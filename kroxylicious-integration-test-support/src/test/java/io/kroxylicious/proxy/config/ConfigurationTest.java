@@ -127,7 +127,7 @@ class ConfigurationTest {
                                     defaultFilters:
                                       - filter-1
                                 """),
-                argumentSet("With Virtual Cluster",
+                argumentSet("With Virtual Cluster - deprecated brokerAddressPattern",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
@@ -151,6 +151,30 @@ class ConfigurationTest {
                                         bootstrapAddress: cluster1:9192
                                         brokerAddressPattern: broker-$(nodeId)
                                 """),
+                argumentSet("With Virtual Cluster",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .endTargetCluster()
+                                        .withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                        "SniRoutingClusterNetworkAddressConfigProvider")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
+                                                        .build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  demo:
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    clusterNetworkAddressConfigProvider:
+                                      type: SniRoutingClusterNetworkAddressConfigProvider
+                                      config:
+                                        bootstrapAddress: cluster1:9192
+                                        advertisedBrokerAddressPattern: broker-$(nodeId)
+                                """),
                 argumentSet("Downstream TLS - default client auth",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
@@ -167,7 +191,7 @@ class ConfigurationTest {
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                         "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -186,7 +210,7 @@ class ConfigurationTest {
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId)
+                                        advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """),
                 argumentSet("Downstream TLS - required client auth",
                         new ConfigurationBuilder()
@@ -210,7 +234,7 @@ class ConfigurationTest {
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                         "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -233,7 +257,7 @@ class ConfigurationTest {
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId)
+                                        advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """),
                 argumentSet("Upstream TLS - platform trust",
                         new ConfigurationBuilder()
@@ -246,7 +270,7 @@ class ConfigurationTest {
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                         "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -260,7 +284,7 @@ class ConfigurationTest {
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId)
+                                        advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """),
                 argumentSet("Upstream TLS - trust from truststore",
                         new ConfigurationBuilder()
@@ -278,7 +302,7 @@ class ConfigurationTest {
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                         "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -297,7 +321,7 @@ class ConfigurationTest {
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId)
+                                        advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """),
                 argumentSet("Upstream TLS - trust from truststore, password from file",
                         new ConfigurationBuilder()
@@ -315,7 +339,7 @@ class ConfigurationTest {
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                         "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -334,7 +358,7 @@ class ConfigurationTest {
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId)
+                                        advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """),
                 argumentSet("Upstream TLS - insecure",
                         new ConfigurationBuilder()
@@ -348,7 +372,7 @@ class ConfigurationTest {
                                         .withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                         "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
+                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
                                                         .build())
                                         .build())
                                 .build(),
@@ -364,7 +388,7 @@ class ConfigurationTest {
                                       type: SniRoutingClusterNetworkAddressConfigProvider
                                       config:
                                         bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId)
+                                        advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """)
 
         );

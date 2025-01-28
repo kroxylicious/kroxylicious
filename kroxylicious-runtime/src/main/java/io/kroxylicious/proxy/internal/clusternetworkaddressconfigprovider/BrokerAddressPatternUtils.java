@@ -8,16 +8,19 @@ package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 final class BrokerAddressPatternUtils {
     private static final String LITERAL_NODE_ID = "$(nodeId)";
     private static final Pattern LITERAL_NODE_ID_PATTERN = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
-    private static final Pattern PORT_SPECIFIER_RE = Pattern.compile(":([0-9]+)$");
+    private static final Pattern PORT_SPECIFIER_RE = Pattern.compile("^(.*):([1-9]\\d*)$");
     private static final Pattern TOKEN_RE = Pattern.compile("(\\$\\([^)]+\\))");
     public static Set<String> EXPECTED_TOKEN_SET = Set.of(LITERAL_NODE_ID);
 
@@ -64,8 +67,42 @@ final class BrokerAddressPatternUtils {
 
     static void validatePortSpecifier(String address, Consumer<String> portNumber) {
         var portMatcher = PORT_SPECIFIER_RE.matcher(address);
-        if (portMatcher.find()) {
-            portNumber.accept(portMatcher.group(1));
+        if (portMatcher.matches()) {
+            portNumber.accept(portMatcher.group(2));
+        }
+    }
+
+    /**
+     * Parse a string into an addressPattern and port. For example the string abcdef:8080
+     * will be parsed into PatternAndPort("abcdef", Optional.of(8080)). The addressPattern
+     * part is not validated, it is the raw string that comes before the port specified.
+     * @param address string to parse
+     * @return a PatternAndPort
+     */
+    @NonNull
+    static PatternAndPort parse(@NonNull String address) {
+        Objects.requireNonNull(address);
+        var portMatcher = PORT_SPECIFIER_RE.matcher(address);
+        if (portMatcher.matches()) {
+            return new PatternAndPort(portMatcher.group(1), Optional.of(Integer.parseInt(portMatcher.group(2))));
+        }
+        else {
+            return new PatternAndPort(address, Optional.empty());
+        }
+    }
+
+    /**
+     * Represents a pattern string and optional port.
+     * @param addressPattern address pattern, must not be null
+     * @param port optional port, must not be null
+     */
+    record PatternAndPort(@NonNull String addressPattern, @NonNull Optional<Integer> port) {
+        PatternAndPort {
+            Objects.requireNonNull(addressPattern);
+            Objects.requireNonNull(port);
+            if (addressPattern.isEmpty()) {
+                throw new IllegalArgumentException("pattern is empty");
+            }
         }
     }
 
