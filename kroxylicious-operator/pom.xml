@@ -274,7 +274,7 @@
                     <!-- https://junit-pioneer.org/docs/environment-variables/#warnings-for-reflective-access
                          https://maven.apache.org/surefire/maven-surefire-plugin/faq.html#late-property-evaluation (required to propagate Jacoco args etc) -->
                     <argLine>
-                        @{argLine}
+                        @{jacoco.argline}
                         --add-opens java.base/java.util=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
                     </argLine>
