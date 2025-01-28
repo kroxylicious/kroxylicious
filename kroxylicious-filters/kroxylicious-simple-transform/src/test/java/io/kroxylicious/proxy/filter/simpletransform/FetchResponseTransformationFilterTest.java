@@ -59,7 +59,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class FetchResponseTransformationFilterFactoryFilterTest {
+class FetchResponseTransformationFilterTest {
 
     private static final String TOPIC_NAME = "mytopic";
     private static final Uuid TOPIC_ID = Uuid.randomUuid();
@@ -112,12 +112,12 @@ class FetchResponseTransformationFilterFactoryFilterTest {
 
     @Test
     void testFactory() {
-        FetchResponseTransformationFilterFactory factory = new FetchResponseTransformationFilterFactory();
+        FetchResponseTransformation factory = new FetchResponseTransformation();
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
-                .hasMessage(FetchResponseTransformationFilterFactory.class.getSimpleName() + " requires configuration, but config object is null");
+                .hasMessage(FetchResponseTransformation.class.getSimpleName() + " requires configuration, but config object is null");
         FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
         doReturn(new UpperCasing()).when(constructContext).pluginInstance(any(), any());
-        FetchResponseTransformationFilterFactory.Config config = new FetchResponseTransformationFilterFactory.Config(UpperCasing.class.getName(),
+        FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(UpperCasing.class.getName(),
                 new UpperCasing.Config("UTF-8"));
         assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
     }

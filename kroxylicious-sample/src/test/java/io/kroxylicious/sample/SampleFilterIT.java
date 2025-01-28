@@ -42,9 +42,14 @@ class SampleFilterIT {
     // Configure filters here
     private static final String FIND_CONFIG_FIELD = "findValue";
     private static final String REPLACE_CONFIG_FIELD = "replacementValue";
-    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SampleProduceRequestFilterFactory.class.getName(),
+    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SampleProduceRequest.class.getName(),
             Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar"));
-    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SampleFetchResponseFilterFactory.class.getName(),
+    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER_DEPRECATED_FACTORY_NAME = new TestFilter(SampleProduceRequestFilterFactory.class.getName(),
+            Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar"));
+    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SampleFetchResponse.class.getName(),
+            Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz"));
+
+    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER_DEPRECATED_FACTORY_NAME = new TestFilter(SampleFetchResponseFilterFactory.class.getName(),
             Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz"));
 
     // Configure test input/expected values here
@@ -74,6 +79,14 @@ class SampleFilterIT {
     @Test
     void sampleProduceRequestFilterWillTransform() {
         test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
+        test.produceMessage(PRE_TRANSFORM_VALUE)
+                .consumeSingleRecord()
+                .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
+    }
+
+    @Test
+    void deprecatedSampleProduceRequestFilterWillTransform() {
+        test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER_DEPRECATED_FACTORY_NAME);
         test.produceMessage(PRE_TRANSFORM_VALUE)
                 .consumeSingleRecord()
                 .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
@@ -109,6 +122,14 @@ class SampleFilterIT {
     @Test
     void sampleFetchResponseFilterWillTransform() {
         test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
+        test.produceMessage(PRE_TRANSFORM_VALUE)
+                .consumeSingleRecord()
+                .assertConsumerRecordEquals(FETCH_TRANSFORM_VALUE);
+    }
+
+    @Test
+    void deprecatedSampleFetchResponseFilterWillTransform() {
+        test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER_DEPRECATED_FACTORY_NAME);
         test.produceMessage(PRE_TRANSFORM_VALUE)
                 .consumeSingleRecord()
                 .assertConsumerRecordEquals(FETCH_TRANSFORM_VALUE);

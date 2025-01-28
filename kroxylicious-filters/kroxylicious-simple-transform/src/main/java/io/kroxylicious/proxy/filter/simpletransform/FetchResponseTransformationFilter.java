@@ -37,7 +37,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
  * <p>
  * <strong>Not intended to production use.</strong>
  * </p> */
-public class FetchResponseTransformationFilter implements FetchResponseFilter {
+class FetchResponseTransformationFilter implements FetchResponseFilter {
 
     // Version 12 was the first version that uses topic ids.
     private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
@@ -51,7 +51,7 @@ public class FetchResponseTransformationFilter implements FetchResponseFilter {
 
     // TODO: add transformation support for key/header/topic
 
-    public FetchResponseTransformationFilter(ByteBufferTransformation valueTransformation) {
+    FetchResponseTransformationFilter(ByteBufferTransformation valueTransformation) {
         this.valueTransformation = valueTransformation;
     }
 

@@ -29,7 +29,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
  * <strong>Not intended to production use.</strong>
  * </p>
  */
-public class ProduceRequestTransformationFilter implements ProduceRequestFilter {
+class ProduceRequestTransformationFilter implements ProduceRequestFilter {
 
     /**
      * Transformation to be applied to record value.
@@ -38,7 +38,7 @@ public class ProduceRequestTransformationFilter implements ProduceRequestFilter 
 
     // TODO: add transformation support for key/header/topic
 
-    public ProduceRequestTransformationFilter(ByteBufferTransformation valueTransformation) {
+    ProduceRequestTransformationFilter(ByteBufferTransformation valueTransformation) {
         this.valueTransformation = valueTransformation;
     }
 

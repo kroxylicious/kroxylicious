@@ -34,12 +34,12 @@ import io.kroxylicious.sample.util.SampleFilterTransformer;
  * could be further modified to apply different transformations to different topics, or when sent by
  * particular producers.
  */
-public class SampleProduceRequestFilter implements ProduceRequestFilter {
+class SampleProduceRequestFilter implements ProduceRequestFilter {
 
     private final SampleFilterConfig config;
     private final Timer timer;
 
-    public SampleProduceRequestFilter(SampleFilterConfig config) {
+    SampleProduceRequestFilter(SampleFilterConfig config) {
         this.config = config;
         this.timer = Timer
                 .builder("sample_produce_request_filter_transform")

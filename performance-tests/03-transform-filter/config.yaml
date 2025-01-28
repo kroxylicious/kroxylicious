@@ -20,13 +20,13 @@ virtualClusters:
     logFrames: false
 filterDefinitions:
 - name: produce
-  type: ProduceRequestTransformationFilterFactory
+  type: ProduceRequestTransformation
   config:
     transformation: UpperCasing
     transformationConfig:
       charset: UTF-8
 - name: fetch
-  type: FetchResponseTransformationFilterFactory
+  type: FetchResponseTransformation
   config:
     transformation: UpperCasing
     transformationConfig:
