@@ -112,7 +112,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * <br/>
  * TODO disallow the use of topic uids belonging to one tenant by another.
  */
-public class MultiTenantTransformationFilter
+class MultiTenantFilter
         implements ApiVersionsResponseFilter,
         CreateTopicsRequestFilter, CreateTopicsResponseFilter,
         DeleteTopicsRequestFilter, DeleteTopicsResponseFilter,
@@ -395,9 +395,8 @@ public class MultiTenantTransformationFilter
 
         request.transactions().forEach(addPartitionsToTxnTransaction -> {
             applyTenantPrefix(context, addPartitionsToTxnTransaction::transactionalId, addPartitionsToTxnTransaction::setTransactionalId, true);
-            addPartitionsToTxnTransaction.topics().forEach(addPartitionsToTxnTopic -> {
-                applyTenantPrefix(context, addPartitionsToTxnTopic::name, addPartitionsToTxnTopic::setName, true);
-            });
+            addPartitionsToTxnTransaction.topics()
+                    .forEach(addPartitionsToTxnTopic -> applyTenantPrefix(context, addPartitionsToTxnTopic::name, addPartitionsToTxnTopic::setName, true));
         });
         return context.forwardRequest(header, request);
     }
@@ -522,7 +521,7 @@ public class MultiTenantTransformationFilter
         return kafkaResourcePrefix;
     }
 
-    public MultiTenantTransformationFilter(@NonNull MultiTenantConfig configuration) {
+    MultiTenantFilter(@NonNull MultiTenantConfig configuration) {
         Objects.requireNonNull(configuration);
         this.prefixResourceNameSeparator = configuration.prefixResourceNameSeparator();
     }

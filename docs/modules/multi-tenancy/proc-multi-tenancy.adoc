@@ -23,12 +23,12 @@ You need at least two virtual clusters to apply multi-tenancy.
 
 .Procedure
 
-. Configure a `MultiTenantTransformationFilterFactory` type filter.
+. Configure a `MultiTenant` type filter.
 +
 [source, yaml]
 ----
 filters:
-  - type: MultiTenantTransformationFilterFactory
+  - type: MultiTenant
     config:
       prefixResourceNameSeparator: "." # <1>
 ----

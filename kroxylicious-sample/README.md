@@ -54,7 +54,7 @@ The default configuration for **SampleProduceRequestFilter** is:
 
 ```yaml
 filters:
-  - type: SampleProduceRequestFilterFactory
+  - type: SampleProduceRequest
     config:
       findValue: foo
       replacementValue: bar
@@ -66,7 +66,7 @@ The default configuration for **SampleFetchResponseFilter** is:
 
 ```yaml
 filters:
-  - type: SampleFetchResponseFilterFactory
+  - type: SampleFetchResponse
     config:
       findValue: bar
       replacementValue: baz

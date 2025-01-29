@@ -20,12 +20,12 @@ virtualClusters:
     logFrames: false
 filterDefinitions:
   - name: produce-request-filter
-    type: SampleProduceRequestFilterFactory
+    type: SampleProduceRequest
     config:
       findValue: foo
       replacementValue: bar
   - name: fetch-response-filter
-    type: SampleFetchResponseFilterFactory
+    type: SampleFetchResponse
     config:
       findValue: bar
       replacementValue: baz

@@ -7,22 +7,16 @@
 package io.kroxylicious.sample;
 
 import io.kroxylicious.proxy.filter.FilterFactory;
-import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
-import io.kroxylicious.proxy.plugin.Plugins;
 import io.kroxylicious.sample.config.SampleFilterConfig;
 
+/**
+ * A {@link FilterFactory} for {@link SampleFetchResponseFilter}.
+ *
+ * @deprecated use {@link SampleFetchResponse} instead.
+ */
 @Plugin(configType = SampleFilterConfig.class)
-public class SampleFetchResponseFilterFactory implements FilterFactory<SampleFilterConfig, SampleFilterConfig> {
-
-    @Override
-    public SampleFilterConfig initialize(FilterFactoryContext context, SampleFilterConfig config) {
-        return Plugins.requireConfig(this, config);
-    }
-
-    @Override
-    public SampleFetchResponseFilter createFilter(FilterFactoryContext context, SampleFilterConfig configuration) {
-        return new SampleFetchResponseFilter(configuration);
-    }
+@Deprecated(since = "0.10.0", forRemoval = true)
+public class SampleFetchResponseFilterFactory extends SampleFetchResponse {
 
 }

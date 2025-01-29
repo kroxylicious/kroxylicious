@@ -13,7 +13,7 @@ data:
   config.yaml: |
     filterDefinitions:
     - name: multi-tenant
-      type: MultiTenantTransformationFilterFactory
+      type: MultiTenant
     defaultFilters:
       - multi-tenant
     adminHttp:
