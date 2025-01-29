@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Future;
 
 import javax.crypto.Cipher;
@@ -58,7 +59,7 @@ class RecordEncryptionTest {
     @SuppressWarnings("unchecked")
     void shouldInitAndCreateFilter() {
         var kmsConfig = new Object();
-        var config = new RecordEncryptionConfig("KMS", kmsConfig, "SELECTOR", null, null);
+        var config = new RecordEncryptionConfig("KMS", kmsConfig, "SELECTOR", null, null, Optional.empty());
         var recordEncryption = new RecordEncryption<>();
         var fc = mock(FilterFactoryContext.class);
         var kmsService = mock(KmsService.class);
@@ -85,7 +86,7 @@ class RecordEncryptionTest {
     @Test
     void closePropagatedToKmsService() {
         var kmsConfig = new Object();
-        var config = new RecordEncryptionConfig("KMS", kmsConfig, "SELECTOR", null, null);
+        var config = new RecordEncryptionConfig("KMS", kmsConfig, "SELECTOR", null, null, Optional.empty());
         var recordEncryption = new RecordEncryption<>();
         var fc = mock(FilterFactoryContext.class);
         var kmsService = mock(KmsService.class);
@@ -102,7 +103,7 @@ class RecordEncryptionTest {
 
     @Test
     void testKmsCacheConfigDefaults() {
-        KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, null).kmsCache();
+        KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, null, Optional.empty()).kmsCache();
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
         assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
         assertThat(config.resolvedAliasCacheSize()).isEqualTo(1000);
@@ -115,7 +116,7 @@ class RecordEncryptionTest {
 
     @Test
     void testDekManagerConfigDefaults() {
-        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, null).dekManager();
+        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, null, Optional.empty()).dekManager();
         assertThat(config.maxEncryptionsPerDek()).isEqualTo(5_000_000L);
     }
 
@@ -131,7 +132,7 @@ class RecordEncryptionTest {
         experimental.put("encryptionDekRefreshAfterWriteSeconds", null);
         experimental.put("encryptionDekExpireAfterWriteSeconds", null);
         KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L,
-                experimental).kmsCache();
+                experimental, Optional.empty()).kmsCache();
         assertThat(config.decryptedDekCacheSize()).isEqualTo(1000);
         assertThat(config.decryptedDekExpireAfterAccessDuration()).isEqualTo(Duration.ofHours(1));
         assertThat(config.resolvedAliasCacheSize()).isEqualTo(1000);
@@ -147,7 +148,7 @@ class RecordEncryptionTest {
         Map<String, Object> experimental = new HashMap<>();
         experimental.put("maxEncryptionsPerDek", null);
 
-        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, null).dekManager();
+        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, null, Optional.empty()).dekManager();
         assertThat(config.maxEncryptionsPerDek()).isEqualTo(5_000_000L);
     }
 
@@ -172,7 +173,7 @@ class RecordEncryptionTest {
         experimental.put("notFoundAliasExpireAfterWriteSeconds", 6);
         experimental.put("encryptionDekRefreshAfterWriteSeconds", 7);
         experimental.put("encryptionDekExpireAfterWriteSeconds", 8);
-        KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental).kmsCache();
+        KmsCacheConfig config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental, Optional.empty()).kmsCache();
         assertThat(config).isEqualTo(kmsCacheConfig);
     }
 
@@ -184,7 +185,7 @@ class RecordEncryptionTest {
         Map<String, Object> experimental = new HashMap<>();
         experimental.put("maxEncryptionsPerDek", 1_000L);
 
-        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental).dekManager();
+        var config = new RecordEncryptionConfig("vault", 1L, "selector", 1L, experimental, Optional.empty()).dekManager();
         assertThat(config).isEqualTo(dekManagerCacheConfig);
     }
 

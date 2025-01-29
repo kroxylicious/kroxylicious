@@ -22,7 +22,8 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
 
                                      @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
                                      @PluginImplConfig(implNameProperty = "selector") Object selectorConfig,
-                                     @JsonProperty Map<String, Object> experimental) {
+                                     @JsonProperty Map<String, Object> experimental,
+                                     @JsonProperty Optional<DefaultTopicEncryptionPolicy> defaultTopicEncryptionPolicy) {
     public RecordEncryptionConfig {
         experimental = experimental == null ? Map.of() : experimental;
     }

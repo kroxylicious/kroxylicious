@@ -44,6 +44,8 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.filter.encryption.policy.UnresolvedKeyAction.REJECT_PRODUCE_REQUEST;
+import static java.util.stream.Collectors.toSet;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -110,10 +112,17 @@ public class RecordEncryptionFilter<K>
         Set<String> topicNames = topicNameToData.keySet();
         return policyResolver.apply(topicNames).thenCompose(
                 topicNameToPolicy -> {
-                    Set<String> topicsToResolve = topicNames.stream().filter(t -> topicNameToPolicy.get(t).shouldAttemptKeyResolution()).collect(Collectors.toSet());
+                    Set<String> topicsToResolve = topicNames.stream().filter(t -> topicNameToPolicy.get(t).shouldAttemptKeyResolution()).collect(toSet());
                     CompletionStage<TopicNameKekSelection<K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicsToResolve));
                     return keks // figure out what keks we need
                             .thenCompose(kekSelection -> {
+                                Set<String> rejectTopics = kekSelection.unresolvedTopicNames().stream()
+                                        .filter(unresolved -> topicNameToPolicy.get(unresolved).unresolvedKeyAction() == REJECT_PRODUCE_REQUEST)
+                                        .collect(toSet());
+                                if (!rejectTopics.isEmpty()) {
+                                    throw new EncryptionPolicyException(
+                                            "policy requires these topics to be encrypted, but a key could not be resolved for them: " + rejectTopics);
+                                }
                                 var futures = kekSelection.topicNameToKekId().entrySet().stream().flatMap(e -> {
                                     String topicName = e.getKey();
                                     var kekId = e.getValue();

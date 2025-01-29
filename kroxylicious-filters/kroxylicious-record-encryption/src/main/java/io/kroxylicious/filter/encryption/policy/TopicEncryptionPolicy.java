@@ -13,8 +13,25 @@ public enum TopicEncryptionPolicy {
         public boolean shouldAttemptKeyResolution() {
             return true;
         }
+
+        @Override
+        public UnresolvedKeyAction unresolvedKeyAction() {
+            return UnresolvedKeyAction.PASSTHROUGH_UNENCRYPTED;
+        }
+    },
+    REQUIRE_ENCRYPTION {
+        @Override
+        public boolean shouldAttemptKeyResolution() {
+            return true;
+        }
+
+        @Override
+        public UnresolvedKeyAction unresolvedKeyAction() {
+            return UnresolvedKeyAction.REJECT_PRODUCE_REQUEST;
+        }
     };
 
     public abstract boolean shouldAttemptKeyResolution();
 
+    public abstract UnresolvedKeyAction unresolvedKeyAction();
 }

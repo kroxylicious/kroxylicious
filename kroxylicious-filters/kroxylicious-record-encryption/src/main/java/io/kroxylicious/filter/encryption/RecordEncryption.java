@@ -47,6 +47,7 @@ import io.kroxylicious.filter.encryption.kms.InstrumentedKms;
 import io.kroxylicious.filter.encryption.kms.KmsMetrics;
 import io.kroxylicious.filter.encryption.kms.MicrometerKmsMetrics;
 import io.kroxylicious.filter.encryption.kms.ResilientKms;
+import io.kroxylicious.filter.encryption.policy.TopicEncryptionPolicyResolver;
 import io.kroxylicious.filter.encryption.policy.TopicEncryptionPolicyResolvers;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
@@ -139,9 +140,18 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
                 sharedEncryptionContext.decryptionDekCache(),
                 executor);
 
-        KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, sharedEncryptionContext.configuration().selector());
+        RecordEncryptionConfig configuration = sharedEncryptionContext.configuration();
+        KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
         TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(), sharedEncryptionContext.configuration().selectorConfig());
-        return new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor, TopicEncryptionPolicyResolvers.legacy());
+        TopicEncryptionPolicyResolver policyResolver = configuration.defaultTopicEncryptionPolicy().map(defaultTopicEncryptionPolicy -> {
+            switch (defaultTopicEncryptionPolicy) {
+                case REQUIRE_ENCRYPTION -> {
+                    return TopicEncryptionPolicyResolvers.requireEncryption();
+                }
+                default -> throw new IllegalStateException("no policy implemented for " + defaultTopicEncryptionPolicy);
+            }
+        }).orElse(TopicEncryptionPolicyResolvers.legacy());
+        return new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor, policyResolver);
     }
 
     @NonNull

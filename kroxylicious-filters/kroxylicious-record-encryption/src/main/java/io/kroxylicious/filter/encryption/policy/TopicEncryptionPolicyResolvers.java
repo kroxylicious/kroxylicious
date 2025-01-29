@@ -13,9 +13,14 @@ import java.util.stream.Collectors;
 public class TopicEncryptionPolicyResolvers {
 
     private static final TopicEncryptionPolicyResolver LEGACY_RESOLVER = allTopics(TopicEncryptionPolicy.LEGACY);
+    private static final TopicEncryptionPolicyResolver REQUIRE_ENCRYPTION = allTopics(TopicEncryptionPolicy.REQUIRE_ENCRYPTION);
 
     public static TopicEncryptionPolicyResolver legacy() {
         return LEGACY_RESOLVER;
+    }
+
+    public static TopicEncryptionPolicyResolver requireEncryption() {
+        return REQUIRE_ENCRYPTION;
     }
 
     private static TopicEncryptionPolicyResolver allTopics(TopicEncryptionPolicy policy) {

@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -111,7 +112,7 @@ class RecordEncryptionConfigTest {
     }
 
     private static @NonNull RecordEncryptionConfig createConfig(Map<String, Object> map) {
-        return new RecordEncryptionConfig("kms", 1L, "selector", 2L, map);
+        return new RecordEncryptionConfig("kms", 1L, "selector", 2L, map, Optional.empty());
     }
 
 }
