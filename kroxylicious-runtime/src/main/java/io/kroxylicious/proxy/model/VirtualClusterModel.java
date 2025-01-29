@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.model;
 import java.io.UncheckedIOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,13 +41,16 @@ import io.kroxylicious.proxy.service.HostPort;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
+public class VirtualClusterModel {
+
     public static final int DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES = 104857600;
+
     private final String clusterName;
 
     private final TargetCluster targetCluster;
 
     private final Optional<Tls> tls;
+
     private final boolean logNetwork;
 
     private final boolean logFrames;
@@ -61,24 +63,15 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
 
     private final Optional<SslContext> downstreamSslContext;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualCluster.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterModel.class);
 
-    public VirtualCluster(String clusterName,
-                          TargetCluster targetCluster,
-                          ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
-                          Optional<Tls> tls,
-                          boolean logNetwork,
-                          boolean logFrames) {
-        this(clusterName, targetCluster, clusterNetworkAddressConfigProvider, tls, logNetwork, logFrames, List.of());
-    }
-
-    public VirtualCluster(String clusterName,
-                          TargetCluster targetCluster,
-                          ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
-                          Optional<Tls> tls,
-                          boolean logNetwork,
-                          boolean logFrames,
-                          @NonNull List<NamedFilterDefinition> filters) {
+    public VirtualClusterModel(String clusterName,
+                               TargetCluster targetCluster,
+                               ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
+                               Optional<Tls> tls,
+                               boolean logNetwork,
+                               boolean logFrames,
+                               @NonNull List<NamedFilterDefinition> filters) {
         this.clusterName = clusterName;
         this.tls = tls;
         this.targetCluster = targetCluster;
@@ -93,47 +86,6 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
         this.downstreamSslContext = buildDownstreamSslContext();
-        logVirtualClusterSummary(clusterName, targetCluster, clusterNetworkAddressConfigProvider, tls);
-    }
-
-    @SuppressWarnings("java:S1874") // the classes are deprecated because we don't want them in the API module
-    private static void logVirtualClusterSummary(String clusterName, TargetCluster targetCluster,
-                                                 ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
-                                                 Optional<Tls> tls) {
-        try {
-            HostPort downstreamBootstrap = clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
-            var downstreamTlsSummary = generateTlsSummary(tls);
-
-            HostPort upstreamHostPort = targetCluster.bootstrapServersList().get(0);
-            var upstreamTlsSummary = generateTlsSummary(targetCluster.tls());
-
-            LOGGER.info("Virtual Cluster: {}, Downstream {}{} => Upstream {}{}",
-                    clusterName, downstreamBootstrap, downstreamTlsSummary, upstreamHostPort, upstreamTlsSummary);
-        }
-        catch (Exception e) {
-            LOGGER.warn("Failed to log summary for Virtual Cluster: {}", clusterName, e);
-        }
-    }
-
-    private static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
-        var tls = tlsToSummarize.map(t -> Optional.ofNullable(t.trust())
-                .map(TrustProvider::trustOptions)
-                .map(TrustOptions::toString).orElse("-"))
-                .map(options -> " (TLS: " + options + ") ").orElse("");
-        var cipherSuitesAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
-                .map(allowedCiphers -> " (Allowed Ciphers: " + allowedCiphers + ")").orElse("");
-        var cipherSuitesDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                .map(AllowDeny::denied).orElse(Collections.emptySet()))
-                .map(deniedCiphers -> " (Denied Ciphers: " + deniedCiphers + ")").orElse("");
-        var protocolsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
-                .map(protocols -> " (Allowed Protocols: " + protocols + ")").orElse("");
-        var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                .map(AllowDeny::denied).orElse(Collections.emptySet()))
-                .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
-
-        return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
 
     public String getClusterName() {
@@ -178,44 +130,36 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
                 '}';
     }
 
-    @Override
     public HostPort getClusterBootstrapAddress() {
-        return clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
+        return getClusterNetworkAddressConfigProvider().getClusterBootstrapAddress();
     }
 
-    @Override
     public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
-        return clusterNetworkAddressConfigProvider.getBrokerAddress(nodeId);
+        return getClusterNetworkAddressConfigProvider().getBrokerAddress(nodeId);
     }
 
-    @Override
     public Optional<String> getBindAddress() {
-        return clusterNetworkAddressConfigProvider.getBindAddress();
+        return getClusterNetworkAddressConfigProvider().getBindAddress();
     }
 
-    @Override
     public boolean requiresTls() {
-        return clusterNetworkAddressConfigProvider.requiresTls();
+        return getClusterNetworkAddressConfigProvider().requiresTls();
     }
 
-    @Override
     public Set<Integer> getExclusivePorts() {
-        return clusterNetworkAddressConfigProvider.getExclusivePorts();
+        return getClusterNetworkAddressConfigProvider().getExclusivePorts();
     }
 
-    @Override
     public Set<Integer> getSharedPorts() {
-        return clusterNetworkAddressConfigProvider.getSharedPorts();
+        return getClusterNetworkAddressConfigProvider().getSharedPorts();
     }
 
-    @Override
     public Map<Integer, HostPort> discoveryAddressMap() {
-        return clusterNetworkAddressConfigProvider.discoveryAddressMap();
+        return getClusterNetworkAddressConfigProvider().discoveryAddressMap();
     }
 
-    @Override
     public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
-        return clusterNetworkAddressConfigProvider.getBrokerIdFromBrokerAddress(brokerAddress);
+        return getClusterNetworkAddressConfigProvider().getBrokerIdFromBrokerAddress(brokerAddress);
     }
 
     public Optional<SslContext> getDownstreamSslContext() {
@@ -355,8 +299,7 @@ public class VirtualCluster implements ClusterNetworkAddressConfigProvider {
         return filters;
     }
 
-    @Override
     public HostPort getAdvertisedBrokerAddress(int nodeId) {
-        return clusterNetworkAddressConfigProvider.getAdvertisedBrokerAddress(nodeId);
+        return getClusterNetworkAddressConfigProvider().getAdvertisedBrokerAddress(nodeId);
     }
 }

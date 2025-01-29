@@ -11,10 +11,7 @@ import java.util.Optional;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public record VirtualCluster(TargetCluster targetCluster,
@@ -24,22 +21,4 @@ public record VirtualCluster(TargetCluster targetCluster,
                              boolean logFrames,
                              @Nullable List<String> filters) {
 
-    public io.kroxylicious.proxy.model.VirtualCluster toVirtualClusterModel(@NonNull PluginFactoryRegistry pfr,
-                                                                            @NonNull List<NamedFilterDefinition> filterDefinitions,
-                                                                            @NonNull String virtualClusterNodeName) {
-
-        return new io.kroxylicious.proxy.model.VirtualCluster(virtualClusterNodeName,
-                targetCluster(),
-                toClusterNetworkAddressConfigProviderModel(pfr),
-                tls(),
-                logNetwork(),
-                logFrames(),
-                filterDefinitions);
-    }
-
-    private ClusterNetworkAddressConfigProvider toClusterNetworkAddressConfigProviderModel(@NonNull PluginFactoryRegistry registry) {
-        ClusterNetworkAddressConfigProviderService provider = registry.pluginFactory(ClusterNetworkAddressConfigProviderService.class)
-                .pluginInstance(clusterNetworkAddressConfigProvider.type());
-        return provider.build(clusterNetworkAddressConfigProvider.config());
-    }
 }

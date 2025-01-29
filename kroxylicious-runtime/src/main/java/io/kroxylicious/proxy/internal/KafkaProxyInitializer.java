@@ -42,7 +42,7 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
@@ -134,7 +134,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                             promise.setFailure(t);
                             return null;
                         }
-                        var virtualCluster = binding.virtualCluster();
+                        var virtualCluster = binding.virtualClusterModel();
                         var sslContext = virtualCluster.getDownstreamSslContext();
                         if (sslContext.isEmpty()) {
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(virtualCluster)));
@@ -166,7 +166,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     @VisibleForTesting
     void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
-        var virtualCluster = binding.virtualCluster();
+        var virtualCluster = binding.virtualClusterModel();
         ChannelPipeline pipeline = ch.pipeline();
         if (virtualCluster.isLogNetwork()) {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
@@ -200,7 +200,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 binding,
                 pfr,
                 filterChainFactory,
-                binding.virtualCluster().getFilters(),
+                binding.virtualClusterModel().getFilters(),
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
@@ -216,7 +216,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         private final SaslDecodePredicate decodePredicate;
         private final SocketChannel ch;
-        private final VirtualCluster virtualCluster;
+        private final VirtualClusterModel virtualClusterModel;
         private final VirtualClusterBinding binding;
         private final PluginFactoryRegistry pfr;
         private final FilterChainFactory filterChainFactory;
@@ -236,7 +236,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                             ApiVersionsDowngradeFilter apiVersionsDowngradeFilter) {
             this.decodePredicate = decodePredicate;
             this.ch = ch;
-            this.virtualCluster = binding.virtualCluster();
+            this.virtualClusterModel = binding.virtualClusterModel();
             this.binding = binding;
             this.pfr = pfr;
             this.filterChainFactory = filterChainFactory;
@@ -253,7 +253,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
             List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
-            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualCluster, endpointReconciler));
+            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualClusterModel, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(FilterAndInvoker.build(apiVersionsDowngradeFilter));
             filters.addAll(filterChain);

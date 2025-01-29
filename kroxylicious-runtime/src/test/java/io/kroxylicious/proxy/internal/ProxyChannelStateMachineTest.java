@@ -48,7 +48,7 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
 import io.kroxylicious.proxy.internal.ProxyChannelState.SelectingServer;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -366,7 +366,7 @@ class ProxyChannelStateMachineTest {
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateMachineInSelectingServer();
         var filters = List.<FilterAndInvoker> of();
-        var vc = mock(VirtualCluster.class);
+        var vc = mock(VirtualClusterModel.class);
         doReturn(configureSsl ? Optional.of(SslContextBuilder.forClient().build()) : Optional.empty()).when(vc).getUpstreamSslContext();
         var nf = mock(NetFilter.class);
 
@@ -386,7 +386,7 @@ class ProxyChannelStateMachineTest {
         HostPort brokerAddress = new HostPort("localhost", 9092);
         stateMachineInClientActive();
         var filters = List.<FilterAndInvoker> of();
-        var vc = mock(VirtualCluster.class);
+        var vc = mock(VirtualClusterModel.class);
         var nf = mock(NetFilter.class);
 
         // When
@@ -405,7 +405,7 @@ class ProxyChannelStateMachineTest {
         stateMachineInConnecting();
 
         var filters = List.<FilterAndInvoker> of();
-        var vc = mock(VirtualCluster.class);
+        var vc = mock(VirtualClusterModel.class);
         var nf = mock(NetFilter.class);
 
         // When
