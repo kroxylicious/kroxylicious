@@ -93,7 +93,7 @@ If set to `REQUESTED`, the client is requested to present a certificate. If pres
 If set to `NONE`, client authentication is disabled.
 
 NOTE: The client's identity, as established through TLS client authentication, is currently not relayed to the target cluster. 
-For more information, see the {github-issues}/issues/1637[related issue].
+For more information, see the {github-issues}/1637[related issue^].
 
 You can restrict the TLS protocols by specifying either an allow list of TLS protocols to be enabled, or a deny list of
 TLS protocols to be disallowed from the platform's default.
