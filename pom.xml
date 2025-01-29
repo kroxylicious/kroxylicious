@@ -693,6 +693,9 @@
                                 implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
                             <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
                         </statelessTestsetReporter>
+                        <argLine>
+                            @{jacoco.argline}
+                        </argLine>
                     </configuration>
                 </plugin>
                 <plugin>
