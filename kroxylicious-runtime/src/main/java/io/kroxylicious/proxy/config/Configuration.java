@@ -18,12 +18,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import io.kroxylicious.proxy.config.tls.AllowDeny;
-import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.config.tls.TrustOptions;
-import io.kroxylicious.proxy.config.tls.TrustProvider;
-import io.kroxylicious.proxy.service.HostPort;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,9 +25,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustOptions;
+import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
+import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -180,10 +179,10 @@ public record Configuration(
                 virtualCluster.logNetwork(),
                 virtualCluster.logFrames(),
                 filterDefinitions);
-        logVirtualClusterSummary(virtualClusterModel.getClusterName(), virtualClusterModel.targetCluster(), virtualClusterModel.getClusterNetworkAddressConfigProvider(), virtualCluster.tls());
+        logVirtualClusterSummary(virtualClusterModel.getClusterName(), virtualClusterModel.targetCluster(), virtualClusterModel.getClusterNetworkAddressConfigProvider(),
+                virtualCluster.tls());
         return virtualClusterModel;
     }
-
 
     @SuppressWarnings("java:S1874") // the classes are deprecated because we don't want them in the API module
     private static void logVirtualClusterSummary(String clusterName,
@@ -207,20 +206,20 @@ public record Configuration(
 
     private static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
         var tls = tlsToSummarize.map(t -> Optional.ofNullable(t.trust())
-                        .map(TrustProvider::trustOptions)
-                        .map(TrustOptions::toString).orElse("-"))
+                .map(TrustProvider::trustOptions)
+                .map(TrustOptions::toString).orElse("-"))
                 .map(options -> " (TLS: " + options + ") ").orElse("");
         var cipherSuitesAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                        .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
                 .map(allowedCiphers -> " (Allowed Ciphers: " + allowedCiphers + ")").orElse("");
         var cipherSuitesDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
-                        .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
                 .map(deniedCiphers -> " (Denied Ciphers: " + deniedCiphers + ")").orElse("");
         var protocolsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                        .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
                 .map(protocols -> " (Allowed Protocols: " + protocols + ")").orElse("");
         var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
-                        .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
                 .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
 
         return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;

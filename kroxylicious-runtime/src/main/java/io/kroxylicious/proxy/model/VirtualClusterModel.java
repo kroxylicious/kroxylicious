@@ -42,12 +42,15 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class VirtualClusterModel {
+
     public static final int DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES = 104857600;
+
     private final String clusterName;
 
     private final TargetCluster targetCluster;
 
     private final Optional<Tls> tls;
+
     private final boolean logNetwork;
 
     private final boolean logFrames;
