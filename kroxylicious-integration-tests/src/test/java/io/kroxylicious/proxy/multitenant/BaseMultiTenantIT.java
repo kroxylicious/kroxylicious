@@ -43,7 +43,7 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilterFactory;
+import io.kroxylicious.proxy.filter.multitenant.MultiTenant;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
@@ -90,12 +90,16 @@ public abstract class BaseMultiTenantIT extends BaseIT {
     }
 
     static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator) {
-        return getConfig(cluster, certificateGenerator, null);
+        return getConfig(cluster, certificateGenerator, (Map<String, Object>) null);
     }
 
     static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator, Map<String, Object> filterConfig) {
-        var filterBuilder = new NamedFilterDefinitionBuilder("filter-1", MultiTenantTransformationFilterFactory.class.getName());
+        var filterBuilder = new NamedFilterDefinitionBuilder("filter-1", MultiTenant.class.getName());
         Optional.ofNullable(filterConfig).ifPresent(filterBuilder::withConfig);
+        return getConfig(cluster, certificateGenerator, filterBuilder);
+    }
+
+    static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator, NamedFilterDefinitionBuilder filterBuilder) {
         return new ConfigurationBuilder()
                 .addToVirtualClusters(TENANT_1_CLUSTER, new VirtualClusterBuilder()
                         .withNewTargetCluster()

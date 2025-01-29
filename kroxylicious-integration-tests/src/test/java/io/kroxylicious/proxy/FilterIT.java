@@ -54,8 +54,8 @@ import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory;
-import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformationFilterFactory;
-import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformationFilterFactory;
+import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation;
+import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
@@ -359,8 +359,8 @@ class FilterIT {
         var expectedEncoded1 = encode(topic1.name(), ByteBuffer.wrap(bytes)).array();
         var expectedEncoded2 = encode(topic2.name(), ByteBuffer.wrap(bytes)).array();
 
-        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(ProduceRequestTransformationFilterFactory.class.getName(),
-                ProduceRequestTransformationFilterFactory.class.getName())
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(ProduceRequestTransformation.class.getName(),
+                ProduceRequestTransformation.class.getName())
                 .withConfig("transformation", TestEncoderFactory.class.getName()).build();
         var config = proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)
@@ -461,7 +461,7 @@ class FilterIT {
     // this checks that Kroxy can handle the basics of forwarding them.
     @Test
     void shouldModifyZeroAckProduceMessage(KafkaCluster cluster, Topic topic) throws Exception {
-        String className = ProduceRequestTransformationFilterFactory.class.getName();
+        String className = ProduceRequestTransformation.class.getName();
         var config = proxy(cluster)
                 .addToFilterDefinitions(new NamedFilterDefinitionBuilder(className, className)
                         .withConfig("transformation", TestEncoderFactory.class.getName()).build())
@@ -517,7 +517,7 @@ class FilterIT {
         var encoded1 = encode(topic1.name(), ByteBuffer.wrap(bytes)).array();
         var encoded2 = encode(topic2.name(), ByteBuffer.wrap(bytes)).array();
 
-        NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder("filter-1", FetchResponseTransformationFilterFactory.class.getName());
+        NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder("filter-1", FetchResponseTransformation.class.getName());
         var config = proxy(cluster)
                 .addToFilterDefinitions(filterDefinitionBuilder
                         .withConfig("transformation", TestDecoderFactory.class.getName()).build())
