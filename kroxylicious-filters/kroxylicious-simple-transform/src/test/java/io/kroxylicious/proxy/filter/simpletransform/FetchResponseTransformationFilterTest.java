@@ -181,7 +181,7 @@ class FetchResponseTransformationFilterTest {
     }
 
     @Test
-    void filterHandlesMetadataRequestError() throws Exception {
+    void filterHandlesMetadataRequestError() {
 
         var fetchResponse = new FetchResponseData();
         // Version 13 switched to topic id rather than topic names.

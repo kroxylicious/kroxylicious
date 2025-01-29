@@ -395,9 +395,8 @@ class MultiTenantFilter
 
         request.transactions().forEach(addPartitionsToTxnTransaction -> {
             applyTenantPrefix(context, addPartitionsToTxnTransaction::transactionalId, addPartitionsToTxnTransaction::setTransactionalId, true);
-            addPartitionsToTxnTransaction.topics().forEach(addPartitionsToTxnTopic -> {
-                applyTenantPrefix(context, addPartitionsToTxnTopic::name, addPartitionsToTxnTopic::setName, true);
-            });
+            addPartitionsToTxnTransaction.topics()
+                    .forEach(addPartitionsToTxnTopic -> applyTenantPrefix(context, addPartitionsToTxnTopic::name, addPartitionsToTxnTopic::setName, true));
         });
         return context.forwardRequest(header, request);
     }
