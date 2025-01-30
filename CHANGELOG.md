@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.10.0
 
 * [#1770](https://github.com/kroxylicious/kroxylicious/pull/1770) Name filter factories consistently
