@@ -20,6 +20,7 @@ An API provides a convenient means for implementing custom logic within the prox
 
 [id='assembly-overview-compatability-api{context}']
 === APIs
+
 Kroxylicious follows https://semver.org/#semantic-versioning-200[Semantic Versioning] rules. While we are still in the `0.y.z` phase we still take API compatability very seriously, we aim to provide at least two minor releases between deprecation and the removal of that deprecated item.
 
 We also consider our configuration model to be a "public API", and thus it will follow the same Semantic Versioning and deprecation rules.
@@ -28,7 +29,8 @@ Kubernetes Custom Resources are obviously considered to be a public API, and we 
 
 [id='assembly-overview-compatability-wire-protocol{context}']
 === Wire Protocol
-Kroxylicious offers the same backwards & forwards compatability guarantees as Apache Kafka. We will support the same range of client and broker versions as the official Apache Kafka Java client.
+
+Kroxylicious offers the same backwards & forwards compatability guarantees as https://kafka.apache.org/protocol#protocol_compatibility[Apache Kafka]. We will support the same range of client and broker versions as the official Apache Kafka Java client.
 
 [role="_additional-resources"]
 .Additional resources
