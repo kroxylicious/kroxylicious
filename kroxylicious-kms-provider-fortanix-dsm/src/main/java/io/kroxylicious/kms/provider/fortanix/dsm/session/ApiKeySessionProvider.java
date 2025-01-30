@@ -266,7 +266,8 @@ public class ApiKeySessionProvider implements SessionProvider {
      * end the last session.  This will allow the server side to clean up resources in a timely way.
      * @param stage session future.
      */
-    private void terminateSessionOnServer(@NonNull CompletionStage<Session> stage) {
+    @VisibleForTesting
+    protected void terminateSessionOnServer(@NonNull CompletionStage<Session> stage) {
 
         try {
             var s = stage.toCompletableFuture().getNow(null);
