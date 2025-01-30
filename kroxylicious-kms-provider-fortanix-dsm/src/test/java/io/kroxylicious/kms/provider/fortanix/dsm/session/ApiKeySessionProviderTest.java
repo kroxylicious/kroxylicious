@@ -15,6 +15,8 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -225,6 +227,31 @@ class ApiKeySessionProviderTest {
                     post(urlEqualTo(SESSION_AUTH_ENDPOINT))
                             .willReturn(aResponse().withBody(toJson(refreshed))));
 
+            await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> {
+                        server.verify(1, postRequestedFor(urlEqualTo(SESSION_TERMINATE_ENDPOINT))
+                                .withHeader(AUTHORIZATION_HEADER, equalTo("Bearer " + initialToken)));
+                    });
+        }
+    }
+
+    @Test
+    void shouldTerminateSession() {
+        // Given
+        var now = Instant.now();
+        var expiresInSecs = 10;
+        var initialToken = "firstToken-" + UUID.randomUUID();
+        var sessionAuthResponse = createTestCredential("Bearer", expiresInSecs, initialToken);
+
+        server.stubFor(
+                post(urlEqualTo(SESSION_AUTH_ENDPOINT))
+                        .willReturn(aResponse()
+                                .withBody(toJson(sessionAuthResponse))));
+
+        try (var provider = new ApiKeySessionProvider(config, client, Clock.fixed(now, ZoneId.systemDefault()))) {
+            // When
+            provider.terminateSessionOnServer(provider.getSession());
+            // Then
             await().atMost(Duration.ofSeconds(5))
                     .untilAsserted(() -> {
                         server.verify(1, postRequestedFor(urlEqualTo(SESSION_TERMINATE_ENDPOINT))
