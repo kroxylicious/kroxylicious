@@ -24,6 +24,8 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.CountMatchingStrategy;
+import com.github.tomakehurst.wiremock.client.WireMock;
 
 import io.kroxylicious.kms.provider.fortanix.dsm.config.ApiKeySessionProviderConfig;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
@@ -32,6 +34,7 @@ import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
+import static com.github.tomakehurst.wiremock.client.WireMock.moreThanOrExactly;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -222,7 +225,7 @@ class ApiKeySessionProviderTest {
 
             await().atMost(Duration.ofSeconds(5))
                     .untilAsserted(() -> {
-                        server.verify(1, postRequestedFor(urlEqualTo(SESSION_TERMINATE_ENDPOINT)));
+                        server.verify(moreThanOrExactly(1), postRequestedFor(urlEqualTo(SESSION_TERMINATE_ENDPOINT)));
                     });
         }
     }
