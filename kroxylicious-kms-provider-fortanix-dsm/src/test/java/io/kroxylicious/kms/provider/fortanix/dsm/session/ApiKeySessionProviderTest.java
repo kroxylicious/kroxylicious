@@ -24,8 +24,6 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.client.CountMatchingStrategy;
-import com.github.tomakehurst.wiremock.client.WireMock;
 
 import io.kroxylicious.kms.provider.fortanix.dsm.config.ApiKeySessionProviderConfig;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
