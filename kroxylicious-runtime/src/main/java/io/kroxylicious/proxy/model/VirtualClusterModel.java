@@ -8,10 +8,13 @@ package io.kroxylicious.proxy.model;
 import java.io.UncheckedIOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -19,6 +22,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 
+import org.apache.kafka.common.Uuid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,6 +68,9 @@ public class VirtualClusterModel {
     private final Optional<SslContext> downstreamSslContext;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterModel.class);
+
+    private final Map<Uuid, String> topicUuidMap = new ConcurrentHashMap<>();
+    private final Map<Uuid, String> unmodifiableTopicUuidMap = Collections.unmodifiableMap(topicUuidMap);
 
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
@@ -301,5 +308,18 @@ public class VirtualClusterModel {
 
     public HostPort getAdvertisedBrokerAddress(int nodeId) {
         return getClusterNetworkAddressConfigProvider().getAdvertisedBrokerAddress(nodeId);
+    }
+
+    public Map<Uuid, String> getUnmodifiableTopicUuidMap() {
+        return unmodifiableTopicUuidMap;
+    }
+
+    public void rememberTopicIdMapping(@NonNull Uuid uuid, @NonNull String name) {
+        Objects.requireNonNull(uuid);
+        Objects.requireNonNull(name);
+        String current = topicUuidMap.putIfAbsent(uuid, name);
+        if (current != null && !name.equals(current)) {
+            LOGGER.warn("discovered multiple names for topic UUID {}: continuing to use {} and ignoring {}", uuid, current, name);
+        }
     }
 }

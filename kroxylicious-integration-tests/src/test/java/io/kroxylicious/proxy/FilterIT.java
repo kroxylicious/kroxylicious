@@ -23,8 +23,10 @@ import javax.net.ssl.SSLSocket;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -37,6 +39,7 @@ import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,6 +57,7 @@ import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory;
+import io.kroxylicious.proxy.filter.TopicIdToNameResponseStamper;
 import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation;
 import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation;
 import io.kroxylicious.test.Request;
@@ -387,6 +391,34 @@ class FilterIT {
                     .hasSize(1)
                     .map(ConsumerRecord::value)
                     .containsExactly(expectedEncoded2);
+        }
+    }
+
+    @Test
+    void filtersCanLookUpTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2, Admin admin) throws Exception {
+
+        Map<String, TopicDescription> descriptionMap = admin.describeTopics(List.of(topic1.name(), topic2.name())).allTopicNames().get(5, TimeUnit.SECONDS);
+        Uuid topic1Id = descriptionMap.get(topic1.name()).topicId();
+        Uuid topic2Id = descriptionMap.get(topic2.name()).topicId();
+
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("topicIdLookup",
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id.toString() + "," + topic2Id.toString()).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+            assertThat(tags).hasSize(1);
+            String tag = tags.getFirst();
+            String[] topicNames = tag.split(",");
+            assertThat(topicNames).containsExactlyInAnyOrder(topic1.name(), topic2.name());
         }
     }
 

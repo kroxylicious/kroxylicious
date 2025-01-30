@@ -5,10 +5,13 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -139,5 +142,14 @@ public interface FilterContext {
      */
     String getVirtualClusterName();
     // TODO an API to allow a filter to add/remove another filter from the pipeline
+
+    /**
+     * Resolves all topicUuids in a Set to topic names.
+     * @param topicUuids topic uuids to resolve
+     * @return CompletionStage for a map containing an entry for each topicUuid, mapping the uuid to the topicName. The Map is unmodifiable.
+     * The Map may contain mappings for UUIDs of topics belonging to the filter's Virtual Cluster other than the ones contained in topicUuids.
+     * The stage will be completed exceptionally if a mapping for any uuid in the Set cannot be resolved.
+     */
+    CompletionStage<Map<Uuid, String>> getTopicNames(@NonNull Set<Uuid> topicUuids);
 
 }

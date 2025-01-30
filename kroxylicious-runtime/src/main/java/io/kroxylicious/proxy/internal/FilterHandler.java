@@ -5,13 +5,18 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 
+import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -417,6 +422,9 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private class InternalFilterContext implements FilterContext {
 
+        // Version 12 was the first version that uses topic ids.
+        private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
+
         private final DecodedFrame<?, ?> decodedFrame;
 
         InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
@@ -443,6 +451,35 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         public String getVirtualClusterName() {
             return virtualClusterModel.getClusterName();
+        }
+
+        @Override
+        public CompletionStage<Map<Uuid, String>> getTopicNames(@NonNull Set<Uuid> topicUuids) {
+            Objects.requireNonNull(topicUuids);
+            Map<Uuid, String> unmodifiableTopicUuidMap = virtualClusterModel.getUnmodifiableTopicUuidMap();
+            List<Uuid> unresolved = topicUuids.stream().filter(uuid -> !unmodifiableTopicUuidMap.containsKey(uuid)).toList();
+            if (unresolved.isEmpty()) {
+                // the assumption is that the topic uuid map is additive only, existing entries are immutable and will not be removed
+                return CompletableFuture.completedFuture(unmodifiableTopicUuidMap);
+            }
+            else {
+                MetadataRequestData request = new MetadataRequestData();
+                request.setTopics(unresolved.stream().map(u -> new MetadataRequestData.MetadataRequestTopic().setTopicId(u)).toList());
+                request.setAllowAutoTopicCreation(false);
+                request.setIncludeClusterAuthorizedOperations(false);
+                request.setIncludeTopicAuthorizedOperations(false);
+                RequestHeaderData requestHeaderData = new RequestHeaderData();
+                requestHeaderData.setRequestApiKey(ApiKeys.METADATA.id);
+                requestHeaderData.setRequestApiVersion(METADATA_API_VER_WITH_TOPIC_ID_SUPPORT);
+                return sendRequest(requestHeaderData, request).thenApply(f -> {
+                    // rely on TopicNameLearningFilter to remember this
+                    boolean anyUnresolved = topicUuids.stream().anyMatch(uuid -> !unmodifiableTopicUuidMap.containsKey(uuid));
+                    if (anyUnresolved) {
+                        throw new TopicIdMappingException("some topic uuids could not be resolved to topic names");
+                    }
+                    return unmodifiableTopicUuidMap;
+                });
+            }
         }
 
         @Override
