@@ -384,7 +384,7 @@ When a PR is created and the system tests are needed, if you are a member of
 [Developers](https://github.com/orgs/kroxylicious/teams/developers), you may add the following comment into the PR to trigger the run.
 
 ```
-@strimzi-ci run system tests
+@tealc-ci run system tests
 ```
 
 It will launch the `kroxylicious-system-tests-pr` build, that will insert a comment with a summary into the PR.
