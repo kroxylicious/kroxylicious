@@ -27,7 +27,8 @@ adminstrator in that account.  Kroxylicious Developers will find the credentials
 The account has two "Apps" that are used for CI purposes "Github CI (Facade/Admin)"  and "Github CI (KMS)".  These are configured for API Key
 authentication.    The API Keys are set as two Github secrets: `KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY` and `KROXYLICIOUS_KMS_FORTANIX_API_KEY`
 within https://github.com/kroxylicious/kroxylicious/settings/secrets/actions.   In addition there is a Github variable `KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT`
-which points at the endpoint of the Fortanix DSM SaaS services.  This is set at https://github.com/kroxylicious/kroxylicious/settings/variables/actions.
+which points at the endpoint of the Fortanix DSM SaaS services.  This is set at https://github.com/kroxylicious/kroxylicious/settings/variables/actions. The CI
+workflows turn those Github secrets/variable into environment variables (for the same name) for the Maven runs.
 
 The Fortanix DSM SaaS account is a long-lived account so should not expire.  When discussing the account with the Fortanix, quote the account id
 found on this page https://uk.smartkey.io/#/settings.
