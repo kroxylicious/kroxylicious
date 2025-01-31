@@ -26,6 +26,7 @@
         "(?<depName>hashicorp/vault):(?<currentValue>\\d+\\.\\d+.\\d+)",
         "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
       ],
+      "depNameTemplate": "hashicorp/vault",
       "datasourceTemplate": "docker"
     },
     {
