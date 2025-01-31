@@ -18,6 +18,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -175,6 +176,28 @@ public class DeploymentUtils {
                 .pollInterval(Duration.ofMillis(500))
                 .until(() -> kubeClient().getPod(namespaceName, podName) != null
                         && kubeClient().isDeploymentRunning(namespaceName, podName));
+    }
+
+    /**
+     * Wait for expected replicas of a deployment to be running.
+     *
+     * @param namespaceName the namespace name
+     * @param deploymentName the deployment name
+     * @param expectedReplicas the expected replicas
+     * @param timeout the timeout
+     * @return the boolean
+     */
+    public static boolean waitForDeploymentRunning(String namespaceName, String deploymentName, int expectedReplicas, Duration timeout) {
+        LOGGER.info("Waiting for deployment: {} replicas of {}/{} to be running", expectedReplicas, namespaceName, deploymentName);
+        List<Pod> pods = kubeClient().listPods(namespaceName, kubeClient().getPodSelectorFromDeployment(namespaceName, deploymentName));
+
+        AtomicInteger runningPods = new AtomicInteger();
+        pods.forEach(p -> {
+            waitForDeploymentRunning(namespaceName, p.getMetadata().getName(), timeout);
+            runningPods.getAndIncrement();
+        });
+
+        return runningPods.get() == expectedReplicas;
     }
 
     private static void waitForLeavingPendingPhase(String namespaceName, String podName) {
