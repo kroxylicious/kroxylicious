@@ -56,6 +56,7 @@ public abstract class FilterHarness {
     private final AtomicInteger outboundCorrelationId = new AtomicInteger(1);
     private final Map<Integer, Correlation> pendingInternalRequestMap = new HashMap<>();
     private long timeoutMs = 1000L;
+    protected VirtualClusterModel testVirtualCluster;
 
     /**
      * Sets the timeout for applied to the filters.
@@ -78,7 +79,7 @@ public abstract class FilterHarness {
 
         final TargetCluster targetCluster = mock(TargetCluster.class);
         when(targetCluster.bootstrapServersList()).thenReturn(TARGET_CLUSTER_BOOTSTRAP);
-        var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", targetCluster, mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(), false,
+        testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", targetCluster, mock(ClusterNetworkAddressConfigProvider.class), Optional.empty(), false,
                 false, List.of());
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());

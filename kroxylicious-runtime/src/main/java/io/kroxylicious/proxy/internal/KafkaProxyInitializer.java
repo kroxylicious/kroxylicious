@@ -38,6 +38,7 @@ import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
+import io.kroxylicious.proxy.internal.filter.TopicNameLearningFilter;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
@@ -254,6 +255,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
             List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(virtualClusterModel, endpointReconciler));
+            List<FilterAndInvoker> topicNameLearner = FilterAndInvoker.build(new TopicNameLearningFilter(virtualClusterModel));
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(FilterAndInvoker.build(apiVersionsDowngradeFilter));
             filters.addAll(filterChain);
@@ -261,6 +263,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 filters.addAll(FilterAndInvoker.build(new EagerMetadataLearner()));
             }
             filters.addAll(brokerAddressFilters);
+            filters.addAll(topicNameLearner);
 
             var target = binding.upstreamTarget();
             if (target == null) {
