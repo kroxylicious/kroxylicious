@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.multitenant;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
@@ -24,6 +25,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.ConsumerGroupListing;
+import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
@@ -43,14 +45,25 @@ import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.filter.TopicIdToNameResponseStamper;
+import io.kroxylicious.proxy.filter.multitenant.MultiTenant;
 import io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilterFactory;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.test.Request;
+import io.kroxylicious.test.Response;
+import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.test.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -58,7 +71,9 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.assertj.core.api.Assertions.allOf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -104,6 +119,65 @@ class MultiTenantIT extends BaseMultiTenantIT {
             deleted = deleteTopics(admin, topics2);
             assertThat(deleted.topicIdValues().keySet()).containsAll(topics2.topicIds());
         }
+    }
+
+    @Test
+    void topicIdLookup(KafkaCluster cluster) throws Exception {
+        var filterBuilder = new NamedFilterDefinitionBuilder("filter-1", MultiTenant.class.getName());
+
+        NamedFilterDefinitionBuilder topicIdLookupBuilder = new NamedFilterDefinitionBuilder("topicIdLookup",
+                TopicIdToNameResponseStamper.class.getName());
+        var config = new ConfigurationBuilder()
+                .addToVirtualClusters(TENANT_1_CLUSTER, new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .endTargetCluster()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                        .withConfig("bootstrapAddress", TENANT_1_PROXY_ADDRESS)
+                                        .build())
+                        .build())
+                .addToVirtualClusters(TENANT_2_CLUSTER, new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .endTargetCluster()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                        .withConfig("bootstrapAddress", TENANT_2_PROXY_ADDRESS)
+                                        .build())
+                        .build())
+                .addToFilterDefinitions(topicIdLookupBuilder.build())
+                .addToFilterDefinitions(filterBuilder.build())
+                .addToDefaultFilters(topicIdLookupBuilder.name())
+                .addToDefaultFilters(filterBuilder.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient(TENANT_1_CLUSTER);
+                var client2 = tester.simpleTestClient(TENANT_2_CLUSTER);
+                var admin = tester.admin(TENANT_1_CLUSTER);
+                var admin2 = tester.admin(TENANT_2_CLUSTER)) {
+            String topicName = "topic1";
+            CreateTopicsResult topicResult = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)));
+            Uuid topicId = topicResult.topicId(topicName).get(5, TimeUnit.SECONDS);
+
+            CreateTopicsResult topicResult2 = admin2.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)));
+            Uuid topicId2 = topicResult2.topicId(topicName).get(5, TimeUnit.SECONDS);
+            assertThat(topicId).isNotEqualTo(topicId2);
+            assertTopicIdMappedToTopicName(topicId, client, topicName);
+            assertTopicIdMappedToTopicName(topicId2, client2, topicName);
+        }
+    }
+
+    private static void assertTopicIdMappedToTopicName(Uuid topicId, KafkaClient client, String topicName) {
+        MetadataRequestData message = new MetadataRequestData();
+        message.unknownTaggedFields().add(
+                new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topicId.toString()).getBytes(StandardCharsets.UTF_8)));
+        Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+        List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+        assertThat(tags).hasSize(1);
+        String tag = tags.getFirst();
+        String[] topicNames = tag.split(",");
+        assertThat(topicNames).containsExactlyInAnyOrder(topicName);
     }
 
     @Test
