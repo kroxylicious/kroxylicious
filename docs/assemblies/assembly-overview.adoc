@@ -23,7 +23,7 @@ An API provides a convenient means for implementing custom logic within the prox
 
 Kroxylicious follows https://semver.org/#semantic-versioning-200[Semantic Versioning] rules. While we are still in the `0.y.z` phase we still take API compatability very seriously, we aim to provide at least two minor releases between deprecation and the removal of that deprecated item.
 
-We also consider our configuration model to be a "public API", and thus it will follow the same Semantic Versioning and deprecation rules.
+We also consider our configuration file syntax to be a "public API" (note we don't consider the java model backing this to be a public API), and thus it will follow the same Semantic Versioning and deprecation rules.
 
 Kubernetes Custom Resources are obviously considered to be a public API, and we will make every effort to evolve them in line with Kubernetes best practice.
 
