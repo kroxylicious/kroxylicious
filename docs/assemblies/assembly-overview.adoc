@@ -21,7 +21,7 @@ An API provides a convenient means for implementing custom logic within the prox
 [id='assembly-overview-compatibility-api{context}']
 === APIs
 
-Kroxylicious follows https://semver.org/#semantic-versioning-200[Semantic Versioning] rules. While we are still in the `0.y.z` phase we still take API compatability very seriously, we aim to provide at least two minor releases between deprecation and the removal of that deprecated item.
+Kroxylicious follows https://semver.org/#semantic-versioning-200[Semantic Versioning] rules. While we are still in the initial development (denoted by a major version `0`) phase we still take API compatability very seriously, we aim to provide at least two minor releases between deprecation and the removal of that deprecated item.
 
 We also consider our configuration file syntax a public API (though not the Java model backing it). As such, the syntax follows the same Semantic Versioning and deprecation rules.
 
