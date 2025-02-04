@@ -31,7 +31,7 @@ Kubernetes custom resources are a public API, and we are making every effort to 
 
 Kroxylicious supports loading third-party plugins to extend the core functionality of the project. While these plugins are configured and loaded as first-class entities within Kroxylicious, we cannot guarantee the compatibility of their APIs or configuration properties.
 
-We do however hold filters and plug-ins provided by the project to the same standards as the rest of the public API.
+We do however hold filters and plugins provided by the project to the same standards as the rest of the public API.
 
 [id='assembly-overview-compatibility-wire-protocol{context}']
 === Wire protocol
