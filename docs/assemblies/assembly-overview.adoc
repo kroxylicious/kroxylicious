@@ -29,7 +29,7 @@ Kubernetes custom resources are a public API, and we are making every effort to 
 
 ==== Third-party plugins
 
-Kroxylicious supports loading third party plug-ins to extend the functionality provided by the core project. While these plugins are configured and loaded as first class entities within Kroxylicious we cannot make any guarantees about the compatability of their APIs or configuration properties.
+Kroxylicious supports loading third-party plugins to extend the core functionality of the project. While these plugins are configured and loaded as first-class entities within Kroxylicious, we cannot guarantee the compatibility of their APIs or configuration properties.
 
 We do however hold filters and plug-ins provided by the project to the same standards as the rest of the public API.
 
