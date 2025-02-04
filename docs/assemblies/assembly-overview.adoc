@@ -27,7 +27,7 @@ We also consider our configuration file syntax a public API (though not the Java
 
 Kubernetes custom resources are a public API, and we are making every effort to evolve Kroxylicious custom resources in line with https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/[Kubernetes best practices]. Kubernetes resources have their own versioning scheme, which is independent of the Kroxylicious proxy service version. As a result, we may reach version 1.0.0 of Kroxylicious while still using alpha or beta versions of the custom resources.
 
-==== Plugins
+==== Third-party plugins
 
 Kroxylicious supports loading third party plug-ins to extend the functionality provided by the core project. While these plugins are configured and loaded as first class entities within Kroxylicious we cannot make any guarantees about the compatability of their APIs or configuration properties.
 
