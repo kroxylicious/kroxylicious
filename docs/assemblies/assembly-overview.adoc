@@ -15,10 +15,10 @@ It takes on the responsibility of receiving, filtering, and forwarding messages.
 
 An API provides a convenient means for implementing custom logic within the proxy.
 
-[id='assembly-overview-compatability{context}']
+[id='assembly-overview-compatibility{context}']
 == Compatibility
 
-[id='assembly-overview-compatability-api{context}']
+[id='assembly-overview-compatibility-api{context}']
 === APIs
 
 Kroxylicious follows https://semver.org/#semantic-versioning-200[Semantic Versioning] rules. While we are still in the `0.y.z` phase we still take API compatability very seriously, we aim to provide at least two minor releases between deprecation and the removal of that deprecated item.
@@ -33,8 +33,8 @@ Kroxylicious supports loading third party plug-ins to extend the functionality p
 
 We do however hold filters and plug-ins provided by the project to the same standards as the rest of the public API.
 
-[id='assembly-overview-compatability-wire-protocol{context}']
-=== Wire Protocol
+[id='assembly-overview-compatibility-wire-protocol{context}']
+=== Wire protocol
 
 Kroxylicious offers the same backwards & forwards compatability guarantees as https://kafka.apache.org/protocol#protocol_compatibility[Apache Kafka]. We will support the same range of client and broker versions as the official Apache Kafka Java client.
 
