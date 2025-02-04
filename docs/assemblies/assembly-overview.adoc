@@ -36,7 +36,7 @@ We do however hold filters and plugins provided by the project to the same stand
 [id='assembly-overview-compatibility-wire-protocol{context}']
 === Wire protocol
 
-Kroxylicious offers the same backwards & forwards compatability guarantees as https://kafka.apache.org/protocol#protocol_compatibility[Apache Kafka]. We will support the same range of client and broker versions as the official Apache Kafka Java client.
+Kroxylicious offers the same backwards and forwards compatibility guarantees as https://kafka.apache.org/protocol#protocol_compatibility[Apache Kafka]. We support the same range of client and broker versions as the official Apache Kafka Java client.
 
 [role="_additional-resources"]
 .Additional resources
