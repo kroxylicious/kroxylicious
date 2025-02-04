@@ -21,7 +21,7 @@
     <properties>
         <josdk.version>4.9.7</josdk.version>
         <log4j.version>2.20.0</log4j.version>
-        <fabric8-client.version>6.13.4</fabric8-client.version>
+        <fabric8-client.version>6.13.5</fabric8-client.version>
         <sundrio.version>0.200.0</sundrio.version>
         <lombok.version>1.18.36</lombok.version>
     </properties>
