@@ -62,13 +62,13 @@
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.0.7</apicurio-schema-validation.version>
-        <apicurio-registry.version>2.6.7.Final</apicurio-registry.version>
+        <apicurio-registry.version>2.6.8.Final</apicurio-registry.version>
         <apicurio-common.version>0.1.18.Final</apicurio-common.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
         <strimzi.version>0.45.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
-        <kubernetes-client.version>6.13.4</kubernetes-client.version>
+        <kubernetes-client.version>6.13.5</kubernetes-client.version>
         <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.9</maven.core.version>
         <awaitility.version>4.2.2</awaitility.version>
