@@ -72,7 +72,7 @@ public class KcatClient implements KafkaClient {
 
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kcat").addArgument(topicName).log();
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kcat-" + TestUtils.getRandomPodNameSuffix();
-        String jsonOverrides = getInstance().isOpenshift() ? TestUtils.getJsonFileContent("nonJVMClient_overrides.json") : "";
+        String jsonOverrides = getInstance().isOpenshift() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json") : "";
 
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
