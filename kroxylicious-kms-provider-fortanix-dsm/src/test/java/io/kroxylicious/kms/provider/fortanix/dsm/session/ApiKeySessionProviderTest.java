@@ -233,6 +233,31 @@ class ApiKeySessionProviderTest {
         }
     }
 
+    @Test
+    void shouldTerminateSession() {
+        // Given
+        var now = Instant.now();
+        var expiresInSecs = 10;
+        var initialToken = "firstToken-" + UUID.randomUUID();
+        var sessionAuthResponse = createTestCredential("Bearer", expiresInSecs, initialToken);
+
+        server.stubFor(
+                post(urlEqualTo(SESSION_AUTH_ENDPOINT))
+                        .willReturn(aResponse()
+                                .withBody(toJson(sessionAuthResponse))));
+
+        try (var provider = new ApiKeySessionProvider(config, client, Clock.fixed(now, ZoneId.systemDefault()))) {
+            // When
+            provider.terminateSessionOnServer(provider.getSession());
+            // Then
+            await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> {
+                        server.verify(1, postRequestedFor(urlEqualTo(SESSION_TERMINATE_ENDPOINT))
+                                .withHeader(AUTHORIZATION_HEADER, equalTo("Bearer " + initialToken)));
+                    });
+        }
+    }
+
     /**
      * This test ensures if a session somehow expires (because time is beyond its expiration)
      * that it get refreshed anyway.
