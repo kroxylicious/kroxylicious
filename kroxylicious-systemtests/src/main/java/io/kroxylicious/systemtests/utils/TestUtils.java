@@ -6,9 +6,12 @@
 
 package io.kroxylicious.systemtests.utils;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -85,5 +88,20 @@ public class TestUtils {
      */
     public static String getRandomPodNameSuffix() {
         return MobyNamesGenerator.getRandomName().replace("_", "-");
+    }
+
+    /**
+     * Gets json file content.
+     *
+     * @param fileName the file name
+     * @return the json file content
+     */
+    public static String getJsonFileContent(String fileName) {
+        try {
+            return OBJECT_MAPPER.readTree(new File(Path.of(getResourcesURI(fileName)).toString())).toString();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 }
