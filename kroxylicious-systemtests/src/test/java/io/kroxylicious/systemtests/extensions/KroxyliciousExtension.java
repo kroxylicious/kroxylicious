@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
@@ -66,6 +67,9 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
             if (exception.isPresent()) {
                 DeploymentUtils.collectClusterInfo("default", extensionContext.getRequiredTestClass().getSimpleName(), "");
             }
+        }
+        if (!Environment.SKIP_TEARDOWN) {
+            NamespaceUtils.deleteNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
         }
     }
 

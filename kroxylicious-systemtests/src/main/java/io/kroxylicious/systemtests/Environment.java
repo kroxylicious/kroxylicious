@@ -32,6 +32,7 @@ public class Environment {
     private static final String SKIP_STRIMZI_INSTALL_ENV = "SKIP_STRIMZI_INSTALL";
     private static final String KAFKA_CLIENT_ENV = "KAFKA_CLIENT";
     private static final String STRIMZI_VERSION_ENV = "STRIMZI_VERSION";
+    private static final String STRIMZI_NAMESPACE_ENV = "STRIMZI_NAMESPACE";
     private static final String CLUSTER_DUMP_DIR_ENV = "CLUSTER_DUMP_DIR";
     private static final String AWS_ACCESS_KEY_ID_ENV = "AWS_ACCESS_KEY_ID";
     private static final String AWS_SECRET_ACCESS_KEY_ENV = "AWS_SECRET_ACCESS_KEY";
@@ -117,6 +118,8 @@ public class Environment {
 
     public static final String STRIMZI_VERSION = getOrDefault(STRIMZI_VERSION_ENV, STRIMZI_VERSION_DEFAULT);
 
+    public static final String STRIMZI_NAMESPACE = getOrDefault(STRIMZI_NAMESPACE_ENV, Constants.KAFKA_DEFAULT_NAMESPACE);
+
     public static final String CLUSTER_DUMP_DIR = getOrDefault(CLUSTER_DUMP_DIR_ENV, CLUSTER_DUMP_DIR_DEFAULT);
 
     public static final String AWS_ACCESS_KEY_ID = getOrDefault(AWS_ACCESS_KEY_ID_ENV, AWS_ACCESS_KEY_ID_DEFAULT);
@@ -145,7 +148,7 @@ public class Environment {
         try (var stream = Environment.class.getResourceAsStream(metadataProps)) {
             Objects.requireNonNull(stream, metadataProps + " is not present on the classpath");
             p.load(stream);
-            var version = p.getProperty(property);
+            String version = p.getProperty(property);
             if (version == null) {
                 throw new IllegalStateException(property + " key absent in " + metadataProps);
             }
