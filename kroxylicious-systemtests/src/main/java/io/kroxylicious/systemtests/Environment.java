@@ -78,7 +78,6 @@ public class Environment {
      */
     private static final String SKIP_TEARDOWN_DEFAULT = "false";
     private static final String STRIMZI_FEATURE_GATES_DEFAULT = "";
-    private static final String STRIMZI_NAMESPACE_DEFAULT = Constants.KAFKA_DEFAULT_NAMESPACE;
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
     private static final String SKIP_STRIMZI_INSTALL_DEFAULT = "false";
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
@@ -119,7 +118,7 @@ public class Environment {
 
     public static final String STRIMZI_VERSION = getOrDefault(STRIMZI_VERSION_ENV, STRIMZI_VERSION_DEFAULT);
 
-    public static final String STRIMZI_NAMESPACE = getOrDefault(STRIMZI_NAMESPACE_ENV, STRIMZI_NAMESPACE_DEFAULT);
+    public static final String STRIMZI_NAMESPACE = getOrDefault(STRIMZI_NAMESPACE_ENV, Constants.KAFKA_DEFAULT_NAMESPACE);
 
     public static final String CLUSTER_DUMP_DIR = getOrDefault(CLUSTER_DUMP_DIR_ENV, CLUSTER_DUMP_DIR_DEFAULT);
 
