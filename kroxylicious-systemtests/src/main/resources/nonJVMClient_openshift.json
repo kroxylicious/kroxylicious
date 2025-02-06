@@ -1,0 +1,17 @@
+{
+  "spec": {
+    "containers": [{
+      "name": "%NAME%",
+      "securityContext": {
+        "allowPrivilegeEscalation": false,
+        "runAsNonRoot": true,
+        "seccompProfile": {
+          "type": "RuntimeDefault"
+        },
+        "capabilities": {
+          "drop": [ "ALL" ]
+        }
+      }
+    }]
+  }
+}
