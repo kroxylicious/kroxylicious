@@ -17,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -42,7 +41,6 @@ import static org.awaitility.Awaitility.await;
  */
 public class KafClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafClient.class);
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<KafConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
     private String deployNamespace;
