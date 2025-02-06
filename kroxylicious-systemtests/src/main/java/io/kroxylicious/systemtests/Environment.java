@@ -143,7 +143,7 @@ public class Environment {
     }
 
     private static String readMetadataProperty(String property) {
-        Properties p = new Properties();
+        var p = new Properties();
         var metadataProps = "/metadata.properties";
         try (var stream = Environment.class.getResourceAsStream(metadataProps)) {
             Objects.requireNonNull(stream, metadataProps + " is not present on the classpath");
