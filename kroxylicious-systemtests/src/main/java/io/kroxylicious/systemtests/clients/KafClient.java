@@ -6,6 +6,10 @@
 
 package io.kroxylicious.systemtests.clients;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -33,6 +38,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static io.kroxylicious.systemtests.utils.TestUtils.getResourcesURI;
 import static org.awaitility.Awaitility.await;
 
 /**
@@ -40,6 +46,7 @@ import static org.awaitility.Awaitility.await;
  */
 public class KafClient implements KafkaClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafClient.class);
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<KafConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
     private String deployNamespace;
@@ -62,10 +69,19 @@ public class KafClient implements KafkaClient {
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
+        String jsonOverrides;
+        try {
+            jsonOverrides = OBJECT_MAPPER.readTree(new File(Path.of(getResourcesURI("nonJVMClient_overrides.json")).toString())).toString();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
 
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
                 "--image=" + Constants.KAF_CLIENT_IMAGE,
+                "--override-type=strategic",
+                "--overrides=" + jsonOverrides.replace("%NAME%", name),
                 "--", "kaf", "-n", String.valueOf(numOfMessages), "-b", bootstrap));
         recordKey.ifPresent(key -> {
             executableCommand.add("--key");
