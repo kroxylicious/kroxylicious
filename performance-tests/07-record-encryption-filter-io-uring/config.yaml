@@ -1,0 +1,35 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+useIoUring: true
+adminHttp:
+  endpoints:
+    prometheus: {}
+virtualClusters:
+  demo:
+    targetCluster:
+      bootstrapServers: broker1:9092
+    clusterNetworkAddressConfigProvider:
+      type: PortPerBrokerClusterNetworkAddressConfigProvider
+      config:
+        bootstrapAddress: kroxylicious:9092
+    logNetwork: false
+    logFrames: false
+filterDefinitions:
+- name: encrypt
+  type: RecordEncryption
+  config:
+    kms: VaultKmsService
+    kmsConfig:
+      vaultTransitEngineUrl: http://vault:8200/v1/transit
+      vaultToken:
+        password: token
+    selector: TemplateKekSelector
+    selectorConfig:
+      template: "KEK_${topicName}"
+defaultFilters:
+  - encrypt
