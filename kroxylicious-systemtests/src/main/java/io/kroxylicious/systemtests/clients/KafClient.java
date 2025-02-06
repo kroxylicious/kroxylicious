@@ -63,13 +63,13 @@ public class KafClient implements KafkaClient {
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
-        String jsonOverrides = getInstance().isOpenshift() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json") : "";
+        String jsonOverrides = getInstance().isOpenshift() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json").replace("%NAME%", name) : "";
 
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,
                 "--image=" + Constants.KAF_CLIENT_IMAGE,
                 "--override-type=strategic",
-                "--overrides=" + jsonOverrides.replace("%NAME%", name),
+                "--overrides=" + jsonOverrides,
                 "--", "kaf", "-n", String.valueOf(numOfMessages), "-b", bootstrap));
         recordKey.ifPresent(key -> {
             executableCommand.add("--key");
