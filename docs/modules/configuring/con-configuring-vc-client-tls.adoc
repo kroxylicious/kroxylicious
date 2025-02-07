@@ -115,7 +115,7 @@ virtualClusters:
     tls:
       # ...
       protocols:
-        allow:  # <1>
+        allowed:  # <1>
         - TLSv1.3
         - TLSv1.2
 ----
@@ -130,7 +130,7 @@ virtualClusters:
     tls:
       # ...
       protocols:
-        deny:  # <1>
+        denied:  # <1>
         - TLSv1.1
 ----
 <1> List of disallowed TLS protocols.
@@ -170,7 +170,7 @@ virtualClusters:
     tls:
       # ...
       protocols:
-        deny:  # <1>
+        denied:  # <1>
         - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
 ----
 <1> List of disallowed cipher suites.
