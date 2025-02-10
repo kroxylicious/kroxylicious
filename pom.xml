@@ -57,7 +57,7 @@
         <micrometer.version>1.14.3</micrometer.version>
         <slf4j.version>2.0.16</slf4j.version>
         <sundr-builder-annotations.version>0.200.0</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.9.0</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.9.1</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
