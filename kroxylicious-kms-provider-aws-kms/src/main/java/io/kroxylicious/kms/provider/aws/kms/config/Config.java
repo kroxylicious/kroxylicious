@@ -7,17 +7,12 @@
 package io.kroxylicious.kms.provider.aws.kms.config;
 
 import java.net.URI;
-import java.security.NoSuchAlgorithmException;
 import java.util.Objects;
-
-import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.tls.JdkTls;
-import io.kroxylicious.proxy.tls.SslConfigurationException;
 
 /**
  * Configuration for the AWS KMS service.
@@ -41,20 +36,6 @@ public record Config(@JsonProperty(value = "endpointUrl", required = true) URI e
     public Config {
         Objects.requireNonNull(endpointUrl);
         Objects.requireNonNull(region);
-    }
-
-    public SSLContext sslContext() {
-        try {
-            if (tls == null) {
-                return SSLContext.getDefault();
-            }
-            else {
-                return new JdkTls(tls).sslContext();
-            }
-        }
-        catch (NoSuchAlgorithmException e) {
-            throw new SslConfigurationException(e);
-        }
     }
 
 }

@@ -22,12 +22,14 @@ certificate signed by a public CA and the platform's defaults are suitable.
 .Example enabling TLS for a target cluster using platform defaults
 [source,yaml]
 ----
+# ...
 virtualClusters:
   my-cluster-proxy:
+    # ...
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
-      tls: {}                                         
-      #...
+      tls: {}
+# ...
 ----
 
 If it is using a TLS certificate signed by a private CA, you must add truststore configuration for the target cluster.
@@ -36,8 +38,10 @@ The example illustrates using PKCS #12 format. PEM format is supported too.
 .Example specifying a truststore
 [source,yaml]
 ----
+# ...
 virtualClusters:
   my-cluster-proxy:
+    # ...
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
@@ -45,8 +49,8 @@ virtualClusters:
           storeFile: <path>/trust.p12 # <1>                
           storePassword:
             passwordFile: <path>/store.password # <2>    
-          storeType: PKCS12 # <3>                             
-      #...
+          storeType: PKCS12 # <3>
+# ...
 ----
 <1> PKCS #12 store for the public CA certificate of the Kafka cluster.
 <2> Password to access the public Kafka cluster CA certificate.
@@ -59,8 +63,10 @@ PKCS #12 keystore format is supported too.
 .Example configuring mutual TLS
 [source,yaml]
 ----
+# ...
 virtualClusters:
   my-cluster-proxy:
+    # ...
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
@@ -77,14 +83,16 @@ The TLS protocols and cipher suites available to the TLS connection may also be 
 .Example restricting TLS protocols using an allow list
 [source,yaml]
 ----
+# ...
 virtualClusters:
   my-cluster-proxy:
+    # ...
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
         # ...
         protocols:
-          allow:  # <1>
+          allowed:  # <1>
           - TLSv1.3
           - TLSv1.2
 ----
@@ -101,7 +109,7 @@ virtualClusters:
       tls:
         # ...
         protocols:
-          allow:  # <1>
+          allowed:  # <1>
           - TLSv1.1
 ----
 <1> List of disallowed TLS protocols.
@@ -135,7 +143,7 @@ virtualClusters:
       tls:
         # ...
         protocols:
-          deny:  # <1>
+          denied:  # <1>
           - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
 ----
 <1> List of disallowed cipher suites.
@@ -153,6 +161,6 @@ virtualClusters:
       bootstrapServers: dev-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
         trust:
-          insecure: true                                
-      #...
+          insecure: true
+# ...
 ----

@@ -51,7 +51,7 @@ import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcesso
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -75,7 +75,7 @@ public final class KafkaProxy implements AutoCloseable {
     private final @NonNull Configuration config;
     private final @Nullable AdminHttpConfiguration adminHttpConfig;
     private final @NonNull List<MicrometerDefinition> micrometerConfig;
-    private final @NonNull List<VirtualCluster> virtualClusters;
+    private final @NonNull List<VirtualClusterModel> virtualClusterModels;
     private final AtomicBoolean running = new AtomicBoolean();
     private final CompletableFuture<Void> shutdown = new CompletableFuture<>();
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
@@ -90,7 +90,7 @@ public final class KafkaProxy implements AutoCloseable {
     public KafkaProxy(@NonNull PluginFactoryRegistry pfr, @NonNull Configuration config, @NonNull Features features) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
-        this.virtualClusters = config.virtualClusterModel(pfr);
+        this.virtualClusterModels = config.virtualClusterModel(pfr);
         this.adminHttpConfig = config.adminHttpConfig();
         this.micrometerConfig = config.getMicrometer();
     }
@@ -120,7 +120,7 @@ public final class KafkaProxy implements AutoCloseable {
 
             var portConflictDefector = new PortConflictDetector();
             Optional<HostPort> adminHttpHostPort = Optional.ofNullable(shouldBindAdminEndpoint() ? new HostPort(adminHttpConfig.host(), adminHttpConfig.port()) : null);
-            portConflictDefector.validate(virtualClusters, adminHttpHostPort);
+            portConflictDefector.validate(virtualClusterModels, adminHttpHostPort);
 
             var availableCores = Runtime.getRuntime().availableProcessors();
             meterRegistries = new MeterRegistries(pfr, micrometerConfig);
@@ -143,7 +143,7 @@ public final class KafkaProxy implements AutoCloseable {
 
             // TODO: startup/shutdown should return a completionstage
             CompletableFuture.allOf(
-                    virtualClusters.stream().map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new))
+                    virtualClusterModels.stream().map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new))
                     .join();
 
             // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency

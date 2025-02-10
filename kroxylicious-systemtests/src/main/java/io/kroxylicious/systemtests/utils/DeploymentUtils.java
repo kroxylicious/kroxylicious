@@ -283,7 +283,7 @@ public class DeploymentUtils {
                 .withZone(ZoneOffset.UTC)
                 .format(Instant.now());
         List<String> executableCommand = List.of(cmdKubeClient(namespace).toString(), "cluster-info", "dump",
-                "--namespaces", String.join(",", namespace, Constants.KAFKA_DEFAULT_NAMESPACE),
+                "--namespaces", String.join(",", namespace, Constants.KAFKA_DEFAULT_NAMESPACE, Environment.STRIMZI_NAMESPACE),
                 "--output-directory", Environment.CLUSTER_DUMP_DIR + "/" + testClassName.replace(".", "_") + "_" +
                         testMethodName + "_cluster_dump_" + formattedDate);
         ExecResult result = Exec.exec(null, executableCommand, Duration.ofSeconds(20), true, false, null);

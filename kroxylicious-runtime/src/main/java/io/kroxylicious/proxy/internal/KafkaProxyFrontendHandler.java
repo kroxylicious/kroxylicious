@@ -47,7 +47,7 @@ import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -70,7 +70,7 @@ public class KafkaProxyFrontendHandler
 
     private final boolean logNetwork;
     private final boolean logFrames;
-    private final VirtualCluster virtualCluster;
+    private final VirtualClusterModel virtualClusterModel;
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
@@ -103,21 +103,21 @@ public class KafkaProxyFrontendHandler
     KafkaProxyFrontendHandler(
                               @NonNull NetFilter netFilter,
                               @NonNull SaslDecodePredicate dp,
-                              @NonNull VirtualCluster virtualCluster) {
-        this(netFilter, dp, virtualCluster, new ProxyChannelStateMachine());
+                              @NonNull VirtualClusterModel virtualClusterModel) {
+        this(netFilter, dp, virtualClusterModel, new ProxyChannelStateMachine());
     }
 
     KafkaProxyFrontendHandler(
                               @NonNull NetFilter netFilter,
                               @NonNull SaslDecodePredicate dp,
-                              @NonNull VirtualCluster virtualCluster,
+                              @NonNull VirtualClusterModel virtualClusterModel,
                               @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
-        this.virtualCluster = virtualCluster;
+        this.virtualClusterModel = virtualClusterModel;
         this.proxyChannelStateMachine = proxyChannelStateMachine;
-        this.logNetwork = virtualCluster.isLogNetwork();
-        this.logFrames = virtualCluster.isLogFrames();
+        this.logNetwork = virtualClusterModel.isLogNetwork();
+        this.logFrames = virtualClusterModel.isLogFrames();
     }
 
     @Override
@@ -305,7 +305,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        proxyChannelStateMachine.onClientException(cause, virtualCluster.getDownstreamSslContext().isPresent());
+        proxyChannelStateMachine.onClientException(cause, virtualClusterModel.getDownstreamSslContext().isPresent());
     }
 
     /**
@@ -443,7 +443,7 @@ public class KafkaProxyFrontendHandler
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
                     clientCtx().channel().id(), remote, filters);
         }
-        this.proxyChannelStateMachine.onNetFilterInitiateConnect(remote, filters, virtualCluster, netFilter);
+        this.proxyChannelStateMachine.onNetFilterInitiateConnect(remote, filters, virtualClusterModel, netFilter);
     }
 
     /**
@@ -473,12 +473,12 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
         addFiltersToPipeline(filters, pipeline, inboundChannel);
-        pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualCluster.socketFrameMaxSizeBytes()));
+        pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes()));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
         if (logNetwork) {
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
         }
-        virtualCluster.getUpstreamSslContext().ifPresent(sslContext -> {
+        virtualClusterModel.getUpstreamSslContext().ifPresent(sslContext -> {
             final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
             pipeline.addFirst("ssl", handler);
         });
@@ -614,7 +614,7 @@ public class KafkaProxyFrontendHandler
                             protocolFilter,
                             20000,
                             sniHostname,
-                            virtualCluster,
+                            virtualClusterModel,
                             inboundChannel));
         }
     }

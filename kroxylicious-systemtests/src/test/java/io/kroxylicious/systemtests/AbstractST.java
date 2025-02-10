@@ -61,7 +61,7 @@ public class AbstractST implements TestSeparator {
     @BeforeAll
     static void setup() {
         cluster = KubeClusterResource.getInstance();
-        strimziOperator = new Strimzi(Constants.KAFKA_DEFAULT_NAMESPACE);
+        strimziOperator = new Strimzi(Environment.STRIMZI_NAMESPACE);
 
         NamespaceUtils.createNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
@@ -79,7 +79,6 @@ public class AbstractST implements TestSeparator {
             if (strimziOperator != null) {
                 strimziOperator.delete();
             }
-            NamespaceUtils.deleteNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
         }
         else {
             LOGGER.warn("Teardown was skipped because SKIP_TEARDOWN was set to 'true'");

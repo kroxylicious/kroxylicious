@@ -61,7 +61,7 @@ import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -644,8 +644,8 @@ class ProxyChannelStateMachineEndToEndTest {
     private KafkaProxyFrontendHandler handler(
                                               NetFilter filter,
                                               SaslDecodePredicate dp,
-                                              VirtualCluster virtualCluster) {
-        return new KafkaProxyFrontendHandler(filter, dp, virtualCluster, proxyChannelStateMachine) {
+                                              VirtualClusterModel virtualClusterModel) {
+        return new KafkaProxyFrontendHandler(filter, dp, virtualClusterModel, proxyChannelStateMachine) {
             @NonNull
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
@@ -685,7 +685,7 @@ class ProxyChannelStateMachineEndToEndTest {
         var dp = new SaslDecodePredicate(saslOffloadConfigured);
         NetFilter filter = mock(NetFilter.class);
         doAnswer(filterSelectServerBehaviour).when(filter).selectServer(any());
-        VirtualCluster virtualCluster = mock(VirtualCluster.class);
+        VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
         final Optional<SslContext> sslContext;
         try {
             sslContext = Optional.ofNullable(tlsConfigured ? SslContextBuilder.forClient().build() : null);
@@ -693,9 +693,9 @@ class ProxyChannelStateMachineEndToEndTest {
         catch (SSLException e) {
             throw new RuntimeException(e);
         }
-        when(virtualCluster.getUpstreamSslContext()).thenReturn(sslContext);
+        when(virtualClusterModel.getUpstreamSslContext()).thenReturn(sslContext);
 
-        this.handler = handler(filter, dp, virtualCluster);
+        this.handler = handler(filter, dp, virtualClusterModel);
         this.inboundCtx = mock(ChannelHandlerContext.class);
         when(inboundCtx.channel()).thenReturn(inboundChannel);
         when(inboundCtx.pipeline()).thenReturn(inboundChannel.pipeline());

@@ -6,7 +6,10 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+## 0.10.0
 
+* [#1770](https://github.com/kroxylicious/kroxylicious/pull/1770) Name filter factories consistently
+* [#1743](https://github.com/kroxylicious/kroxylicious/pull/1743) Apply TLS protocol and cipher suite restrictions to HTTP Clients used by KMS impls too
 * [#1761](https://github.com/kroxylicious/kroxylicious/pull/1761) SNI exposition: user can control advertised broker port
 * [#1766](https://github.com/kroxylicious/kroxylicious/issues/1766) Bump apicurio-registry.version from 2.6.6.Final to 2.6.7.Final
 * [#1380](https://github.com/kroxylicious/kroxylicious/issues/1380) Deprecated FilterFactoryContext#eventLoop() is removed.
@@ -22,6 +25,14 @@ Format `<github issue/pr number>: <short description>`.
 
 ### Changes, deprecations and removals
 
+* The factory for the Multitenancy filter is renamed from `MultiTenantTransformationFilterFactory` to `MultiTenant`. The
+  old factory name is deprecated.
+* The factories for the Kroxylicious Sample filters are renamed from `SampleProduceRequestFilterFactory` to 
+  `SampleProduceRequest` and `SampleFetchResponseFilterFactory` to `SampleFetchResponse` respectively. The old factory
+  names are now deprecated.
+* The factories for the Kroxylicious Transform filters (used by the performance tests) are renamed from
+  `ProduceRequestTransformationFilterFactory` to `ProduceRequestTransformation` and `FetchResponseTransformationFilterFactory`
+* to `FetchResponseTransformation` respectively. The old factory names are now deprecated.
 * The top level `filters` configuration property is deprecated. Configurations should use `filterDefinitions` and `defaultFilters` instead.
 * The `bootstrap_servers` property of a virtual cluster's `targetCluster` is deprecated. It is replaced by a property called `bootstrapServers`.
 * As per deprecation notice made at 0.7.0, `ProduceValidationFilterFactory` filter is removed.  Use `RecordValidation` instead.

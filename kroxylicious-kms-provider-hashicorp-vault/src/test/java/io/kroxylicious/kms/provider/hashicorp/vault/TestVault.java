@@ -29,13 +29,14 @@ public class TestVault implements Closeable {
     public static final int PLAIN_PORT = 8200;
     private static final String VAULT_TOKEN = "token";
 
-    private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.18.3");
+    private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.18.4");
 
     private final VaultContainer<?> vault;
     private final URI endpoint;
 
     private static final int TLS_PORT = 8202;
 
+    @SuppressWarnings("resource")
     private TestVault(CertificateGenerator.Keys serverKeys, CertificateGenerator.Keys clientKeys) {
 
         if (clientKeys != null && serverKeys == null) {

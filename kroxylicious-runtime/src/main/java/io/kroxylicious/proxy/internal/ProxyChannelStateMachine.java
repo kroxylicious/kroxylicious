@@ -27,7 +27,7 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -121,7 +121,7 @@ public class ProxyChannelStateMachine {
     private KafkaProxyFrontendHandler frontendHandler = null;
 
     /**
-     * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualCluster, NetFilter)}
+     * The backend handler. Non-null if {@link #onNetFilterInitiateConnect(HostPort, List, VirtualClusterModel, NetFilter)}
      * has been called
      */
     @VisibleForTesting
@@ -217,16 +217,16 @@ public class ProxyChannelStateMachine {
      * Notify the statemachine that the netfilter has chosen an outbound peer.
      * @param peer the upstream host to connect to.
      * @param filters the set of filters to be applied to the session
-     * @param virtualCluster the virtual cluster the client is connecting too
+     * @param virtualClusterModel the virtual cluster the client is connecting too
      * @param netFilter the netFilter which selected the upstream peer.
      */
     void onNetFilterInitiateConnect(
                                     @NonNull HostPort peer,
                                     @NonNull List<FilterAndInvoker> filters,
-                                    VirtualCluster virtualCluster,
+                                    VirtualClusterModel virtualClusterModel,
                                     NetFilter netFilter) {
         if (state instanceof ProxyChannelState.SelectingServer selectingServerState) {
-            toConnecting(selectingServerState.toConnecting(peer), filters, virtualCluster);
+            toConnecting(selectingServerState.toConnecting(peer), filters, virtualClusterModel);
         }
         else {
             illegalState(DUPLICATE_INITIATE_CONNECT_ERROR + " : netFilter='" + netFilter + "'");
@@ -408,9 +408,9 @@ public class ProxyChannelStateMachine {
     private void toConnecting(
                               ProxyChannelState.Connecting connecting,
                               @NonNull List<FilterAndInvoker> filters,
-                              VirtualCluster virtualCluster) {
+                              VirtualClusterModel virtualClusterModel) {
         setState(connecting);
-        backendHandler = new KafkaProxyBackendHandler(this, virtualCluster);
+        backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
         frontendHandler.inConnecting(connecting.remote(), filters, backendHandler);
     }
 

@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.config;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -24,6 +25,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustOptions;
+import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
+import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -158,6 +167,71 @@ public record Configuration(
         this(adminHttp, filterDefinitions, defaultFilters, virtualClusters, null, micrometer, useIoUring, development);
     }
 
+    public static VirtualClusterModel toVirtualClusterModel(@NonNull VirtualCluster virtualCluster,
+                                                            @NonNull PluginFactoryRegistry pfr,
+                                                            @NonNull List<NamedFilterDefinition> filterDefinitions,
+                                                            @NonNull String virtualClusterNodeName) {
+
+        VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualClusterNodeName,
+                virtualCluster.targetCluster(),
+                buildAddressProviderService(virtualCluster, pfr),
+                virtualCluster.tls(),
+                virtualCluster.logNetwork(),
+                virtualCluster.logFrames(),
+                filterDefinitions);
+        logVirtualClusterSummary(virtualClusterModel.getClusterName(), virtualClusterModel.targetCluster(), virtualClusterModel.getClusterNetworkAddressConfigProvider(),
+                virtualCluster.tls());
+        return virtualClusterModel;
+    }
+
+    @SuppressWarnings("java:S1874") // the classes are deprecated because we don't want them in the API module
+    private static void logVirtualClusterSummary(String clusterName,
+                                                 TargetCluster targetCluster,
+                                                 ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
+                                                 Optional<Tls> tls) {
+        try {
+            HostPort downstreamBootstrap = clusterNetworkAddressConfigProvider.getClusterBootstrapAddress();
+            var downstreamTlsSummary = generateTlsSummary(tls);
+
+            HostPort upstreamHostPort = targetCluster.bootstrapServersList().get(0);
+            var upstreamTlsSummary = generateTlsSummary(targetCluster.tls());
+
+            LOGGER.info("Virtual Cluster: {}, Downstream {}{} => Upstream {}{}",
+                    clusterName, downstreamBootstrap, downstreamTlsSummary, upstreamHostPort, upstreamTlsSummary);
+        }
+        catch (Exception e) {
+            LOGGER.warn("Failed to log summary for Virtual Cluster: {}", clusterName, e);
+        }
+    }
+
+    private static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
+        var tls = tlsToSummarize.map(t -> Optional.ofNullable(t.trust())
+                .map(TrustProvider::trustOptions)
+                .map(TrustOptions::toString).orElse("-"))
+                .map(options -> " (TLS: " + options + ") ").orElse("");
+        var cipherSuitesAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(allowedCiphers -> " (Allowed Ciphers: " + allowedCiphers + ")").orElse("");
+        var cipherSuitesDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(deniedCiphers -> " (Denied Ciphers: " + deniedCiphers + ")").orElse("");
+        var protocolsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(protocols -> " (Allowed Protocols: " + protocols + ")").orElse("");
+        var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
+
+        return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
+    }
+
+    private static ClusterNetworkAddressConfigProvider buildAddressProviderService(@NonNull VirtualCluster virtualCluster,
+                                                                                   @NonNull PluginFactoryRegistry registry) {
+        ClusterNetworkAddressConfigProviderService provider = registry.pluginFactory(ClusterNetworkAddressConfigProviderService.class)
+                .pluginInstance(virtualCluster.clusterNetworkAddressConfigProvider().type());
+        return provider.build(virtualCluster.clusterNetworkAddressConfigProvider().config());
+    }
+
     public @Nullable AdminHttpConfiguration adminHttpConfig() {
         return adminHttp();
     }
@@ -213,7 +287,7 @@ public record Configuration(
         return filterDefinitions;
     }
 
-    public @NonNull List<io.kroxylicious.proxy.model.VirtualCluster> virtualClusterModel(PluginFactoryRegistry pfr) {
+    public @NonNull List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
         var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
                 .stream()
                 .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
@@ -222,7 +296,7 @@ public record Configuration(
                 .map(entry -> {
                     VirtualCluster virtualCluster = entry.getValue();
                     List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
-                    return virtualCluster.toVirtualClusterModel(pfr, filterDefinitions, entry.getKey());
+                    return toVirtualClusterModel(virtualCluster, pfr, filterDefinitions, entry.getKey());
                 })
                 .toList();
     }

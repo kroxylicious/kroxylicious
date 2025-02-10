@@ -17,7 +17,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.kroxylicious.proxy.model.VirtualCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -149,8 +149,9 @@ class PortConflictDetectorTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
-    void portConflict(String name, VirtualCluster virtualCluster1, VirtualCluster virtualCluster2, String expectedMessageSuffix, HostPort otherExclusivePort) {
-        var clusters = List.of(virtualCluster1, virtualCluster2);
+    void portConflict(String name, VirtualClusterModel virtualClusterModel1, VirtualClusterModel virtualClusterModel2, String expectedMessageSuffix,
+                      HostPort otherExclusivePort) {
+        var clusters = List.of(virtualClusterModel1, virtualClusterModel2);
         Optional<HostPort> maybeOtherExclusivePort = Optional.ofNullable(otherExclusivePort);
         if (expectedMessageSuffix == null) {
             detector.validate(clusters, maybeOtherExclusivePort);
@@ -161,12 +162,13 @@ class PortConflictDetectorTest {
         }
     }
 
-    private static VirtualCluster createMockVirtualCluster(String clusterName, Set<Integer> exclusivePorts, Set<Integer> sharedPorts, String bindAddress) {
+    private static VirtualClusterModel createMockVirtualCluster(String clusterName, Set<Integer> exclusivePorts, Set<Integer> sharedPorts, String bindAddress) {
         return createMockVirtualCluster(clusterName, exclusivePorts, sharedPorts, bindAddress, false);
     }
 
-    private static VirtualCluster createMockVirtualCluster(String clusterName, Set<Integer> exclusivePorts, Set<Integer> sharedPorts, String bindAddress, boolean tls) {
-        VirtualCluster cluster = mock(VirtualCluster.class);
+    private static VirtualClusterModel createMockVirtualCluster(String clusterName, Set<Integer> exclusivePorts, Set<Integer> sharedPorts, String bindAddress,
+                                                                boolean tls) {
+        VirtualClusterModel cluster = mock(VirtualClusterModel.class);
         when(cluster.getClusterName()).thenReturn(clusterName);
         when(cluster.getExclusivePorts()).thenReturn(exclusivePorts);
         when(cluster.getSharedPorts()).thenReturn(sharedPorts);

@@ -45,6 +45,7 @@ import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -85,6 +86,11 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         this.fortanixDsmUrl = Objects.requireNonNull(fortanixDsmUrl);
         this.sessionProvider = Objects.requireNonNull(sessionProvider);
         this.client = Objects.requireNonNull(client);
+    }
+
+    @VisibleForTesting
+    HttpClient getHttpClient() {
+        return this.client;
     }
 
     /**

@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -32,6 +33,7 @@ import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -202,7 +204,10 @@ class ApiKeySessionProviderTest {
         var now = Instant.now();
         var expiresInSecs = 10;
 
-        var initial = createTestCredential("Bearer", expiresInSecs, "firstToken");
+        var initialToken = "firstToken-" + UUID.randomUUID();
+        var secondToken = "secondToken-" + UUID.randomUUID();
+
+        var initial = createTestCredential("Bearer", expiresInSecs, initialToken);
 
         server.stubFor(
                 post(urlEqualTo(SESSION_AUTH_ENDPOINT))
@@ -213,16 +218,42 @@ class ApiKeySessionProviderTest {
             var sessionStage = provider.getSession();
             assertThat(sessionStage)
                     .succeedsWithin(Duration.ofSeconds(1))
-                    .satisfies(s -> assertThat(s.authorizationHeader()).isEqualTo("Bearer firstToken"));
+                    .satisfies(s -> assertThat(s.authorizationHeader()).isEqualTo("Bearer " + initialToken));
 
-            var refreshed = createTestCredential("Bearer", expiresInSecs, "secondToken");
+            var refreshed = createTestCredential("Bearer", expiresInSecs, secondToken);
             server.stubFor(
                     post(urlEqualTo(SESSION_AUTH_ENDPOINT))
                             .willReturn(aResponse().withBody(toJson(refreshed))));
 
             await().atMost(Duration.ofSeconds(5))
                     .untilAsserted(() -> {
-                        server.verify(1, postRequestedFor(urlEqualTo(SESSION_TERMINATE_ENDPOINT)));
+                        server.verify(1, postRequestedFor(urlEqualTo(SESSION_TERMINATE_ENDPOINT))
+                                .withHeader(AUTHORIZATION_HEADER, equalTo("Bearer " + initialToken)));
+                    });
+        }
+    }
+
+    @Test
+    void shouldTerminateSession() {
+        // Given
+        var now = Instant.now();
+        var expiresInSecs = 10;
+        var initialToken = "firstToken-" + UUID.randomUUID();
+        var sessionAuthResponse = createTestCredential("Bearer", expiresInSecs, initialToken);
+
+        server.stubFor(
+                post(urlEqualTo(SESSION_AUTH_ENDPOINT))
+                        .willReturn(aResponse()
+                                .withBody(toJson(sessionAuthResponse))));
+
+        try (var provider = new ApiKeySessionProvider(config, client, Clock.fixed(now, ZoneId.systemDefault()))) {
+            // When
+            provider.terminateSessionOnServer(provider.getSession());
+            // Then
+            await().atMost(Duration.ofSeconds(5))
+                    .untilAsserted(() -> {
+                        server.verify(1, postRequestedFor(urlEqualTo(SESSION_TERMINATE_ENDPOINT))
+                                .withHeader(AUTHORIZATION_HEADER, equalTo("Bearer " + initialToken)));
                     });
         }
     }

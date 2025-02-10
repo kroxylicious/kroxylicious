@@ -23,7 +23,7 @@ To set up the filter, configure it in Kroxylicious.
 
 IMPORTANT: While the Multi-tenancy filter isolates operations on resources, it does not isolate user identities across tenants. 
 User authentication and ACLs (Access Control Lists) are shared across all tenants, meaning that identity is not scoped to individual tenants. 
-For more information on open issues related to this filter, see {github-issues}.
+For more information on open issues related to this filter, see {github-issues}[Kroxylicious issues^].
 
 NOTE: For more information on Kafka's support for multi-tenancy, see the {ApacheKafkaSite}.
 

@@ -22,8 +22,10 @@ NOTE: TLS is recommended on Kafka clients and virtual clusters for production co
 .Example applying a PKCS #12 server certificate to a virtual cluster
 [source,yaml]
 ----
+# ...
 virtualClusters:
   my-cluster-proxy:
+    # ...
     tls:
       key:
         storeFile: <path>/server.p12  # <1>             
@@ -33,6 +35,7 @@ virtualClusters:
           passwordFile: <path>/key.password # <3>       
         storeType: PKCS12 # <4>                            
       # ...
+# ...
 ----
 <1> PKCS #12 store containing the private-key and certificate/intermediates of the virtual cluster.
 <2> Password to protect the PKCS #12 store.
@@ -42,15 +45,17 @@ virtualClusters:
 .Example applying a PEM server certificate and key pair to a virtual cluster
 [source,yaml]
 ----
+# ...
 virtualClusters:
   my-cluster-proxy:
+    # ...
     tls:
       key:
         privateKeyFile: <path>/server.key   # <1>       
         certificateFile: <path>/server.crt # <2> 
         keyPassword:
           passwordFile: <path>/key.password # <3>
-# …
+# ...
 ----
 <1> Private key of the virtual cluster.
 <2> Public certificate of the virtual cluster.
@@ -63,8 +68,10 @@ If verification fails, the client's connection is refused.
 .Example applying TLS client authentication using a PKCS #12 truststore
 [source,yaml]
 ----
+# ...
 virtualClusters:
   demo:
+    # ...
     tls:
       key:
         # ...
@@ -75,7 +82,7 @@ virtualClusters:
         storeType: PKCS12 # <3>
         trustOptions:
           clientAuth: REQUIRED # <4>
-# …
+# ...
 ----
 <1> PKCS #12 store containing CA certificate(s) used to verify that the client's certificate is trusted.
 <2> (Optional) Password to protect the PKCS #12 store.
@@ -86,7 +93,7 @@ If set to `REQUESTED`, the client is requested to present a certificate. If pres
 If set to `NONE`, client authentication is disabled.
 
 NOTE: The client's identity, as established through TLS client authentication, is currently not relayed to the target cluster. 
-For more information, see the {github-issues}/issues/1637[related issue].
+For more information, see the {github-issues}/1637[related issue^].
 
 You can restrict the TLS protocols by specifying either an allow list of TLS protocols to be enabled, or a deny list of
 TLS protocols to be disallowed from the platform's default.
@@ -108,7 +115,7 @@ virtualClusters:
     tls:
       # ...
       protocols:
-        allow:  # <1>
+        allowed:  # <1>
         - TLSv1.3
         - TLSv1.2
 ----
@@ -123,7 +130,7 @@ virtualClusters:
     tls:
       # ...
       protocols:
-        deny:  # <1>
+        denied:  # <1>
         - TLSv1.1
 ----
 <1> List of disallowed TLS protocols.
@@ -163,7 +170,7 @@ virtualClusters:
     tls:
       # ...
       protocols:
-        deny:  # <1>
+        denied:  # <1>
         - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
 ----
 <1> List of disallowed cipher suites.

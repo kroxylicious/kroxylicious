@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpClient.Builder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
@@ -18,9 +19,9 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 
 import javax.crypto.SecretKey;
-import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -42,6 +43,7 @@ import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -83,26 +85,29 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     private final URI awsUrl;
 
-    AwsKms(URI awsUrl, CredentialsProvider credentialsProvider, String region, Duration timeout, SSLContext sslContext) {
-        this.credentialsProvider = credentialsProvider;
+    AwsKms(@NonNull URI awsUrl, @NonNull CredentialsProvider credentialsProvider, @NonNull String region, @NonNull Duration timeout,
+           @NonNull UnaryOperator<Builder> tlsConfigurator) {
         Objects.requireNonNull(awsUrl);
         Objects.requireNonNull(credentialsProvider);
         Objects.requireNonNull(region);
+        Objects.requireNonNull(tlsConfigurator);
         this.awsUrl = awsUrl;
+        this.credentialsProvider = credentialsProvider;
         this.region = region;
         this.timeout = timeout;
-        client = createClient(sslContext);
+        this.client = createClient(tlsConfigurator);
     }
 
-    private HttpClient createClient(SSLContext sslContext) {
-        HttpClient.Builder builder = HttpClient.newBuilder();
-        if (sslContext != null) {
-            builder.sslContext(sslContext);
-        }
-        return builder
+    private HttpClient createClient(@NonNull UnaryOperator<Builder> tlsConfigurator) {
+        return tlsConfigurator.apply(HttpClient.newBuilder())
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(timeout)
                 .build();
+    }
+
+    @VisibleForTesting
+    HttpClient getHttpClient() {
+        return this.client;
     }
 
     /**

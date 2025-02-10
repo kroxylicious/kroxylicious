@@ -7,19 +7,12 @@
 package io.kroxylicious.kms.provider.hashicorp.vault.config;
 
 import java.net.URI;
-import java.security.NoSuchAlgorithmException;
 import java.util.Objects;
-
-import javax.net.ssl.SSLContext;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
-import io.kroxylicious.proxy.tls.JdkTls;
-import io.kroxylicious.proxy.tls.SslConfigurationException;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Configuration for the Vault KMS service.
@@ -35,18 +28,4 @@ public record Config(
         Objects.requireNonNull(vaultToken);
     }
 
-    @NonNull
-    public SSLContext sslContext() {
-        try {
-            if (tls == null) {
-                return SSLContext.getDefault();
-            }
-            else {
-                return new JdkTls(tls).sslContext();
-            }
-        }
-        catch (NoSuchAlgorithmException e) {
-            throw new SslConfigurationException(e);
-        }
-    }
 }

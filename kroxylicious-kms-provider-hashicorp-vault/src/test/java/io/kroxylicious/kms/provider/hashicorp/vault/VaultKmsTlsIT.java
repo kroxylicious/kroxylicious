@@ -65,14 +65,14 @@ class VaultKmsTlsIT {
 
     static List<Arguments> tlsConfigurations() {
         return List.of(
-                Arguments.of("pkcs12Tls", (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreInlinePassword(keys.pkcs12ClientTruststore()), uri)),
-                Arguments.of("pkcs12NoPasswordTlsService",
-                        (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreNoPassword(keys.pkcs12NoPasswordClientTruststore()), uri)),
-                Arguments.of("filePasswordTls", (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreFilePassword(keys.pkcs12ClientTruststore()), uri)),
-                Arguments.of("jksTls", (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreInlinePassword(keys.jksClientTruststore()), uri)),
-                Arguments.of("defaultStoreTypeTls", (KmsCreator) (uri) -> getTlsVaultKms(defaultStoreTypeTls(keys.jksClientTruststore()), uri)),
-                Arguments.of("tlsInsecure", (KmsCreator) (uri) -> getTlsVaultKms(insecureTls(), uri)),
-                Arguments.of("pkcs12Tls", (KmsCreator) (uri) -> getTlsVaultKms(tlsForTrustStoreInlinePassword(keys.pkcs12ClientTruststore()), uri)));
+                Arguments.argumentSet("pkcs12Tls", (KmsCreator) uri -> getTlsVaultKms(tlsForTrustStoreInlinePassword(keys.pkcs12ClientTruststore()), uri)),
+                Arguments.argumentSet("pkcs12NoPasswordTlsService",
+                        (KmsCreator) uri -> getTlsVaultKms(tlsForTrustStoreNoPassword(keys.pkcs12NoPasswordClientTruststore()), uri)),
+                Arguments.argumentSet("filePasswordTls", (KmsCreator) uri -> getTlsVaultKms(tlsForTrustStoreFilePassword(keys.pkcs12ClientTruststore()), uri)),
+                Arguments.argumentSet("jksTls", (KmsCreator) uri -> getTlsVaultKms(tlsForTrustStoreInlinePassword(keys.jksClientTruststore()), uri)),
+                Arguments.argumentSet("defaultStoreTypeTls", (KmsCreator) uri -> getTlsVaultKms(defaultStoreTypeTls(keys.jksClientTruststore()), uri)),
+                Arguments.argumentSet("tlsInsecure", (KmsCreator) uri -> getTlsVaultKms(insecureTls(), uri)),
+                Arguments.argumentSet("pkcs12Tls", (KmsCreator) uri -> getTlsVaultKms(tlsForTrustStoreInlinePassword(keys.pkcs12ClientTruststore()), uri)));
     }
 
     @Test
@@ -118,7 +118,7 @@ class VaultKmsTlsIT {
         CertificateGenerator.KeyStore keyStore = clientKeys.jksServerKeystore();
         VaultKms service = getTlsVaultKms(
                 new Tls(new KeyStore(keyStore.path().toString(), new InlinePassword(keyStore.storePassword()), new InlinePassword(keyStore.keyPassword()), "JKS"),
-                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null)),
+                        new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null), null, null),
                 testVault.getEndpoint());
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)
@@ -127,9 +127,9 @@ class VaultKmsTlsIT {
         testVault.close();
     }
 
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest
     @MethodSource("tlsConfigurations")
-    void testArbitraryKmsOperationSucceedsWithTls(String kms, KmsCreator creator) {
+    void testArbitraryKmsOperationSucceedsWithTls(KmsCreator creator) {
         VaultKms vaultKms = creator.createKms(vaultContainer.getEndpoint());
         var keyName = "mykey";
         createKek(keyName);
@@ -146,12 +146,12 @@ class VaultKmsTlsIT {
 
     @NonNull
     private static Tls insecureTls() {
-        return new Tls(null, new InsecureTls(true));
+        return new Tls(null, new InsecureTls(true), null, null);
     }
 
     @NonNull
     private static Tls defaultStoreTypeTls(CertificateGenerator.TrustStore jksTrustStore) {
-        return new Tls(null, new TrustStore(jksTrustStore.path().toString(), new InlinePassword(jksTrustStore.password()), null, null));
+        return new Tls(null, new TrustStore(jksTrustStore.path().toString(), new InlinePassword(jksTrustStore.password()), null, null), null, null);
     }
 
     @NonNull
@@ -168,17 +168,17 @@ class VaultKmsTlsIT {
 
     @NonNull
     private static Tls tlsForTrustStoreInlinePassword(CertificateGenerator.TrustStore trustStore) {
-        return new Tls(null, new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), trustStore.type(), null));
+        return new Tls(null, new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), trustStore.type(), null), null, null);
     }
 
     @NonNull
     private static Tls tlsForTrustStoreFilePassword(CertificateGenerator.TrustStore trustStore) {
-        return new Tls(null, new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null));
+        return new Tls(null, new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null), null, null);
     }
 
     @NonNull
     private static Tls tlsForTrustStoreNoPassword(CertificateGenerator.TrustStore trustStore) {
-        return new Tls(null, new TrustStore(trustStore.path().toString(), null, trustStore.type(), null));
+        return new Tls(null, new TrustStore(trustStore.path().toString(), null, trustStore.type(), null), null, null);
     }
 
 }

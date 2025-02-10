@@ -337,6 +337,7 @@ has been applied ineffectively.
 * `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `${project.version}` in pom file
 * `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
 * `STRIMZI_VERSION`: strimzi version to be used. Default value: `${strimzi.version}` in pom file
+* `STRIMZI_NAMESPACE`: namespace used for strimzi cluster operator installation. Useful when strimzi is previously installed. Default value: `kafka`
 * `SKIP_TEARDOWN`: variable for development purposes to avoid keep deploying and deleting deployments each run. Default value: `false`
 * `CONTAINER_CONFIG_PATH`: directory where `config.json` file is located. This file contains the pull secrets to be used by
 the container engine. Default value: `$HOME/.docker/config.json`
@@ -384,7 +385,7 @@ When a PR is created and the system tests are needed, if you are a member of
 [Developers](https://github.com/orgs/kroxylicious/teams/developers), you may add the following comment into the PR to trigger the run.
 
 ```
-@strimzi-ci run system tests
+@tealc-ci run system tests
 ```
 
 It will launch the `kroxylicious-system-tests-pr` build, that will insert a comment with a summary into the PR.

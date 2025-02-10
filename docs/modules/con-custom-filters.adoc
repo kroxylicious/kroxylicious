@@ -212,7 +212,7 @@ Filter result builders allow you to:
 The builder lets you combine legal behaviours together.  For instance, to close the connection after forwarding
 a response to a client, a response filter could use:
 
-[source,yaml]
+[source,java]
 ----
 return context.responseFilterResultBuilder()
         .forward(header, response)
@@ -464,14 +464,14 @@ file containing the classnames of each filter factory implementation into the JA
 
 For example in the kroxylicious-samples we have the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/config/SampleFilterConfig.java[SampleFilterConfig] class.
 This is used in the {github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilter.java[SampleFetchResponseFilter]). The configuration is routed to the Filter instance via the 
-{github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilterFactory.java[SampleFetchResponseFilterFactory].
+{github}/blob/main/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponse.java[SampleFetchResponse].
 
 Then, when we configure a filter in Kroxylicious configuration like:
 
 [source,yaml]
 ----
 filters:
-- type: SampleFetchResponseFilterFactory
+- type: SampleFetchResponse
   config:
     findValue: a
     replacementValue: b

@@ -39,7 +39,6 @@ filters:
         encryptionDekRefreshAfterWriteSeconds: 3600 # <5>
         encryptionDekExpireAfterWriteSeconds: 7200 # <6>
         maxEncryptionsPerDek: 5000000 # <7>
-	 # ...
 ----
 <1> The KMS service name.
 <2> Configuration specific to the KMS provider.

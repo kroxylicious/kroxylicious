@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformationFilterFactory;
+import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation;
 import io.kroxylicious.proxy.filter.simpletransform.UpperCasing;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -39,7 +39,7 @@ public class DeprecatedConfigurationIT extends BaseIT {
     void shouldSupportTopLevelFiltersProperty(KafkaCluster cluster, Topic topic1) throws Exception {
 
         FilterDefinition filterDefinition = new NamedFilterDefinitionBuilder(
-                "filter-1", FetchResponseTransformationFilterFactory.class.getName())
+                "filter-1", FetchResponseTransformation.class.getName())
                 .withConfig("transformation", UpperCasing.class.getName())
                 .withConfig("transformationConfig", Map.of("charset", "UTF-8")).build().asFilterDefinition();
         var config = proxy(cluster)

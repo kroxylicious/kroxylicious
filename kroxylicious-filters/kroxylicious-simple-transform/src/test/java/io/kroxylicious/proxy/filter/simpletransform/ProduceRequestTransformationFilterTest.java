@@ -52,7 +52,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class ProduceRequestTransformationFilterFactoryFilterTest {
+class ProduceRequestTransformationFilterTest {
 
     private static final String TOPIC_NAME = "mytopic";
     private static final String ORIGINAL_RECORD_VALUE = "lowercasevalue";
@@ -95,12 +95,12 @@ class ProduceRequestTransformationFilterFactoryFilterTest {
 
     @Test
     void testFactory() {
-        var factory = new ProduceRequestTransformationFilterFactory();
+        var factory = new ProduceRequestTransformation();
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
-                .hasMessage(ProduceRequestTransformationFilterFactory.class.getSimpleName() + " requires configuration, but config object is null");
+                .hasMessage(ProduceRequestTransformation.class.getSimpleName() + " requires configuration, but config object is null");
         FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
         doReturn(new UpperCasing()).when(constructContext).pluginInstance(any(), any());
-        var config = new ProduceRequestTransformationFilterFactory.Config(UpperCasing.class.getName(),
+        var config = new ProduceRequestTransformation.Config(UpperCasing.class.getName(),
                 new UpperCasing.Config("UTF-8"));
         assertThat(factory.createFilter(constructContext, config)).isInstanceOf(ProduceRequestTransformationFilter.class);
     }

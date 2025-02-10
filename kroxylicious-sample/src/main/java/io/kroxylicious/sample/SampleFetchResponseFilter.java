@@ -34,12 +34,12 @@ import io.kroxylicious.sample.util.SampleFilterTransformer;
  * could be further modified to apply different transformations to different topics, or when sending to
  * particular consumers.
  */
-public class SampleFetchResponseFilter implements FetchResponseFilter {
+class SampleFetchResponseFilter implements FetchResponseFilter {
 
     private final SampleFilterConfig config;
     private final Timer timer;
 
-    public SampleFetchResponseFilter(SampleFilterConfig config) {
+    SampleFetchResponseFilter(SampleFilterConfig config) {
         this.config = config;
         this.timer = Timer
                 .builder("sample_fetch_response_filter_transform")

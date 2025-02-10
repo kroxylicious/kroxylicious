@@ -13,7 +13,7 @@
 
     <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-parent</artifactId>
-    <version>0.10.0-SNAPSHOT</version>
+    <version>0.11.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -27,6 +27,7 @@
         <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <jacoco.argline/>
 
         <skipTests>false</skipTests>
         <skipITs>${skipTests}</skipITs>
@@ -56,18 +57,18 @@
         <micrometer.version>1.14.3</micrometer.version>
         <slf4j.version>2.0.16</slf4j.version>
         <sundr-builder-annotations.version>0.200.0</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.9.0</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.9.1</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.0.7</apicurio-schema-validation.version>
-        <apicurio-registry.version>2.6.7.Final</apicurio-registry.version>
+        <apicurio-registry.version>2.6.8.Final</apicurio-registry.version>
         <apicurio-common.version>0.1.18.Final</apicurio-common.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
         <strimzi.version>0.45.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
-        <kubernetes-client.version>6.13.4</kubernetes-client.version>
+        <kubernetes-client.version>6.13.5</kubernetes-client.version>
         <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.9</maven.core.version>
         <awaitility.version>4.2.2</awaitility.version>
@@ -75,10 +76,11 @@
         <testcontainers.version>1.20.4</testcontainers.version>
         <bouncycastle.version>1.80</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.0.5</netty-leak-detector-junit-extension.version>
-        <wiremock.version>3.10.0</wiremock.version>
+        <wiremock.version>3.11.0</wiremock.version>
         <docker-java.version>3.4.1</docker-java.version>
         <test-frame.version>0.8.0</test-frame.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
+        <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
     </properties>
 
     <name>Parent POM</name>
@@ -405,7 +407,7 @@
                 <groupId>org.apache.maven</groupId>
                 <artifactId>maven-core</artifactId>
                 <version>${maven.core.version}</version>
-             </dependency>
+            </dependency>
             <dependency>
                 <groupId>org.awaitility</groupId>
                 <artifactId>awaitility</artifactId>
@@ -702,6 +704,9 @@
                                 implementation="org.apache.maven.plugin.surefire.extensions.junit5.JUnit5Xml30StatelessReporter">
                             <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
                         </statelessTestsetReporter>
+                        <argLine>
+                            @{jacoco.argline}
+                        </argLine>
                     </configuration>
                 </plugin>
                 <plugin>
@@ -756,6 +761,9 @@
                     <groupId>org.jacoco</groupId>
                     <artifactId>jacoco-maven-plugin</artifactId>
                     <version>${jacoco-maven-plugin.version}</version>
+                    <configuration>
+                        <propertyName>jacoco.argline</propertyName>
+                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>com.github.siom79.japicmp</groupId>
@@ -789,6 +797,11 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
             </plugin>
             <plugin>
                 <groupId>org.asciidoctor</groupId>
@@ -930,20 +943,25 @@
                                     <failOnWarning>true</failOnWarning>
                                     <ignoreUnusedRuntime>true</ignoreUnusedRuntime>
                                     <ignoredUsedUndeclaredDependencies>
-                                        <ignoredUsedUndeclaredDependency>com.google.code.findbugs:jsr305</ignoredUsedUndeclaredDependency>
+                                        <ignoredUsedUndeclaredDependency>com.google.code.findbugs:jsr305
+                                        </ignoredUsedUndeclaredDependency>
                                     </ignoredUsedUndeclaredDependencies>
                                     <ignoredUnusedDeclaredDependencies>
                                         <!-- several modules have a test dependency on log4j-slf4j2-impl to enable test logging -->
-                                        <ignoredUnusedDeclaredDependency>org.apache.logging.log4j:log4j-slf4j2-impl</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>org.apache.logging.log4j:log4j-slf4j2-impl
+                                        </ignoredUnusedDeclaredDependency>
                                         <!-- for some reason, the analyzer fails to detect netty-transport-native-unix-common use -->
-                                        <ignoredUnusedDeclaredDependency>io.netty:netty-transport-native-unix-common</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.netty:netty-transport-native-unix-common
+                                        </ignoredUnusedDeclaredDependency>
                                         <!-- dependency analyzer seems not to grok that a dependency on a
                                         @Retention(RetentionPolicy.SOURCE) annotation is still a dependency -->
-                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-annotations
+                                        </ignoredUnusedDeclaredDependency>
                                     </ignoredUnusedDeclaredDependencies>
                                     <ignoredDependencies>
                                         <!-- Kroxylicious junit extension requires this to be on the classpath -->
-                                        <ignoredUnusedDeclaredDependency>org.apache.kafka:kafka_2.13</ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>org.apache.kafka:kafka_2.13
+                                        </ignoredUnusedDeclaredDependency>
                                     </ignoredDependencies>
                                 </configuration>
                             </execution>
@@ -1087,6 +1105,7 @@
                 <sonar.organization>kroxylicious</sonar.organization>
                 <sonar.host.url>https://sonarcloud.io</sonar.host.url>
                 <impsort-maven-plugin.goal>check</impsort-maven-plugin.goal>
+                <skip-validate-yaml-snippets>false</skip-validate-yaml-snippets>
             </properties>
             <build>
                 <plugins>
@@ -1171,6 +1190,24 @@
                                     <formats>
                                         <format>XML</format>
                                     </formats>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>docs-validate-yaml-snippets</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${skip-validate-yaml-snippets}</skip>
+                                    <!--suppress MavenModelInspection -->
+                                    <executable>${rootdir}/scripts/extract-yaml-fencedcodeblocks.sh</executable>
                                 </configuration>
                             </execution>
                         </executions>
