@@ -130,8 +130,8 @@ public class TestUtils {
         }
         return currentTag;
     }
-  
-  /**
+
+    /**
      * Gets json file content.
      *
      * @param fileName the file name
