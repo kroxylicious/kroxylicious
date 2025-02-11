@@ -15,29 +15,6 @@ It takes on the responsibility of receiving, filtering, and forwarding messages.
 
 An API provides a convenient means for implementing custom logic within the proxy.
 
-[id='assembly-overview-compatibility{context}']
-== Compatibility
-
-[id='assembly-overview-compatibility-api{context}']
-=== APIs
-
-Kroxylicious follows https://semver.org/#semantic-versioning-200[Semantic Versioning] rules. While we are still in the initial development phase (denoted by a major version `0`), we still take API compatibility very seriously. We aim to provide at least two minor releases between deprecation and the removal of that deprecated item.
-
-We also consider our configuration file syntax a public API (though not the Java model backing it). As such, the syntax follows the same Semantic Versioning and deprecation rules.
-
-Kubernetes custom resources are a public API, and we are making every effort to evolve Kroxylicious custom resources in line with https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/[Kubernetes best practices]. Kubernetes resources have their own versioning scheme, which is independent of the Kroxylicious proxy service version. As a result, we may reach version 1.0.0 of Kroxylicious while still using alpha or beta versions of the custom resources.
-
-==== Third-party plugins
-
-Kroxylicious supports loading third-party plugins to extend the core functionality of the project. While these plugins are configured and loaded as first-class entities within Kroxylicious, we cannot guarantee the compatibility of their APIs or configuration properties.
-
-We do however hold filters and plugins provided by the project to the same standards as the rest of the public API.
-
-[id='assembly-overview-compatibility-wire-protocol{context}']
-=== Wire protocol
-
-Kroxylicious offers the same backwards and forwards compatibility guarantees as https://kafka.apache.org/protocol#protocol_compatibility[Apache Kafka]. We support the same range of client and broker versions as the official Apache Kafka Java client.
-
 [role="_additional-resources"]
 .Additional resources
 
