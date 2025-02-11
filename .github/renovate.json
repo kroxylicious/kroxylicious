@@ -74,10 +74,7 @@
       "matchStrings": [
         "(?<depName>org.sonarsource.scanner.maven:sonar-maven-plugin):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.\\d+)"
       ],
-      "datasourceTemplate": "maven",
-      "registryUrls": [
-        "https://mvnrepository.com/artifact/"
-      ]
+      "datasourceTemplate": "maven"
     }
   ]
 }
