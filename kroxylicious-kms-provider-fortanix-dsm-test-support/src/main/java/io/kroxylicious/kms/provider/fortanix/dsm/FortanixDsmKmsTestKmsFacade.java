@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,12 +74,15 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
     private static final String TEST_RUN_INSTANCE_ID_METADATA_KEY = "testInstance";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static final Optional<URI> KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT = Optional.ofNullable(System.getenv().get("KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT"))
-            .map(URI::create);
+    private static final Optional<URI> KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT = Optional.ofNullable(System.getenv().get("KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT")).filter(
+            Predicate.not(String::isEmpty)).map(URI::create);
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static final Optional<String> KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY = Optional.ofNullable(System.getenv().get("KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY"));
+    private static final Optional<String> KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY = Optional.ofNullable(System.getenv().get("KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY"))
+            .filter(
+                    Predicate.not(String::isEmpty));
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static final Optional<String> KROXYLICIOUS_KMS_FORTANIX_API_KEY = Optional.ofNullable(System.getenv().get("KROXYLICIOUS_KMS_FORTANIX_API_KEY"));
+    private static final Optional<String> KROXYLICIOUS_KMS_FORTANIX_API_KEY = Optional.ofNullable(System.getenv().get("KROXYLICIOUS_KMS_FORTANIX_API_KEY")).filter(
+            Predicate.not(String::isEmpty));
 
     private static final TypeReference<List<KeyResponse>> KEY_LIST_RESPONSE_RESPONSE = new TypeReference<>() {
     };

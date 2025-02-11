@@ -30,7 +30,7 @@ import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 /**
  * Junit Context Provider providing available {@link TestKmsFacade}s to integration tests.
  * <br/>
- * The variable {@code KROYXLICIOUS_KMS_FACADE_CLASS_NAME_FILTER} is a regular expression that limits the facades available
+ * The variable {@code KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER} is a regular expression that limits the facades available
  * to the test.  It matches against the facade class name.
  */
 public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider, ParameterResolver {
@@ -38,7 +38,7 @@ public class TestKmsFacadeInvocationContextProvider implements TestTemplateInvoc
     private static final ExtensionContext.Namespace STORE_NAMESPACE = ExtensionContext.Namespace.create("TEST_KMS");
     private static final String FACADE_FACTORIES = "KMS_FACADE_FACTORIES";
 
-    private static final Pattern FACADE_CLASS_NAME_FILTER = Optional.ofNullable(System.getenv("KROYXLICIOUS_KMS_FACADE_CLASS_NAME_FILTER")).map(Pattern::compile)
+    private static final Pattern FACADE_CLASS_NAME_FILTER = Optional.ofNullable(System.getenv("KROXYLICIOUS_KMS_FACADE_CLASS_NAME_FILTER")).map(Pattern::compile)
             .orElse(Pattern.compile(".*"));
 
     @Override
