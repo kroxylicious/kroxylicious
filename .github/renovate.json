@@ -66,6 +66,15 @@
         "(?<depName>quay.io/kroxylicious/kaf):(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [".github/workflows/maven.yaml",
+                    ".github/workflows/sonar.yaml"],
+      "matchStrings": [
+        "(?<depName>org.sonarsource.scanner.maven:sonar-maven-plugin):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "maven"
     }
   ]
 }
