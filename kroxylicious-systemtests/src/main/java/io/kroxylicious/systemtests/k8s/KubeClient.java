@@ -25,7 +25,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 
 /**
  * The type Kube client.
@@ -197,7 +197,7 @@ public class KubeClient {
      * @param deployment the deployment
      */
     public void createOrReplaceDeployment(Deployment deployment) {
-        client.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).resource(deployment).create();
+        client.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).resource(deployment).createOr(NonDeletingOperation::update);
     }
 
     /**
@@ -310,18 +310,7 @@ public class KubeClient {
      * @param roleBinding RoleBinding that we want to create or update
      */
     public void createOrUpdateRoleBinding(RoleBinding roleBinding) {
-        try {
-            client.rbac().roleBindings().inNamespace(getNamespace()).resource(roleBinding).create();
-        }
-        catch (KubernetesClientException e) {
-            if (e.getCode() == 409) {
-                LOGGER.info("RoleBinding: {} is already created, going to update it", roleBinding.getMetadata().getName());
-                client.rbac().roleBindings().inNamespace(getNamespace()).resource(roleBinding).update();
-            }
-            else {
-                throw e;
-            }
-        }
+        client.rbac().roleBindings().inNamespace(getNamespace()).resource(roleBinding).createOr(NonDeletingOperation::update);
     }
 
     /**
@@ -335,18 +324,7 @@ public class KubeClient {
      * @param clusterRoleBinding ClusterRoleBinding that we want to create or update
      */
     public void createOrUpdateClusterRoleBinding(ClusterRoleBinding clusterRoleBinding) {
-        try {
-            client.rbac().clusterRoleBindings().resource(clusterRoleBinding).create();
-        }
-        catch (KubernetesClientException e) {
-            if (e.getCode() == 409) {
-                LOGGER.info("ClusterRoleBinding: {} is already created, going to update it", clusterRoleBinding.getMetadata().getName());
-                client.rbac().clusterRoleBindings().resource(clusterRoleBinding).update();
-            }
-            else {
-                throw e;
-            }
-        }
+        client.rbac().clusterRoleBindings().resource(clusterRoleBinding).createOr(NonDeletingOperation::update);
     }
 
     /**
@@ -413,18 +391,7 @@ public class KubeClient {
      * @param resourceDefinition CustomResourceDefinition that we want to create or update
      */
     public void createOrUpdateCustomResourceDefinition(CustomResourceDefinition resourceDefinition) {
-        try {
-            client.apiextensions().v1().customResourceDefinitions().resource(resourceDefinition).create();
-        }
-        catch (KubernetesClientException e) {
-            if (e.getCode() == 409) {
-                LOGGER.info("CustomResourceDefinition: {} is already created, going to update it", resourceDefinition.getMetadata().getName());
-                client.apiextensions().v1().customResourceDefinitions().resource(resourceDefinition).update();
-            }
-            else {
-                throw e;
-            }
-        }
+        client.apiextensions().v1().customResourceDefinitions().resource(resourceDefinition).createOr(NonDeletingOperation::update);
     }
 
     /**
