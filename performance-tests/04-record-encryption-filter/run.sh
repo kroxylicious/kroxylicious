@@ -10,12 +10,7 @@ set -euo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/../common-perf.sh"
 
-set -euo pipefail
-
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-. "${SCRIPT_DIR}/../common-perf.sh"
-
-CFG=04-record-encryption-filter/config.yaml
+CFG=${SCRIPT_DIR:-./04-transform-filter}/config.yaml
 ENDPOINT=kroxylicious:9092
 
 KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious vault
@@ -30,7 +25,3 @@ ENDPOINT=${ENDPOINT} doPerfTest
 unsetKroxyliciousContainerIdPID
 
 runDockerCompose rm -s -f kroxylicious vault
-
-
-
-
