@@ -6,8 +6,8 @@
 
 package io.kroxylicious.systemtests.k8s.exception;
 
-public class UnknownInstallationType extends RuntimeException {
-    public UnknownInstallationType(String message) {
+public class UnsupportedInstallationType extends RuntimeException {
+    public UnsupportedInstallationType(String message) {
         super(message);
     }
 }
