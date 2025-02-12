@@ -43,8 +43,7 @@ public class BundleResource implements ResourceType<Deployment> {
 
     @Override
     public Deployment get(String namespace, String name) {
-        String deploymentName = kubeClient().getDeploymentNameByPrefix(namespace, name);
-        return deploymentName != null ? kubeClient().getDeployment(namespace, deploymentName) : null;
+        return kubeClient().getDeployment(namespace, name);
     }
 
     @Override

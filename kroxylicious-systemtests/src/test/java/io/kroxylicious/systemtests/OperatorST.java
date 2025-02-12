@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 
 import static io.kroxylicious.systemtests.TestTags.OPERATOR;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 @Tag(OPERATOR)
@@ -23,6 +24,9 @@ class OperatorST extends AbstractST {
     void operatorInstallation() {
         kroxyliciousOperator = new KroxyliciousOperator(Constants.KO_NAMESPACE);
         assertDoesNotThrow(() -> kroxyliciousOperator.deploy());
+        assertThat(kroxyliciousOperator.isDeployed())
+                .withFailMessage("Kroxylicious Operator is not deployed successfully")
+                .isTrue();
     }
 
     @AfterEach

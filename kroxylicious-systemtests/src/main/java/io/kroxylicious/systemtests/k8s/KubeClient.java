@@ -230,25 +230,6 @@ public class KubeClient {
     }
 
     /**
-     * Gets deployment name by prefix.
-     *
-     * @param namespaceName the namespace name
-     * @param deploymentNamePrefix the deployment name prefix
-     * @return the deployment name by prefix
-     */
-    public String getDeploymentNameByPrefix(String namespaceName, String deploymentNamePrefix) {
-        List<Deployment> prefixDeployments = client.apps().deployments().inNamespace(namespaceName).list().getItems().stream().filter(
-                rs -> rs.getMetadata().getName().startsWith(deploymentNamePrefix)).toList();
-
-        if (!prefixDeployments.isEmpty()) {
-            return prefixDeployments.get(0).getMetadata().getName();
-        }
-        else {
-            return null;
-        }
-    }
-
-    /**
      * Gets deployment selectors
      * @param namespaceName the namespace name
      * @param deploymentName the deployment name
