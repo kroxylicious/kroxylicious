@@ -8,8 +8,6 @@ package io.kroxylicious.systemtests;
 
 import java.time.Duration;
 
-import io.kroxylicious.systemtests.utils.TestUtils;
-
 /**
  * The interface Constants.
  */
@@ -175,7 +173,7 @@ public final class Constants {
     /**
      * Basic paths to examples
      */
-    public static final String PATH_TO_OPERATOR = TestUtils.USER_PATH + "/../kroxylicious-operator";
+    public static final String PATH_TO_OPERATOR = System.getProperty("user.dir") + "/../kroxylicious-operator";
     public static final String PATH_TO_OPERATOR_EXAMPLES = PATH_TO_OPERATOR + "/examples";
     public static final String PATH_TO_OPERATOR_INSTALL_FILES = PATH_TO_OPERATOR + "/install";
 

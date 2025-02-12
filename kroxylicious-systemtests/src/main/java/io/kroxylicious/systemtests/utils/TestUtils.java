@@ -19,6 +19,7 @@ import java.util.Set;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 /**
@@ -26,7 +27,6 @@ import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
  */
 public class TestUtils {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    public static final String USER_PATH = System.getProperty("user.dir");
 
     private TestUtils() {
     }
@@ -46,6 +46,7 @@ public class TestUtils {
      * @param fileName the file name
      * @return the resources URI
      */
+    @NonNull
     public static URI getResourcesURI(String fileName) {
         URI overrideFile;
         var resource = TestUtils.class.getClassLoader().getResource(fileName);
