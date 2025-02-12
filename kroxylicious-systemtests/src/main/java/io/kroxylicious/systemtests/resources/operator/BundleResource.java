@@ -13,12 +13,13 @@ import java.util.Map;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.skodjob.testframe.enums.InstallType;
+import io.skodjob.testframe.utils.ImageUtils;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.resources.ResourceType;
 import io.kroxylicious.systemtests.resources.kroxylicious.DeploymentResource;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
-import io.kroxylicious.systemtests.utils.TestUtils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -208,7 +209,7 @@ public class BundleResource implements ResourceType<Deployment> {
                 .endMetadata()
                 .editSpec()
                 .editFirstContainer()
-                .withImage(TestUtils.changeOrgAndTag(koImage))
+                .withImage(ImageUtils.changeRegistryOrgAndTag(koImage, Environment.KROXY_REGISTRY, Environment.KROXY_ORG, Environment.KROXY_TAG))
                 .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                 .endContainer()
                 .endSpec()
