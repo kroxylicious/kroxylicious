@@ -10,7 +10,7 @@ set -euo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/../common-perf.sh"
 
-CFG=${SCRIPT_DIR:-./02-no-filters}/config.yaml
+CFG=02-no-filters/config.yaml
 ENDPOINT=kroxylicious:9092
 
 KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
@@ -22,3 +22,5 @@ ENDPOINT=${ENDPOINT} doPerfTest
 unsetKroxyliciousContainerIdPID
 
 runDockerCompose rm -s -f kroxylicious
+
+
