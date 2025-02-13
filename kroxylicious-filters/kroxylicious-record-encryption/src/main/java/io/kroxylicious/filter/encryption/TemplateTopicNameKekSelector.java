@@ -6,7 +6,7 @@
 
 package io.kroxylicious.filter.encryption;
 
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -14,13 +14,18 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
+import io.kroxylicious.filter.encryption.config.TopicNameKekSelection;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.UnknownAliasException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
 
@@ -44,7 +49,7 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
 
     @NonNull
     @Override
-    public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames) {
+    public CompletionStage<TopicNameKekSelection<K>> selectKek(@NonNull Set<String> topicNames) {
         var collect = topicNames.stream()
                 .map(
                         topicName -> kms.resolveAlias(evaluateTemplate(topicName))
@@ -58,13 +63,10 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
                                 .thenApply(kekId -> new Pair<>(topicName, kekId)))
                 .toList();
         return RecordEncryptionUtil.join(collect).thenApply(list -> {
-            // Note we can't use `java.util.stream...(Collectors.toMap())` to build the map, because it has null values
-            // which Collectors.toMap() does now allow.
-            Map<String, K> map = new HashMap<>();
-            for (Pair<K> pair : list) {
-                map.put(pair.topicName(), pair.kekId());
-            }
-            return map;
+            Map<Boolean, List<Pair<K>>> partitioned = list.stream().collect(Collectors.partitioningBy(x -> x.kekId == null));
+            Set<String> unresolvedTopicNames = partitioned.get(true).stream().map(Pair::topicName).collect(toSet());
+            Map<String, K> topicNametoKey = partitioned.get(false).stream().collect(toMap(topicKek -> topicKek.topicName, topicKek -> topicKek.kekId));
+            return new TopicNameKekSelection<>(topicNametoKey, unresolvedTopicNames);
         });
     }
 

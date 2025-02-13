@@ -22,7 +22,8 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
 
                                      @JsonProperty(required = true) @PluginImplName(KekSelectorService.class) String selector,
                                      @PluginImplConfig(implNameProperty = "selector") Object selectorConfig,
-                                     @JsonProperty Map<String, Object> experimental) {
+                                     @JsonProperty Map<String, Object> experimental,
+                                     @JsonProperty UnresolvedKeyPolicy unresolvedKeyPolicy) {
     public RecordEncryptionConfig {
         experimental = experimental == null ? Map.of() : experimental;
     }
@@ -76,4 +77,8 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
         }).orElse(null);
     }
 
+    @Override
+    public UnresolvedKeyPolicy unresolvedKeyPolicy() {
+        return unresolvedKeyPolicy == null ? UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED : unresolvedKeyPolicy;
+    }
 }
