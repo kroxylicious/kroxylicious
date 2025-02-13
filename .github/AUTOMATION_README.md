@@ -33,4 +33,8 @@ workflows turn those Github secrets/variable into environment variables (for the
 The Fortanix DSM SaaS account is a long-lived account so should not expire.  When discussing the account with the Fortanix, quote the account id
 found on this page https://uk.smartkey.io/#/settings.
 
+## Jenkins integration
+
+In order to be able to run the system and performance tests for our Pull Requests (PR) using Jenkins, we have defined the following Personal Access Token (PAT) 
+`KROXYLICIOUS_JENKINS_TOKEN` to allow `kroxylicious-robot` writing comments with the results of the test execution and adding a new status check in the PR.
 
