@@ -7,17 +7,22 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -29,6 +34,7 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.junit.jupiter.api.Test;
@@ -668,6 +674,134 @@ class FilterHandlerTest extends FilterHarness {
         // verify the filter has forwarded the request showing the that OOB request future completed.
         var propagated = channel.readOutbound();
         assertThat(propagated).isEqualTo(requestFrame);
+    }
+
+    @Test
+    void getTopicNames() {
+        var snoopedTopicIdMapStage = new AtomicReference<CompletionStage<Map<Uuid, String>>>();
+        Uuid testTopicId = Uuid.randomUuid();
+        Set<Uuid> topicUuids = Set.of(testTopicId);
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            assertNull(snoopedTopicIdMapStage.get(), "Expected to only be called once");
+            snoopedTopicIdMapStage.set(context.getTopicNames(topicUuids));
+            return snoopedTopicIdMapStage.get()
+                    .thenCompose(u -> context.forwardRequest(header, request));
+        };
+
+        buildChannel(filter);
+
+        // trigger filter
+        DecodedRequestFrame<ApiVersionsRequestData> requestFrame = writeRequest(new ApiVersionsRequestData());
+
+        // verify filter has sent the send request.
+        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        ApiMessage body = propagatedOobRequest.body();
+        assertThat(body).isInstanceOfSatisfying(MetadataRequestData.class, metadataRequestData -> {
+            Set<Uuid> actual = metadataRequestData.topics().stream().map(MetadataRequestData.MetadataRequestTopic::topicId).collect(Collectors.toSet());
+            assertThat(actual).isEqualTo(topicUuids);
+        });
+        assertThat(propagatedOobRequest.header()).isNotNull();
+        assertThat(propagatedOobRequest.apiVersion()).isEqualTo((short) 12);
+        assertThat(propagatedOobRequest.apiKey()).isEqualTo(ApiKeys.METADATA);
+
+        // verify oob request response future is in the expected state
+        assertThat(snoopedTopicIdMapStage).isNotNull();
+        var snoopedOobRequestResponseFuture = toCompletableFuture(snoopedTopicIdMapStage.get());
+        assertThat(snoopedOobRequestResponseFuture).withFailMessage("out-of-band request response future was expected to be pending but it is done.").isNotDone();
+
+        // mimic TopicNameLearningFilter discovering name for id
+        String topicName = "topicName";
+        testVirtualCluster.rememberTopicIdMapping(testTopicId, topicName);
+        // mimic the broker sending the oob response
+        writeInternalResponse(propagatedOobRequest.header().correlationId(), new MetadataResponseData());
+
+        assertThat(snoopedOobRequestResponseFuture).succeedsWithin(5, TimeUnit.SECONDS).satisfies(uuidStringMap -> {
+            assertThat(uuidStringMap).containsEntry(testTopicId, topicName);
+        });
+
+        // verify the filter has forwarded the request showing the that OOB request future completed.
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isEqualTo(requestFrame);
+    }
+
+    @Test
+    void getTopicNamesDoesNotSendOutOfBandRequestIfNameKnownInAdvance() {
+        var snoopedTopicIdMapStage = new AtomicReference<CompletionStage<Map<Uuid, String>>>();
+        Uuid testTopicId = Uuid.randomUuid();
+        Set<Uuid> topicUuids = Set.of(testTopicId);
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            assertNull(snoopedTopicIdMapStage.get(), "Expected to only be called once");
+            snoopedTopicIdMapStage.set(context.getTopicNames(topicUuids));
+            return snoopedTopicIdMapStage.get()
+                    .thenCompose(u -> context.forwardRequest(header, request));
+        };
+
+        buildChannel(filter);
+
+        // learn topic name for id before request intercepted by filter
+        String topicName = "topicName";
+        testVirtualCluster.rememberTopicIdMapping(testTopicId, topicName);
+
+        // trigger filter
+        DecodedRequestFrame<ApiVersionsRequestData> requestFrame = writeRequest(new ApiVersionsRequestData());
+
+        // verify stage completed immediately
+        assertThat(snoopedTopicIdMapStage).isNotNull();
+        var snoopedOobRequestResponseFuture = toCompletableFuture(snoopedTopicIdMapStage.get());
+        assertThat(snoopedOobRequestResponseFuture).succeedsWithin(0, TimeUnit.SECONDS).satisfies(topicIdNameMap -> {
+            assertThat(topicIdNameMap).containsEntry(testTopicId, topicName);
+        });
+
+        // verify the filter has forwarded the request without an intervening out-of-band Metadata request
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isEqualTo(requestFrame);
+    }
+
+    @Test
+    void getTopicNamesCompletesExceptionallyIfAnyTopicIdNotDiscovered() {
+
+        var snoopedTopicIdMapStage = new AtomicReference<CompletionStage<Map<Uuid, String>>>();
+        Uuid testTopicId = Uuid.randomUuid();
+        Set<Uuid> topicUuids = Set.of(testTopicId);
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            assertNull(snoopedTopicIdMapStage.get(), "Expected to only be called once");
+            snoopedTopicIdMapStage.set(context.getTopicNames(topicUuids));
+            return snoopedTopicIdMapStage.get()
+                    .thenCompose(u -> context.forwardRequest(header, request));
+        };
+
+        buildChannel(filter);
+
+        // trigger filter
+        writeRequest(new ApiVersionsRequestData());
+
+        // verify filter has sent the send request.
+        InternalRequestFrame<?> propagatedOobRequest = channel.readOutbound();
+        ApiMessage body = propagatedOobRequest.body();
+        assertThat(body).isInstanceOfSatisfying(MetadataRequestData.class, metadataRequestData -> {
+            Set<Uuid> actual = metadataRequestData.topics().stream().map(MetadataRequestData.MetadataRequestTopic::topicId).collect(Collectors.toSet());
+            assertThat(actual).isEqualTo(topicUuids);
+        });
+        assertThat(propagatedOobRequest.header()).isNotNull();
+        assertThat(propagatedOobRequest.apiVersion()).isEqualTo((short) 12);
+        assertThat(propagatedOobRequest.apiKey()).isEqualTo(ApiKeys.METADATA);
+
+        // verify oob request response future is in the expected state
+        assertThat(snoopedTopicIdMapStage).isNotNull();
+        var snoopedOobRequestResponseFuture = toCompletableFuture(snoopedTopicIdMapStage.get());
+        assertThat(snoopedOobRequestResponseFuture).withFailMessage("out-of-band request response future was expected to be pending but it is done.").isNotDone();
+
+        // topic name not discovered, we do not remember the topic id on the virtual cluster model.
+        // mimic the broker sending the oob response
+        writeInternalResponse(propagatedOobRequest.header().correlationId(), new MetadataResponseData());
+
+        assertThat(snoopedOobRequestResponseFuture).failsWithin(5, TimeUnit.SECONDS).withThrowableThat()
+                .isInstanceOf(ExecutionException.class).havingCause().isInstanceOf(TopicIdMappingException.class)
+                .withMessage("some topic uuids could not be resolved to topic names");
+
+        // verify that nothing was forwarded
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isNull();
     }
 
     @Test
