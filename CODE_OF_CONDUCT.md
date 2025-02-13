@@ -20,7 +20,7 @@
 
 ## INTRODUCTION
 
-This code of conduct applies to every part of the Kroxylicious project, including chat rooms, all public and private mailing lists, issue trackers, wikis, blogs, social media, and any other communication channel used by our communities. A code of conduct which is specific to in-person events (ie., conferences) is codified in the published ASF anti-harassment policy.
+This code of conduct applies to every part of the Kroxylicious project, including chat rooms, all public and private mailing lists, issue trackers, wikis, blogs, social media, and any other communication channel used by our communities. 
 
 We expect this code of conduct to be honored by everyone who participates in the Kroxylicious community formally or informally, or claims any affiliation with the project,  and especially when representing the project, in any role.
 
