@@ -10,6 +10,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -17,14 +20,19 @@ import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
+import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 
 /**
  * The type Kube client.
  */
 public class KubeClient {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(KubeClient.class);
     /**
      * The Client.
      */
@@ -187,10 +195,28 @@ public class KubeClient {
      * Create or replace deployment deployment.
      *
      * @param deployment the deployment
-     * @return the deployment
      */
-    public Deployment createOrReplaceDeployment(Deployment deployment) {
-        return client.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).resource(deployment).create();
+    public void createOrReplaceDeployment(Deployment deployment) {
+        client.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).resource(deployment).createOr(NonDeletingOperation::update);
+    }
+
+    /**
+     * Delete deployment.
+     *
+     * @param namespaceName the namespace name
+     * @param deploymentName the deployment name
+     */
+    public void deleteDeployment(String namespaceName, String deploymentName) {
+        client.apps().deployments().inNamespace(namespaceName).withName(deploymentName).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
+    }
+
+    /**
+     * Update deployment.
+     *
+     * @param deployment the deployment
+     */
+    public void updateDeployment(Deployment deployment) {
+        client.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).resource(deployment).update();
     }
 
     /**
@@ -267,5 +293,123 @@ public class KubeClient {
      */
     public String logsInSpecificNamespace(String namespaceName, String podName) {
         return client.pods().inNamespace(namespaceName).withName(podName).getLog();
+    }
+
+    // ==================================
+    // ---------> ROLE BINDING <---------
+    // ==================================
+
+    /**
+     * Method for creating the specified RoleBinding.
+     * In case that the RoleBinding is already created, it is being updated.
+     * This can be caused by not cleared RoleBindings from other tests or in case we shut down the test before the cleanup
+     * phase.
+     * The skip of the cleanup phase can then break the CO installation - because the resource already exists.
+     * Without the update, we would need to manually remove all existing resources before running the test again.
+     * It should not have an impact on the functionality, we just update the RoleBinding.
+     * @param roleBinding RoleBinding that we want to create or update
+     */
+    public void createOrUpdateRoleBinding(RoleBinding roleBinding) {
+        client.rbac().roleBindings().inNamespace(getNamespace()).resource(roleBinding).createOr(NonDeletingOperation::update);
+    }
+
+    /**
+     * Method for creating the specified ClusterRoleBinding.
+     * In case that the CRB is already created, it is being updated.
+     * This can be caused by not cleared CRBs from other tests or in case we shut down the test before the cleanup
+     * phase.
+     * The skip of the cleanup phase can then break the CO installation - because the resource already exists.
+     * Without the update, we would need to manually remove all existing resources before running the test again.
+     * It should not have an impact on the functionality, we just update the CRB.
+     * @param clusterRoleBinding ClusterRoleBinding that we want to create or update
+     */
+    public void createOrUpdateClusterRoleBinding(ClusterRoleBinding clusterRoleBinding) {
+        client.rbac().clusterRoleBindings().resource(clusterRoleBinding).createOr(NonDeletingOperation::update);
+    }
+
+    /**
+     * Delete cluster role binding.
+     *
+     * @param clusterRoleBinding the cluster role binding
+     */
+    public void deleteClusterRoleBinding(ClusterRoleBinding clusterRoleBinding) {
+        client.rbac().clusterRoleBindings().resource(clusterRoleBinding).delete();
+    }
+
+    /**
+     * Gets cluster role binding.
+     *
+     * @param name the name
+     * @return the cluster role binding
+     */
+    public ClusterRoleBinding getClusterRoleBinding(String name) {
+        return client.rbac().clusterRoleBindings().withName(name).get();
+    }
+
+    /**
+     * List role bindings list.
+     *
+     * @param namespaceName the namespace name
+     * @return the list
+     */
+    public List<RoleBinding> listRoleBindings(String namespaceName) {
+        return client.rbac().roleBindings().inNamespace(namespaceName).list().getItems();
+    }
+
+    /**
+     * Gets role binding.
+     *
+     * @param name the name
+     * @return the role binding
+     */
+    public RoleBinding getRoleBinding(String name) {
+        return client.rbac().roleBindings().inNamespace(getNamespace()).withName(name).get();
+    }
+
+    /**
+     * Delete role binding.
+     *
+     * @param namespace the namespace
+     * @param name the name
+     */
+    public void deleteRoleBinding(String namespace, String name) {
+        client.rbac().roleBindings().inNamespace(namespace).withName(name).delete();
+    }
+
+    // =====================================
+    // ---> CUSTOM RESOURCE DEFINITIONS <---
+    // =====================================
+
+    /**
+     * Method for creating the specified CustomResourceDefinition.
+     * In case that the CRD is already created, it is being updated.
+     * This can be caused by not cleared CRDs from other tests or in case we shut down the test before the cleanup
+     * phase.
+     * The skip of the cleanup phase can then break the CO installation - because the resource already exists.
+     * Without the update, we would need to manually remove all existing resources before running the test again.
+     * It should not have an impact on the functionality, we just update the CRD.
+     * @param resourceDefinition CustomResourceDefinition that we want to create or update
+     */
+    public void createOrUpdateCustomResourceDefinition(CustomResourceDefinition resourceDefinition) {
+        client.apiextensions().v1().customResourceDefinitions().resource(resourceDefinition).createOr(NonDeletingOperation::update);
+    }
+
+    /**
+     * Delete custom resource definition.
+     *
+     * @param resourceDefinition the resource definition
+     */
+    public void deleteCustomResourceDefinition(CustomResourceDefinition resourceDefinition) {
+        client.apiextensions().v1().customResourceDefinitions().resource(resourceDefinition).delete();
+    }
+
+    /**
+     * Gets custom resource definition.
+     *
+     * @param name the name
+     * @return the custom resource definition
+     */
+    public CustomResourceDefinition getCustomResourceDefinition(String name) {
+        return client.apiextensions().v1().customResourceDefinitions().withName(name).get();
     }
 }

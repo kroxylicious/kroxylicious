@@ -21,7 +21,7 @@ public class KubeClusterException extends RuntimeException {
      * Instantiates a new Kube cluster exception.
      *
      * @param result the result
-     * @param s the s
+     * @param s the string
      */
     public KubeClusterException(ExecResult result, String s) {
         super(s);
@@ -31,7 +31,7 @@ public class KubeClusterException extends RuntimeException {
     /**
      * Instantiates a new Kube cluster exception.
      *
-     * @param s the s
+     * @param s the string
      */
     public KubeClusterException(String s) {
         super(s);
@@ -48,6 +48,12 @@ public class KubeClusterException extends RuntimeException {
         this.result = null;
     }
 
+    /**
+     * Instantiates a new Kube cluster exception.
+     *
+     * @param message the message
+     * @param cause the cause
+     */
     public KubeClusterException(String message, Throwable cause) {
         super(message, cause);
         this.result = null;
@@ -62,7 +68,7 @@ public class KubeClusterException extends RuntimeException {
          * Instantiates a new Not found.
          *
          * @param result the result
-         * @param s the s
+         * @param s the string
          */
         public NotFound(ExecResult result, String s) {
             super(result, s);
@@ -71,7 +77,7 @@ public class KubeClusterException extends RuntimeException {
         /**
          * Instantiates a new Not found.
          *
-         * @param s the s
+         * @param s the string
          */
         public NotFound(String s) {
             super(s);
@@ -87,7 +93,7 @@ public class KubeClusterException extends RuntimeException {
          * Instantiates a new Already exists.
          *
          * @param result the result
-         * @param s the s
+         * @param s the string
          */
         public AlreadyExists(ExecResult result, String s) {
             super(result, s);
@@ -103,10 +109,19 @@ public class KubeClusterException extends RuntimeException {
          * Instantiates a new Invalid resource.
          *
          * @param result the result
-         * @param s the s
+         * @param s the string
          */
         public InvalidResource(ExecResult result, String s) {
             super(result, s);
+        }
+
+        /**
+         * Instantiates a new Invalid resource.
+         *
+         * @param s the string
+         */
+        public InvalidResource(String s) {
+            super(s);
         }
     }
 }

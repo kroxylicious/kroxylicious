@@ -60,6 +60,11 @@ public class KubeClusterResource {
         this.namespace = namespace;
     }
 
+    /** Gets the namespace in use */
+    public String defaultNamespace() {
+        return cmdClient().defaultNamespace();
+    }
+
     /**
      * Gets namespace which is used in Kubernetes clients at the moment
      * @return Used namespace
