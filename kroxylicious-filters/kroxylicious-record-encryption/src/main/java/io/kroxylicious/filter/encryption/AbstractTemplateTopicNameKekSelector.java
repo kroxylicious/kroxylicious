@@ -9,10 +9,12 @@ package io.kroxylicious.filter.encryption;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
@@ -22,20 +24,12 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
-
-    public static final Pattern PATTERN = Pattern.compile("\\$\\{(.*?)}");
-    private final String template;
+abstract class AbstractTemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
+    protected final String template;
     private final Kms<K, ?> kms;
 
-    TemplateTopicNameKekSelector(@NonNull Kms<K, ?> kms, @NonNull String template) {
-        var matcher = PATTERN.matcher(Objects.requireNonNull(template));
-        while (matcher.find()) {
-            if (matcher.group(1).equals("topicName")) {
-                continue;
-            }
-            throw new IllegalArgumentException("Unknown template parameter: " + matcher.group(1));
-        }
+    AbstractTemplateTopicNameKekSelector(@NonNull Kms<K, ?> kms, @NonNull Pattern templatePattern, @NonNull String template, @NonNull String parameterName) {
+        validateTemplate(templatePattern.matcher(Objects.requireNonNull(template)), parameterName);
         this.template = Objects.requireNonNull(template);
         this.kms = Objects.requireNonNull(kms);
     }
@@ -45,9 +39,9 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
     @NonNull
     @Override
     public CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames) {
-        var collect = topicNames.stream()
-                .map(
-                        topicName -> kms.resolveAlias(evaluateTemplate(topicName))
+        var collect = topicNames.stream().map(
+                topicName -> evaluateTemplate(topicName)
+                        .map(alias -> kms.resolveAlias(alias)
                                 .exceptionallyCompose(e -> {
                                     if (e instanceof UnknownAliasException
                                             || (e instanceof CompletionException ce && ce.getCause() instanceof UnknownAliasException)) {
@@ -56,6 +50,7 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
                                     return CompletableFuture.failedFuture(e);
                                 })
                                 .thenApply(kekId -> new Pair<>(topicName, kekId)))
+                        .orElse(CompletableFuture.completedFuture(new Pair<>(topicName, null))))
                 .toList();
         return RecordEncryptionUtil.join(collect).thenApply(list -> {
             // Note we can't use `java.util.stream...(Collectors.toMap())` to build the map, because it has null values
@@ -68,20 +63,15 @@ class TemplateTopicNameKekSelector<K> extends TopicNameBasedKekSelector<K> {
         });
     }
 
-    String evaluateTemplate(String topicName) {
-        var matcher = PATTERN.matcher(template);
-        StringBuilder sb = new StringBuilder();
-        while (matcher.find()) {
-            String replacement;
-            if (matcher.group(1).equals("topicName")) {
-                replacement = topicName;
+    protected abstract Optional<String> evaluateTemplate(String topicName);
+
+    private void validateTemplate(@NonNull Matcher templateMatcher, @NonNull String parameterName) {
+        while (templateMatcher.find()) {
+            if (templateMatcher.group(1).equals(parameterName)) {
+                continue;
             }
-            else { // this should be impossible because of the check in the constructor
-                throw new IllegalStateException();
-            }
-            matcher.appendReplacement(sb, replacement);
+            throw new IllegalArgumentException("Unknown template parameter: " + templateMatcher.group(1));
         }
-        matcher.appendTail(sb);
-        return sb.toString();
     }
+
 }
