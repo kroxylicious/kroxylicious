@@ -45,7 +45,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use <code>&commat;kroxylicious-robot promote-release</code>. The user must be a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
+          gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use <code>&commat;kroxylicious-robot</code>. The user must be a member of release-engineers)"
           exit -1
 
       - name: 'Extract command'

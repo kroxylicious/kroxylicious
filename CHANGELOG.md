@@ -8,6 +8,7 @@ Format `<github issue/pr number>: <short description>`.
 ## SNAPSHOT
 ## 0.10.0
 
+* [#1768](https://github.com/kroxylicious/kroxylicious/pull/1768) Record Encryption: enable user to specify policy when we cannot resolve a Key for a topic
 * [#1770](https://github.com/kroxylicious/kroxylicious/pull/1770) Name filter factories consistently
 * [#1743](https://github.com/kroxylicious/kroxylicious/pull/1743) Apply TLS protocol and cipher suite restrictions to HTTP Clients used by KMS impls too
 * [#1761](https://github.com/kroxylicious/kroxylicious/pull/1761) SNI exposition: user can control advertised broker port

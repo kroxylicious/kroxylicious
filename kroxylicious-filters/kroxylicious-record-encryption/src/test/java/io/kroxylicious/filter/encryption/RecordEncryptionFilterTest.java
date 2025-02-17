@@ -17,10 +17,12 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.LongStream;
 
+import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.NetworkException;
@@ -49,11 +51,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
+import io.kroxylicious.filter.encryption.config.TopicNameKekSelection;
+import io.kroxylicious.filter.encryption.config.UnresolvedKeyPolicy;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.RequestNotSatisfiable;
@@ -82,7 +87,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class RecordEncryptionFilterTest {
 
-    private static final String UNENCRYPTED_TOPIC = "unencrypted";
+    private static final String UNRESOLVED_TOPIC = "unresolved";
     private static final String ENCRYPTED_TOPIC = "encrypt_me";
     private static final String KEK_ID_1 = "KEK_ID_1";
     private static final byte[] HELLO_PLAIN_WORLD = "Hello World".getBytes(UTF_8);
@@ -101,6 +106,12 @@ class RecordEncryptionFilterTest {
 
     @Mock(strictness = LENIENT)
     private FilterContext context;
+
+    @Mock(strictness = LENIENT)
+    RequestFilterResultBuilder requestFilterResultBuilder;
+
+    @Mock(strictness = LENIENT)
+    private CloseOrTerminalStage<RequestFilterResult> closeOrTerminalStage;
 
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
@@ -125,14 +136,13 @@ class RecordEncryptionFilterTest {
         });
 
         final Map<String, String> topicNameToKekId = new HashMap<>();
-        topicNameToKekId.put(UNENCRYPTED_TOPIC, null);
         topicNameToKekId.put(ENCRYPTED_TOPIC, KEK_ID_1);
 
         when(kekSelector.selectKek(anySet())).thenAnswer(invocationOnMock -> {
             Set<String> wanted = invocationOnMock.getArgument(0);
             var copy = new HashMap<>(topicNameToKekId);
             copy.keySet().retainAll(wanted);
-            return CompletableFuture.completedFuture(copy);
+            return CompletableFuture.completedFuture(new TopicNameKekSelection<>(topicNameToKekId, Set.of(UNRESOLVED_TOPIC)));
         });
 
         when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any()))
@@ -141,14 +151,15 @@ class RecordEncryptionFilterTest {
         when(decryptionManager.decrypt(any(), anyInt(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("decrypt", "decrypt")));
 
-        encryptionFilter = new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run));
+        encryptionFilter = new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run),
+                UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
     }
 
     @Test
     void shouldNotEncryptTopicWithoutKeyId() {
         // Given
         var produceRequestData = buildProduceRequestData(new TopicProduceData()
-                .setName(UNENCRYPTED_TOPIC)
+                .setName(UNRESOLVED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
@@ -179,7 +190,7 @@ class RecordEncryptionFilterTest {
                 .setName(ENCRYPTED_TOPIC)
                 .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
                 new TopicProduceData()
-                        .setName(UNENCRYPTED_TOPIC)
+                        .setName(UNRESOLVED_TOPIC)
                         .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
@@ -194,10 +205,41 @@ class RecordEncryptionFilterTest {
     }
 
     @Test
+    void shouldRejectWholeMessageIfPolicyIsToRejectUnresolvedKeys() {
+        // Given
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(ENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
+                new TopicProduceData()
+                        .setName(UNRESOLVED_TOPIC)
+                        .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+
+        when(context.requestFilterResultBuilder()).thenReturn(requestFilterResultBuilder);
+        when(requestFilterResultBuilder.errorResponse(any(), any(), any())).thenReturn(closeOrTerminalStage);
+        RuntimeException exception = new RuntimeException("exception");
+        CompletableFuture<RequestFilterResult> completed = CompletableFuture.failedFuture(exception);
+        when(closeOrTerminalStage.completed()).thenReturn(completed);
+
+        // When
+        var rejectUnresolvedFilter = new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run),
+                UnresolvedKeyPolicy.REJECT);
+        CompletionStage<RequestFilterResult> stage = rejectUnresolvedFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION,
+                new RequestHeaderData(), produceRequestData, context);
+
+        // Then
+        verify(encryptionManager, never()).encrypt(any(), anyInt(), any(), any(), any());
+        verify(requestFilterResultBuilder).errorResponse(any(), any(),
+                Mockito.argThat(e -> e instanceof InvalidRecordException && e.getMessage().equals("failed to resolve key for: [unresolved]")));
+
+        assertThat(stage).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().withCause(exception);
+
+    }
+
+    @Test
     void shouldPassThroughUnencryptedRecords() {
         // Given
         var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
-                .setTopic(UNENCRYPTED_TOPIC)
+                .setTopic(UNRESOLVED_TOPIC)
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
 
         // When
@@ -253,7 +295,7 @@ class RecordEncryptionFilterTest {
     void shouldPropagateResponseExceptions() {
         // Given
         var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
-                .setTopic(UNENCRYPTED_TOPIC)
+                .setTopic(UNRESOLVED_TOPIC)
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
         RuntimeException exception = new RuntimeException("boom");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
