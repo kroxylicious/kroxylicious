@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
 import io.kroxylicious.filter.encryption.config.TemplateConfig;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
+import io.kroxylicious.filter.encryption.config.TopicNameKekSelection;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.InMemoryKms;
 import io.kroxylicious.kms.provider.kroxylicious.inmemory.UnitTestingKmsService;
 import io.kroxylicious.kms.service.Kms;
@@ -63,10 +64,12 @@ class TemplateKekSelectorTest {
 
         var kek = kms.generateKey();
         kms.createAlias(kek, "topic-my-topic");
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
+        TopicNameKekSelection<UUID> selection = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
+        var map = selection.topicNameToKekId();
         assertThat(map)
                 .hasSize(1)
                 .containsEntry("my-topic", kek);
+        assertThat(selection.unresolvedTopicNames()).isEmpty();
     }
 
     @Test
@@ -75,10 +78,13 @@ class TemplateKekSelectorTest {
         var kms = kmsService.buildKms();
         var selector = getSelector(kms, "topic-${topicName}");
 
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
-        assertThat(map)
+        TopicNameKekSelection<UUID> selection = selector.selectKek(Set.of("my-topic")).toCompletableFuture().join();
+        var unresolvedTopicNames = selection.unresolvedTopicNames();
+        assertThat(unresolvedTopicNames)
                 .hasSize(1)
-                .containsEntry("my-topic", null);
+                .containsExactly("my-topic");
+
+        assertThat(selection.topicNameToKekId()).isEmpty();
     }
 
     @Test
@@ -91,10 +97,13 @@ class TemplateKekSelectorTest {
                 });
         when(kms.resolveAlias(anyString())).thenReturn(result);
         var selector = getSelector(kms, "topic-${topicName}");
-        var map = selector.selectKek(Set.of("my-topic")).toCompletableFuture().get();
-        assertThat(map)
+        TopicNameKekSelection<UUID> selection = selector.selectKek(Set.of("my-topic")).toCompletableFuture().get();
+        var unresolvedTopicNames = selection.unresolvedTopicNames();
+        assertThat(unresolvedTopicNames)
                 .hasSize(1)
-                .containsEntry("my-topic", null);
+                .containsExactly("my-topic");
+
+        assertThat(selection.topicNameToKekId()).isEmpty();
     }
 
     @Test

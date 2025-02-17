@@ -6,7 +6,6 @@
 
 package io.kroxylicious.filter.encryption.config;
 
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
@@ -19,10 +18,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public abstract class TopicNameBasedKekSelector<K> {
 
     /**
-     * Returns a completion stage whose value, on successful completion, is a map from each of the given topic
-     * names to the KEK id to use for encrypting records in that topic.
+     * Returns a completion stage whose value, on successful completion, is a topic name selection containing the
+     * resolved key ids for topics which could be resolved, and a set of unresolved topic names.
      * @param topicNames A set of topic names
-     * @return A completion stage for the map form topic name to KEK id.
+     * @return A completion stage for the topic name selection
      */
-    public abstract @NonNull CompletionStage<Map<String, K>> selectKek(@NonNull Set<String> topicNames);
+    public abstract @NonNull CompletionStage<TopicNameKekSelection<K>> selectKek(@NonNull Set<String> topicNames);
 }
