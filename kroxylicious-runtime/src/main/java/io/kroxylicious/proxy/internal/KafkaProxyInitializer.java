@@ -49,6 +49,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
 
+    private static final ChannelInboundHandlerAdapter LOGGING_INBOUND_ERROR_HANDLER = new LoggingInboundErrorHandler();
+    @VisibleForTesting
+    static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
+
     private final boolean haproxyProtocol;
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
     private final boolean tls;
@@ -92,11 +96,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         else {
             initPlainChannel(ch, pipeline, bindingAddress, targetPort);
         }
+        addLoggingErrorHandler(pipeline);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private void initPlainChannel(SocketChannel ch, ChannelPipeline pipeline, Optional<String> bindingAddress, int targetPort) {
-        pipeline.addLast(new ChannelInboundHandlerAdapter() {
+        pipeline.addLast("plainResolver", new ChannelInboundHandlerAdapter() {
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
                 virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), null)
@@ -121,16 +126,19 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         });
     }
 
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    // deep inheritance tree of SniHandler not something we can fix
+    @SuppressWarnings({ "OptionalUsedAsFieldOrParameterType", "java:S110" })
     private void initTlsChannel(SocketChannel ch, ChannelPipeline pipeline, Optional<String> bindingAddress, int targetPort) {
         LOGGER.debug("Adding SSL/SNI handler");
-        pipeline.addLast(new SniHandler((sniHostname, promise) -> {
+        pipeline.addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
             try {
-                var stage = virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), sniHostname);
+                Endpoint endpoint = Endpoint.createEndpoint(bindingAddress, targetPort, tls);
+                var stage = virtualClusterBindingResolver.resolve(endpoint, sniHostname);
                 // completes the netty promise when then resolution completes (success/otherwise).
                 stage.handle((binding, t) -> {
                     try {
                         if (t != null) {
+                            LOGGER.warn("Exception resolving Virtual Cluster Binding for endpoint {} and sniHostname {}: {}", endpoint, sniHostname, t.getMessage());
                             promise.setFailure(t);
                             return null;
                         }
@@ -168,6 +176,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
         var virtualCluster = binding.virtualClusterModel();
         ChannelPipeline pipeline = ch.pipeline();
+        pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
         if (virtualCluster.isLogNetwork()) {
             pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
@@ -207,8 +216,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster);
 
         pipeline.addLast("netHandler", frontendHandler);
+        addLoggingErrorHandler(pipeline);
 
         LOGGER.debug("{}: Initial pipeline: {}", ch, pipeline);
+    }
+
+    private static void addLoggingErrorHandler(ChannelPipeline pipeline) {
+        pipeline.addLast(LOGGING_INBOUND_ERROR_HANDLER_NAME, LOGGING_INBOUND_ERROR_HANDLER);
     }
 
     @VisibleForTesting
@@ -269,6 +283,18 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             }
 
             context.initiateConnect(target, filters);
+        }
+    }
+
+    @Sharable
+    @VisibleForTesting
+    static class LoggingInboundErrorHandler extends ChannelInboundHandlerAdapter {
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            LOGGER.atWarn()
+                    .setCause(LOGGER.isDebugEnabled() ? cause : null)
+                    .log("An exceptionCaught() event was caught by the error handler {}: {}. Increase log level to DEBUG for stacktrace",
+                            cause.getClass().getSimpleName(), cause.getMessage());
         }
     }
 }

@@ -29,6 +29,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoop;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -51,7 +52,10 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static io.kroxylicious.proxy.internal.KafkaProxyInitializer.LOGGING_INBOUND_ERROR_HANDLER_NAME;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -124,8 +128,9 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline).addLast(isA(ChannelInboundHandlerAdapter.class));
-        verify(channelPipeline, times(0)).addLast(isA(SniHandler.class));
+        verify(channelPipeline).addLast(eq("plainResolver"), isA(ChannelInboundHandlerAdapter.class));
+        assertErrorHandlerAdded();
+        verify(channelPipeline, times(0)).addLast(anyString(), isA(SniHandler.class));
     }
 
     @Test
@@ -140,7 +145,7 @@ class KafkaProxyInitializerTest {
                 (virtualCluster, upstreamNodes) -> null,
                 false,
                 Map.of(), new ApiVersionsServiceImpl());
-        when(channelPipeline.addLast(plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
+        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
         kafkaProxyInitializer.initChannel(channel);
         final ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
@@ -164,7 +169,7 @@ class KafkaProxyInitializerTest {
                 (virtualCluster, upstreamNodes) -> null,
                 false,
                 Map.of(), new ApiVersionsServiceImpl());
-        when(channelPipeline.addLast(plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
+        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
         kafkaProxyInitializer.initChannel(channel);
         final ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
@@ -194,11 +199,34 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.addHandlers(channel, vcb);
 
         // Then
-        final InOrder verifyer = inOrder(channelPipeline);
-        verifyer.verify(channelPipeline).addLast(eq("requestDecoder"), any(ByteToMessageDecoder.class));
-        verifyer.verify(channelPipeline).addLast(eq("responseEncoder"), any(MessageToByteEncoder.class));
-        verifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
-        verifyer.verify(channelPipeline).addLast(eq("netHandler"), any(KafkaProxyFrontendHandler.class));
+        final InOrder orderedVerifyer = inOrder(channelPipeline);
+        orderedVerifyer.verify(channelPipeline).addLast(eq("requestDecoder"), any(ByteToMessageDecoder.class));
+        orderedVerifyer.verify(channelPipeline).addLast(eq("responseEncoder"), any(MessageToByteEncoder.class));
+        orderedVerifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
+        orderedVerifyer.verify(channelPipeline).addLast(eq("netHandler"), any(KafkaProxyFrontendHandler.class));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void shouldRemoveAndReAddErrorHandlerOnBindingComplete(boolean tls) {
+        // Given
+        when(vcb.virtualClusterModel())
+                .thenReturn(virtualClusterModel);
+        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
+                pfr,
+                tls,
+                (endpoint, sniHostname) -> bindingStage,
+                (virtualCluster, upstreamNodes) -> null,
+                false,
+                Map.of(), new ApiVersionsServiceImpl());
+
+        // When
+        kafkaProxyInitializer.addHandlers(channel, vcb);
+
+        // Then
+        final InOrder orderedVerifyer = inOrder(channelPipeline);
+        orderedVerifyer.verify(channelPipeline).remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
+        orderedVerifyer.verify(channelPipeline).addLast(eq(LOGGING_INBOUND_ERROR_HANDLER_NAME), isA(KafkaProxyInitializer.LoggingInboundErrorHandler.class));
     }
 
     @ParameterizedTest
@@ -263,6 +291,7 @@ class KafkaProxyInitializerTest {
 
         // Then
         verify(channelPipeline).addLast(any(KafkaAuthnHandler.class));
+        assertErrorHandlerAdded();
     }
 
     @ParameterizedTest
@@ -325,6 +354,25 @@ class KafkaProxyInitializerTest {
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline).addLast(isA(SniHandler.class));
+        verify(channelPipeline).addLast(anyString(), isA(SniHandler.class));
+        assertErrorHandlerAdded();
+    }
+
+    @Test
+    void testLoggingErrorHandlerPreventsExceptionPropagatingToChannel() {
+        EmbeddedChannel embeddedChannel = new EmbeddedChannel();
+        embeddedChannel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+            @Override
+            public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                throw new RuntimeException("failed to handle message: " + msg);
+            }
+        });
+        embeddedChannel.pipeline().addLast(new KafkaProxyInitializer.LoggingInboundErrorHandler());
+        embeddedChannel.writeInbound("arbitrary");
+        assertThatCode(embeddedChannel::checkException).doesNotThrowAnyException();
+    }
+
+    private void assertErrorHandlerAdded() {
+        verify(channelPipeline).addLast(anyString(), isA(KafkaProxyInitializer.LoggingInboundErrorHandler.class));
     }
 }
