@@ -10,9 +10,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.LabelSelector;
 import io.fabric8.kubernetes.api.model.Namespace;
@@ -32,7 +29,6 @@ import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
  */
 public class KubeClient {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(KubeClient.class);
     /**
      * The Client.
      */

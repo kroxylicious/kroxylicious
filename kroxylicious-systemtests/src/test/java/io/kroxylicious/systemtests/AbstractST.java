@@ -29,7 +29,7 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
  * The type Abstract st.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class AbstractST implements TestSeparator {
+class AbstractST implements TestSeparator {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractST.class);
 
     /**

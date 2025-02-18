@@ -167,7 +167,12 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
      * @param namespaces list of namespaces which will be created
      */
     public void prepareEnvForOperator(String clientNamespace, List<String> namespaces) {
-        applyCrds();
+        try {
+            applyCrds();
+        }
+        catch (FileNotFoundException e) {
+            throw new UncheckedIOException(e);
+        }
         applyClusterOperatorInstallFiles(clientNamespace);
 
         if (cluster.cluster().isOpenshift() && kubeClient().getNamespace(Environment.KROXY_ORG) != null) {
@@ -181,9 +186,13 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     /**
      * Temporary method to fulfill the Crds installation until new JOSDK 5.0.0 release landed https://github.com/operator-framework/java-operator-sdk/releases
      */
-    private void applyCrds() {
+    private void applyCrds() throws FileNotFoundException {
         String path = Constants.PATH_TO_OPERATOR + "/src/main/resources/META-INF/fabric8/";
-        List<File> crdFiles = Arrays.stream(Objects.requireNonNull(new File(path).listFiles())).sorted()
+        File[] files = new File(path).listFiles();
+        if (files == null) {
+            throw new FileNotFoundException(path + " is empty");
+        }
+        List<File> crdFiles = Arrays.stream(files).sorted()
                 .filter(File::isFile)
                 .filter(file -> file.getName().contains("-v1"))
                 .toList();
