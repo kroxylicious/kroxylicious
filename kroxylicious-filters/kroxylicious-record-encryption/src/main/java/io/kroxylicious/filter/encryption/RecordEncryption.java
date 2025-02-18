@@ -138,9 +138,10 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
                 sharedEncryptionContext.decryptionDekCache(),
                 executor);
 
-        KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, sharedEncryptionContext.configuration().selector());
-        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(), sharedEncryptionContext.configuration().selectorConfig());
-        return new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor);
+        RecordEncryptionConfig configuration = sharedEncryptionContext.configuration();
+        KekSelectorService<Object, K> ksPlugin = context.pluginInstance(KekSelectorService.class, configuration.selector());
+        TopicNameBasedKekSelector<K> kekSelector = ksPlugin.buildSelector(sharedEncryptionContext.kms(), configuration.selectorConfig());
+        return new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, executor, configuration.unresolvedKeyPolicy());
     }
 
     @NonNull

@@ -84,7 +84,7 @@ When a PR is created and the performance tests are needed, if you are a member o
 [Developers](https://github.com/orgs/kroxylicious/teams/developers), you may add the following comment into the PR to trigger the run.
 
 ```
-@tealc-ci run perf
+@kroxylicious-robot run perf
 ```
 
 It will launch the `kroxylicious-performance-tests-pr` build, that will insert a comment with a summary into the PR comparing the results with the previous execution.

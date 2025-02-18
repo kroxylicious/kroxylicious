@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -41,6 +42,8 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
+import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.header.Header;
@@ -52,6 +55,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
+import io.kroxylicious.filter.encryption.config.UnresolvedKeyPolicy;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
 import io.kroxylicious.filter.encryption.crypto.EncryptionResolver;
@@ -93,7 +97,7 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -120,7 +124,7 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -151,7 +155,7 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -189,7 +193,7 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -229,7 +233,7 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -369,7 +373,7 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -402,7 +406,7 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -431,7 +435,7 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -463,7 +467,7 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -497,7 +501,7 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(encryptedTopic.name());
 
         var builder = proxy(cluster);
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -515,6 +519,28 @@ class RecordEncryptionFilterIT {
                     .toIterable()
                     .extracting(ConsumerRecord::value)
                     .contains(HELLO_SECRET, HELLO_WORLD);
+        }
+    }
+
+    @TestTemplate
+    void userCanChooseToRejectRecordsWhichWeCannotResolveKeysFor(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(encryptedTopic.name());
+
+        var builder = proxy(cluster);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.REJECT);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer(Map.of(ProducerConfig.RETRIES_CONFIG, 0, ProducerConfig.LINGER_MS_CONFIG, 1000));) {
+            // we reject the entire produce request as a unit, this record should resolve to a key, but because plain topic does not resolve to a key both are rejected
+            Future<RecordMetadata> sendA = producer.send(new ProducerRecord<>(encryptedTopic.name(), HELLO_SECRET));
+            Future<RecordMetadata> sendB = producer.send(new ProducerRecord<>(plainTopic.name(), HELLO_WORLD));
+            producer.flush();
+            assertThat(sendA).failsWithin(5, TimeUnit.SECONDS).withThrowableThat()
+                    .withCause(new InvalidRecordException("failed to resolve key for: [" + plainTopic.name() + "]"));
+            assertThat(sendB).failsWithin(5, TimeUnit.SECONDS).withThrowableThat()
+                    .withCause(new InvalidRecordException("failed to resolve key for: [" + plainTopic.name() + "]"));
         }
     }
 
@@ -538,7 +564,7 @@ class RecordEncryptionFilterIT {
 
         var builder = proxy(cluster);
 
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -602,7 +628,7 @@ class RecordEncryptionFilterIT {
         testKekManager.generateKek(topic.name());
 
         var builder = proxy(cluster);
-        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade);
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
         builder.addToFilterDefinitions(namedFilterDefinition);
         builder.addToDefaultFilters(namedFilterDefinition.name());
 
@@ -639,12 +665,13 @@ class RecordEncryptionFilterIT {
 
     }
 
-    private NamedFilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade) {
+    private NamedFilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade, UnresolvedKeyPolicy unresolvedKeyPolicy) {
         return new NamedFilterDefinitionBuilder("filter-1", RecordEncryption.class.getSimpleName())
                 .withConfig("kms", testKmsFacade.getKmsServiceClass().getSimpleName())
                 .withConfig("kmsConfig", testKmsFacade.getKmsServiceConfig())
                 .withConfig("selector", TemplateKekSelector.class.getSimpleName())
                 .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
+                .withConfig("unresolvedKeyPolicy", unresolvedKeyPolicy)
                 .build();
     }
 
