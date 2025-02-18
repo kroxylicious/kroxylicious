@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Stack;
 import java.util.function.Predicate;
 
 import org.apache.logging.log4j.LogManager;
@@ -29,17 +28,13 @@ import org.junit.platform.commons.PreconditionViolationException;
 
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.skodjob.testframe.installation.InstallationMethod;
-import io.skodjob.testframe.resources.ResourceItem;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
-import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleBindingResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.templates.kubernetes.ClusterRoleBindingTemplates;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.ReadWriteUtils;
 
@@ -79,8 +74,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             ko.namespaceToWatch == null && ko.bindingsNamespaces == null && ko.operationTimeout == null && ko.reconciliationInterval == null
             && ko.testClassName == null && ko.testMethodName == null;
 
-    private static final Predicate<File> installFiles = file -> !file.getName().contains("Binding") && !file.getName().contains("Deployment");
-    private static final Predicate<File> clusterRoleBindingFiles = file -> file.getName().contains("ClusterRoleBinding");
+    private static final Predicate<File> installFiles = file -> !file.getName().contains("Deployment");
 
     public KroxyliciousOperatorBundleInstaller() {
         this.namespaceInstallTo = Constants.KO_NAMESPACE;
@@ -139,27 +133,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         return getOperatorFiles().stream().filter(predicate).toList();
     }
 
-    private boolean isKroxyliciousOperatorNamespaceNotCreated() {
-        return extensionContext == null
-                || extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).get(Constants.PREPARE_OPERATOR_ENV_KEY + namespaceInstallTo) == null;
-    }
-
-    private void createKroxyliciousOperatorNamespaceIfPossible() {
-        if (isKroxyliciousOperatorNamespaceNotCreated()) {
-            cluster.setNamespace(namespaceInstallTo);
-
-            if (this.extensionContext != null) {
-                ResourceManager.getStoredResources().computeIfAbsent(this.extensionContext.getDisplayName(), k -> new Stack<>());
-                ResourceManager.getStoredResources().get(this.extensionContext.getDisplayName()).push(
-                        new ResourceItem<>(this::deleteKroxyliciousOperatorNamespace));
-
-                NamespaceUtils.createNamespaces(namespaceInstallTo, bindingsNamespaces);
-
-                this.extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).put(Constants.PREPARE_OPERATOR_ENV_KEY + namespaceInstallTo, true);
-            }
-        }
-    }
-
     /**
      * Perform application of ServiceAccount, Roles and CRDs needed for proper cluster operator deployment.
      * Configuration files are loaded from kroxylicious-operator directory.
@@ -171,12 +144,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             if (resourceType.equals(Constants.NAMESPACE)) {
                 Namespace namespace = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, Namespace.class);
                 if (!NamespaceUtils.isNamespaceCreated(namespace.getMetadata().getName())) {
-                    try {
-                        kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).create();
-                    }
-                    catch (FileNotFoundException e) {
-                        throw new UncheckedIOException(e);
-                    }
+                    kubeClient().getClient().resource(namespace).create();
                 }
             }
             else {
@@ -222,36 +190,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         for (File crdFile : crdFiles) {
             CustomResourceDefinition customResourceDefinition = ReadWriteUtils.readObjectFromYamlFilepath(crdFile, CustomResourceDefinition.class);
             ResourceManager.getInstance().createResourceWithWait(customResourceDefinition);
-        }
-    }
-
-    private void deleteKroxyliciousOperatorNamespace() {
-        LOGGER.info("Deleting Namespace {}", this.namespaceInstallTo);
-        NamespaceUtils.deleteNamespaceWithWait(this.namespaceInstallTo);
-    }
-
-    private void createClusterRoleBindings() {
-        // Create ClusterRoleBindings that grant cluster-wide access to all OpenShift projects
-        List<ClusterRoleBinding> clusterRoleBindingList = ClusterRoleBindingTemplates.clusterRoleBindingsForAllNamespaces(namespaceInstallTo);
-        clusterRoleBindingList.forEach(clusterRoleBinding -> ResourceManager.getInstance().createResourceWithWait(clusterRoleBinding));
-    }
-
-    /**
-     * Method to apply Kroxylicious operator specific ClusterRoleBindings for specific namespaces.
-     */
-    public void applyDefaultBindings() {
-        // cluster-wide installation
-        if (namespaceToWatch.equals(Constants.WATCH_ALL_NAMESPACES)) {
-            createClusterRoleBindings();
-        }
-        else {
-            applyClusterRoleBindings(this.namespaceInstallTo);
-        }
-    }
-
-    private static void applyClusterRoleBindings(String namespace) {
-        for (File clusterRoleBindingFile : getFilteredOperatorFiles(clusterRoleBindingFiles)) {
-            ClusterRoleBindingResource.clusterRoleBinding(namespace, clusterRoleBindingFile.getAbsolutePath());
         }
     }
 
@@ -319,11 +257,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
         setTestClassNameAndTestMethodName();
 
-        // check if namespace is already created
-        createKroxyliciousOperatorNamespaceIfPossible();
         prepareEnvForOperator(namespaceInstallTo, bindingsNamespaces);
-        LOGGER.info("Install default bindings");
-        applyDefaultBindings();
 
         // 03.Deployment
         ResourceManager.setKoDeploymentName(kroxyliciousOperatorName);
@@ -349,10 +283,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         }
         else {
             LOGGER.info("Un-installing Kroxylicious Operator from Namespace: {}", namespaceInstallTo);
-
-            if (this.extensionContext != null) {
-                this.extensionContext.getStore(ExtensionContext.Namespace.GLOBAL).put(Constants.PREPARE_OPERATOR_ENV_KEY + namespaceInstallTo, null);
-            }
 
             // clear all resources related to the extension context
             try {
