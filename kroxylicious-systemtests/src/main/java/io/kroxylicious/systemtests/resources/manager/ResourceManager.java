@@ -39,7 +39,6 @@ import io.kroxylicious.systemtests.resources.kroxylicious.DeploymentResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.SecretResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.ServiceResource;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterOperatorCustomResourceDefinition;
-import io.kroxylicious.systemtests.resources.kubernetes.ClusterRoleBindingResource;
 import io.kroxylicious.systemtests.resources.operator.BundleResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
@@ -103,7 +102,6 @@ public class ResourceManager {
             new DeploymentResource(),
             new SecretResource(),
             new BundleResource(),
-            new ClusterRoleBindingResource(),
             new ClusterOperatorCustomResourceDefinition()
     };
 
