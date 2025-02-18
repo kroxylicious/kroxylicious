@@ -61,8 +61,6 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      */
     K deleteByName(String resourceType, String resourceName);
 
-    K deleteAllByResource(String resourceType);
-
     /**
      * Delete k.
      *

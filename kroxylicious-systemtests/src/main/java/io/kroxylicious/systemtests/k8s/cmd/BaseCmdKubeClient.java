@@ -91,18 +91,6 @@ public abstract class BaseCmdKubeClient<K extends BaseCmdKubeClient<K>> implemen
         return (K) this;
     }
 
-    @Override
-    @SuppressWarnings("unchecked")
-    public K deleteAllByResource(String resourceType) {
-        try {
-            Exec.exec(namespacedCommand(DELETE, resourceType, "--all"));
-        }
-        catch (Exception e) {
-            LOGGER.warn(e.getMessage());
-        }
-        return (K) this;
-    }
-
     private Map<File, ExecResult> execRecursive(String subcommand, File[] files, Comparator<File> cmp) {
         Map<File, ExecResult> execResults = new HashMap<>(25);
         for (File f : files) {
