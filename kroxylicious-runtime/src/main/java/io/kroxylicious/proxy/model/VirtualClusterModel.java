@@ -35,13 +35,14 @@ import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.internal.net.EndpointListener;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class VirtualClusterModel {
+public class VirtualClusterModel implements EndpointListener {
 
     public static final int DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES = 104857600;
 
@@ -92,6 +93,7 @@ public class VirtualClusterModel {
         return clusterName;
     }
 
+    @Override
     public TargetCluster targetCluster() {
         return targetCluster;
     }
@@ -108,6 +110,7 @@ public class VirtualClusterModel {
         return logFrames;
     }
 
+    @Override
     public boolean isUseTls() {
         return tls.isPresent();
     }
@@ -130,18 +133,22 @@ public class VirtualClusterModel {
                 '}';
     }
 
+    @Override
     public HostPort getClusterBootstrapAddress() {
         return getClusterNetworkAddressConfigProvider().getClusterBootstrapAddress();
     }
 
+    @Override
     public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
         return getClusterNetworkAddressConfigProvider().getBrokerAddress(nodeId);
     }
 
+    @Override
     public Optional<String> getBindAddress() {
         return getClusterNetworkAddressConfigProvider().getBindAddress();
     }
 
+    @Override
     public boolean requiresTls() {
         return getClusterNetworkAddressConfigProvider().requiresTls();
     }
@@ -154,10 +161,12 @@ public class VirtualClusterModel {
         return getClusterNetworkAddressConfigProvider().getSharedPorts();
     }
 
+    @Override
     public Map<Integer, HostPort> discoveryAddressMap() {
         return getClusterNetworkAddressConfigProvider().discoveryAddressMap();
     }
 
+    @Override
     public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
         return getClusterNetworkAddressConfigProvider().getBrokerIdFromBrokerAddress(brokerAddress);
     }
@@ -299,6 +308,7 @@ public class VirtualClusterModel {
         return filters;
     }
 
+    @Override
     public HostPort getAdvertisedBrokerAddress(int nodeId) {
         return getClusterNetworkAddressConfigProvider().getAdvertisedBrokerAddress(nodeId);
     }
