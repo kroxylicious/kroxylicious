@@ -11,8 +11,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.UncheckedIOException;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -58,10 +56,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     private final ExtensionContext extensionContext;
     private String kroxyliciousOperatorName;
     private String namespaceInstallTo;
-    private String namespaceToWatch;
-    private List<String> bindingsNamespaces;
-    private Duration operationTimeout;
-    private Duration reconciliationInterval;
     private Map<String, String> extraLabels;
     private final int replicas;
 
@@ -70,8 +64,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     private String testMethodName = "";
 
     private static final Predicate<KroxyliciousOperatorBundleInstaller> IS_EMPTY = ko -> ko.extensionContext == null && ko.kroxyliciousOperatorName == null
-            && ko.namespaceInstallTo == null &&
-            ko.namespaceToWatch == null && ko.bindingsNamespaces == null && ko.operationTimeout == null && ko.reconciliationInterval == null
+            && ko.namespaceInstallTo == null
             && ko.testClassName == null && ko.testMethodName == null;
 
     private static final Predicate<File> installFiles = file -> !file.getName().contains("Deployment");
@@ -87,10 +80,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         this.extensionContext = builder.extensionContext;
         this.kroxyliciousOperatorName = builder.kroxyliciousOperatorName;
         this.namespaceInstallTo = builder.namespaceInstallTo;
-        this.namespaceToWatch = builder.namespaceToWatch;
-        this.bindingsNamespaces = builder.bindingsNamespaces;
-        this.operationTimeout = builder.operationTimeout;
-        this.reconciliationInterval = builder.reconciliationInterval;
         this.extraLabels = builder.extraLabels;
         this.replicas = builder.replicas;
 
@@ -101,19 +90,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         // if namespace is not set we install operator to 'kroxylicious-operator'
         if (this.namespaceInstallTo == null || this.namespaceInstallTo.isEmpty()) {
             this.namespaceInstallTo = Constants.KO_NAMESPACE;
-        }
-        if (this.namespaceToWatch == null) {
-            this.namespaceToWatch = this.namespaceInstallTo;
-        }
-        if (this.bindingsNamespaces == null) {
-            this.bindingsNamespaces = new ArrayList<>();
-            this.bindingsNamespaces.add(this.namespaceInstallTo);
-        }
-        if (this.operationTimeout == null) {
-            this.operationTimeout = Constants.KO_OPERATION_TIMEOUT_DEFAULT;
-        }
-        if (this.reconciliationInterval == null) {
-            this.reconciliationInterval = Constants.RECONCILIATION_INTERVAL;
         }
         if (this.extraLabels == null) {
             this.extraLabels = new HashMap<>();
@@ -164,9 +140,8 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
      * Prepare environment for cluster operator which includes creation of namespaces, custom resources and operator
      * specific config files such as ServiceAccount, Roles and CRDs.
      * @param clientNamespace namespace which will be created and used as default by kube client
-     * @param namespaces list of namespaces which will be created
      */
-    public void prepareEnvForOperator(String clientNamespace, List<String> namespaces) {
+    public void prepareEnvForOperator(String clientNamespace) {
         try {
             applyCrds();
         }
@@ -176,10 +151,9 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         applyClusterOperatorInstallFiles(clientNamespace);
 
         if (cluster.cluster().isOpenshift() && kubeClient().getNamespace(Environment.KROXY_ORG) != null) {
-            for (String namespace : namespaces) {
-                LOGGER.debug("Setting group policy for Openshift registry in Namespace: {}", namespace);
-                Exec.exec(Arrays.asList("oc", "policy", "add-role-to-group", "system:image-puller", "system:serviceaccounts:" + namespace, "-n", Environment.KROXY_ORG));
-            }
+            LOGGER.debug("Setting group policy for Openshift registry in Namespace: {}", clientNamespace);
+            Exec.exec(
+                    Arrays.asList("oc", "policy", "add-role-to-group", "system:image-puller", "system:serviceaccounts:" + clientNamespace, "-n", Environment.KROXY_ORG));
         }
     }
 
@@ -212,20 +186,14 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         }
         KroxyliciousOperatorBundleInstaller otherInstallation = (KroxyliciousOperatorBundleInstaller) other;
 
-        return operationTimeout == otherInstallation.operationTimeout &&
-                reconciliationInterval == otherInstallation.reconciliationInterval &&
-                Objects.equals(cluster, KroxyliciousOperatorBundleInstaller.cluster) &&
-                Objects.equals(kroxyliciousOperatorName, otherInstallation.kroxyliciousOperatorName) &&
+        return Objects.equals(kroxyliciousOperatorName, otherInstallation.kroxyliciousOperatorName) &&
                 Objects.equals(namespaceInstallTo, otherInstallation.namespaceInstallTo) &&
-                Objects.equals(namespaceToWatch, otherInstallation.namespaceToWatch) &&
-                Objects.equals(bindingsNamespaces, otherInstallation.bindingsNamespaces) &&
                 Objects.equals(extraLabels, otherInstallation.extraLabels);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(cluster, extensionContext,
-                kroxyliciousOperatorName, namespaceInstallTo, namespaceToWatch, bindingsNamespaces, operationTimeout, extraLabels);
+        return Objects.hash(cluster, extensionContext, kroxyliciousOperatorName, namespaceInstallTo, extraLabels);
     }
 
     @Override
@@ -235,10 +203,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 ", extensionContext=" + extensionContext +
                 ", kroxyliciousOperatorName='" + kroxyliciousOperatorName + '\'' +
                 ", namespaceInstallTo='" + namespaceInstallTo + '\'' +
-                ", namespaceToWatch='" + namespaceToWatch + '\'' +
-                ", bindingsNamespaces=" + bindingsNamespaces +
-                ", operationTimeout=" + operationTimeout +
-                ", reconciliationInterval=" + reconciliationInterval +
                 ", extraLabels=" + extraLabels +
                 ", testClassName='" + testClassName + '\'' +
                 ", testMethodName='" + testMethodName + '\'' +
@@ -266,7 +230,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
         setTestClassNameAndTestMethodName();
 
-        prepareEnvForOperator(namespaceInstallTo, bindingsNamespaces);
+        prepareEnvForOperator(namespaceInstallTo);
 
         // 03.Deployment
         ResourceManager.setKoDeploymentName(kroxyliciousOperatorName);
@@ -275,9 +239,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                         .withReplicas(replicas)
                         .withName(kroxyliciousOperatorName)
                         .withNamespace(namespaceInstallTo)
-                        .withWatchingNamespaces(namespaceToWatch)
-                        .withOperationTimeout(operationTimeout)
-                        .withReconciliationInterval(reconciliationInterval)
                         .withExtraLabels(extraLabels)
                         .buildBundleInstance()
                         .buildBundleDeployment()
@@ -313,8 +274,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     public KroxyliciousOperatorBuilder getDefaultBuilder(String installationNamespace) {
         return new KroxyliciousOperatorBuilder()
                 .withExtensionContext(ResourceManager.getTestContext())
-                .withNamespace(installationNamespace)
-                .withWatchingNamespaces(Constants.WATCH_ALL_NAMESPACES);
+                .withNamespace(installationNamespace);
     }
 
     public static class KroxyliciousOperatorBuilder {
@@ -322,10 +282,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         private ExtensionContext extensionContext;
         private String kroxyliciousOperatorName;
         private String namespaceInstallTo;
-        private String namespaceToWatch;
-        private List<String> bindingsNamespaces;
-        private Duration operationTimeout;
-        private Duration reconciliationInterval;
         private Map<String, String> extraLabels;
         private int replicas = 1;
 
@@ -341,43 +297,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
         public KroxyliciousOperatorBuilder withNamespace(String namespaceInstallTo) {
             this.namespaceInstallTo = namespaceInstallTo;
-            return self();
-        }
-
-        public KroxyliciousOperatorBuilder withWatchingNamespaces(String namespaceToWatch) {
-            this.namespaceToWatch = namespaceToWatch;
-            return self();
-        }
-
-        public KroxyliciousOperatorBuilder addToTheWatchingNamespaces(String namespaceToWatch) {
-            if (this.namespaceToWatch != null) {
-                if (!this.namespaceToWatch.equals("*")) {
-                    this.namespaceToWatch += "," + namespaceToWatch;
-                }
-            }
-            else {
-                this.namespaceToWatch = namespaceToWatch;
-            }
-            return self();
-        }
-
-        public KroxyliciousOperatorBuilder withBindingsNamespaces(List<String> bindingsNamespaces) {
-            this.bindingsNamespaces = bindingsNamespaces;
-            return self();
-        }
-
-        public KroxyliciousOperatorBuilder addToTheBindingsNamespaces(String bindingsNamespace) {
-            this.bindingsNamespaces = new ArrayList<>(Objects.requireNonNullElseGet(this.bindingsNamespaces, () -> Collections.singletonList(bindingsNamespace)));
-            return self();
-        }
-
-        public KroxyliciousOperatorBuilder withOperationTimeout(Duration operationTimeout) {
-            this.operationTimeout = operationTimeout;
-            return self();
-        }
-
-        public KroxyliciousOperatorBuilder withReconciliationInterval(Duration reconciliationInterval) {
-            this.reconciliationInterval = reconciliationInterval;
             return self();
         }
 

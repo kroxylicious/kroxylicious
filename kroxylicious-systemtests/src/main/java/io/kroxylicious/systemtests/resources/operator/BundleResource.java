@@ -6,7 +6,6 @@
 
 package io.kroxylicious.systemtests.resources.operator;
 
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -30,9 +29,6 @@ public class BundleResource implements ResourceType<Deployment> {
 
     private String name;
     private String namespaceInstallTo;
-    private String namespaceToWatch;
-    private Duration operationTimeout;
-    private Duration reconciliationInterval;
     private Map<String, String> extraLabels;
     private int replicas = 1;
 
@@ -83,24 +79,12 @@ public class BundleResource implements ResourceType<Deployment> {
     private BundleResource(BundleResourceBuilder builder) {
         this.name = builder.name;
         this.namespaceInstallTo = builder.namespaceInstallTo;
-        this.namespaceToWatch = builder.namespaceToWatch;
-        this.operationTimeout = builder.operationTimeout;
-        this.reconciliationInterval = builder.reconciliationInterval;
         this.extraLabels = builder.extraLabels;
         this.replicas = builder.replicas;
 
         // assign defaults is something is not specified
         if (this.name == null || this.name.isEmpty()) {
             this.name = Constants.KO_DEPLOYMENT_NAME;
-        }
-        if (this.namespaceToWatch == null) {
-            this.namespaceToWatch = this.namespaceInstallTo;
-        }
-        if (this.operationTimeout.isZero()) {
-            this.operationTimeout = Constants.KO_OPERATION_TIMEOUT_DEFAULT;
-        }
-        if (this.reconciliationInterval.isZero()) {
-            this.reconciliationInterval = Constants.RECONCILIATION_INTERVAL;
         }
         if (this.extraLabels == null) {
             this.extraLabels = new HashMap<>();
@@ -111,9 +95,6 @@ public class BundleResource implements ResourceType<Deployment> {
 
         private String name;
         private String namespaceInstallTo;
-        private String namespaceToWatch;
-        private Duration operationTimeout;
-        private Duration reconciliationInterval;
         private Map<String, String> extraLabels;
         private int replicas;
 
@@ -124,21 +105,6 @@ public class BundleResource implements ResourceType<Deployment> {
 
         public BundleResourceBuilder withNamespace(String namespaceInstallTo) {
             this.namespaceInstallTo = namespaceInstallTo;
-            return self();
-        }
-
-        public BundleResourceBuilder withWatchingNamespaces(String namespaceToWatch) {
-            this.namespaceToWatch = namespaceToWatch;
-            return self();
-        }
-
-        public BundleResourceBuilder withOperationTimeout(Duration operationTimeout) {
-            this.operationTimeout = operationTimeout;
-            return self();
-        }
-
-        public BundleResourceBuilder withReconciliationInterval(Duration reconciliationInterval) {
-            this.reconciliationInterval = reconciliationInterval;
             return self();
         }
 

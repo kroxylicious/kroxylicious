@@ -107,7 +107,6 @@ public final class Constants {
     public static final Duration RECONCILIATION_INTERVAL = Duration.ofSeconds(30);
     public static final Duration GLOBAL_POLL_INTERVAL_MEDIUM = Duration.ofSeconds(10);
     public static final Duration GLOBAL_STATUS_TIMEOUT = Duration.ofMinutes(3);
-    public static final Duration KO_OPERATION_TIMEOUT_DEFAULT = Duration.ofMinutes(5);
 
     /**
      * Kubernetes related constants
@@ -171,11 +170,6 @@ public final class Constants {
      */
     public static final String PATH_TO_OPERATOR = System.getProperty("user.dir") + "/../kroxylicious-operator";
     public static final String PATH_TO_OPERATOR_INSTALL_FILES = PATH_TO_OPERATOR + "/install";
-
-    /**
-     * Auxiliary variable for kroxylicious operator deployment
-     */
-    public static final String WATCH_ALL_NAMESPACES = "*";
 
     /**
      * Auxiliary variables for storing data across our tests
