@@ -186,11 +186,11 @@ public class KubeClient {
     // ================================
 
     /**
-     * Create or replace deployment deployment.
+     * Create or update deployment deployment.
      *
      * @param deployment the deployment
      */
-    public void createOrReplaceDeployment(Deployment deployment) {
+    public void createOrUpdateDeployment(Deployment deployment) {
         client.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).resource(deployment).createOr(NonDeletingOperation::update);
     }
 

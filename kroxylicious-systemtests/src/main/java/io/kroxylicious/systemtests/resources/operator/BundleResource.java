@@ -48,7 +48,7 @@ public class BundleResource implements ResourceType<Deployment> {
 
     @Override
     public void create(Deployment resource) {
-        kubeClient().createOrReplaceDeployment(resource);
+        kubeClient().createOrUpdateDeployment(resource);
     }
 
     @Override
