@@ -42,11 +42,13 @@ class ConfigurationTest {
                 """
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
-                              clusterNetworkAddressConfigProvider:
-                                type: SniRoutingClusterNetworkAddressConfigProvider
-                                config:
-                                  bootstrapAddress: cluster1:9192
-                                  brokerAddressPattern: broker-$(nodeId)
+                              listeners:
+                                default:
+                                  clusterNetworkAddressConfigProvider:
+                                    type: SniRoutingClusterNetworkAddressConfigProvider
+                                    config:
+                                      bootstrapAddress: cluster1:9192
+                                      brokerAddressPattern: broker-$(nodeId)
                         """, VirtualCluster.class);
 
         TargetCluster targetCluster = vc.targetCluster();
@@ -62,11 +64,13 @@ class ConfigurationTest {
                                   targetCluster:
                                     bootstrap_servers: kafka.example:1234
                                     bootstrapServers: kafka.example:1234
-                                  clusterNetworkAddressConfigProvider:
-                                    type: SniRoutingClusterNetworkAddressConfigProvider
-                                    config:
-                                      bootstrapAddress: cluster1:9192
-                                      brokerAddressPattern: broker-$(nodeId)
+                                  listeners:
+                                    default:
+                                      clusterNetworkAddressConfigProvider:
+                                        type: SniRoutingClusterNetworkAddressConfigProvider
+                                        config:
+                                          bootstrapAddress: cluster1:9192
+                                          brokerAddressPattern: broker-$(nodeId)
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
@@ -79,18 +83,41 @@ class ConfigurationTest {
             MAPPER.readValue(
                     """
                                   targetCluster: {}
-                                  clusterNetworkAddressConfigProvider:
-                                    type: SniRoutingClusterNetworkAddressConfigProvider
-                                    config:
-                                      bootstrapAddress: cluster1:9192
-                                      brokerAddressPattern: broker-$(nodeId)
+                                  listeners:
+                                    default:
+                                      clusterNetworkAddressConfigProvider:
+                                        type: SniRoutingClusterNetworkAddressConfigProvider
+                                        config:
+                                          bootstrapAddress: cluster1:9192
+                                          brokerAddressPattern: broker-$(nodeId)
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("'bootstrapServers' is required in a target cluster.");
     }
 
-    public static Stream<Arguments> fluentApiConfigYamlFidelity() {
+    @Test
+    void shouldAcceptOldTopLevelNetworkConfig() throws IOException {
+        var vc = MAPPER.readValue(
+                """
+                              targetCluster:
+                                bootstrap_servers: kafka.example:1234
+                              clusterNetworkAddressConfigProvider:
+                                type: SniRoutingClusterNetworkAddressConfigProvider
+                                config:
+                                  bootstrapAddress: cluster1:9192
+                                  brokerAddressPattern: broker-$(nodeId)
+                        """, VirtualCluster.class);
+
+        assertThat(vc.listeners())
+                .hasSize(1)
+                .hasEntrySatisfying("default", listener -> {
+                    assertThat(listener.clusterNetworkAddressConfigProvider().type())
+                            .isEqualTo("SniRoutingClusterNetworkAddressConfigProvider");
+                });
+    }
+
+    static Stream<Arguments> fluentApiConfigYamlFidelity() {
         NamedFilterDefinition filter = new NamedFilterDefinitionBuilder("filter-1", ExampleFilterFactory.class.getSimpleName())
                 .withConfig("examplePlugin", "ExamplePluginInstance",
                         "examplePluginConfig", Map.of("pluginKey", "pluginValue"))
@@ -132,12 +159,10 @@ class ConfigurationTest {
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
-                                        .endTargetCluster()
-                                        .withClusterNetworkAddressConfigProvider(
-                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
-                                                        .build())
+                                        .endTargetCluster().addToListeners("default", new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider").withConfig(
+                                                        "bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)").build())
+                                                .build())
                                         .build())
                                 .build(),
                         """
@@ -145,23 +170,54 @@ class ConfigurationTest {
                                   demo:
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
-                                    clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingClusterNetworkAddressConfigProvider
-                                      config:
-                                        bootstrapAddress: cluster1:9192
-                                        brokerAddressPattern: broker-$(nodeId)
+                                    listeners:
+                                      default:
+                                        clusterNetworkAddressConfigProvider:
+                                          type: SniRoutingClusterNetworkAddressConfigProvider
+                                          config:
+                                            bootstrapAddress: cluster1:9192
+                                            brokerAddressPattern: broker-$(nodeId)
                                 """),
-                argumentSet("With Virtual Cluster",
+                argumentSet("With Virtual Cluster - single listener",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .endTargetCluster().addToListeners("default", new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider").withConfig(
+                                                        "bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)").build())
+                                                .build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  demo:
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    listeners:
+                                      default:
+                                        clusterNetworkAddressConfigProvider:
+                                          type: SniRoutingClusterNetworkAddressConfigProvider
+                                          config:
+                                            bootstrapAddress: cluster1:9192
+                                            advertisedBrokerAddressPattern: broker-$(nodeId)
+                                """),
+                argumentSet("With Virtual Cluster - multiple listeners",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .withClusterNetworkAddressConfigProvider(
-                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
-                                                        .build())
+                                        .addToListeners("listener1", new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider").withConfig(
+                                                        "bootstrapAddress", "cluster1_listener1:9192", "advertisedBrokerAddressPattern",
+                                                        "broker-$(nodeId)-cluster1_listener1").build())
+                                                .build())
+                                        .addToListeners("listener2", new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider").withConfig(
+                                                        "bootstrapAddress", "cluster1_listener2:9192", "advertisedBrokerAddressPattern",
+                                                        "broker-$(nodeId)-cluster1_listener2").build())
+                                                .build())
                                         .build())
                                 .build(),
                         """
@@ -169,11 +225,19 @@ class ConfigurationTest {
                                   demo:
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
-                                    clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingClusterNetworkAddressConfigProvider
-                                      config:
-                                        bootstrapAddress: cluster1:9192
-                                        advertisedBrokerAddressPattern: broker-$(nodeId)
+                                    listeners:
+                                      listener1:
+                                        clusterNetworkAddressConfigProvider:
+                                          type: SniRoutingClusterNetworkAddressConfigProvider
+                                          config:
+                                            bootstrapAddress: cluster1_listener1:9192
+                                            advertisedBrokerAddressPattern: broker-$(nodeId)-cluster1_listener1
+                                      listener2:
+                                        clusterNetworkAddressConfigProvider:
+                                          type: SniRoutingClusterNetworkAddressConfigProvider
+                                          config:
+                                            bootstrapAddress: cluster1_listener2:9192
+                                            advertisedBrokerAddressPattern: broker-$(nodeId)-cluster1_listener2
                                 """),
                 argumentSet("Downstream TLS - default client auth",
                         new ConfigurationBuilder()
@@ -181,18 +245,17 @@ class ConfigurationTest {
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .withNewTls()
-                                        .withNewKeyPairKey()
-                                        .withCertificateFile("/tmp/cert")
-                                        .withPrivateKeyFile("/tmp/key")
-                                        .withNewInlinePasswordKeyProvider("keypassword")
-                                        .endKeyPairKey()
-                                        .endTls()
-                                        .withClusterNetworkAddressConfigProvider(
-                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
-                                                        .build())
+                                        .addToListeners("default", new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider").withConfig(
+                                                        "bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)").build())
+                                                .withNewTls()
+                                                .withNewKeyPairKey()
+                                                .withCertificateFile("/tmp/cert")
+                                                .withPrivateKeyFile("/tmp/key")
+                                                .withNewInlinePasswordKeyProvider("keypassword")
+                                                .endKeyPairKey()
+                                                .endTls()
+                                                .build())
                                         .build())
                                 .build(),
                         """
@@ -200,17 +263,19 @@ class ConfigurationTest {
                                   demo:
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
-                                    tls:
-                                       key:
-                                         certificateFile: /tmp/cert
-                                         privateKeyFile: /tmp/key
-                                         keyPassword:
-                                           password: keypassword
-                                    clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingClusterNetworkAddressConfigProvider
-                                      config:
-                                        bootstrapAddress: cluster1:9192
-                                        advertisedBrokerAddressPattern: broker-$(nodeId)
+                                    listeners:
+                                      default:
+                                        tls:
+                                           key:
+                                             certificateFile: /tmp/cert
+                                             privateKeyFile: /tmp/key
+                                             keyPassword:
+                                               password: keypassword
+                                        clusterNetworkAddressConfigProvider:
+                                          type: SniRoutingClusterNetworkAddressConfigProvider
+                                          config:
+                                            bootstrapAddress: cluster1:9192
+                                            advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """),
                 argumentSet("Downstream TLS - required client auth",
                         new ConfigurationBuilder()
@@ -218,24 +283,22 @@ class ConfigurationTest {
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .withNewTls()
-                                        .withNewKeyPairKey()
-                                        .withCertificateFile("/tmp/cert")
-                                        .withPrivateKeyFile("/tmp/key")
-                                        .withNewInlinePasswordKeyProvider("keypassword")
-                                        .endKeyPairKey()
-                                        .withNewTrustStoreTrust()
-                                        .withNewServerOptionsTrust()
-                                        .withClientAuth(TlsClientAuth.REQUIRED)
-                                        .endServerOptionsTrust()
-                                        .withStoreFile("/tmp/trust")
-                                        .endTrustStoreTrust()
-                                        .endTls()
-                                        .withClusterNetworkAddressConfigProvider(
-                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
-                                                        .build())
+                                        .addToListeners("default", new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
+                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider").withConfig(
+                                                        "bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)").build())
+                                                .withNewTls()
+                                                .withNewKeyPairKey()
+                                                .withCertificateFile("/tmp/cert")
+                                                .withPrivateKeyFile("/tmp/key")
+                                                .withNewInlinePasswordKeyProvider("keypassword")
+                                                .endKeyPairKey()
+                                                .withNewTrustStoreTrust()
+                                                .withNewServerOptionsTrust()
+                                                .withClientAuth(TlsClientAuth.REQUIRED)
+                                                .endServerOptionsTrust()
+                                                .withStoreFile("/tmp/trust")
+                                                .endTrustStoreTrust().endTls()
+                                                .build())
                                         .build())
                                 .build(),
                         """
@@ -243,21 +306,23 @@ class ConfigurationTest {
                                   demo:
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
-                                    tls:
-                                       key:
-                                         certificateFile: /tmp/cert
-                                         privateKeyFile: /tmp/key
-                                         keyPassword:
-                                           password: keypassword
-                                       trust:
-                                         storeFile: /tmp/trust
-                                         trustOptions:
-                                            clientAuth: REQUIRED
-                                    clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingClusterNetworkAddressConfigProvider
-                                      config:
-                                        bootstrapAddress: cluster1:9192
-                                        advertisedBrokerAddressPattern: broker-$(nodeId)
+                                    listeners:
+                                      default:
+                                        tls:
+                                          key:
+                                            certificateFile: /tmp/cert
+                                            privateKeyFile: /tmp/key
+                                            keyPassword:
+                                              password: keypassword
+                                          trust:
+                                            storeFile: /tmp/trust
+                                            trustOptions:
+                                              clientAuth: REQUIRED
+                                        clusterNetworkAddressConfigProvider:
+                                          type: SniRoutingClusterNetworkAddressConfigProvider
+                                          config:
+                                            bootstrapAddress: cluster1:9192
+                                            advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """),
                 argumentSet("Upstream TLS - platform trust",
                         new ConfigurationBuilder()
@@ -267,11 +332,13 @@ class ConfigurationTest {
                                         .withNewTls()
                                         .endTls()
                                         .endTargetCluster()
-                                        .withClusterNetworkAddressConfigProvider(
-                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
-                                                        .build())
+                                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                                .withClusterNetworkAddressConfigProvider(
+                                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                                "SniRoutingClusterNetworkAddressConfigProvider")
+                                                                .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
+                                                                .build())
+                                                .build())
                                         .build())
                                 .build(),
                         """
@@ -280,11 +347,13 @@ class ConfigurationTest {
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
                                       tls: {}
-                                    clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingClusterNetworkAddressConfigProvider
-                                      config:
-                                        bootstrapAddress: cluster1:9192
-                                        advertisedBrokerAddressPattern: broker-$(nodeId)
+                                    listeners:
+                                      default:
+                                        clusterNetworkAddressConfigProvider:
+                                          type: SniRoutingClusterNetworkAddressConfigProvider
+                                          config:
+                                            bootstrapAddress: cluster1:9192
+                                            advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """),
                 argumentSet("Upstream TLS - trust from truststore",
                         new ConfigurationBuilder()
@@ -299,11 +368,13 @@ class ConfigurationTest {
                                         .endTrustStoreTrust()
                                         .endTls()
                                         .endTargetCluster()
-                                        .withClusterNetworkAddressConfigProvider(
-                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
-                                                        .build())
+                                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                                .withClusterNetworkAddressConfigProvider(
+                                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                                "SniRoutingClusterNetworkAddressConfigProvider")
+                                                                .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
+                                                                .build())
+                                                .build())
                                         .build())
                                 .build(),
                         """
@@ -317,11 +388,13 @@ class ConfigurationTest {
                                             storePassword:
                                               password: storepassword
                                             storeType: JKS
-                                    clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingClusterNetworkAddressConfigProvider
-                                      config:
-                                        bootstrapAddress: cluster1:9192
-                                        advertisedBrokerAddressPattern: broker-$(nodeId)
+                                    listeners:
+                                      default:
+                                        clusterNetworkAddressConfigProvider:
+                                          type: SniRoutingClusterNetworkAddressConfigProvider
+                                          config:
+                                            bootstrapAddress: cluster1:9192
+                                            advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """),
                 argumentSet("Upstream TLS - trust from truststore, password from file",
                         new ConfigurationBuilder()
@@ -336,11 +409,13 @@ class ConfigurationTest {
                                         .endTrustStoreTrust()
                                         .endTls()
                                         .endTargetCluster()
-                                        .withClusterNetworkAddressConfigProvider(
-                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
-                                                        .build())
+                                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                                .withClusterNetworkAddressConfigProvider(
+                                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                                "SniRoutingClusterNetworkAddressConfigProvider")
+                                                                .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
+                                                                .build())
+                                                .build())
                                         .build())
                                 .build(),
                         """
@@ -354,11 +429,13 @@ class ConfigurationTest {
                                             storePassword:
                                               passwordFile: /tmp/password.txt
                                             storeType: JKS
-                                    clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingClusterNetworkAddressConfigProvider
-                                      config:
-                                        bootstrapAddress: cluster1:9192
-                                        advertisedBrokerAddressPattern: broker-$(nodeId)
+                                    listeners:
+                                      default:
+                                        clusterNetworkAddressConfigProvider:
+                                          type: SniRoutingClusterNetworkAddressConfigProvider
+                                          config:
+                                            bootstrapAddress: cluster1:9192
+                                            advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """),
                 argumentSet("Upstream TLS - insecure",
                         new ConfigurationBuilder()
@@ -369,11 +446,13 @@ class ConfigurationTest {
                                         .withNewInsecureTlsTrust(true)
                                         .endTls()
                                         .endTargetCluster()
-                                        .withClusterNetworkAddressConfigProvider(
-                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                                        "SniRoutingClusterNetworkAddressConfigProvider")
-                                                        .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
-                                                        .build())
+                                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                                .withClusterNetworkAddressConfigProvider(
+                                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                                                "SniRoutingClusterNetworkAddressConfigProvider")
+                                                                .withConfig("bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
+                                                                .build())
+                                                .build())
                                         .build())
                                 .build(),
                         """
@@ -384,11 +463,13 @@ class ConfigurationTest {
                                       tls:
                                          trust:
                                             insecure: true
-                                    clusterNetworkAddressConfigProvider:
-                                      type: SniRoutingClusterNetworkAddressConfigProvider
-                                      config:
-                                        bootstrapAddress: cluster1:9192
-                                        advertisedBrokerAddressPattern: broker-$(nodeId)
+                                    listeners:
+                                      default:
+                                        clusterNetworkAddressConfigProvider:
+                                          type: SniRoutingClusterNetworkAddressConfigProvider
+                                          config:
+                                            bootstrapAddress: cluster1:9192
+                                            advertisedBrokerAddressPattern: broker-$(nodeId)
                                 """)
 
         );
@@ -471,7 +552,7 @@ class ConfigurationTest {
     void shouldRejectMissingClusterFilter() {
         Optional<Map<String, Object>> development = Optional.empty();
         List<NamedFilterDefinition> filterDefinitions = List.of();
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, false, false, List.of("missing")));
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, Map.of(), false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
                 null, filterDefinitions,
                 null,
@@ -493,7 +574,7 @@ class ConfigurationTest {
         );
 
         List<String> defaultFilters = List.of("used1");
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, false, false, List.of("used2")));
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, Map.of(), false, false, List.of("used2")));
         assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
                 defaultFilters,
                 virtualClusters,
@@ -507,7 +588,7 @@ class ConfigurationTest {
     @SuppressWarnings("java:S5738")
     void shouldRejectVirtualClusterFiltersWhenTopLevelFilters() {
         Optional<Map<String, Object>> development = Optional.empty();
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, false, false, List.of()));
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, Map.of(), false, false, List.of()));
         assertThatThrownBy(() -> new Configuration(
                 null,
                 null,
@@ -531,6 +612,7 @@ class ConfigurationTest {
                         new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("example.com", 3), null,
                                 null, null, null)),
                 Optional.empty(),
+                Map.of(),
                 false,
                 false,
                 List.of("foo")); // filters defined on cluster
@@ -540,6 +622,7 @@ class ConfigurationTest {
                         new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("example.com", 3), null,
                                 null, null, null)),
                 Optional.empty(),
+                Map.of(),
                 false,
                 false,
                 null); // filters not defined => should default to the top level

@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
 import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterListenerModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
@@ -104,6 +105,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         pipeline.addLast("plainResolver", new ChannelInboundHandlerAdapter() {
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
+
                 virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), null)
                         .handle((binding, t) -> {
                             if (t != null) {
@@ -142,7 +144,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                             promise.setFailure(t);
                             return null;
                         }
-                        var virtualCluster = ((VirtualClusterModel) binding.virtualClusterModel());
+                        var virtualCluster = ((VirtualClusterListenerModel) binding.endpointListener());
                         var sslContext = virtualCluster.getDownstreamSslContext();
                         if (sslContext.isEmpty()) {
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(virtualCluster)));
@@ -174,7 +176,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     @VisibleForTesting
     void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
-        var virtualCluster = ((VirtualClusterModel) binding.virtualClusterModel());
+        var virtualCluster = ((VirtualClusterModel) binding.endpointListener());
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
         if (virtualCluster.isLogNetwork()) {
@@ -209,7 +211,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 binding,
                 pfr,
                 filterChainFactory,
-                ((VirtualClusterModel) binding.virtualClusterModel()).getFilters(),
+                ((VirtualClusterModel) binding.endpointListener()).getFilters(),
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
@@ -230,7 +232,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         private final SaslDecodePredicate decodePredicate;
         private final SocketChannel ch;
-        private final VirtualClusterModel virtualClusterModel;
+        private final VirtualClusterListenerModel virtualClusterModel;
         private final VirtualClusterBinding binding;
         private final PluginFactoryRegistry pfr;
         private final FilterChainFactory filterChainFactory;
@@ -250,7 +252,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                             ApiVersionsDowngradeFilter apiVersionsDowngradeFilter) {
             this.decodePredicate = decodePredicate;
             this.ch = ch;
-            this.virtualClusterModel = ((VirtualClusterModel) binding.virtualClusterModel());
+            this.virtualClusterModel = ((VirtualClusterListenerModel) binding.endpointListener());
             this.binding = binding;
             this.pfr = pfr;
             this.filterChainFactory = filterChainFactory;

@@ -415,11 +415,11 @@ class EndpointRegistryTest {
 
         var rsf1 = endpointRegistry.resolve(Endpoint.createEndpoint(bindingAddress1, 9192, false), null).toCompletableFuture().get();
         assertThat(rsf1).isNotNull();
-        assertThat(rsf1.virtualClusterModel()).isEqualTo(virtualClusterModel1);
+        assertThat(rsf1.endpointListener()).isEqualTo(virtualClusterModel1);
 
         var rsf2 = endpointRegistry.resolve(Endpoint.createEndpoint(bindingAddress2, 9192, false), null).toCompletableFuture().get();
         assertThat(rsf2).isNotNull();
-        assertThat(rsf2.virtualClusterModel()).isEqualTo(virtualClusterModel2);
+        assertThat(rsf2.endpointListener()).isEqualTo(virtualClusterModel2);
 
         var executionException = assertThrows(ExecutionException.class,
                 () -> endpointRegistry.resolve(Endpoint.createEndpoint(9192, false), null).toCompletableFuture().get());
