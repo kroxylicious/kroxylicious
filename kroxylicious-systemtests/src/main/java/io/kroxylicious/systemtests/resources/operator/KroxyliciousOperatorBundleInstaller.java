@@ -109,11 +109,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         return getOperatorFiles().stream().filter(predicate).toList();
     }
 
-    /**
-     * Perform application of ServiceAccount, Roles and CRDs needed for proper cluster operator deployment.
-     * Configuration files are loaded from kroxylicious-operator directory.
-     */
-    public void applyClusterOperatorInstallFiles(String namespaceName) {
+    private void applyClusterOperatorInstallFiles(String namespaceName) {
         for (File operatorFile : getFilteredOperatorFiles(installFiles)) {
             final String resourceType = operatorFile.getName().split("\\.")[1];
 
