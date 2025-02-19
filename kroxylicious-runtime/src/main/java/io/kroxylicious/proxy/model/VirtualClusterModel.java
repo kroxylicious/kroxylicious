@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.model;
 import java.io.UncheckedIOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,64 +44,52 @@ import io.kroxylicious.proxy.service.HostPort;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public class VirtualClusterModel implements EndpointListener {
+public class VirtualClusterModel {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterModel.class);
     public static final int DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES = 104857600;
 
     private final String clusterName;
 
     private final TargetCluster targetCluster;
 
-    private final Optional<Tls> tls;
-
     private final boolean logNetwork;
 
     private final boolean logFrames;
 
-    private final ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider;
+    private final Map<String, VirtualClusterListenerModel> listeners = new HashMap<>();
 
     private final List<NamedFilterDefinition> filters;
 
     private final Optional<SslContext> upstreamSslContext;
 
-    private final Optional<SslContext> downstreamSslContext;
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualClusterModel.class);
-
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
-                               ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider,
-                               Optional<Tls> tls,
                                boolean logNetwork,
                                boolean logFrames,
                                @NonNull List<NamedFilterDefinition> filters) {
         this.clusterName = clusterName;
-        this.tls = tls;
         this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
-        this.clusterNetworkAddressConfigProvider = clusterNetworkAddressConfigProvider;
         this.filters = filters;
-
-        validateTLsSettings(clusterNetworkAddressConfigProvider, tls);
-        validatePortUsage(clusterNetworkAddressConfigProvider);
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
-        this.downstreamSslContext = buildDownstreamSslContext();
     }
 
-    public String getClusterName() {
-        return clusterName;
+    public void addListener(String name, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
+        validateTLsSettings(provider, tls);
+        validatePortUsage(provider);
+        listeners.put(name, new VirtualClusterListenerModel(this, provider, tls));
     }
 
-    @Override
     public TargetCluster targetCluster() {
         return targetCluster;
     }
 
-    public ClusterNetworkAddressConfigProvider getClusterNetworkAddressConfigProvider() {
-        return clusterNetworkAddressConfigProvider;
+    public String getClusterName() {
+        return clusterName;
     }
 
     public boolean isLogNetwork() {
@@ -108,11 +98,6 @@ public class VirtualClusterModel implements EndpointListener {
 
     public boolean isLogFrames() {
         return logFrames;
-    }
-
-    @Override
-    public boolean isUseTls() {
-        return tls.isPresent();
     }
 
     public int socketFrameMaxSizeBytes() {
@@ -124,76 +109,11 @@ public class VirtualClusterModel implements EndpointListener {
         return "VirtualCluster{" +
                 "clusterName='" + clusterName + '\'' +
                 ", targetCluster=" + targetCluster +
-                ", tls=" + tls +
+                ", listeners=" + listeners +
                 ", logNetwork=" + logNetwork +
                 ", logFrames=" + logFrames +
-                ", clusterNetworkAddressConfigProvider=" + clusterNetworkAddressConfigProvider +
                 ", upstreamSslContext=" + upstreamSslContext +
-                ", downstreamSslContext=" + downstreamSslContext +
                 '}';
-    }
-
-    @Override
-    public HostPort getClusterBootstrapAddress() {
-        return getClusterNetworkAddressConfigProvider().getClusterBootstrapAddress();
-    }
-
-    @Override
-    public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
-        return getClusterNetworkAddressConfigProvider().getBrokerAddress(nodeId);
-    }
-
-    @Override
-    public Optional<String> getBindAddress() {
-        return getClusterNetworkAddressConfigProvider().getBindAddress();
-    }
-
-    @Override
-    public boolean requiresTls() {
-        return getClusterNetworkAddressConfigProvider().requiresTls();
-    }
-
-    public Set<Integer> getExclusivePorts() {
-        return getClusterNetworkAddressConfigProvider().getExclusivePorts();
-    }
-
-    public Set<Integer> getSharedPorts() {
-        return getClusterNetworkAddressConfigProvider().getSharedPorts();
-    }
-
-    @Override
-    public Map<Integer, HostPort> discoveryAddressMap() {
-        return getClusterNetworkAddressConfigProvider().discoveryAddressMap();
-    }
-
-    @Override
-    public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
-        return getClusterNetworkAddressConfigProvider().getBrokerIdFromBrokerAddress(brokerAddress);
-    }
-
-    public Optional<SslContext> getDownstreamSslContext() {
-        return downstreamSslContext;
-    }
-
-    public Optional<SslContext> getUpstreamSslContext() {
-        return upstreamSslContext;
-    }
-
-    private Optional<SslContext> buildDownstreamSslContext() {
-        return tls.map(tlsConfiguration -> {
-            try {
-                var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
-                        .orElseThrow();
-
-                configureCipherSuites(sslContextBuilder, tlsConfiguration);
-                configureEnabledProtocols(sslContextBuilder, tlsConfiguration);
-
-                return configureTrustProvider(tlsConfiguration).apply(sslContextBuilder).build();
-            }
-            catch (SSLException e) {
-                throw new UncheckedIOException(e);
-            }
-        });
     }
 
     private Optional<SslContext> buildUpstreamSslContext() {
@@ -220,12 +140,6 @@ public class VirtualClusterModel implements EndpointListener {
                 throw new UncheckedIOException(e);
             }
         });
-    }
-
-    @NonNull
-    private static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
-        final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
-        return new NettyTrustProvider(trustProvider);
     }
 
     private static void configureCipherSuites(SslContextBuilder sslContextBuilder, Tls tlsConfiguration) {
@@ -271,6 +185,10 @@ public class VirtualClusterModel implements EndpointListener {
         });
     }
 
+    public Optional<SslContext> getUpstreamSslContext() {
+        return upstreamSslContext;
+    }
+
     private static SSLParameters getDefaultSSLParameters() {
         try {
             return SSLContext.getDefault().getDefaultSSLParameters();
@@ -287,6 +205,12 @@ public class VirtualClusterModel implements EndpointListener {
         catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @NonNull
+    private static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
+        final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
+        return new NettyTrustProvider(trustProvider);
     }
 
     private static void validatePortUsage(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider) {
@@ -308,8 +232,111 @@ public class VirtualClusterModel implements EndpointListener {
         return filters;
     }
 
-    @Override
-    public HostPort getAdvertisedBrokerAddress(int nodeId) {
-        return getClusterNetworkAddressConfigProvider().getAdvertisedBrokerAddress(nodeId);
+    public Map<String, VirtualClusterListenerModel> listeners() {
+        return Collections.unmodifiableMap(listeners);
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    public static class VirtualClusterListenerModel implements EndpointListener {
+        private final VirtualClusterModel virtualCluster;
+        private final ClusterNetworkAddressConfigProvider provider;
+        private final Optional<Tls> tls;
+        private final Optional<SslContext> downstreamSslContext;
+
+        public VirtualClusterListenerModel(VirtualClusterModel virtualCluster, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
+            this.virtualCluster = virtualCluster;
+            this.provider = provider;
+            this.tls = tls;
+
+            this.downstreamSslContext = buildDownstreamSslContext();
+
+        }
+
+        public VirtualClusterModel virtualCluster() {
+            return virtualCluster;
+        }
+
+        public ClusterNetworkAddressConfigProvider getClusterNetworkAddressConfigProvider() {
+            return provider;
+        }
+
+        public Optional<Tls> tls() {
+            return tls;
+        }
+
+        @Override
+        public String toString() {
+            return "VirtualClusterListenerModel[" +
+                    "virtualCluster=" + virtualCluster + ", " +
+                    "provider=" + provider + ", " +
+                    "tls=" + tls + ']';
+        }
+
+        public HostPort getClusterBootstrapAddress() {
+            return getClusterNetworkAddressConfigProvider().getClusterBootstrapAddress();
+        }
+
+        @Override
+        public TargetCluster targetCluster() {
+            return virtualCluster.targetCluster();
+        }
+
+        public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
+            return getClusterNetworkAddressConfigProvider().getBrokerAddress(nodeId);
+        }
+
+        public Optional<String> getBindAddress() {
+            return getClusterNetworkAddressConfigProvider().getBindAddress();
+        }
+
+        public boolean requiresTls() {
+            return getClusterNetworkAddressConfigProvider().requiresTls();
+        }
+
+        public Set<Integer> getExclusivePorts() {
+            return getClusterNetworkAddressConfigProvider().getExclusivePorts();
+        }
+
+        public Set<Integer> getSharedPorts() {
+            return getClusterNetworkAddressConfigProvider().getSharedPorts();
+        }
+
+        public Map<Integer, HostPort> discoveryAddressMap() {
+            return getClusterNetworkAddressConfigProvider().discoveryAddressMap();
+        }
+
+        public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
+            return getClusterNetworkAddressConfigProvider().getBrokerIdFromBrokerAddress(brokerAddress);
+        }
+
+        public Optional<SslContext> getDownstreamSslContext() {
+            return downstreamSslContext;
+        }
+
+        private Optional<SslContext> buildDownstreamSslContext() {
+            return tls.map(tlsConfiguration -> {
+                try {
+                    var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
+                            .orElseThrow();
+
+                    configureCipherSuites(sslContextBuilder, tlsConfiguration);
+                    configureEnabledProtocols(sslContextBuilder, tlsConfiguration);
+
+                    return configureTrustProvider(tlsConfiguration).apply(sslContextBuilder).build();
+                }
+                catch (SSLException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+        }
+
+        public HostPort getAdvertisedBrokerAddress(int nodeId) {
+            return getClusterNetworkAddressConfigProvider().getAdvertisedBrokerAddress(nodeId);
+        }
+
+        public boolean isUseTls() {
+            return tls.isPresent();
+        }
+
     }
 }

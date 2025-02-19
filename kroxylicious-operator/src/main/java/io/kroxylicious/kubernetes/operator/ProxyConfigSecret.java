@@ -221,6 +221,7 @@ public class ProxyConfigSecret
                                 null,
                                 null)),
                 Optional.empty(),
+                Map.of(),
                 false, false,
                 filterNamesForCluster(cluster));
     }

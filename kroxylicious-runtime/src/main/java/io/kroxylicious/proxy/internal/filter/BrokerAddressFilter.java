@@ -38,7 +38,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ShareAcknowledgeResponseFilter;
 import io.kroxylicious.proxy.filter.ShareFetchResponseFilter;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterListenerModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -50,11 +50,11 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
-    private final VirtualClusterModel virtualClusterModel;
+    private final VirtualClusterListenerModel listenerModel;
     private final EndpointReconciler reconciler;
 
-    public BrokerAddressFilter(VirtualClusterModel virtualClusterModel, EndpointReconciler reconciler) {
-        this.virtualClusterModel = virtualClusterModel;
+    public BrokerAddressFilter(VirtualClusterListenerModel listenerModel, EndpointReconciler reconciler) {
+        this.listenerModel = listenerModel;
         this.reconciler = reconciler;
     }
 
@@ -166,7 +166,7 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
         int incomingPort = portGetter.applyAsInt(broker);
 
         Integer nodeId = nodeIdGetter.apply(broker);
-        var advertisedAddress = virtualClusterModel.getAdvertisedBrokerAddress(nodeId);
+        var advertisedAddress = listenerModel.getAdvertisedBrokerAddress(nodeId);
 
         LOGGER.trace("{}: Rewriting broker address in response {}:{} -> {}", context, incomingHost, incomingPort, advertisedAddress);
         hostSetter.accept(broker, advertisedAddress.host());
@@ -175,9 +175,9 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private CompletionStage<ResponseFilterResult> doReconcileThenForwardResponse(ResponseHeaderData header, ApiMessage data, FilterContext context,
                                                                                  Map<Integer, HostPort> nodeMap) {
-        return reconciler.reconcile(virtualClusterModel, nodeMap).toCompletableFuture()
+        return reconciler.reconcile(listenerModel, nodeMap).toCompletableFuture()
                 .thenCompose(u -> {
-                    LOGGER.debug("Endpoint reconciliation complete for virtual cluster {}", virtualClusterModel);
+                    LOGGER.debug("Endpoint reconciliation complete for virtual cluster {}", listenerModel);
                     return context.responseFilterResultBuilder().forward(header, data).completed();
                 });
     }

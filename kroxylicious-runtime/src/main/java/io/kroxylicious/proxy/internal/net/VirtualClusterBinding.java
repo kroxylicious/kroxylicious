@@ -17,7 +17,7 @@ public interface VirtualClusterBinding {
      *
      * @return virtual cluster.
      */
-    EndpointListener virtualClusterModel();
+    EndpointListener endpointListener();
 
     /**
      * The upstream target of this binding.

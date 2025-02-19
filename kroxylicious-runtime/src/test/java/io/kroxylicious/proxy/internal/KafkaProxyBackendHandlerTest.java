@@ -55,9 +55,11 @@ class KafkaProxyBackendHandlerTest {
     @BeforeEach
     void setUp() {
         outboundChannel = new EmbeddedChannel();
+        var virtualClusterModel = new VirtualClusterModel("wibble", new TargetCluster("localhost:9090", Optional.empty()), false, false,
+                List.of());
+        virtualClusterModel.addListener("default", ADDRESS_CONFIG_PROVIDER, Optional.empty());
         kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine,
-                new VirtualClusterModel("wibble", new TargetCluster("localhost:9090", Optional.empty()), ADDRESS_CONFIG_PROVIDER, Optional.empty(), false, false,
-                        List.of()));
+                virtualClusterModel);
         outboundChannel.pipeline().addFirst(kafkaProxyBackendHandler);
         outboundContext = outboundChannel.pipeline().firstContext();
     }

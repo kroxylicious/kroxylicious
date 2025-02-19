@@ -13,20 +13,20 @@ import io.kroxylicious.proxy.service.HostPort;
 /**
  * A binding to a virtual cluster bootstrap.
  *
- * @param virtualClusterModel the virtual cluster
+ * @param endpointListener the virtual cluster
  * @param upstreamTarget the upstream bootstrap target
  */
-public record VirtualClusterBootstrapBinding(EndpointListener virtualClusterModel, HostPort upstreamTarget) implements VirtualClusterBinding {
+public record VirtualClusterBootstrapBinding(EndpointListener endpointListener, HostPort upstreamTarget) implements VirtualClusterBinding {
 
     public VirtualClusterBootstrapBinding {
-        Objects.requireNonNull(virtualClusterModel, "virtualCluster cannot be null");
+        Objects.requireNonNull(endpointListener, "virtualCluster cannot be null");
         Objects.requireNonNull(upstreamTarget, "upstreamTarget cannot be null");
     }
 
     @Override
     public String toString() {
         return "VirtualClusterBrokerBinding[" +
-                "virtualCluster=" + this.virtualClusterModel() + ", " +
+                "virtualCluster=" + this.endpointListener() + ", " +
                 "upstreamTarget=" + this.upstreamTarget() + ']';
     }
 

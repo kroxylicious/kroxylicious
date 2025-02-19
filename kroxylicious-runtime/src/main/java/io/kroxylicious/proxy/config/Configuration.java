@@ -69,7 +69,7 @@ public record Configuration(
     /**
      * Specifying {@code filters} is deprecated.
      * Use the {@link Configuration#Configuration(AdminHttpConfiguration, List, List, Map, List, boolean, Optional)} constructor instead.
-     * @param adminHttp
+     * @param adminHttp admin http
      * @param filterDefinitions A list of named filter definitions (names must be unique)
      * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filters()}.
      * @param virtualClusters The virtual clusters
@@ -167,20 +167,24 @@ public record Configuration(
         this(adminHttp, filterDefinitions, defaultFilters, virtualClusters, null, micrometer, useIoUring, development);
     }
 
-    public static VirtualClusterModel toVirtualClusterModel(@NonNull VirtualCluster virtualCluster,
-                                                            @NonNull PluginFactoryRegistry pfr,
-                                                            @NonNull List<NamedFilterDefinition> filterDefinitions,
-                                                            @NonNull String virtualClusterNodeName) {
+    private static VirtualClusterModel toVirtualClusterModel(@NonNull VirtualCluster virtualCluster,
+                                                             @NonNull PluginFactoryRegistry pfr,
+                                                             @NonNull List<NamedFilterDefinition> filterDefinitions,
+                                                             @NonNull String virtualClusterNodeName) {
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualClusterNodeName,
                 virtualCluster.targetCluster(),
-                buildAddressProviderService(virtualCluster, pfr),
-                virtualCluster.tls(),
                 virtualCluster.logNetwork(),
                 virtualCluster.logFrames(),
                 filterDefinitions);
-        logVirtualClusterSummary(virtualClusterModel.getClusterName(), virtualClusterModel.targetCluster(), virtualClusterModel.getClusterNetworkAddressConfigProvider(),
-                virtualCluster.tls());
+
+        virtualCluster.listeners().forEach((name, listener) -> {
+            var networkAddress = buildNetworkAddressProviderService(listener.clusterNetworkAddressConfigProvider(), pfr);
+            var tls = listener.tls();
+            virtualClusterModel.addListener(name, networkAddress, tls);
+            logVirtualClusterSummary(virtualClusterModel.getClusterName(), virtualClusterModel.targetCluster(), networkAddress,
+                    tls);
+        });
         return virtualClusterModel;
     }
 
@@ -225,11 +229,12 @@ public record Configuration(
         return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
 
-    private static ClusterNetworkAddressConfigProvider buildAddressProviderService(@NonNull VirtualCluster virtualCluster,
-                                                                                   @NonNull PluginFactoryRegistry registry) {
-        ClusterNetworkAddressConfigProviderService provider = registry.pluginFactory(ClusterNetworkAddressConfigProviderService.class)
-                .pluginInstance(virtualCluster.clusterNetworkAddressConfigProvider().type());
-        return provider.build(virtualCluster.clusterNetworkAddressConfigProvider().config());
+    private static ClusterNetworkAddressConfigProvider buildNetworkAddressProviderService(
+                                                                                          @NonNull ClusterNetworkAddressConfigProviderDefinition definition,
+                                                                                          @NonNull PluginFactoryRegistry registry) {
+        var provider = registry.pluginFactory(ClusterNetworkAddressConfigProviderService.class)
+                .pluginInstance(definition.type());
+        return provider.build(definition.config());
     }
 
     public @Nullable AdminHttpConfiguration adminHttpConfig() {

@@ -15,6 +15,7 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.Configuration",
         "io.kroxylicious.proxy.config.TargetCluster",
         "io.kroxylicious.proxy.config.VirtualCluster",
+        "io.kroxylicious.proxy.config.VirtualClusterListener",
         "io.kroxylicious.proxy.config.admin.AdminHttpConfiguration",
         "io.kroxylicious.proxy.config.admin.EndpointsConfiguration",
         "io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig",
