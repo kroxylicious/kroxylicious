@@ -26,7 +26,12 @@ import org.junit.platform.commons.PreconditionViolationException;
 
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.installation.InstallationMethod;
+import io.skodjob.testframe.utils.ImageUtils;
+import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -146,6 +151,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             throw new UncheckedIOException(e);
         }
         applyClusterOperatorInstallFiles(clientNamespace);
+        applyDeploymentFile();
 
         if (cluster.cluster().isOpenshift() && kubeClient().getNamespace(Environment.KROXY_ORG) != null) {
             LOGGER.debug("Setting group policy for Openshift registry in Namespace: {}", clientNamespace);
@@ -155,15 +161,42 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     }
 
     private void applyDeploymentFile() {
-        ResourceManager.getInstance().createResourceWithWait(
-                new BundleResource.BundleResourceBuilder()
-                        .withReplicas(replicas)
-                        .withName(kroxyliciousOperatorName)
-                        .withNamespace(namespaceInstallTo)
-                        .withExtraLabels(extraLabels)
-                        .buildBundleInstance()
-                        .buildBundleDeployment(getFilteredOperatorFiles(deploymentFiles).getFirst().getAbsolutePath())
-                        .build());
+        Deployment accessOperatorDeployment = TestFrameUtils.configFromYaml(getFilteredOperatorFiles(deploymentFiles).get(0), Deployment.class);
+
+        String deploymentImage = accessOperatorDeployment
+                .getSpec()
+                .getTemplate()
+                .getSpec()
+                .getContainers()
+                .get(0)
+                .getImage();
+
+        accessOperatorDeployment = new DeploymentBuilder(accessOperatorDeployment)
+                .editOrNewMetadata()
+                .withName(kroxyliciousOperatorName)
+                .withNamespace(namespaceInstallTo)
+                .addToLabels(Constants.DEPLOYMENT_TYPE, InstallType.Yaml.name())
+                .endMetadata()
+                .editSpec()
+                .withReplicas(this.replicas)
+                .editOrNewSelector()
+                .addToMatchLabels(this.extraLabels)
+                .endSelector()
+                .editTemplate()
+                .editMetadata()
+                .addToLabels(this.extraLabels)
+                .endMetadata()
+                .editSpec()
+                .editFirstContainer()
+                .withImage(ImageUtils.changeRegistryOrgAndTag(deploymentImage, Environment.KROXY_REGISTRY, Environment.KROXY_ORG, Environment.KROXY_TAG))
+                .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                .endContainer()
+                .endSpec()
+                .endTemplate()
+                .endSpec()
+                .build();
+
+        ResourceManager.getInstance().createResourceWithWait(accessOperatorDeployment);
     }
 
     /**
@@ -240,7 +273,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         setTestClassNameAndTestMethodName();
 
         prepareEnvForOperator(namespaceInstallTo);
-        applyDeploymentFile();
     }
 
     @Override
