@@ -156,15 +156,6 @@ public class BundleResource implements ResourceType<Deployment> {
             return this;
         }
 
-        public BundleResourceBuilder defaultConfigurationWithNamespace(String namespaceName) {
-            this.name = Constants.KO_DEPLOYMENT_NAME;
-            this.namespaceInstallTo = namespaceName;
-            this.namespaceToWatch = this.namespaceInstallTo;
-            this.operationTimeout = Constants.KO_OPERATION_TIMEOUT_DEFAULT;
-            this.reconciliationInterval = Constants.RECONCILIATION_INTERVAL;
-            return self();
-        }
-
         public BundleResource buildBundleInstance() {
             return new BundleResource(this);
         }
@@ -172,16 +163,6 @@ public class BundleResource implements ResourceType<Deployment> {
 
     protected BundleResourceBuilder newBuilder() {
         return new BundleResourceBuilder();
-    }
-
-    protected BundleResourceBuilder toBuilder() {
-        return newBuilder()
-                .withName(name)
-                .withNamespace(namespaceInstallTo)
-                .withWatchingNamespaces(namespaceToWatch)
-                .withOperationTimeout(operationTimeout)
-                .withReconciliationInterval(reconciliationInterval)
-                .withReplicas(replicas);
     }
 
     public DeploymentBuilder buildBundleDeployment() {

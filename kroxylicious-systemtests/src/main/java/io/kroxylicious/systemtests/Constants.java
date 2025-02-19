@@ -107,10 +107,7 @@ public final class Constants {
     public static final Duration RECONCILIATION_INTERVAL = Duration.ofSeconds(30);
     public static final Duration GLOBAL_POLL_INTERVAL_MEDIUM = Duration.ofSeconds(10);
     public static final Duration GLOBAL_STATUS_TIMEOUT = Duration.ofMinutes(3);
-    public static final Duration GLOBAL_TIMEOUT_SHORT = Duration.ofMinutes(2);
     public static final Duration KO_OPERATION_TIMEOUT_DEFAULT = Duration.ofMinutes(5);
-    public static final Duration KO_OPERATION_TIMEOUT_SHORT = Duration.ofSeconds(30);
-    public static final Duration KO_OPERATION_TIMEOUT_MEDIUM = Duration.ofMinutes(2);
 
     /**
      * Kubernetes related constants
@@ -119,7 +116,6 @@ public final class Constants {
     public static final String DEPLOYMENT_TYPE = "deployment-type";
     public static final String CUSTOM_RESOURCE_DEFINITION = "CustomResourceDefinition";
     public static final String CLUSTER_ROLE = "ClusterRole";
-    public static final String CLUSTER_ROLE_BINDING = "ClusterRoleBinding";
     public static final String CONFIG_MAP_KIND = "ConfigMap";
     public static final String JOB = "Job";
     public static final String NAMESPACE = "Namespace";
@@ -174,7 +170,6 @@ public final class Constants {
      * Basic paths to examples
      */
     public static final String PATH_TO_OPERATOR = System.getProperty("user.dir") + "/../kroxylicious-operator";
-    public static final String PATH_TO_OPERATOR_EXAMPLES = PATH_TO_OPERATOR + "/examples";
     public static final String PATH_TO_OPERATOR_INSTALL_FILES = PATH_TO_OPERATOR + "/install";
 
     /**
@@ -185,8 +180,5 @@ public final class Constants {
     /**
      * Auxiliary variables for storing data across our tests
      */
-    public static final String PREPARE_OPERATOR_ENV_KEY = "PREPARE_OPERATOR_ENV";
-
-    public static final String DOCKER_REGISTRY_AWS_MIRROR = "public.ecr.aws/docker";
     public static final String DOCKER_REGISTRY_GCR_MIRROR = "mirror.gcr.io";
 }
