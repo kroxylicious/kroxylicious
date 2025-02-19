@@ -23,12 +23,14 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoop;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -51,7 +53,12 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.proxy.internal.KafkaProxyInitializer.LOGGING_INBOUND_ERROR_HANDLER_NAME;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -113,19 +120,14 @@ class KafkaProxyInitializerTest {
     @Test
     void shouldInitialisePlainChannel() {
         // Given
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
-                pfr,
-                false,
-                (endpoint, sniHostname) -> bindingStage,
-                (virtualCluster, upstreamNodes) -> null,
-                false,
-                Map.of(), new ApiVersionsServiceImpl());
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, (endpoint, sniHostname) -> bindingStage, Map.of());
         // When
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline).addLast(isA(ChannelInboundHandlerAdapter.class));
-        verify(channelPipeline, times(0)).addLast(isA(SniHandler.class));
+        verify(channelPipeline).addLast(eq("plainResolver"), isA(ChannelInboundHandlerAdapter.class));
+        assertErrorHandlerAdded();
+        verify(channelPipeline, times(0)).addLast(anyString(), isA(SniHandler.class));
     }
 
     @Test
@@ -133,14 +135,8 @@ class KafkaProxyInitializerTest {
         // Given
         final VirtualClusterBindingResolver virtualClusterBindingResolver = mock(VirtualClusterBindingResolver.class);
         when(virtualClusterBindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
-                pfr,
-                false,
-                virtualClusterBindingResolver,
-                (virtualCluster, upstreamNodes) -> null,
-                false,
-                Map.of(), new ApiVersionsServiceImpl());
-        when(channelPipeline.addLast(plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, virtualClusterBindingResolver, Map.of());
+        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
         kafkaProxyInitializer.initChannel(channel);
         final ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
@@ -157,14 +153,8 @@ class KafkaProxyInitializerTest {
         // Given
         final VirtualClusterBindingResolver virtualClusterBindingResolver = mock(VirtualClusterBindingResolver.class);
         when(virtualClusterBindingResolver.resolve(any(Endpoint.class), isNull())).thenReturn(bindingStage);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
-                pfr,
-                false,
-                virtualClusterBindingResolver,
-                (virtualCluster, upstreamNodes) -> null,
-                false,
-                Map.of(), new ApiVersionsServiceImpl());
-        when(channelPipeline.addLast(plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
+        kafkaProxyInitializer = createKafkaProxyInitializer(false, virtualClusterBindingResolver, Map.of());
+        when(channelPipeline.addLast(eq("plainResolver"), plainChannelResolverCaptor.capture())).thenReturn(channelPipeline);
 
         kafkaProxyInitializer.initChannel(channel);
         final ChannelHandlerContext channelHandlerContext = mock(ChannelHandlerContext.class);
@@ -182,23 +172,18 @@ class KafkaProxyInitializerTest {
         // Given
         when(vcb.virtualClusterModel())
                 .thenReturn(virtualClusterModel);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
-                pfr,
-                tls,
-                (endpoint, sniHostname) -> bindingStage,
-                (virtualCluster, upstreamNodes) -> null,
-                false,
-                Map.of(), new ApiVersionsServiceImpl());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
 
         // Then
-        final InOrder verifyer = inOrder(channelPipeline);
-        verifyer.verify(channelPipeline).addLast(eq("requestDecoder"), any(ByteToMessageDecoder.class));
-        verifyer.verify(channelPipeline).addLast(eq("responseEncoder"), any(MessageToByteEncoder.class));
-        verifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
-        verifyer.verify(channelPipeline).addLast(eq("netHandler"), any(KafkaProxyFrontendHandler.class));
+        final InOrder orderedVerifyer = inOrder(channelPipeline);
+        verifyErrorHandlerRemoved(orderedVerifyer);
+        verifyEncoderAndOrdererAdded(orderedVerifyer);
+        verifyFrontendHandlerAdded(orderedVerifyer);
+        verifyErrorHandlerAdded(orderedVerifyer);
+        Mockito.verifyNoMoreInteractions(channelPipeline);
     }
 
     @ParameterizedTest
@@ -207,19 +192,19 @@ class KafkaProxyInitializerTest {
         // Given
         virtualClusterModel = buildVirtualCluster(false, true);
         when(vcb.virtualClusterModel()).thenReturn(virtualClusterModel);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
-                pfr,
-                tls,
-                (endpoint, sniHostname) -> bindingStage,
-                (virtualCluster, upstreamNodes) -> null,
-                false,
-                Map.of(), new ApiVersionsServiceImpl());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
 
         // Then
-        verify(channelPipeline).addLast(eq("frameLogger"), any(LoggingHandler.class));
+        final InOrder orderedVerifyer = inOrder(channelPipeline);
+        verifyErrorHandlerRemoved(orderedVerifyer);
+        verifyEncoderAndOrdererAdded(orderedVerifyer);
+        verifyFrameLoggerAdded(orderedVerifyer);
+        verifyFrontendHandlerAdded(orderedVerifyer);
+        verifyErrorHandlerAdded(orderedVerifyer);
+        Mockito.verifyNoMoreInteractions(channelPipeline);
     }
 
     @ParameterizedTest
@@ -228,62 +213,41 @@ class KafkaProxyInitializerTest {
         // Given
         virtualClusterModel = buildVirtualCluster(true, false);
         when(vcb.virtualClusterModel()).thenReturn(virtualClusterModel);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
-                pfr,
-                tls,
-                (endpoint, sniHostname) -> bindingStage,
-                (virtualCluster, upstreamNodes) -> null,
-                false,
-                Map.of(), new ApiVersionsServiceImpl());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
 
         // Then
-        verify(channelPipeline).addLast(eq("networkLogger"), any(LoggingHandler.class));
+        final InOrder orderedVerifyer = inOrder(channelPipeline);
+        verifyErrorHandlerRemoved(orderedVerifyer);
+        verifyNetworkLoggerAdded(orderedVerifyer);
+        verifyEncoderAndOrdererAdded(orderedVerifyer);
+        verifyFrontendHandlerAdded(orderedVerifyer);
+        verifyErrorHandlerAdded(orderedVerifyer);
+        Mockito.verifyNoMoreInteractions(channelPipeline);
     }
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
     void shouldAddAuthnHandlersOnBindingComplete(boolean tls) {
         // Given
-        virtualClusterModel = buildVirtualCluster(true, false);
+        virtualClusterModel = buildVirtualCluster(false, false);
         when(vcb.virtualClusterModel()).thenReturn(virtualClusterModel);
         final AuthenticateCallbackHandler plainHandler = mock(AuthenticateCallbackHandler.class);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
-                pfr,
-                tls,
-                (endpoint, sniHostname) -> bindingStage,
-                (virtualCluster, upstreamNodes) -> null,
-                false,
-                Map.of(KafkaAuthnHandler.SaslMechanism.PLAIN, plainHandler), new ApiVersionsServiceImpl());
+        kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of(KafkaAuthnHandler.SaslMechanism.PLAIN, plainHandler));
 
         // When
         kafkaProxyInitializer.addHandlers(channel, vcb);
 
         // Then
-        verify(channelPipeline).addLast(any(KafkaAuthnHandler.class));
-    }
-
-    @ParameterizedTest
-    @ValueSource(booleans = { true, false })
-    void shouldNotAddAuthnHandlersWithoutConfiguredMechanism(boolean tls) {
-        // Given
-        virtualClusterModel = buildVirtualCluster(true, false);
-        when(vcb.virtualClusterModel()).thenReturn(virtualClusterModel);
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
-                pfr,
-                tls,
-                (endpoint, sniHostname) -> bindingStage,
-                (virtualCluster, upstreamNodes) -> null,
-                false,
-                Map.of(), new ApiVersionsServiceImpl());
-
-        // When
-        kafkaProxyInitializer.addHandlers(channel, vcb);
-
-        // Then
-        verify(channelPipeline, times(0)).addLast(any(KafkaAuthnHandler.class));
+        final InOrder orderedVerifyer = inOrder(channelPipeline);
+        verifyErrorHandlerRemoved(orderedVerifyer);
+        verifyEncoderAndOrdererAdded(orderedVerifyer);
+        orderedVerifyer.verify(channelPipeline).addLast(any(KafkaAuthnHandler.class));
+        verifyFrontendHandlerAdded(orderedVerifyer);
+        verifyErrorHandlerAdded(orderedVerifyer);
+        Mockito.verifyNoMoreInteractions(channelPipeline);
     }
 
     @Test
@@ -313,18 +277,69 @@ class KafkaProxyInitializerTest {
     @Test
     void shouldInitialiseTlsChannel() {
         // Given
-        kafkaProxyInitializer = new KafkaProxyInitializer(filterChainFactory,
-                pfr,
-                true,
-                (endpoint, sniHostname) -> bindingStage,
-                (virtualCluster, upstreamNodes) -> null,
-                false,
-                Map.of(), new ApiVersionsServiceImpl());
+        kafkaProxyInitializer = createKafkaProxyInitializer(true, (endpoint, sniHostname) -> bindingStage, Map.of());
 
         // When
         kafkaProxyInitializer.initChannel(channel);
 
         // Then
-        verify(channelPipeline).addLast(isA(SniHandler.class));
+        verify(channelPipeline).addLast(anyString(), isA(SniHandler.class));
+        assertErrorHandlerAdded();
+    }
+
+    @Test
+    void testLoggingErrorHandlerPreventsExceptionPropagatingToChannel() {
+        EmbeddedChannel embeddedChannel = new EmbeddedChannel();
+        embeddedChannel.pipeline().addLast(new ChannelInboundHandlerAdapter() {
+            @Override
+            public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                throw new RuntimeException("failed to handle message: " + msg);
+            }
+        });
+        embeddedChannel.pipeline().addLast(new KafkaProxyInitializer.LoggingInboundErrorHandler());
+        embeddedChannel.writeInbound("arbitrary");
+        assertThatCode(embeddedChannel::checkException).doesNotThrowAnyException();
+    }
+
+    private @NonNull KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
+                                                                       VirtualClusterBindingResolver virtualClusterBindingResolver,
+                                                                       Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
+        return new KafkaProxyInitializer(filterChainFactory,
+                pfr,
+                tls,
+                virtualClusterBindingResolver,
+                (virtualCluster, upstreamNodes) -> null,
+                false,
+                authnMechanismHandlers, new ApiVersionsServiceImpl());
+    }
+
+    private void assertErrorHandlerAdded() {
+        verify(channelPipeline).addLast(anyString(), isA(KafkaProxyInitializer.LoggingInboundErrorHandler.class));
+    }
+
+    private void verifyFrameLoggerAdded(InOrder orderedVerifyer) {
+        orderedVerifyer.verify(channelPipeline).addLast(eq("frameLogger"), any(LoggingHandler.class));
+    }
+
+    private void verifyErrorHandlerAdded(InOrder orderedVerifyer) {
+        orderedVerifyer.verify(channelPipeline).addLast(eq(LOGGING_INBOUND_ERROR_HANDLER_NAME), isA(KafkaProxyInitializer.LoggingInboundErrorHandler.class));
+    }
+
+    private void verifyFrontendHandlerAdded(InOrder orderedVerifyer) {
+        orderedVerifyer.verify(channelPipeline).addLast(eq("netHandler"), any(KafkaProxyFrontendHandler.class));
+    }
+
+    private void verifyErrorHandlerRemoved(InOrder orderedVerifyer) {
+        orderedVerifyer.verify(channelPipeline).remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
+    }
+
+    private void verifyNetworkLoggerAdded(InOrder orderedVerifyer) {
+        orderedVerifyer.verify(channelPipeline).addLast(eq("networkLogger"), any(LoggingHandler.class));
+    }
+
+    private void verifyEncoderAndOrdererAdded(InOrder orderedVerifyer) {
+        orderedVerifyer.verify(channelPipeline).addLast(eq("requestDecoder"), any(ByteToMessageDecoder.class));
+        orderedVerifyer.verify(channelPipeline).addLast(eq("responseEncoder"), any(MessageToByteEncoder.class));
+        orderedVerifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
     }
 }
