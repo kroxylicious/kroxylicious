@@ -161,10 +161,6 @@ public class BundleResource implements ResourceType<Deployment> {
         }
     }
 
-    protected BundleResourceBuilder newBuilder() {
-        return new BundleResourceBuilder();
-    }
-
     public DeploymentBuilder buildBundleDeployment() {
         Deployment kroxyliciousOperator = DeploymentResource.getDeploymentFromYaml(PATH_TO_KO_CONFIG);
         // Get default KO image

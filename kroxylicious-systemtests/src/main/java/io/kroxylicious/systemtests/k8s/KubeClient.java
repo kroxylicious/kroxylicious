@@ -19,8 +19,6 @@ import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
-import io.fabric8.kubernetes.api.model.rbac.RoleBinding;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 
@@ -289,87 +287,6 @@ public class KubeClient {
      */
     public String logsInSpecificNamespace(String namespaceName, String podName) {
         return client.pods().inNamespace(namespaceName).withName(podName).getLog();
-    }
-
-    // ==================================
-    // ---------> ROLE BINDING <---------
-    // ==================================
-
-    /**
-     * Method for creating the specified RoleBinding.
-     * In case that the RoleBinding is already created, it is being updated.
-     * This can be caused by not cleared RoleBindings from other tests or in case we shut down the test before the cleanup
-     * phase.
-     * The skip of the cleanup phase can then break the CO installation - because the resource already exists.
-     * Without the update, we would need to manually remove all existing resources before running the test again.
-     * It should not have an impact on the functionality, we just update the RoleBinding.
-     * @param roleBinding RoleBinding that we want to create or update
-     */
-    public void createOrUpdateRoleBinding(RoleBinding roleBinding) {
-        client.rbac().roleBindings().inNamespace(getNamespace()).resource(roleBinding).createOr(NonDeletingOperation::update);
-    }
-
-    /**
-     * Method for creating the specified ClusterRoleBinding.
-     * In case that the CRB is already created, it is being updated.
-     * This can be caused by not cleared CRBs from other tests or in case we shut down the test before the cleanup
-     * phase.
-     * The skip of the cleanup phase can then break the CO installation - because the resource already exists.
-     * Without the update, we would need to manually remove all existing resources before running the test again.
-     * It should not have an impact on the functionality, we just update the CRB.
-     * @param clusterRoleBinding ClusterRoleBinding that we want to create or update
-     */
-    public void createOrUpdateClusterRoleBinding(ClusterRoleBinding clusterRoleBinding) {
-        client.rbac().clusterRoleBindings().resource(clusterRoleBinding).createOr(NonDeletingOperation::update);
-    }
-
-    /**
-     * Delete cluster role binding.
-     *
-     * @param clusterRoleBinding the cluster role binding
-     */
-    public void deleteClusterRoleBinding(ClusterRoleBinding clusterRoleBinding) {
-        client.rbac().clusterRoleBindings().resource(clusterRoleBinding).delete();
-    }
-
-    /**
-     * Gets cluster role binding.
-     *
-     * @param name the name
-     * @return the cluster role binding
-     */
-    public ClusterRoleBinding getClusterRoleBinding(String name) {
-        return client.rbac().clusterRoleBindings().withName(name).get();
-    }
-
-    /**
-     * List role bindings list.
-     *
-     * @param namespaceName the namespace name
-     * @return the list
-     */
-    public List<RoleBinding> listRoleBindings(String namespaceName) {
-        return client.rbac().roleBindings().inNamespace(namespaceName).list().getItems();
-    }
-
-    /**
-     * Gets role binding.
-     *
-     * @param name the name
-     * @return the role binding
-     */
-    public RoleBinding getRoleBinding(String name) {
-        return client.rbac().roleBindings().inNamespace(getNamespace()).withName(name).get();
-    }
-
-    /**
-     * Delete role binding.
-     *
-     * @param namespace the namespace
-     * @param name the name
-     */
-    public void deleteRoleBinding(String namespace, String name) {
-        client.rbac().roleBindings().inNamespace(namespace).withName(name).delete();
     }
 
     // =====================================
