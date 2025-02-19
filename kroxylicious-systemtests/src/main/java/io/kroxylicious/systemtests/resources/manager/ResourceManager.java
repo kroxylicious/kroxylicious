@@ -8,10 +8,10 @@ package io.kroxylicious.systemtests.resources.manager;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Stack;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -55,7 +55,7 @@ public class ResourceManager {
     private static ResourceManager instance;
     private static String koDeploymentName = Constants.KO_DEPLOYMENT_NAME;
     private static ExtensionContext testContext;
-    private static final Map<String, Stack<ResourceItem<?>>> storedResources = new LinkedHashMap<>();
+    private static final Map<String, Stack<ResourceItem<?>>> storedResources = new ConcurrentHashMap<>();
 
     private ResourceManager() {
     }
@@ -142,11 +142,8 @@ public class ResourceManager {
             assert type != null;
             type.create(resource);
 
-            synchronized (this) {
-                storedResources.computeIfAbsent(getTestContext().getDisplayName(), k -> new Stack<>());
-                storedResources.get(getTestContext().getDisplayName()).push(
-                        new ResourceItem<>(() -> deleteResource(resource), resource));
-            }
+            storedResources.computeIfAbsent(getTestContext().getDisplayName(), k -> new Stack<>())
+                    .push(new ResourceItem<>(() -> deleteResource(resource), resource));
         }
 
         if (waitReady) {
