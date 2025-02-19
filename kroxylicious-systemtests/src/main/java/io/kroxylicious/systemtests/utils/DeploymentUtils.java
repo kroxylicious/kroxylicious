@@ -18,7 +18,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -190,14 +189,13 @@ public class DeploymentUtils {
     public static boolean waitForDeploymentRunning(String namespaceName, String deploymentName, int expectedReplicas, Duration timeout) {
         LOGGER.info("Waiting for deployment: {} replicas of {}/{} to be running", expectedReplicas, namespaceName, deploymentName);
         List<Pod> pods = kubeClient().listPods(namespaceName, kubeClient().getPodSelectorFromDeployment(namespaceName, deploymentName));
+        if (pods.size() != expectedReplicas) {
+            return false;
+        }
 
-        AtomicInteger runningPods = new AtomicInteger();
-        pods.forEach(p -> {
-            waitForDeploymentRunning(namespaceName, p.getMetadata().getName(), timeout);
-            runningPods.getAndIncrement();
-        });
+        pods.forEach(p -> waitForDeploymentRunning(namespaceName, p.getMetadata().getName(), timeout));
 
-        return runningPods.get() == expectedReplicas;
+        return true;
     }
 
     private static void waitForLeavingPendingPhase(String namespaceName, String podName) {
