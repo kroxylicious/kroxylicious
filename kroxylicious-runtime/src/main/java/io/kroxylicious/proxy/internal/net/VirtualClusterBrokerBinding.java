@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal.net;
 
 import java.util.Objects;
 
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -19,7 +18,7 @@ import io.kroxylicious.proxy.service.HostPort;
  * @param nodeId                               kafka nodeId of the target broker
  * @param restrictUpstreamToMetadataDiscovery  true if the upstreamTarget corresponds to a broker, false if it points at a bootstrap.
  */
-public record VirtualClusterBrokerBinding(VirtualClusterModel virtualClusterModel, HostPort upstreamTarget, int nodeId, boolean restrictUpstreamToMetadataDiscovery)
+public record VirtualClusterBrokerBinding(EndpointListener virtualClusterModel, HostPort upstreamTarget, int nodeId, boolean restrictUpstreamToMetadataDiscovery)
         implements VirtualClusterBinding {
     public VirtualClusterBrokerBinding {
         Objects.requireNonNull(virtualClusterModel, "virtualCluster must not be null");

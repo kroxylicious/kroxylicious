@@ -142,7 +142,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                             promise.setFailure(t);
                             return null;
                         }
-                        var virtualCluster = binding.virtualClusterModel();
+                        var virtualCluster = ((VirtualClusterModel) binding.virtualClusterModel());
                         var sslContext = virtualCluster.getDownstreamSslContext();
                         if (sslContext.isEmpty()) {
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(virtualCluster)));
@@ -174,7 +174,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     @VisibleForTesting
     void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
-        var virtualCluster = binding.virtualClusterModel();
+        var virtualCluster = ((VirtualClusterModel) binding.virtualClusterModel());
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
         if (virtualCluster.isLogNetwork()) {
@@ -209,7 +209,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 binding,
                 pfr,
                 filterChainFactory,
-                binding.virtualClusterModel().getFilters(),
+                ((VirtualClusterModel) binding.virtualClusterModel()).getFilters(),
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
@@ -250,7 +250,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                             ApiVersionsDowngradeFilter apiVersionsDowngradeFilter) {
             this.decodePredicate = decodePredicate;
             this.ch = ch;
-            this.virtualClusterModel = binding.virtualClusterModel();
+            this.virtualClusterModel = ((VirtualClusterModel) binding.virtualClusterModel());
             this.binding = binding;
             this.pfr = pfr;
             this.filterChainFactory = filterChainFactory;

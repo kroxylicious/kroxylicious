@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.net;
 
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -18,7 +17,7 @@ public interface VirtualClusterBinding {
      *
      * @return virtual cluster.
      */
-    VirtualClusterModel virtualClusterModel();
+    EndpointListener virtualClusterModel();
 
     /**
      * The upstream target of this binding.

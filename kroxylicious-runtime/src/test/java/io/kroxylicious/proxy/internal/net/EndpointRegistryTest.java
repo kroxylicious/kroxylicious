@@ -33,7 +33,6 @@ import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.HostPortConverter;
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,9 +61,9 @@ class EndpointRegistryTest {
     private final TestNetworkBindingOperationProcessor bindingOperationProcessor = new TestNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     @Mock(strictness = LENIENT)
-    private VirtualClusterModel virtualClusterModel1;
+    private EndpointListener virtualClusterModel1;
     @Mock(strictness = LENIENT)
-    private VirtualClusterModel virtualClusterModel2;
+    private EndpointListener virtualClusterModel2;
 
     @Test
     void registerVirtualCluster() throws Exception {
@@ -654,7 +653,7 @@ class EndpointRegistryTest {
         doReconcileFailsDueToExternalPortConflict(DOWNSTREAM_BROKER_0, UPSTREAM_BROKER_0);
     }
 
-    private VirtualClusterModel doReconcileFailsDueToExternalPortConflict(HostPort downstreamBroker0, HostPort upstreamBroker0) {
+    private EndpointListener doReconcileFailsDueToExternalPortConflict(HostPort downstreamBroker0, HostPort upstreamBroker0) {
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
         var rgf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
@@ -726,11 +725,11 @@ class EndpointRegistryTest {
         };
     }
 
-    private void configureVirtualClusterMock(VirtualClusterModel cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls) {
+    private void configureVirtualClusterMock(EndpointListener cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls) {
         configureVirtualClusterMock(cluster, downstreamBootstrap, upstreamBootstrap, tls, tls, null);
     }
 
-    private void configureVirtualClusterMock(VirtualClusterModel cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
+    private void configureVirtualClusterMock(EndpointListener cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
                                              Map<Integer, HostPort> discoveryAddressMap) {
         when(cluster.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
         when(cluster.isUseTls()).thenReturn(tls);
