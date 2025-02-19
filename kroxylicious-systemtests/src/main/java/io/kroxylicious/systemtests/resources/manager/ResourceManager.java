@@ -80,10 +80,6 @@ public class ResourceManager {
         return testContext;
     }
 
-    public static Map<String, Stack<ResourceItem<?>>> getStoredResources() {
-        return storedResources;
-    }
-
     /**
      * Helm client.
      *
@@ -136,7 +132,7 @@ public class ResourceManager {
     }
 
     @SafeVarargs
-    private final <T extends HasMetadata> void createResource(boolean waitReady, T... resources) {
+    private <T extends HasMetadata> void createResource(boolean waitReady, T... resources) {
         for (T resource : resources) {
             ResourceType<T> type = findResourceType(resource);
 
@@ -233,26 +229,6 @@ public class ResourceManager {
     }
 
     /**
-     * Synchronizing all resources which are inside specific extension context.
-     * @param <T> type of the resource which inherits from HasMetadata f.e Kafka, KafkaConnect, Pod, Deployment etc..
-     */
-    @SuppressWarnings(value = "unchecked")
-    public final <T extends HasMetadata> void synchronizeResources() {
-        Stack<ResourceItem<?>> resources = storedResources.get(getTestContext().getDisplayName());
-
-        // sync all resources
-        for (ResourceItem<?> resource : resources) {
-            if (resource.resource() == null) {
-                continue;
-            }
-            ResourceType<T> type = findResourceType((T) resource.resource());
-
-            assert type != null;
-            waitResourceCondition((T) resource.resource(), ResourceCondition.readiness(type));
-        }
-    }
-
-    /**
      * Wait resource condition.
      *
      * @param <T> the type parameter
@@ -305,23 +281,6 @@ public class ResourceManager {
                                                                                                                   Duration resourceTimeout) {
         return waitForResourceStatusReady(operation, resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName(),
                 ConditionStatus.TRUE, resourceTimeout);
-    }
-
-    /**
-     * Wait for resource status.
-     *
-     * @param <T> the type parameter
-     * @param operation the operation
-     * @param kind the kind
-     * @param namespace the namespace
-     * @param name the name
-     * @param resourceTimeout the resource timeout
-     * @return the boolean
-     */
-    public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, String kind,
-                                                                                                                  String namespace, String name,
-                                                                                                                  Duration resourceTimeout) {
-        return waitForResourceStatusReady(operation, kind, namespace, name, ConditionStatus.TRUE, resourceTimeout);
     }
 
     /**
