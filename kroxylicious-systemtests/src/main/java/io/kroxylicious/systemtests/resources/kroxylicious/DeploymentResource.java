@@ -17,7 +17,6 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
-import io.kroxylicious.systemtests.utils.ReadWriteUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -65,15 +64,5 @@ public class DeploymentResource implements ResourceType<Deployment> {
      */
     public static MixedOperation<Deployment, DeploymentList, Resource<Deployment>> deploymentClient() {
         return kubeClient().getClient().resources(Deployment.class, DeploymentList.class);
-    }
-
-    /**
-     * Gets deployment from yaml.
-     *
-     * @param yamlPath the yaml path
-     * @return the deployment from yaml
-     */
-    public static Deployment getDeploymentFromYaml(String yamlPath) {
-        return ReadWriteUtils.readObjectFromYamlFilepath(yamlPath, Deployment.class);
     }
 }

@@ -39,7 +39,6 @@ import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
-import io.kroxylicious.systemtests.utils.ReadWriteUtils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -120,7 +119,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             final String resourceType = operatorFile.getName().split("\\.")[1];
 
             if (resourceType.equals(Constants.NAMESPACE)) {
-                Namespace namespace = ReadWriteUtils.readObjectFromYamlFilepath(operatorFile, Namespace.class);
+                Namespace namespace = TestFrameUtils.configFromYaml(operatorFile, Namespace.class);
                 if (!NamespaceUtils.isNamespaceCreated(namespace.getMetadata().getName())) {
                     kubeClient().getClient().resource(namespace).create();
                 }
@@ -213,7 +212,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .filter(file -> file.getName().contains("-v1"))
                 .toList();
         for (File crdFile : crdFiles) {
-            CustomResourceDefinition customResourceDefinition = ReadWriteUtils.readObjectFromYamlFilepath(crdFile, CustomResourceDefinition.class);
+            CustomResourceDefinition customResourceDefinition = TestFrameUtils.configFromYaml(crdFile, CustomResourceDefinition.class);
             ResourceManager.getInstance().createResourceWithWait(customResourceDefinition);
         }
     }
