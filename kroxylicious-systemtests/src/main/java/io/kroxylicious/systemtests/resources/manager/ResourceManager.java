@@ -53,7 +53,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class ResourceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
     private static ResourceManager instance;
-    private static String koDeploymentName = Constants.KO_DEPLOYMENT_NAME;
     private static ExtensionContext testContext;
     private static final Map<String, Stack<ResourceItem<?>>> storedResources = new ConcurrentHashMap<>();
 
@@ -100,14 +99,6 @@ public class ResourceManager {
             new BundleResource(),
             new ClusterOperatorCustomResourceDefinition()
     };
-
-    public static String getKoDeploymentName() {
-        return koDeploymentName;
-    }
-
-    public static void setKoDeploymentName(String newName) {
-        koDeploymentName = newName;
-    }
 
     /**
      * Create resource without wait.

@@ -25,7 +25,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 public class BundleResource implements ResourceType<Deployment> {
-    public static final String PATH_TO_KO_CONFIG = Constants.PATH_TO_OPERATOR_INSTALL_FILES + "/03.Deployment.kroxylicious-operator.yaml";
 
     private String name;
     private String namespaceInstallTo;
@@ -127,9 +126,9 @@ public class BundleResource implements ResourceType<Deployment> {
         }
     }
 
-    public DeploymentBuilder buildBundleDeployment() {
-        Deployment kroxyliciousOperator = DeploymentResource.getDeploymentFromYaml(PATH_TO_KO_CONFIG);
-        // Get default KO image
+    public DeploymentBuilder buildBundleDeployment(String pathToConfig) {
+        Deployment kroxyliciousOperator = DeploymentResource.getDeploymentFromYaml(pathToConfig);
+        // Get default Kroxylicious Operator image
         String koImage = kroxyliciousOperator.getSpec().getTemplate().getSpec().getContainers().get(0).getImage();
 
         return new DeploymentBuilder(kroxyliciousOperator)
@@ -141,12 +140,10 @@ public class BundleResource implements ResourceType<Deployment> {
                 .editSpec()
                 .withReplicas(this.replicas)
                 .withNewSelector()
-                .addToMatchLabels("name", Constants.KROXYLICIOUS)
                 .addToMatchLabels(this.extraLabels)
                 .endSelector()
                 .editTemplate()
                 .editMetadata()
-                .addToLabels("name", Constants.KROXYLICIOUS)
                 .addToLabels(this.extraLabels)
                 .endMetadata()
                 .editSpec()

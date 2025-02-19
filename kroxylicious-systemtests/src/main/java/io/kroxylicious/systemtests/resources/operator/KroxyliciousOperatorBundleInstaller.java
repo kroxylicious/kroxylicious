@@ -68,6 +68,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             && ko.testClassName == null && ko.testMethodName == null;
 
     private static final Predicate<File> installFiles = file -> !file.getName().contains("Deployment");
+    private static final Predicate<File> deploymentFiles = file -> file.getName().contains("Deployment");
 
     public KroxyliciousOperatorBundleInstaller() {
         this.namespaceInstallTo = Constants.KO_NAMESPACE;
@@ -153,6 +154,18 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         }
     }
 
+    private void applyDeploymentFile() {
+        ResourceManager.getInstance().createResourceWithWait(
+                new BundleResource.BundleResourceBuilder()
+                        .withReplicas(replicas)
+                        .withName(kroxyliciousOperatorName)
+                        .withNamespace(namespaceInstallTo)
+                        .withExtraLabels(extraLabels)
+                        .buildBundleInstance()
+                        .buildBundleDeployment(getFilteredOperatorFiles(deploymentFiles).getFirst().getAbsolutePath())
+                        .build());
+    }
+
     /**
      * Temporary method to fulfill the Crds installation until new JOSDK 5.0.0 release landed https://github.com/operator-framework/java-operator-sdk/releases
      */
@@ -227,18 +240,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         setTestClassNameAndTestMethodName();
 
         prepareEnvForOperator(namespaceInstallTo);
-
-        // 03.Deployment
-        ResourceManager.setKoDeploymentName(kroxyliciousOperatorName);
-        ResourceManager.getInstance().createResourceWithWait(
-                new BundleResource.BundleResourceBuilder()
-                        .withReplicas(replicas)
-                        .withName(kroxyliciousOperatorName)
-                        .withNamespace(namespaceInstallTo)
-                        .withExtraLabels(extraLabels)
-                        .buildBundleInstance()
-                        .buildBundleDeployment()
-                        .build());
+        applyDeploymentFile();
     }
 
     @Override
