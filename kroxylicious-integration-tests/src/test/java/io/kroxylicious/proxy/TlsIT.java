@@ -48,6 +48,7 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
 import io.kroxylicious.proxy.config.secret.FilePassword;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
@@ -125,7 +126,9 @@ class TlsIT extends BaseIT {
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
@@ -155,7 +158,9 @@ class TlsIT extends BaseIT {
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
@@ -198,7 +203,9 @@ class TlsIT extends BaseIT {
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
@@ -220,7 +227,9 @@ class TlsIT extends BaseIT {
                         .withNewInsecureTlsTrust(true)
                         .endTls()
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
@@ -279,7 +288,9 @@ class TlsIT extends BaseIT {
                             .endKeyStoreKey()
                             .endTls()
                             .endTargetCluster()
-                            .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                            .addToListeners("default", new VirtualClusterListenerBuilder()
+                                    .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                    .build())
                             .build());
 
             try (var tester = kroxyliciousTester(builder); var admin = tester.admin("demo")) {
@@ -337,13 +348,15 @@ class TlsIT extends BaseIT {
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(proxyKeystoreLocation)
-                        .withStorePasswordProvider(proxyKeystorePasswordProvider)
-                        .endKeyStoreKey()
-                        .endTls()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(proxyKeystoreLocation)
+                                .withStorePasswordProvider(proxyKeystorePasswordProvider)
+                                .endKeyStoreKey()
+                                .endTls()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -369,14 +382,16 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .withProtocols(protocols)
-                        .endTls()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .withProtocols(protocols)
+                                .endTls()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -422,14 +437,16 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .withProtocols(protocols)
-                        .endTls()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .withProtocols(protocols)
+                                .endTls()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -458,14 +475,16 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .withProtocols(protocols)
-                        .endTls()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .withProtocols(protocols)
+                                .endTls()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -507,7 +526,9 @@ class TlsIT extends BaseIT {
                         .withProtocols(protocols)
                         .endTls()
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -543,7 +564,9 @@ class TlsIT extends BaseIT {
                         .withProtocols(protocols)
                         .endTls()
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -570,14 +593,16 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .withCipherSuites(cipherSuites)
-                        .endTls()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .withCipherSuites(cipherSuites)
+                                .endTls()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -622,14 +647,16 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .withCipherSuites(cipherSuites)
-                        .endTls()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .withCipherSuites(cipherSuites)
+                                .endTls()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -658,14 +685,16 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .withCipherSuites(cipherSuites)
-                        .endTls()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .withCipherSuites(cipherSuites)
+                                .endTls()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -707,7 +736,9 @@ class TlsIT extends BaseIT {
                         .withCipherSuites(cipherSuites)
                         .endTls()
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -743,7 +774,9 @@ class TlsIT extends BaseIT {
                         .withCipherSuites(upstreamCipherSuites)
                         .endTls()
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -856,20 +889,22 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .withNewTrustStoreTrust()
-                        .withNewServerOptionsTrust()
-                        .withClientAuth(tlsClientAuth)
-                        .endServerOptionsTrust()
-                        .withStoreFile(proxyTrustStore.toAbsolutePath().toString())
-                        .withNewInlinePasswordStoreProvider(clientCertGenerator.getPassword())
-                        .endTrustStoreTrust()
-                        .endTls()
-                        .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .withNewTrustStoreTrust()
+                                .withNewServerOptionsTrust()
+                                .withClientAuth(tlsClientAuth)
+                                .endServerOptionsTrust()
+                                .withStoreFile(proxyTrustStore.toAbsolutePath().toString())
+                                .withNewInlinePasswordStoreProvider(clientCertGenerator.getPassword())
+                                .endTrustStoreTrust()
+                                .endTls()
+                                .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
+                                .build())
                         .build());
     }
 

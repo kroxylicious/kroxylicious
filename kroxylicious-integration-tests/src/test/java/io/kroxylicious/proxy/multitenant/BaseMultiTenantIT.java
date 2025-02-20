@@ -43,6 +43,7 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
 import io.kroxylicious.proxy.filter.multitenant.MultiTenant;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -105,31 +106,35 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                        .withConfig("bootstrapAddress", TENANT_1_PROXY_ADDRESS)
-                                        .build())
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(certificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .endTls()
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withClusterNetworkAddressConfigProvider(
+                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                                .withConfig("bootstrapAddress", TENANT_1_PROXY_ADDRESS)
+                                                .build())
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(certificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .endTls()
+                                .build())
                         .build())
                 .addToVirtualClusters(TENANT_2_CLUSTER, new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                        .withConfig("bootstrapAddress", TENANT_2_PROXY_ADDRESS)
-                                        .build())
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(certificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .endTls()
+                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                .withClusterNetworkAddressConfigProvider(
+                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                                .withConfig("bootstrapAddress", TENANT_2_PROXY_ADDRESS)
+                                                .build())
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(certificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .endTls()
+                                .build())
                         .build())
                 .addToFilterDefinitions(filterBuilder.build())
                 .addToDefaultFilters(filterBuilder.name());

@@ -116,7 +116,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig) {
         final VirtualCluster definedCluster = kroxyliciousConfig.virtualClusters().get(virtualCluster);
         if (definedCluster != null) {
-            final Optional<Tls> tls = definedCluster.tls();
+            if (definedCluster.listeners().size() > 1) {
+                throw new IllegalArgumentException("TODO: support multiple listeners");
+            }
+            // TODO support specifying listener in the test APIs
+            final Optional<Tls> tls = definedCluster.listeners().values().stream().findFirst().orElseThrow().tls();
             if (tls.isPresent()) {
                 defaultClientConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
                 if (trustStoreConfiguration.isPresent()) {
