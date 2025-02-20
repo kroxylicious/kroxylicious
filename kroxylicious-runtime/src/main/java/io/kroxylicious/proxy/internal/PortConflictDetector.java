@@ -17,8 +17,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import io.kroxylicious.proxy.internal.net.EndpointListener;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterListenerModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -99,7 +99,7 @@ public class PortConflictDetector {
     }
 
     private void assertSharedPortsHaveMatchingTlsConfiguration(Set<String> seenVirtualClusters, Map<Optional<String>, Map<Integer, Boolean>> inUseSharedPorts,
-                                                               VirtualClusterListenerModel virtualClusterModel, String name,
+                                                               EndpointListener virtualClusterModel, String name,
                                                                Set<Integer> proposedSharedPorts) {
         proposedSharedPorts.forEach(p -> {
             var tls = inUseSharedPorts.getOrDefault(virtualClusterModel.getBindAddress(), Map.of()).get(p);
@@ -110,7 +110,7 @@ public class PortConflictDetector {
     }
 
     private void assertSharedPortsAreExclusiveAcrossInterfaces(Set<String> seenVirtualClusters, Map<Optional<String>, Map<Integer, Boolean>> inUseSharedPorts,
-                                                               VirtualClusterListenerModel virtualClusterModel, String name,
+                                                               EndpointListener virtualClusterModel, String name,
                                                                Set<Integer> proposedSharedPorts, Set<Optional<String>> exclusiveCheckSet) {
         var sharedCheckSet = new HashSet<>(exclusiveCheckSet);
         sharedCheckSet.remove(virtualClusterModel.getBindAddress());
@@ -130,7 +130,7 @@ public class PortConflictDetector {
     }
 
     private void assertExclusivePortsDoNotOverlapWithExclusivePorts(Set<String> seenVirtualClusters, Map<Optional<String>, Map<Integer, Boolean>> inUseSharedPorts,
-                                                                    VirtualClusterListenerModel virtualClusterModel, String name,
+                                                                    EndpointListener virtualClusterModel, String name,
                                                                     Set<Integer> proposedExclusivePorts, Set<Optional<String>> exclusiveCheckSet) {
         inUseSharedPorts.entrySet().stream()
                 .filter(interfacePortsEntry -> exclusiveCheckSet.contains(interfacePortsEntry.getKey()))
@@ -147,7 +147,7 @@ public class PortConflictDetector {
     }
 
     private void assertSharedPortsDoNotOverlapWithExlusivePorts(Set<String> seenVirtualClusters, Map<Optional<String>, Set<Integer>> inUseExclusivePorts,
-                                                                VirtualClusterListenerModel virtualClusterModel, String name,
+                                                                EndpointListener virtualClusterModel, String name,
                                                                 Set<Integer> proposedSharedPorts, Set<Optional<String>> exclusiveCheckSet) {
         inUseExclusivePorts.entrySet().stream()
                 .filter(interfacePortsEntry -> exclusiveCheckSet.contains(interfacePortsEntry.getKey()))
@@ -164,7 +164,7 @@ public class PortConflictDetector {
     }
 
     private void assertExclusivePortsAreMutuallyExclusive(Set<String> seenVirtualClusters, Map<Optional<String>, Set<Integer>> inUseExclusivePorts,
-                                                          VirtualClusterListenerModel virtualClusterModel, String name,
+                                                          EndpointListener virtualClusterModel, String name,
                                                           Set<Integer> proposedExclusivePorts, Set<Optional<String>> exclusiveCheckSet) {
         inUseExclusivePorts.entrySet().stream()
                 .filter(interfacePortsEntry -> exclusiveCheckSet.contains(interfacePortsEntry.getKey()))
@@ -180,7 +180,7 @@ public class PortConflictDetector {
                 });
     }
 
-    private void checkForConflictsWithOtherExclusivePort(HostPort otherHostPort, String name, VirtualClusterListenerModel cluster, Set<Integer> proposedExclusivePorts,
+    private void checkForConflictsWithOtherExclusivePort(HostPort otherHostPort, String name, EndpointListener cluster, Set<Integer> proposedExclusivePorts,
                                                          BindingScope scope) {
         var ports = Set.of(otherHostPort.port());
         var conflicts = getSortedPortConflicts(ports, proposedExclusivePorts);

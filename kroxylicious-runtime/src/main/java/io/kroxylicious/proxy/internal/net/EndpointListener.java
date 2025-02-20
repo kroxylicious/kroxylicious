@@ -8,8 +8,12 @@ package io.kroxylicious.proxy.internal.net;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+
+import io.netty.handler.ssl.SslContext;
 
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -35,6 +39,8 @@ public interface EndpointListener {
      */
     boolean requiresTls();
 
+    VirtualClusterModel virtualCluster();
+
     /**
      * Bootstrap address.
      *
@@ -50,6 +56,8 @@ public interface EndpointListener {
      * @throws IllegalArgumentException address for given broker node cannot be generated.
      */
     HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException;
+
+    Optional<SslContext> getDownstreamSslContext();
 
     /**
      * Advertised address of broker with the given node id, (advertised hostname and advertised port). This is
@@ -70,6 +78,10 @@ public interface EndpointListener {
      */
     Optional<String> getBindAddress();
 
+    Set<Integer> getExclusivePorts();
+
+    Set<Integer> getSharedPorts();
+
     /**
      * Map of node ids to broker addresses.
      *
@@ -89,4 +101,5 @@ public interface EndpointListener {
      * @return broker id
      */
     Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress);
+
 }
