@@ -35,6 +35,7 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.config.VirtualClusterListener;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
@@ -212,7 +213,9 @@ public class ProxyConfigSecret
 
         return new VirtualCluster(
                 new TargetCluster(cluster.getUpstream().getBootstrapServers(), Optional.empty()),
-                new ClusterNetworkAddressConfigProviderDefinition(
+                null,
+                Optional.empty(),
+                Map.of("default", new VirtualClusterListener(new ClusterNetworkAddressConfigProviderDefinition(
                         "PortPerBrokerClusterNetworkAddressConfigProvider",
                         new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                                 new HostPort("localhost", 9292 + (100 * clusterNum)),
@@ -220,8 +223,7 @@ public class ProxyConfigSecret
                                 null,
                                 null,
                                 null)),
-                Optional.empty(),
-                Map.of(),
+                        Optional.empty())),
                 false, false,
                 filterNamesForCluster(cluster));
     }
