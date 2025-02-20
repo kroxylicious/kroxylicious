@@ -54,7 +54,8 @@ public class PortConflictDetector {
                     var name = virtualCluster.getClusterName();
 
                     virtualCluster.listeners()
-                            .forEach((listenerName, listener) -> doValidate(otherExclusivePort, listener, name, inUseExclusivePorts, seenVirtualClusters, inUseSharedPorts));
+                            .forEach((listenerName, listener) -> doValidate(otherExclusivePort, listener, name, inUseExclusivePorts, seenVirtualClusters,
+                                    inUseSharedPorts));
 
                 });
     }
