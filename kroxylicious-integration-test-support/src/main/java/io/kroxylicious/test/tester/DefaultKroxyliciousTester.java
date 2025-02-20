@@ -206,7 +206,12 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @Override
     public Producer<String, String> producer(String virtualCluster) {
-        return clients(virtualCluster, DEFAULT_LISTENER_NAME).producer();
+        return producer(virtualCluster, DEFAULT_LISTENER_NAME);
+    }
+
+    @Override
+    public Producer<String, String> producer(String virtualCluster, String listener) {
+        return clients(virtualCluster, listener).producer();
     }
 
     @Override
@@ -221,7 +226,12 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @Override
     public Consumer<String, String> consumer(String virtualCluster) {
-        return clients(virtualCluster, DEFAULT_LISTENER_NAME).consumer();
+        return consumer(virtualCluster, DEFAULT_LISTENER_NAME);
+    }
+
+    @Override
+    public Consumer<String, String> consumer(String virtualCluster, String listener) {
+        return clients(virtualCluster, listener).consumer();
     }
 
     @Override
