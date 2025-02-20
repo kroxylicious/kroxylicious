@@ -31,6 +31,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param logFrames if true, kafka rpcs will be logged
  * @param filters filers.
  */
+@SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
 public record VirtualCluster(TargetCluster targetCluster,
                              @Deprecated(forRemoval = true, since = "0.11.0") ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider,
                              @Deprecated(forRemoval = true, since = "0.11.0") @JsonProperty() Optional<Tls> tls,
@@ -42,9 +43,9 @@ public record VirtualCluster(TargetCluster targetCluster,
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualCluster.class);
 
-    @SuppressWarnings("removal")
+    @SuppressWarnings({ "removal", "java:S2789" }) // S2789 - checking for null tls is the intent
     public VirtualCluster {
-        if (clusterNetworkAddressConfigProvider != null || tls.isPresent()) {
+        if (clusterNetworkAddressConfigProvider != null || (tls != null && tls.isPresent())) {
             if (clusterNetworkAddressConfigProvider == null) {
                 throw new IllegalConfigurationException("Deprecated virtualCluster property 'tls' supplied, but 'clusterNetworkAddressConfigProvider' is null");
             }

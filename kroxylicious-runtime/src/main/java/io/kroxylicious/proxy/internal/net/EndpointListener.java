@@ -64,9 +64,7 @@ public interface EndpointListener {
      * what is returned to clients and may differ from the node's bind port as presented by {@link #getBrokerAddress(int)}.
      * This enables Kroxylicious to sit behind yet another proxy that uses a different port from the kroxylicious bind port.
      * @param nodeId node id
-     * @return the port to advertise for the nodeId
-     * @param nodeId  node id
-     * @return broker address
+     * @return the broker's advertised address
      * @throws IllegalArgumentException if this provider cannot produce a broker address for the given nodeId.
      */
     HostPort getAdvertisedBrokerAddress(int nodeId);
