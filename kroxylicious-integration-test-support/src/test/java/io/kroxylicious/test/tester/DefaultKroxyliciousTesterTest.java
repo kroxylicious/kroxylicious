@@ -196,6 +196,22 @@ class DefaultKroxyliciousTesterTest {
 
     @SuppressWarnings("resource")
     @Test
+    void shouldCreateProducerForVirtualClusterCustomListener() {
+        // Given
+        try (var tester = buildMultiListenerTester()) {
+
+            // When
+            tester.producer(DEFAULT_CLUSTER, CUSTOM_LISTENER_NAME);
+
+            // Then
+            // In theory the bootstrap address is predicable but asserting it is not part of this test
+            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, CUSTOM_LISTENER_NAME)), anyMap());
+            verify(kroxyliciousClients).producer();
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
     void shouldCreateProducerForDefaultVirtualCluster() {
         // Given
         try (var tester = buildDefaultTester()) {
@@ -222,6 +238,22 @@ class DefaultKroxyliciousTesterTest {
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
             verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, DEFAULT_LISTENER_NAME)), anyMap());
+            verify(kroxyliciousClients).consumer();
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void shouldCreateConsumerForVirtualClusterAndCustomListener() {
+        // Given
+        try (var tester = buildMultiListenerTester()) {
+
+            // When
+            tester.consumer(DEFAULT_CLUSTER, CUSTOM_LISTENER_NAME);
+
+            // Then
+            // In theory the bootstrap address is predicable but asserting it is not part of this test
+            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, CUSTOM_LISTENER_NAME)), anyMap());
             verify(kroxyliciousClients).consumer();
         }
     }

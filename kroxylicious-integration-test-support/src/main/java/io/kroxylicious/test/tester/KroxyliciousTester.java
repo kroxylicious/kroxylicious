@@ -101,12 +101,22 @@ public interface KroxyliciousTester extends Closeable {
 
     /**
      * Creates a Producer configured with the kroxylicious bootstrap server
-     * for a specific virtual cluster.
+     * for a specific virtual cluster for the default listener.
      * @param virtualCluster the virtual cluster we want the client to connect to
      * @return Producer
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
      */
     Producer<String, String> producer(String virtualCluster);
+
+    /**
+     * Creates a Producer configured with the kroxylicious bootstrap server
+     * for a specific virtual cluster for the default listener.
+     * @param virtualCluster the virtual cluster we want the client to connect to
+     * @param listener the listener we want the client to connect to
+     * @return Producer
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server or if the virtual cluster doesn't have the named listener
+     */
+    Producer<String, String> producer(String virtualCluster, String listener);
 
     /**
      * Creates a Producer configured with the kroxylicious bootstrap server
@@ -172,6 +182,17 @@ public interface KroxyliciousTester extends Closeable {
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
      */
     Consumer<String, String> consumer(String virtualCluster);
+
+    /**
+     * Creates a Consumer configured with the kroxylicious bootstrap server
+     * for a specific virtual cluster and listener. Also sets a random group id
+     * and sets auto offset reset to "earliest".
+     * @param virtualCluster the virtual cluster we want the client to connect to
+     * @param listener the listener to connect to
+     * @return Consumer
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server or if the virtual cluster doesn't have the named listener
+     */
+    Consumer<String, String> consumer(String virtualCluster, String listener);
 
     /**
      * Creates a Consumer configured with the kroxylicious bootstrap server
