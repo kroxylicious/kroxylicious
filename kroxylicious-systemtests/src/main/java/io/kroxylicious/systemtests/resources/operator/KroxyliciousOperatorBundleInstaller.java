@@ -70,8 +70,8 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     private static final Predicate<File> installFiles = file -> !file.getName().contains("Deployment");
     private static final Predicate<File> deploymentFiles = file -> file.getName().contains("Deployment");
 
-    public KroxyliciousOperatorBundleInstaller() {
-        this.namespaceInstallTo = Constants.KO_NAMESPACE;
+    public KroxyliciousOperatorBundleInstaller(String namespaceInstallTo) {
+        this.namespaceInstallTo = namespaceInstallTo;
         this.replicas = 1;
         this.extensionContext = ResourceManager.getTestContext();
         this.kroxyliciousOperatorName = Constants.KO_DEPLOYMENT_NAME;
