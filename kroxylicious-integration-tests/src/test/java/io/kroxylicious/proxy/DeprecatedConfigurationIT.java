@@ -11,16 +11,22 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.FilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation;
 import io.kroxylicious.proxy.filter.simpletransform.UpperCasing;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
@@ -34,6 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests of deprecated configurations and features
  */
 public class DeprecatedConfigurationIT extends BaseIT {
+
+    private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
 
     @Test
     void shouldSupportTopLevelFiltersProperty(KafkaCluster cluster, Topic topic1) throws Exception {
@@ -64,6 +72,29 @@ public class DeprecatedConfigurationIT extends BaseIT {
                     .singleElement()
                     .extracting(ConsumerRecord::value)
                     .isEqualTo("HELLO");
+        }
+    }
+
+    @Test
+    @Deprecated
+    void shouldSupportNetworkAddressConfigProviderConfig(KafkaCluster cluster) {
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                        .withNewTargetCluster()
+                        .withBootstrapServers(cluster.getBootstrapServers())
+                        .endTargetCluster()
+                        .withClusterNetworkAddressConfigProvider(new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                .withConfig("bootstrapAddress", PROXY_ADDRESS)
+                                .build())
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin()) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, "mytopic", 1);
+            assertThat(createTopicsResult.all()).isDone();
         }
     }
 }
