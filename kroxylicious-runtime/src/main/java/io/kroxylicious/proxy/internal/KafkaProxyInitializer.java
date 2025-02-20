@@ -39,10 +39,10 @@ import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.net.Endpoint;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointListener;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
-import io.kroxylicious.proxy.internal.net.VirtualClusterBinding;
-import io.kroxylicious.proxy.internal.net.VirtualClusterBindingResolver;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
@@ -56,7 +56,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final boolean haproxyProtocol;
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
     private final boolean tls;
-    private final VirtualClusterBindingResolver virtualClusterBindingResolver;
+    private final EndpointBindingResolver bindingResolver;
     private final EndpointReconciler endpointReconciler;
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
@@ -65,7 +65,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
-                                 VirtualClusterBindingResolver virtualClusterBindingResolver,
+                                 EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
@@ -75,7 +75,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
         this.tls = tls;
-        this.virtualClusterBindingResolver = virtualClusterBindingResolver;
+        this.bindingResolver = bindingResolver;
         this.filterChainFactory = filterChainFactory;
         this.apiVersionsService = apiVersionsService;
     }
@@ -105,7 +105,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
 
-                virtualClusterBindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), null)
+                bindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), null)
                         .handle((binding, t) -> {
                             if (t != null) {
                                 ctx.fireExceptionCaught(t);
@@ -134,7 +134,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         pipeline.addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
             try {
                 Endpoint endpoint = Endpoint.createEndpoint(bindingAddress, targetPort, tls);
-                var stage = virtualClusterBindingResolver.resolve(endpoint, sniHostname);
+                var stage = bindingResolver.resolve(endpoint, sniHostname);
                 // completes the netty promise when then resolution completes (success/otherwise).
                 stage.handle((binding, t) -> {
                     try {
@@ -174,7 +174,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     }
 
     @VisibleForTesting
-    void addHandlers(SocketChannel ch, VirtualClusterBinding binding) {
+    void addHandlers(SocketChannel ch, EndpointBinding binding) {
         var virtualCluster = binding.endpointListener().virtualCluster();
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
@@ -232,7 +232,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         private final SaslDecodePredicate decodePredicate;
         private final SocketChannel ch;
         private final EndpointListener listener;
-        private final VirtualClusterBinding binding;
+        private final EndpointBinding binding;
         private final PluginFactoryRegistry pfr;
         private final FilterChainFactory filterChainFactory;
         private final List<NamedFilterDefinition> filterDefinitions;
@@ -242,7 +242,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         InitalizerNetFilter(SaslDecodePredicate decodePredicate,
                             SocketChannel ch,
-                            VirtualClusterBinding binding,
+                            EndpointBinding binding,
                             PluginFactoryRegistry pfr,
                             FilterChainFactory filterChainFactory,
                             List<NamedFilterDefinition> filterDefinitions,

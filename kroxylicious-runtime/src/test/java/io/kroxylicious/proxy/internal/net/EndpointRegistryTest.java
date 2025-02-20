@@ -305,7 +305,7 @@ class EndpointRegistryTest {
 
         var endpoint = Endpoint.createEndpoint(downstreamBootstrap.port(), tls);
         var binding = endpointRegistry.resolve(endpoint, tls ? downstreamBootstrap.host() : null).toCompletableFuture().get();
-        assertThat(binding).isEqualTo(new VirtualClusterBootstrapBinding(virtualClusterModel1, upstreamBootstrap));
+        assertThat(binding).isEqualTo(new BootstrapEndpointBinding(virtualClusterModel1, upstreamBootstrap));
     }
 
     @ParameterizedTest
@@ -339,7 +339,7 @@ class EndpointRegistryTest {
         assertThat(f.isDone()).isTrue();
 
         var binding = endpointRegistry.resolve(Endpoint.createEndpoint(resolveAddress.port(), true), resolveAddress.host()).toCompletableFuture().get();
-        assertThat(binding).isEqualTo(new VirtualClusterBootstrapBinding(virtualClusterModel1, upstreamBootstrap));
+        assertThat(binding).isEqualTo(new BootstrapEndpointBinding(virtualClusterModel1, upstreamBootstrap));
     }
 
     @Test
@@ -353,7 +353,7 @@ class EndpointRegistryTest {
         when(virtualClusterModel1.getBrokerIdFromBrokerAddress(SNI_DOWNSTREAM_BROKER_0)).thenReturn(0);
         var sniFallbackBinding = endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_0.port(), true), SNI_DOWNSTREAM_BROKER_0.host())
                 .toCompletableFuture().get();
-        assertThat(sniFallbackBinding).isEqualTo(new VirtualClusterBrokerBinding(virtualClusterModel1, UPSTREAM_BOOTSTRAP, 0, true));
+        assertThat(sniFallbackBinding).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BOOTSTRAP, 0, true));
     }
 
     @Test
@@ -387,14 +387,14 @@ class EndpointRegistryTest {
         when(virtualClusterModel1.getBrokerIdFromBrokerAddress(SNI_DOWNSTREAM_BROKER_0)).thenReturn(0);
         var brokerBinding = endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_0.port(), true), SNI_DOWNSTREAM_BROKER_0.host()).toCompletableFuture()
                 .get();
-        assertThat(brokerBinding).isEqualTo(new VirtualClusterBrokerBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0, false));
+        assertThat(brokerBinding).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0, false));
 
         // Now try to resolve another broker address that matches the pattern, but isn't resolved.
         when(virtualClusterModel1.getBrokerIdFromBrokerAddress(SNI_DOWNSTREAM_BROKER_1)).thenReturn(1);
         var sniMatchBinding = endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_1.port(), true), SNI_DOWNSTREAM_BROKER_1.host())
                 .toCompletableFuture()
                 .get();
-        assertThat(sniMatchBinding).isEqualTo(new VirtualClusterBrokerBinding(virtualClusterModel1, UPSTREAM_BOOTSTRAP, 1, true));
+        assertThat(sniMatchBinding).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BOOTSTRAP, 1, true));
     }
 
     @Test
@@ -464,7 +464,7 @@ class EndpointRegistryTest {
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
         var binding = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
-        assertThat(binding).isEqualTo(new VirtualClusterBrokerBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0, false));
+        assertThat(binding).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0, false));
     }
 
     @Test
@@ -478,7 +478,7 @@ class EndpointRegistryTest {
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
         var binding = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
-        assertThat(binding).isEqualTo(new VirtualClusterBrokerBinding(virtualClusterModel1, UPSTREAM_BOOTSTRAP, 0, true));
+        assertThat(binding).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BOOTSTRAP, 0, true));
     }
 
     @Test
@@ -527,7 +527,7 @@ class EndpointRegistryTest {
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
         var resolvedBindingBeforeChange = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
-        assertThat(resolvedBindingBeforeChange).isEqualTo(new VirtualClusterBrokerBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0, false));
+        assertThat(resolvedBindingBeforeChange).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0, false));
 
         // Target cluster updates the address for broker 0
         var recf2 = endpointRegistry.reconcile(virtualClusterModel1, Map.of(0, upstreamBrokerUpdated0)).toCompletableFuture();
@@ -537,7 +537,7 @@ class EndpointRegistryTest {
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
         var resolvedBindingAfterChange = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
-        assertThat(resolvedBindingAfterChange).isEqualTo(new VirtualClusterBrokerBinding(virtualClusterModel1, upstreamBrokerUpdated0, 0, false));
+        assertThat(resolvedBindingAfterChange).isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, upstreamBrokerUpdated0, 0, false));
     }
 
     @Test
@@ -554,7 +554,7 @@ class EndpointRegistryTest {
         var resolveBroker0BeforeReconcile = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
         assertThat(resolveBroker0BeforeReconcile)
                 .describedAs("Resolving pre-bound broker 0 should yield the upstream address for bootstrap")
-                .isEqualTo(new VirtualClusterBrokerBinding(virtualClusterModel1, UPSTREAM_BOOTSTRAP, 0, true));
+                .isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BOOTSTRAP, 0, true));
 
         // Reconcile learns that upstream broker topology actually has only one broker
         // DOWNSTREAM_BROKER_0 binding has to be updated
@@ -568,13 +568,13 @@ class EndpointRegistryTest {
         var resolveBroker0AfterReconcile = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
         assertThat(resolveBroker0AfterReconcile)
                 .describedAs("Resolving reconciled broker 0 should yield the actual upstream address for broker0")
-                .isEqualTo(new VirtualClusterBrokerBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0, false));
+                .isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BROKER_0, 0, false));
 
         // And resolving broker 1 still yields the bootstrap
         var resolveBroker1AfterReconcile = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_1.port(), false), null).toCompletableFuture().get();
         assertThat(resolveBroker1AfterReconcile)
                 .describedAs("Resolving reconciled broker 1 should still yield bootstrap")
-                .isEqualTo(new VirtualClusterBrokerBinding(virtualClusterModel1, UPSTREAM_BOOTSTRAP, 1, true));
+                .isEqualTo(new BrokerEndpointBinding(virtualClusterModel1, UPSTREAM_BOOTSTRAP, 1, true));
 
     }
 
