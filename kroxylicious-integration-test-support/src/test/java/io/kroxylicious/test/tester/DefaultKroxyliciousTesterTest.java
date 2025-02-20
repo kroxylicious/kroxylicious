@@ -40,6 +40,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
@@ -550,15 +551,17 @@ class DefaultKroxyliciousTesterTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
-                .withNewTls()
-                .withNewKeyStoreKey()
-                .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())
-                .withNewInlinePasswordStoreProvider(keytoolCertificateGenerator.getPassword())
-                .endKeyStoreKey()
-                .endTls()
-                .withClusterNetworkAddressConfigProvider(
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP).build());
+                .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .withNewTls()
+                        .withNewKeyStoreKey()
+                        .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())
+                        .withNewInlinePasswordStoreProvider(keytoolCertificateGenerator.getPassword())
+                        .endKeyStoreKey()
+                        .endTls()
+                        .withClusterNetworkAddressConfigProvider(
+                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                        .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP).build())
+                        .build());
         configurationBuilder
                 .addToVirtualClusters(TLS_CLUSTER, vcb.build());
 

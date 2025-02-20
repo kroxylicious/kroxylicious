@@ -55,12 +55,4 @@ public record VirtualCluster(TargetCluster targetCluster,
         }
     }
 
-    public ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider() {
-        throw new UnsupportedOperationException();
-    }
-
-    public Optional<Tls> tls() {
-        throw new UnsupportedOperationException();
-    }
-
 }
