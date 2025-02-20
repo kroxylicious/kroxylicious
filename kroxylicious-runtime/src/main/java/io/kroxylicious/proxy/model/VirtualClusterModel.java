@@ -57,7 +57,7 @@ public class VirtualClusterModel {
 
     private final boolean logFrames;
 
-    private final Map<String, VirtualClusterListenerModel> listeners = new HashMap<>();
+    private final Map<String, EndpointListener> listeners = new HashMap<>();
 
     private final List<NamedFilterDefinition> filters;
 
@@ -232,7 +232,7 @@ public class VirtualClusterModel {
         return filters;
     }
 
-    public Map<String, VirtualClusterListenerModel> listeners() {
+    public Map<String, EndpointListener> listeners() {
         return Collections.unmodifiableMap(listeners);
     }
 
@@ -252,6 +252,7 @@ public class VirtualClusterModel {
 
         }
 
+        @Override
         public VirtualClusterModel virtualCluster() {
             return virtualCluster;
         }
@@ -293,10 +294,12 @@ public class VirtualClusterModel {
             return getClusterNetworkAddressConfigProvider().requiresTls();
         }
 
+        @Override
         public Set<Integer> getExclusivePorts() {
             return getClusterNetworkAddressConfigProvider().getExclusivePorts();
         }
 
+        @Override
         public Set<Integer> getSharedPorts() {
             return getClusterNetworkAddressConfigProvider().getSharedPorts();
         }
@@ -309,6 +312,7 @@ public class VirtualClusterModel {
             return getClusterNetworkAddressConfigProvider().getBrokerIdFromBrokerAddress(brokerAddress);
         }
 
+        @Override
         public Optional<SslContext> getDownstreamSslContext() {
             return downstreamSslContext;
         }
