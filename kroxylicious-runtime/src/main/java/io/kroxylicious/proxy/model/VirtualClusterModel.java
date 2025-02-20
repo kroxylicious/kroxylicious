@@ -40,6 +40,7 @@ import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.net.EndpointListener;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -106,7 +107,7 @@ public class VirtualClusterModel {
 
     @Override
     public String toString() {
-        return "VirtualCluster{" +
+        return "VirtualClusterModel{" +
                 "clusterName='" + clusterName + '\'' +
                 ", targetCluster=" + targetCluster +
                 ", listeners=" + listeners +
@@ -114,6 +115,16 @@ public class VirtualClusterModel {
                 ", logFrames=" + logFrames +
                 ", upstreamSslContext=" + upstreamSslContext +
                 '}';
+    }
+
+    public Optional<SslContext> getUpstreamSslContext() {
+        return upstreamSslContext;
+    }
+
+    @NonNull
+    private static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
+        final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
+        return new NettyTrustProvider(trustProvider);
     }
 
     private Optional<SslContext> buildUpstreamSslContext() {
@@ -185,10 +196,6 @@ public class VirtualClusterModel {
         });
     }
 
-    public Optional<SslContext> getUpstreamSslContext() {
-        return upstreamSslContext;
-    }
-
     private static SSLParameters getDefaultSSLParameters() {
         try {
             return SSLContext.getDefault().getDefaultSSLParameters();
@@ -205,12 +212,6 @@ public class VirtualClusterModel {
         catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @NonNull
-    private static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
-        final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
-        return new NettyTrustProvider(trustProvider);
     }
 
     private static void validatePortUsage(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider) {
@@ -243,13 +244,12 @@ public class VirtualClusterModel {
         private final Optional<Tls> tls;
         private final Optional<SslContext> downstreamSslContext;
 
-        public VirtualClusterListenerModel(VirtualClusterModel virtualCluster, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
+        @VisibleForTesting
+        VirtualClusterListenerModel(VirtualClusterModel virtualCluster, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
             this.virtualCluster = virtualCluster;
             this.provider = provider;
             this.tls = tls;
-
             this.downstreamSslContext = buildDownstreamSslContext();
-
         }
 
         @Override
@@ -257,22 +257,11 @@ public class VirtualClusterModel {
             return virtualCluster;
         }
 
-        public ClusterNetworkAddressConfigProvider getClusterNetworkAddressConfigProvider() {
+        private ClusterNetworkAddressConfigProvider getClusterNetworkAddressConfigProvider() {
             return provider;
         }
 
-        public Optional<Tls> tls() {
-            return tls;
-        }
-
         @Override
-        public String toString() {
-            return "VirtualClusterListenerModel[" +
-                    "virtualCluster=" + virtualCluster + ", " +
-                    "provider=" + provider + ", " +
-                    "tls=" + tls + ']';
-        }
-
         public HostPort getClusterBootstrapAddress() {
             return getClusterNetworkAddressConfigProvider().getClusterBootstrapAddress();
         }
@@ -282,14 +271,17 @@ public class VirtualClusterModel {
             return virtualCluster.targetCluster();
         }
 
+        @Override
         public HostPort getBrokerAddress(int nodeId) throws IllegalArgumentException {
             return getClusterNetworkAddressConfigProvider().getBrokerAddress(nodeId);
         }
 
+        @Override
         public Optional<String> getBindAddress() {
             return getClusterNetworkAddressConfigProvider().getBindAddress();
         }
 
+        @Override
         public boolean requiresTls() {
             return getClusterNetworkAddressConfigProvider().requiresTls();
         }
@@ -304,12 +296,24 @@ public class VirtualClusterModel {
             return getClusterNetworkAddressConfigProvider().getSharedPorts();
         }
 
+        @Override
         public Map<Integer, HostPort> discoveryAddressMap() {
             return getClusterNetworkAddressConfigProvider().discoveryAddressMap();
         }
 
+        @Override
         public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
             return getClusterNetworkAddressConfigProvider().getBrokerIdFromBrokerAddress(brokerAddress);
+        }
+
+        @Override
+        public HostPort getAdvertisedBrokerAddress(int nodeId) {
+            return getClusterNetworkAddressConfigProvider().getAdvertisedBrokerAddress(nodeId);
+        }
+
+        @Override
+        public boolean isUseTls() {
+            return tls.isPresent();
         }
 
         @Override
@@ -334,13 +338,12 @@ public class VirtualClusterModel {
             });
         }
 
-        public HostPort getAdvertisedBrokerAddress(int nodeId) {
-            return getClusterNetworkAddressConfigProvider().getAdvertisedBrokerAddress(nodeId);
+        @Override
+        public String toString() {
+            return "VirtualClusterListenerModel[" +
+                    "virtualCluster=" + virtualCluster + ", " +
+                    "provider=" + provider + ", " +
+                    "tls=" + tls + ']';
         }
-
-        public boolean isUseTls() {
-            return tls.isPresent();
-        }
-
     }
 }
