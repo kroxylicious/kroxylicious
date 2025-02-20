@@ -12,10 +12,12 @@ virtualClusters:
   demo:
     targetCluster:
       bootstrapServers: localhost:9092
-    clusterNetworkAddressConfigProvider:
-      type: PortPerBrokerClusterNetworkAddressConfigProvider
-      config:
-        bootstrapAddress: localhost:9192
+    listeners:
+      abc:
+        clusterNetworkAddressConfigProvider:
+          type: PortPerBrokerClusterNetworkAddressConfigProvider
+          config:
+            bootstrapAddress: localhost:9192
     logNetwork: false
     logFrames: false
 filterDefinitions:
