@@ -48,6 +48,6 @@ public class KroxyliciousOperator {
         if (Environment.INSTALL_TYPE != InstallType.Yaml) {
             throw new UnsupportedInstallationType("Installation type " + Environment.INSTALL_TYPE + " not supported");
         }
-        return new KroxyliciousOperatorBundleInstaller().getDefaultBuilder(installationNamespace).createBundleInstallation();
+        return new KroxyliciousOperatorBundleInstaller();
     }
 }

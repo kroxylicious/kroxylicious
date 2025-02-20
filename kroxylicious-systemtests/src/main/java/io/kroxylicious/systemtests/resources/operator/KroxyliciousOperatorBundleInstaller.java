@@ -13,7 +13,6 @@ import java.io.FileNotFoundException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,8 +39,6 @@ import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
@@ -58,8 +55,8 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     private static List<File> operatorFiles;
 
     private final ExtensionContext extensionContext;
-    private String kroxyliciousOperatorName;
-    private String namespaceInstallTo;
+    private final String kroxyliciousOperatorName;
+    private final String namespaceInstallTo;
     private Map<String, String> extraLabels;
     private final int replicas;
 
@@ -78,27 +75,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         this.namespaceInstallTo = Constants.KO_NAMESPACE;
         this.replicas = 1;
         this.extensionContext = ResourceManager.getTestContext();
-    }
-
-    @SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
-    public KroxyliciousOperatorBundleInstaller(KroxyliciousOperatorBuilder builder) {
-        this.extensionContext = builder.extensionContext;
-        this.kroxyliciousOperatorName = builder.kroxyliciousOperatorName;
-        this.namespaceInstallTo = builder.namespaceInstallTo;
-        this.extraLabels = builder.extraLabels;
-        this.replicas = builder.replicas;
-
-        // assign defaults is something is not specified
-        if (this.kroxyliciousOperatorName == null || this.kroxyliciousOperatorName.isEmpty()) {
-            this.kroxyliciousOperatorName = Constants.KO_DEPLOYMENT_NAME;
-        }
-        // if namespace is not set we install operator to 'kroxylicious-operator'
-        if (this.namespaceInstallTo == null || this.namespaceInstallTo.isEmpty()) {
-            this.namespaceInstallTo = Constants.KO_NAMESPACE;
-        }
-        if (this.extraLabels == null) {
-            this.extraLabels = new HashMap<>();
-        }
+        this.kroxyliciousOperatorName = Constants.KO_DEPLOYMENT_NAME;
     }
 
     private static List<File> getOperatorFiles() {
@@ -160,9 +137,9 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     }
 
     private void applyDeploymentFile() {
-        Deployment accessOperatorDeployment = TestFrameUtils.configFromYaml(getFilteredOperatorFiles(deploymentFiles).get(0), Deployment.class);
+        Deployment operatorDeployment = TestFrameUtils.configFromYaml(getFilteredOperatorFiles(deploymentFiles).get(0), Deployment.class);
 
-        String deploymentImage = accessOperatorDeployment
+        String deploymentImage = operatorDeployment
                 .getSpec()
                 .getTemplate()
                 .getSpec()
@@ -170,7 +147,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .get(0)
                 .getImage();
 
-        accessOperatorDeployment = new DeploymentBuilder(accessOperatorDeployment)
+        operatorDeployment = new DeploymentBuilder(operatorDeployment)
                 .editOrNewMetadata()
                 .withName(kroxyliciousOperatorName)
                 .withNamespace(namespaceInstallTo)
@@ -195,7 +172,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .endSpec()
                 .build();
 
-        ResourceManager.getInstance().createResourceWithWait(accessOperatorDeployment);
+        ResourceManager.getInstance().createResourceWithWait(operatorDeployment);
     }
 
     /**
@@ -298,53 +275,5 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             }
         }
         LOGGER.info(SEPARATOR);
-    }
-
-    public KroxyliciousOperatorBuilder getDefaultBuilder(String installationNamespace) {
-        return new KroxyliciousOperatorBuilder()
-                .withExtensionContext(ResourceManager.getTestContext())
-                .withNamespace(installationNamespace);
-    }
-
-    public static class KroxyliciousOperatorBuilder {
-
-        private ExtensionContext extensionContext;
-        private String kroxyliciousOperatorName;
-        private String namespaceInstallTo;
-        private Map<String, String> extraLabels;
-        private int replicas = 1;
-
-        public KroxyliciousOperatorBuilder withExtensionContext(ExtensionContext extensionContext) {
-            this.extensionContext = extensionContext;
-            return self();
-        }
-
-        public KroxyliciousOperatorBuilder withKroxyliciousOperatorName(String kroxyliciousOperatorName) {
-            this.kroxyliciousOperatorName = kroxyliciousOperatorName;
-            return self();
-        }
-
-        public KroxyliciousOperatorBuilder withNamespace(String namespaceInstallTo) {
-            this.namespaceInstallTo = namespaceInstallTo;
-            return self();
-        }
-
-        public KroxyliciousOperatorBuilder withExtraLabels(Map<String, String> extraLabels) {
-            this.extraLabels = extraLabels;
-            return self();
-        }
-
-        public KroxyliciousOperatorBuilder withReplicas(int replicas) {
-            this.replicas = replicas;
-            return self();
-        }
-
-        private KroxyliciousOperatorBuilder self() {
-            return this;
-        }
-
-        public KroxyliciousOperatorBundleInstaller createBundleInstallation() {
-            return new KroxyliciousOperatorBundleInstaller(this);
-        }
     }
 }
