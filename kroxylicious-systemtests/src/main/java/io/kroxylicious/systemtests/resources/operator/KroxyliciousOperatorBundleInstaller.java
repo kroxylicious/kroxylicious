@@ -34,7 +34,6 @@ import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
@@ -128,12 +127,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         }
         applyClusterOperatorInstallFiles(clientNamespace);
         applyDeploymentFile();
-
-        if (cluster.cluster().isOpenshift() && kubeClient().getNamespace(Environment.KROXY_ORG) != null) {
-            LOGGER.debug("Setting group policy for Openshift registry in Namespace: {}", clientNamespace);
-            Exec.exec(
-                    Arrays.asList("oc", "policy", "add-role-to-group", "system:image-puller", "system:serviceaccounts:" + clientNamespace, "-n", Environment.KROXY_ORG));
-        }
     }
 
     private void applyDeploymentFile() {
