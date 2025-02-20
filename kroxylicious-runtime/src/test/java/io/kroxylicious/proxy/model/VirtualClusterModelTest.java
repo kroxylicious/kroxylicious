@@ -12,12 +12,11 @@ import java.util.Optional;
 
 import javax.net.ssl.SSLContext;
 
-import io.kroxylicious.proxy.config.NamedFilterDefinition;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.KeyPair;

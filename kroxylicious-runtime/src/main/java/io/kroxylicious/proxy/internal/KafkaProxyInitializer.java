@@ -210,11 +210,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 binding,
                 pfr,
                 filterChainFactory,
-                binding.endpointListener().virtualCluster().getFilters(),
+                virtualCluster.getFilters(),
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster);
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding.endpointListener());
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);
