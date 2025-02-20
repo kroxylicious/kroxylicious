@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.flipkart.zjsonpatch.JsonDiff;
 
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
@@ -33,7 +34,7 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class ConfigurationTest {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
+    private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory()).registerModule(new Jdk8Module());
     private final ConfigParser configParser = new ConfigParser();
 
     @Test
@@ -94,6 +95,118 @@ class ConfigurationTest {
         }).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("'bootstrapServers' is required in a target cluster.");
+    }
+
+    @Test
+    void shouldRejectVirtualClusterWithNoListeners() {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                              targetCluster:
+                                bootstrap_servers: kafka.example:1234
+                            """, VirtualCluster.class);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("no listeners configured for virtualCluster");
+    }
+
+    @Test
+    void shouldRejectVirtualClusterWithNullListeners() {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                              targetCluster:
+                                bootstrap_servers: kafka.example:1234
+                              listeners: null
+                            """, VirtualCluster.class);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("no listeners configured for virtualCluster");
+    }
+
+    @Test
+    void shouldRejectVirtualClusterNullListenerValue() {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                              targetCluster:
+                                bootstrap_servers: kafka.example:1234
+                              listeners:
+                                default: null
+                            """, VirtualCluster.class);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("some listeners had null values: '[default]'");
+    }
+
+    @Test
+    void shouldRejectVirtualClusterWithTlsButNoLegacyProvider() {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                              targetCluster:
+                                bootstrap_servers: kafka.example:1234
+                              tls:
+                                 key:
+                                   certificateFile: /tmp/cert
+                                   privateKeyFile: /tmp/key
+                                   keyPassword:
+                                     password: keypassword
+                            """, VirtualCluster.class);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Deprecated virtualCluster property 'tls' supplied, but 'clusterNetworkAddressConfigProvider' is null");
+    }
+
+    @Test
+    void shouldRejectVirtualClusterWithTlsButNullLegacyProvider() {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                              targetCluster:
+                                bootstrap_servers: kafka.example:1234
+                              tls:
+                                 key:
+                                   certificateFile: /tmp/cert
+                                   privateKeyFile: /tmp/key
+                                   keyPassword:
+                                     password: keypassword
+                              clusterNetworkAddressConfigProvider: null
+                            """, VirtualCluster.class);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Deprecated virtualCluster property 'tls' supplied, but 'clusterNetworkAddressConfigProvider' is null");
+    }
+
+    @Test
+    void shouldRejectVirtualClusterWithLegacyProviderAndNewListeners() {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                              targetCluster:
+                                bootstrap_servers: kafka.example:1234
+                              listeners:
+                                default:
+                                  tls:
+                                    key:
+                                      certificateFile: /tmp/cert
+                                      privateKeyFile: /tmp/key
+                                      keyPassword:
+                                        password: keypassword
+                                  clusterNetworkAddressConfigProvider:
+                                    type: SniRoutingClusterNetworkAddressConfigProvider
+                                    config:
+                                      bootstrapAddress: cluster1:9192
+                                      advertisedBrokerAddressPattern: broker-$(nodeId)
+                              clusterNetworkAddressConfigProvider:
+                                type: SniRoutingClusterNetworkAddressConfigProvider
+                                config:
+                                  bootstrapAddress: cluster1:9192
+                                  advertisedBrokerAddressPattern: broker-$(nodeId)
+                            """, VirtualCluster.class);
+        }).isInstanceOf(ValueInstantiationException.class)
+                .hasCauseInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("When using listeners, the virtualCluster properties 'clusterNetworkAddressConfigProvider' and 'tls' must be omitted");
     }
 
     @Test
@@ -552,7 +665,8 @@ class ConfigurationTest {
     void shouldRejectMissingClusterFilter() {
         Optional<Map<String, Object>> development = Optional.empty();
         List<NamedFilterDefinition> filterDefinitions = List.of();
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, Map.of(), false, false, List.of("missing")));
+        Map<String, VirtualClusterListener> defaultListener = Map.of("default", new VirtualClusterListenerBuilder().build());
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultListener, false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
                 null, filterDefinitions,
                 null,
@@ -574,7 +688,8 @@ class ConfigurationTest {
         );
 
         List<String> defaultFilters = List.of("used1");
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, Map.of(), false, false, List.of("used2")));
+        Map<String, VirtualClusterListener> defaultListener = Map.of("default", new VirtualClusterListenerBuilder().build());
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultListener, false, false, List.of("used2")));
         assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
                 defaultFilters,
                 virtualClusters,
@@ -588,7 +703,8 @@ class ConfigurationTest {
     @SuppressWarnings("java:S5738")
     void shouldRejectVirtualClusterFiltersWhenTopLevelFilters() {
         Optional<Map<String, Object>> development = Optional.empty();
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, null, Map.of(), false, false, List.of()));
+        Map<String, VirtualClusterListener> defaultListener = Map.of("default", new VirtualClusterListenerBuilder().build());
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultListener, false, false, List.of()));
         assertThatThrownBy(() -> new Configuration(
                 null,
                 null,

@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.config;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +45,9 @@ public record VirtualCluster(TargetCluster targetCluster,
     @SuppressWarnings("removal")
     public VirtualCluster {
         if (clusterNetworkAddressConfigProvider != null || tls.isPresent()) {
+            if (clusterNetworkAddressConfigProvider == null) {
+                throw new IllegalConfigurationException("Deprecated virtualCluster property 'tls' supplied, but 'clusterNetworkAddressConfigProvider' is null");
+            }
             if (listeners == null || listeners.isEmpty()) {
                 LOGGER.warn(
                         "The virtualCluster properties 'clusterNetworkAddressConfigProvider' and 'tls' are deprecated, specify virtual cluster listeners using the listeners map.");
@@ -52,6 +57,13 @@ public record VirtualCluster(TargetCluster targetCluster,
                 throw new IllegalConfigurationException(
                         "When using listeners, the virtualCluster properties 'clusterNetworkAddressConfigProvider' and 'tls' must be omitted");
             }
+        }
+        if (listeners == null || listeners.isEmpty()) {
+            throw new IllegalConfigurationException("no listeners configured for virtualCluster");
+        }
+        Set<String> keysWithNullValues = listeners.entrySet().stream().filter(e -> e.getValue() == null).map(Map.Entry::getKey).collect(Collectors.toSet());
+        if (!keysWithNullValues.isEmpty()) {
+            throw new IllegalConfigurationException("some listeners had null values: '" + keysWithNullValues + "'");
         }
     }
 
