@@ -229,8 +229,7 @@ public record Configuration(
         return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
 
-    private static ClusterNetworkAddressConfigProvider buildNetworkAddressProviderService(
-                                                                                          @NonNull ClusterNetworkAddressConfigProviderDefinition definition,
+    private static ClusterNetworkAddressConfigProvider buildNetworkAddressProviderService(@NonNull ClusterNetworkAddressConfigProviderDefinition definition,
                                                                                           @NonNull PluginFactoryRegistry registry) {
         var provider = registry.pluginFactory(ClusterNetworkAddressConfigProviderService.class)
                 .pluginInstance(definition.type());

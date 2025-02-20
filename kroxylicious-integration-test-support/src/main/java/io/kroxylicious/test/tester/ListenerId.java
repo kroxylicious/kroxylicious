@@ -6,4 +6,4 @@
 
 package io.kroxylicious.test.tester;
 
-public record ListenerId(String virtualCluster, String listener) {}
+record ListenerId(String virtualCluster, String listener) {}

@@ -63,7 +63,7 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
-import io.kroxylicious.testing.kafka.common.SaslPlainAuth;
+import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.common.ZooKeeperCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -464,7 +464,8 @@ class ExpositionIT extends BaseIT {
     void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart_Sasl(String name,
                                                                               VirtualClusterBuilder virtualClusterBuilder,
                                                                               Map<String, Object> clientSecurityProtocolConfig,
-                                                                              @BrokerCluster(numBrokers = 2) @SaslPlainAuth(user = SASL_USER, password = SASL_PASSWORD) KafkaCluster cluster) {
+                                                                              @BrokerCluster(numBrokers = 2) @SaslMechanism(principals = {
+                                                                                      @SaslMechanism.Principal(user = SASL_USER, password = SASL_PASSWORD) }) KafkaCluster cluster) {
 
         final Optional<Tls> tls = virtualClusterBuilder.getListeners().get(DEFAULT_LISTENER_NAME).tls();
         SecurityProtocol securityProtocol = tls.isPresent() ? SecurityProtocol.SASL_SSL : SecurityProtocol.SASL_PLAINTEXT;
