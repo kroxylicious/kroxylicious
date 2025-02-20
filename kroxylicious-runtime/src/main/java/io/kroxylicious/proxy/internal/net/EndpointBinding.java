@@ -9,11 +9,11 @@ package io.kroxylicious.proxy.internal.net;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
- * A binding to a virtual cluster.
+ * An endpoint binding.
  */
-public interface VirtualClusterBinding {
+public interface EndpointBinding {
     /**
-     * The virtual cluster.
+     * The endpoint listener.
      *
      * @return virtual cluster.
      */
