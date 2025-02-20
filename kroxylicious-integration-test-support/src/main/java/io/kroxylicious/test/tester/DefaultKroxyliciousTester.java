@@ -47,6 +47,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
+
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
 
@@ -55,7 +57,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     private final Configuration kroxyliciousConfig;
 
-    private final Map<String, KroxyliciousClients> clients;
+    private final Map<ListenerId, KroxyliciousClients> clients;
     private final Map<String, Set<String>> topicsPerVirtualCluster;
 
     private final ClientFactory clientFactory;
@@ -74,7 +76,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients() {
-        return clients(onlyVirtualCluster());
+        return clients(onlyVirtualCluster(), DEFAULT_LISTENER_NAME);
     }
 
     private String onlyVirtualCluster() {
@@ -88,39 +90,39 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
     }
 
-    private KroxyliciousClients clients(String virtualCluster) {
-        return clients.computeIfAbsent(virtualCluster,
-                k -> clientFactory.build(virtualCluster, buildDefaultClientConfiguration(virtualCluster)));
+    private KroxyliciousClients clients(String virtualCluster, String listener) {
+        ListenerId key = new ListenerId(virtualCluster, listener);
+        return clients.computeIfAbsent(key,
+                k -> clientFactory.build(key, buildDefaultClientConfiguration(virtualCluster, listener)));
     }
 
     @NonNull
-    private Map<String, Object> buildDefaultClientConfiguration(String virtualCluster) {
+    private Map<String, Object> buildDefaultClientConfiguration(String virtualCluster, String listener) {
         Map<String, Object> defaultClientConfig = new HashMap<>();
-        defaultClientConfig.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapAddress(virtualCluster));
-        configureClientTls(virtualCluster, defaultClientConfig);
+        defaultClientConfig.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapAddress(virtualCluster, listener));
+        configureClientTls(virtualCluster, defaultClientConfig, listener);
         return defaultClientConfig;
     }
 
     @Override
     @NonNull
     public String getBootstrapAddress() {
-        return getBootstrapAddress(onlyVirtualCluster());
+        return getBootstrapAddress(onlyVirtualCluster(), DEFAULT_LISTENER_NAME);
     }
 
     @Override
     @NonNull
-    public String getBootstrapAddress(String virtualCluster) {
-        return KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig);
+    public String getBootstrapAddress(String virtualCluster, String listener) {
+        return KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig, listener);
     }
 
-    private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig) {
+    private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig, String listener) {
         final VirtualCluster definedCluster = kroxyliciousConfig.virtualClusters().get(virtualCluster);
         if (definedCluster != null) {
-            if (definedCluster.listeners().size() > 1) {
-                throw new IllegalArgumentException("TODO: support multiple listeners");
+            if (!definedCluster.listeners().containsKey(listener)) {
+                throw new IllegalArgumentException("cluster " + virtualCluster + " does not contain listener named " + listener);
             }
-            // TODO support specifying listener in the test APIs
-            final Optional<Tls> tls = definedCluster.listeners().values().stream().findFirst().orElseThrow().tls();
+            final Optional<Tls> tls = definedCluster.listeners().get(listener).tls();
             if (tls.isPresent()) {
                 defaultClientConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
                 if (trustStoreConfiguration.isPresent()) {
@@ -179,47 +181,52 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @Override
     public KafkaClient simpleTestClient(String virtualCluster) {
-        return clients(virtualCluster).simpleTestClient();
+        return clients(virtualCluster, DEFAULT_LISTENER_NAME).simpleTestClient();
     }
 
     @Override
     public Admin admin(String virtualCluster, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster).admin(additionalConfig);
+        return clients(virtualCluster, DEFAULT_LISTENER_NAME).admin(additionalConfig);
     }
 
     @Override
     public Admin admin(String virtualCluster) {
-        return clients(virtualCluster).admin();
+        return clients(virtualCluster, DEFAULT_LISTENER_NAME).admin();
+    }
+
+    @Override
+    public Admin admin(String virtualCluster, String listener) {
+        return clients(virtualCluster, listener).admin();
     }
 
     @Override
     public Producer<String, String> producer(String virtualCluster, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster).producer(additionalConfig);
+        return clients(virtualCluster, DEFAULT_LISTENER_NAME).producer(additionalConfig);
     }
 
     @Override
     public Producer<String, String> producer(String virtualCluster) {
-        return clients(virtualCluster).producer();
+        return clients(virtualCluster, DEFAULT_LISTENER_NAME).producer();
     }
 
     @Override
     public <U, V> Producer<U, V> producer(String virtualCluster, Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster).producer(keySerde, valueSerde, additionalConfig);
+        return clients(virtualCluster, DEFAULT_LISTENER_NAME).producer(keySerde, valueSerde, additionalConfig);
     }
 
     @Override
     public Consumer<String, String> consumer(String virtualCluster, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster).consumer(additionalConfig);
+        return clients(virtualCluster, DEFAULT_LISTENER_NAME).consumer(additionalConfig);
     }
 
     @Override
     public Consumer<String, String> consumer(String virtualCluster) {
-        return clients(virtualCluster).consumer();
+        return clients(virtualCluster, DEFAULT_LISTENER_NAME).consumer();
     }
 
     @Override
     public <U, V> Consumer<U, V> consumer(String virtualCluster, Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster).consumer(keySerde, valueSerde, additionalConfig);
+        return clients(virtualCluster, DEFAULT_LISTENER_NAME).consumer(keySerde, valueSerde, additionalConfig);
     }
 
     public void restartProxy() {
@@ -275,7 +282,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @Override
     public Set<String> createTopics(String virtualCluster, int numberOfTopics) {
-        try (Admin admin = clients(virtualCluster).admin()) {
+        try (Admin admin = clients(virtualCluster, DEFAULT_LISTENER_NAME).admin()) {
             final List<NewTopic> newTopics = IntStream.range(0, numberOfTopics).mapToObj(ignored -> {
                 final String topicName = MobyNamesGenerator.getRandomName();
                 return new NewTopic(topicName, (short) 1, (short) 1);
@@ -302,7 +309,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @Override
     public void deleteTopics(String virtualCluster) {
-        try (Admin admin = clients(virtualCluster).admin()) {
+        try (Admin admin = clients(virtualCluster, DEFAULT_LISTENER_NAME).admin()) {
             final Set<String> topics = topicsForVirtualCluster(virtualCluster);
             if (!topics.isEmpty()) {
                 admin.deleteTopics(topics)
@@ -338,7 +345,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @FunctionalInterface
     interface ClientFactory {
-        KroxyliciousClients build(String clusterName, Map<String, Object> defaultClientConfig);
+        KroxyliciousClients build(ListenerId listener, Map<String, Object> defaultClientConfig);
     }
 
 }
