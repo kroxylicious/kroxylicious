@@ -225,7 +225,7 @@ class ConfigurationTest {
 
         assertThat(vc.listeners())
                 .hasSize(1)
-                .hasEntrySatisfying("default", listener -> {
+                .hasEntrySatisfying(DEFAULT_LISTENER_NAME, listener -> {
                     assertThat(listener.clusterNetworkAddressConfigProvider().type())
                             .isEqualTo("SniRoutingClusterNetworkAddressConfigProvider");
                 });
@@ -672,7 +672,7 @@ class ConfigurationTest {
     void shouldRejectMissingClusterFilter() {
         Optional<Map<String, Object>> development = Optional.empty();
         List<NamedFilterDefinition> filterDefinitions = List.of();
-        Map<String, VirtualClusterListener> defaultListener = Map.of("default", new VirtualClusterListenerBuilder().build());
+        Map<String, VirtualClusterListener> defaultListener = Map.of(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder().build());
         Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultListener, false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
                 null, filterDefinitions,
@@ -695,7 +695,7 @@ class ConfigurationTest {
         );
 
         List<String> defaultFilters = List.of("used1");
-        Map<String, VirtualClusterListener> defaultListener = Map.of("default", new VirtualClusterListenerBuilder().build());
+        Map<String, VirtualClusterListener> defaultListener = Map.of(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder().build());
         Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultListener, false, false, List.of("used2")));
         assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
                 defaultFilters,
@@ -710,7 +710,7 @@ class ConfigurationTest {
     @SuppressWarnings("java:S5738")
     void shouldRejectVirtualClusterFiltersWhenTopLevelFilters() {
         Optional<Map<String, Object>> development = Optional.empty();
-        Map<String, VirtualClusterListener> defaultListener = Map.of("default", new VirtualClusterListenerBuilder().build());
+        Map<String, VirtualClusterListener> defaultListener = Map.of(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder().build());
         Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultListener, false, false, List.of()));
         assertThatThrownBy(() -> new Configuration(
                 null,
