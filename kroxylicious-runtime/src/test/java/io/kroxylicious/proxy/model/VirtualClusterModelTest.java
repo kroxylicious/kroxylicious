@@ -12,6 +12,8 @@ import java.util.Optional;
 
 import javax.net.ssl.SSLContext;
 
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,6 +35,7 @@ class VirtualClusterModelTest {
     private static final InlinePassword PASSWORD_PROVIDER = new InlinePassword("storepass");
 
     private static final String KNOWN_CIPHER_SUITE;
+    private static final List<NamedFilterDefinition> EMPTY_FILTERS = List.of();
 
     static {
         try {
@@ -65,7 +68,7 @@ class VirtualClusterModelTest {
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", downstreamTls);
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualClusterModel("wibble", targetCluster, false, false, List.of()))
+        assertThatThrownBy(() -> new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");
     }

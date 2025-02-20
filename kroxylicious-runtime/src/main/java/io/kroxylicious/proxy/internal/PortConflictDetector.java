@@ -53,49 +53,52 @@ public class PortConflictDetector {
                 .forEach(virtualCluster -> {
                     var name = virtualCluster.getClusterName();
 
-                    virtualCluster.listeners().forEach((listenerName, listener) -> {
-                        var proposedSharedPorts = listener.getSharedPorts();
-                        var proposedExclusivePorts = listener.getExclusivePorts();
-
-                        if (otherExclusivePort.isPresent()) {
-                            Optional<String> otherInterface = otherExclusivePort.map(hostPort -> hostPort.host().equals("0.0.0.0") ? null : hostPort.host());
-                            var checkPorts = listener.getBindAddress().isEmpty() || otherInterface.isEmpty() || listener.getBindAddress().equals(otherInterface);
-                            if (checkPorts) {
-                                checkForConflictsWithOtherExclusivePort(otherExclusivePort.get(), name, listener, proposedExclusivePorts, BindingScope.EXCLUSIVE);
-                                checkForConflictsWithOtherExclusivePort(otherExclusivePort.get(), name, listener, proposedSharedPorts, BindingScope.SHARED);
-                            }
-                        }
-
-                        // if this virtual cluster is binding to <any>, we need to check for conflicts on the <any> interface and *all* specific interfaces,
-                        // otherwise we just check for conflicts on <any> and the specified specific interface
-                        var exclusiveCheckSet = listener.getBindAddress().isEmpty() ? inUseExclusivePorts.keySet()
-                                : Set.of(ANY_INTERFACE, listener.getBindAddress());
-
-                        // check the proposed *exclusive ports* for conflicts with the *exclusive ports* seen so far.
-                        assertExclusivePortsAreMutuallyExclusive(seenVirtualClusters, inUseExclusivePorts, listener, name, proposedExclusivePorts, exclusiveCheckSet);
-
-                        // check the proposed *shared ports* for conflicts with the *exclusive ports* seen so far.
-                        assertSharedPortsDoNotOverlapWithExlusivePorts(seenVirtualClusters, inUseExclusivePorts, listener, name, proposedSharedPorts,
-                                exclusiveCheckSet);
-
-                        // check the proposed *exclusive ports* for conflicts with the *shared ports* seen so far.
-                        assertExclusivePortsDoNotOverlapWithExclusivePorts(seenVirtualClusters, inUseSharedPorts, listener, name, proposedExclusivePorts,
-                                exclusiveCheckSet);
-
-                        // check the proposed *shared ports* for conflicts with the shared ports seen so far on *different* interfaces.
-                        assertSharedPortsAreExclusiveAcrossInterfaces(seenVirtualClusters, inUseSharedPorts, listener, name, proposedSharedPorts, exclusiveCheckSet);
-
-                        // check for proposed shared ports for differing TLS configuration
-                        assertSharedPortsHaveMatchingTlsConfiguration(seenVirtualClusters, inUseSharedPorts, listener, name, proposedSharedPorts);
-
-                        seenVirtualClusters.add(name);
-                        inUseExclusivePorts.computeIfAbsent(listener.getBindAddress(), k -> new HashSet<>()).addAll(proposedExclusivePorts);
-                        var sharedMap = inUseSharedPorts.computeIfAbsent(listener.getBindAddress(), k -> new HashMap<>());
-                        proposedSharedPorts.forEach(p -> sharedMap.put(p, listener.isUseTls()));
-
-                    });
+                    virtualCluster.listeners()
+                            .forEach((listenerName, listener) -> doValidate(otherExclusivePort, listener, name, inUseExclusivePorts, seenVirtualClusters, inUseSharedPorts));
 
                 });
+    }
+
+    private void doValidate(Optional<HostPort> otherExclusivePort, EndpointListener listener, String name, Map<Optional<String>, Set<Integer>> inUseExclusivePorts,
+                            Set<String> seenVirtualClusters, Map<Optional<String>, Map<Integer, Boolean>> inUseSharedPorts) {
+        var proposedSharedPorts = listener.getSharedPorts();
+        var proposedExclusivePorts = listener.getExclusivePorts();
+
+        if (otherExclusivePort.isPresent()) {
+            Optional<String> otherInterface = otherExclusivePort.map(hostPort -> hostPort.host().equals("0.0.0.0") ? null : hostPort.host());
+            var checkPorts = listener.getBindAddress().isEmpty() || otherInterface.isEmpty() || listener.getBindAddress().equals(otherInterface);
+            if (checkPorts) {
+                checkForConflictsWithOtherExclusivePort(otherExclusivePort.get(), name, listener, proposedExclusivePorts, BindingScope.EXCLUSIVE);
+                checkForConflictsWithOtherExclusivePort(otherExclusivePort.get(), name, listener, proposedSharedPorts, BindingScope.SHARED);
+            }
+        }
+
+        // if this virtual cluster is binding to <any>, we need to check for conflicts on the <any> interface and *all* specific interfaces,
+        // otherwise we just check for conflicts on <any> and the specified specific interface
+        var exclusiveCheckSet = listener.getBindAddress().isEmpty() ? inUseExclusivePorts.keySet()
+                : Set.of(ANY_INTERFACE, listener.getBindAddress());
+
+        // check the proposed *exclusive ports* for conflicts with the *exclusive ports* seen so far.
+        assertExclusivePortsAreMutuallyExclusive(seenVirtualClusters, inUseExclusivePorts, listener, name, proposedExclusivePorts, exclusiveCheckSet);
+
+        // check the proposed *shared ports* for conflicts with the *exclusive ports* seen so far.
+        assertSharedPortsDoNotOverlapWithExlusivePorts(seenVirtualClusters, inUseExclusivePorts, listener, name, proposedSharedPorts,
+                exclusiveCheckSet);
+
+        // check the proposed *exclusive ports* for conflicts with the *shared ports* seen so far.
+        assertExclusivePortsDoNotOverlapWithExclusivePorts(seenVirtualClusters, inUseSharedPorts, listener, name, proposedExclusivePorts,
+                exclusiveCheckSet);
+
+        // check the proposed *shared ports* for conflicts with the shared ports seen so far on *different* interfaces.
+        assertSharedPortsAreExclusiveAcrossInterfaces(seenVirtualClusters, inUseSharedPorts, listener, name, proposedSharedPorts, exclusiveCheckSet);
+
+        // check for proposed shared ports for differing TLS configuration
+        assertSharedPortsHaveMatchingTlsConfiguration(seenVirtualClusters, inUseSharedPorts, listener, name, proposedSharedPorts);
+
+        seenVirtualClusters.add(name);
+        inUseExclusivePorts.computeIfAbsent(listener.getBindAddress(), k -> new HashSet<>()).addAll(proposedExclusivePorts);
+        var sharedMap = inUseSharedPorts.computeIfAbsent(listener.getBindAddress(), k -> new HashMap<>());
+        proposedSharedPorts.forEach(p -> sharedMap.put(p, listener.isUseTls()));
     }
 
     private void assertSharedPortsHaveMatchingTlsConfiguration(Set<String> seenVirtualClusters, Map<Optional<String>, Map<Integer, Boolean>> inUseSharedPorts,
