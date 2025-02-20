@@ -55,12 +55,22 @@ public interface KroxyliciousTester extends Closeable {
 
     /**
      * Creates an Admin Client configured with the kroxylicious bootstrap server
-     * for a specific virtual cluster.
+     * for a specific virtual cluster with a single listener.
      * @param virtualCluster the virtual cluster we want the client to connect to
      * @return Admin client
      * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
      */
     Admin admin(String virtualCluster);
+
+    /**
+     * Creates an Admin Client configured with the kroxylicious bootstrap server
+     * for a specific listener on a specific virtual cluster
+     * @param virtualCluster the virtual cluster we want the client to connect to
+     * @param listener the listener we want the client to connect to
+     * @return Admin client
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server, or if the virtual cluster does not have a listener with this name
+     */
+    Admin admin(String virtualCluster, String listener);
 
     /**
      * Creates a Producer configured with the kroxylicious bootstrap server
@@ -262,7 +272,7 @@ public interface KroxyliciousTester extends Closeable {
     /**
      * @return the bootstrap address of the named virtual cluster
      */
-    String getBootstrapAddress(String clusterName);
+    String getBootstrapAddress(String clusterName, String listener);
 
     /**
      * @return the Admin Http Client

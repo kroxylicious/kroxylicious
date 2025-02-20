@@ -50,6 +50,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -320,7 +321,7 @@ class KroxyliciousTestersTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()
-                .addToListeners("default", new VirtualClusterListenerBuilder()
+                .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                         .withClusterNetworkAddressConfigProvider(
                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                         .withConfig("bootstrapAddress", defaultProxyBootstrap)

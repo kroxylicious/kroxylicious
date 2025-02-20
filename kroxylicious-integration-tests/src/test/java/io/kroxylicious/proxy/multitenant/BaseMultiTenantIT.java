@@ -54,6 +54,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -106,7 +107,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", TENANT_1_PROXY_ADDRESS)
@@ -123,7 +124,7 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", TENANT_2_PROXY_ADDRESS)

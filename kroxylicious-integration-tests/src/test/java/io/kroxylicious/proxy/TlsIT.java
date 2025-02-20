@@ -66,6 +66,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -126,7 +127,7 @@ class TlsIT extends BaseIT {
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                                 .build())
                         .build());
@@ -158,7 +159,7 @@ class TlsIT extends BaseIT {
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                                 .build())
                         .build());
@@ -203,7 +204,7 @@ class TlsIT extends BaseIT {
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                                 .build())
                         .build());
@@ -227,7 +228,7 @@ class TlsIT extends BaseIT {
                         .withNewInsecureTlsTrust(true)
                         .endTls()
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                                 .build())
                         .build());
@@ -288,7 +289,7 @@ class TlsIT extends BaseIT {
                             .endKeyStoreKey()
                             .endTls()
                             .endTargetCluster()
-                            .addToListeners("default", new VirtualClusterListenerBuilder()
+                            .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                     .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                                     .build())
                             .build());
@@ -348,7 +349,7 @@ class TlsIT extends BaseIT {
                         .endTrustStoreTrust()
                         .endTls()
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(proxyKeystoreLocation)
@@ -382,7 +383,7 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
@@ -437,7 +438,7 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
@@ -475,7 +476,7 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
@@ -526,7 +527,7 @@ class TlsIT extends BaseIT {
                         .withProtocols(protocols)
                         .endTls()
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                                 .build())
                         .build());
@@ -564,7 +565,7 @@ class TlsIT extends BaseIT {
                         .withProtocols(protocols)
                         .endTls()
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                                 .build())
                         .build());
@@ -593,7 +594,7 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
@@ -647,7 +648,7 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
@@ -685,7 +686,7 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
@@ -736,7 +737,7 @@ class TlsIT extends BaseIT {
                         .withCipherSuites(cipherSuites)
                         .endTls()
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                                 .build())
                         .build());
@@ -774,7 +775,7 @@ class TlsIT extends BaseIT {
                         .withCipherSuites(upstreamCipherSuites)
                         .endTls()
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withClusterNetworkAddressConfigProvider(CONFIG_PROVIDER_DEFINITION)
                                 .build())
                         .build());
@@ -889,7 +890,7 @@ class TlsIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(bootstrapServers)
                         .endTargetCluster()
-                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                 .withNewTls()
                                 .withNewKeyStoreKey()
                                 .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())

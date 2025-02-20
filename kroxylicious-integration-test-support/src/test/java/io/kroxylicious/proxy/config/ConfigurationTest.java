@@ -28,6 +28,7 @@ import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
@@ -272,9 +273,12 @@ class ConfigurationTest {
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
-                                        .endTargetCluster().addToListeners("default", new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
-                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider").withConfig(
-                                                        "bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)").build())
+                                        .endTargetCluster().addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                                                .withClusterNetworkAddressConfigProvider(
+                                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider")
+                                                                .withConfig(
+                                                                        "bootstrapAddress", "cluster1:9192", "brokerAddressPattern", "broker-$(nodeId)")
+                                                                .build())
                                                 .build())
                                         .build())
                                 .build(),
@@ -296,9 +300,12 @@ class ConfigurationTest {
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
-                                        .endTargetCluster().addToListeners("default", new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
-                                                new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider").withConfig(
-                                                        "bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)").build())
+                                        .endTargetCluster().addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                                                .withClusterNetworkAddressConfigProvider(
+                                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider")
+                                                                .withConfig(
+                                                                        "bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)")
+                                                                .build())
                                                 .build())
                                         .build())
                                 .build(),
@@ -358,7 +365,7 @@ class ConfigurationTest {
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .addToListeners("default", new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
+                                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider").withConfig(
                                                         "bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)").build())
                                                 .withNewTls()
@@ -396,7 +403,7 @@ class ConfigurationTest {
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .addToListeners("default", new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
+                                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder().withClusterNetworkAddressConfigProvider(
                                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder("SniRoutingClusterNetworkAddressConfigProvider").withConfig(
                                                         "bootstrapAddress", "cluster1:9192", "advertisedBrokerAddressPattern", "broker-$(nodeId)").build())
                                                 .withNewTls()
@@ -445,7 +452,7 @@ class ConfigurationTest {
                                         .withNewTls()
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                                 .withClusterNetworkAddressConfigProvider(
                                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                                 "SniRoutingClusterNetworkAddressConfigProvider")
@@ -481,7 +488,7 @@ class ConfigurationTest {
                                         .endTrustStoreTrust()
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                                 .withClusterNetworkAddressConfigProvider(
                                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                                 "SniRoutingClusterNetworkAddressConfigProvider")
@@ -522,7 +529,7 @@ class ConfigurationTest {
                                         .endTrustStoreTrust()
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                                 .withClusterNetworkAddressConfigProvider(
                                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                                 "SniRoutingClusterNetworkAddressConfigProvider")
@@ -559,7 +566,7 @@ class ConfigurationTest {
                                         .withNewInsecureTlsTrust(true)
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners("default", new VirtualClusterListenerBuilder()
+                                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
                                                 .withClusterNetworkAddressConfigProvider(
                                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                                                                 "SniRoutingClusterNetworkAddressConfigProvider")
