@@ -107,12 +107,12 @@ public final class KroxyliciousConfigMapTemplates {
                 virtualClusters:
                   my-cluster-proxy:
                     listeners:
-                      default:
-                        clusterNetworkAddressConfigProvider:
-                          type: PortPerBrokerClusterNetworkAddressConfigProvider
-                          config:
-                            bootstrapAddress: localhost:9292
-                            brokerAddressPattern: %s
+                    - name: default
+                      clusterNetworkAddressConfigProvider:
+                        type: PortPerBrokerClusterNetworkAddressConfigProvider
+                        config:
+                          bootstrapAddress: localhost:9292
+                          brokerAddressPattern: %s
                     targetCluster:
                       bootstrapServers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     logFrames: false
@@ -134,12 +134,12 @@ public final class KroxyliciousConfigMapTemplates {
                     targetCluster:
                       bootstrapServers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     listeners:
-                      default:
-                        clusterNetworkAddressConfigProvider:
-                          type: PortPerBrokerClusterNetworkAddressConfigProvider
-                          config:
-                            bootstrapAddress: localhost:9292
-                            brokerAddressPattern: %s
+                    - name: default
+                      clusterNetworkAddressConfigProvider:
+                        type: PortPerBrokerClusterNetworkAddressConfigProvider
+                        config:
+                          bootstrapAddress: localhost:9292
+                          brokerAddressPattern: %s
                     logNetwork: false
                     logFrames: false
                 """
@@ -162,11 +162,11 @@ public final class KroxyliciousConfigMapTemplates {
                     targetCluster:
                       bootstrapServers: %s:9094
                     listeners:
-                      default:
-                        clusterNetworkAddressConfigProvider:
-                          type: PortPerBrokerClusterNetworkAddressConfigProvider
-                          config:
-                            bootstrapAddress: localhost:9292
+                    - name: default
+                      clusterNetworkAddressConfigProvider:
+                        type: PortPerBrokerClusterNetworkAddressConfigProvider
+                        config:
+                          bootstrapAddress: localhost:9292
                     logNetwork: false
                     logFrames: false
                 """

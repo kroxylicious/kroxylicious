@@ -10,6 +10,7 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterListener;
 import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
@@ -58,7 +59,8 @@ public class KroxyliciousConfigUtils {
                     .withNewTargetCluster()
                     .withBootstrapServers(clusterBootstrapServers)
                     .endTargetCluster()
-                    .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                    .addToListeners(new VirtualClusterListenerBuilder()
+                            .withName(DEFAULT_LISTENER_NAME)
                             .withClusterNetworkAddressConfigProvider(
                                     new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                             .withConfig("bootstrapAddress", new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
@@ -94,10 +96,9 @@ public class KroxyliciousConfigUtils {
         if (cluster == null) {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
-        if (!cluster.listeners().containsKey(listener)) {
-            throw new IllegalArgumentException(virtualCluster + " does not have listener named " + listener);
-        }
-        var provider = cluster.listeners().get(listener).clusterNetworkAddressConfigProvider();
+        var first = cluster.listeners().stream().filter(l -> l.name().equals(listener)).map(VirtualClusterListener::clusterNetworkAddressConfigProvider).findFirst();
+        var provider = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have listener named " + listener));
+
         // Need proper way to do this for embedded use-cases. We should have a way to query kroxy for the virtual cluster's
         // actual bootstrap after the proxy is started. The provider might support dynamic ports (port 0), so querying the
         // config might not work.

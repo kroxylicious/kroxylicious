@@ -215,14 +215,15 @@ public class ProxyConfigSecret
                 new TargetCluster(cluster.getUpstream().getBootstrapServers(), Optional.empty()),
                 null,
                 Optional.empty(),
-                Map.of("default", new VirtualClusterListener(new ClusterNetworkAddressConfigProviderDefinition(
-                        "PortPerBrokerClusterNetworkAddressConfigProvider",
-                        new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
-                                new HostPort("localhost", 9292 + (100 * clusterNum)),
-                                ClusterService.absoluteServiceHost(primary, cluster),
-                                null,
-                                null,
-                                null)),
+                List.of(new VirtualClusterListener("default",
+                        new ClusterNetworkAddressConfigProviderDefinition(
+                                "PortPerBrokerClusterNetworkAddressConfigProvider",
+                                new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
+                                        new HostPort("localhost", 9292 + (100 * clusterNum)),
+                                        ClusterService.absoluteServiceHost(primary, cluster),
+                                        null,
+                                        null,
+                                        null)),
                         Optional.empty())),
                 false, false,
                 filterNamesForCluster(cluster));

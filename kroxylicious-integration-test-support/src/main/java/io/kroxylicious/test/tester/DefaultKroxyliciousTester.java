@@ -119,10 +119,10 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig, String listener) {
         final VirtualCluster definedCluster = kroxyliciousConfig.virtualClusters().get(virtualCluster);
         if (definedCluster != null) {
-            if (!definedCluster.listeners().containsKey(listener)) {
-                throw new IllegalArgumentException("cluster " + virtualCluster + " does not contain listener named " + listener);
-            }
-            final Optional<Tls> tls = definedCluster.listeners().get(listener).tls();
+
+            var first = definedCluster.listeners().stream().filter(l -> l.name().equals(listener)).findFirst();
+            var vcl = first.orElseThrow(() -> new IllegalArgumentException("cluster " + virtualCluster + " does not contain listener named " + listener));
+            final Optional<Tls> tls = vcl.tls();
             if (tls.isPresent()) {
                 defaultClientConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
                 if (trustStoreConfiguration.isPresent()) {

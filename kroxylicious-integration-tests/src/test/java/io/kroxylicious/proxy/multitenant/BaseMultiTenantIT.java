@@ -107,7 +107,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                        .addToListeners(new VirtualClusterListenerBuilder()
+                                .withName(DEFAULT_LISTENER_NAME)
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", TENANT_1_PROXY_ADDRESS)
@@ -124,7 +125,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                        .addToListeners(new VirtualClusterListenerBuilder()
+                                .withName(DEFAULT_LISTENER_NAME)
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", TENANT_2_PROXY_ADDRESS)

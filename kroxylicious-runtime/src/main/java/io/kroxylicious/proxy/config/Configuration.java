@@ -178,10 +178,10 @@ public record Configuration(
                 virtualCluster.logFrames(),
                 filterDefinitions);
 
-        virtualCluster.listeners().forEach((name, listener) -> {
+        virtualCluster.listeners().forEach(listener -> {
             var networkAddress = buildNetworkAddressProviderService(listener.clusterNetworkAddressConfigProvider(), pfr);
             var tls = listener.tls();
-            virtualClusterModel.addListener(name, networkAddress, tls);
+            virtualClusterModel.addListener(listener.name(), networkAddress, tls);
             logVirtualClusterSummary(virtualClusterModel.getClusterName(), virtualClusterModel.targetCluster(), networkAddress,
                     tls);
         });

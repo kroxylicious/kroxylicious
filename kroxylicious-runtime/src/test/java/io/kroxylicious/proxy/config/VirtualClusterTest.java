@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.config;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -40,17 +39,15 @@ class VirtualClusterTest {
 
         // Then
         assertThat(vc.listeners())
-                .hasSize(1)
-                .hasEntrySatisfying("default", vcl -> {
-                    assertThat(vcl).isEqualTo(new VirtualClusterListener(provider1, Optional.empty()));
-                });
+                .singleElement()
+                .isEqualTo(new VirtualClusterListener("default", provider1, Optional.empty()));
     }
 
     @Test
     void supportsListeners() {
         // Given
-        var listeners = Map.of("mylistener1", new VirtualClusterListener(provider1, Optional.empty()),
-                "mylistener2", new VirtualClusterListener(provider2, Optional.empty()));
+        var listeners = List.of(new VirtualClusterListener("mylistener1", provider1, Optional.empty()),
+                new VirtualClusterListener("mylistener2", provider2, Optional.empty()));
 
         // When
         var vc = new VirtualCluster(targetCluster, null, null, listeners, false, false, NO_FILTERS);
@@ -64,7 +61,7 @@ class VirtualClusterTest {
     @Test
     void disallowsListenersAndDeprecatedConfigProvider() {
         // Given
-        var listeners = Map.of("mylistener", new VirtualClusterListener(provider1, Optional.empty()));
+        var listeners = List.of(new VirtualClusterListener("mylistener", provider1, Optional.empty()));
 
         // When/Then
         assertThatThrownBy(() -> new VirtualCluster(targetCluster, provider2, null, listeners, false, false, NO_FILTERS))
@@ -74,7 +71,7 @@ class VirtualClusterTest {
     @Test
     void disallowsListenersAndDeprecatedTls() {
         // Given
-        var listeners = Map.of("mylistener", new VirtualClusterListener(provider1, Optional.empty()));
+        var listeners = List.of(new VirtualClusterListener("mylistener", provider1, Optional.empty()));
         var tls = Optional.of(new Tls(null, null, null, null));
 
         // When/Then
@@ -92,9 +89,19 @@ class VirtualClusterTest {
     @Test
     void disallowNoListeners() {
         // Given
-        var noListeners = Map.<String, VirtualClusterListener> of();
+        var noListeners = List.<VirtualClusterListener> of();
         // When/Then
         assertThatThrownBy(() -> new VirtualCluster(targetCluster, null, null, noListeners, false, false, NO_FILTERS))
+                .isInstanceOf(IllegalConfigurationException.class);
+    }
+
+    @Test
+    void disallowsDuplicateListenerNames() {
+        // Given
+        var listeners = List.of(new VirtualClusterListener("dup", provider1, Optional.empty()),
+                new VirtualClusterListener("dup", provider2, Optional.empty()));
+        // When/Then
+        assertThatThrownBy(() -> new VirtualCluster(targetCluster, null, null, listeners, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 }

@@ -66,14 +66,14 @@ class ConfigParserTest {
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             listeners:
-                              default:
-                                clusterNetworkAddressConfigProvider:
-                                  type: PortPerBrokerClusterNetworkAddressConfigProvider
-                                  config:
-                                    bootstrapAddress: cluster1:9192
-                                    numberOfBrokerPorts: 1
-                                    brokerAddressPattern: localhost
-                                    brokerStartPort: 9193
+                            - name: default
+                              clusterNetworkAddressConfigProvider:
+                                type: PortPerBrokerClusterNetworkAddressConfigProvider
+                                config:
+                                  bootstrapAddress: cluster1:9192
+                                  numberOfBrokerPorts: 1
+                                  brokerAddressPattern: localhost
+                                  brokerStartPort: 9193
                         """),
                 Arguments.argumentSet("Virtual cluster (RangeAwarePortPerBroker)", """
                         virtualClusters:
@@ -81,18 +81,18 @@ class ConfigParserTest {
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             listeners:
-                              default:
-                                clusterNetworkAddressConfigProvider:
-                                  type: RangeAwarePortPerNodeClusterNetworkAddressConfigProvider
-                                  config:
-                                    bootstrapAddress: cluster1:9192
-                                    nodeAddressPattern: localhost
-                                    nodeStartPort: 9193
-                                    nodeIdRanges:
-                                      - name: brokers
-                                        range:
-                                          startInclusive: 0
-                                          endExclusive: 3
+                            - name: default
+                              clusterNetworkAddressConfigProvider:
+                                type: RangeAwarePortPerNodeClusterNetworkAddressConfigProvider
+                                config:
+                                  bootstrapAddress: cluster1:9192
+                                  nodeAddressPattern: localhost
+                                  nodeStartPort: 9193
+                                  nodeIdRanges:
+                                    - name: brokers
+                                      range:
+                                        startInclusive: 0
+                                        endExclusive: 3
                         """),
                 Arguments.argumentSet("Virtual cluster (SniRouting)", """
                         virtualClusters:
@@ -100,12 +100,12 @@ class ConfigParserTest {
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             listeners:
-                              default:
-                                clusterNetworkAddressConfigProvider:
-                                  type: SniRoutingClusterNetworkAddressConfigProvider
-                                  config:
-                                    bootstrapAddress: cluster1:9192
-                                    brokerAddressPattern: broker-$(nodeId)
+                            - name: default
+                              clusterNetworkAddressConfigProvider:
+                                type: SniRoutingClusterNetworkAddressConfigProvider
+                                config:
+                                  bootstrapAddress: cluster1:9192
+                                  brokerAddressPattern: broker-$(nodeId)
                         """),
                 Arguments.argumentSet("Virtual cluster (SniRouting) advertised port", """
                         virtualClusters:
@@ -113,12 +113,12 @@ class ConfigParserTest {
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             listeners:
-                              default:
-                                clusterNetworkAddressConfigProvider:
-                                  type: SniRoutingClusterNetworkAddressConfigProvider
-                                  config:
-                                    bootstrapAddress: cluster1:9192
-                                    advertisedBrokerAddressPattern: brozker-$(nodeId):23
+                            - name: default
+                              clusterNetworkAddressConfigProvider:
+                                type: SniRoutingClusterNetworkAddressConfigProvider
+                                config:
+                                  bootstrapAddress: cluster1:9192
+                                  advertisedBrokerAddressPattern: brozker-$(nodeId):23
                         """),
                 Arguments.argumentSet("Downstream/Upstream TLS with inline passwords", """
                         virtualClusters:
@@ -132,18 +132,18 @@ class ConfigParserTest {
                                    password: password
                                  storeType: JKS
                             listeners:
-                              default:
-                                clusterNetworkAddressConfigProvider:
-                                  type: SniRoutingClusterNetworkAddressConfigProvider
-                                  config:
-                                    bootstrapAddress: cluster1:9192
-                                    brokerAddressPattern: broker-$(nodeId)
-                                tls:
-                                    key:
-                                      storeFile: /tmp/foo.jks
-                                      storePassword:
-                                        password: password
-                                      storeType: JKS
+                            - name: default
+                              clusterNetworkAddressConfigProvider:
+                                type: SniRoutingClusterNetworkAddressConfigProvider
+                                config:
+                                  bootstrapAddress: cluster1:9192
+                                  brokerAddressPattern: broker-$(nodeId)
+                              tls:
+                                  key:
+                                    storeFile: /tmp/foo.jks
+                                    storePassword:
+                                      password: password
+                                    storeType: JKS
                         """),
                 Arguments.argumentSet("Downstream/Upstream TLS with password files", """
                         virtualClusters:
@@ -157,18 +157,18 @@ class ConfigParserTest {
                                     passwordFile: /tmp/password.txt
                                  storeType: JKS
                             listeners:
-                              default:
-                                clusterNetworkAddressConfigProvider:
-                                  type: SniRoutingClusterNetworkAddressConfigProvider
-                                  config:
-                                    bootstrapAddress: cluster1:9192
-                                    brokerAddressPattern: broker-$(nodeId)
-                                tls:
-                                    key:
-                                      storeFile: /tmp/foo.jks
-                                      storePassword:
-                                        passwordFile: /tmp/password.txt
-                                      storeType: JKS
+                            - name: default
+                              clusterNetworkAddressConfigProvider:
+                                type: SniRoutingClusterNetworkAddressConfigProvider
+                                config:
+                                  bootstrapAddress: cluster1:9192
+                                  brokerAddressPattern: broker-$(nodeId)
+                              tls:
+                                  key:
+                                    storeFile: /tmp/foo.jks
+                                    storePassword:
+                                      passwordFile: /tmp/password.txt
+                                    storeType: JKS
                         """),
                 Arguments.argumentSet("Filters", """
                         filters:
@@ -230,8 +230,9 @@ class ConfigParserTest {
         assertThat(cluster.targetCluster().bootstrapServers()).isEqualTo("localhost:9092");
 
         assertThat(cluster.listeners())
-                .hasSize(1)
-                .hasEntrySatisfying("default", vcl -> {
+                .singleElement()
+                .satisfies(vcl -> {
+                    assertThat(vcl.name()).isEqualTo("mylistener");
                     assertThat(vcl.clusterNetworkAddressConfigProvider())
                             .satisfies(provider -> {
                                 assertThat(provider.type()).isEqualTo("PortPerBrokerClusterNetworkAddressConfigProvider");
@@ -296,26 +297,26 @@ class ConfigParserTest {
                     targetCluster:
                       bootstrapServers: kafka.example:1234
                     listeners:
-                      default:
-                        clusterNetworkAddressConfigProvider:
-                          type: PortPerBrokerClusterNetworkAddressConfigProvider
-                          config:
-                            bootstrapAddress: cluster1:9192
-                            numberOfBrokerPorts: 1
-                            brokerAddressPattern: localhost
-                            brokerStartPort: 9193
+                    - name: default
+                      clusterNetworkAddressConfigProvider:
+                        type: PortPerBrokerClusterNetworkAddressConfigProvider
+                        config:
+                          bootstrapAddress: cluster1:9192
+                          numberOfBrokerPorts: 1
+                          brokerAddressPattern: localhost
+                          brokerStartPort: 9193
                   demo1:
                     targetCluster:
                       bootstrapServers: magic-kafka.example:1234
                     listeners:
-                      default:
-                        clusterNetworkAddressConfigProvider:
-                          type: PortPerBrokerClusterNetworkAddressConfigProvider
-                          config:
-                            bootstrapAddress: cluster2:9193
-                            numberOfBrokerPorts: 1
-                            brokerAddressPattern: localhost
-                            brokerStartPort: 10193
+                    - name: default
+                      clusterNetworkAddressConfigProvider:
+                        type: PortPerBrokerClusterNetworkAddressConfigProvider
+                        config:
+                          bootstrapAddress: cluster2:9193
+                          numberOfBrokerPorts: 1
+                          brokerAddressPattern: localhost
+                          brokerStartPort: 10193
                 """))
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
@@ -477,21 +478,23 @@ class ConfigParserTest {
                         virtualClusters:
                           demo1:
                             listeners:
-                              default:
-                                tls:
-                                    key:
-                                      storeFile: /tmp/store.txt
-                                      storePassword:
-                                        filePath: %s
-                                clusterNetworkAddressConfigProvider:
-                                  type: PortPerBrokerClusterNetworkAddressConfigProvider
+                            - name: mylistener
+                              tls:
+                                key:
+                                  storeFile: /tmp/store.txt
+                                  storePassword:
+                                    filePath: %s
+                              clusterNetworkAddressConfigProvider:
+                                type: PortPerBrokerClusterNetworkAddressConfigProvider
                 """.formatted(file.getAbsolutePath()));
         // When
         final var virtualCluster = configurationModel.virtualClusters().values().iterator().next();
 
         // Then
         assertThat(virtualCluster.listeners())
-                .hasEntrySatisfying("default", vcl -> {
+                .singleElement()
+                .satisfies(vcl -> {
+                    assertThat(vcl.name()).isEqualTo("mylistener");
                     assertThat(vcl.tls())
                             .get()
                             .extracting(Tls::key)

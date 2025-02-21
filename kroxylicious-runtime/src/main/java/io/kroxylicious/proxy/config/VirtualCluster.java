@@ -5,10 +5,10 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -26,7 +26,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param targetCluster the cluster being proxied
  * @param clusterNetworkAddressConfigProvider virtual cluster network config - deprecated - use a named listener
  * @param tls deprecated - tls settings for the virtual cluster - deprecated - use a named listener
- * @param listeners listeners
+ * @param listeners virtual cluster listeners
  * @param logNetwork if true, network will be logged
  * @param logFrames if true, kafka rpcs will be logged
  * @param filters filers.
@@ -36,12 +36,18 @@ public record VirtualCluster(TargetCluster targetCluster,
                              @Deprecated(forRemoval = true, since = "0.11.0") ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider,
                              @Deprecated(forRemoval = true, since = "0.11.0") @JsonProperty() Optional<Tls> tls,
 
-                             @JsonProperty(required = false) Map<String, VirtualClusterListener> listeners,
+                             @JsonProperty(required = false) List<VirtualClusterListener> listeners,
                              boolean logNetwork,
                              boolean logFrames,
                              @Nullable List<String> filters) {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualCluster.class);
+
+    /**
+     * Name given to the listener defined using the deprecated fields.
+     */
+    @Deprecated(forRemoval = true, since = "0.11.0")
+    static final String DEFAULT_LISTENER_NAME = "default";
 
     @SuppressWarnings({ "removal", "java:S2789" }) // S2789 - checking for null tls is the intent
     public VirtualCluster {
@@ -52,7 +58,7 @@ public record VirtualCluster(TargetCluster targetCluster,
             if (listeners == null || listeners.isEmpty()) {
                 LOGGER.warn(
                         "The virtualCluster properties 'clusterNetworkAddressConfigProvider' and 'tls' are deprecated, specify virtual cluster listeners using the listeners map.");
-                listeners = Map.of("default", new VirtualClusterListener(clusterNetworkAddressConfigProvider, tls));
+                listeners = List.of(new VirtualClusterListener(DEFAULT_LISTENER_NAME, clusterNetworkAddressConfigProvider, tls));
             }
             else {
                 throw new IllegalConfigurationException(
@@ -62,10 +68,17 @@ public record VirtualCluster(TargetCluster targetCluster,
         if (listeners == null || listeners.isEmpty()) {
             throw new IllegalConfigurationException("no listeners configured for virtualCluster");
         }
-        Set<String> keysWithNullValues = listeners.entrySet().stream().filter(e -> e.getValue() == null).map(Map.Entry::getKey).collect(Collectors.toSet());
-        if (!keysWithNullValues.isEmpty()) {
-            throw new IllegalConfigurationException("some listeners had null values: '" + keysWithNullValues + "'");
+        if (listeners.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalConfigurationException("one or more listeners were null");
+        }
+        var names = listeners.stream()
+                .map(VirtualClusterListener::name)
+                .toList();
+        var duplicates = names.stream()
+                .filter(i -> Collections.frequency(names, i) > 1)
+                .collect(Collectors.toSet());
+        if (!duplicates.isEmpty()) {
+            throw new IllegalConfigurationException("The following listener names are duplicated: " + duplicates);
         }
     }
-
 }
