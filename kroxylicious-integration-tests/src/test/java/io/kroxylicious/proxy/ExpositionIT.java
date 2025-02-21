@@ -129,8 +129,7 @@ class ExpositionIT extends BaseIT {
         for (int i = 0; i < clusterProxyAddresses.size(); i++) {
             var bootstrap = clusterProxyAddresses.get(i);
             var virtualCluster = baseVirtualClusterBuilder(cluster)
-                    .addToListeners(DEFAULT_LISTENER_NAME,
-                            portPerBrokerListener(bootstrap))
+                    .addToListeners(portPerBrokerListener(bootstrap, DEFAULT_LISTENER_NAME))
                     .build();
             builder.addToVirtualClusters("cluster" + i, virtualCluster);
         }
@@ -150,8 +149,8 @@ class ExpositionIT extends BaseIT {
         var builder = new ConfigurationBuilder();
 
         VirtualClusterBuilder virtualClusterBuilder = baseVirtualClusterBuilder(cluster);
-        virtualClusterBuilder.addToListeners("listener1", portPerBrokerListener("localhost:9192"));
-        virtualClusterBuilder.addToListeners("listener2", portPerBrokerListener("localhost:9294"));
+        virtualClusterBuilder.addToListeners(portPerBrokerListener("localhost:9192", "listener1"),
+                portPerBrokerListener("localhost:9294", "listener2"));
         var virtualCluster = virtualClusterBuilder.build();
         builder.addToVirtualClusters("cluster", virtualCluster);
 
@@ -173,8 +172,9 @@ class ExpositionIT extends BaseIT {
         return admin.describeCluster().nodes().get(5, TimeUnit.SECONDS).stream().map(Node::port).collect(Collectors.toSet());
     }
 
-    private static VirtualClusterListener portPerBrokerListener(String bootstrapAddress) {
+    private static VirtualClusterListener portPerBrokerListener(String bootstrapAddress, String listenerName) {
         return new VirtualClusterListenerBuilder()
+                .withName(listenerName)
                 .withClusterNetworkAddressConfigProvider(
                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                 .withConfig("bootstrapAddress", bootstrapAddress)
@@ -208,7 +208,8 @@ class ExpositionIT extends BaseIT {
             var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern);
 
             var virtualCluster = baseVirtualClusterBuilder(cluster)
-                    .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                    .addToListeners(new VirtualClusterListenerBuilder()
+                            .withName(DEFAULT_LISTENER_NAME)
                             .withClusterNetworkAddressConfigProvider(
                                     new ClusterNetworkAddressConfigProviderDefinitionBuilder(SniRoutingClusterNetworkAddressConfigProvider.class.getName())
                                             .withConfig("bootstrapAddress", virtualClusterBootstrapPattern + ":9192",
@@ -259,7 +260,8 @@ class ExpositionIT extends BaseIT {
             keystoreTrustStoreList.add(keystoreTrustStorePair);
 
             var virtualCluster = baseVirtualClusterBuilder(cluster)
-                    .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                    .addToListeners(new VirtualClusterListenerBuilder()
+                            .withName(DEFAULT_LISTENER_NAME)
                             .withClusterNetworkAddressConfigProvider(
                                     new ClusterNetworkAddressConfigProviderDefinitionBuilder(SniRoutingClusterNetworkAddressConfigProvider.class.getName())
                                             .withConfig("bootstrapAddress", virtualClusterFQDN + ":9192",
@@ -299,7 +301,8 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                        .addToListeners(new VirtualClusterListenerBuilder()
+                                .withName(DEFAULT_LISTENER_NAME)
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", PROXY_ADDRESS)
@@ -332,7 +335,8 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                        .addToListeners(new VirtualClusterListenerBuilder()
+                                .withName(DEFAULT_LISTENER_NAME)
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", PROXY_ADDRESS)
@@ -365,7 +369,8 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                        .addToListeners(new VirtualClusterListenerBuilder()
+                                .withName(DEFAULT_LISTENER_NAME)
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", PROXY_ADDRESS)
@@ -397,7 +402,8 @@ class ExpositionIT extends BaseIT {
                         new VirtualClusterBuilder()
                                 .withNewTargetCluster()
                                 .endTargetCluster()
-                                .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                                .addToListeners(new VirtualClusterListenerBuilder()
+                                        .withName(DEFAULT_LISTENER_NAME)
                                         .withNewTls()
                                         .withNewKeyStoreKey()
                                         .withStoreFile(portPerBrokerKeystoreTrustStorePair.brokerKeyStore())
@@ -417,7 +423,8 @@ class ExpositionIT extends BaseIT {
                         new VirtualClusterBuilder()
                                 .withNewTargetCluster()
                                 .endTargetCluster()
-                                .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                                .addToListeners(new VirtualClusterListenerBuilder()
+                                        .withName(DEFAULT_LISTENER_NAME)
                                         .withNewTls()
                                         .withNewKeyStoreKey()
                                         .withStoreFile(sniKeystoreTrustStorePair.brokerKeyStore())
@@ -467,7 +474,7 @@ class ExpositionIT extends BaseIT {
                                                                               @BrokerCluster(numBrokers = 2) @SaslMechanism(principals = {
                                                                                       @SaslMechanism.Principal(user = SASL_USER, password = SASL_PASSWORD) }) KafkaCluster cluster) {
 
-        final Optional<Tls> tls = virtualClusterBuilder.getListeners().get(DEFAULT_LISTENER_NAME).tls();
+        final Optional<Tls> tls = virtualClusterBuilder.buildFirstListener().tls();
         SecurityProtocol securityProtocol = tls.isPresent() ? SecurityProtocol.SASL_SSL : SecurityProtocol.SASL_PLAINTEXT;
         clientSecurityProtocolConfig = new HashMap<>(clientSecurityProtocolConfig);
         clientSecurityProtocolConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol.name);
@@ -538,7 +545,7 @@ class ExpositionIT extends BaseIT {
                 .addToVirtualClusters("demo", virtualClusterBuilder.build());
 
         final HostPort discoveryBrokerAddressToProbe;
-        ClusterNetworkAddressConfigProviderDefinition provider = virtualClusterBuilder.getListeners().get(DEFAULT_LISTENER_NAME).clusterNetworkAddressConfigProvider();
+        ClusterNetworkAddressConfigProviderDefinition provider = virtualClusterBuilder.buildFirstListener().clusterNetworkAddressConfigProvider();
         if (provider.type().equals(SniRoutingClusterNetworkAddressConfigProvider.class.getName())) {
             discoveryBrokerAddressToProbe = new HostPort(SNI_BROKER_ADDRESS_PATTERN.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers())),
                     SNI_BOOTSTRAP.port());
@@ -590,7 +597,8 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                        .addToListeners(new VirtualClusterListenerBuilder()
+                                .withName(DEFAULT_LISTENER_NAME)
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", PROXY_ADDRESS)
@@ -630,7 +638,8 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                        .addToListeners(new VirtualClusterListenerBuilder()
+                                .withName(DEFAULT_LISTENER_NAME)
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", PROXY_ADDRESS)
@@ -653,7 +662,8 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                        .addToListeners(new VirtualClusterListenerBuilder()
+                                .withName(DEFAULT_LISTENER_NAME)
                                 .withClusterNetworkAddressConfigProvider(
                                         new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                                 .withConfig("bootstrapAddress", PROXY_ADDRESS)

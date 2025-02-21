@@ -321,7 +321,8 @@ class KroxyliciousTestersTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()
-                .addToListeners(DEFAULT_LISTENER_NAME, new VirtualClusterListenerBuilder()
+                .addToListeners(new VirtualClusterListenerBuilder()
+                        .withName(DEFAULT_LISTENER_NAME)
                         .withClusterNetworkAddressConfigProvider(
                                 new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
                                         .withConfig("bootstrapAddress", defaultProxyBootstrap)
