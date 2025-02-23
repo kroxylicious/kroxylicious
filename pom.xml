@@ -47,7 +47,7 @@
         <log4j.version>2.24.3</log4j.version>
         <caffeine.version>3.2.0</caffeine.version>
         <picocli.version>4.7.6</picocli.version>
-        <netty.version>4.1.117.Final</netty.version>
+        <netty.version>4.1.118.Final</netty.version>
         <netty.io_uring.version>0.0.26.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
