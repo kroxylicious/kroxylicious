@@ -50,6 +50,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortPerBrokerListenerBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -619,13 +620,7 @@ class DefaultKroxyliciousTesterTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
-                .addToListeners(new VirtualClusterListenerBuilder()
-                        .withName(DEFAULT_LISTENER_NAME)
-                        .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                        .withConfig("bootstrapAddress", new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port()))
-                                        .build())
-                        .build())
+                .addToListeners(defaultPortPerBrokerListenerBuilder(DEFAULT_PROXY_BOOTSTRAP).build())
                 .addToListeners(new VirtualClusterListenerBuilder()
                         .withName(CUSTOM_LISTENER_NAME)
                         .withClusterNetworkAddressConfigProvider(
@@ -649,17 +644,13 @@ class DefaultKroxyliciousTesterTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
-                .addToListeners(new VirtualClusterListenerBuilder()
-                        .withName(DEFAULT_LISTENER_NAME)
+                .addToListeners(defaultPortPerBrokerListenerBuilder(DEFAULT_PROXY_BOOTSTRAP)
                         .withNewTls()
                         .withNewKeyStoreKey()
                         .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())
                         .withNewInlinePasswordStoreProvider(keytoolCertificateGenerator.getPassword())
                         .endKeyStoreKey()
                         .endTls()
-                        .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                        .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP).build())
                         .build());
         configurationBuilder
                 .addToVirtualClusters(TLS_CLUSTER, vcb.build());

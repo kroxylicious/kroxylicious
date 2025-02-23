@@ -14,6 +14,7 @@ import io.kroxylicious.proxy.config.VirtualClusterListener;
 import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
@@ -59,12 +60,7 @@ public class KroxyliciousConfigUtils {
                     .withNewTargetCluster()
                     .withBootstrapServers(clusterBootstrapServers)
                     .endTargetCluster()
-                    .addToListeners(new VirtualClusterListenerBuilder()
-                            .withName(DEFAULT_LISTENER_NAME)
-                            .withClusterNetworkAddressConfigProvider(
-                                    new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                            .withConfig("bootstrapAddress", new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
-                                            .build())
+                    .addToListeners(defaultPortPerBrokerListenerBuilder(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
                             .build());
             configurationBuilder
                     .addToVirtualClusters(virtualClusterName, vcb.build());
@@ -114,5 +110,26 @@ public class KroxyliciousConfigUtils {
         else {
             throw new IllegalStateException("I don't know how to handle ClusterEndpointConfigProvider type:" + provider.type());
         }
+    }
+
+    public static VirtualClusterListenerBuilder defaultListenerBuilder() {
+        return new VirtualClusterListenerBuilder().withName(DEFAULT_LISTENER_NAME);
+    }
+
+    public static VirtualClusterListenerBuilder defaultPortPerBrokerListenerBuilder(HostPort proxyAddress) {
+        return defaultListenerBuilder()
+                .withClusterNetworkAddressConfigProvider(
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getSimpleName())
+                                .withConfig("bootstrapAddress", proxyAddress)
+                                .build());
+    }
+
+    public static VirtualClusterListenerBuilder defaultSniListenerBuilder(String bootstrapAddress, String advertisedBrokerAddressPattern) {
+        return defaultListenerBuilder()
+                .withClusterNetworkAddressConfigProvider(
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                SniRoutingClusterNetworkAddressConfigProvider.class.getSimpleName())
+                                .withConfig("bootstrapAddress", bootstrapAddress, "advertisedBrokerAddressPattern", advertisedBrokerAddressPattern)
+                                .build());
     }
 }
