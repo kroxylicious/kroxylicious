@@ -44,6 +44,7 @@ public class DeprecatedConfigurationIT extends BaseIT {
     private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
 
     @Test
+    @SuppressWarnings("deprecation")
     void shouldSupportTopLevelFiltersProperty(KafkaCluster cluster, Topic topic1) throws Exception {
 
         FilterDefinition filterDefinition = new NamedFilterDefinitionBuilder(
@@ -76,8 +77,8 @@ public class DeprecatedConfigurationIT extends BaseIT {
     }
 
     @Test
-    @Deprecated
-    void shouldSupportNetworkAddressConfigProviderConfig(KafkaCluster cluster) {
+    @SuppressWarnings("deprecation")
+    void shouldSupportDeprecatedClusterNetworkAddressConfigProvider(KafkaCluster cluster) {
 
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()

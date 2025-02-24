@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -24,6 +25,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.flipkart.zjsonpatch.JsonDiff;
 
+import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -215,23 +217,48 @@ class ConfigurationTest {
     }
 
     @Test
-    void shouldAcceptOldTopLevelNetworkConfig() throws IOException {
+    @SuppressWarnings("removal")
+    void shouldAcceptDeprecatedTopLevelNetworkConfigProvider() throws IOException {
         var vc = MAPPER.readValue(
                 """
-                              targetCluster:
-                                bootstrap_servers: kafka.example:1234
-                              clusterNetworkAddressConfigProvider:
-                                type: SniRoutingClusterNetworkAddressConfigProvider
-                                config:
-                                  bootstrapAddress: cluster1:9192
-                                  brokerAddressPattern: broker-$(nodeId)
+                                  targetCluster:
+                                    bootstrap_servers: kafka.example:1234
+                                  clusterNetworkAddressConfigProvider:
+                                    type: SniRoutingClusterNetworkAddressConfigProvider
+                                    config:
+                                      bootstrapAddress: cluster1:9192
+                                      brokerAddressPattern: broker-$(nodeId)
                         """, VirtualCluster.class);
 
-        assertThat(vc.listeners())
-                .singleElement()
-                .satisfies(listener -> {
-                    assertThat(listener.clusterNetworkAddressConfigProvider().type())
-                            .isEqualTo("SniRoutingClusterNetworkAddressConfigProvider");
+        assertThat(vc.clusterNetworkAddressConfigProvider().type())
+                .isEqualTo("SniRoutingClusterNetworkAddressConfigProvider");
+    }
+
+    @Test
+    @SuppressWarnings("removal")
+    void shouldAcceptDeprecatedTopLevelTls() throws IOException {
+        var vc = MAPPER.readValue(
+                """
+                                  targetCluster:
+                                    bootstrap_servers: kafka.example:1234
+                                  clusterNetworkAddressConfigProvider:
+                                    type: SniRoutingClusterNetworkAddressConfigProvider
+                                    config: {}
+                                  tls:
+                                     key:
+                                       certificateFile: /tmp/cert
+                                       privateKeyFile: /tmp/key
+                        """, VirtualCluster.class);
+
+        assertThat(vc.tls())
+                .isPresent()
+                .get()
+                .satisfies(tls -> {
+                    assertThat(tls.key())
+                            .asInstanceOf(InstanceOfAssertFactories.type(KeyPair.class))
+                            .satisfies(kp -> {
+                                assertThat(kp.privateKeyFile()).isEqualTo("/tmp/key");
+                            });
                 });
     }
 
@@ -709,21 +736,26 @@ class ConfigurationTest {
                 new NamedFilterDefinition("foo", "Foo", ""),
                 new NamedFilterDefinition("bar", "Bar", ""));
         VirtualCluster direct = new VirtualCluster(new TargetCluster("y:9092", Optional.empty()),
-                new ClusterNetworkAddressConfigProviderDefinition("PortPerBrokerClusterNetworkAddressConfigProvider",
-                        new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("example.com", 3), null,
-                                null, null, null)),
-                Optional.empty(),
-                List.of(),
+                null, Optional.empty(),
+                List.of(new VirtualClusterListener("mylistener",
+                        new ClusterNetworkAddressConfigProviderDefinition("PortPerBrokerClusterNetworkAddressConfigProvider",
+                                new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
+                                        new HostPort("example.com", 3), null,
+                                        null, null, null)),
+                        Optional.empty())),
                 false,
                 false,
                 List.of("foo")); // filters defined on cluster
 
         VirtualCluster defaulted = new VirtualCluster(new TargetCluster("x:9092", Optional.empty()),
-                new ClusterNetworkAddressConfigProviderDefinition("PortPerBrokerClusterNetworkAddressConfigProvider",
-                        new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("example.com", 3), null,
-                                null, null, null)),
+                null,
                 Optional.empty(),
-                List.of(),
+                List.of(new VirtualClusterListener("mylistener",
+                        new ClusterNetworkAddressConfigProviderDefinition("PortPerBrokerClusterNetworkAddressConfigProvider",
+                                new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
+                                        new HostPort("example.com", 3), null,
+                                        null, null, null)),
+                        Optional.empty())),
                 false,
                 false,
                 null); // filters not defined => should default to the top level
@@ -746,4 +778,41 @@ class ConfigurationTest {
         assertThat(defaultModel.getFilters()).singleElement().extracting(NamedFilterDefinition::type).isEqualTo("Bar");
     }
 
+    @Test
+    void virtualClusterModelCreatedWithDeprecatedNetworkProvider() {
+        // Given
+        var filterDefinitions = List.of(new NamedFilterDefinition("foo", "Foo", ""));
+
+        var targetCluster = new TargetCluster("y:9092", Optional.empty());
+        var bootstrapAddress = new HostPort("example.com", 3);
+        var cluster = new VirtualCluster(targetCluster,
+                new ClusterNetworkAddressConfigProviderDefinition("PortPerBrokerClusterNetworkAddressConfigProvider",
+                        new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrapAddress, null,
+                                null, null, null)),
+                Optional.empty(),
+                List.of(),
+                false,
+                false,
+                null);
+
+        Configuration configuration = new Configuration(
+                null, filterDefinitions,
+                List.of("foo"),
+                Map.of("myvc", cluster),
+                null, false,
+                Optional.empty());
+
+        // When
+        var models = configuration.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
+
+        // Then
+        assertThat(models)
+                .singleElement()
+                .satisfies(m -> {
+                    assertThat(m.listeners())
+                            .hasEntrySatisfying("default", l -> {
+                                assertThat(l.getClusterBootstrapAddress()).isEqualTo(bootstrapAddress);
+                            });
+                });
+    }
 }

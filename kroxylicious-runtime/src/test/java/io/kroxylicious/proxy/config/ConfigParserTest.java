@@ -56,7 +56,7 @@ class ConfigParserTest {
     // Given
     private final ConfigParser configParser = new ConfigParser();
 
-    public static Stream<Arguments> yamlDeserializeSerializeFidelity() {
+    static Stream<Arguments> yamlDeserializeSerializeFidelity() {
         return Stream.of(Arguments.argumentSet("Top level flags", """
                 useIoUring: true
                 """),
@@ -169,6 +169,25 @@ class ConfigParserTest {
                                     storePassword:
                                       passwordFile: /tmp/password.txt
                                     storeType: JKS
+                        """),
+                Arguments.argumentSet("Virtual cluster (PortPerBroker - deprecated)", """
+                        virtualClusters:
+                          demo1:
+                            targetCluster:
+                              bootstrapServers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: PortPerBrokerClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: cluster1:9192
+                                numberOfBrokerPorts: 1
+                                brokerAddressPattern: localhost
+                                brokerStartPort: 9193
+                            tls:
+                              key:
+                                storeFile: /tmp/foo.jks
+                                storePassword:
+                                  passwordFile: /tmp/password.txt
+                                storeType: JKS
                         """),
                 Arguments.argumentSet("Filters", """
                         filters:

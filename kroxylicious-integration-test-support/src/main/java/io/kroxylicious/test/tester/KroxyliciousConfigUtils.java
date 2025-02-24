@@ -6,9 +6,16 @@
 
 package io.kroxylicious.test.tester;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterListener;
 import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
@@ -92,7 +99,8 @@ public class KroxyliciousConfigUtils {
         if (cluster == null) {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
-        var first = cluster.listeners().stream().filter(l -> l.name().equals(listener)).map(VirtualClusterListener::clusterNetworkAddressConfigProvider).findFirst();
+        var first = getVirtualClusterListenerStream(cluster).filter(l -> l.name().equals(listener)).map(VirtualClusterListener::clusterNetworkAddressConfigProvider)
+                .findFirst();
         var provider = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have listener named " + listener));
 
         // Need proper way to do this for embedded use-cases. We should have a way to query kroxy for the virtual cluster's
@@ -131,5 +139,13 @@ public class KroxyliciousConfigUtils {
                                 SniRoutingClusterNetworkAddressConfigProvider.class.getSimpleName())
                                 .withConfig("bootstrapAddress", bootstrapAddress, "advertisedBrokerAddressPattern", advertisedBrokerAddressPattern)
                                 .build());
+    }
+
+    @SuppressWarnings("removal")
+    public static Stream<VirtualClusterListener> getVirtualClusterListenerStream(VirtualCluster cluster) {
+        return Optional.ofNullable(cluster.listeners())
+                .filter(Predicate.not(List::isEmpty))
+                .map(Collection::stream)
+                .orElseGet(() -> Stream.of(new VirtualClusterListener(DEFAULT_LISTENER_NAME, cluster.clusterNetworkAddressConfigProvider(), cluster.tls())));
     }
 }
