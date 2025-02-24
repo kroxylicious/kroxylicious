@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -162,7 +163,8 @@ public record Configuration(
                          @Nullable AdminHttpConfiguration adminHttp, @Nullable List<NamedFilterDefinition> filterDefinitions,
                          @Nullable List<String> defaultFilters,
                          Map<String, VirtualCluster> virtualClusters,
-                         List<MicrometerDefinition> micrometer, boolean useIoUring,
+                         List<MicrometerDefinition> micrometer,
+                         boolean useIoUring,
                          @NonNull Optional<Map<String, Object>> development) {
         this(adminHttp, filterDefinitions, defaultFilters, virtualClusters, null, micrometer, useIoUring, development);
     }
@@ -178,14 +180,31 @@ public record Configuration(
                 virtualCluster.logFrames(),
                 filterDefinitions);
 
-        virtualCluster.listeners().forEach(listener -> {
+        Optional.ofNullable(virtualCluster.listeners())
+                .filter(Predicate.not(List::isEmpty))
+                .ifPresentOrElse(listeners -> addListeners(pfr, listeners, virtualClusterModel),
+                        () -> addListenerFromDeprecatedConfig(virtualCluster, pfr, virtualClusterModel));
+
+        return virtualClusterModel;
+    }
+
+    private static void addListeners(@NonNull PluginFactoryRegistry pfr, List<VirtualClusterListener> listeners, VirtualClusterModel virtualClusterModel) {
+        listeners.forEach(listener -> {
             var networkAddress = buildNetworkAddressProviderService(listener.clusterNetworkAddressConfigProvider(), pfr);
             var tls = listener.tls();
             virtualClusterModel.addListener(listener.name(), networkAddress, tls);
             logVirtualClusterSummary(virtualClusterModel.getClusterName(), virtualClusterModel.targetCluster(), networkAddress,
                     tls);
         });
-        return virtualClusterModel;
+    }
+
+    @SuppressWarnings("removal")
+    private static void addListenerFromDeprecatedConfig(@NonNull VirtualCluster virtualCluster, @NonNull PluginFactoryRegistry pfr,
+                                                        VirtualClusterModel virtualClusterModel) {
+        // VirtualCluster config validation should mean this we always have a provider if we reach this point.
+        Objects.requireNonNull(virtualCluster.clusterNetworkAddressConfigProvider(), "provider unexpectedly null");
+        var networkAddress = buildNetworkAddressProviderService(virtualCluster.clusterNetworkAddressConfigProvider(), pfr);
+        virtualClusterModel.addListener(VirtualCluster.DEFAULT_LISTENER_NAME, networkAddress, virtualCluster.tls());
     }
 
     @SuppressWarnings("java:S1874") // the classes are deprecated because we don't want them in the API module

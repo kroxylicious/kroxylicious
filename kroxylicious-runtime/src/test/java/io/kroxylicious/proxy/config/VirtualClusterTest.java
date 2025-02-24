@@ -33,14 +33,13 @@ class VirtualClusterTest {
     ClusterNetworkAddressConfigProviderDefinition provider2;
 
     @Test
-    void supportsDeprecatedConfigProviderTreatedAsSingletonListener() {
+    @SuppressWarnings("removal")
+    void supportsDeprecatedConfigProvider() {
         // Given/When
         var vc = new VirtualCluster(targetCluster, provider1, Optional.empty(), null, false, false, NO_FILTERS);
 
         // Then
-        assertThat(vc.listeners())
-                .singleElement()
-                .isEqualTo(new VirtualClusterListener("default", provider1, Optional.empty()));
+        assertThat(vc.clusterNetworkAddressConfigProvider()).isEqualTo(provider1);
     }
 
     @Test

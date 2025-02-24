@@ -48,6 +48,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.getVirtualClusterListenerStream;
 
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
@@ -120,7 +121,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         final VirtualCluster definedCluster = kroxyliciousConfig.virtualClusters().get(virtualCluster);
         if (definedCluster != null) {
 
-            var first = definedCluster.listeners().stream().filter(l -> l.name().equals(listener)).findFirst();
+            var first = getVirtualClusterListenerStream(definedCluster).filter(l -> l.name().equals(listener)).findFirst();
             var vcl = first.orElseThrow(() -> new IllegalArgumentException("cluster " + virtualCluster + " does not contain listener named " + listener));
             final Optional<Tls> tls = vcl.tls();
             if (tls.isPresent()) {
