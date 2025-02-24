@@ -58,7 +58,7 @@ public class VirtualClusterModel {
 
     private final boolean logFrames;
 
-    private final Map<String, EndpointListener> listeners = new HashMap<>();
+    private final Map<String, VirtualClusterListenerModel> listeners = new HashMap<>();
 
     private final List<NamedFilterDefinition> filters;
 
@@ -77,6 +77,42 @@ public class VirtualClusterModel {
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
+    }
+
+    public void logVirtualClusterSummary() {
+        var upstreamHostPort = targetCluster.bootstrapServersList().get(0);
+        var upstreamTlsSummary = generateTlsSummary(targetCluster.tls());
+
+        LOGGER.info("Virtual Cluster '{}' - listener summary", clusterName);
+
+        listeners.forEach((name, listener) -> {
+            var downstreamBootstrap = listener.getClusterBootstrapAddress();
+            var downstreamTlsSummary = generateTlsSummary(listener.getTls());
+
+            LOGGER.info("Listener: {}, Downstream {}{} => Upstream {}{}",
+                    name, downstreamBootstrap, downstreamTlsSummary, upstreamHostPort, upstreamTlsSummary);
+        });
+    }
+
+    private static String generateTlsSummary(Optional<Tls> tlsToSummarize) {
+        var tls = tlsToSummarize.map(t -> Optional.ofNullable(t.trust())
+                .map(TrustProvider::trustOptions)
+                .map(TrustOptions::toString).orElse("-"))
+                .map(options -> " (TLS: " + options + ") ").orElse("");
+        var cipherSuitesAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(allowedCiphers -> " (Allowed Ciphers: " + allowedCiphers + ")").orElse("");
+        var cipherSuitesDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.cipherSuites())
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(deniedCiphers -> " (Denied Ciphers: " + deniedCiphers + ")").orElse("");
+        var protocolsAllowed = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
+                .map(AllowDeny::allowed).orElse(Collections.emptyList()))
+                .map(protocols -> " (Allowed Protocols: " + protocols + ")").orElse("");
+        var protocolsDenied = tlsToSummarize.map(t -> Optional.ofNullable(t.protocols())
+                .map(AllowDeny::denied).orElse(Collections.emptySet()))
+                .map(protocols -> " (Denied Protocols: " + protocols + ")").orElse("");
+
+        return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
 
     public void addListener(String name, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
@@ -319,6 +355,10 @@ public class VirtualClusterModel {
         @Override
         public Optional<SslContext> getDownstreamSslContext() {
             return downstreamSslContext;
+        }
+
+        public Optional<Tls> getTls() {
+            return tls;
         }
 
         private Optional<SslContext> buildDownstreamSslContext() {
