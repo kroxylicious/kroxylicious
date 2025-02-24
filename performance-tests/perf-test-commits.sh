@@ -69,7 +69,9 @@ buildImage() {
 runPerfTest() {
   local COMMIT_ID=$1
   export KIBANA_OUTPUT_DIR=${RESULTS_DIR}/${COMMIT_ID}
+  export PROFILING_OUTPUT_DIRECTORY=${RESULTS_DIR}/${COMMIT_ID}/profile
   mkdir -p "${KIBANA_OUTPUT_DIR}"
+  mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
   export KROXYLICIOUS_IMAGE="${REGISTRY_DESTINATION}:g_${COMMIT_ID}"
   echo -e "Running tests using ${GREEN}${KROXYLICIOUS_IMAGE}${NOCOLOR}"
   "${PERF_TESTS_DIR}/perf-tests.sh"
