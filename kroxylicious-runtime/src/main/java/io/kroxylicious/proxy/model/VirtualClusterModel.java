@@ -118,7 +118,7 @@ public class VirtualClusterModel {
     public void addListener(String name, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
         validateTLsSettings(provider, tls);
         validatePortUsage(provider);
-        listeners.put(name, new VirtualClusterListenerModel(this, provider, tls));
+        listeners.put(name, new VirtualClusterListenerModel(this, provider, tls, name));
     }
 
     public TargetCluster targetCluster() {
@@ -279,13 +279,15 @@ public class VirtualClusterModel {
         private final ClusterNetworkAddressConfigProvider provider;
         private final Optional<Tls> tls;
         private final Optional<SslContext> downstreamSslContext;
+        private final String name;
 
         @VisibleForTesting
-        VirtualClusterListenerModel(VirtualClusterModel virtualCluster, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
+        VirtualClusterListenerModel(VirtualClusterModel virtualCluster, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls, String name) {
             this.virtualCluster = virtualCluster;
             this.provider = provider;
             this.tls = tls;
             this.downstreamSslContext = buildDownstreamSslContext();
+            this.name = name;
         }
 
         @Override
@@ -343,6 +345,11 @@ public class VirtualClusterModel {
         }
 
         @Override
+        public String name() {
+            return name;
+        }
+
+        @Override
         public HostPort getAdvertisedBrokerAddress(int nodeId) {
             return getClusterNetworkAddressConfigProvider().getAdvertisedBrokerAddress(nodeId);
         }
@@ -382,6 +389,7 @@ public class VirtualClusterModel {
         public String toString() {
             return "VirtualClusterListenerModel[" +
                     "virtualCluster=" + virtualCluster + ", " +
+                    "name=" + name + ", " +
                     "provider=" + provider + ", " +
                     "tls=" + tls + ']';
         }

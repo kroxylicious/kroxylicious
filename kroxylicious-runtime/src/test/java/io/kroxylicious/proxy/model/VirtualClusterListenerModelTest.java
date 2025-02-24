@@ -79,7 +79,7 @@ class VirtualClusterListenerModelTest {
     @Test
     void delegatesToProviderForAdvertisedPort() {
         var mock = mock(ClusterNetworkAddressConfigProvider.class);
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), mock, Optional.empty());
+        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         var advertisedHostPort = new HostPort("broker", 55);
         when(mock.getAdvertisedBrokerAddress(0)).thenReturn(advertisedHostPort);
         assertThat(listener.getAdvertisedBrokerAddress(0)).isEqualTo(advertisedHostPort);
@@ -94,7 +94,7 @@ class VirtualClusterListenerModelTest {
         var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
 
         // When
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, downstreamTls);
+        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, downstreamTls, "default");
 
         // Then
         assertThat(listener).isNotNull().extracting("downstreamSslContext").isNotNull();
@@ -133,7 +133,7 @@ class VirtualClusterListenerModelTest {
         var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
 
         // When
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, downstreamTls);
+        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, downstreamTls, "default");
 
         // Then
         assertThat(listener)
@@ -166,7 +166,7 @@ class VirtualClusterListenerModelTest {
         var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
 
         // When
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, tls);
+        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, tls, "default");
 
         // Then
         assertThat(listener)
@@ -199,7 +199,7 @@ class VirtualClusterListenerModelTest {
         var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
 
         // When
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, tls);
+        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, tls, "default");
 
         // Then
         assertThat(listener)
