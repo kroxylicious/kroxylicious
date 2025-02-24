@@ -78,7 +78,7 @@ public record VirtualCluster(TargetCluster targetCluster,
                 .filter(i -> Collections.frequency(names, i) > 1)
                 .collect(Collectors.toSet());
         if (!duplicates.isEmpty()) {
-            throw new IllegalConfigurationException("The following listener names are duplicated: " + duplicates);
+            throw new IllegalConfigurationException("Listener names for a virtual cluster must be unique. The following listener names are duplicated: [%s]".formatted(String.join(", ", duplicates)));
         }
     }
 }
