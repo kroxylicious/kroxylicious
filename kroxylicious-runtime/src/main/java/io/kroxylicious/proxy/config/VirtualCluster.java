@@ -71,26 +71,32 @@ public record VirtualCluster(TargetCluster targetCluster,
             if (listeners.stream().anyMatch(Objects::isNull)) {
                 throw new IllegalConfigurationException("one or more listeners were null");
             }
-            var names = listeners.stream()
-                    .map(VirtualClusterListener::name)
-                    .toList();
-            var duplicates = names.stream()
-                    .filter(i -> Collections.frequency(names, i) > 1)
-                    .collect(Collectors.toSet());
-            if (!duplicates.isEmpty()) {
-                throw new IllegalConfigurationException(
-                        "Listener names for a virtual cluster must be unique. The following listener names are duplicated: [%s]".formatted(
-                                String.join(", ", duplicates)));
-            }
+            validateNoDuplicatedListenerNames(listeners);
+        }
+    }
+
+    private void validateNoDuplicatedListenerNames(List<VirtualClusterListener> listeners) {
+        var names = listeners.stream()
+                .map(VirtualClusterListener::name)
+                .toList();
+        var duplicates = names.stream()
+                .filter(i -> Collections.frequency(names, i) > 1)
+                .collect(Collectors.toSet());
+        if (!duplicates.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "Listener names for a virtual cluster must be unique. The following listener names are duplicated: [%s]".formatted(
+                            String.join(", ", duplicates)));
         }
     }
 
     @Deprecated(since = "0.11.0", forRemoval = true)
+    @SuppressWarnings("java:S6207") // overriding the method to add the deprecated annotation
     public ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider() {
         return clusterNetworkAddressConfigProvider;
     }
 
     @Deprecated(since = "0.11.0", forRemoval = true)
+    @SuppressWarnings("java:S6207") // overriding the method to add the deprecated annotation
     public Optional<Tls> tls() {
         return tls;
     }
