@@ -37,11 +37,9 @@ import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
@@ -623,10 +621,9 @@ class DefaultKroxyliciousTesterTest {
                 .addToListeners(defaultPortPerBrokerListenerBuilder(DEFAULT_PROXY_BOOTSTRAP).build())
                 .addToListeners(new VirtualClusterListenerBuilder()
                         .withName(CUSTOM_LISTENER_NAME)
-                        .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                        .withConfig("bootstrapAddress", new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + 10))
-                                        .build())
+                        .withNewPortIdentifiesNode()
+                        .withBootstrapAddress(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + 10))
+                        .endPortIdentifiesNode()
                         .build());
         configurationBuilder
                 .addToVirtualClusters(virtualClusterName, vcb.build());

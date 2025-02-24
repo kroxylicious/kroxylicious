@@ -46,16 +46,13 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.net.PassthroughProxy;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinition;
-import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterListener;
 import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.IntRangeSpec;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.NamedRangeSpec;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
@@ -131,14 +128,13 @@ class ExpositionIT extends BaseIT {
         var builder = new ConfigurationBuilder();
 
         for (int i = 0; i < clusterProxyAddresses.size(); i++) {
-            var bootstrap = clusterProxyAddresses.get(i);
+            var bootstrap = HostPort.parse(clusterProxyAddresses.get(i));
             var virtualCluster = baseVirtualClusterBuilder(cluster)
                     .addToListeners(new VirtualClusterListenerBuilder()
                             .withName(DEFAULT_LISTENER_NAME)
-                            .withClusterNetworkAddressConfigProvider(
-                                    new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                            .withConfig("bootstrapAddress", bootstrap)
-                                            .build())
+                            .withNewPortIdentifiesNode()
+                            .withBootstrapAddress(bootstrap)
+                            .endPortIdentifiesNode()
                             .build())
                     .build();
             builder.addToVirtualClusters("cluster" + i, virtualCluster);
@@ -185,10 +181,9 @@ class ExpositionIT extends BaseIT {
     private static VirtualClusterListener portPerBrokerListener(String bootstrapAddress, String listenerName) {
         return new VirtualClusterListenerBuilder()
                 .withName(listenerName)
-                .withClusterNetworkAddressConfigProvider(
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                .withConfig("bootstrapAddress", bootstrapAddress)
-                                .build())
+                .withNewPortIdentifiesNode()
+                .withBootstrapAddress(HostPort.parse(bootstrapAddress))
+                .endPortIdentifiesNode()
                 .build();
     }
 
@@ -310,11 +305,10 @@ class ExpositionIT extends BaseIT {
             virtualClusterBuilder
                     .addToListeners(new VirtualClusterListenerBuilder()
                             .withName("listener-" + i)
-                            .withClusterNetworkAddressConfigProvider(
-                                    new ClusterNetworkAddressConfigProviderDefinitionBuilder(SniRoutingClusterNetworkAddressConfigProvider.class.getName())
-                                            .withConfig("bootstrapAddress", virtualClusterFQDN + ":9192",
-                                                    "advertisedBrokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i))
-                                            .build())
+                            .withNewSniHostIdentifiesNode()
+                            .withBootstrapAddress(new HostPort(virtualClusterFQDN, 9192))
+                            .withAdvertisedBrokerAddressPattern(virtualClusterBrokerAddressPattern.formatted(i))
+                            .endSniHostIdentifiesNode()
                             .withNewTls()
                             .withNewKeyStoreKey()
                             .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
@@ -352,11 +346,10 @@ class ExpositionIT extends BaseIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .addToListeners(defaultListenerBuilder()
-                                .withClusterNetworkAddressConfigProvider(
-                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.class.getName())
-                                                .withConfig("bootstrapAddress", PROXY_ADDRESS)
-                                                .withConfig("nodeIdRanges", List.of(new NamedRangeSpec("nodes", new IntRangeSpec(0, 2))))
-                                                .build())
+                                .withNewPortIdentifiesNode()
+                                .withBootstrapAddress(PROXY_ADDRESS)
+                                .withNodeIdRanges(new NamedRange("nodes", 0, 2))
+                                .endPortIdentifiesNode()
                                 .build())
                         .build());
 
@@ -385,13 +378,10 @@ class ExpositionIT extends BaseIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .addToListeners(defaultListenerBuilder()
-                                .withClusterNetworkAddressConfigProvider(
-                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.class.getName())
-                                                .withConfig("bootstrapAddress", PROXY_ADDRESS)
-                                                .withConfig("nodeIdRanges",
-                                                        List.of(new NamedRangeSpec("node-0", new IntRangeSpec(0, 1)),
-                                                                new NamedRangeSpec("node-2", new IntRangeSpec(2, 3))))
-                                                .build())
+                                .withNewPortIdentifiesNode()
+                                .withBootstrapAddress(PROXY_ADDRESS)
+                                .withNodeIdRanges(new NamedRange("node-0", 0, 1), new NamedRange("node-2", 2, 3))
+                                .endPortIdentifiesNode()
                                 .build())
                         .build());
 
@@ -654,7 +644,7 @@ class ExpositionIT extends BaseIT {
     // we currently cannot influence the node ids, so we start a 2 node cluster and shutdown node 0
     // cannot use KRaft as node 0 is a controller
     @Test
-    void canConfigureLowestBrokerIdWithPortPerBroker(@ZooKeeperCluster @BrokerCluster(numBrokers = 2) KafkaCluster cluster, Admin admin) throws Exception {
+    void canConfigurePortIdentifiesNodeWithRange(@ZooKeeperCluster @BrokerCluster(numBrokers = 2) KafkaCluster cluster, Admin admin) throws Exception {
         cluster.removeBroker(0);
         await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
                 n -> n.size() == 1 && n.iterator().next().id() == 1);
@@ -664,12 +654,10 @@ class ExpositionIT extends BaseIT {
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
                         .addToListeners(defaultListenerBuilder()
-                                .withClusterNetworkAddressConfigProvider(
-                                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                                .withConfig("bootstrapAddress", PROXY_ADDRESS)
-                                                .withConfig("lowestTargetBrokerId", 1)
-                                                .withConfig("numberOfBrokerPorts", 1)
-                                                .build())
+                                .withNewPortIdentifiesNode()
+                                .withBootstrapAddress(PROXY_ADDRESS)
+                                .withNodeIdRanges(new NamedRange("myrange", 1, 2))
+                                .endPortIdentifiesNode()
                                 .build())
                         .build());
 
