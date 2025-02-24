@@ -44,7 +44,7 @@ class VirtualClusterTest {
     }
 
     @Test
-    void supportsListeners() {
+    void supportsMultipleListeners() {
         // Given
         var listeners = List.of(new VirtualClusterListener("mylistener1", provider1, Optional.empty()),
                 new VirtualClusterListener("mylistener2", provider2, Optional.empty()));
@@ -96,12 +96,13 @@ class VirtualClusterTest {
     }
 
     @Test
-    void disallowsDuplicateListenerNames() {
+    void disallowsListenersWithDuplicateNames() {
         // Given
         var listeners = List.of(new VirtualClusterListener("dup", provider1, Optional.empty()),
                 new VirtualClusterListener("dup", provider2, Optional.empty()));
         // When/Then
         assertThatThrownBy(() -> new VirtualCluster(targetCluster, null, null, listeners, false, false, NO_FILTERS))
-                .isInstanceOf(IllegalConfigurationException.class);
+                .isInstanceOf(IllegalConfigurationException.class)
+                .hasMessageContaining("Listener names for a virtual cluster must be unique. The following listener names are duplicated: [dup]");
     }
 }
