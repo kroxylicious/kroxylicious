@@ -100,4 +100,10 @@ public interface EndpointListener {
      */
     Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress);
 
+    /**
+     * Get the listeners name
+     * @return name
+     */
+    String name();
+
 }
