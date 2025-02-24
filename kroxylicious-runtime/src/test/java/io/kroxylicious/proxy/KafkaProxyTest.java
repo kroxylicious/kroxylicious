@@ -75,7 +75,8 @@ class KafkaProxyTest {
                       config:
                         bootstrapAddress: localhost:9192 # Conflict
                         numberOfBrokerPorts: 1
-                """, "The exclusive bind of port(s) 9192,9193 to <any> would conflict with existing exclusive port bindings on <any>."),
+                """,
+                "exclusive TCP bind of <any>:9192 for listener 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9192 for listener 'default' of virtual cluster 'demo2': exclusive port collision"),
                 Arguments.of("broker port conflict", """
                         virtualClusters:
                           demo1:
@@ -96,7 +97,8 @@ class KafkaProxyTest {
                                 bootstrapAddress: localhost:8192
                                 brokerStartPort: 9193 # Conflict
                                 numberOfBrokerPorts: 1
-                        """, "The exclusive bind of port(s) 9193 to <any> would conflict with existing exclusive port bindings on <any>."));
+                        """,
+                        "exclusive TCP bind of <any>:9193 for listener 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9193 for listener 'default' of virtual cluster 'demo2': exclusive port collision"));
     }
 
     @ParameterizedTest(name = "{0}")
