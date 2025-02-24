@@ -12,16 +12,16 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.NamedRange;
+import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterListener;
 import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
@@ -126,19 +126,25 @@ public class KroxyliciousConfigUtils {
 
     public static VirtualClusterListenerBuilder defaultPortPerBrokerListenerBuilder(HostPort proxyAddress) {
         return defaultListenerBuilder()
-                .withClusterNetworkAddressConfigProvider(
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getSimpleName())
-                                .withConfig("bootstrapAddress", proxyAddress)
-                                .build());
+                .withNewPortIdentifiesNode()
+                .withBootstrapAddress(proxyAddress)
+                .endPortIdentifiesNode();
+    }
+
+    public static VirtualClusterListenerBuilder defaultPortPerBrokerListenerBuilder(String proxyAddress) {
+        return defaultPortPerBrokerListenerBuilder(HostPort.parse(proxyAddress));
+    }
+
+    public static VirtualClusterListenerBuilder defaultSniListenerBuilder(HostPort bootstrapAddress, String advertisedBrokerAddressPattern) {
+        return defaultListenerBuilder()
+                .withNewSniHostIdentifiesNode()
+                .withBootstrapAddress(bootstrapAddress)
+                .withAdvertisedBrokerAddressPattern(advertisedBrokerAddressPattern)
+                .endSniHostIdentifiesNode();
     }
 
     public static VirtualClusterListenerBuilder defaultSniListenerBuilder(String bootstrapAddress, String advertisedBrokerAddressPattern) {
-        return defaultListenerBuilder()
-                .withClusterNetworkAddressConfigProvider(
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                SniRoutingClusterNetworkAddressConfigProvider.class.getSimpleName())
-                                .withConfig("bootstrapAddress", bootstrapAddress, "advertisedBrokerAddressPattern", advertisedBrokerAddressPattern)
-                                .build());
+        return defaultSniListenerBuilder(HostPort.parse(bootstrapAddress), advertisedBrokerAddressPattern);
     }
 
     @SuppressWarnings("removal")
@@ -146,6 +152,37 @@ public class KroxyliciousConfigUtils {
         return Optional.ofNullable(cluster.listeners())
                 .filter(Predicate.not(List::isEmpty))
                 .map(Collection::stream)
-                .orElseGet(() -> Stream.of(new VirtualClusterListener(DEFAULT_LISTENER_NAME, cluster.clusterNetworkAddressConfigProvider(), cluster.tls())));
+                .orElseGet(() -> {
+                    var providerDefinition = cluster.clusterNetworkAddressConfigProvider();
+                    if (providerDefinition.config() instanceof PortPerBrokerClusterNetworkAddressConfigProviderConfig pc) {
+                        var ppb = new PortIdentifiesNodeIdentificationStrategy(pc.getBootstrapAddress(),
+                                pc.getBrokerAddressPattern(),
+                                pc.getBrokerStartPort(),
+                                null);
+
+                        return Stream.of(new VirtualClusterListener(DEFAULT_LISTENER_NAME,
+                                ppb, null, cluster.tls()));
+                    }
+                    else if (providerDefinition.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rc) {
+                        var ranges = rc.getNodeIdRanges().stream()
+                                .map(nir -> new NamedRange(nir.name(), nir.rangeSpec().startInclusive(), nir.rangeSpec().endExclusive()))
+                                .toList();
+                        var rap = new PortIdentifiesNodeIdentificationStrategy(rc.getBootstrapAddress(),
+                                rc.getNodeAddressPattern(),
+                                rc.getNodeStartPort(),
+                                ranges);
+
+                        return Stream.of(new VirtualClusterListener(DEFAULT_LISTENER_NAME,
+                                rap, null, cluster.tls()));
+                    }
+                    else if (providerDefinition.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sc) {
+                        var snp = new SniHostIdentifiesNodeIdentificationStrategy(sc.getBootstrapAddress(),
+                                sc.getBrokerAddressPattern());
+
+                        return Stream.of(new VirtualClusterListener(DEFAULT_LISTENER_NAME,
+                                null, snp, cluster.tls()));
+                    }
+                    throw new UnsupportedOperationException(providerDefinition.type() + " is unrecognised");
+                });
     }
 }

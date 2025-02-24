@@ -66,7 +66,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
             this.bootstrapAddress = config.bootstrapAddress;
             this.brokerAddressPattern = config.parsedBrokerAddressPattern;
             this.brokerAddressNodeIdCapturingRegex = config.brokerAddressNodeIdCapturingRegex;
-            advertisedPort = config.getAdvertisedPort();
+            this.advertisedPort = config.getAdvertisedPort();
         }
 
         @Override
@@ -137,6 +137,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
         private final Pattern brokerAddressNodeIdCapturingRegex;
         @JsonIgnore
         private final Integer advertisedPort;
+
         // present for serialize/deserialize fidelity
         @SuppressWarnings("unused")
         private final String brokerAddressPattern;
@@ -200,9 +201,14 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
             return bootstrapAddress;
         }
 
+        public String getBrokerAddressPattern() {
+            return brokerAddressPattern;
+        }
+
         public int getAdvertisedPort() {
             return advertisedPort;
         }
+
     }
 
 }

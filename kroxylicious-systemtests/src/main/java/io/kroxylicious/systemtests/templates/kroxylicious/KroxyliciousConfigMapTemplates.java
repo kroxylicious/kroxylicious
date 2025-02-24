@@ -108,11 +108,9 @@ public final class KroxyliciousConfigMapTemplates {
                   my-cluster-proxy:
                     listeners:
                     - name: default
-                      clusterNetworkAddressConfigProvider:
-                        type: PortPerBrokerClusterNetworkAddressConfigProvider
-                        config:
-                          bootstrapAddress: localhost:9292
-                          brokerAddressPattern: %s
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9292
+                        advertisedBrokerAddressPattern: %s
                     targetCluster:
                       bootstrapServers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     logFrames: false
@@ -135,11 +133,9 @@ public final class KroxyliciousConfigMapTemplates {
                       bootstrapServers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     listeners:
                     - name: default
-                      clusterNetworkAddressConfigProvider:
-                        type: PortPerBrokerClusterNetworkAddressConfigProvider
-                        config:
-                          bootstrapAddress: localhost:9292
-                          brokerAddressPattern: %s
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9292
+                        advertisedBrokerAddressPattern: %s
                     logNetwork: false
                     logFrames: false
                 """
@@ -163,10 +159,8 @@ public final class KroxyliciousConfigMapTemplates {
                       bootstrapServers: %s:9094
                     listeners:
                     - name: default
-                      clusterNetworkAddressConfigProvider:
-                        type: PortPerBrokerClusterNetworkAddressConfigProvider
-                        config:
-                          bootstrapAddress: localhost:9292
+                      portIdentifiesNode:
+                        bootstrapAddress: localhost:9292
                     logNetwork: false
                     logFrames: false
                 """

@@ -50,6 +50,7 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider
         @JsonIgnore
         private final RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rangeAwareConfig;
         private final HostPort bootstrapAddress;
+
         @SuppressWarnings("java:S1068") // included for serialization fidelity
         private final String brokerAddressPattern;
         private final int brokerStartPort;
@@ -86,6 +87,23 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider
         public HostPort getBootstrapAddress() {
             return bootstrapAddress;
         }
+
+        public String getBrokerAddressPattern() {
+            return brokerAddressPattern;
+        }
+
+        public int getBrokerStartPort() {
+            return brokerStartPort;
+        }
+
+        public int getLowestTargetBrokerId() {
+            return lowestTargetBrokerId;
+        }
+
+        public int getNumberOfBrokerPorts() {
+            return numberOfBrokerPorts;
+        }
+
     }
 
 }

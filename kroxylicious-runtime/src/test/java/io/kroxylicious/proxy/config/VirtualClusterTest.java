@@ -27,26 +27,28 @@ class VirtualClusterTest {
     TargetCluster targetCluster;
 
     @Mock
-    ClusterNetworkAddressConfigProviderDefinition provider1;
+    PortIdentifiesNodeIdentificationStrategy portIdentifiesNode1;
+    @Mock
+    PortIdentifiesNodeIdentificationStrategy portIdentifiesNode2;
 
     @Mock
-    ClusterNetworkAddressConfigProviderDefinition provider2;
+    ClusterNetworkAddressConfigProviderDefinition provider;
 
     @Test
     @SuppressWarnings("removal")
     void supportsDeprecatedConfigProvider() {
         // Given/When
-        var vc = new VirtualCluster(targetCluster, provider1, Optional.empty(), null, false, false, NO_FILTERS);
+        var vc = new VirtualCluster(targetCluster, provider, Optional.empty(), null, false, false, NO_FILTERS);
 
         // Then
-        assertThat(vc.clusterNetworkAddressConfigProvider()).isEqualTo(provider1);
+        assertThat(vc.clusterNetworkAddressConfigProvider()).isEqualTo(provider);
     }
 
     @Test
     void supportsMultipleListeners() {
         // Given
-        var listeners = List.of(new VirtualClusterListener("mylistener1", provider1, Optional.empty()),
-                new VirtualClusterListener("mylistener2", provider2, Optional.empty()));
+        var listeners = List.of(new VirtualClusterListener("mylistener1", portIdentifiesNode1, null, Optional.empty()),
+                new VirtualClusterListener("mylistener2", portIdentifiesNode2, null, Optional.empty()));
 
         // When
         var vc = new VirtualCluster(targetCluster, null, null, listeners, false, false, NO_FILTERS);
@@ -60,17 +62,17 @@ class VirtualClusterTest {
     @Test
     void disallowsListenersAndDeprecatedConfigProvider() {
         // Given
-        var listeners = List.of(new VirtualClusterListener("mylistener", provider1, Optional.empty()));
+        var listeners = List.of(new VirtualClusterListener("mylistener", portIdentifiesNode1, null, Optional.empty()));
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster(targetCluster, provider2, null, listeners, false, false, NO_FILTERS))
+        assertThatThrownBy(() -> new VirtualCluster(targetCluster, provider, null, listeners, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
     @Test
     void disallowsListenersAndDeprecatedTls() {
         // Given
-        var listeners = List.of(new VirtualClusterListener("mylistener", provider1, Optional.empty()));
+        var listeners = List.of(new VirtualClusterListener("mylistener", portIdentifiesNode1, null, Optional.empty()));
         var tls = Optional.of(new Tls(null, null, null, null));
 
         // When/Then
@@ -97,8 +99,8 @@ class VirtualClusterTest {
     @Test
     void disallowsListenersWithDuplicateNames() {
         // Given
-        var listeners = List.of(new VirtualClusterListener("dup", provider1, Optional.empty()),
-                new VirtualClusterListener("dup", provider2, Optional.empty()));
+        var listeners = List.of(new VirtualClusterListener("dup", portIdentifiesNode1, null, Optional.empty()),
+                new VirtualClusterListener("dup", portIdentifiesNode2, null, Optional.empty()));
         // When/Then
         assertThatThrownBy(() -> new VirtualCluster(targetCluster, null, null, listeners, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class)

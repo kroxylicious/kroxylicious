@@ -14,21 +14,53 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.config.tls.Tls;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A virtual cluster listener.
  *
  * @param name name of the listener
- * @param clusterNetworkAddressConfigProvider network config
+ * @param portIdentifiesNode network config
+ * @param sniHostIdentifiesNode network config
  * @param tls tls settings
  */
 public record VirtualClusterListener(@NonNull @JsonProperty(required = true) String name,
-                                     @NonNull @JsonProperty(required = true) ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider,
+                                     @Nullable @JsonProperty(required = false) PortIdentifiesNodeIdentificationStrategy portIdentifiesNode,
+                                     @Nullable @JsonProperty(required = false) SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNode,
                                      @NonNull Optional<Tls> tls) {
 
     public VirtualClusterListener {
         Objects.requireNonNull(name);
-        Objects.requireNonNull(clusterNetworkAddressConfigProvider);
         Objects.requireNonNull(tls);
+
+        if (!(portIdentifiesNode == null) ^ (sniHostIdentifiesNode == null)) {
+            throw new IllegalConfigurationException("Must specify either portIdentifiesNode or sniHostIdentifiesNode (virtual cluster listener %s)".formatted(name));
+        }
+
+        if (sniHostIdentifiesNode != null && tls.isEmpty()) {
+            throw new IllegalConfigurationException("When using 'sniHostIdentifiesNode', 'tls' must be provided (virtual cluster listener %s)".formatted(name));
+        }
+    }
+
+    public ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider() {
+        if (portIdentifiesNode() != null) {
+            return portIdentifiesNode().get();
+        }
+        else if (sniHostIdentifiesNode() != null) {
+            return sniHostIdentifiesNode().get();
+        }
+        else {
+            throw new IllegalStateException("Failed to create provider for " + this);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "VirtualClusterListener{" +
+                "name='" + name + '\'' +
+                ", portIdentifiesNode=" + portIdentifiesNode +
+                ", sniHostIdentifiesNode=" + sniHostIdentifiesNode +
+                ", tls=" + tls +
+                '}';
     }
 }

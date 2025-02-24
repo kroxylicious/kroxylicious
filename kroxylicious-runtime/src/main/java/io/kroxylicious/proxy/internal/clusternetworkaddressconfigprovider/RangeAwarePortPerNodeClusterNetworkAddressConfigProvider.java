@@ -119,6 +119,7 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
         private final int nodeStartPort;
         @JsonIgnore
         private final Map<Integer, Integer> nodeIdToPort;
+
         @SuppressWarnings("java:S1068") // included so Jackson can serialize/deserialize this with fidelity
         private final List<NamedRangeSpec> nodeIdRanges;
 
@@ -195,6 +196,18 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
 
         public HostPort getBootstrapAddress() {
             return bootstrapAddress;
+        }
+
+        public String getNodeAddressPattern() {
+            return nodeAddressPattern;
+        }
+
+        public int getNodeStartPort() {
+            return nodeStartPort;
+        }
+
+        public List<NamedRangeSpec> getNodeIdRanges() {
+            return nodeIdRanges;
         }
 
         private record RangeCollision(NamedRange a, NamedRange b) {

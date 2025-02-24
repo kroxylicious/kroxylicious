@@ -14,10 +14,8 @@ virtualClusters:
       bootstrapServers: localhost:9092
     listeners:
     - name: mylistener
-      clusterNetworkAddressConfigProvider:
-        type: PortPerBrokerClusterNetworkAddressConfigProvider
-        config:
-          bootstrapAddress: localhost:9192
+      portIdentifiesNode:
+        bootstrapAddress: localhost:9192
     logNetwork: false
     logFrames: false
 filterDefinitions:
