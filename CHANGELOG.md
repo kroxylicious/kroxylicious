@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1819](https://github.com/kroxylicious/kroxylicious/pull/1819) Bump io.netty:netty-bom from 4.1.117.Final to 4.1.118.Final
 * [#1820](https://github.com/kroxylicious/kroxylicious/pull/1820) Bump io.micrometer:micrometer-bom from 1.14.3 to 1.14.4
 * [#1768](https://github.com/kroxylicious/kroxylicious/pull/1768) Record Encryption: enable user to specify policy when we cannot resolve a Key for a topic
 
