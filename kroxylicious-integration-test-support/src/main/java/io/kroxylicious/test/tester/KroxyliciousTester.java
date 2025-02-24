@@ -47,6 +47,17 @@ public interface KroxyliciousTester extends Closeable {
 
     /**
      * Creates an Admin Client configured with the kroxylicious bootstrap server
+     * for a specific virtual cluster.
+     * @param virtualCluster the virtual cluster we want the client to connect to
+     * @param listenerName the listener we want the client to connect to
+     * @param additionalConfig additional configuration for the Admin client
+     * @return Admin client
+     * @throws IllegalArgumentException if the named virtual cluster is not part of the kroxylicious server
+     */
+    Admin admin(String virtualCluster, String listenerName, Map<String, Object> additionalConfig);
+
+    /**
+     * Creates an Admin Client configured with the kroxylicious bootstrap server
      * for the only virtual cluster configured.
      * @return Admin client
      * @throws AmbiguousVirtualClusterException if this tester is for a Kroxylicious configured with multiple virtual clusters
