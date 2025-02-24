@@ -129,7 +129,13 @@ class ExpositionIT extends BaseIT {
         for (int i = 0; i < clusterProxyAddresses.size(); i++) {
             var bootstrap = clusterProxyAddresses.get(i);
             var virtualCluster = baseVirtualClusterBuilder(cluster)
-                    .addToListeners(portPerBrokerListener(bootstrap, DEFAULT_LISTENER_NAME))
+                    .addToListeners(new VirtualClusterListenerBuilder()
+                            .withName(DEFAULT_LISTENER_NAME)
+                            .withClusterNetworkAddressConfigProvider(
+                                    new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                            .withConfig("bootstrapAddress", bootstrap)
+                                            .build())
+                            .build())
                     .build();
             builder.addToVirtualClusters("cluster" + i, virtualCluster);
         }
@@ -145,7 +151,7 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesSingleClusterWithMultipleListeners(KafkaCluster cluster) throws Exception {
+    void exposesSingleClusterWithMultiplePortPerBrokerListeners(KafkaCluster cluster) throws Exception {
         var builder = new ConfigurationBuilder();
 
         VirtualClusterBuilder virtualClusterBuilder = baseVirtualClusterBuilder(cluster);
@@ -289,6 +295,58 @@ class ExpositionIT extends BaseIT {
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
                     // do some work to ensure virtual cluster is operational
                     createTopic(admin, TOPIC + i, 1);
+                }
+            }
+        }
+    }
+
+    @Test
+    void exposesSingleUpstreamClustersUsingMultipleSniListeners(KafkaCluster cluster) throws Exception {
+        var keystoreTrustStoreList = new ArrayList<KeystoreTrustStorePair>();
+        var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".virtualcluster%d");
+        var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
+        var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
+
+        var builder = new ConfigurationBuilder();
+
+        int numberOfListeners = 2;
+        VirtualClusterBuilder virtualClusterBuilder = baseVirtualClusterBuilder(cluster);
+        for (int i = 0; i < numberOfListeners; i++) {
+            var virtualClusterFQDN = virtualClusterBootstrapPattern.formatted(i);
+            var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern.formatted(i));
+            keystoreTrustStoreList.add(keystoreTrustStorePair);
+            virtualClusterBuilder
+                    .addToListeners(new VirtualClusterListenerBuilder()
+                            .withName("listener-" + i)
+                            .withClusterNetworkAddressConfigProvider(
+                                    new ClusterNetworkAddressConfigProviderDefinitionBuilder(SniRoutingClusterNetworkAddressConfigProvider.class.getName())
+                                            .withConfig("bootstrapAddress", virtualClusterFQDN + ":9192",
+                                                    "advertisedBrokerAddressPattern", virtualClusterBrokerAddressPattern.formatted(i))
+                                            .build())
+                            .withNewTls()
+                            .withNewKeyStoreKey()
+                            .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
+                            .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
+                            .endKeyStoreKey()
+                            .endTls()
+                            .build())
+                    .withLogNetwork(true)
+                    .withLogFrames(true)
+                    .build();
+        }
+        builder.addToVirtualClusters("cluster", virtualClusterBuilder.build());
+
+        try (var tester = kroxyliciousTester(builder)) {
+            for (int i = 0; i < numberOfListeners; i++) {
+                var trust = keystoreTrustStoreList.get(i);
+                try (var admin = tester.admin("cluster", "listener-" + i, Map.of(
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.clientTrustStore(),
+                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
+                    // do some work to ensure virtual cluster is operational
+                    createTopic(admin, TOPIC + i, 1);
+                    Set<String> hosts = admin.describeCluster().nodes().get(5, TimeUnit.SECONDS).stream().map(Node::host).collect(Collectors.toSet());
+                    assertThat(hosts).containsExactly(virtualClusterBrokerAddressPattern.formatted(i).replace("$(nodeId)", "0"));
                 }
             }
         }

@@ -190,6 +190,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
+    public Admin admin(String virtualCluster, String listenerName, Map<String, Object> additionalConfig) {
+        return clients(virtualCluster, listenerName).admin(additionalConfig);
+    }
+
+    @Override
     public Admin admin(String virtualCluster) {
         return clients(virtualCluster, DEFAULT_LISTENER_NAME).admin();
     }
