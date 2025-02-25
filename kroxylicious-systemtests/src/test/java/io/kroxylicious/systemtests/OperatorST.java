@@ -21,7 +21,7 @@ class OperatorST extends AbstractST {
 
     @Test
     void operatorInstallation() {
-        kroxyliciousOperator = new KroxyliciousOperator(Constants.KO_NAMESPACE);
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         assertDoesNotThrow(() -> kroxyliciousOperator.deploy());
     }
 

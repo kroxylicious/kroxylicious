@@ -74,7 +74,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         this.namespaceInstallTo = namespaceInstallTo;
         this.replicas = 1;
         this.extensionContext = ResourceManager.getTestContext();
-        this.kroxyliciousOperatorName = Constants.KO_DEPLOYMENT_NAME;
+        this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME;
     }
 
     private static List<File> getOperatorFiles() {

@@ -30,7 +30,7 @@ public class ClusterRoleBindingTemplates {
 
     public static List<ClusterRoleBinding> clusterRoleBindingsForAllNamespaces(String namespaceName) {
         LOGGER.info("Creating ClusterRoleBinding that grant cluster-wide access to all OpenShift projects");
-        return clusterRoleBindingsForAllNamespaces(namespaceName, Constants.KO_DEPLOYMENT_NAME);
+        return clusterRoleBindingsForAllNamespaces(namespaceName, Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME);
     }
 
     public static List<ClusterRoleBinding> clusterRoleBindingsForAllNamespaces(String namespaceName, String koName) {
@@ -53,7 +53,7 @@ public class ClusterRoleBindingTemplates {
                 .endRoleRef()
                 .withSubjects(new SubjectBuilder()
                         .withKind(Constants.SERVICE_ACCOUNT)
-                        .withName(Constants.KO_DEPLOYMENT_NAME)
+                        .withName(Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME)
                         .withNamespace(namespaceName)
                         .build())
                 .build();
