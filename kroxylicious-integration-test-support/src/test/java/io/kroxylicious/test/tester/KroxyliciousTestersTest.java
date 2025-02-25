@@ -34,10 +34,9 @@ import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.test.client.KafkaClient;
@@ -50,6 +49,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortPerBrokerListenerBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
@@ -319,10 +319,7 @@ class KroxyliciousTestersTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()
-                .withClusterNetworkAddressConfigProvider(
-                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                .withConfig("bootstrapAddress", defaultProxyBootstrap)
-                                .build())
+                .addToListeners(defaultPortPerBrokerListenerBuilder(HostPort.parse(defaultProxyBootstrap)).build())
                 .build());
     }
 

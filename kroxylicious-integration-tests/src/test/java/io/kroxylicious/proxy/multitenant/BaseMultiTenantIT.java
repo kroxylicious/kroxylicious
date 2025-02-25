@@ -39,12 +39,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.BaseIT;
-import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.filter.multitenant.MultiTenant;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -53,6 +51,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortPerBrokerListenerBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
@@ -105,31 +104,27 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                        .withConfig("bootstrapAddress", TENANT_1_PROXY_ADDRESS)
-                                        .build())
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(certificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .endTls()
+                        .addToListeners(defaultPortPerBrokerListenerBuilder(TENANT_1_PROXY_ADDRESS)
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(certificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .endTls()
+                                .build())
                         .build())
                 .addToVirtualClusters(TENANT_2_CLUSTER, new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(
-                                new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                        .withConfig("bootstrapAddress", TENANT_2_PROXY_ADDRESS)
-                                        .build())
-                        .withNewTls()
-                        .withNewKeyStoreKey()
-                        .withStoreFile(certificateGenerator.getKeyStoreLocation())
-                        .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
-                        .endKeyStoreKey()
-                        .endTls()
+                        .addToListeners(defaultPortPerBrokerListenerBuilder(TENANT_2_PROXY_ADDRESS)
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(certificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(certificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .endTls()
+                                .build())
                         .build())
                 .addToFilterDefinitions(filterBuilder.build())
                 .addToDefaultFilters(filterBuilder.name());

@@ -6,12 +6,22 @@
 
 package io.kroxylicious.test.tester;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
+import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterListener;
+import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
@@ -27,6 +37,8 @@ public class KroxyliciousConfigUtils {
     }
 
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
+    public static final String DEFAULT_LISTENER_NAME = "default";
+
     static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
 
     /**
@@ -55,10 +67,8 @@ public class KroxyliciousConfigUtils {
                     .withNewTargetCluster()
                     .withBootstrapServers(clusterBootstrapServers)
                     .endTargetCluster()
-                    .withClusterNetworkAddressConfigProvider(
-                            new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                    .withConfig("bootstrapAddress", new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
-                                    .build());
+                    .addToListeners(defaultPortPerBrokerListenerBuilder(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
+                            .build());
             configurationBuilder
                     .addToVirtualClusters(virtualClusterName, vcb.build());
         }
@@ -79,16 +89,20 @@ public class KroxyliciousConfigUtils {
      * Locate the bootstrap servers for a virtual cluster
      * @param virtualCluster virtual cluster
      * @param config config to retrieve the bootstrap from
+     * @param listener listener of the virtual cluster
      * @return bootstrap address
      * @throws IllegalStateException if we encounter an unknown endpoint config provider type for the virtualcluster
      * @throws IllegalArgumentException if the virtualCluster is not in the kroxylicious config
      */
-    static String bootstrapServersFor(String virtualCluster, Configuration config) {
+    static String bootstrapServersFor(String virtualCluster, Configuration config, String listener) {
         var cluster = config.virtualClusters().get(virtualCluster);
         if (cluster == null) {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
-        var provider = cluster.clusterNetworkAddressConfigProvider();
+        var first = getVirtualClusterListenerStream(cluster).filter(l -> l.name().equals(listener)).map(VirtualClusterListener::clusterNetworkAddressConfigProvider)
+                .findFirst();
+        var provider = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have listener named " + listener));
+
         // Need proper way to do this for embedded use-cases. We should have a way to query kroxy for the virtual cluster's
         // actual bootstrap after the proxy is started. The provider might support dynamic ports (port 0), so querying the
         // config might not work.
@@ -104,5 +118,34 @@ public class KroxyliciousConfigUtils {
         else {
             throw new IllegalStateException("I don't know how to handle ClusterEndpointConfigProvider type:" + provider.type());
         }
+    }
+
+    public static VirtualClusterListenerBuilder defaultListenerBuilder() {
+        return new VirtualClusterListenerBuilder().withName(DEFAULT_LISTENER_NAME);
+    }
+
+    public static VirtualClusterListenerBuilder defaultPortPerBrokerListenerBuilder(HostPort proxyAddress) {
+        return defaultListenerBuilder()
+                .withClusterNetworkAddressConfigProvider(
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getSimpleName())
+                                .withConfig("bootstrapAddress", proxyAddress)
+                                .build());
+    }
+
+    public static VirtualClusterListenerBuilder defaultSniListenerBuilder(String bootstrapAddress, String advertisedBrokerAddressPattern) {
+        return defaultListenerBuilder()
+                .withClusterNetworkAddressConfigProvider(
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                                SniRoutingClusterNetworkAddressConfigProvider.class.getSimpleName())
+                                .withConfig("bootstrapAddress", bootstrapAddress, "advertisedBrokerAddressPattern", advertisedBrokerAddressPattern)
+                                .build());
+    }
+
+    @SuppressWarnings("removal")
+    public static Stream<VirtualClusterListener> getVirtualClusterListenerStream(VirtualCluster cluster) {
+        return Optional.ofNullable(cluster.listeners())
+                .filter(Predicate.not(List::isEmpty))
+                .map(Collection::stream)
+                .orElseGet(() -> Stream.of(new VirtualClusterListener(DEFAULT_LISTENER_NAME, cluster.clusterNetworkAddressConfigProvider(), cluster.tls())));
     }
 }

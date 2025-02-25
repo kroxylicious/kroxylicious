@@ -143,7 +143,9 @@ public final class KafkaProxy implements AutoCloseable {
 
             // TODO: startup/shutdown should return a completionstage
             CompletableFuture.allOf(
-                    virtualClusterModels.stream().map(vc -> endpointRegistry.registerVirtualCluster(vc).toCompletableFuture()).toArray(CompletableFuture[]::new))
+                    virtualClusterModels.stream()
+                            .flatMap(vc -> vc.listeners().values().stream())
+                            .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture()).toArray(CompletableFuture[]::new))
                     .join();
 
             // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency

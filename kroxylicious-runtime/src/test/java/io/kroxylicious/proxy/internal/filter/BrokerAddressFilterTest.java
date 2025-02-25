@@ -38,7 +38,7 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterListenerModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
@@ -70,7 +70,7 @@ class BrokerAddressFilterTest {
     }
 
     @Mock
-    private VirtualClusterModel virtualClusterModel;
+    private VirtualClusterListenerModel virtualClusterListenerModel;
 
     @Mock
     private EndpointReconciler endpointReconciler;
@@ -103,13 +103,13 @@ class BrokerAddressFilterTest {
 
     @BeforeEach
     public void beforeEach() {
-        filter = new BrokerAddressFilter(virtualClusterModel, endpointReconciler);
+        filter = new BrokerAddressFilter(virtualClusterListenerModel, endpointReconciler);
         invoker = getOnlyElement(FilterAndInvoker.build(filter)).invoker();
-        lenient().when(virtualClusterModel.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
-        lenient().when(virtualClusterModel.getAdvertisedBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19200"));
+        lenient().when(virtualClusterListenerModel.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
+        lenient().when(virtualClusterListenerModel.getAdvertisedBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19200"));
 
         var nodeMap = Map.of(0, HostPort.parse("upstream:9199"));
-        lenient().when(endpointReconciler.reconcile(Mockito.eq(virtualClusterModel), Mockito.eq(nodeMap)))
+        lenient().when(endpointReconciler.reconcile(Mockito.eq(virtualClusterListenerModel), Mockito.eq(nodeMap)))
                 .thenReturn(CompletableFuture.completedStage(null));
     }
 
@@ -128,7 +128,7 @@ class BrokerAddressFilterTest {
             throws Exception {
 
         filterResponseAndVerify(apiMessageType, header, responseTestDef);
-        verify(endpointReconciler, times(1)).reconcile(Mockito.eq(virtualClusterModel), Mockito.anyMap());
+        verify(endpointReconciler, times(1)).reconcile(Mockito.eq(virtualClusterListenerModel), Mockito.anyMap());
     }
 
     private void filterResponseAndVerify(ApiMessageType apiMessageType, RequestHeaderData header, ApiMessageTestDef responseTestDef) throws Exception {

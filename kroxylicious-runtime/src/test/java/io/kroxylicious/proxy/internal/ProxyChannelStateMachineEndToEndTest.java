@@ -61,6 +61,7 @@ import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.net.EndpointListener;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -89,8 +90,6 @@ class ProxyChannelStateMachineEndToEndTest {
     public static final String CLIENT_SOFTWARE_NAME = "my-kafka-lib";
     public static final String CLIENT_SOFTWARE_VERSION = "1.0.0";
     private static final Duration BACKGROUND_TASK_TIMEOUT = Duration.ofSeconds(1);
-    public static final String SNAPPY_KAFKA = "SnappyKafka";
-    public static final String SNAPPY_KAFKA_VERSION = "0.1.5";
 
     private EmbeddedChannel inboundChannel;
     private ChannelHandlerContext inboundCtx;
@@ -644,8 +643,8 @@ class ProxyChannelStateMachineEndToEndTest {
     private KafkaProxyFrontendHandler handler(
                                               NetFilter filter,
                                               SaslDecodePredicate dp,
-                                              VirtualClusterModel virtualClusterModel) {
-        return new KafkaProxyFrontendHandler(filter, dp, virtualClusterModel, proxyChannelStateMachine) {
+                                              EndpointListener endpointListener) {
+        return new KafkaProxyFrontendHandler(filter, dp, endpointListener, proxyChannelStateMachine) {
             @NonNull
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
@@ -686,6 +685,8 @@ class ProxyChannelStateMachineEndToEndTest {
         NetFilter filter = mock(NetFilter.class);
         doAnswer(filterSelectServerBehaviour).when(filter).selectServer(any());
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
+        EndpointListener endpointListener = mock(EndpointListener.class);
+        when(endpointListener.virtualCluster()).thenReturn(virtualClusterModel);
         final Optional<SslContext> sslContext;
         try {
             sslContext = Optional.ofNullable(tlsConfigured ? SslContextBuilder.forClient().build() : null);
@@ -695,7 +696,7 @@ class ProxyChannelStateMachineEndToEndTest {
         }
         when(virtualClusterModel.getUpstreamSslContext()).thenReturn(sslContext);
 
-        this.handler = handler(filter, dp, virtualClusterModel);
+        this.handler = handler(filter, dp, endpointListener);
         this.inboundCtx = mock(ChannelHandlerContext.class);
         when(inboundCtx.channel()).thenReturn(inboundChannel);
         when(inboundCtx.pipeline()).thenReturn(inboundChannel.pipeline());

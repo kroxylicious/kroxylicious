@@ -8,26 +8,25 @@ package io.kroxylicious.proxy.internal.net;
 
 import java.util.Objects;
 
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
- * A binding to a virtual cluster bootstrap.
+ * A bootstrap binding.
  *
- * @param virtualClusterModel the virtual cluster
+ * @param endpointListener the endpoint listener
  * @param upstreamTarget the upstream bootstrap target
  */
-public record VirtualClusterBootstrapBinding(VirtualClusterModel virtualClusterModel, HostPort upstreamTarget) implements VirtualClusterBinding {
+public record BootstrapEndpointBinding(EndpointListener endpointListener, HostPort upstreamTarget) implements EndpointBinding {
 
-    public VirtualClusterBootstrapBinding {
-        Objects.requireNonNull(virtualClusterModel, "virtualCluster cannot be null");
+    public BootstrapEndpointBinding {
+        Objects.requireNonNull(endpointListener, "endpointListener cannot be null");
         Objects.requireNonNull(upstreamTarget, "upstreamTarget cannot be null");
     }
 
     @Override
     public String toString() {
-        return "VirtualClusterBrokerBinding[" +
-                "virtualCluster=" + this.virtualClusterModel() + ", " +
+        return "BootstrapEndpointBinding[" +
+                "endpointListener=" + this.endpointListener() + ", " +
                 "upstreamTarget=" + this.upstreamTarget() + ']';
     }
 
