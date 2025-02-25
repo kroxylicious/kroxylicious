@@ -15,9 +15,9 @@ metadata:
     app.kubernetes.io/component: operator
 rules:
   - apiGroups:
-      - "kroxylicious.io"
+      - "proxy.kroxylicious.io"
     resources:
-      - kafkaproxies
+      - proxies
     verbs:
       - get
       - list
@@ -26,9 +26,9 @@ rules:
       # - patch
       # - update
   - apiGroups:
-      - "kroxylicious.io"
+      - "proxy.kroxylicious.io"
     resources:
-      - kafkaproxies/status
+      - proxies/status
     verbs:
       - get
       - patch

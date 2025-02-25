@@ -21,8 +21,8 @@ import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxyspec.Clusters;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 
@@ -33,8 +33,8 @@ import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
  */
 @KubernetesDependent
 public class ClusterService
-        extends CRUDKubernetesDependentResource<Service, KafkaProxy>
-        implements BulkDependentResource<Service, KafkaProxy> {
+        extends CRUDKubernetesDependentResource<Service, Proxy>
+        implements BulkDependentResource<Service, Proxy> {
 
     public ClusterService() {
         super(Service.class);
@@ -51,7 +51,7 @@ public class ClusterService
     /**
      * @return the fully qualified service hostname
      */
-    static String absoluteServiceHost(KafkaProxy primary, Clusters cluster) {
+    static String absoluteServiceHost(Proxy primary, Clusters cluster) {
         return serviceName(cluster) + "." + primary.getMetadata().getNamespace() + ".svc.cluster.local";
     }
 
@@ -64,11 +64,11 @@ public class ClusterService
         return service.getMetadata().getName();
     }
 
-    static Map<Integer, String> clusterPorts(KafkaProxy primary, Context<KafkaProxy> context, Clusters cluster) {
+    static Map<Integer, String> clusterPorts(Proxy primary, Context<Proxy> context, Clusters cluster) {
         var clusters = primary.getSpec().getClusters();
         for (int clusterNum = 0; clusterNum < clusters.size(); clusterNum++) {
             if (clusters.get(clusterNum).getName().equals(cluster.getName())) {
-                if (SharedKafkaProxyContext.isBroken(context, cluster)) {
+                if (SharedProxyContext.isBroken(context, cluster)) {
                     return Map.of();
                 }
                 int startPort = 9292 + (100 * clusterNum);
@@ -86,8 +86,8 @@ public class ClusterService
         throw new IllegalArgumentException("Couldn't find cluster with name " + cluster.getName());
     }
 
-    protected Service clusterService(KafkaProxy primary,
-                                     Context<KafkaProxy> context,
+    protected Service clusterService(Proxy primary,
+                                     Context<Proxy> context,
                                      Clusters cluster) {
         // @formatter:off
         var serviceSpecBuilder = new ServiceBuilder()
@@ -117,12 +117,12 @@ public class ClusterService
 
     @Override
     public Map<String, Service> desiredResources(
-                                                 KafkaProxy primary,
-                                                 Context<KafkaProxy> context) {
+                                                 Proxy primary,
+                                                 Context<Proxy> context) {
         var clusters = ResourcesUtil.distinctClusters(primary);
 
         return clusters.stream()
-                .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
+                .filter(cluster -> !SharedProxyContext.isBroken(context, cluster))
                 .collect(Collectors.toMap(
                         Clusters::getName,
                         cluster -> clusterService(primary, context, cluster)));
@@ -130,8 +130,8 @@ public class ClusterService
 
     @Override
     public Map<String, Service> getSecondaryResources(
-                                                      KafkaProxy primary,
-                                                      Context<KafkaProxy> context) {
+                                                      Proxy primary,
+                                                      Context<Proxy> context) {
         Set<Service> secondaryResources = context.eventSourceRetriever().getResourceEventSourceFor(Service.class)
                 .getSecondaryResources(primary);
         return secondaryResources.stream()

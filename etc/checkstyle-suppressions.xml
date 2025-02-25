@@ -15,7 +15,7 @@
     <suppress checks=".*"
               files="io[/\\]kroxylicious[/\\]proxy[/\\].*(Builder|Editable|Fluent|Nested|Visitor|Visitable).*\.java"/>
     <suppress checks=".*"
-              files="io[/\\]kroxylicious[/\\]kubernetes[/\\]api[/\\].*\.java"/>
+              files="io[/\\]kroxylicious[/\\]kubernetes[/\\]proxy[/\\]api[/\\].*\.java"/>
     <suppress checks=".*"
               files="io[/\\]kroxylicious[/\\]kubernetes[/\\]filter[/\\]api[/\\].*\.java"/>
     <suppress checks=".*"

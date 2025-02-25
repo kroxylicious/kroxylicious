@@ -37,12 +37,12 @@ import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ConditionsBuilder;
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.ProxyBuilder;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.Conditions;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.ConditionsBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -66,10 +66,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
         )
 })
 // @formatter:on
-public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
-        ContextInitializer<KafkaProxy>,
-        Reconciler<KafkaProxy>,
-        ErrorStatusHandler<KafkaProxy> {
+public class ProxyReconciler implements EventSourceInitializer<Proxy>,
+        ContextInitializer<Proxy>,
+        Reconciler<Proxy>,
+        ErrorStatusHandler<Proxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconciler.class);
 
@@ -85,17 +85,17 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
 
     @Override
     public void initContext(
-                            KafkaProxy primary,
-                            Context<KafkaProxy> context) {
-        SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
+                            Proxy primary,
+                            Context<Proxy> context) {
+        SharedProxyContext.runtimeDecl(context, runtimeDecl);
     }
 
     /**
      * The happy path, where all the dependent resources expressed a desired
      */
     @Override
-    public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
-                                               Context<KafkaProxy> context) {
+    public UpdateControl<Proxy> reconcile(Proxy primary,
+                                          Context<Proxy> context) {
         LOGGER.info("Completed reconciliation of {}/{}", primary.getMetadata().getNamespace(), primary.getMetadata().getName());
         return UpdateControl.patchStatus(
                 buildStatus(primary, context, null));
@@ -105,9 +105,9 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
      * The unhappy path, where some dependent resource threw an exception
      */
     @Override
-    public ErrorStatusUpdateControl<KafkaProxy> updateErrorStatus(KafkaProxy primary,
-                                                                  Context<KafkaProxy> context,
-                                                                  Exception exception) {
+    public ErrorStatusUpdateControl<Proxy> updateErrorStatus(Proxy primary,
+                                                             Context<Proxy> context,
+                                                             Exception exception) {
         // Post-condition: status.conditions should be in a canonical order (to avoid non-terminating reconciliations)
         // Post-condition: There is only one Ready condition
         var control = ErrorStatusUpdateControl.patchStatus(buildStatus(primary, context, exception));
@@ -121,15 +121,15 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
 
     }
 
-    private static KafkaProxy buildStatus(KafkaProxy primary,
-                                          Context<KafkaProxy> context,
-                                          @Nullable Exception exception) {
+    private static Proxy buildStatus(Proxy primary,
+                                     Context<Proxy> context,
+                                     @Nullable Exception exception) {
         if (exception instanceof AggregatedOperatorException aoe && aoe.getAggregatedExceptions().size() == 1) {
             exception = aoe.getAggregatedExceptions().values().iterator().next();
         }
         var now = ZonedDateTime.now(ZoneId.of("Z"));
         // @formatter:off
-        return new KafkaProxyBuilder(primary)
+        return new ProxyBuilder(primary)
                 .editOrNewStatus()
                     .withObservedGeneration(primary.getMetadata().getGeneration())
                     .withConditions(effectiveReadyCondition(now, primary, exception ))
@@ -139,17 +139,17 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         // @formatter:on
     }
 
-    private static List<io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters> clusterConditions(ZonedDateTime now,
-                                                                                                             KafkaProxy primary,
-                                                                                                             Context<KafkaProxy> context) {
+    private static List<io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.Clusters> clusterConditions(ZonedDateTime now,
+                                                                                                              Proxy primary,
+                                                                                                              Context<Proxy> context) {
         if (primary.getSpec() == null
                 || primary.getSpec().getClusters() == null) {
             return List.of();
         }
         return primary.getSpec().getClusters().stream().map(cluster -> {
-            ClusterCondition clusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
+            ClusterCondition clusterCondition = SharedProxyContext.clusterCondition(context, cluster);
             var conditions = newClusterCondition(now, primary, clusterCondition);
-            return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ClustersBuilder()
+            return new io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.ClustersBuilder()
                     .withName(cluster.getName())
                     .withConditions(conditions).build();
         }).toList();
@@ -165,7 +165,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
      * @return The {@code Ready} condition to use in {@code status.conditions}.
      */
     private static Conditions effectiveReadyCondition(ZonedDateTime now,
-                                                      KafkaProxy primary,
+                                                      Proxy primary,
                                                       @Nullable Exception exception) {
         final var oldReady = primary.getStatus() == null || primary.getStatus().getConditions() == null
                 ? null
@@ -184,14 +184,14 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         }
     }
 
-    static LoggingEventBuilder addResourceKeys(KafkaProxy primary, LoggingEventBuilder loggingEventBuilder) {
+    static LoggingEventBuilder addResourceKeys(Proxy primary, LoggingEventBuilder loggingEventBuilder) {
         return loggingEventBuilder.addKeyValue("kind", primary.getKind())
                 .addKeyValue("group", primary.getGroup())
                 .addKeyValue("namespace", primary.getMetadata().getNamespace())
                 .addKeyValue("name", primary.getMetadata().getName());
     }
 
-    private static void logException(KafkaProxy primary, Exception exception) {
+    private static void logException(Proxy primary, Exception exception) {
         if (exception instanceof SchemaValidatedInvalidResourceException) {
             addResourceKeys(primary, LOGGER.atError())
                     .setCause(exception)
@@ -218,7 +218,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
      */
     private static Conditions newCondition(
                                            ZonedDateTime now, ConditionType conditionType,
-                                           KafkaProxy primary,
+                                           Proxy primary,
                                            @Nullable Exception exception) {
         return new ConditionsBuilder()
                 .withLastTransitionTime(now)
@@ -230,10 +230,10 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
                 .build();
     }
 
-    private static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions newClusterCondition(
-                                                                                                                    ZonedDateTime now, KafkaProxy primary,
-                                                                                                                    ClusterCondition clusterCondition) {
-        return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.ConditionsBuilder()
+    private static io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.clusters.Conditions newClusterCondition(
+                                                                                                                     ZonedDateTime now, Proxy primary,
+                                                                                                                     ClusterCondition clusterCondition) {
+        return new io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.clusters.ConditionsBuilder()
                 .withLastTransitionTime(now)
                 .withMessage(clusterCondition.message())
                 .withObservedGeneration(primary.getMetadata().getGeneration())
@@ -281,8 +281,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     }
 
     @Override
-    public Map<String, EventSource> prepareEventSources(EventSourceContext<KafkaProxy> context) {
-        var eventSources = new ArrayList<InformerEventSource<GenericKubernetesResource, KafkaProxy>>(this.runtimeDecl.filterApis().size());
+    public Map<String, EventSource> prepareEventSources(EventSourceContext<Proxy> context) {
+        var eventSources = new ArrayList<InformerEventSource<GenericKubernetesResource, Proxy>>(this.runtimeDecl.filterApis().size());
         for (var filterKind : this.runtimeDecl.filterApis()) {
             try {
                 eventSources.add(eventSourceForFilter(context, filterKind));
@@ -300,14 +300,14 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     }
 
     @NonNull
-    private static InformerEventSource<GenericKubernetesResource, KafkaProxy> eventSourceForFilter(
-                                                                                                   EventSourceContext<KafkaProxy> context,
-                                                                                                   FilterApiDecl filterApiDecl) {
+    private static InformerEventSource<GenericKubernetesResource, Proxy> eventSourceForFilter(
+                                                                                              EventSourceContext<Proxy> context,
+                                                                                              FilterApiDecl filterApiDecl) {
 
         SecondaryToPrimaryMapper<GenericKubernetesResource> filterToProxy = (GenericKubernetesResource filter) -> {
             // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
             // so when a filter changes we reconcile all the proxies in the same namespace
-            Set<ResourceID> proxiesInFilterNamespace = context.getClient().resources(KafkaProxy.class)
+            Set<ResourceID> proxiesInFilterNamespace = context.getClient().resources(Proxy.class)
                     .inNamespace(filter.getMetadata().getNamespace())
                     .list().getItems().stream()
                     .map(ResourceID::fromResource)
@@ -318,14 +318,14 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
 
         var configuration = InformerConfiguration.from(filterApiDecl.groupVersionKind(), context)
                 .withSecondaryToPrimaryMapper(filterToProxy)
-                .withPrimaryToSecondaryMapper((KafkaProxy proxy) -> proxyToFilterRefs(proxy, context))
+                .withPrimaryToSecondaryMapper((Proxy proxy) -> proxyToFilterRefs(proxy, context))
                 .build();
 
         return new InformerEventSource<>(configuration, context);
     }
 
     @NonNull
-    private static Set<ResourceID> proxyToFilterRefs(KafkaProxy proxy, EventSourceContext<KafkaProxy> context) {
+    private static Set<ResourceID> proxyToFilterRefs(Proxy proxy, EventSourceContext<Proxy> context) {
         var list = proxy.getSpec().getClusters().stream().toList();
         LOGGER.debug("Event source PrimaryToSecondaryMapper got {}", list);
         Set<ResourceID> filterReferences = list.stream()
@@ -334,7 +334,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
                     return new ResourceID(filter.getName(), proxy.getMetadata().getNamespace());
                 })
                 .collect(Collectors.toSet());
-        LOGGER.debug("KafkaProxy {} has references to filters {}", ResourceID.fromResource(proxy), filterReferences);
+        LOGGER.debug("Proxy {} has references to filters {}", ResourceID.fromResource(proxy), filterReferences);
         return filterReferences;
     }
 

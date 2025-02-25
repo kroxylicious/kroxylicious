@@ -6,7 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions.Status;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.clusters.Conditions.Status;
 
 public record ClusterCondition(String cluster, ConditionType type, Status status, String reason, String message) {
 

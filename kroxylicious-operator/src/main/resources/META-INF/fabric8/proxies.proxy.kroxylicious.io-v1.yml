@@ -11,17 +11,17 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   # name must match the spec fields below, and be in the form: <plural>.<group>
-  name: kafkaproxies.kroxylicious.io
+  name: proxies.proxy.kroxylicious.io
 spec:
   # group name to use for REST API: /apis/<group>/<version>
-  group: kroxylicious.io
+  group: proxy.kroxylicious.io
   scope: Namespaced
   names:
-    plural: kafkaproxies
-    singular: kafkaproxy
-    kind: KafkaProxy
+    plural: proxies
+    singular: proxy
+    kind: Proxy
     shortNames:
-      - kp
+      - p
   # list of versions supported by this CustomResourceDefinition
   versions:
     - name: v1alpha1

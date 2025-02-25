@@ -16,7 +16,7 @@ import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.Conditions;
 
 public class ProxyConditionAssert extends AbstractObjectAssert<ProxyConditionAssert, Conditions> {
     protected ProxyConditionAssert(

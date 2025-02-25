@@ -27,9 +27,9 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.ProxyBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -72,7 +72,7 @@ class ProxyReconcilerIT {
         doCreate();
     }
 
-    KafkaProxy doCreate() {
+    Proxy doCreate() {
         final var cr = extension.create(testResource());
 
         await().alias("Secret as expected").untilAsserted(() -> {
@@ -132,7 +132,7 @@ class ProxyReconcilerIT {
     void testUpdate() {
         final var cr = doCreate();
         // @formatter:off
-        var changedCr = new KafkaProxyBuilder(cr)
+        var changedCr = new ProxyBuilder(cr)
                 .editSpec()
                     .removeMatchingFromClusters(cluster -> CLUSTER_FOO.equals(cluster.getName()))
                 .endSpec()
@@ -176,9 +176,9 @@ class ProxyReconcilerIT {
                 entry -> new String(Base64.getDecoder().decode(entry.getValue()))));
     }
 
-    KafkaProxy testResource() {
+    Proxy testResource() {
         // @formatter:off
-        return new KafkaProxyBuilder()
+        return new ProxyBuilder()
                 .withNewMetadata()
                     .withName(RESOURCE_NAME)
                 .endMetadata()

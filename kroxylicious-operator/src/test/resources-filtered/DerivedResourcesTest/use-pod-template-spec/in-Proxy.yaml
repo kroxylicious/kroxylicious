@@ -5,8 +5,8 @@
 #
 
 ---
-kind: KafkaProxy
-apiVersion: kroxylicious.io/v1alpha1
+kind: Proxy
+apiVersion: proxy.kroxylicious.io/v1alpha1
 metadata:
   name: use-pod-template-spec
   namespace: proxy-ns

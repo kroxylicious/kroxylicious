@@ -10,7 +10,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.ClustersBuilder;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxyspec.ClustersBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -5,7 +5,7 @@
 #
 
 ---
-# A Namespace for a single KafkaProxy instance
+# A Namespace for a single Proxy instance
 apiVersion: v1
 kind: Namespace
 metadata:

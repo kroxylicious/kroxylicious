@@ -19,7 +19,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.DependentResource;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
@@ -27,11 +27,11 @@ import static org.mockito.Mockito.doReturn;
 class DeploymentReadyConditionTest {
 
     @Mock
-    DependentResource<Deployment, io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy> dependentResource;
+    DependentResource<Deployment, io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy> dependentResource;
     @Mock
-    KafkaProxy primary;
+    Proxy primary;
     @Mock
-    Context<KafkaProxy> context;
+    Context<Proxy> context;
 
     private AutoCloseable closeable;
 

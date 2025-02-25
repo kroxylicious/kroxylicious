@@ -8,13 +8,13 @@ package io.kroxylicious.kubernetes.operator.assertj;
 
 import org.assertj.core.api.InstanceOfAssertFactory;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.ProxyStatus;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.Clusters;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.Conditions;
 
 public class AssertFactory {
-    public static InstanceOfAssertFactory<KafkaProxyStatus, StatusAssert> status() {
-        return new InstanceOfAssertFactory<>(KafkaProxyStatus.class, StatusAssert::assertThat);
+    public static InstanceOfAssertFactory<ProxyStatus, StatusAssert> status() {
+        return new InstanceOfAssertFactory<>(ProxyStatus.class, StatusAssert::assertThat);
     }
 
     public static InstanceOfAssertFactory<Conditions, ProxyConditionAssert> proxyCondition() {
@@ -25,7 +25,7 @@ public class AssertFactory {
         return new InstanceOfAssertFactory<>(Clusters.class, ClusterAssert::assertThat);
     }
 
-    public static InstanceOfAssertFactory<io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions, ClusterConditionAssert> clusterCondition() {
-        return new InstanceOfAssertFactory<>(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions.class, ClusterConditionAssert::assertThat);
+    public static InstanceOfAssertFactory<io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.clusters.Conditions, ClusterConditionAssert> clusterCondition() {
+        return new InstanceOfAssertFactory<>(io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.clusters.Conditions.class, ClusterConditionAssert::assertThat);
     }
 }

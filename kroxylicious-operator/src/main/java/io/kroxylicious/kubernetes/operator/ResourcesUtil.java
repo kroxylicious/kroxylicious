@@ -15,8 +15,8 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxyspec.Clusters;
 
 public class ResourcesUtil {
     private ResourcesUtil() {
@@ -31,7 +31,7 @@ public class ResourcesUtil {
                 .build();
     }
 
-    static List<Clusters> distinctClusters(KafkaProxy primary) {
+    static List<Clusters> distinctClusters(Proxy primary) {
         return distinctClusters(primary.getSpec().getClusters());
     }
 

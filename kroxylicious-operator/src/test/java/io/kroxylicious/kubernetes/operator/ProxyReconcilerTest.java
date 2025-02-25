@@ -23,12 +23,12 @@ import org.mockito.MockitoAnnotations;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedDependentResourceContext;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.ProxyBuilder;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.ProxyStatus;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.Conditions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
@@ -36,7 +36,7 @@ import static org.mockito.Mockito.doReturn;
 class ProxyReconcilerTest {
 
     @Mock
-    Context<KafkaProxy> context;
+    Context<Proxy> context;
 
     @Mock
     ManagedDependentResourceContext mdrc;
@@ -58,7 +58,7 @@ class ProxyReconcilerTest {
         // Given
         // @formatter:off
         long generation = 42L;
-        var primary = new KafkaProxyBuilder()
+        var primary = new ProxyBuilder()
                 .withNewMetadata()
                     .withGeneration(generation)
                     .withName("my-proxy")
@@ -72,9 +72,9 @@ class ProxyReconcilerTest {
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
         var statusAssert = assertThat(updateControl.getResource()).isNotNull()
-                .extracting(KafkaProxy::getStatus);
-        statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+                .extracting(Proxy::getStatus);
+        statusAssert.extracting(ProxyStatus::getObservedGeneration).isEqualTo(generation);
+        ObjectAssert<Conditions> first = statusAssert.extracting(ProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
                 .first();
         first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
         first.extracting(Conditions::getLastTransitionTime).isNotNull();
@@ -89,7 +89,7 @@ class ProxyReconcilerTest {
         // Given
         // @formatter:off
         long generation = 42L;
-        var primary = new KafkaProxyBuilder()
+        var primary = new ProxyBuilder()
                 .withNewMetadata()
                 .withGeneration(generation)
                 .withName("my-proxy")
@@ -104,9 +104,9 @@ class ProxyReconcilerTest {
         assertThat(updateControl.isPatch()).isTrue();
         var statusAssert = assertThat(updateControl.getResource()).isNotNull()
                 .isPresent().get()
-                .extracting(KafkaProxy::getStatus);
-        statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+                .extracting(Proxy::getStatus);
+        statusAssert.extracting(ProxyStatus::getObservedGeneration).isEqualTo(generation);
+        ObjectAssert<Conditions> first = statusAssert.extracting(ProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
                 .first();
         first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
         first.extracting(Conditions::getLastTransitionTime).isNotNull();
@@ -122,7 +122,7 @@ class ProxyReconcilerTest {
         long generation = 42L;
         var time = ZonedDateTime.now(ZoneId.of("Z"));
         // @formatter:off
-        var primary = new KafkaProxyBuilder()
+        var primary = new ProxyBuilder()
                 .withNewMetadata()
                     .withGeneration(generation)
                     .withName("my-proxy")
@@ -145,9 +145,9 @@ class ProxyReconcilerTest {
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
         var statusAssert = assertThat(updateControl.getResource()).isNotNull()
-                .extracting(KafkaProxy::getStatus);
-        statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+                .extracting(Proxy::getStatus);
+        statusAssert.extracting(ProxyStatus::getObservedGeneration).isEqualTo(generation);
+        ObjectAssert<Conditions> first = statusAssert.extracting(ProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
                 .first();
         first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
         first.extracting(Conditions::getLastTransitionTime).isEqualTo(time);
@@ -163,7 +163,7 @@ class ProxyReconcilerTest {
         long generation = 42L;
         var time = ZonedDateTime.now(ZoneId.of("Z"));
         // @formatter:off
-        var primary = new KafkaProxyBuilder()
+        var primary = new ProxyBuilder()
                 .withNewMetadata()
                     .withGeneration(generation)
                     .withName("my-proxy")
@@ -186,9 +186,9 @@ class ProxyReconcilerTest {
         // Then
         assertThat(updateControl.isPatch()).isTrue();
         var statusAssert = assertThat(updateControl.getResource()).isNotNull().isPresent().get()
-                .extracting(KafkaProxy::getStatus);
-        statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+                .extracting(Proxy::getStatus);
+        statusAssert.extracting(ProxyStatus::getObservedGeneration).isEqualTo(generation);
+        ObjectAssert<Conditions> first = statusAssert.extracting(ProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
                 .first();
         first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
         first.extracting(Conditions::getLastTransitionTime).isNotEqualTo(time);
@@ -204,7 +204,7 @@ class ProxyReconcilerTest {
         long generation = 42L;
         var time = ZonedDateTime.now(ZoneId.of("Z"));
         // @formatter:off
-        var primary = new KafkaProxyBuilder()
+        var primary = new ProxyBuilder()
                  .withNewMetadata()
                     .withGeneration(generation)
                     .withName("my-proxy")
@@ -227,9 +227,9 @@ class ProxyReconcilerTest {
         // Then
         assertThat(updateControl.isPatch()).isTrue();
         var statusAssert = assertThat(updateControl.getResource()).isNotNull().isPresent().get()
-                .extracting(KafkaProxy::getStatus);
-        statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+                .extracting(Proxy::getStatus);
+        statusAssert.extracting(ProxyStatus::getObservedGeneration).isEqualTo(generation);
+        ObjectAssert<Conditions> first = statusAssert.extracting(ProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
                 .first();
         first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
         first.extracting(Conditions::getLastTransitionTime).isEqualTo(time);
@@ -245,7 +245,7 @@ class ProxyReconcilerTest {
         long generation = 42L;
         var time = ZonedDateTime.now(ZoneId.of("Z"));
         // @formatter:off
-        var primary = new KafkaProxyBuilder()
+        var primary = new ProxyBuilder()
                 .withNewMetadata()
                     .withGeneration(generation)
                     .withName("my-proxy")
@@ -268,9 +268,9 @@ class ProxyReconcilerTest {
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
         var statusAssert = assertThat(updateControl.getResource()).isNotNull()
-                .extracting(KafkaProxy::getStatus);
-        statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+                .extracting(Proxy::getStatus);
+        statusAssert.extracting(ProxyStatus::getObservedGeneration).isEqualTo(generation);
+        ObjectAssert<Conditions> first = statusAssert.extracting(ProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
                 .first();
         first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
         first.extracting(Conditions::getLastTransitionTime).isNotEqualTo(time);
@@ -286,7 +286,7 @@ class ProxyReconcilerTest {
         long generation = 42L;
         var time = ZonedDateTime.now(ZoneId.of("Z"));
         // @formatter:off
-        var primary = new KafkaProxyBuilder()
+        var primary = new ProxyBuilder()
                 .withNewMetadata()
                     .withGeneration(generation)
                     .withName("my-proxy")
@@ -310,9 +310,9 @@ class ProxyReconcilerTest {
         // @formatter:on
         doReturn(mdrc).when(context).managedDependentResourceContext();
         doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.filterNotExists("my-cluster", "MissingFilter")))).when(mdrc).get(
-                SharedKafkaProxyContext.CLUSTER_CONDITIONS_KEY,
+                SharedProxyContext.CLUSTER_CONDITIONS_KEY,
                 Map.class);
-        doReturn(new RuntimeDecl(List.of())).when(mdrc).getMandatory(SharedKafkaProxyContext.RUNTIME_DECL_KEY, Map.class);
+        doReturn(new RuntimeDecl(List.of())).when(mdrc).getMandatory(SharedProxyContext.RUNTIME_DECL_KEY, Map.class);
 
         // When
         var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).reconcile(primary, context);
@@ -321,7 +321,7 @@ class ProxyReconcilerTest {
         assertThat(updateControl.isPatchStatus()).isTrue();
         var statusAssert = assertThat(updateControl.getResource())
                 .isNotNull()
-                .extracting(KafkaProxy::getStatus, AssertFactory.status());
+                .extracting(Proxy::getStatus, AssertFactory.status());
         statusAssert.observedGeneration().isEqualTo(generation);
         statusAssert.singleCondition()
                 .isReady()

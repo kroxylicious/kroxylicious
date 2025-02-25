@@ -9,11 +9,11 @@ package io.kroxylicious.kubernetes.operator;
 import java.util.HashMap;
 import java.util.Map;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy;
 
 public class Labels {
 
-    public static Map<String, String> standardLabels(KafkaProxy proxy) {
+    public static Map<String, String> standardLabels(Proxy proxy) {
         HashMap<String, String> labels = new HashMap<>();
         labels.put("app.kubernetes.io/part-of", "kafka");
         labels.put("app.kubernetes.io/managed-by", "kroxylicious-operator");

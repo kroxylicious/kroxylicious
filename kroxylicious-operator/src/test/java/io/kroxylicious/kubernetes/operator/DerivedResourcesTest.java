@@ -41,9 +41,9 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManag
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxystatus.clusters.Conditions;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -57,11 +57,11 @@ class DerivedResourcesTest {
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
             .enable(YAMLGenerator.Feature.LITERAL_BLOCK_STYLE);
 
-    public static KafkaProxy kafkaProxyFromFile(Path path) {
+    public static Proxy proxyFromFile(Path path) {
         // TODO should validate against the CRD schema, because the DependentResource
         // should never see an invalid resource in production
         try {
-            return YAML_MAPPER.readValue(path.toFile(), KafkaProxy.class);
+            return YAML_MAPPER.readValue(path.toFile(), Proxy.class);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -87,7 +87,7 @@ class DerivedResourcesTest {
     /**
      * Abstraction for invoking the desired() method on a KubernetesDependentResource and BulkDependentResource.
      * This is needed because they have different return types ({@code R} vs {@code Map<R>}).
-     * @param <P> The primary type (KafkaProxy)
+     * @param <P> The primary type (Proxy)
      * @param <R> The resource type of the dependent resource (e.g. Service)
      */
     interface DesiredFn<P extends HasMetadata, R extends HasMetadata> {
@@ -146,9 +146,9 @@ class DerivedResourcesTest {
     @TestFactory
     Stream<DynamicContainer> dependentResourcesShouldEqual() {
         // Note that the order in this list should reflect the dependency order declared in the ProxyReconciler's
-        // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that
+        // @ControllerConfiguration annotation, because the statefulness of Context<Proxy> means that
         // later DependentResource can depend on Context state created by earlier DependentResources.
-        var list = List.<DesiredFn<KafkaProxy, ?>> of(
+        var list = List.<DesiredFn<Proxy, ?>> of(
                 new SingletonDependentResourceDesiredFn<>(new ProxyConfigSecret(), "Secret", ProxyConfigSecret::desired),
                 new SingletonDependentResourceDesiredFn<>(new ProxyDeployment(), "Deployment", ProxyDeployment::desired),
                 new BulkDependentResourceDesiredFn<>(new ClusterService(), "Service", ClusterService::desiredResources));
@@ -168,7 +168,7 @@ class DerivedResourcesTest {
         return result;
     }
 
-    Stream<DynamicContainer> dependentResourcesShouldEqual(List<DesiredFn<KafkaProxy, ?>> list) {
+    Stream<DynamicContainer> dependentResourcesShouldEqual(List<DesiredFn<Proxy, ?>> list) {
         var dir = Path.of("target", "test-classes", DerivedResourcesTest.class.getSimpleName());
         return filesInDir(dir, Pattern.compile(".*")).stream()
                 .map(testDir -> {
@@ -193,22 +193,22 @@ class DerivedResourcesTest {
     }
 
     @NonNull
-    private static List<DynamicTest> testsForDir(List<DesiredFn<KafkaProxy, ?>> dependentResources,
+    private static List<DynamicTest> testsForDir(List<DesiredFn<Proxy, ?>> dependentResources,
                                                  Path testDir)
             throws IOException {
         try {
             var unusedFiles = childFilesMatching(testDir, "*");
-            String inFileName = "in-KafkaProxy.yaml";
+            String inFileName = "in-Proxy.yaml";
             Path input = testDir.resolve(inFileName);
-            KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
-            assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
+            Proxy proxy = proxyFromFile(input);
+            assertMinimalMetadata(proxy.getMetadata(), inFileName);
 
             unusedFiles.remove(input);
             unusedFiles.removeAll(childFilesMatching(testDir, "in-*"));
 
-            Context<KafkaProxy> context;
+            Context<Proxy> context;
             try {
-                context = buildContext(kafkaProxy, testDir);
+                context = buildContext(proxy, testDir);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -217,7 +217,7 @@ class DerivedResourcesTest {
             List<DynamicTest> tests = new ArrayList<>();
 
             var dr = dependentResources.stream()
-                    .flatMap(r -> r.invokeDesired(kafkaProxy, context).values().stream().map(x -> Map.entry(r.resourceType(), x)))
+                    .flatMap(r -> r.invokeDesired(proxy, context).values().stream().map(x -> Map.entry(r.resourceType(), x)))
                     .collect(Collectors.groupingBy(Map.Entry::getKey))
                     .entrySet()
                     .stream()
@@ -239,8 +239,8 @@ class DerivedResourcesTest {
                                 unusedFiles.remove(expectedFile);
                             }));
                 }
-                for (var cluster : kafkaProxy.getSpec().getClusters()) {
-                    ClusterCondition actualClusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
+                for (var cluster : proxy.getSpec().getClusters()) {
+                    ClusterCondition actualClusterCondition = SharedProxyContext.clusterCondition(context, cluster);
                     if (actualClusterCondition.type() == ConditionType.Accepted && actualClusterCondition.status().equals(Conditions.Status.TRUE)) {
                         continue;
                     }
@@ -300,11 +300,11 @@ class DerivedResourcesTest {
     }
 
     @NonNull
-    private static Context<KafkaProxy> buildContext(KafkaProxy kafkaProxy, Path testDir) throws IOException {
+    private static Context<Proxy> buildContext(Proxy proxy, Path testDir) throws IOException {
         Answer throwOnUnmockedInvocation = invocation -> {
             throw new RuntimeException("Unmocked method: " + invocation.getMethod());
         };
-        Context<KafkaProxy> context = mock(Context.class, throwOnUnmockedInvocation);
+        Context<Proxy> context = mock(Context.class, throwOnUnmockedInvocation);
 
         var resourceContext = new DefaultManagedDependentResourceContext();
 
@@ -323,7 +323,7 @@ class DerivedResourcesTest {
             }
         }
         doReturn(filterInstances).when(context).getSecondaryResources(GenericKubernetesResource.class);
-        SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
+        SharedProxyContext.runtimeDecl(context, runtimeDecl);
         return context;
     }
 

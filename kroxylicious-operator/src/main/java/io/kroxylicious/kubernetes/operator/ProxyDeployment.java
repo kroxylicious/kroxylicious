@@ -24,7 +24,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -34,7 +34,7 @@ import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
  */
 @KubernetesDependent
 public class ProxyDeployment
-        extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
+        extends CRUDKubernetesDependentResource<Deployment, Proxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeployment.class);
     public static final String CONFIG_VOLUME = "config-volume";
@@ -51,13 +51,13 @@ public class ProxyDeployment
     /**
      * @return The {@code metadata.name} of the desired {@code Deployment}.
      */
-    static String deploymentName(KafkaProxy primary) {
+    static String deploymentName(Proxy primary) {
         return primary.getMetadata().getName();
     }
 
     @Override
-    protected Deployment desired(KafkaProxy primary,
-                                 Context<KafkaProxy> context) {
+    protected Deployment desired(Proxy primary,
+                                 Context<Proxy> context) {
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -86,8 +86,8 @@ public class ProxyDeployment
         return APP_KROXY;
     }
 
-    private PodTemplateSpec podTemplate(KafkaProxy primary,
-                                        Context<KafkaProxy> context) {
+    private PodTemplateSpec podTemplate(Proxy primary,
+                                        Context<Proxy> context) {
         Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec().getPodTemplate())
                 .map(PodTemplateSpec::getMetadata)
                 .map(ObjectMeta::getLabels)
@@ -111,8 +111,8 @@ public class ProxyDeployment
         // @formatter:on
     }
 
-    private static Container proxyContainer(KafkaProxy primary,
-                                            Context<KafkaProxy> context) {
+    private static Container proxyContainer(Proxy primary,
+                                            Context<Proxy> context) {
         // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
@@ -131,7 +131,7 @@ public class ProxyDeployment
                 .endPort();
         // broker ports
         for (var cluster : primary.getSpec().getClusters()) {
-            if (!SharedKafkaProxyContext.isBroken(context, cluster)) {
+            if (!SharedProxyContext.isBroken(context, cluster)) {
                 for (var portEntry : ClusterService.clusterPorts(primary, context, cluster).entrySet()) {
                     containerBuilder.addNewPort()
                             .withContainerPort(portEntry.getKey())

@@ -18,7 +18,7 @@ If you want to run the `OperatorMain` (e.g. from your IDE, maybe for dubugging) 
 kubectl apply -f src/main/resources/META-INF/fabric8
 ```
 
-You should now be able to play around with `KafkaProxy` CRs; read the "Creating a `KafkaProxy`" section.
+You should now be able to play around with `Proxy` CRs; read the "Creating a `Proxy`" section.
 
 Alternatively you can build the operator properly and run it within Kube...
 
@@ -71,7 +71,7 @@ kubectl logs -n kroxylicious-operator pods/kroxylicious-operator-7cd88454c8-fjcx
 
 (your pod hash suffix will differ)
 
-# Creating a `KafkaProxy`
+# Creating a `Proxy`
 
 ```bash
 kubectl apply -f examples/simple/

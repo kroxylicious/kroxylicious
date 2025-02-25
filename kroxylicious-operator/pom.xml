@@ -256,13 +256,13 @@
                     <source>src/main/resources/META-INF/fabric8</source>
                     <extraAnnotations>true</extraAnnotations>
                     <existingJavaTypes>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
+                        <io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxyspec.PodTemplate>
                             io.fabric8.kubernetes.api.model.PodTemplateSpec
-                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
+                        </io.kroxylicious.kubernetes.proxy.api.v1alpha1.proxyspec.PodTemplate>
                     </existingJavaTypes>
                     <packageOverrides>
                         <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->
-                        <io.kroxylicious.v1alpha1>io.kroxylicious.kubernetes.api.v1alpha1</io.kroxylicious.v1alpha1>
+                        <io.kroxylicious.proxy.v1alpha1>io.kroxylicious.kubernetes.proxy.api.v1alpha1</io.kroxylicious.proxy.v1alpha1>
                         <io.kroxylicious.filter.v1alpha1>io.kroxylicious.kubernetes.filter.api.v1alpha1</io.kroxylicious.filter.v1alpha1>
                     </packageOverrides>
                 </configuration>

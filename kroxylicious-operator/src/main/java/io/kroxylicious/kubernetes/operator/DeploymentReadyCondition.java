@@ -14,11 +14,11 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.DependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.workflow.Condition;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.proxy.api.v1alpha1.Proxy;
 
-public class DeploymentReadyCondition implements Condition<Deployment, KafkaProxy> {
+public class DeploymentReadyCondition implements Condition<Deployment, Proxy> {
     @Override
-    public boolean isMet(DependentResource<Deployment, KafkaProxy> dependentResource, KafkaProxy primary, Context<KafkaProxy> context) {
+    public boolean isMet(DependentResource<Deployment, Proxy> dependentResource, Proxy primary, Context<Proxy> context) {
         var optionalResource = dependentResource.getSecondaryResource(primary, context);
         if (optionalResource.isEmpty()) {
             return false;
