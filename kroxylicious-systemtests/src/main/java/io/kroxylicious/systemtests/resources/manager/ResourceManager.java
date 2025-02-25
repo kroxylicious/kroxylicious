@@ -10,9 +10,8 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
@@ -52,7 +51,7 @@ public class ResourceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
     private static ResourceManager instance;
     private static ExtensionContext testContext;
-    private static final Map<String, Stack<ResourceItem<?>>> storedResources = new ConcurrentHashMap<>();
+    private static final Map<String, ConcurrentLinkedDeque<ResourceItem<?>>> storedResources = new ConcurrentHashMap<>();
 
     private ResourceManager() {
     }
@@ -75,6 +74,10 @@ public class ResourceManager {
 
     public static ExtensionContext getTestContext() {
         return testContext;
+    }
+
+    private static String getContextUniqueName() {
+        return getTestContext().getRequiredTestClass().getName() + "." + getTestContext().getDisplayName();
     }
 
     /**
@@ -121,6 +124,7 @@ public class ResourceManager {
 
     @SafeVarargs
     private <T extends HasMetadata> void createResource(boolean waitReady, T... resources) {
+        ConcurrentLinkedDeque<ResourceItem<?>> concurrentLinkedDeque = new ConcurrentLinkedDeque<>();
         for (T resource : resources) {
             ResourceType<T> type = findResourceType(resource);
 
@@ -130,7 +134,7 @@ public class ResourceManager {
             assert type != null;
             type.create(resource);
 
-            storedResources.computeIfAbsent(getTestContext().getDisplayName(), k -> new Stack<>())
+            storedResources.computeIfAbsent(getContextUniqueName(), k -> concurrentLinkedDeque)
                     .push(new ResourceItem<>(() -> deleteResource(resource), resource));
         }
 
@@ -181,35 +185,25 @@ public class ResourceManager {
     }
 
     public void deleteResources() {
-        if (!storedResources.containsKey(getTestContext().getDisplayName()) || storedResources.get(getTestContext().getDisplayName()).isEmpty()) {
-            LOGGER.info("In context {} is everything deleted", getTestContext().getDisplayName());
+        if (!storedResources.containsKey(getContextUniqueName()) || storedResources.get(getContextUniqueName()).isEmpty()) {
+            LOGGER.info("In context {} is everything deleted", getContextUniqueName());
         }
         else {
-            LOGGER.info("Deleting all resources for {}", getTestContext().getDisplayName());
+            LOGGER.info("Deleting all resources for {}", getContextUniqueName());
         }
 
-        // if stack is created for specific test suite or test case
-        AtomicInteger numberOfResources = storedResources.get(getTestContext().getDisplayName()) != null
-                ? new AtomicInteger(storedResources.get(getTestContext().getDisplayName()).size())
-                :
-                // stack has no elements
-                new AtomicInteger(0);
-        while (storedResources.containsKey(getTestContext().getDisplayName()) && numberOfResources.get() > 0) {
-            Stack<ResourceItem<?>> stack = storedResources.get(getTestContext().getDisplayName());
+        ConcurrentLinkedDeque<ResourceItem<?>> stack = storedResources.get(getContextUniqueName());
 
-            while (!stack.isEmpty()) {
-                ResourceItem<?> resourceItem = stack.pop();
-
-                try {
-                    resourceItem.throwableRunner().run();
-                }
-                catch (Exception e) {
-                    LOGGER.atTrace().log(Arrays.toString(e.getStackTrace()));
-                }
-                numberOfResources.decrementAndGet();
+        while (!stack.isEmpty()) {
+            ResourceItem<?> resourceItem = stack.pop();
+            try {
+                resourceItem.throwableRunner().run();
+            }
+            catch (Exception e) {
+                LOGGER.atTrace().log(Arrays.toString(e.getStackTrace()));
             }
         }
-        storedResources.remove(getTestContext().getDisplayName());
+        storedResources.remove(getContextUniqueName());
     }
 
     /**
