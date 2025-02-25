@@ -114,7 +114,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
         }
 
         @Override
-        public boolean requiresTls() {
+        public boolean requiresServerNameIndication() {
             return true;
         }
 
