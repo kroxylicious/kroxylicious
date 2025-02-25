@@ -137,11 +137,13 @@ public class ResourceManager {
 
         if (waitReady) {
             for (T resource : resources) {
-                ResourceType<T> type = findResourceType(resource);
                 if (Objects.equals(resource.getKind(), KafkaTopic.RESOURCE_KIND)) {
                     continue;
                 }
-                assert type != null;
+                ResourceType<T> type = findResourceType(resource);
+                if (type == null) {
+                    throw new KubeClusterException.InvalidResource(String.format("resource type not found for this resource kind: %s", resource.getKind()));
+                }
                 if (!waitResourceCondition(resource, ResourceCondition.readiness(type))) {
                     throw new KubeClusterException.InvalidResource(String.format("Timed out waiting for %s %s/%s to be ready",
                             resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
