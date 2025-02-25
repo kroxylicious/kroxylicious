@@ -177,27 +177,6 @@ public class DeploymentUtils {
                         && kubeClient().isDeploymentRunning(namespaceName, podName));
     }
 
-    /**
-     * Wait for expected replicas of a deployment to be running.
-     *
-     * @param namespaceName the namespace name
-     * @param deploymentName the deployment name
-     * @param expectedReplicas the expected replicas
-     * @param timeout the timeout
-     * @return the boolean
-     */
-    public static boolean waitForDeploymentRunning(String namespaceName, String deploymentName, int expectedReplicas, Duration timeout) {
-        LOGGER.info("Waiting for deployment: {} replicas of {}/{} to be running", expectedReplicas, namespaceName, deploymentName);
-        List<Pod> pods = kubeClient().listPods(namespaceName, kubeClient().getPodSelectorFromDeployment(namespaceName, deploymentName));
-        if (pods.size() != expectedReplicas) {
-            return false;
-        }
-
-        pods.forEach(p -> waitForDeploymentRunning(namespaceName, p.getMetadata().getName(), timeout));
-
-        return true;
-    }
-
     private static void waitForLeavingPendingPhase(String namespaceName, String podName) {
         await().alias("await pod to leave pending phase")
                 .atMost(Duration.ofMinutes(1))
