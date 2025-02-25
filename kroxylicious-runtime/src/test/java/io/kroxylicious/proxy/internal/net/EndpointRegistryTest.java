@@ -733,7 +733,7 @@ class EndpointRegistryTest {
                                              Map<Integer, HostPort> discoveryAddressMap) {
         when(cluster.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
         when(cluster.isUseTls()).thenReturn(tls);
-        when(cluster.requiresTls()).thenReturn(sni);
+        when(cluster.requiresServerNameIndication()).thenReturn(sni);
         when(cluster.discoveryAddressMap()).thenReturn(discoveryAddressMap);
         when(cluster.targetCluster()).thenReturn(new TargetCluster(upstreamBootstrap.toString(), null));
         when(cluster.getBrokerIdFromBrokerAddress(any(HostPort.class))).thenReturn(null);
