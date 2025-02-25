@@ -24,7 +24,6 @@ import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.skodjob.testframe.resources.ResourceItem;
 import io.strimzi.api.kafka.model.common.Spec;
 import io.strimzi.api.kafka.model.kafka.Status;
-import io.strimzi.api.kafka.model.topic.KafkaTopic;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.ConditionStatus;
@@ -137,9 +136,6 @@ public class ResourceManager {
 
         if (waitReady) {
             for (T resource : resources) {
-                if (Objects.equals(resource.getKind(), KafkaTopic.RESOURCE_KIND)) {
-                    continue;
-                }
                 ResourceType<T> type = findResourceType(resource);
                 if (type == null) {
                     throw new KubeClusterException.InvalidResource(String.format("resource type not found for this resource kind: %s", resource.getKind()));
