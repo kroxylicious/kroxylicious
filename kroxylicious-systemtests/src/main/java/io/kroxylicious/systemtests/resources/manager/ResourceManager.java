@@ -7,22 +7,28 @@
 package io.kroxylicious.systemtests.resources.manager;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.skodjob.testframe.resources.ResourceItem;
 import io.strimzi.api.kafka.model.common.Spec;
 import io.strimzi.api.kafka.model.kafka.Status;
-import io.strimzi.api.kafka.model.topic.KafkaTopic;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.ConditionStatus;
 import io.kroxylicious.systemtests.k8s.HelmClient;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.ResourceCondition;
 import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
@@ -30,6 +36,7 @@ import io.kroxylicious.systemtests.resources.kroxylicious.ConfigMapResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.DeploymentResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.SecretResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.ServiceResource;
+import io.kroxylicious.systemtests.resources.kubernetes.ClusterOperatorCustomResourceDefinition;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaUserResource;
@@ -43,6 +50,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class ResourceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceManager.class);
     private static ResourceManager instance;
+    private static ExtensionContext testContext;
+    private static final Map<String, ConcurrentLinkedDeque<ResourceItem<?>>> storedResources = new ConcurrentHashMap<>();
 
     private ResourceManager() {
     }
@@ -57,6 +66,18 @@ public class ResourceManager {
             instance = new ResourceManager();
         }
         return instance;
+    }
+
+    public static void setTestContext(ExtensionContext context) {
+        testContext = context;
+    }
+
+    public static ExtensionContext getTestContext() {
+        return testContext;
+    }
+
+    private static String getContextUniqueName() {
+        return getTestContext().getRequiredTestClass().getName() + "." + getTestContext().getDisplayName();
     }
 
     /**
@@ -75,7 +96,8 @@ public class ResourceManager {
             new ServiceResource(),
             new ConfigMapResource(),
             new DeploymentResource(),
-            new SecretResource()
+            new SecretResource(),
+            new ClusterOperatorCustomResourceDefinition()
     };
 
     /**
@@ -101,7 +123,8 @@ public class ResourceManager {
     }
 
     @SafeVarargs
-    private final <T extends HasMetadata> void createResource(boolean waitReady, T... resources) {
+    private <T extends HasMetadata> void createResource(boolean waitReady, T... resources) {
+        ConcurrentLinkedDeque<ResourceItem<?>> concurrentLinkedDeque = new ConcurrentLinkedDeque<>();
         for (T resource : resources) {
             ResourceType<T> type = findResourceType(resource);
 
@@ -110,17 +133,20 @@ public class ResourceManager {
 
             assert type != null;
             type.create(resource);
+
+            storedResources.computeIfAbsent(getContextUniqueName(), k -> concurrentLinkedDeque)
+                    .push(new ResourceItem<>(() -> deleteResource(resource), resource));
         }
 
         if (waitReady) {
             for (T resource : resources) {
                 ResourceType<T> type = findResourceType(resource);
-                if (Objects.equals(resource.getKind(), KafkaTopic.RESOURCE_KIND)) {
-                    continue;
+                if (type == null) {
+                    throw new KubeClusterException.InvalidResource(String.format("resource type not found for this resource kind: %s", resource.getKind()));
                 }
                 if (!waitResourceCondition(resource, ResourceCondition.readiness(type))) {
-                    throw new RuntimeException(String.format("Timed out waiting for %s %s/%s to be ready", resource.getKind(), resource.getMetadata().getNamespace(),
-                            resource.getMetadata().getName()));
+                    throw new KubeClusterException.InvalidResource(String.format("Timed out waiting for %s %s/%s to be ready",
+                            resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
                 }
             }
         }
@@ -148,14 +174,36 @@ public class ResourceManager {
             try {
                 type.delete(resource);
                 if (!waitResourceCondition(resource, ResourceCondition.deletion())) {
-                    throw new RuntimeException(
-                            String.format("Timed out deleting %s %s/%s", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
+                    throw new KubeClusterException.InvalidResource(String.format("Timed out deleting %s %s/%s",
+                            resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName()));
                 }
             }
             catch (Exception e) {
                 LOGGER.error("Failed to delete {} {}/{}", resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName(), e);
             }
         }
+    }
+
+    public void deleteResources() {
+        if (!storedResources.containsKey(getContextUniqueName()) || storedResources.get(getContextUniqueName()).isEmpty()) {
+            LOGGER.info("In context {} is everything deleted", getContextUniqueName());
+        }
+        else {
+            LOGGER.info("Deleting all resources for {}", getContextUniqueName());
+        }
+
+        ConcurrentLinkedDeque<ResourceItem<?>> stack = storedResources.get(getContextUniqueName());
+
+        while (!stack.isEmpty()) {
+            ResourceItem<?> resourceItem = stack.pop();
+            try {
+                resourceItem.throwableRunner().run();
+            }
+            catch (Exception e) {
+                LOGGER.atTrace().log(Arrays.toString(e.getStackTrace()));
+            }
+        }
+        storedResources.remove(getContextUniqueName());
     }
 
     /**
@@ -211,23 +259,6 @@ public class ResourceManager {
                                                                                                                   Duration resourceTimeout) {
         return waitForResourceStatusReady(operation, resource.getKind(), resource.getMetadata().getNamespace(), resource.getMetadata().getName(),
                 ConditionStatus.TRUE, resourceTimeout);
-    }
-
-    /**
-     * Wait for resource status.
-     *
-     * @param <T> the type parameter
-     * @param operation the operation
-     * @param kind the kind
-     * @param namespace the namespace
-     * @param name the name
-     * @param resourceTimeout the resource timeout
-     * @return the boolean
-     */
-    public static <T extends CustomResource<? extends Spec, ? extends Status>> boolean waitForResourceStatusReady(MixedOperation<T, ?, ?> operation, String kind,
-                                                                                                                  String namespace, String name,
-                                                                                                                  Duration resourceTimeout) {
-        return waitForResourceStatusReady(operation, kind, namespace, name, ConditionStatus.TRUE, resourceTimeout);
     }
 
     /**

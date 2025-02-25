@@ -12,6 +12,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
@@ -22,13 +23,14 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 /**
  * The type Kroxylicious extension.
  */
-public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallback, AfterEachCallback, AfterAllCallback {
+public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallback, BeforeEachCallback, AfterEachCallback, AfterAllCallback {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousExtension.class);
     private static final String K8S_NAMESPACE_KEY = "namespace";
     private static final String EXTENSION_STORE_NAME = "io.kroxylicious.systemtests";
@@ -44,8 +46,9 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
 
     @Override
     public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) throws ParameterResolutionException {
-        return parameterContext.getParameter().getType().isAssignableFrom(String.class) &&
-                parameterContext.getParameter().getName().toLowerCase().contains("namespace");
+        return (parameterContext.getParameter().getType().isAssignableFrom(String.class)
+                && parameterContext.getParameter().getName().toLowerCase().contains("namespace"))
+                || parameterContext.getParameter().getType().isAssignableFrom(ExtensionContext.class);
     }
 
     @Override
@@ -58,6 +61,11 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
         }
 
         return extensionContext;
+    }
+
+    @Override
+    public void beforeAll(ExtensionContext extensionContext) {
+        ResourceManager.setTestContext(extensionContext);
     }
 
     @Override
@@ -75,6 +83,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
 
     @Override
     public void afterEach(ExtensionContext extensionContext) {
+        ResourceManager.setTestContext(extensionContext);
         String namespace = extractK8sNamespace(extensionContext);
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
@@ -91,6 +100,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeEachCallb
 
     @Override
     public void beforeEach(ExtensionContext extensionContext) {
+        ResourceManager.setTestContext(extensionContext);
         final String k8sNamespace = Constants.KAFKA_DEFAULT_NAMESPACE + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
         extensionContext.getStore(junitNamespace).put(K8S_NAMESPACE_KEY, k8sNamespace);
         NamespaceUtils.createNamespaceWithWait(k8sNamespace);
