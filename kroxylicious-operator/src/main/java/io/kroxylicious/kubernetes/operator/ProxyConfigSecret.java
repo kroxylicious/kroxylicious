@@ -29,17 +29,16 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.clusters.Filters;
-import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinition;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterListener;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -216,14 +215,9 @@ public class ProxyConfigSecret
                 null,
                 Optional.empty(),
                 List.of(new VirtualClusterListener("default",
-                        new ClusterNetworkAddressConfigProviderDefinition(
-                                "PortPerBrokerClusterNetworkAddressConfigProvider",
-                                new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(
-                                        new HostPort("localhost", 9292 + (100 * clusterNum)),
-                                        ClusterService.absoluteServiceHost(primary, cluster),
-                                        null,
-                                        null,
-                                        null)),
+                        new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292 + (100 * clusterNum)),
+                                ClusterService.absoluteServiceHost(primary, cluster), null, null),
+                        null,
                         Optional.empty())),
                 false, false,
                 filterNamesForCluster(cluster));
