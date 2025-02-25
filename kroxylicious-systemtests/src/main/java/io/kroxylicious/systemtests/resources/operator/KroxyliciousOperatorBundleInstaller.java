@@ -7,6 +7,24 @@
 
 package io.kroxylicious.systemtests.resources.operator;
 
+import io.fabric8.kubernetes.api.model.Namespace;
+import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.k8s.KubeClusterResource;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.utils.NamespaceUtils;
+import io.skodjob.testframe.enums.InstallType;
+import io.skodjob.testframe.installation.InstallationMethod;
+import io.skodjob.testframe.utils.ImageUtils;
+import io.skodjob.testframe.utils.TestFrameUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.platform.commons.PreconditionViolationException;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -17,26 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.platform.commons.PreconditionViolationException;
-
-import io.fabric8.kubernetes.api.model.Namespace;
-import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
-import io.fabric8.kubernetes.api.model.apps.Deployment;
-import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
-import io.skodjob.testframe.enums.InstallType;
-import io.skodjob.testframe.installation.InstallationMethod;
-import io.skodjob.testframe.utils.ImageUtils;
-import io.skodjob.testframe.utils.TestFrameUtils;
-
-import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.k8s.KubeClusterResource;
-import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -67,7 +65,6 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             && ko.namespaceInstallTo == null
             && ko.testClassName == null && ko.testMethodName == null;
 
-    private static final Predicate<File> installFiles = file -> !file.getName().contains("Deployment");
     private static final Predicate<File> deploymentFiles = file -> file.getName().contains("Deployment");
 
     public KroxyliciousOperatorBundleInstaller(String namespaceInstallTo) {
@@ -91,7 +88,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     }
 
     private void applyClusterOperatorInstallFiles(String namespaceName) {
-        for (File operatorFile : getFilteredOperatorFiles(installFiles)) {
+        for (File operatorFile : getFilteredOperatorFiles(Predicate.not(deploymentFiles))) {
             final String resourceType = operatorFile.getName().split("\\.")[1];
 
             if (resourceType.equals(Constants.NAMESPACE)) {
@@ -256,15 +253,14 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             // clear all resources related to the extension context
             try {
                 if (!Environment.SKIP_TEARDOWN) {
-                    for (File operatorFile : getFilteredOperatorFiles(installFiles)) {
+                    for (File operatorFile : getFilteredOperatorFiles(Predicate.not(deploymentFiles))) {
                         kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).inAnyNamespace().delete();
                     }
                     ResourceManager.getInstance().deleteResources();
                 }
             }
             catch (Exception e) {
-                Thread.currentThread().interrupt();
-                LOGGER.error(e.getStackTrace());
+                LOGGER.error("An error occurred when deleting the resources", e);
             }
         }
         LOGGER.info(SEPARATOR);
