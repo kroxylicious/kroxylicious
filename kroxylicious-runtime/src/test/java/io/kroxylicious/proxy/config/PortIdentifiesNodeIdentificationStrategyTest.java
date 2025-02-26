@@ -54,7 +54,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     @Test
     void respectsSingleRange() {
         var bootstrap = HostPort.parse("boot:1234");
-        var strategy = new PortIdentifiesNodeIdentificationStrategy(bootstrap, "mybroker", null, List.of(new NamedRange("foo", 10, 12)));
+        var strategy = new PortIdentifiesNodeIdentificationStrategy(bootstrap, "mybroker", null, List.of(new NamedRange("foo", 10, 11)));
         var provider = buildProvider(strategy);
 
         assertThat(provider.getBrokerAddress(10)).isEqualTo(HostPort.parse("mybroker:1235"));

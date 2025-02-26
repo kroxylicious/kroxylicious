@@ -70,12 +70,4 @@ class RangeTest {
         assertThat(a.isDistinctFrom(b)).isEqualTo(expected);
     }
 
-    static Stream<Arguments> intersection() {
-        return Stream.of(
-                arguments(new Range(3, 5), new Range(2, 4), new Range(3, 4)),
-                arguments(new Range(3, 5), new Range(3, 5), new Range(3, 5)),
-                arguments(new Range(0, 2), new Range(1, 2), new Range(1, 2)),
-                arguments(new Range(0, 3), new Range(1, 2), new Range(1, 2)),
-                arguments(new Range(0, 4), new Range(1, 2), new Range(1, 2)));
-    }
 }

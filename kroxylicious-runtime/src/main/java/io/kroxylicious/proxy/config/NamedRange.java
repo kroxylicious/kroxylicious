@@ -10,33 +10,34 @@ import java.util.Objects;
 import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Represents the set of integers between two integer endpoints. So the Range
- * with startInclusive 1 and endExclusive 3 contains the integers 1 and 2.
- * A Range must be non-empty, endExclusive must be greater than startInclusive
+ * Represents the inclusive set of integers between two integer endpoints. So the range
+ * with start 1 and end 3 contains the integers 1, 2, and 3.
+ * A Range must be non-empty, end must be greater than start
  */
-public record NamedRange(@NonNull String name,
-                         @JsonInclude(JsonInclude.Include.ALWAYS) int startInclusive,
-                         @JsonInclude(JsonInclude.Include.ALWAYS) int endExclusive) {
+public record NamedRange(@NonNull @JsonProperty(required = true) String name,
+                         @JsonProperty(required = true) @JsonInclude(JsonInclude.Include.ALWAYS) int start,
+                         @JsonProperty(required = true) @JsonInclude(JsonInclude.Include.ALWAYS) int end) {
 
     /**
      * Constructs a Range
      *
      * @param name range name
-     * @param startInclusive the (inclusive) initial value
-     * @param endExclusive the exclusive upper bound
+     * @param start the inclusive lower value
+     * @param end the inclusive upper bound
      * @throws IllegalArgumentException if end is before start
      */
     public NamedRange {
         Objects.requireNonNull(name);
-        if (endExclusive <= startInclusive) {
+        if (start > end) {
             throw new IllegalArgumentException(
-                    "end of range: " + endExclusive + " (exclusive) is before start of range: " + startInclusive + " (inclusive)");
+                    "end of range: " + end + " is before start of range: " + start);
         }
     }
 
@@ -46,18 +47,18 @@ public record NamedRange(@NonNull String name,
      */
     @NonNull
     public IntStream values() {
-        return IntStream.range(startInclusive, endExclusive);
+        return IntStream.rangeClosed(start, end);
     }
 
     /**
-     * Returns true if this range's end is before the start of another range. ie they do not overlap
+     * Returns true if this range's end is before the start of another range. i.e. they do not overlap
      * @param range range to compare
      * @return true if this range ends before the start of other range
      */
     @VisibleForTesting
     boolean isEndBeforeStartOf(@NonNull NamedRange range) {
         Objects.requireNonNull(range, "range to compare with is null");
-        return this.endExclusive <= range.startInclusive;
+        return this.end < range.start;
     }
 
     /**
@@ -73,6 +74,10 @@ public record NamedRange(@NonNull String name,
 
     @Override
     public String toString() {
-        return "[" + startInclusive + "," + endExclusive + ")";
+        return "NamedRange{" +
+                "name='" + name + '\'' +
+                ", start=" + start +
+                ", end=" + end +
+                '}';
     }
 }

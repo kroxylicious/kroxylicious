@@ -165,7 +165,7 @@ public class KroxyliciousConfigUtils {
                     }
                     else if (providerDefinition.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rc) {
                         var ranges = rc.getNodeIdRanges().stream()
-                                .map(nir -> new NamedRange(nir.name(), nir.rangeSpec().startInclusive(), nir.rangeSpec().endExclusive()))
+                                .map(nir -> new NamedRange(nir.name(), nir.rangeSpec().startInclusive(), nir.rangeSpec().endExclusive() - 1))
                                 .toList();
                         var rap = new PortIdentifiesNodeIdentificationStrategy(rc.getBootstrapAddress(),
                                 rc.getNodeAddressPattern(),

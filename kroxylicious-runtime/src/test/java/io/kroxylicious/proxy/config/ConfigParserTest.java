@@ -93,11 +93,11 @@ class ConfigParserTest {
                                 bootstrapAddress: cluster1:9192
                                 nodeIdRanges:
                                 - name: range1
-                                  startInclusive: 0
-                                  endExclusive: 3
+                                  start: 0
+                                  end: 3
                                 - name: range2
-                                  startInclusive: 5
-                                  endExclusive: 9
+                                  start: 5
+                                  end: 9
                         """),
                 Arguments.argumentSet("Virtual cluster (portIdentifiesNode with range and start port)", """
                         virtualClusters:
@@ -112,8 +112,8 @@ class ConfigParserTest {
                                 nodeStartPort: 9193
                                 nodeIdRanges:
                                 - name: brokers
-                                  startInclusive: 0
-                                  endExclusive: 3
+                                  start: 0
+                                  end: 3
                         """),
                 Arguments.argumentSet("Virtual cluster (sniHostIdentifiesNode)", """
                         virtualClusters:
