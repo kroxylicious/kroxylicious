@@ -68,10 +68,20 @@ public class ResourceManager {
         return instance;
     }
 
+    /**
+     * Sets test context.
+     *
+     * @param context the context
+     */
     public static void setTestContext(ExtensionContext context) {
         testContext = context;
     }
 
+    /**
+     * Gets test context.
+     *
+     * @return the test context
+     */
     public static ExtensionContext getTestContext() {
         return testContext;
     }
@@ -103,7 +113,7 @@ public class ResourceManager {
     /**
      * Create resource without wait.
      *
-     * @param <T>   the type parameter
+     * @param <T>    the type parameter
      * @param resources the resources
      */
     @SafeVarargs
@@ -114,7 +124,7 @@ public class ResourceManager {
     /**
      * Create resource with wait.
      *
-     * @param <T>    the type parameter
+     * @param <T>     the type parameter
      * @param resources the resources
      */
     @SafeVarargs
@@ -155,7 +165,7 @@ public class ResourceManager {
     /**
      * Delete resource.
      *
-     * @param <T> the type parameter
+     * @param <T>  the type parameter
      * @param resources the resources
      */
     @SafeVarargs
@@ -184,6 +194,9 @@ public class ResourceManager {
         }
     }
 
+    /**
+     * Delete resources.
+     */
     public void deleteResources() {
         if (!storedResources.containsKey(getContextUniqueName()) || storedResources.get(getContextUniqueName()).isEmpty()) {
             LOGGER.info("In context {} is everything deleted", getContextUniqueName());
@@ -209,7 +222,7 @@ public class ResourceManager {
     /**
      * Wait resource condition.
      *
-     * @param <T> the type parameter
+     * @param <T>  the type parameter
      * @param resource the resource
      * @param condition the condition
      * @return the boolean
@@ -249,7 +262,7 @@ public class ResourceManager {
 
     /**
      * Wait until the CR is in desired state
-     * @param <T> the type parameter
+     * @param <T>  the type parameter
      * @param operation - client of CR - for example kafkaClient()
      * @param resource - custom resource
      * @param resourceTimeout the resource timeout
@@ -264,7 +277,7 @@ public class ResourceManager {
     /**
      * Wait for resource status.
      *
-     * @param <T> the type parameter
+     * @param <T>  the type parameter
      * @param operation the operation
      * @param kind the kind
      * @param namespace the namespace
@@ -298,7 +311,7 @@ public class ResourceManager {
     /**
      * Wait for resource status ready.
      *
-     * @param <T>  the type parameter
+     * @param <T>   the type parameter
      * @param operation the operation
      * @param resource the resource
      * @return the boolean
