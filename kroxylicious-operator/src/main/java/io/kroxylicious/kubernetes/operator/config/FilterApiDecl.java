@@ -16,7 +16,7 @@ import io.javaoperatorsdk.operator.processing.GroupVersionKind;
  */
 public record FilterApiDecl(String group, String version, String kind) {
 
-    public static FilterApiDecl GENERIC_FILTER = new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "Filter");
+    public static FilterApiDecl GENERIC_FILTER = new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "KafkaProtocolFilter");
 
     public GroupVersionKind groupVersionKind() {
         return new GroupVersionKind(group, version, kind);
