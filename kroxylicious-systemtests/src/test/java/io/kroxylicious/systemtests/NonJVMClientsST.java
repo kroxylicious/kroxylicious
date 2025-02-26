@@ -177,7 +177,7 @@ class NonJVMClientsST extends AbstractST {
     @BeforeEach
     void setUpBeforeEach(String namespace) {
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        KroxyliciousSteps.deployPortPerBrokerPlainWithNoFilters(clusterName, namespace,1);
+        KroxyliciousSteps.deployPortPerBrokerPlainWithNoFilters(clusterName, namespace, 1);
         bootstrap = Kroxylicious.getBootstrap(namespace);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();

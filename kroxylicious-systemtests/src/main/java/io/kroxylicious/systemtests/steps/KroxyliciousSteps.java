@@ -44,7 +44,8 @@ public class KroxyliciousSteps {
         resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
     }
 
-    private static void createRecordEncryptionFilterConfigMap(String clusterName, String deploymentNamespace, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
+    private static void createRecordEncryptionFilterConfigMap(String clusterName, String deploymentNamespace, TestKmsFacade<?, ?, ?> testKmsFacade,
+                                                              ExperimentalKmsConfig experimentalKmsConfig) {
         LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
         resourceManager
                 .createResourceWithWait(
@@ -87,7 +88,7 @@ public class KroxyliciousSteps {
      * @param testKmsFacade the test kms facade
      */
     public static void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, String namespace, int replicas, TestKmsFacade<?, ?, ?> testKmsFacade,
-                                                                   ExperimentalKmsConfig experimentalKmsConfig) {
+                                                                          ExperimentalKmsConfig experimentalKmsConfig) {
         createRecordEncryptionFilterConfigMap(clusterName, namespace, testKmsFacade, experimentalKmsConfig);
         deployPortPerBrokerPlain(namespace, replicas);
     }
