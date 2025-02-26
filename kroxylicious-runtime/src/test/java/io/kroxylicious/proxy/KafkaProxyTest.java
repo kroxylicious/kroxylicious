@@ -120,7 +120,8 @@ class KafkaProxyTest {
                         advertisedBrokerAddressPattern:  broker-$(nodeId)
                     targetCluster:
                       bootstrapServers: kafka.example:1234
-                """, "Cluster endpoint provider requires server TLS, but this virtual cluster does not define it"));
+                """,
+                "Cluster endpoint provider requires ServerNameIndication, but virtual cluster listener 'default' does not configure TLS and provide a certificate for the server"));
     }
 
     @ParameterizedTest(name = "{0}")
