@@ -14,6 +14,8 @@ import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRou
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * SniHostIdentifiesNode.
  *
@@ -22,8 +24,8 @@ import io.kroxylicious.proxy.service.HostPort;
  *        must be resolvable and routable from the client's network).  A port number can be included.  If the port number is not included, the port number assigned
  *        to the bootstrapAddress is used.  One pattern is supported: {@code $(nodeId)} which interpolates the node id into the address (required).
  */
-public record SniHostIdentifiesNodeIdentificationStrategy(@JsonProperty(required = true) HostPort bootstrapAddress,
-                                                          @JsonProperty(required = true) String advertisedBrokerAddressPattern)
+public record SniHostIdentifiesNodeIdentificationStrategy(@NonNull @JsonProperty(required = true) HostPort bootstrapAddress,
+                                                          @NonNull @JsonProperty(required = true) String advertisedBrokerAddressPattern)
         implements NodeIdentificationStrategy {
     public SniHostIdentifiesNodeIdentificationStrategy {
         Objects.requireNonNull(bootstrapAddress);
