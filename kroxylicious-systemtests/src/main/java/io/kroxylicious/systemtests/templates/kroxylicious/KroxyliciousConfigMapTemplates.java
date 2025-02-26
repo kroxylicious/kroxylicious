@@ -34,7 +34,7 @@ public final class KroxyliciousConfigMapTemplates {
     private static ConfigMapBuilder baseKroxyliciousConfig(String namespaceName) {
         return new ConfigMapBuilder()
                 .withApiVersion("v1")
-                .withKind(Constants.CONFIG_MAP_KIND)
+                .withKind(Constants.CONFIG_MAP)
                 .editMetadata()
                 .withName(Constants.KROXY_CONFIG_NAME)
                 .withNamespace(namespaceName)

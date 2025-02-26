@@ -128,7 +128,7 @@ public class DeploymentUtils {
      */
     public static boolean checkLoadBalancerIsWorking(String namespace) {
         Service service = new ServiceBuilder()
-                .withKind(Constants.SERVICE_KIND)
+                .withKind(Constants.SERVICE)
                 .withNewMetadata()
                 .withName(TEST_LOAD_BALANCER_NAME)
                 .withNamespace(namespace)

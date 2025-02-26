@@ -52,6 +52,7 @@ public class Environment {
     private static final String KROXY_ORG_ENV = "DOCKER_ORG";
     private static final String KROXY_REGISTRY_ENV = "DOCKER_REGISTRY";
     private static final String KROXY_TAG_ENV = "DOCKER_TAG";
+    private static final String TEST_LOG_DIR_ENV = "TEST_LOG_DIR";
 
     /**
      * The kafka version default value
@@ -102,6 +103,7 @@ public class Environment {
     public static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT = AWS_ACCESS_KEY_ID_DEFAULT;
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT = AWS_SECRET_ACCESS_KEY_DEFAULT;
     public static final String AWS_REGION_DEFAULT = "us-east-2";
+    private static final String TEST_LOG_DIR_DEFAULT = System.getProperty("user.dir") + "/../kroxylicious-systemtests/target/logs/";
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -151,6 +153,8 @@ public class Environment {
     public static final String KROXY_ORG = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_ORG_ENV, KROXY_ORG_DEFAULT);
     public static final String KROXY_TAG = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_TAG_ENV, KROXY_TAG_DEFAULT);
     public static final String KROXY_REGISTRY = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_REGISTRY_ENV, KROXY_REGISTRY_DEFAULT);
+
+    public static final String TEST_LOG_DIR = ENVIRONMENT_VARIABLES.getOrDefault(TEST_LOG_DIR_ENV, TEST_LOG_DIR_DEFAULT);
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();
