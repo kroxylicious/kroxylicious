@@ -43,6 +43,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -83,6 +84,33 @@ class VirtualClusterListenerModelTest {
         var advertisedHostPort = new HostPort("broker", 55);
         when(mock.getAdvertisedBrokerAddress(0)).thenReturn(advertisedHostPort);
         assertThat(listener.getAdvertisedBrokerAddress(0)).isEqualTo(advertisedHostPort);
+    }
+
+    @Test
+    void delegatesToProviderForBrokerAddress() {
+        var mock = mock(ClusterNetworkAddressConfigProvider.class);
+        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
+        var brokerAddress = new HostPort("broker", 55);
+        when(mock.getBrokerAddress(0)).thenReturn(brokerAddress);
+        assertThat(listener.getBrokerAddress(0)).isEqualTo(brokerAddress);
+    }
+
+    @Test
+    void delegatesToProviderForBrokerIdFromBrokerAddress() {
+        var mock = mock(ClusterNetworkAddressConfigProvider.class);
+        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
+        var brokerAddress = new HostPort("broker", 55);
+        when(mock.getBrokerIdFromBrokerAddress(brokerAddress)).thenReturn(1);
+        assertThat(listener.getBrokerIdFromBrokerAddress(brokerAddress)).isEqualTo(1);
+    }
+
+    @Test
+    void delegatesToProviderForServerNameIndication() {
+        var mock = mock(ClusterNetworkAddressConfigProvider.class);
+        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
+        var brokerAddress = new HostPort("broker", 55);
+        when(mock.requiresServerNameIndication()).thenReturn(true);
+        assertThat(listener.requiresServerNameIndication()).isTrue();
     }
 
     @Test
@@ -212,6 +240,44 @@ class VirtualClusterListenerModelTest {
                                     assertThat(sslContext.isServer()).isTrue();
                                     assertThat(sslContext.newEngine(ByteBufAllocator.DEFAULT)).satisfies(sslEngineAssertions);
                                 }));
+    }
+
+    static Stream<Arguments> downstreamListenerThatRequiresSniEnforcesTlsWithKey() {
+        return Stream.of(
+                argumentSet("no tls", Optional.empty()),
+                argumentSet("no key", Optional.of(new Tls(null, null, null, null))));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    void downstreamListenerThatRequiresSniEnforcesTlsWithKey(Optional<Tls> downstreamTls) {
+        // Given
+        var model = mock(VirtualClusterModel.class);
+        var provider = mock(ClusterNetworkAddressConfigProvider.class);
+        when(provider.requiresServerNameIndication()).thenReturn(true);
+
+        // When/Then
+        assertThatThrownBy(() -> new VirtualClusterListenerModel(model, provider, downstreamTls, "mylistener"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "Cluster endpoint provider requires ServerNameIndication, but virtual cluster listener 'mylistener' does not configure TLS and provide a certificate for the server");
+    }
+
+    @Test
+    void detectsBadPortConfiguration() {
+        // Given
+        var tls = Optional.<Tls> empty();
+        var model = mock(VirtualClusterModel.class);
+        var provider = mock(ClusterNetworkAddressConfigProvider.class);
+        when(provider.getSharedPorts()).thenReturn(Set.of(9080, 9081));
+        when(provider.getExclusivePorts()).thenReturn(Set.of(9080));
+
+        // When/Then
+        assertThatThrownBy(() -> new VirtualClusterListenerModel(model, provider, tls, "mylistener"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(
+                        "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: [9080]");
     }
 
     @NonNull

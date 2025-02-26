@@ -116,8 +116,6 @@ public class VirtualClusterModel {
     }
 
     public void addListener(String name, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
-        validateTLsSettings(provider, tls);
-        validatePortUsage(provider);
         listeners.put(name, new VirtualClusterListenerModel(this, provider, tls, name));
     }
 
@@ -250,21 +248,6 @@ public class VirtualClusterModel {
         }
     }
 
-    private static void validatePortUsage(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider) {
-        var conflicts = clusterNetworkAddressConfigProvider.getExclusivePorts().stream().filter(p -> clusterNetworkAddressConfigProvider.getSharedPorts().contains(p))
-                .collect(Collectors.toSet());
-        if (!conflicts.isEmpty()) {
-            throw new IllegalStateException(
-                    "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: " + conflicts);
-        }
-    }
-
-    private static void validateTLsSettings(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider, Optional<Tls> tls) {
-        if (clusterNetworkAddressConfigProvider.requiresTls() && (tls.isEmpty() || !tls.get().definesKey())) {
-            throw new IllegalStateException("Cluster endpoint provider requires server TLS, but this virtual cluster does not define it.");
-        }
-    }
-
     public @NonNull List<NamedFilterDefinition> getFilters() {
         return filters;
     }
@@ -286,8 +269,29 @@ public class VirtualClusterModel {
             this.virtualCluster = virtualCluster;
             this.provider = provider;
             this.tls = tls;
-            this.downstreamSslContext = buildDownstreamSslContext();
             this.name = name;
+            validatePortUsage(provider);
+            validateTLsSettings(provider, tls);
+            this.downstreamSslContext = buildDownstreamSslContext();
+        }
+
+        private void validatePortUsage(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider) {
+            // This validation seems misplaced.
+            var conflicts = clusterNetworkAddressConfigProvider.getExclusivePorts().stream().filter(p -> clusterNetworkAddressConfigProvider.getSharedPorts().contains(p))
+                    .collect(Collectors.toSet());
+            if (!conflicts.isEmpty()) {
+                throw new IllegalStateException(
+                        "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: "
+                                + conflicts);
+            }
+        }
+
+        private void validateTLsSettings(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider, Optional<Tls> tls) {
+            if (clusterNetworkAddressConfigProvider.requiresServerNameIndication() && (tls.isEmpty() || !tls.get().definesKey())) {
+                throw new IllegalStateException(
+                        "Cluster endpoint provider requires ServerNameIndication, but virtual cluster listener '%s' does not configure TLS and provide a certificate for the server"
+                                .formatted(name()));
+            }
         }
 
         @Override
@@ -320,8 +324,8 @@ public class VirtualClusterModel {
         }
 
         @Override
-        public boolean requiresTls() {
-            return getClusterNetworkAddressConfigProvider().requiresTls();
+        public boolean requiresServerNameIndication() {
+            return getClusterNetworkAddressConfigProvider().requiresServerNameIndication();
         }
 
         @Override
