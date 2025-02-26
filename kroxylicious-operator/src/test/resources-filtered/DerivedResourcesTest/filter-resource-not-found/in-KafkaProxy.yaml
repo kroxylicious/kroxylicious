@@ -18,10 +18,10 @@ spec:
         bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
       filters:
         - group: filter.kroxylicious.io
-          kind: Filter
+          kind: KafkaProtocolFilter
           name: filter-one
         - group: filter.kroxylicious.io
-          kind: Filter
+          kind: KafkaProtocolFilter
           name: missing # this does not exist
     - name: "bar"
       # This cluster should be present in the output proxy-operator-operator-operator-config.yaml, because both these filters exist
@@ -29,8 +29,8 @@ spec:
         bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
       filters:
         - group: filter.kroxylicious.io
-          kind: Filter
+          kind: KafkaProtocolFilter
           name: filter-one
         - group: filter.kroxylicious.io
-          kind: Filter
+          kind: KafkaProtocolFilter
           name: filter-two

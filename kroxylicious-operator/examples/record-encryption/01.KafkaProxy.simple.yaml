@@ -17,5 +17,5 @@ spec:
         bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
       filters:
       - group: filter.kroxylicious.io
-        kind: Filter
+        kind: KafkaProtocolFilter
         name: encryption

@@ -5,12 +5,12 @@
 #
 
 ---
-kind: Filter
+kind: KafkaProtocolFilter
 apiVersion: filter.kroxylicious.io/v1alpha1
 metadata:
-  name: filter-two
+  name: filter-one
   namespace: proxy-ns
 spec:
-  type: com.example.what.Ever
+  type: org.example.some.java.Class
   config:
-    filterTwoConfig: 42
+    filterOneConfig: true
