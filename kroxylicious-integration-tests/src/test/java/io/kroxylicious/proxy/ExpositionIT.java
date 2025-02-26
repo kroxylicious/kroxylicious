@@ -369,7 +369,7 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesClusterOfTwoBrokersWithIdGapWithRangeAwarePortPerNode(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+    void exposesClusterOfTwoBrokersWithGapInNodeIds(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
         cluster.addBroker();
         cluster.removeBroker(1);
         var builder = new ConfigurationBuilder()
@@ -380,7 +380,7 @@ class ExpositionIT extends BaseIT {
                         .addToListeners(defaultListenerBuilder()
                                 .withNewPortIdentifiesNode()
                                 .withBootstrapAddress(PROXY_ADDRESS)
-                                .withNodeIdRanges(new NamedRange("node-0", 0, 1), new NamedRange("node-2", 2, 3))
+                                .withNodeIdRanges(new NamedRange("node-0", 0, 0), new NamedRange("node-2", 2, 2))
                                 .endPortIdentifiesNode()
                                 .build())
                         .build());
