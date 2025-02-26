@@ -1,6 +1,6 @@
-# SNI Networking Scheme with Kubernetes ClusterIP Services
+# SNI Host Identifies Node Network Scheme with Kubernetes ClusterIP Services
 
-This examples illustrates Kroxylicious's SNI networking scheme exposed with a kubernetes cluster using
+This examples illustrates Kroxylicious's SNI Host Identifies Node scheme exposed with a kubernetes cluster using
 ClusterIP services. Note that we need to use a set of services, one for each broker and our convenience
 bootstrap service.
 

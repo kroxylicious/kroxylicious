@@ -65,19 +65,25 @@ The _Virtual Cluster_ is the downstream representation of a Kafka Cluster.  At t
 connects to a Virtual Cluster.  Kroxylicious proxies all communications made to the Virtual Cluster through to a
 (physical) Kafka Cluster, passing it through the _Filter Chain_.
 
-So far, this explanation has elided the detail of Kafka Brokers.  Let's talk about that now.
+=== Virtual cluster listener
 
-The Virtual Cluster automatically exposes a bootstrap endpoint for the Virtual Cluster.  This is what the Kafka Client
-must specify as the https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[bootstrap.servers] property
-in the client configuration.
+Each _Virtual Cluster_ has one or more _Virtual Cluster Listeners_.  The Kafka Client connects to the Virtual Cluster
+via a Virtual Cluster Listener.
 
-In addition to the bootstrap endpoint, Kroxylicious automatically exposes broker endpoints.  There is one broker endpoint
+Each listener exposes a bootstrap endpoint.  This is what the Kafka Client must specify as the
+https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[bootstrap.servers] property in the client configuration.
+
+In addition to the bootstrap endpoint, the listener automatically exposes broker endpoints.  There is one broker endpoint
 for each broker of the physical cluster.  When the Client connects to a broker endpoint, Kroxylicious proxies all
 communications to the corresponding broker of the (physical) Kafka Cluster.
 
 Kroxylicious automatically intercepts all the Kafka RPC responses that contain a broker address.  It rewrites the address
 so that it refers to the corresponding broker endpoint of the Virtual Cluster.  This means when the Kafka Client
 goes to connect to, say broker 0, it does so through the Virtual Cluster.
+
+A use-case for when you'd define multiple listeners for a Virtual Cluster is where you want to expose the Virtual Cluster
+onto multiple network segments.  For instance, in Kubernetes, you might define a listener for on-cluster traffic and
+separate one for off-cluster traffic.
 
 === Target cluster
 
@@ -87,7 +93,7 @@ A _Virtual Cluster_ has exactly one _Target Cluster_.
 
 There can be a _one-to-one_ relationship between Virtual Clusters and Target Clusters.
 The other possibility is _many-to-one_, where many Virtual Clusters point to the same Target Cluster.  The
-many-to-one pattern is exploited by filters such as the xref:available-filters.adoc#_multi_tenancy[Multi-tenancy]
+many-to-one pattern is exploited by filters such as the xref:multi-tenancy/proc-multi-tenancy.adoc#proc-multi-tenancy-{context}[Multi-tenancy]
 filter.
 
 .One-to-One relationship between Virtual Cluster and Target Cluster
@@ -100,10 +106,10 @@ filter.
 | |[Client] |=+   |                                     |    :                    :   |
 | '---------' :   |    '----------------------------'   |    :      '---------'   :   |
 |             :   |    |[Virtual Cluster]           |===+====|=====>|[Broker] |   :   |
-|             +===|===>|                            |   |    :      |         |   :   |
-|             :   |    |                            |   |    :      '---------'   :   |
-|             +===|===>|                            |   |    :                    :   |
-|                 |    |                            |   |    :      '---------'   :   |
+|             :   |    |                            |   |    :      |         |   :   |
+|             +===|===>| '-----------'              |   |    :      '---------'   :   |
+|             :   |    | |[Listener] |              |   |    :                    :   |
+|             +===|===>| '-----------'              |   |    :      '---------'   :   |
 |                 |    |                            |===+====:==+==>|[Broker] |   :   |
 |                 |    '----------------------------'   |    :      |         |   :   |
 |                 |                                     |    :      '---------'   :   |
@@ -122,18 +128,18 @@ filter.
 | |[Client] |=+   |                                     |    :                    :   |
 | '---------' :   |    '----------------------------'   |    :      '---------'   :   |
 |             :   |    |[Virtual Cluster A]         |===+=+==|==+==>|[Broker] |   :   |
-|             +===|===>|                            |   | :  :      |         |   :   |
-|             :   |    |                            |   | :  :      '---------'   :   |
-|             +===|===>|                            |   | :  :                    :   |
+|             +===|===>| '-----------'              |   | :  :      |         |   :   |
+|             :   |    | |[Listener] |              |   | :  :      '---------'   :   |
+|             +===|===>| '-----------'              |   | :  :                    :   |
 |                 |    |                            |   | :  :      '---------'   :   |
 |                 |    |                            |===+====:==+==>|[Broker] |   :   |
 |                 |    '----------------------------'   | :  :  :   |         |   :   |
 | '---------'     |                                     | :  :  :   '---------'   :   |
 | |[Client] |=+   |    '----------------------------'   | :  :  :                 :   |
 | '---------' :   |    |[Virtual Cluster B]         |===+=+  '===================='   |
-|             +===|===>|                            |   |       :                     |
-|             :   |    |                            |   |       :                     |
-|             +===|===>|                            |   |       :                     |
+|             +===|===>| '-----------'              |   |       :                     |
+|             :   |    | |[Listener] |              |   |       :                     |
+|             +===|===>| '-----------'              |   |       :                     |
 |                 |    |                            |   |       :                     |
 |                 |    |                            |===+=======+                     |
 |                 |    '----------------------------'   |                             |

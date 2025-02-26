@@ -41,9 +41,9 @@ your Kafka client off-EC2.
        demo:
          targetCluster:
            bootstrapServers: localhost:9092
-         clusterNetworkAddressConfigProvider:
-           type: PortPerBrokerClusterNetworkAddressConfigProvider
-           config:
+         listeners:
+         - name: mylistener
+           portIdentifiesNode:
              bootstrapAddress: ec2-xx-xx-xx-xx.compute-1.amazonaws.com:9192
          logNetwork: false
          logFrames: false
@@ -60,7 +60,7 @@ your Kafka client off-EC2.
          selector: TemplateKekSelector
          selectorConfig:
            template: "KEK_$(topicName)"
-    ```
+        ```
 11. Run kroxylicious with logs turned up to see the action of the EC2 provider.
     ```bash
     KROXYLICIOUS_APP_LOG_LEVEL=DEBUG ./kroxylicious-app-*-SNAPSHOT/bin/kroxylicious-start.sh -c config.yaml

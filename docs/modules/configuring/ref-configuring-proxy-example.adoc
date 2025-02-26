@@ -42,16 +42,16 @@ virtualClusters: # <5>
           storeFile: /opt/proxy/trust/ca.p12
           storePassword:
             passwordFile: /opt/proxy/trust/ca.password
-    clusterNetworkAddressConfigProvider: # <9>
-      type: SniRoutingClusterNetworkAddressConfigProvider # <10>
-      config:
+    listeners: # <9>
+    - name: mylistener
+      sniHostIdentifiesNode: # <10>
         bootstrapAddress: my-cluster-proxy.kafka:9092 # <11>
         advertisedBrokerAddressPattern: broker$(nodeId).my-cluster-proxy.kafka
-    tls: # <12>
-      key:
-        storeFile: /opt/proxy/server/key-material/keystore.p12
-        storePassword:
-          passwordFile: /opt/proxy/server/keystore-password/storePassword
+      tls: # <12>
+        key:
+          storeFile: /opt/proxy/server/key-material/keystore.p12
+          storePassword:
+            passwordFile: /opt/proxy/server/keystore-password/storePassword
 ----
 <1> A list of named filter configurations.
 <2> The type of filter, which is the Record Encryption filter using Vault as the KMS in this example.
@@ -61,8 +61,8 @@ virtualClusters: # <5>
 <6> The name of the virtual cluster.
 <7> The bootstrap address of the target physical Kafka Cluster being proxied.
 <8> TLS configuration for the connection to the target cluster.
-<9> The configuration for the cluster network address configuration provider that controls how the virtual cluster is presented to the network.
-<10> The built-in network address configuration provider types are `PortPerBrokerClusterNetworkAddressConfigProvider` and `SniRoutingClusterNetworkAddressConfigProvider`.
-<11> The hostname and port of the bootstrap used by the Kafka clients. The hostname must be resolved by the clients.
-<12> TLS encryption for securing connections with the clients.
+<9> The listeners of the virtual cluster defining how the virtual cluster is presented to the network.
+<10> The identification scheme used to route traffic to brokers - the possibilities are `sniHostIdentifiesNode` and `portIdentifiesNode`.
+<11> The hostname and port of the bootstrap used by the Kafka clients to connect to this listener. The hostname must be resolved by the clients.
+<12> TLS encryption by this listener for securing connections with the clients.
 

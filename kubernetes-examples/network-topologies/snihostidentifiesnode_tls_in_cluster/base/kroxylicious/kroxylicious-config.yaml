@@ -23,15 +23,16 @@ data:
               storeFile: /opt/kroxylicious/trust/ca.p12
               storePassword:
                 passwordFile: /opt/kroxylicious/trust/ca.password
-        clusterNetworkAddressConfigProvider:
-          type: SniRoutingClusterNetworkAddressConfigProvider
-          config:
-            bootstrapAddress: my-cluster-proxy.kroxylicious:9092
-            advertisedBrokerAddressPattern: my-cluster-proxy-broker-$(nodeId).kroxylicious
+        listeners: 
+          - name: mylistener
+            sniHostIdentifiesNode:
+              bootstrapAddress: my-cluster-proxy.kroxylicious:9092
+              advertisedBrokerAddressPattern: my-cluster-proxy-broker-$(nodeId).kroxylicious
+            tls:
+              key:
+                storeFile: /opt/kroxylicious/server/key-material/keystore.p12
+                storePassword:
+                  passwordFile: /opt/kroxylicious/server/keystore-password/storePassword
         logNetwork: false
         logFrames: false
-        tls:
-          key:
-            storeFile: /opt/kroxylicious/server/key-material/keystore.p12
-            storePassword:
-              passwordFile: /opt/kroxylicious/server/keystore-password/storePassword
+
