@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
 
-    public static final String BOOTSTRAP_HOST = "cluster.kafka.example.com";
+    private static final String BOOTSTRAP_HOST = "cluster.kafka.example.com";
     private static final String BOOTSTRAP = BOOTSTRAP_HOST + ":1235";
     private static final HostPort BOOSTRAP_HOSTPORT = HostPort.parse(BOOTSTRAP);
 
@@ -238,12 +238,54 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
                 .hasMessage("The maximum port mapped exceeded 65535");
     }
 
+    @Test
+    void getBootstrapAddressFromConfig() {
+        var bootstrapAddress = HostPort.parse(BOOTSTRAP);
+        var ranges = List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 3)));
+        var config = new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
+                bootstrapAddress, "broker.kafka.example.com",
+                null, ranges);
+        assertThat(config.getBootstrapAddress()).isEqualTo(bootstrapAddress);
+    }
+
+    @Test
+    void getNodeAddressPatternFromConfig() {
+        var nodeAddressPattern = "broker$(nodeId).kafka.example.com";
+        var bootstrapAddress = HostPort.parse(BOOTSTRAP);
+        var config = new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
+                bootstrapAddress, nodeAddressPattern,
+                null, List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 3))));
+        assertThat(config.getNodeAddressPattern()).isEqualTo(nodeAddressPattern);
+    }
+
+    @Test
+    void getNodeStartPortFromConfig() {
+        var nodeAddressPattern = "broker$(nodeId).kafka.example.com";
+        var bootstrapAddress = HostPort.parse(BOOTSTRAP);
+        int nodeStartPort = 1236;
+        var config = new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
+                bootstrapAddress, nodeAddressPattern,
+                nodeStartPort, List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 3))));
+        assertThat(config.getNodeStartPort()).isEqualTo(nodeStartPort);
+    }
+
+    @Test
+    void getNodeIdRangesFromConfig() {
+        var nodeAddressPattern = "broker$(nodeId).kafka.example.com";
+        var bootstrapAddress = HostPort.parse(BOOTSTRAP);
+        var ranges = List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 3)));
+        var config = new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
+                bootstrapAddress, nodeAddressPattern,
+                null, ranges);
+        assertThat(config.getNodeIdRanges()).isEqualTo(ranges);
+    }
+
     private static @NonNull RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig getConfig(List<NamedRangeSpec> namedRangeSpecs) {
         return getConfig(namedRangeSpecs, 1236, BOOSTRAP_HOSTPORT);
     }
 
-    private static @NonNull RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig getConfig(
-                                                                                                     List<NamedRangeSpec> namedRangeSpecs, int nodeStartPort,
+    private static @NonNull RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig getConfig(List<NamedRangeSpec> namedRangeSpecs,
+                                                                                                     Integer nodeStartPort,
                                                                                                      HostPort bootstrapAddress) {
         return new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
                 bootstrapAddress, "broker$(nodeId).kafka.example.com",

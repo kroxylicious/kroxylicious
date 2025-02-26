@@ -108,7 +108,6 @@ class VirtualClusterListenerModelTest {
     void delegatesToProviderForServerNameIndication() {
         var mock = mock(ClusterNetworkAddressConfigProvider.class);
         var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
-        var brokerAddress = new HostPort("broker", 55);
         when(mock.requiresServerNameIndication()).thenReturn(true);
         assertThat(listener.requiresServerNameIndication()).isTrue();
     }

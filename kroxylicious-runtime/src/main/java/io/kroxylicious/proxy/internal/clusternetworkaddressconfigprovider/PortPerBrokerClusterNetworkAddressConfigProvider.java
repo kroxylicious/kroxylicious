@@ -96,14 +96,6 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider
             return brokerStartPort;
         }
 
-        public int getLowestTargetBrokerId() {
-            return lowestTargetBrokerId;
-        }
-
-        public int getNumberOfBrokerPorts() {
-            return numberOfBrokerPorts;
-        }
-
     }
 
 }
