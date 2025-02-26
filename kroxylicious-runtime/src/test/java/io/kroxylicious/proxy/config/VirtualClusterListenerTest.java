@@ -48,7 +48,7 @@ class VirtualClusterListenerTest {
     }
 
     @Test
-    void rejectsSniHostIdentifiesNodeWiythoutTls() {
+    void rejectsSniHostIdentifiesNodeWithoutTls() {
         var empty = Optional.<Tls> empty();
 
         assertThatThrownBy(() -> new VirtualClusterListener("name", null, sniHostIdentifiesNode, empty))
