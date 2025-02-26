@@ -126,9 +126,8 @@ class MetricsST extends AbstractST {
 
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        bootstrap = kroxylicious.getBootstrap();
+        KroxyliciousSteps.deployPortPerBrokerPlainWithNoFilters(clusterName, namespace, 1);
+        bootstrap = Kroxylicious.getBootstrap(namespace);
         kroxyliciousCollector = new MetricsCollector.Builder()
                 .withScraperPodName(scraperPodName)
                 .withNamespaceName(namespace)

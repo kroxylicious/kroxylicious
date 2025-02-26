@@ -33,7 +33,6 @@ import static org.assertj.core.api.BDDAssumptions.given;
  */
 class KroxyliciousST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousST.class);
-    private static Kroxylicious kroxylicious;
     private final String clusterName = "my-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
@@ -49,9 +48,8 @@ class KroxyliciousST extends AbstractST {
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        String bootstrap = kroxylicious.getBootstrap();
+        KroxyliciousSteps.deployPortPerBrokerPlainWithNoFilters(clusterName, namespace, 1);
+        String bootstrap = Kroxylicious.getBootstrap(namespace);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -80,9 +78,8 @@ class KroxyliciousST extends AbstractST {
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        String bootstrap = kroxylicious.getBootstrap();
+        KroxyliciousSteps.deployPortPerBrokerPlainWithNoFilters(clusterName, namespace,1);
+        String bootstrap = Kroxylicious.getBootstrap(namespace);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
@@ -114,10 +111,9 @@ class KroxyliciousST extends AbstractST {
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(replicas).log();
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
-        String bootstrap = kroxylicious.getBootstrap();
-        int currentReplicas = kroxylicious.getNumberOfReplicas();
+        KroxyliciousSteps.deployPortPerBrokerPlainWithNoFilters(clusterName, namespace, replicas);
+        String bootstrap = Kroxylicious.getBootstrap(namespace);
+        int currentReplicas = Kroxylicious.getNumberOfReplicas(namespace);
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
@@ -153,10 +149,9 @@ class KroxyliciousST extends AbstractST {
 
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(replicas).log();
-        kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
-        String bootstrap = kroxylicious.getBootstrap();
-        int currentReplicas = kroxylicious.getNumberOfReplicas();
+        KroxyliciousSteps.deployPortPerBrokerPlainWithNoFilters(clusterName, namespace, replicas);
+        String bootstrap = Kroxylicious.getBootstrap(namespace);
+        int currentReplicas = Kroxylicious.getNumberOfReplicas(namespace);
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
@@ -166,8 +161,8 @@ class KroxyliciousST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("And kroxylicious is scaled to {}").addArgument(scaleTo).log();
-        kroxylicious.scaleReplicasTo(scaleTo, Duration.ofMinutes(2));
-        currentReplicas = kroxylicious.getNumberOfReplicas();
+        KroxyliciousSteps.scaleReplicasTo(namespace, scaleTo, Duration.ofMinutes(2));
+        currentReplicas = Kroxylicious.getNumberOfReplicas(namespace);
         assertThat(currentReplicas).withFailMessage("unexpected current scaled replicas").isEqualTo(scaleTo);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
