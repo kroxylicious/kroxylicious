@@ -77,7 +77,7 @@ public class ResourceManager {
     }
 
     private static String getContextUniqueName() {
-        return getTestContext().getRequiredTestClass().getName() + "." + getTestContext().getDisplayName();
+        return getTestContext().getRequiredTestClass().getName() + "." + getTestContext().getRequiredTestMethod().getName();
     }
 
     /**
