@@ -69,11 +69,12 @@ public interface ClusterNetworkAddressConfigProvider {
     }
 
     /**
-     * Indicates if this provider requires the use of TLS.
+     * Indicates if the provider requires that connections utilise the Server Name Indication (SNI)
+     * extension to TLS.  If this is true, then the provider cannot support plain connections.
      *
-     * @return true if this provider requires the use of TLS.
+     * @return true if this provider requires Server Name Indication (SNI).
      */
-    default boolean requiresTls() {
+    default boolean requiresServerNameIndication() {
         return false;
     }
 

@@ -34,10 +34,12 @@ public interface EndpointListener {
     boolean isUseTls();
 
     /**
-     * true if this listener requires TLS (in other words, use SNI).
-     * @return true if this listener requires TLS.
+     * Indicates if the provider requires that connections utilise the Server Name Indication (SNI)
+     * extension to TLS.  If this is true, then the provider cannot support plain connections.
+     *
+     * @return true if this provider requires Server Name Indication (SNI).
      */
-    boolean requiresTls();
+    boolean requiresServerNameIndication();
 
     VirtualClusterModel virtualCluster();
 

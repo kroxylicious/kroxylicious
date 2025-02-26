@@ -465,7 +465,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 var bindings = acceptorChannel.attr(CHANNEL_BINDINGS);
                 bindings.setIfAbsent(new ConcurrentHashMap<>());
                 var bindingMap = bindings.get();
-                var bindingKey = virtualCluster.requiresTls() ? RoutingKey.createBindingKey(host) : RoutingKey.NULL_ROUTING_KEY;
+                var bindingKey = virtualCluster.requiresServerNameIndication() ? RoutingKey.createBindingKey(host) : RoutingKey.NULL_ROUTING_KEY;
 
                 // we use a bindingMap attached to the channel to record the bindings to the channel. the #deregisterBinding path
                 // knows to tear down the acceptorChannel when the map becomes empty.
