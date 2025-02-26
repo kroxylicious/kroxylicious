@@ -13,7 +13,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,7 +21,6 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
-import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
@@ -35,7 +33,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * The non-JVM clients system tests.
  */
-@ExtendWith(KroxyliciousExtension.class)
 @Tag(EXTERNAL_KAFKA_CLIENTS)
 class NonJVMClientsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(NonJVMClientsST.class);

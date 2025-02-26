@@ -7,12 +7,12 @@
 package io.kroxylicious.systemtests.k8s.cmd;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.List;
 
 import io.kroxylicious.systemtests.executor.ExecResult;
 
 import static java.util.Arrays.asList;
-import static java.util.stream.Collectors.toList;
 
 /**
  * Abstraction for a kubernetes client.
@@ -68,7 +68,7 @@ public interface KubeCmdClient<K extends KubeCmdClient<K>> {
      * @return the k
      */
     default K delete(String... files) {
-        return delete(asList(files).stream().map(File::new).collect(toList()).toArray(new File[0]));
+        return delete(Arrays.stream(files).map(File::new).toArray(File[]::new));
     }
 
     /**

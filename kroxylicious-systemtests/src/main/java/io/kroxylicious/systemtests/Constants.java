@@ -19,6 +19,8 @@ public final class Constants {
     /**
      * The deployment name for kroxylicous
      */
+    public static final String KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME = "kroxylicious-operator";
+    public static final String KROXYLICIOUS_OPERATOR_NAMESPACE = "kroxylicious-operator";
     public static final String KROXY_DEPLOYMENT_NAME = "kroxylicious-proxy";
     /**
      * The service name for kroxylicious. Used for the bootstrap url
@@ -60,30 +62,6 @@ public final class Constants {
      * Kind of kafka node pools
      */
     public static final String KAFKA_NODE_POOL_KIND = "KafkaNodePool";
-    /**
-     * Kind of pods
-     */
-    public static final String POD_KIND = "Pod";
-
-    /**
-     * Kind of config maps
-     */
-    public static final String CONFIG_MAP_KIND = "ConfigMap";
-
-    /**
-     * Kind of jobs
-     */
-    public static final String JOB = "Job";
-
-    /**
-     * Kind of services
-     */
-    public static final String SERVICE_KIND = "Service";
-
-    /**
-     * Kind of secret
-     */
-    public static final String SECRET_KIND = "Secret";
 
     /**
      * Load balancer type name.
@@ -128,12 +106,21 @@ public final class Constants {
     public static final Duration RECONCILIATION_INTERVAL = Duration.ofSeconds(30);
     public static final Duration GLOBAL_POLL_INTERVAL_MEDIUM = Duration.ofSeconds(10);
     public static final Duration GLOBAL_STATUS_TIMEOUT = Duration.ofMinutes(3);
-    public static final Duration GLOBAL_TIMEOUT_SHORT = Duration.ofMinutes(2);
 
     /**
      * Kubernetes related constants
      */
     public static final String DEPLOYMENT = "Deployment";
+    public static final String DEPLOYMENT_TYPE = "deployment-type";
+    public static final String CUSTOM_RESOURCE_DEFINITION = "CustomResourceDefinition";
+    public static final String CLUSTER_ROLE = "ClusterRole";
+    public static final String CONFIG_MAP_KIND = "ConfigMap";
+    public static final String JOB = "Job";
+    public static final String NAMESPACE = "Namespace";
+    public static final String POD_KIND = "Pod";
+    public static final String SECRET_KIND = "Secret";
+    public static final String SERVICE_KIND = "Service";
+    public static final String SERVICE_ACCOUNT = "ServiceAccount";
 
     /**
      * Test clients image url
@@ -176,8 +163,15 @@ public final class Constants {
     public static final String SCRAPER_LABEL_KEY = "user-test-app";
     public static final String SCRAPER_LABEL_VALUE = "scraper";
     public static final String SCRAPER_NAME = "Scraper";
-    public static final String DEPLOYMENT_TYPE_LABEL_KEY = "deployment-type";
 
-    public static final String DOCKER_REGISTRY_AWS_MIRROR = "public.ecr.aws/docker";
+    /**
+     * Basic paths to examples
+     */
+    public static final String PATH_TO_OPERATOR = System.getProperty("user.dir") + "/../kroxylicious-operator";
+    public static final String PATH_TO_OPERATOR_INSTALL_FILES = PATH_TO_OPERATOR + "/install";
+
+    /**
+     * Auxiliary variables for storing data across our tests
+     */
     public static final String DOCKER_REGISTRY_GCR_MIRROR = "mirror.gcr.io";
 }

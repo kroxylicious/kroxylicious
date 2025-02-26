@@ -24,7 +24,6 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
-import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -39,7 +38,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-@ExtendWith(KroxyliciousExtension.class)
 @ExtendWith(TestKubeKmsFacadeInvocationContextProvider.class)
 class RecordEncryptionST extends AbstractST {
     protected static final String BROKER_NODE_NAME = "kafka";
