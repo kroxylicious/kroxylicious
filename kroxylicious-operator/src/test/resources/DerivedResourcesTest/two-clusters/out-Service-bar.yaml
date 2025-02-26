@@ -22,21 +22,21 @@ metadata:
       name: "twocluster"
 spec:
   ports:
-    - name: "bar-9392"
-      port: 9392
+    - name: "bar-9292"
+      port: 9292
       protocol: "TCP"
-      targetPort: 9392
-    - name: "bar-9393"
-      port: 9393
+      targetPort: 9292
+    - name: "bar-9293"
+      port: 9293
       protocol: "TCP"
-      targetPort: 9393
-    - name: "bar-9394"
-      port: 9394
+      targetPort: 9293
+    - name: "bar-9294"
+      port: 9294
       protocol: "TCP"
-      targetPort: 9394
-    - name: "bar-9395"
-      port: 9395
+      targetPort: 9294
+    - name: "bar-9295"
+      port: 9295
       protocol: "TCP"
-      targetPort: 9395
+      targetPort: 9295
   selector:
     app: "kroxylicious"

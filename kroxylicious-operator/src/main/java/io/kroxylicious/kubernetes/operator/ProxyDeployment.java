@@ -25,6 +25,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -88,7 +89,7 @@ public class ProxyDeployment
 
     private PodTemplateSpec podTemplate(KafkaProxy primary,
                                         Context<KafkaProxy> context) {
-        Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec().getPodTemplate())
+        Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec()).map(KafkaProxySpec::getPodTemplate)
                 .map(PodTemplateSpec::getMetadata)
                 .map(ObjectMeta::getLabels)
                 .orElse(Map.of());
@@ -99,7 +100,7 @@ public class ProxyDeployment
                     .addToLabels(podLabels())
                 .endMetadata()
                 .editOrNewSpec()
-                    .withContainers(proxyContainer(primary, context))
+                    .withContainers(proxyContainer( context))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewSecret()
@@ -111,8 +112,7 @@ public class ProxyDeployment
         // @formatter:on
     }
 
-    private Container proxyContainer(KafkaProxy primary,
-                                     Context<KafkaProxy> context) {
+    private Container proxyContainer(Context<KafkaProxy> context) {
         // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
@@ -130,16 +130,15 @@ public class ProxyDeployment
                     .withName("metrics")
                 .endPort();
         // broker ports
-        for (var cluster : primary.getSpec().getClusters()) {
-            if (!SharedKafkaProxyContext.isBroken(context, cluster)) {
-                for (var portEntry : ClusterService.clusterPorts(primary, context, cluster).entrySet()) {
+        ResourcesUtil.clustersInNameOrder(context).forEach(virtualKafkaCluster -> {
+            if (!SharedKafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
+                for (var portEntry : ClusterService.clusterPorts( context, virtualKafkaCluster).entrySet()) {
                     containerBuilder.addNewPort()
                             .withContainerPort(portEntry.getKey())
-                            // .withName(portEntry.getValue())
                             .endPort();
                 }
             }
-        }
+        });
         return containerBuilder.build();
         // @formatter:on
     }

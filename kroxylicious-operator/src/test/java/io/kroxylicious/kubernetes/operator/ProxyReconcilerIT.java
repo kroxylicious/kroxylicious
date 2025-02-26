@@ -9,6 +9,7 @@ package io.kroxylicious.kubernetes.operator;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.assertj.core.api.Assumptions;
@@ -29,6 +30,8 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,6 +61,7 @@ class ProxyReconcilerIT {
             // new FilterKindDecl("filter.kroxylicious.io", "v1alpha1", "RecordEncryption", "io.kroxylicious.filter.encryption.RecordEncryption")
             ))))
             .withKubernetesClient(client)
+            .withAdditionalCustomResourceDefinition(VirtualKafkaCluster.class)
             .waitForNamespaceDeletion(true)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
@@ -72,8 +76,32 @@ class ProxyReconcilerIT {
         doCreate();
     }
 
-    KafkaProxy doCreate() {
-        final var cr = extension.create(testResource());
+    private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters) {
+        public VirtualKafkaCluster cluster(String name) {
+            return clusters.stream().filter(c -> c.getMetadata().getName().equals(name)).findFirst().orElseThrow();
+        }
+    }
+
+    CreatedResources doCreate() {
+        KafkaProxy proxy = testResource();
+        final var cr = extension.create(proxy);
+        VirtualKafkaCluster clusterFoo = extension.create(new VirtualKafkaClusterBuilder().withNewMetadata().withName(CLUSTER_FOO).endMetadata()
+                .withNewSpec()
+                .withNewTargetCluster()
+                .withNewBootstrapping().withBootstrap(CLUSTER_FOO_BOOTSTRAP).endBootstrapping()
+                .endTargetCluster()
+                .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
+                .withFilters()
+                .endSpec().build());
+        VirtualKafkaCluster clusterBar = extension.create(new VirtualKafkaClusterBuilder().withNewMetadata().withName(CLUSTER_BAR).endMetadata()
+                .withNewSpec()
+                .withNewTargetCluster()
+                .withNewBootstrapping().withBootstrap(CLUSTER_BAR_BOOTSTRAP).endBootstrapping()
+                .endTargetCluster()
+                .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
+                .withFilters()
+                .endSpec().build());
+        Set<VirtualKafkaCluster> clusters = Set.of(clusterFoo, clusterBar);
 
         await().alias("Secret as expected").untilAsserted(() -> {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
@@ -94,7 +122,7 @@ class ProxyReconcilerIT {
                             && vol.getSecret().getSecretName().equals(ProxyConfigSecret.secretName(cr)));
         });
         await().alias("cluster Services as expected").untilAsserted(() -> {
-            for (var cluster : cr.getSpec().getClusters()) {
+            for (var cluster : clusters) {
                 var service = extension.get(Service.class, ClusterService.serviceName(cluster));
                 assertThat(service).isNotNull()
                         .extracting(svc -> svc.getSpec().getSelector())
@@ -103,24 +131,25 @@ class ProxyReconcilerIT {
             }
         });
 
-        return cr;
+        return new CreatedResources(proxy, clusters);
     }
 
     @Test
     void testDelete() {
-        var cr = doCreate();
-        extension.delete(cr);
+        var createdResources = doCreate();
+        KafkaProxy proxy = createdResources.proxy;
+        extension.delete(proxy);
 
         await().alias("Secret was deleted").untilAsserted(() -> {
-            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
+            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
             assertThat(secret).isNull();
         });
         await().alias("Deployment was deleted").untilAsserted(() -> {
-            var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
+            var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
             assertThat(deployment).isNull();
         });
         await().alias("Services were deleted").untilAsserted(() -> {
-            for (var cluster : cr.getSpec().getClusters()) {
+            for (var cluster : createdResources.clusters) {
                 var service = extension.get(Service.class, ClusterService.serviceName(cluster));
                 assertThat(service).isNull();
             }
@@ -129,19 +158,12 @@ class ProxyReconcilerIT {
     }
 
     @Test
-    void testUpdate() {
-        final var cr = doCreate();
-        // @formatter:off
-        var changedCr = new KafkaProxyBuilder(cr)
-                .editSpec()
-                    .removeMatchingFromClusters(cluster -> CLUSTER_FOO.equals(cluster.getName()))
-                .endSpec()
-                .build();
-        // @formatter:on
-        extension.replace(changedCr);
-
+    void testDeleteVirtualCluster() {
+        final var createdResources = doCreate();
+        KafkaProxy proxy = createdResources.proxy;
+        extension.delete(createdResources.cluster(CLUSTER_FOO));
         await().untilAsserted(() -> {
-            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
+            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
             assertThat(secret)
                     .isNotNull()
                     .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
@@ -182,20 +204,6 @@ class ProxyReconcilerIT {
                 .withNewMetadata()
                     .withName(RESOURCE_NAME)
                 .endMetadata()
-                .withNewSpec()
-                    .addNewCluster()
-                        .withName(CLUSTER_FOO)
-                        .withNewUpstream()
-                            .withBootstrapServers(CLUSTER_FOO_BOOTSTRAP)
-                        .endUpstream()
-                    .endCluster()
-                    .addNewCluster()
-                        .withName(CLUSTER_BAR)
-                        .withNewUpstream()
-                            .withBootstrapServers(CLUSTER_BAR_BOOTSTRAP)
-                        .endUpstream()
-                    .endCluster()
-                .endSpec()
                 .build();
         // @formatter:on
     }

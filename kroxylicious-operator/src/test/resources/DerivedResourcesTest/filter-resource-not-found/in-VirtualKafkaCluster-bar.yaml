@@ -1,0 +1,25 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: VirtualKafkaCluster
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: bar
+  namespace: proxy-ns
+spec:
+  proxyRef:
+    name: example
+  targetCluster:
+    bootstrapping:
+      bootstrap: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+  filters:
+    - group: filter.kroxylicious.io
+      kind: KafkaProtocolFilter
+      name: filter-one
+    - group: filter.kroxylicious.io
+      kind: KafkaProtocolFilter
+      name: filter-two
