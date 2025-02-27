@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.Assumptions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
@@ -41,7 +42,8 @@ class ProxyReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconcilerIT.class);
 
-    public static final String RESOURCE_NAME = "test-proxy";
+    public static final String PROXY_A = "proxy-a";
+    public static final String PROXY_B = "proxy-b";
     public static final String CLUSTER_FOO = "foo";
     public static final String CLUSTER_FOO_BOOTSTRAP = "my-cluster-kafka-bootstrap.foo.svc.cluster.local:9092";
     public static final String CLUSTER_BAR = "bar";
@@ -86,44 +88,19 @@ class ProxyReconcilerIT {
     }
 
     CreatedResources doCreate() {
-        KafkaProxy proxy = testResource();
-        final var cr = extension.create(proxy);
-        VirtualKafkaCluster clusterFoo = extension.create(new VirtualKafkaClusterBuilder().withNewMetadata().withName(CLUSTER_FOO).endMetadata()
-                .withNewSpec()
-                .withNewTargetCluster()
-                .withNewBootstrapping().withBootstrapAddress(CLUSTER_FOO_BOOTSTRAP).endBootstrapping()
-                .endTargetCluster()
-                .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
-                .withFilters()
-                .endSpec().build());
-        VirtualKafkaCluster clusterBar = extension.create(new VirtualKafkaClusterBuilder().withNewMetadata().withName(CLUSTER_BAR).endMetadata()
-                .withNewSpec()
-                .withNewTargetCluster()
-                .withNewBootstrapping().withBootstrapAddress(CLUSTER_BAR_BOOTSTRAP).endBootstrapping()
-                .endTargetCluster()
-                .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
-                .withFilters()
-                .endSpec().build());
+        KafkaProxy proxy = extension.create(kafkaProxy(PROXY_A));
+        VirtualKafkaCluster clusterFoo = extension.create(virtualKafkaCluster(CLUSTER_FOO, CLUSTER_FOO_BOOTSTRAP, proxy));
+        VirtualKafkaCluster clusterBar = extension.create(virtualKafkaCluster(CLUSTER_BAR, CLUSTER_BAR_BOOTSTRAP, proxy));
         Set<VirtualKafkaCluster> clusters = Set.of(clusterFoo, clusterBar);
 
-        await().alias("Secret as expected").untilAsserted(() -> {
-            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
-            assertThat(secret)
-                    .isNotNull()
-                    .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
-                    .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
-                    .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING)
-                    .contains(CLUSTER_FOO_BOOTSTRAP)
-                    .contains(CLUSTER_BAR_BOOTSTRAP);
-        });
-        await().alias("Deployment as expected").untilAsserted(() -> {
-            var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(cr));
-            assertThat(deployment).isNotNull()
-                    .extracting(dep -> dep.getSpec().getTemplate().getSpec().getVolumes(), InstanceOfAssertFactories.list(Volume.class))
-                    .describedAs("Deployment template should mount the proxy config secret")
-                    .anyMatch(vol -> vol.getSecret() != null
-                            && vol.getSecret().getSecretName().equals(ProxyConfigSecret.secretName(cr)));
-        });
+        assertProxyConfigContents(proxy, Set.of(CLUSTER_FOO_BOOTSTRAP, CLUSTER_BAR_BOOTSTRAP), Set.of());
+        assertDeploymentMountsConfigSecret(proxy);
+        assertServiceTargetsProxyInstances(clusters);
+
+        return new CreatedResources(proxy, clusters);
+    }
+
+    private void assertServiceTargetsProxyInstances(Set<VirtualKafkaCluster> clusters) {
         await().alias("cluster Services as expected").untilAsserted(() -> {
             for (var cluster : clusters) {
                 var service = extension.get(Service.class, ClusterService.serviceName(cluster));
@@ -131,10 +108,37 @@ class ProxyReconcilerIT {
                         .extracting(svc -> svc.getSpec().getSelector())
                         .describedAs("Service's selector should select proxy pods")
                         .isEqualTo(ProxyDeployment.podLabels());
+                // TODO shouldn't there be some identifier for the proxy here? The service will target all proxies.
             }
         });
+    }
 
-        return new CreatedResources(proxy, clusters);
+    private void assertDeploymentMountsConfigSecret(KafkaProxy proxy) {
+        await().alias("Deployment as expected").untilAsserted(() -> {
+            var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
+            assertThat(deployment).isNotNull()
+                    .extracting(dep -> dep.getSpec().getTemplate().getSpec().getVolumes(), InstanceOfAssertFactories.list(Volume.class))
+                    .describedAs("Deployment template should mount the proxy config secret")
+                    .anyMatch(vol -> vol.getSecret() != null
+                            && vol.getSecret().getSecretName().equals(ProxyConfigSecret.secretName(proxy)));
+        });
+    }
+
+    private void assertProxyConfigContents(KafkaProxy cr, Set<String> contains, Set<String> notContains) {
+        await().alias("Secret as expected").untilAsserted(() -> {
+            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
+            AbstractStringAssert<?> extracting = assertThat(secret)
+                    .isNotNull()
+                    .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
+                    .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
+                    .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING);
+            if (!contains.isEmpty()) {
+                extracting.contains(contains);
+            }
+            if (!notContains.isEmpty()) {
+                extracting.doesNotContain(notContains);
+            }
+        });
     }
 
     @Test
@@ -190,14 +194,7 @@ class ProxyReconcilerIT {
     void testAddVirtualCluster() {
         final var createdResources = doCreate();
         KafkaProxy proxy = createdResources.proxy;
-        extension.create(new VirtualKafkaClusterBuilder().withNewMetadata().withName(CLUSTER_BAZ).endMetadata()
-                .withNewSpec()
-                .withNewTargetCluster()
-                .withNewBootstrapping().withBootstrapAddress(CLUSTER_BAZ_BOOTSTRAP).endBootstrapping()
-                .endTargetCluster()
-                .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
-                .withFilters()
-                .endSpec().build());
+        extension.create(virtualKafkaCluster(CLUSTER_BAZ, CLUSTER_BAZ_BOOTSTRAP, proxy));
         await().untilAsserted(() -> {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
             assertThat(secret)
@@ -246,17 +243,46 @@ class ProxyReconcilerIT {
         LOGGER.atInfo().log("Test finished");
     }
 
+    @Test
+    void moveVirtualKafkaClusterToAnotherKafkaProxy() {
+        // given
+        KafkaProxy proxyA = extension.create(kafkaProxy(PROXY_A));
+        KafkaProxy proxyB = extension.create(kafkaProxy(PROXY_B));
+        extension.create(virtualKafkaCluster(CLUSTER_FOO, CLUSTER_FOO_BOOTSTRAP, proxyA));
+        extension.create(virtualKafkaCluster(CLUSTER_BAR, CLUSTER_BAR_BOOTSTRAP, proxyA));
+        extension.create(virtualKafkaCluster(CLUSTER_BAZ, CLUSTER_BAZ_BOOTSTRAP, proxyB));
+        assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP, CLUSTER_BAR_BOOTSTRAP), Set.of());
+        assertProxyConfigContents(proxyB, Set.of(CLUSTER_BAZ_BOOTSTRAP), Set.of());
+        // when
+        extension.replace(virtualKafkaCluster(CLUSTER_BAR, CLUSTER_BAR_BOOTSTRAP, proxyB));
+        // then
+        Set<String> doesNotContain = Set.of(CLUSTER_BAR_BOOTSTRAP);
+        assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP), doesNotContain);
+        assertProxyConfigContents(proxyB, Set.of(CLUSTER_BAZ_BOOTSTRAP, CLUSTER_BAR_BOOTSTRAP), Set.of());
+    }
+
+    private static VirtualKafkaCluster virtualKafkaCluster(String clusterName, String clusterBootstrap, KafkaProxy proxy) {
+        return new VirtualKafkaClusterBuilder().withNewMetadata().withName(clusterName).endMetadata()
+                .withNewSpec()
+                .withNewTargetCluster()
+                .withNewBootstrapping().withBootstrapAddress(clusterBootstrap).endBootstrapping()
+                .endTargetCluster()
+                .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
+                .withFilters()
+                .endSpec().build();
+    }
+
     private static Map<String, String> decodeSecretData(Secret cm) {
         return cm.getData().entrySet().stream().collect(Collectors.toMap(
                 Map.Entry::getKey,
                 entry -> new String(Base64.getDecoder().decode(entry.getValue()))));
     }
 
-    KafkaProxy testResource() {
+    KafkaProxy kafkaProxy(String name) {
         // @formatter:off
         return new KafkaProxyBuilder()
                 .withNewMetadata()
-                    .withName(RESOURCE_NAME)
+                    .withName(name)
                 .endMetadata()
                 .build();
         // @formatter:on

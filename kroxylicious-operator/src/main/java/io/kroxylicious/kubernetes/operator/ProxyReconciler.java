@@ -303,12 +303,13 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
 
     private static InformerEventSource<?, KafkaProxy> buildVirtualKafkaClusterInformer(EventSourceContext<KafkaProxy> context) {
         InformerConfiguration<VirtualKafkaCluster> configuration = InformerConfiguration.from(VirtualKafkaCluster.class).withSecondaryToPrimaryMapper(resource -> {
-            KafkaProxy proxy = context.getClient().resources(KafkaProxy.class)
+            Set<ResourceID> proxyIds = context.getClient().resources(KafkaProxy.class)
                     .inNamespace(resource.getMetadata().getNamespace())
-                    .withName(resource.getSpec().getProxyRef().getName())
-                    .item();
-            LOGGER.debug("Event source VirtualKafkaCluster SecondaryToPrimaryMapper got {}", proxy);
-            return proxy == null ? Set.of() : Set.of(ResourceID.fromResource(proxy));
+                    .list().getItems().stream()
+                    .map(ResourceID::fromResource)
+                    .collect(Collectors.toSet());
+            LOGGER.debug("Event source VirtualKafkaCluster SecondaryToPrimaryMapper got {}", proxyIds);
+            return proxyIds;
         }).withPrimaryToSecondaryMapper(primary -> {
             Set<ResourceID> virtualClustersInProxyNamespace = context.getClient().resources(VirtualKafkaCluster.class)
                     .inNamespace(primary.getMetadata().getNamespace())
