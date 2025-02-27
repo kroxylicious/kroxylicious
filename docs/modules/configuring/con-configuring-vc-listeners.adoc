@@ -140,7 +140,7 @@ virtualClusters:
 <3> (Optional) One or more node id ranges.  If omitted, it defaults to a single range of node IDs 0..2 (inclusive).
 
 With the example configuration above, the listener exposes a target cluster of up to six nodes with
-node ids 1..3 and 100..104   The advertised broker address is defined as `mycluster.example.com`.  Port
+node ids `1..3` and `101..103`.   The advertised broker address is defined as `mycluster.example.com`.  Port
 numbers are assigned sequentially beginning at `9193` (bootstrap port number + 1)
 
 The listener exposes the following six broker addresses:
@@ -157,13 +157,13 @@ The listener exposes the following six broker addresses:
 |3
 |mycluster.example.com:9195
 
-|100
+|101
 |mycluster.example.com:9196
 
-|101
+|102
 |mycluster.example.com:9197
 
-|101
+|103
 |mycluster.example.com:9198
 
 |===
@@ -175,7 +175,7 @@ If included, `$(nodeId)` is replaced by the broker's https://kafka.apache.org/do
 
 == Server Name Identification (SNI) Host Identifies Node
 
-In the SNI Host Identifies Node scheme, unique broker host names are used to where to route the traffic.
+In the SNI Host Identifies Node scheme, unique broker host names are used to know where to route the traffic.
 As this scheme relies on SNI, which is a TLS extension, TLS connections are required. It cannot be used with plain text connections.
 
 In this scheme, you may share the port across many virtual cluster listeners, or you can define a separate port
@@ -207,10 +207,11 @@ virtualClusters:
     will be substituted for the node id.
 <3> TLS configuration.
 
-With the example configuration above, the listener accepts traffic on port 9192. Any TLS connections arriving with
+With the example configuration above, the listener accepts all traffic on port 9192. Any TLS connections arriving with
 the SNI of `mycluster.example.com` will be routed as boostrap.  Any connections arriving with SNI matching
 `mybroker-$(nodeId).mycluster.example.com` will be routed to the upstream broker with the same node id.
-It exposes a target cluster with any number of brokers.
+It exposes a target cluster with any number of brokers.  It does not need prior knowledge of the node IDs used by
+the brokers.
 
 The listener exposes the following broker addresses like this:
 
