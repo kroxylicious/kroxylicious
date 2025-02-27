@@ -32,7 +32,7 @@ class OperatorMainIT {
     }
 
     @Test
-    void shouldRegisterMetrics() {
+    void shouldRegisterPrometheusMetrics() {
         // Given
 
         // When
@@ -46,5 +46,28 @@ class OperatorMainIT {
                 .satisfies(meterRegistry ->
                         assertThat(meterRegistry.get("operator.sdk.reconciliations.success"))
                                 .isNotNull());
+    }
+
+    @Test
+    void shouldRegisterOperatorMetrics() {
+        // Given
+
+        // When
+        OperatorMain.run();
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.success"))
+                .isNotNull();
+    }
+
+    @Test
+    void shouldRegisterMetricsForProxyReconciler() {
+        // Given
+
+        // When
+        OperatorMain.run();
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.proxyreconciler.success")).isNotNull();
     }
 }
