@@ -67,13 +67,11 @@ connects to a Virtual Cluster.  Kroxylicious proxies all communications made to 
 
 === Virtual cluster listener
 
-Each _Virtual Cluster_ has one or more _Virtual Cluster Listeners_.  The Kafka Client connects to the Virtual Cluster
-via a Virtual Cluster Listener.
+Each virtual cluster has one or more dedicated listeners, which Kafka clients use to establish connections.
 
-Each listener exposes a bootstrap endpoint.  This is what the Kafka Client must specify as the
-https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[bootstrap.servers] property in the client configuration.
+Each listener exposes a bootstrap endpoint, which the Kafka Client must specify in its configuration as the https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[`bootstrap.servers`] property.
 
-In addition to the bootstrap endpoint, the listener automatically exposes broker endpoints.  There is one broker endpoint
+In addition to the bootstrap endpoint, the listener automatically exposes broker endpoints. There is one broker endpoint
 for each broker of the physical cluster.  When the Client connects to a broker endpoint, Kroxylicious proxies all
 communications to the corresponding broker of the (physical) Kafka Cluster.
 
@@ -81,9 +79,8 @@ Kroxylicious automatically intercepts all the Kafka RPC responses that contain a
 so that it refers to the corresponding broker endpoint of the Virtual Cluster.  This means when the Kafka Client
 goes to connect to, say broker 0, it does so through the Virtual Cluster.
 
-A use-case for when you'd define multiple listeners for a Virtual Cluster is where you want to expose the Virtual Cluster
-onto multiple network segments.  For instance, in Kubernetes, you might define a listener for on-cluster traffic and
-separate one for off-cluster traffic.
+Defining multiple listeners for a virtual cluster is useful when exposing it across different network segments. 
+For example, in Kubernetes, you might configure one listener for on-cluster traffic and another for off-cluster traffic.
 
 === Target cluster
 
