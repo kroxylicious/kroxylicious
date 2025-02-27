@@ -6,11 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
-
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.ClustersBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -51,7 +51,7 @@ public class SecureConfigInterpolator {
         var interpolated = interpolateRecursive(configTemplate, volumes, mounts);
 
         return new InterpolationResult(interpolated,
-                volumes.stream().toList(), mounts.stream().toList());
+                volumes, mounts);
     }
 
     private @Nullable Object interpolateRecursive(
@@ -62,7 +62,7 @@ public class SecureConfigInterpolator {
             return jsonValue;
         }
         else if (jsonValue instanceof Map<?, ?> object) {
-            var newObject = new LinkedHashMap<>();
+            var newObject = new LinkedHashMap<>(1 + (int) (object.size() / 0.75f));
             for (var entry : object.entrySet()) {
                 String fieldName = entry.getKey().toString();
                 Object v = interpolateRecursive(entry.getValue(), volumes, mounts);
@@ -78,30 +78,7 @@ public class SecureConfigInterpolator {
             return newArray;
         }
         else if (jsonValue instanceof String text) {
-            Matcher matcher = PATTERN.matcher(text);
-            String replacement;
-            if (matcher.matches()) {
-                String providerName = matcher.group("providerName");
-                String path = matcher.group("path");
-                String key = matcher.group("key");
-                var provider = providers.get(providerName);
-                if (provider == null) {
-                    replacement = text;
-                }
-                else {
-                    var containerFile = provider.containerFile(providerName, path, key, mountPathBase);
-                    Volume volume = containerFile.volume();
-                    VolumeMount mount = containerFile.mount();
-                    Path containerPath = containerFile.containerPath();
-                    volumes.add(volume);
-                    mounts.add(mount);
-                    replacement = containerPath.toString();
-                }
-            }
-            else {
-                replacement = text;
-            }
-            return replacement;
+            return maybeInterpolateString(volumes, mounts, text);
         }
         else if (jsonValue instanceof Number) {
             return jsonValue;
@@ -114,19 +91,45 @@ public class SecureConfigInterpolator {
         }
     }
 
+    @NonNull
+    private String maybeInterpolateString(@NonNull Set<Volume> volumes, @NonNull Set<VolumeMount> mounts, String text) {
+        Matcher matcher = PATTERN.matcher(text);
+        String replacement;
+        if (matcher.matches()) {
+            String providerName = matcher.group("providerName");
+            String path = matcher.group("path");
+            String key = matcher.group("key");
+            var provider = providers.get(providerName);
+            if (provider == null) {
+                replacement = text;
+            }
+            else {
+                var containerFile = provider.containerFile(providerName, path, key, mountPathBase);
+                Volume volume = containerFile.volume();
+                VolumeMount mount = containerFile.mount();
+                Path containerPath = containerFile.containerPath();
+                if (volume != null) {
+                    volumes.add(volume);
+                }
+                if (mount != null) {
+                    mounts.add(mount);
+                }
+                replacement = containerPath.toString();
+            }
+        }
+        else {
+            replacement = text;
+        }
+        return replacement;
+    }
+
     record InterpolationResult(@Nullable Object config,
-                               @NonNull List<Volume> volumes,
-                               @NonNull List<VolumeMount> mounts) {
+                               @NonNull Set<Volume> volumes,
+                               @NonNull Set<VolumeMount> mounts) {
 
         InterpolationResult {
             Objects.requireNonNull(volumes);
             Objects.requireNonNull(mounts);
-            if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
-                throw new IllegalStateException("Two volumes with different definitions share the same name");
-            }
-            if (mounts.stream().map(VolumeMount::getMountPath).distinct().count() != mounts.size()) {
-                throw new IllegalStateException("Two volume mounts with different definitions share the same mount path");
-            }
         }
     }
 

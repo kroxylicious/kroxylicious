@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,7 +47,6 @@ import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 
@@ -96,11 +96,19 @@ public class ProxyConfigSecret
     }
 
     public static List<Volume> secureVolumes(ManagedDependentResourceContext managedDependentResourceContext) {
-        return managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_KEY, List.class).orElse(List.of());
+        Set<Volume> volumes = managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_KEY, Set.class).orElse(Set.of());
+        if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
+            throw new IllegalStateException("Two volumes with different definitions share the same name");
+        }
+        return volumes.stream().toList();
     }
 
     public static List<VolumeMount> secureVolumeMounts(ManagedDependentResourceContext managedDependentResourceContext) {
-        return managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_MOUNT_KEY, List.class).orElse(List.of());
+        Set<VolumeMount> mounts = managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_MOUNT_KEY, Set.class).orElse(Set.of());
+        if (mounts.stream().map(VolumeMount::getMountPath).distinct().count() != mounts.size()) {
+            throw new IllegalStateException("Two volume mounts with different definitions share the same mount path");
+        }
+        return mounts.stream().toList();
     }
 
     @Override
@@ -187,7 +195,7 @@ public class ProxyConfigSecret
     }
 
     @NonNull
-    private List<NamedFilterDefinition> filterDefinitions(VirtualKafkaCluster cluster, Context<KafkaProxy> context)
+    private List<NamedFilterDefinition> filterDefinitions(Context<KafkaProxy> context, VirtualKafkaCluster cluster)
             throws InvalidClusterException {
 
         return Optional.ofNullable(cluster.getSpec().getFilters()).orElse(List.of()).stream().map(filterCrRef -> {
@@ -198,8 +206,9 @@ public class ProxyConfigSecret
             if (filterCr.getAdditionalProperties().get("spec") instanceof Map<?, ?> spec) {
                 String type = (String) spec.get("type");
                 SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
-                context.managedDependentResourceContext().put(SECURE_VOLUME_KEY, interpolationResult.volumes());
-                context.managedDependentResourceContext().put(SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
+                var ctx = context.managedDependentResourceContext();
+                putOrMerged(ctx, SECURE_VOLUME_KEY, interpolationResult.volumes());
+                putOrMerged(ctx, SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
                 return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
             }
             else {
@@ -209,16 +218,24 @@ public class ProxyConfigSecret
         }).toList();
     }
 
-    @Nullable
-    private SecureConfigInterpolator.InterpolationResult interpolateConfig(Map<?, ?> spec) {
+    private static <T> void putOrMerged(ManagedDependentResourceContext ctx, String ctxKey, Set<T> set) {
+        Optional<Set<T>> ctxVolumes = (Optional) ctx.get(ctxKey, Set.class);
+        if (ctxVolumes.isPresent()) {
+            ctxVolumes.get().addAll(set);
+        }
+        else {
+            ctx.put(ctxKey, new LinkedHashSet<>(set));
+        }
+    }
+
+    private @NonNull SecureConfigInterpolator.InterpolationResult interpolateConfig(Map<?, ?> spec) {
         SecureConfigInterpolator.InterpolationResult result;
         Object configTemplate = spec.get("configTemplate");
         if (configTemplate != null) {
-
             result = secureConfigInterpolator.interpolate(configTemplate);
         }
         else {
-            result = new SecureConfigInterpolator.InterpolationResult(spec.get("config"), List.of(), List.of());
+            result = new SecureConfigInterpolator.InterpolationResult(spec.get("config"), Set.of(), Set.of());
         }
         return result;
     }

@@ -32,6 +32,7 @@ class ContainerFileReferenceTest {
         VolumeMount colonContainingMountPath = new VolumeMountBuilder().withName("foo").withMountPath("/f:oo").build();
         Path containerPath = Path.of("/foo/quux");
         Path relativePath = Path.of("foo");
+        Path badPath = Path.of("/foo/../root");
 
         // then
         assertThatThrownBy(() -> new ContainerFileReference(volume, null, containerPath))
@@ -42,13 +43,16 @@ class ContainerFileReferenceTest {
                 .hasMessage("volume and mount must both be non-null, or must both be null");
         assertThatThrownBy(() -> new ContainerFileReference(volumeEmptyName, mount, containerPath))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("volume name is not a dns label");
+                .hasMessage("volume name is not a DNS label");
         assertThatThrownBy(() -> new ContainerFileReference(volume, barMount, containerPath))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("volume and mount must have the same name");
         assertThatThrownBy(() -> new ContainerFileReference(volume, mount, relativePath))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("containerPath must be absolute");
+                .hasMessage("container path must be absolute");
+        assertThatThrownBy(() -> new ContainerFileReference(volume, mount, badPath))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("container path cannot contain a '..' path component");
         assertThatThrownBy(() -> new ContainerFileReference(volume, emptyMountPath, containerPath))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("mount path cannot be null or empty");

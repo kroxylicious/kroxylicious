@@ -22,6 +22,8 @@ public interface SecureConfigProvider {
      * @param key The key (from the placeholder)
      * @param mountPathBase The mount path base.
      * @return a container file
+     *
+     * @throws InterpolationException If a ContainerFileReference could not be provided
      */
     ContainerFileReference containerFile(String name, String path, String key, Path mountPathBase);
 

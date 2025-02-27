@@ -12,5 +12,8 @@ metadata:
   namespace: proxy-ns
 spec:
   type: org.example.some.java.Class
-  config:
-    filterOneConfig: true
+  configTemplate:
+    interpolation1: ${secret:foo:secret1}
+    interpolation2: ${secret:foo:secret2}
+    interpolation3: ${secret:bar:secret1}
+    interpolation4: ${secret:bar:secret1} # the same as interpolation3
