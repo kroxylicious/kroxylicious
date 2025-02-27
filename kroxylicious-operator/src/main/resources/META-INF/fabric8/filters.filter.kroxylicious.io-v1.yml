@@ -42,6 +42,9 @@ spec:
                   pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?"
             spec:
               type: object
+              required:
+                - type
+              maxProperties: 2
               properties:
                 type:
                   description: The Java class name of the filter implementation.
@@ -50,6 +53,15 @@ spec:
                   description: The filter's configuration.
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
+                configTemplate:
+                  description: The filter's configuration, subject to config provider interpolation.
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+              oneOf:
+                - required:
+                    - config
+                - required:
+                    - configTemplate
             status:
               type: object
               properties:

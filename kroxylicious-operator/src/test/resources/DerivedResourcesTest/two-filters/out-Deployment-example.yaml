@@ -42,11 +42,11 @@ spec:
         app.kubernetes.io/component: "proxy"
     spec:
       containers:
-        - name: "proxy"
-          image: "quay.io/kroxylicious/kroxylicious:test"
-          args:
+        - args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
+          image: "quay.io/kroxylicious/kroxylicious:test"
+          name: "proxy"
           ports:
             - containerPort: 9190
               name: "metrics"
@@ -58,7 +58,12 @@ spec:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
               subPath: "proxy-config.yaml"
+            - mountPath: "/opt/kroxylicious/secure/secret/my-secret"
+              name: "secrets-my-secret"
       volumes:
         - name: "config-volume"
           secret:
             secretName: "example"
+        - name: "secrets-my-secret"
+          secret:
+            secretName: "my-secret"

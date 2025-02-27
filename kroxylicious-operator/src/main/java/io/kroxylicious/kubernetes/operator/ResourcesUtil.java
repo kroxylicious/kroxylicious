@@ -21,6 +21,50 @@ public class ResourcesUtil {
     private ResourcesUtil() {
     }
 
+    private static boolean inRange(char ch, char start, char end) {
+        return start <= ch && ch <= end;
+    }
+
+    private static boolean isAlnum(char ch) {
+        return inRange(ch, 'a', 'z')
+                || inRange(ch, '0', '9');
+    }
+
+    static boolean isDnsLabel(String string, boolean rfc1035) {
+        int length = string.length();
+        if (length == 0 || length > 63) {
+            return false;
+        }
+        var ch = string.charAt(0);
+        if (!(rfc1035 ? inRange(ch, 'a', 'z') : isAlnum(ch))) {
+            return false;
+        }
+        if (length > 1) {
+            if (length > 2) {
+                for (int index = 1; index < length - 1; index++) {
+                    ch = string.charAt(index);
+                    if (!(isAlnum(ch) || ch == '-')) {
+                        return false;
+                    }
+                }
+            }
+            ch = string.charAt(length - 1);
+            return isAlnum(ch);
+        }
+        return true;
+    }
+
+    static String requireIsDnsLabel(String string, boolean rfc1035) {
+        return requireIsDnsLabel(string, rfc1035, string + " is not a " + (rfc1035 ? "RFC 1035" : "RFC 1123") + " DNS label");
+    }
+
+    static String requireIsDnsLabel(String string, boolean rfc1035, String message) {
+        if (!isDnsLabel(string, rfc1035)) {
+            throw new IllegalArgumentException(message);
+        }
+        return string;
+    }
+
     static <O extends HasMetadata> OwnerReference ownerReferenceTo(O owner) {
         return new OwnerReferenceBuilder()
                 .withKind(owner.getKind())

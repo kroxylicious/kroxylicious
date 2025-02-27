@@ -6,20 +6,17 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import io.fabric8.kubernetes.api.model.SecretVolumeSource;
-import io.fabric8.kubernetes.api.model.Volume;
-
-import io.fabric8.kubernetes.api.model.VolumeMount;
+import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Path;
+import io.fabric8.kubernetes.api.model.SecretVolumeSource;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeMount;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SecretSecureConfigProviderTest {
-
-
 
     @Test
     void shouldReturnWellFormedFileReference() {
@@ -30,10 +27,10 @@ class SecretSecureConfigProviderTest {
         var cp = mountedResourceConfigProvider.containerFile("secret1", "my-secret", "tls.key", Path.of("/prefix"));
 
         // then
-        assertThat(cp.volume()).extracting(Volume::getName).isEqualTo("Secret-my-secret");
+        assertThat(cp.volume()).extracting(Volume::getName).isEqualTo("secrets-my-secret");
         assertThat(cp.volume()).extracting(Volume::getSecret).extracting(SecretVolumeSource::getSecretName).isEqualTo("my-secret");
 
-        assertThat(cp.mount()).extracting(VolumeMount::getName).isEqualTo("Secret-my-secret");
+        assertThat(cp.mount()).extracting(VolumeMount::getName).isEqualTo("secrets-my-secret");
         assertThat(cp.mount()).extracting(VolumeMount::getMountPath).isEqualTo("/prefix/secret1/my-secret");
 
         assertThat(cp.containerPath()).extracting(Path::toString).isEqualTo("/prefix/secret1/my-secret/tls.key");

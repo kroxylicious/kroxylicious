@@ -6,14 +6,14 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
+import java.nio.file.Path;
+import java.util.Objects;
 
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 
-import java.nio.file.Path;
-import java.util.Objects;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A reference to a file in a container.
@@ -22,18 +22,16 @@ import java.util.Objects;
  * @param containerPath The absolute path of the file
  */
 public record ContainerFileReference(
-        @Nullable Volume volume,
-        @Nullable VolumeMount mount,
-        @NonNull Path containerPath) {
+                                     @Nullable Volume volume,
+                                     @Nullable VolumeMount mount,
+                                     @NonNull Path containerPath) {
     public ContainerFileReference {
         Objects.requireNonNull(containerPath);
         if (volume != null) {
             if (mount == null) {
                 throw new IllegalArgumentException("volume and mount must both be non-null, or must both be null");
             }
-            if (volume.getName().trim().isEmpty()) {
-                throw new IllegalArgumentException("volume name cannot be empty");
-            }
+            ResourcesUtil.requireIsDnsLabel(volume.getName(), true, "volume name is not a dns label");
             if (!Objects.equals(volume.getName(), mount.getName())) {
                 throw new IllegalArgumentException("volume and mount must have the same name");
             }
@@ -42,6 +40,9 @@ public record ContainerFileReference(
             }
             if (mount.getMountPath() == null || mount.getMountPath().trim().isEmpty()) {
                 throw new IllegalArgumentException("mount path cannot be null or empty");
+            }
+            if (mount.getMountPath().indexOf(':') >= 0) {
+                throw new IllegalArgumentException("mount path cannot contain ':'");
             }
             if (!containerPath.startsWith(Path.of(mount.getMountPath()))) {
                 throw new IllegalArgumentException("mount path is not a prefix of the returned container path");

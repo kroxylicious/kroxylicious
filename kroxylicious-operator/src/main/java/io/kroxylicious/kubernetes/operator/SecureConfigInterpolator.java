@@ -44,8 +44,10 @@ public class SecureConfigInterpolator {
     }
 
     InterpolationResult interpolate(Object configTemplate) {
+        // use sets so that it doesn't matter is two providers require the same volume or mount (with exactly the same definition)
         var volumes = new LinkedHashSet<Volume>();
         var mounts = new LinkedHashSet<VolumeMount>();
+
         var interpolated = interpolateRecursive(configTemplate, volumes, mounts);
 
         return new InterpolationResult(interpolated,
@@ -53,9 +55,9 @@ public class SecureConfigInterpolator {
     }
 
     private @Nullable Object interpolateRecursive(
-                                @Nullable final Object jsonValue,
-                                @NonNull Set<Volume> volumes,
-                                @NonNull Set<VolumeMount> mounts) {
+                                                  @Nullable final Object jsonValue,
+                                                  @NonNull Set<Volume> volumes,
+                                                  @NonNull Set<VolumeMount> mounts) {
         if (jsonValue == null) {
             return jsonValue;
         }
@@ -83,13 +85,18 @@ public class SecureConfigInterpolator {
                 String path = matcher.group("path");
                 String key = matcher.group("key");
                 var provider = providers.get(providerName);
-                var containerFile = provider.containerFile(providerName, path, key, mountPathBase);
-                Volume volume = containerFile.volume();
-                VolumeMount mount = containerFile.mount();
-                Path containerPath = containerFile.containerPath();
-                volumes.add(volume);
-                mounts.add(mount);
-                replacement = containerPath.toString();
+                if (provider == null) {
+                    replacement = text;
+                }
+                else {
+                    var containerFile = provider.containerFile(providerName, path, key, mountPathBase);
+                    Volume volume = containerFile.volume();
+                    VolumeMount mount = containerFile.mount();
+                    Path containerPath = containerFile.containerPath();
+                    volumes.add(volume);
+                    mounts.add(mount);
+                    replacement = containerPath.toString();
+                }
             }
             else {
                 replacement = text;
@@ -115,10 +122,12 @@ public class SecureConfigInterpolator {
             Objects.requireNonNull(volumes);
             Objects.requireNonNull(mounts);
             if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
-                throw new IllegalStateException();
+                throw new IllegalStateException("Two volumes with different definitions share the same name");
+            }
+            if (mounts.stream().map(VolumeMount::getMountPath).distinct().count() != mounts.size()) {
+                throw new IllegalStateException("Two volume mounts with different definitions share the same mount path");
             }
         }
     }
-
 
 }

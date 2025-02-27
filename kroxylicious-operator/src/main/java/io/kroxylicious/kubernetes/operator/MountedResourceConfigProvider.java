@@ -17,28 +17,27 @@ import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
  */
 public class MountedResourceConfigProvider implements SecureConfigProvider {
 
-    static final MountedResourceConfigProvider SECRET_PROVIDER = new MountedResourceConfigProvider("Secret",
+    static final MountedResourceConfigProvider SECRET_PROVIDER = new MountedResourceConfigProvider("", "secrets",
             (vb, resourceName) -> vb.withNewSecret().withSecretName(resourceName).endSecret());
-    static final MountedResourceConfigProvider CONFIGMAP_PROVIDER = new MountedResourceConfigProvider("ConfigMap",
+    static final MountedResourceConfigProvider CONFIGMAP_PROVIDER = new MountedResourceConfigProvider("", "configmaps",
             (vb, resourceName) -> vb.withNewConfigMap().withName(resourceName).endConfigMap());
 
-    private final String kind;
+    private final String volumeNamePrefix;
     private final BiFunction<VolumeBuilder, String, VolumeBuilder> volumeBuilder;
 
-    MountedResourceConfigProvider(String kind, BiFunction<VolumeBuilder, String, VolumeBuilder> volumeBuilder) {
-        this.kind = kind;
+    MountedResourceConfigProvider(String group, String plural, BiFunction<VolumeBuilder, String, VolumeBuilder> volumeBuilder) {
+        this.volumeNamePrefix = group.isEmpty() ? plural : group + "." + plural;
         this.volumeBuilder = volumeBuilder;
     }
 
     @Override
     public ContainerFileReference containerFile(
-            String providerName,
-            String resourceName,
-            String key,
-            Path mountPathBase
-    ) {
+                                                String providerName,
+                                                String resourceName,
+                                                String key,
+                                                Path mountPathBase) {
         // TODO validate the secretName and key
-        String volumeName = kind + "-" + resourceName;
+        String volumeName = ResourcesUtil.requireIsDnsLabel(volumeNamePrefix + "-" + resourceName, true);
         Path mountPath = mountPathBase.resolve(providerName).resolve(resourceName);
         Path itemPath = mountPath.resolve(key);
         return new ContainerFileReference(
@@ -49,7 +48,6 @@ public class MountedResourceConfigProvider implements SecureConfigProvider {
                         .withName(volumeName)
                         .withMountPath(mountPath.toString())
                         .build(),
-                itemPath
-        );
+                itemPath);
     }
 }

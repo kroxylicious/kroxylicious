@@ -20,12 +20,13 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
@@ -45,6 +46,7 @@ import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 
@@ -57,6 +59,14 @@ import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 public class ProxyConfigSecret
         extends CRUDKubernetesDependentResource<Secret, KafkaProxy> {
 
+    /**
+     * The key of the {@code config.yaml} entry in the desired {@code Secret}.
+     */
+    public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
+
+    public static final String SECURE_VOLUME_KEY = "secure-volumes";
+    public static final String SECURE_VOLUME_MOUNT_KEY = "secure-volume-mounts";
+
     private static final ObjectMapper OBJECT_MAPPER = ConfigParser.createObjectMapper();
 
     private static String toYaml(Object filterDefs) {
@@ -68,19 +78,14 @@ public class ProxyConfigSecret
         }
     }
 
-    /**
-     * The key of the {@code config.yaml} entry in the desired {@code Secret}.
-     */
-    public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
-
     private final SecureConfigInterpolator secureConfigInterpolator;
 
     public ProxyConfigSecret() {
         super(Secret.class);
-        var providerMap = Map.<String, SecureConfigProvider>of(
+        var providerMap = Map.<String, SecureConfigProvider> of(
                 "secret", MountedResourceConfigProvider.SECRET_PROVIDER,
                 "configmap", MountedResourceConfigProvider.CONFIGMAP_PROVIDER);
-        secureConfigInterpolator = new SecureConfigInterpolator("/", providerMap);
+        secureConfigInterpolator = new SecureConfigInterpolator("/opt/kroxylicious/secure", providerMap);
     }
 
     /**
@@ -88,6 +93,14 @@ public class ProxyConfigSecret
      */
     static String secretName(KafkaProxy primary) {
         return primary.getMetadata().getName();
+    }
+
+    public static List<Volume> secureVolumes(ManagedDependentResourceContext managedDependentResourceContext) {
+        return managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_KEY, List.class).orElse(List.of());
+    }
+
+    public static List<VolumeMount> secureVolumeMounts(ManagedDependentResourceContext managedDependentResourceContext) {
+        return managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_MOUNT_KEY, List.class).orElse(List.of());
     }
 
     @Override
@@ -146,7 +159,7 @@ public class ProxyConfigSecret
         Set<NamedFilterDefinition> uniqueValues = new HashSet<>();
         for (VirtualKafkaCluster cluster1 : clusters) {
             try {
-                for (NamedFilterDefinition namedFilterDefinition : filterDefinitions(cluster1, context)) {
+                for (NamedFilterDefinition namedFilterDefinition : filterDefinitions(context, cluster1)) {
                     if (uniqueValues.add(namedFilterDefinition)) {
                         filterDefinitions.add(namedFilterDefinition);
                     }
@@ -185,6 +198,8 @@ public class ProxyConfigSecret
             if (filterCr.getAdditionalProperties().get("spec") instanceof Map<?, ?> spec) {
                 String type = (String) spec.get("type");
                 SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
+                context.managedDependentResourceContext().put(SECURE_VOLUME_KEY, interpolationResult.volumes());
+                context.managedDependentResourceContext().put(SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
                 return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
             }
             else {
