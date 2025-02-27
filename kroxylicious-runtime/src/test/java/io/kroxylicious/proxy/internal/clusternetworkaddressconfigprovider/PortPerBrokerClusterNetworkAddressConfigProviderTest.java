@@ -57,7 +57,9 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     @ValueSource(strings = { "portnotallowedinbrokerpattern:1234", "unrecognizedpattern$(foo)", "badpatterncapitalisedbadtoo$(NODEID)" })
     @EmptySource
     void invalidBrokerAddressPatterns(String input) {
-        assertThatThrownBy(() -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("good:1235"), input, 1, 0, 5));
+        var bootstrap = parse("good:1235");
+        assertThatThrownBy(() -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap, input, null, null, null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest

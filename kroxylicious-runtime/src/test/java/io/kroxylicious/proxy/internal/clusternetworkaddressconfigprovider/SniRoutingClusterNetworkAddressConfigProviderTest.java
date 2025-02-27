@@ -184,18 +184,18 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @MethodSource
     void getBrokerIdFromBrokerAddress(@ConvertWith(HostPortConverter.class) HostPort address, Integer expected) {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", (String) null));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", null));
 
         assertThat(provider.getBrokerIdFromBrokerAddress(address)).isEqualTo(expected);
     }
 
     @Test
     void badNodeId() {
-        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", (String) null);
-        var provider = new SniRoutingClusterNetworkAddressConfigProvider();
+        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", null);
+        var service = new SniRoutingClusterNetworkAddressConfigProvider();
+        var provider = service.build(config);
 
-        assertThatThrownBy(() -> provider.build(config)
-                .getBrokerAddress(-1))
+        assertThatThrownBy(() -> provider.getBrokerAddress(-1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }
