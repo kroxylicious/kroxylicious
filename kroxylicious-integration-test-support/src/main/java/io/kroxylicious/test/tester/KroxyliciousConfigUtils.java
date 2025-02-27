@@ -67,7 +67,7 @@ public class KroxyliciousConfigUtils {
                     .withNewTargetCluster()
                     .withBootstrapServers(clusterBootstrapServers)
                     .endTargetCluster()
-                    .addToListeners(defaultPortPerBrokerListenerBuilder(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
+                    .addToListeners(defaultPortIdentifiesNodeListenerBuilder(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
                             .build());
             configurationBuilder
                     .addToVirtualClusters(virtualClusterName, vcb.build());
@@ -124,18 +124,18 @@ public class KroxyliciousConfigUtils {
         return new VirtualClusterListenerBuilder().withName(DEFAULT_LISTENER_NAME);
     }
 
-    public static VirtualClusterListenerBuilder defaultPortPerBrokerListenerBuilder(HostPort proxyAddress) {
+    public static VirtualClusterListenerBuilder defaultPortIdentifiesNodeListenerBuilder(HostPort proxyAddress) {
         return defaultListenerBuilder()
                 .withNewPortIdentifiesNode()
                 .withBootstrapAddress(proxyAddress)
                 .endPortIdentifiesNode();
     }
 
-    public static VirtualClusterListenerBuilder defaultPortPerBrokerListenerBuilder(String proxyAddress) {
-        return defaultPortPerBrokerListenerBuilder(HostPort.parse(proxyAddress));
+    public static VirtualClusterListenerBuilder defaultPortIdentifiesNodeListenerBuilder(String proxyAddress) {
+        return defaultPortIdentifiesNodeListenerBuilder(HostPort.parse(proxyAddress));
     }
 
-    public static VirtualClusterListenerBuilder defaultSniListenerBuilder(HostPort bootstrapAddress, String advertisedBrokerAddressPattern) {
+    public static VirtualClusterListenerBuilder defaultSniHostIdentifiesNodeListenerBuilder(HostPort bootstrapAddress, String advertisedBrokerAddressPattern) {
         return defaultListenerBuilder()
                 .withNewSniHostIdentifiesNode()
                 .withBootstrapAddress(bootstrapAddress)
@@ -143,8 +143,8 @@ public class KroxyliciousConfigUtils {
                 .endSniHostIdentifiesNode();
     }
 
-    public static VirtualClusterListenerBuilder defaultSniListenerBuilder(String bootstrapAddress, String advertisedBrokerAddressPattern) {
-        return defaultSniListenerBuilder(HostPort.parse(bootstrapAddress), advertisedBrokerAddressPattern);
+    public static VirtualClusterListenerBuilder defaultSniHostIdentifiesNodeListenerBuilder(String bootstrapAddress, String advertisedBrokerAddressPattern) {
+        return defaultSniHostIdentifiesNodeListenerBuilder(HostPort.parse(bootstrapAddress), advertisedBrokerAddressPattern);
     }
 
     @SuppressWarnings("removal")

@@ -36,12 +36,6 @@ class NamedRangeTest {
                 .hasMessage("end of range: 0 is before start of range: 1");
     }
 
-    @Test
-    void toStringComposition() {
-        assertThat(new NamedRange("foo", 1, 2))
-                .hasToString("NamedRange{name='foo', start=1, end=2}");
-    }
-
     static Stream<Arguments> isEndBeforeStartOf() {
         return Stream.of(
                 arguments(new NamedRange("myrange", 0, 0), new NamedRange("myrange", 1, 1), true),

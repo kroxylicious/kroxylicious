@@ -10,12 +10,14 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
@@ -33,13 +35,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinition;
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
@@ -48,7 +57,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortPerBrokerListenerBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -398,6 +406,51 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
+    static Stream<Arguments> shouldCreateSingleTopicUsingLegacyProvider() {
+        return Stream.of(
+                Arguments.argumentSet("PortPerBrokerClusterNetworkAddressConfigProvider",
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                                .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP)
+                                .build()),
+                Arguments.argumentSet("RangeAwarePortPerNodeClusterNetworkAddressConfigProvider",
+                        new ClusterNetworkAddressConfigProviderDefinitionBuilder(RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.class.getName())
+                                .withConfig("bootstrapAddress", DEFAULT_PROXY_BOOTSTRAP,
+                                        "nodeIdRanges", List.of(Map.of("name", "myrange", "range", Map.of("startInclusive", 0, "endExclusive", "1"))))
+                                .build()));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    @SuppressWarnings("deprecation")
+    void shouldCreateSingleTopicUsingLegacyProvider(ClusterNetworkAddressConfigProviderDefinition bootstrapAddress) {
+        // Given
+        final CreateTopicsResult createTopicsResult = mock(CreateTopicsResult.class);
+        when(admin.createTopics(anyCollection())).thenReturn(createTopicsResult);
+        when(createTopicsResult.all()).thenReturn(KafkaFuture.completedFuture(null));
+
+        var vcb = new VirtualClusterBuilder()
+                .withNewTargetCluster()
+                .withBootstrapServers(backingCluster)
+                .endTargetCluster()
+                .withClusterNetworkAddressConfigProvider(
+                        bootstrapAddress);
+        var configurationBuilder = new ConfigurationBuilder()
+                .addToVirtualClusters(DEFAULT_CLUSTER, vcb.build());
+
+        try (KroxyliciousTester tester = new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
+                .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
+                .setClientFactory(clientFactory)
+                .createDefaultKroxyliciousTester()) {
+
+            // When
+            final String actualTopicName = tester.createTopic(DEFAULT_CLUSTER);
+
+            // Then
+            verify(admin).createTopics(argThat(topics -> assertThat(topics).hasSize(1)));
+            assertThat(actualTopicName).isNotBlank();
+        }
+    }
+
     @Test
     void shouldCreateMultipleTopics() {
         // Given
@@ -618,7 +671,7 @@ class DefaultKroxyliciousTesterTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
-                .addToListeners(defaultPortPerBrokerListenerBuilder(DEFAULT_PROXY_BOOTSTRAP).build())
+                .addToListeners(KroxyliciousConfigUtils.defaultPortIdentifiesNodeListenerBuilder(DEFAULT_PROXY_BOOTSTRAP).build())
                 .addToListeners(new VirtualClusterListenerBuilder()
                         .withName(CUSTOM_LISTENER_NAME)
                         .withNewPortIdentifiesNode()
@@ -641,7 +694,7 @@ class DefaultKroxyliciousTesterTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
-                .addToListeners(defaultPortPerBrokerListenerBuilder(DEFAULT_PROXY_BOOTSTRAP)
+                .addToListeners(KroxyliciousConfigUtils.defaultPortIdentifiesNodeListenerBuilder(DEFAULT_PROXY_BOOTSTRAP)
                         .withNewTls()
                         .withNewKeyStoreKey()
                         .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())

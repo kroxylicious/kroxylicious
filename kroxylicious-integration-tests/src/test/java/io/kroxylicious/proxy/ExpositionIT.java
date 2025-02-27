@@ -55,7 +55,6 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
-import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
@@ -69,8 +68,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultListenerBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortPerBrokerListenerBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniListenerBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeListenerBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeListenerBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -213,7 +212,8 @@ class ExpositionIT extends BaseIT {
             var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern);
 
             var virtualCluster = baseVirtualClusterBuilder(cluster)
-                    .addToListeners(defaultSniListenerBuilder(virtualClusterBootstrapPattern + ":9192", virtualClusterBrokerAddressPattern + ":" + proxy.getLocalPort())
+                    .addToListeners(defaultSniHostIdentifiesNodeListenerBuilder(virtualClusterBootstrapPattern + ":9192",
+                            virtualClusterBrokerAddressPattern + ":" + proxy.getLocalPort())
                             .withNewTls()
                             .withNewKeyStoreKey()
                             .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
@@ -259,7 +259,7 @@ class ExpositionIT extends BaseIT {
             keystoreTrustStoreList.add(keystoreTrustStorePair);
 
             var virtualCluster = baseVirtualClusterBuilder(cluster)
-                    .addToListeners(defaultSniListenerBuilder(virtualClusterFQDN + ":9192", virtualClusterBrokerAddressPattern.formatted(i))
+                    .addToListeners(defaultSniHostIdentifiesNodeListenerBuilder(virtualClusterFQDN + ":9192", virtualClusterBrokerAddressPattern.formatted(i))
                             .withNewTls()
                             .withNewKeyStoreKey()
                             .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
@@ -408,7 +408,7 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(KroxyliciousConfigUtils.defaultPortPerBrokerListenerBuilder(proxyAddress).build())
+                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder(proxyAddress).build())
                         .build());
 
         var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 1, "localhost:" + (PROXY_ADDRESS.port() + 2));
@@ -435,7 +435,7 @@ class ExpositionIT extends BaseIT {
                         new VirtualClusterBuilder()
                                 .withNewTargetCluster()
                                 .endTargetCluster()
-                                .addToListeners(defaultPortPerBrokerListenerBuilder(PROXY_ADDRESS)
+                                .addToListeners(defaultPortIdentifiesNodeListenerBuilder(PROXY_ADDRESS)
                                         .withNewTls()
                                         .withNewKeyStoreKey()
                                         .withStoreFile(portPerBrokerKeystoreTrustStorePair.brokerKeyStore())
@@ -450,7 +450,7 @@ class ExpositionIT extends BaseIT {
                         new VirtualClusterBuilder()
                                 .withNewTargetCluster()
                                 .endTargetCluster()
-                                .addToListeners(defaultSniListenerBuilder(SNI_BOOTSTRAP.toString(), SNI_BROKER_ADDRESS_PATTERN)
+                                .addToListeners(defaultSniHostIdentifiesNodeListenerBuilder(SNI_BOOTSTRAP.toString(), SNI_BROKER_ADDRESS_PATTERN)
                                         .withNewTls()
                                         .withNewKeyStoreKey()
                                         .withStoreFile(sniKeystoreTrustStorePair.brokerKeyStore())
@@ -617,7 +617,7 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(KroxyliciousConfigUtils.defaultPortPerBrokerListenerBuilder(PROXY_ADDRESS)
+                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder(PROXY_ADDRESS)
                                 .build())
                         .build());
 
@@ -674,7 +674,7 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(KroxyliciousConfigUtils.defaultPortPerBrokerListenerBuilder(PROXY_ADDRESS)
+                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder(PROXY_ADDRESS)
                                 .build())
                         .build());
 

@@ -29,10 +29,11 @@ import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultListenerBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortPerBrokerListenerBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniListenerBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeListenerBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeListenerBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
@@ -299,7 +300,7 @@ class ConfigurationTest {
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .addToListeners(defaultPortPerBrokerListenerBuilder(HostPort.parse("cluster1:9192")).build())
+                                        .addToListeners(KroxyliciousConfigUtils.defaultPortIdentifiesNodeListenerBuilder(HostPort.parse("cluster1:9192")).build())
                                         .build())
                                 .build(),
                         """
@@ -351,7 +352,7 @@ class ConfigurationTest {
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .addToListeners(defaultSniListenerBuilder("cluster1:9192", "broker-$(nodeId)")
+                                        .addToListeners(defaultSniHostIdentifiesNodeListenerBuilder("cluster1:9192", "broker-$(nodeId)")
                                                 .withNewTls()
                                                 .withNewKeyPairKey()
                                                 .withCertificateFile("/tmp/cert")
@@ -385,7 +386,7 @@ class ConfigurationTest {
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .addToListeners(defaultSniListenerBuilder("cluster1:9192", "broker-$(nodeId)")
+                                        .addToListeners(defaultSniHostIdentifiesNodeListenerBuilder("cluster1:9192", "broker-$(nodeId)")
                                                 .withNewTls()
                                                 .withNewKeyPairKey()
                                                 .withCertificateFile("/tmp/cert")
@@ -430,7 +431,7 @@ class ConfigurationTest {
                                         .withNewTls()
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners(defaultPortPerBrokerListenerBuilder("cluster1:9192").build())
+                                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
                         """
@@ -457,7 +458,7 @@ class ConfigurationTest {
                                         .endTrustStoreTrust()
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners(defaultPortPerBrokerListenerBuilder("cluster1:9192").build())
+                                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
                         """
@@ -489,7 +490,7 @@ class ConfigurationTest {
                                         .endTrustStoreTrust()
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners(defaultPortPerBrokerListenerBuilder("cluster1:9192").build())
+                                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
                         """
@@ -517,7 +518,7 @@ class ConfigurationTest {
                                         .withNewInsecureTlsTrust(true)
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners(defaultPortPerBrokerListenerBuilder("cluster1:9192").build())
+                                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
                         """
