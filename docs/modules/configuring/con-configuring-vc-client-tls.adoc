@@ -154,7 +154,7 @@ virtualClusters:
   demo:
     tls:
       # ...
-      protocols:
+      cipherSuites:
         allowed:  # <1>
         - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
         - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
@@ -169,7 +169,7 @@ virtualClusters:
   demo:
     tls:
       # ...
-      protocols:
+      cipherSuites:
         denied:  # <1>
         - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
 ----
