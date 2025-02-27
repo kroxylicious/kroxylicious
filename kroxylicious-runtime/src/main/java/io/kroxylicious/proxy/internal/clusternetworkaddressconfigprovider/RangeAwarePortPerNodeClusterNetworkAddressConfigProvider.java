@@ -48,8 +48,11 @@ import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider
  *    the port number of {@code bootstrapAddress + 1}.</li>
  *    <li>{@code nodeIdRanges} (required) defines the node id ranges present in the target cluster</li>
  * </ul>
+ *
+ * @deprecated use {@link io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy} instead
  */
 @Plugin(configType = RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig.class)
+@Deprecated(since = "0.11.0", forRemoval = true)
 public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
         ClusterNetworkAddressConfigProviderService<RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig> {
 

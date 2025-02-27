@@ -40,8 +40,11 @@ import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider
  *    resolvable by the client.  Optionally these properties can specify a port which will be advertised to the clients.  One pattern is supported: {@code $(nodeId)}
  *    which interpolates the node id into the address.
  * </ul>
+ *
+ * @deprecated use {@link io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy} instead
  */
 @Plugin(configType = SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig.class)
+@Deprecated(since = "0.11.0", forRemoval = true)
 public class SniRoutingClusterNetworkAddressConfigProvider implements
         ClusterNetworkAddressConfigProviderService<SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig> {
     @NonNull

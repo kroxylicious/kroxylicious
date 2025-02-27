@@ -32,8 +32,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  *    the port number of {@code bootstrapAddress + 1}.</li>
  *    <li>{@code numberOfBrokerPorts} (optional) defines the maximum number of broker ports that will be permitted. If omitted, it is defaulted to {$code 3}.</li>
  * </ul>
+ *
+ * @deprecated use {@link io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy} instead
  */
 @Plugin(configType = PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig.class)
+@Deprecated(since = "0.11.0", forRemoval = true)
 public class PortPerBrokerClusterNetworkAddressConfigProvider
         implements ClusterNetworkAddressConfigProviderService<PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig> {
 
