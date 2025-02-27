@@ -303,6 +303,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
 
     private static InformerEventSource<?, KafkaProxy> buildVirtualKafkaClusterInformer(EventSourceContext<KafkaProxy> context) {
         InformerConfiguration<VirtualKafkaCluster> configuration = InformerConfiguration.from(VirtualKafkaCluster.class).withSecondaryToPrimaryMapper(resource -> {
+            // we need to reconcile all proxies when a virtual kafka cluster changes in case the proxyRef is updated, we need to update
+            // the previously referenced proxy too.
             Set<ResourceID> proxyIds = context.getClient().resources(KafkaProxy.class)
                     .inNamespace(resource.getMetadata().getNamespace())
                     .list().getItems().stream()
