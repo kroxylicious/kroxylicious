@@ -23,11 +23,10 @@ import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
-import io.kroxylicious.systemtests.installation.kms.aws.LocalStack;
-import io.kroxylicious.systemtests.installation.kms.vault.Vault;
-import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.systemtests.logs.TestLogCollector;
 
 public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider {
+    private static final TestLogCollector LOG_COLLECTOR = new TestLogCollector();
 
     @Override
     public boolean supportsTestTemplate(ExtensionContext context) {
@@ -69,9 +68,11 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                         try {
                             Optional<Throwable> exception = extensionContext.getExecutionException();
                             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
-                                DeploymentUtils.collectClusterInfo(String.join(",", Vault.VAULT_DEFAULT_NAMESPACE, LocalStack.LOCALSTACK_DEFAULT_NAMESPACE),
-                                        extensionContext.getRequiredTestClass().getSimpleName(), extensionContext.getRequiredTestMethod().getName());
+                                LOG_COLLECTOR.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
+//                                DeploymentUtils.collectClusterInfo(String.join(",", Vault.VAULT_DEFAULT_NAMESPACE, LocalStack.LOCALSTACK_DEFAULT_NAMESPACE),
+//                                        extensionContext.getRequiredTestClass().getSimpleName(), extensionContext.getRequiredTestMethod().getName());
                             });
+                            LOG_COLLECTOR.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
                         }
                         finally {
                             kmsFacade.stop();

@@ -34,73 +34,58 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
  * particular test-class and test-case and builds the whole path to the logs.
  * The structure of the logs then looks like this:
  *
- * systemtest/target/logs/2024-10-09-18-45-39
- * └── io.strimzi.systemtest.bridge.HttpBridgeST
- *     ├── testReceiveSimpleMessage
+ * kroxylicious-systemtests/target/logs/2025-02-09-18-45-39
+ * └── io.kroxylicious.systemtests.RecordEncryptionST
+ *     ├── produceAndConsumeMessageWithRotatedKEK
  *     │          └── 1
- *     │              ├── co-namespace
+ *     │              ├── kafka
  *     │              │          ├── configmap
  *     │              │          │          ├── kube-root-ca.crt.yaml
- *     │              │          │          ├── openshift-service-ca.crt.yaml
+ *     │              │          │          ├── my-cluster-kafka-0.yaml
+ *     │              │          │          ├── my-cluster-kafka-1.yaml
+ *     │              │          │          ├── my-cluster-kafka-2.yaml
  *     │              │          │          └── strimzi-cluster-operator.yaml
  *     │              │          ├── deployment
  *     │              │          │          └── strimzi-cluster-operator.yaml
+ *     │              │          ├── kafka
+ *     │              │          │          └── my-cluster.yaml
+ *     │              │          ├── kafkanodepool
+ *     │              │          │          └── kafka.yaml
  *     │              │          ├── events.log
  *     │              │          ├── pod
- *     │              │          │          ├── describe-pod-strimzi-cluster-operator-57d455495c-98t8f.log
+ *     │              │          │          ├── describe-pod-my-cluster-kafka-0.log
+ *     │              │          │          ├── describe-pod-my-cluster-kafka-1.log
+ *     │              │          │          ├── describe-pod-my-cluster-kafka-2.log
  *     │              │          │          └── logs-pod-strimzi-cluster-operator-57d455495c-98t8f-container-strimzi-cluster-operator.log
  *     │              │          └── secret
  *     │              │              ├── builder-dockercfg-j99st.yaml
  *     │              │              ├── default-dockercfg-pb9z6.yaml
  *     │              │              ├── deployer-dockercfg-ltvsj.yaml
  *     │              │              └── strimzi-cluster-operator-dockercfg-64p64.yaml
- *     │              └── test-suite-namespace
+ *     │              └── kafka-XXXXXX
  *     │                  ├── configmap
  *     │                  │          ├── cluster-2acba704-b-6eac3ce0-0.yaml
  *     │                  │          ├── cluster-2acba704-bridge-config.yaml
  *     │                  │          ├── cluster-2acba704-c-6eac3ce0-1.yaml
  *     │                  │          ├── cluster-2acba704-entity-topic-operator-config.yaml
  *     │                  │          ├── cluster-2acba704-entity-user-operator-config.yaml
- *     │                  │          ├── kube-root-ca.crt.yaml
+ *     │                  │          ├── regcred.yaml
  *     │                  │          └── openshift-service-ca.crt.yaml
  *     │                  ├── deployment
  *     │                  │          ├── cluster-2acba704-bridge.yaml
  *     │                  │          └── cluster-2acba704-entity-operator.yaml
  *     │                  ├── events.log
- *     │                  ├── kafka
- *     │                  │          └── cluster-2acba704.yaml
- *     │                  ├── kafkabridge
- *     │                  │          └── cluster-2acba704.yaml
- *     │                  ├── kafkanodepool
- *     │                  │          ├── b-6eac3ce0.yaml
- *     │                  │          └── c-6eac3ce0.yaml
- *     │                  ├── kafkatopic
- *     │                  │          └── my-topic-446554728-1349472388.yaml
+ *     │                  ├── job
+ *     │                  │          ├── admin-client-cli-create.yaml
+ *     │                  │          ├── admin-client-cli-delete.yaml
+ *     │                  │          ├── ...
+ *     │                  │          └── kafka-producer-client-zzzzzzz.yaml
  *     │                  ├── pod
- *     │                  │          ├── describe-pod-cluster-2acba704-b-6eac3ce0-0.log
- *     │                  │          ├── describe-pod-cluster-2acba704-bridge-5dd6db4bdd-454jg.log
- *     │                  │          ├── describe-pod-cluster-2acba704-c-6eac3ce0-1.log
- *     │                  │          ├── describe-pod-cluster-2acba704-entity-operator-7db664df48-bxxrx.log
- *     │                  │          ├── logs-pod-cluster-2acba704-b-6eac3ce0-0-container-kafka.log
- *     │                  │          ├── logs-pod-cluster-2acba704-bridge-5dd6db4bdd-454jg-container-cluster-2acba704-bridge.log
- *     │                  │          ├── logs-pod-cluster-2acba704-c-6eac3ce0-1-container-kafka.log
- *     │                  │          ├── logs-pod-cluster-2acba704-entity-operator-7db664df48-bxxrx-container-topic-operator.log
- *     │                  │          └── logs-pod-cluster-2acba704-entity-operator-7db664df48-bxxrx-container-user-operator.log
+ *     │                  │          ├── describe-pod-kroxylicious-proxy-7db664df48-bxxrx.log
+ *     │                  │          ├── ...
+ *     │                  │          └── logs-pod-kroxylicious-proxy-7db664df48-bxxrx-container-kroxylicious.log
  *     │                  └── secret
- *     │                      ├── builder-dockercfg-n9jrk.yaml
- *     │                      ├── cluster-2acba704-bridge-dockercfg-nqhfv.yaml
- *     │                      ├── cluster-2acba704-clients-ca-cert.yaml
- *     │                      ├── cluster-2acba704-clients-ca.yaml
- *     │                      ├── cluster-2acba704-cluster-ca-cert.yaml
- *     │                      ├── cluster-2acba704-cluster-ca.yaml
- *     │                      ├── cluster-2acba704-cluster-operator-certs.yaml
- *     │                      ├── cluster-2acba704-entity-operator-dockercfg-9dwh7.yaml
- *     │                      ├── cluster-2acba704-entity-topic-operator-certs.yaml
- *     │                      ├── cluster-2acba704-entity-user-operator-certs.yaml
- *     │                      ├── cluster-2acba704-kafka-brokers.yaml
- *     │                      ├── cluster-2acba704-kafka-dockercfg-8xq8s.yaml
- *     │                      ├── default-dockercfg-2mzxb.yaml
- *     │                      └── deployer-dockercfg-lg5z9.yaml
+ *     │                      └── regcred.yaml
  * ...
  */
 public class TestLogCollector {
@@ -141,7 +126,7 @@ public class TestLogCollector {
         return new LogCollectorBuilder()
                 .withKubeClient(new KubeClient())
                 .withKubeCmdClient(new Kubectl())
-                .withRootFolderPath(Environment.TEST_LOG_DIR)
+                .withRootFolderPath(Environment.CLUSTER_DUMP_DIR)
                 .withNamespacedResources(resources.toArray(new String[0]))
                 .build();
     }
@@ -196,7 +181,7 @@ public class TestLogCollector {
      * @return full path to the logs for test-class and test-case, together with index
      */
     private Path buildFullPathToLogs(String testClass, String testCase) {
-        Path rootPathToLogsForTestCase = Path.of(Environment.TEST_LOG_DIR, CURRENT_DATE, testClass);
+        Path rootPathToLogsForTestCase = Path.of(Environment.CLUSTER_DUMP_DIR, CURRENT_DATE, testClass);
 
         if (testCase != null) {
             rootPathToLogsForTestCase = rootPathToLogsForTestCase.resolve(testCase);
@@ -242,5 +227,6 @@ public class TestLogCollector {
         List<String> namespaces = NamespaceUtils.getListOfNamespacesForTestClassAndTestCase(testClass, testCase);
 
         testCaseCollector.collectFromNamespaces(namespaces.toArray(new String[0]));
+        NamespaceUtils.deleteNamespacesFromSet(namespaces, testClass, testCase);
     }
 }

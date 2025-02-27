@@ -52,7 +52,6 @@ public class Environment {
     private static final String KROXY_ORG_ENV = "DOCKER_ORG";
     private static final String KROXY_REGISTRY_ENV = "DOCKER_REGISTRY";
     private static final String KROXY_TAG_ENV = "DOCKER_TAG";
-    private static final String TEST_LOG_DIR_ENV = "TEST_LOG_DIR";
 
     /**
      * The kafka version default value
@@ -96,14 +95,13 @@ public class Environment {
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
     private static final boolean SKIP_STRIMZI_INSTALL_DEFAULT = false;
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
-    private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("java.io.tmpdir");
+    private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("user.dir") + "/target/logs/";
     public static final String AWS_ACCESS_KEY_ID_DEFAULT = "test";
     private static final String AWS_SECRET_ACCESS_KEY_DEFAULT = "test";
     private static final String AWS_USE_CLOUD_DEFAULT = "false";
     public static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT = AWS_ACCESS_KEY_ID_DEFAULT;
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT = AWS_SECRET_ACCESS_KEY_DEFAULT;
     public static final String AWS_REGION_DEFAULT = "us-east-2";
-    private static final String TEST_LOG_DIR_DEFAULT = System.getProperty("user.dir") + "/../kroxylicious-systemtests/target/logs/";
 
     /**
      * KAFKA_VERSION env variable assignment
@@ -153,8 +151,6 @@ public class Environment {
     public static final String KROXY_ORG = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_ORG_ENV, KROXY_ORG_DEFAULT);
     public static final String KROXY_TAG = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_TAG_ENV, KROXY_TAG_DEFAULT);
     public static final String KROXY_REGISTRY = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_REGISTRY_ENV, KROXY_REGISTRY_DEFAULT);
-
-    public static final String TEST_LOG_DIR = ENVIRONMENT_VARIABLES.getOrDefault(TEST_LOG_DIR_ENV, TEST_LOG_DIR_DEFAULT);
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();

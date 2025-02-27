@@ -143,6 +143,10 @@ public class NamespaceUtils {
      */
     private static synchronized void removeNamespaceFromSet(String namespaceName, CollectorElement collectorElement) {
         // dynamically removing from the map
+        if(!MAP_WITH_SUITE_NAMESPACES.containsKey(collectorElement)) {
+            LOGGER.debug("collector already deleted!");
+            return;
+        }
         Set<String> testSuiteNamespaces = new HashSet<>(MAP_WITH_SUITE_NAMESPACES.get(collectorElement));
         testSuiteNamespaces.remove(namespaceName);
 
@@ -215,5 +219,18 @@ public class NamespaceUtils {
         }
 
         return namespaces;
+    }
+
+    /**
+     * Delete namespaces from set.
+     *
+     * @param namespaces the namespaces
+     * @param testClass the test class
+     * @param testCase the test case
+     */
+    public static void deleteNamespacesFromSet(List<String> namespaces, String testClass, String testCase) {
+        for(String namespace : namespaces) {
+            removeNamespaceFromSet(namespace, new CollectorElement(testClass, testCase));
+        }
     }
 }
