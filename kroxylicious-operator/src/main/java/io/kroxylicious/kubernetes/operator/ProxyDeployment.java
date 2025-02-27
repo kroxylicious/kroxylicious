@@ -6,6 +6,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -71,7 +72,7 @@ public class ProxyDeployment
                 .editOrNewSpec()
                     .withReplicas(1)
                     .editOrNewSelector()
-                        .withMatchLabels(deploymentSelector())
+                        .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
                     .withTemplate(podTemplate(primary, context))
                 .endSpec()
@@ -79,25 +80,27 @@ public class ProxyDeployment
         // @formatter:on
     }
 
-    private static Map<String, String> deploymentSelector() {
-        return APP_KROXY;
+    private static Map<String, String> deploymentSelector(KafkaProxy primary) {
+        return podLabels(primary);
     }
 
-    static Map<String, String> podLabels() {
-        return APP_KROXY;
-    }
-
-    private PodTemplateSpec podTemplate(KafkaProxy primary,
-                                        Context<KafkaProxy> context) {
+    static Map<String, String> podLabels(KafkaProxy primary) {
         Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec()).map(KafkaProxySpec::getPodTemplate)
                 .map(PodTemplateSpec::getMetadata)
                 .map(ObjectMeta::getLabels)
                 .orElse(Map.of());
+        HashMap<String, String> result = new HashMap<>(APP_KROXY);
+        result.putAll(labelsFromSpec);
+        result.putAll(standardLabels(primary));
+        return result;
+    }
+
+    private PodTemplateSpec podTemplate(KafkaProxy primary,
+                                        Context<KafkaProxy> context) {
         // @formatter:off
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
-                    .addToLabels(labelsFromSpec)
-                    .addToLabels(podLabels())
+                    .addToLabels(podLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
                     .withContainers(proxyContainer( context))

@@ -99,7 +99,7 @@ public class ClusterService
                     .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
                 .withNewSpec()
-                    .withSelector(ProxyDeployment.podLabels());
+                    .withSelector(ProxyDeployment.podLabels(primary));
         for (var portNumEntry : clusterPorts( context, cluster).entrySet()) {
             serviceSpecBuilder = serviceSpecBuilder
                     .addNewPort()

@@ -26,10 +26,20 @@ spec:
   selector:
     matchLabels:
       app: "kroxylicious"
+      app.kubernetes.io/managed-by: "kroxylicious-operator"
+      app.kubernetes.io/name: "kroxylicious-proxy"
+      app.kubernetes.io/part-of: "kafka"
+      app.kubernetes.io/instance: "minimal"
+      app.kubernetes.io/component: "proxy"
   template:
     metadata:
       labels:
         app: "kroxylicious"
+        app.kubernetes.io/managed-by: "kroxylicious-operator"
+        app.kubernetes.io/name: "kroxylicious-proxy"
+        app.kubernetes.io/part-of: "kafka"
+        app.kubernetes.io/instance: "minimal"
+        app.kubernetes.io/component: "proxy"
     spec:
       containers:
         - name: "proxy"

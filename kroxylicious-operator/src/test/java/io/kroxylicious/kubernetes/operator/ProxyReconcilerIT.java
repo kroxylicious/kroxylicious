@@ -95,19 +95,19 @@ class ProxyReconcilerIT {
 
         assertProxyConfigContents(proxy, Set.of(CLUSTER_FOO_BOOTSTRAP, CLUSTER_BAR_BOOTSTRAP), Set.of());
         assertDeploymentMountsConfigSecret(proxy);
-        assertServiceTargetsProxyInstances(clusters);
+        assertServiceTargetsProxyInstances(proxy, clusters);
 
         return new CreatedResources(proxy, clusters);
     }
 
-    private void assertServiceTargetsProxyInstances(Set<VirtualKafkaCluster> clusters) {
+    private void assertServiceTargetsProxyInstances(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters) {
         await().alias("cluster Services as expected").untilAsserted(() -> {
             for (var cluster : clusters) {
                 var service = extension.get(Service.class, ClusterService.serviceName(cluster));
                 assertThat(service).isNotNull()
                         .extracting(svc -> svc.getSpec().getSelector())
                         .describedAs("Service's selector should select proxy pods")
-                        .isEqualTo(ProxyDeployment.podLabels());
+                        .isEqualTo(ProxyDeployment.podLabels(proxy));
                 // TODO shouldn't there be some identifier for the proxy here? The service will target all proxies.
             }
         });
@@ -183,8 +183,8 @@ class ProxyReconcilerIT {
         });
 
         await().untilAsserted(() -> {
-            assertClusterServiceExists(CLUSTER_FOO);
-            assertClusterServiceExists(CLUSTER_BAR);
+            assertClusterServiceExists(proxy, CLUSTER_FOO);
+            assertClusterServiceExists(proxy, CLUSTER_BAR);
         });
 
         LOGGER.atInfo().log("Test finished");
@@ -206,9 +206,9 @@ class ProxyReconcilerIT {
         });
 
         await().untilAsserted(() -> {
-            assertClusterServiceExists(CLUSTER_FOO);
-            assertClusterServiceExists(CLUSTER_BAR);
-            assertClusterServiceExists(CLUSTER_BAZ);
+            assertClusterServiceExists(proxy, CLUSTER_FOO);
+            assertClusterServiceExists(proxy, CLUSTER_BAR);
+            assertClusterServiceExists(proxy, CLUSTER_BAZ);
         });
 
         LOGGER.atInfo().log("Test finished");
@@ -238,7 +238,7 @@ class ProxyReconcilerIT {
         });
 
         await().untilAsserted(() -> {
-            assertClusterServiceExists(CLUSTER_BAR);
+            assertClusterServiceExists(proxy, CLUSTER_BAR);
         });
         LOGGER.atInfo().log("Test finished");
     }
@@ -253,12 +253,18 @@ class ProxyReconcilerIT {
         extension.create(virtualKafkaCluster(CLUSTER_BAZ, CLUSTER_BAZ_BOOTSTRAP, proxyB));
         assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP, CLUSTER_BAR_BOOTSTRAP), Set.of());
         assertProxyConfigContents(proxyB, Set.of(CLUSTER_BAZ_BOOTSTRAP), Set.of());
+        assertClusterServiceExists(proxyA, CLUSTER_FOO);
+        assertClusterServiceExists(proxyA, CLUSTER_BAR);
+        assertClusterServiceExists(proxyB, CLUSTER_BAZ);
         // when
         extension.replace(virtualKafkaCluster(CLUSTER_BAR, CLUSTER_BAR_BOOTSTRAP, proxyB));
         // then
         Set<String> doesNotContain = Set.of(CLUSTER_BAR_BOOTSTRAP);
         assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP), doesNotContain);
         assertProxyConfigContents(proxyB, Set.of(CLUSTER_BAZ_BOOTSTRAP, CLUSTER_BAR_BOOTSTRAP), Set.of());
+        assertClusterServiceExists(proxyA, CLUSTER_FOO);
+        assertClusterServiceExists(proxyB, CLUSTER_BAR);
+        assertClusterServiceExists(proxyB, CLUSTER_BAZ);
     }
 
     private static VirtualKafkaCluster virtualKafkaCluster(String clusterName, String clusterBootstrap, KafkaProxy proxy) {
@@ -288,14 +294,16 @@ class ProxyReconcilerIT {
         // @formatter:on
     }
 
-    private void assertClusterServiceExists(String clusterName) {
-        var service = extension.get(Service.class, clusterName);
-        assertThat(service)
-                .describedAs("Expect Service for cluster '" + clusterName + "' to still exist")
-                .isNotNull()
-                .extracting(svc -> svc.getSpec().getSelector())
-                .describedAs("Service's selector should select proxy pods")
-                .isEqualTo(ProxyDeployment.podLabels());
+    private void assertClusterServiceExists(KafkaProxy proxy, String clusterName) {
+        await().alias("Service as expected").untilAsserted(() -> {
+            var service = extension.get(Service.class, clusterName);
+            assertThat(service)
+                    .describedAs("Expect Service for cluster '" + clusterName + "' to still exist")
+                    .isNotNull()
+                    .extracting(svc -> svc.getSpec().getSelector())
+                    .describedAs("Service's selector should select proxy pods")
+                    .isEqualTo(ProxyDeployment.podLabels(proxy));
+        });
     }
 
 }
