@@ -6,24 +6,40 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 
 import io.javaoperatorsdk.operator.OperatorException;
 import io.micrometer.core.instrument.Metrics;
-import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class OperatorMainIT {
+    private OperatorMain operatorMain;
     // This is an IT because it depends on having a running Kube cluster
+
+    @BeforeEach
+    void beforeEach() {
+        assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
+        operatorMain = new OperatorMain();
+    }
+
+    @AfterEach
+    void afterEach() {
+        if (operatorMain != null) {
+            operatorMain.close();
+        }
+        assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
+    }
 
     @Test
     void run() {
         try {
-            OperatorMain.run();
+            operatorMain.run();
         }
         catch (OperatorException e) {
             fail("Exception occurred starting operator: " + e.getMessage());
@@ -32,20 +48,16 @@ class OperatorMainIT {
     }
 
     @Test
-    void shouldRegisterPrometheusMetrics() {
+    void shouldRegisterPrometheusMetricsInGlobalRegistry() {
         // Given
 
         // When
-        OperatorMain.run();
+        operatorMain.run();
 
         // Then
         assertThat(Metrics.globalRegistry.getRegistries())
                 .isNotEmpty()
-                .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class)
-                .element(0)
-                .satisfies(meterRegistry ->
-                        assertThat(meterRegistry.get("operator.sdk.reconciliations.success"))
-                                .isNotNull());
+                .contains(operatorMain.getRegistry());
     }
 
     @Test
@@ -53,11 +65,10 @@ class OperatorMainIT {
         // Given
 
         // When
-        OperatorMain.run();
+        operatorMain.run();
 
         // Then
-        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.success"))
-                .isNotNull();
+        assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull();
     }
 
     @Test
@@ -65,9 +76,9 @@ class OperatorMainIT {
         // Given
 
         // When
-        OperatorMain.run();
+        operatorMain.run();
 
         // Then
-        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.proxyreconciler.success")).isNotNull();
+        assertThat(operatorMain.getRegistry().get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
     }
 }

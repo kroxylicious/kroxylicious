@@ -20,6 +20,7 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -29,10 +30,16 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class OperatorMain {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorMain.class);
+    private MeterRegistry registry;
+    private final Operator operator;
+
+    public OperatorMain() {
+        operator = new Operator(o -> o.withMetrics(enablePrometheusMetrics()));
+    }
 
     public static void main(String[] args) {
         try {
-            run();
+            new OperatorMain().run();
         }
         catch (Exception e) {
             LOGGER.error("Operator has thrown exception during startup. Will now exit.", e);
@@ -40,13 +47,27 @@ public class OperatorMain {
         }
     }
 
-    static void run() {
-        Operator operator = new Operator(o -> o.withMetrics(enablePrometheusMetrics()));
+    void run() {
         operator.installShutdownHook(Duration.ofSeconds(10));
         var registeredController = operator.register(new ProxyReconciler(runtimeDecl()));
         // TODO couple the health of the registeredController to the operator's HTTP healthchecks
         operator.start();
         LOGGER.info("Operator started.");
+    }
+
+    public void close() {
+        // remove the meters we contributed to the global registry.
+        var copy = List.copyOf(registry.getMeters());
+        copy.forEach(Metrics.globalRegistry::remove);
+        Metrics.removeRegistry(registry);
+        registry.close();
+        LOGGER.info("Operator closed.");
+        registry = null;
+    }
+
+    @VisibleForTesting
+    MeterRegistry getRegistry() {
+        return registry;
     }
 
     @NonNull
@@ -56,8 +77,8 @@ public class OperatorMain {
                 new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "KafkaProtocolFilter")));
     }
 
-    private static MicrometerMetrics enablePrometheusMetrics() {
-        MeterRegistry registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+    private MicrometerMetrics enablePrometheusMetrics() {
+        registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
         Metrics.addRegistry(registry);
         return MicrometerMetrics.newPerResourceCollectingMicrometerMetricsBuilder(registry)
                 .withCleanUpDelayInSeconds(35)
