@@ -15,4 +15,4 @@ spec:
     name: use-pod-template-spec
   targetCluster:
     bootstrapping:
-      bootstrap: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+      bootstrapAddress: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092

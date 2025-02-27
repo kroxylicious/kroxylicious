@@ -15,4 +15,4 @@ spec:
     name: twocluster
   targetCluster:
     bootstrapping:
-      bootstrap: second-kafka.kafka2.svc.cluster.local:9092
+      bootstrapAddress: second-kafka.kafka2.svc.cluster.local:9092

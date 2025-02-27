@@ -91,7 +91,7 @@ class ProxyReconcilerIT {
         VirtualKafkaCluster clusterFoo = extension.create(new VirtualKafkaClusterBuilder().withNewMetadata().withName(CLUSTER_FOO).endMetadata()
                 .withNewSpec()
                 .withNewTargetCluster()
-                .withNewBootstrapping().withBootstrap(CLUSTER_FOO_BOOTSTRAP).endBootstrapping()
+                .withNewBootstrapping().withBootstrapAddress(CLUSTER_FOO_BOOTSTRAP).endBootstrapping()
                 .endTargetCluster()
                 .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
                 .withFilters()
@@ -99,7 +99,7 @@ class ProxyReconcilerIT {
         VirtualKafkaCluster clusterBar = extension.create(new VirtualKafkaClusterBuilder().withNewMetadata().withName(CLUSTER_BAR).endMetadata()
                 .withNewSpec()
                 .withNewTargetCluster()
-                .withNewBootstrapping().withBootstrap(CLUSTER_BAR_BOOTSTRAP).endBootstrapping()
+                .withNewBootstrapping().withBootstrapAddress(CLUSTER_BAR_BOOTSTRAP).endBootstrapping()
                 .endTargetCluster()
                 .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
                 .withFilters()
@@ -164,7 +164,7 @@ class ProxyReconcilerIT {
     void testUpdateVirtualCluster() {
         final var createdResources = doCreate();
         KafkaProxy proxy = createdResources.proxy;
-        VirtualKafkaCluster cluster = createdResources.cluster(CLUSTER_FOO).edit().editSpec().editTargetCluster().editBootstrapping().withBootstrap(NEW_BOOTSTRAP)
+        VirtualKafkaCluster cluster = createdResources.cluster(CLUSTER_FOO).edit().editSpec().editTargetCluster().editBootstrapping().withBootstrapAddress(NEW_BOOTSTRAP)
                 .endBootstrapping().endTargetCluster().endSpec().build();
         extension.replace(cluster);
         await().untilAsserted(() -> {
@@ -193,7 +193,7 @@ class ProxyReconcilerIT {
         extension.create(new VirtualKafkaClusterBuilder().withNewMetadata().withName(CLUSTER_BAZ).endMetadata()
                 .withNewSpec()
                 .withNewTargetCluster()
-                .withNewBootstrapping().withBootstrap(CLUSTER_BAZ_BOOTSTRAP).endBootstrapping()
+                .withNewBootstrapping().withBootstrapAddress(CLUSTER_BAZ_BOOTSTRAP).endBootstrapping()
                 .endTargetCluster()
                 .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
                 .withFilters()

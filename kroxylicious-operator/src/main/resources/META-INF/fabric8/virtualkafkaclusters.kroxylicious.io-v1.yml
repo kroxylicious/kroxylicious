@@ -62,9 +62,9 @@ spec:
                   properties:
                     bootstrapping:
                       type: object
-                      required: [ "bootstrap" ]
+                      required: [ "bootstrapAddress" ]
                       properties:
-                        bootstrap:
+                        bootstrapAddress:
                           type: string
                           minLength: 1
                 filters:

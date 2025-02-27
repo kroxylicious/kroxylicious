@@ -212,7 +212,7 @@ public class ProxyConfigSecret
     private static VirtualCluster getVirtualCluster(KafkaProxy primary,
                                                     VirtualKafkaCluster cluster,
                                                     int clusterNum) {
-        String bootstrap = cluster.getSpec().getTargetCluster().getBootstrapping().getBootstrap();
+        String bootstrap = cluster.getSpec().getTargetCluster().getBootstrapping().getBootstrapAddress();
         return new VirtualCluster(
                 new TargetCluster(bootstrap, Optional.empty()),
                 null,

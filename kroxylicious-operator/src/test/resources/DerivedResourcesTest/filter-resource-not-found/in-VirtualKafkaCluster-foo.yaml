@@ -16,7 +16,7 @@ spec:
   targetCluster:
       # This cluster should be absent from the output proxy-operator-operator-operator-config.yaml, because there is no Two with name missing
     bootstrapping:
-      bootstrap: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+      bootstrapAddress: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
   filters:
     - group: filter.kroxylicious.io
       kind: KafkaProtocolFilter
