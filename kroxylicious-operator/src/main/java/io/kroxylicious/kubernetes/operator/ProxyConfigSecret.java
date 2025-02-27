@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
@@ -71,8 +73,14 @@ public class ProxyConfigSecret
      */
     public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
 
+    private final SecureConfigInterpolator secureConfigInterpolator;
+
     public ProxyConfigSecret() {
         super(Secret.class);
+        var providerMap = Map.<String, SecureConfigProvider>of(
+                "secret", MountedResourceConfigProvider.SECRET_PROVIDER,
+                "configmap", MountedResourceConfigProvider.CONFIGMAP_PROVIDER);
+        secureConfigInterpolator = new SecureConfigInterpolator("/", providerMap);
     }
 
     /**
@@ -132,7 +140,8 @@ public class ProxyConfigSecret
     }
 
     @NonNull
-    private static List<NamedFilterDefinition> buildFilterDefinitions(Context<KafkaProxy> context, List<VirtualKafkaCluster> clusters) {
+
+    private List<NamedFilterDefinition> buildFilterDefinitions(Context<KafkaProxy> context, List<VirtualKafkaCluster> clusters) {
         List<NamedFilterDefinition> filterDefinitions = new ArrayList<>();
         Set<NamedFilterDefinition> uniqueValues = new HashSet<>();
         for (VirtualKafkaCluster cluster1 : clusters) {
@@ -165,7 +174,7 @@ public class ProxyConfigSecret
     }
 
     @NonNull
-    private static List<NamedFilterDefinition> filterDefinitions(VirtualKafkaCluster cluster, Context<KafkaProxy> context)
+    private List<NamedFilterDefinition> filterDefinitions(VirtualKafkaCluster cluster, Context<KafkaProxy> context)
             throws InvalidClusterException {
 
         return Optional.ofNullable(cluster.getSpec().getFilters()).orElse(List.of()).stream().map(filterCrRef -> {
@@ -175,14 +184,28 @@ public class ProxyConfigSecret
             var filterCr = filterResourceFromRef(cluster, context, filterCrRef);
             if (filterCr.getAdditionalProperties().get("spec") instanceof Map<?, ?> spec) {
                 String type = (String) spec.get("type");
-                Object config = spec.get("config");
-                return new NamedFilterDefinition(filterDefinitionName, type, config);
+                SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
+                return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
             }
             else {
                 throw new InvalidClusterException(ClusterCondition.filterInvalid(cluster.getMetadata().getName(), filterDefinitionName, "`spec` was not an `object`."));
             }
 
         }).toList();
+    }
+
+    @Nullable
+    private SecureConfigInterpolator.InterpolationResult interpolateConfig(Map<?, ?> spec) {
+        SecureConfigInterpolator.InterpolationResult result;
+        Object configTemplate = spec.get("configTemplate");
+        if (configTemplate != null) {
+
+            result = secureConfigInterpolator.interpolate(configTemplate);
+        }
+        else {
+            result = new SecureConfigInterpolator.InterpolationResult(spec.get("config"), List.of(), List.of());
+        }
+        return result;
     }
 
     @NonNull
