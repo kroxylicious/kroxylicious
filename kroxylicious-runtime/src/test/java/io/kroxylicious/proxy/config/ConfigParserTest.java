@@ -197,6 +197,34 @@ class ConfigParserTest {
                                   passwordFile: /tmp/password.txt
                                 storeType: JKS
                         """),
+                Arguments.argumentSet("Virtual cluster (RangeAwarePortPerNode - deprecated)", """
+                        virtualClusters:
+                          demo1:
+                            targetCluster:
+                              bootstrapServers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: RangeAwarePortPerNodeClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: cluster1:9192
+                                nodeAddressPattern: cluster1
+                                nodeStartPort: 9193
+                                nodeIdRanges:
+                                - name: myrange
+                                  range:
+                                    startInclusive: 0
+                                    endExclusive: 1
+                        """),
+                Arguments.argumentSet("Virtual cluster (SniRouting - deprecated)", """
+                        virtualClusters:
+                          demo1:
+                            targetCluster:
+                              bootstrapServers: kafka.example:1234
+                            clusterNetworkAddressConfigProvider:
+                              type: SniRoutingClusterNetworkAddressConfigProvider
+                              config:
+                                bootstrapAddress: cluster1:9192
+                                brokerAddressPattern: broker$(nodeId)
+                        """),
                 Arguments.argumentSet("Filters", """
                         filters:
                         - type: TestFilterFactory

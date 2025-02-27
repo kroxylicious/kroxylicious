@@ -7,9 +7,11 @@
 package io.kroxylicious.proxy;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -17,7 +19,11 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinition;
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.FilterDefinition;
@@ -26,6 +32,7 @@ import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation;
 import io.kroxylicious.proxy.filter.simpletransform.UpperCasing;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -35,6 +42,7 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 /**
  * Tests of deprecated configurations and features
@@ -76,19 +84,29 @@ public class DeprecatedConfigurationIT extends BaseIT {
         }
     }
 
-    @Test
+    static Stream<Arguments> shouldSupportDeprecatedClusterNetworkAddressConfigProvider() {
+        return Stream.of(argumentSet("PortPerBrokerClusterNetworkAddressConfigProvider", new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
+                .withConfig("bootstrapAddress", PROXY_ADDRESS)
+                .build()),
+                argumentSet("RangeAwarePortPerNodeClusterNetworkAddressConfigProvider", new ClusterNetworkAddressConfigProviderDefinitionBuilder(
+                        RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.class.getName())
+                        .withConfig("bootstrapAddress", PROXY_ADDRESS,
+                                "nodeIdRanges", List.of(Map.of("name", "myrange", "range", Map.of("startInclusive", 0, "endExclusive", "1"))))
+                        .build()));
+    }
+
+    @ParameterizedTest
+    @MethodSource
     @SuppressWarnings("deprecation")
-    void shouldSupportDeprecatedClusterNetworkAddressConfigProvider(KafkaCluster cluster) {
+    void shouldSupportDeprecatedClusterNetworkAddressConfigProvider(ClusterNetworkAddressConfigProviderDefinition provider, KafkaCluster cluster) {
 
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .withClusterNetworkAddressConfigProvider(new ClusterNetworkAddressConfigProviderDefinitionBuilder(
-                                PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())
-                                .withConfig("bootstrapAddress", PROXY_ADDRESS)
-                                .build())
+                        .withClusterNetworkAddressConfigProvider(provider)
                         .build());
 
         try (var tester = kroxyliciousTester(builder);
