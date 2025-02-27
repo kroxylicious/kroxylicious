@@ -28,7 +28,7 @@
 
     <dependencyManagement>
         <dependencies>
-            <!-- note, we're inheriting the jackson BOM from our parent pom -->
+            <!-- note, we're inheriting the jackson & micrometer BOMs from our parent pom -->
 
             <dependency>
                 <groupId>io.javaoperatorsdk</groupId>
@@ -51,6 +51,10 @@
         <dependency>
             <groupId>io.javaoperatorsdk</groupId>
             <artifactId>operator-framework-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.javaoperatorsdk</groupId>
+            <artifactId>micrometer-support</artifactId>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
@@ -149,6 +153,11 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-runtime</artifactId>
             <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
         </dependency>
 
         <dependency>
