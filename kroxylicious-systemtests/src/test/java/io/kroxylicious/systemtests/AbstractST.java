@@ -63,7 +63,7 @@ class AbstractST implements TestSeparator {
         cluster = KubeClusterResource.getInstance();
         strimziOperator = new Strimzi(Environment.STRIMZI_NAMESPACE);
 
-        NamespaceUtils.createNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
+        NamespaceUtils.createNamespaceAndPrepare(Constants.KAFKA_DEFAULT_NAMESPACE);
         strimziOperator.deploy();
     }
 

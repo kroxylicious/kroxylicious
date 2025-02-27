@@ -17,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.logs.CollectorElement;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 
@@ -30,8 +29,7 @@ import static org.awaitility.Awaitility.await;
 public class NamespaceUtils {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NamespaceUtils.class);
-    // {test-suite-name} -> {{namespace-1}, {namespace-2},...,}
-    private final static Map<CollectorElement, Set<String>> MAP_WITH_SUITE_NAMESPACES = new HashMap<>();
+    private static final Map<CollectorElement, Set<String>> MAP_WITH_SUITE_NAMESPACES = new HashMap<>();
 
     private NamespaceUtils() {
     }
@@ -87,8 +85,8 @@ public class NamespaceUtils {
      */
     public static void createNamespaceAndPrepare(String namespaceName) {
         final String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
-        final String testCaseName = ResourceManager.getTestContext().getTestMethod().orElse(null) == null ?
-                "" : ResourceManager.getTestContext().getRequiredTestMethod().getName();
+        final String testCaseName = ResourceManager.getTestContext().getTestMethod().orElse(null) == null ? ""
+                : ResourceManager.getTestContext().getRequiredTestMethod().getName();
 
         createNamespaceAndPrepare(namespaceName, new CollectorElement(testSuiteName, testCaseName));
     }
@@ -104,20 +102,6 @@ public class NamespaceUtils {
     public static void createNamespaceAndPrepare(String namespaceName, CollectorElement collectorElement) {
         createNamespaceAndAddToSet(namespaceName, collectorElement);
         DeploymentUtils.registryCredentialsSecret(namespaceName);
-    }
-
-    /**
-     * Creates and prepares all Namespaces from {@param namespacesToBeCreated}.
-     * After that sets Namespace in {@link KubeClusterResource} to {@param useNamespace}.
-     *
-     * @param useNamespace Namespace name that should be used in {@link KubeClusterResource}
-     * @param collectorElement "key" for accessing the particular Set of Namespaces
-     * @param namespacesToBeCreated list of Namespaces that should be created
-     */
-    public void createNamespaces(String useNamespace, CollectorElement collectorElement, List<String> namespacesToBeCreated) {
-        namespacesToBeCreated.forEach(namespaceToBeCreated -> createNamespaceAndPrepare(namespaceToBeCreated, collectorElement));
-
-        KubeClusterResource.getInstance().setNamespace(useNamespace);
     }
 
     /**
@@ -140,7 +124,8 @@ public class NamespaceUtils {
             Set<String> testSuiteNamespaces = MAP_WITH_SUITE_NAMESPACES.get(collectorElement);
             testSuiteNamespaces.add(namespaceName);
             MAP_WITH_SUITE_NAMESPACES.put(collectorElement, testSuiteNamespaces);
-        } else {
+        }
+        else {
             // test-suite is new
             MAP_WITH_SUITE_NAMESPACES.put(collectorElement, new HashSet<>(Set.of(namespaceName)));
         }
@@ -173,9 +158,8 @@ public class NamespaceUtils {
      */
     public static void deleteAllNamespacesFromSet() {
         MAP_WITH_SUITE_NAMESPACES.values()
-                .forEach(setOfNamespaces ->
-                        setOfNamespaces.parallelStream()
-                                .forEach(NamespaceUtils::deleteNamespaceWithWait));
+                .forEach(setOfNamespaces -> setOfNamespaces.parallelStream()
+                        .forEach(NamespaceUtils::deleteNamespaceWithWait));
 
         MAP_WITH_SUITE_NAMESPACES.clear();
     }
@@ -220,8 +204,7 @@ public class NamespaceUtils {
      * @return  list of Namespaces for the test-class and test-case
      */
     public static List<String> getListOfNamespacesForTestClassAndTestCase(String testClass, String testCase) {
-        List<String> namespaces = new ArrayList<>();
-        namespaces.addAll(getMapWithSuiteNamespaces().get(new CollectorElement(testClass)));
+        List<String> namespaces = new ArrayList<>(getMapWithSuiteNamespaces().get(new CollectorElement(testClass)));
 
         if (testCase != null) {
             Set<String> namespacesForTestCase = getMapWithSuiteNamespaces().get(new CollectorElement(testClass, testCase));

@@ -136,8 +136,7 @@ public class TestLogCollector {
                 Constants.SERVICE.toLowerCase(Locale.ROOT),
                 Constants.JOB.toLowerCase(Locale.ROOT),
                 Kafka.RESOURCE_SINGULAR,
-                KafkaNodePool.RESOURCE_SINGULAR
-        ));
+                KafkaNodePool.RESOURCE_SINGULAR));
 
         return new LogCollectorBuilder()
                 .withKubeClient(new KubeClient())
@@ -173,14 +172,15 @@ public class TestLogCollector {
                                     try {
                                         Integer.parseInt(file);
                                         return true;
-                                    } catch (NumberFormatException e) {
+                                    }
+                                    catch (NumberFormatException e) {
                                         return false;
                                     }
                                 })
                                 .sorted()
                                 .toList()
-                                .get(filesInLogsDir.length - 1)
-                ) + 1;
+                                .get(filesInLogsDir.length - 1))
+                        + 1;
             }
         }
 
@@ -212,8 +212,7 @@ public class TestLogCollector {
     public void collectLogs() {
         collectLogs(
                 ResourceManager.getTestContext().getRequiredTestClass().getName(),
-                ResourceManager.getTestContext().getRequiredTestMethod().getName()
-        );
+                ResourceManager.getTestContext().getRequiredTestMethod().getName());
     }
 
     /**

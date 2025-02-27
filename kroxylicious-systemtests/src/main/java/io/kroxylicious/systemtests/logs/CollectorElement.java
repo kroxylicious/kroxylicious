@@ -53,8 +53,10 @@ public class CollectorElement {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         CollectorElement that = (CollectorElement) o;
         return Objects.equals(testClassName, that.testClassName) && Objects.equals(testMethodName, that.testMethodName);
     }
