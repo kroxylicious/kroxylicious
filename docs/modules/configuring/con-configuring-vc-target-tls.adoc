@@ -109,7 +109,7 @@ virtualClusters:
       tls:
         # ...
         protocols:
-          allowed:  # <1>
+          denied:  # <1>
           - TLSv1.1
 ----
 <1> List of disallowed TLS protocols.
@@ -124,7 +124,7 @@ virtualClusters:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
         # ...
-        protocols:
+        cipherSuites:
           allowed:  # <1>
           - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
           - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
@@ -142,7 +142,7 @@ virtualClusters:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
         # ...
-        protocols:
+        cipherSuites:
           denied:  # <1>
           - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
 ----
