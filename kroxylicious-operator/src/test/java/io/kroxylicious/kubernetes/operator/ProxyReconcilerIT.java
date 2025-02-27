@@ -46,6 +46,9 @@ class ProxyReconcilerIT {
     public static final String CLUSTER_FOO_BOOTSTRAP = "my-cluster-kafka-bootstrap.foo.svc.cluster.local:9092";
     public static final String CLUSTER_BAR = "bar";
     public static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
+    public static final String NEW_BOOTSTRAP = "new-bootstrap:9092";
+    public static final String CLUSTER_BAZ = "baz";
+    public static final String CLUSTER_BAZ_BOOTSTRAP = "my-cluster-kafka-bootstrap.baz.svc.cluster.local:9092";
 
     static KubernetesClient client;
 
@@ -158,6 +161,63 @@ class ProxyReconcilerIT {
     }
 
     @Test
+    void testUpdateVirtualCluster() {
+        final var createdResources = doCreate();
+        KafkaProxy proxy = createdResources.proxy;
+        VirtualKafkaCluster cluster = createdResources.cluster(CLUSTER_FOO).edit().editSpec().editTargetCluster().editBootstrapping().withBootstrap(NEW_BOOTSTRAP)
+                .endBootstrapping().endTargetCluster().endSpec().build();
+        extension.replace(cluster);
+        await().untilAsserted(() -> {
+            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
+            assertThat(secret)
+                    .isNotNull()
+                    .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
+                    .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
+                    .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING)
+                    .doesNotContain(CLUSTER_FOO_BOOTSTRAP)
+                    .contains(NEW_BOOTSTRAP);
+        });
+
+        await().untilAsserted(() -> {
+            assertClusterServiceExists(CLUSTER_FOO);
+            assertClusterServiceExists(CLUSTER_BAR);
+        });
+
+        LOGGER.atInfo().log("Test finished");
+    }
+
+    @Test
+    void testAddVirtualCluster() {
+        final var createdResources = doCreate();
+        KafkaProxy proxy = createdResources.proxy;
+        extension.create(new VirtualKafkaClusterBuilder().withNewMetadata().withName(CLUSTER_BAZ).endMetadata()
+                .withNewSpec()
+                .withNewTargetCluster()
+                .withNewBootstrapping().withBootstrap(CLUSTER_BAZ_BOOTSTRAP).endBootstrapping()
+                .endTargetCluster()
+                .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
+                .withFilters()
+                .endSpec().build());
+        await().untilAsserted(() -> {
+            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
+            assertThat(secret)
+                    .isNotNull()
+                    .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
+                    .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
+                    .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING)
+                    .contains(CLUSTER_BAZ_BOOTSTRAP);
+        });
+
+        await().untilAsserted(() -> {
+            assertClusterServiceExists(CLUSTER_FOO);
+            assertClusterServiceExists(CLUSTER_BAR);
+            assertClusterServiceExists(CLUSTER_BAZ);
+        });
+
+        LOGGER.atInfo().log("Test finished");
+    }
+
+    @Test
     void testDeleteVirtualCluster() {
         final var createdResources = doCreate();
         KafkaProxy proxy = createdResources.proxy;
@@ -181,13 +241,7 @@ class ProxyReconcilerIT {
         });
 
         await().untilAsserted(() -> {
-            var service = extension.get(Service.class, CLUSTER_BAR);
-            assertThat(service)
-                    .describedAs("Expect Service for cluster 'bar' to still exist")
-                    .isNotNull()
-                    .extracting(svc -> svc.getSpec().getSelector())
-                    .describedAs("Service's selector should select proxy pods")
-                    .isEqualTo(ProxyDeployment.podLabels());
+            assertClusterServiceExists(CLUSTER_BAR);
         });
         LOGGER.atInfo().log("Test finished");
     }
@@ -207,4 +261,15 @@ class ProxyReconcilerIT {
                 .build();
         // @formatter:on
     }
+
+    private void assertClusterServiceExists(String clusterName) {
+        var service = extension.get(Service.class, clusterName);
+        assertThat(service)
+                .describedAs("Expect Service for cluster '" + clusterName + "' to still exist")
+                .isNotNull()
+                .extracting(svc -> svc.getSpec().getSelector())
+                .describedAs("Service's selector should select proxy pods")
+                .isEqualTo(ProxyDeployment.podLabels());
+    }
+
 }
