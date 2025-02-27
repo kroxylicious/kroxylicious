@@ -83,7 +83,7 @@ virtualClusters:
     - name: mylistener
       portIdentifiesNode:
         bootstrapAddress: localhost:9192 # <1>
-        advertisedBrokerAddressPattern: mycluster.kafka.com # <2>
+        advertisedBrokerAddressPattern: mycluster.example.com # <2>
         brokerStartPort: 9200 # <3>
     # ...
 # ...
@@ -93,7 +93,7 @@ virtualClusters:
 <3> (Optional) The starting number for the broker port range. Defaults to the port of the bootstrap address plus 1.
 
 With the example configuration above, the listener exposes a target cluster of up to three brokers with
-node ids `0`, `1`, `2`.   The advertised broker address is defined as `mycluster.kafka.com`.  Port
+node ids `0`, `1`, `2`.   The advertised broker address is defined as `mycluster.example.com`.  Port
 numbers are assigned sequentially beginning at `9200`.
 
 The listener exposes the following three broker addresses:
@@ -102,13 +102,13 @@ The listener exposes the following three broker addresses:
 |Node Id|Broker Address
 
 |0
-|mycluster.kafka.com:9200
+|mycluster.example.com:9200
 
 |1
-|mycluster.kafka.com:9201
+|mycluster.example.com:9201
 
 |2
-|mycluster.kafka.com:9203
+|mycluster.example.com:9203
 |===
 
 .Example port identifies node configuration with customized node ranges
@@ -123,7 +123,7 @@ virtualClusters:
     - name: mylistener
       portIdentifiesNode:
         bootstrapAddress: localhost:9192 # <1>
-        advertisedBrokerAddressPattern: mycluster.kafka.com # <2>
+        advertisedBrokerAddressPattern: mycluster.example.com # <2>
         nodeIdRanges: # <3>
         - name: mixed
           start: 1
@@ -140,7 +140,7 @@ virtualClusters:
 <3> (Optional) One or more node id ranges.  If omitted, it defaults to a single range of node IDs 0..2 (inclusive).
 
 With the example configuration above, the listener exposes a target cluster of up to six nodes with
-node ids 1..3 and 100..104   The advertised broker address is defined as `mycluster.kafka.com`.  Port
+node ids 1..3 and 100..104   The advertised broker address is defined as `mycluster.example.com`.  Port
 numbers are assigned sequentially beginning at `9193` (bootstrap port number + 1)
 
 The listener exposes the following six broker addresses:
@@ -149,22 +149,22 @@ The listener exposes the following six broker addresses:
 |Node Id|Broker Address
 
 |1
-|mycluster.kafka.com:9193
+|mycluster.example.com:9193
 
 |2
-|mycluster.kafka.com:9194
+|mycluster.example.com:9194
 
 |3
-|mycluster.kafka.com:9195
+|mycluster.example.com:9195
 
 |100
-|mycluster.kafka.com:9196
+|mycluster.example.com:9196
 
 |101
-|mycluster.kafka.com:9197
+|mycluster.example.com:9197
 
 |101
-|mycluster.kafka.com:9198
+|mycluster.example.com:9198
 
 |===
 
@@ -195,8 +195,8 @@ virtualClusters:
     listeners:
     - name: mylistener
       sniHostIdentifiesNode:
-        bootstrapAddress: mycluster.kafka.com:9192 # <1>
-        advertisedBrokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com <2>
+        bootstrapAddress: mycluster.example.com:9192 # <1>
+        advertisedBrokerAddressPattern: mybroker-$(nodeId).mycluster.example.com <2>
       tls:
          key: ... <3>
     # ...
@@ -208,10 +208,9 @@ virtualClusters:
 <3> TLS configuration.
 
 With the example configuration above, the listener accepts traffic on port 9192. Any TLS connections arriving with
-the SNI of `mycluster.kafka.com` will be routed as boostrap.  Any connections arriving with SNI matching
-`mybroker-$(nodeId).mycluster.kafka.com` will be routed to the upstream broker with the same node id.
-It exposes a target cluster with any
-any number of brokers. The advertised broker address is defined as `mybroker-$(nodeId).mycluster.kafka.com`.
+the SNI of `mycluster.example.com` will be routed as boostrap.  Any connections arriving with SNI matching
+`mybroker-$(nodeId).mycluster.example.com` will be routed to the upstream broker with the same node id.
+It exposes a target cluster with any number of brokers.
 
 The listener exposes the following broker addresses like this:
 
@@ -219,13 +218,13 @@ The listener exposes the following broker addresses like this:
 |Node Id|Broker Address
 
 |0
-|mybroker-0.mycluster.kafka.com:9192
+|mybroker-0.mycluster.example.com:9192
 
 |...
 |...
 
 |_n_
-|mybroker-_n_.mycluster.kafka.com:9192
+|mybroker-_n_.mycluster.example.com:9192
 
 |===
 
@@ -240,8 +239,8 @@ virtualClusters:
     listeners:
     - name: mylistener
       sniHostIdentifiesNode:
-        bootstrapAddress: mycluster.kafka.com:9192 # <1>
-        advertisedBrokerAddressPattern: mybroker-$(nodeId).mycluster.kafka.com:443 <2>
+        bootstrapAddress: mycluster.example.com:9192 # <1>
+        advertisedBrokerAddressPattern: mybroker-$(nodeId).mycluster.example.com:443 <2>
       tls:
          key: ... <3>
     # ...
@@ -262,13 +261,13 @@ The listener exposes the following broker addresses like this:
 |Node Id|Broker Address
 
 |0
-|mybroker-0.mycluster.kafka.com:443
+|mybroker-0.mycluster.example.com:443
 
 |...
 |...
 
 |_n_
-|mybroker-_n_.mycluster.kafka.com:443
+|mybroker-_n_.mycluster.example.com:443
 
 |===
 
