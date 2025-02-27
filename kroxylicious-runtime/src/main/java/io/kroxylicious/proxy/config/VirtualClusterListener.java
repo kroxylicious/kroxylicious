@@ -33,7 +33,7 @@ public record VirtualClusterListener(@NonNull @JsonProperty(required = true) Str
         Objects.requireNonNull(name);
         Objects.requireNonNull(tls);
 
-        if (!(portIdentifiesNode == null) ^ (sniHostIdentifiesNode == null)) {
+        if ((portIdentifiesNode == null) == (sniHostIdentifiesNode == null)) {
             throw new IllegalConfigurationException("Must specify either portIdentifiesNode or sniHostIdentifiesNode (virtual cluster listener %s)".formatted(name));
         }
 

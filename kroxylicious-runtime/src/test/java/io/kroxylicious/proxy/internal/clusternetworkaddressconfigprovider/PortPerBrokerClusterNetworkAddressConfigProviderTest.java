@@ -21,14 +21,27 @@ import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@SuppressWarnings("removal")
 class PortPerBrokerClusterNetworkAddressConfigProviderTest {
 
     @ParameterizedTest
-    @CsvSource({ "0,1", "-1,1", "4,-1", "10,0" })
-    void badBrokerPortDefinition(int brokerStartPort, int numberOfBrokerPorts) {
+    @ValueSource(ints = { -1, 0 })
+    void badBrokerStartPort(int brokerStartPort) {
         var bootstrap = parse("localhost:1235");
         assertThatThrownBy(() -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap,
-                "localhost", brokerStartPort, 0, numberOfBrokerPorts)).isInstanceOf(IllegalArgumentException.class);
+                "localhost", brokerStartPort, 0, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("brokerStartPort cannot be less than 1");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { -1, 0 })
+    void badNumberOfBrokerPorts(int numberOfBrokerPorts) {
+        var bootstrap = parse("localhost:1235");
+        assertThatThrownBy(() -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap,
+                "localhost", null, 0, numberOfBrokerPorts))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("numberOfBrokerPorts cannot be less than 1");
     }
 
     @ParameterizedTest
@@ -36,7 +49,8 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     void bootstrapBrokerAddressCollision(int brokerStartPort, int numberOfBrokerPorts) {
         var bootstrap = parse("localhost:1235");
         assertThatThrownBy(() -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap,
-                "localhost", brokerStartPort, 0, numberOfBrokerPorts)).isInstanceOf(IllegalArgumentException.class);
+                "localhost", brokerStartPort, 0, numberOfBrokerPorts))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest

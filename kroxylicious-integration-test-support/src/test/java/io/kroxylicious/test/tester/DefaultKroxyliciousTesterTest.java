@@ -406,6 +406,7 @@ class DefaultKroxyliciousTesterTest {
         }
     }
 
+    @SuppressWarnings("removal")
     static Stream<Arguments> shouldCreateSingleTopicUsingLegacyProvider() {
         return Stream.of(
                 Arguments.argumentSet("PortPerBrokerClusterNetworkAddressConfigProvider",

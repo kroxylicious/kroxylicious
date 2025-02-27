@@ -280,6 +280,7 @@ class VirtualClusterListenerModelTest {
     }
 
     @NonNull
+    @SuppressWarnings("removal")
     private ClusterNetworkAddressConfigProvider createTestClusterNetworkAddressConfigProvider() {
         final PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),

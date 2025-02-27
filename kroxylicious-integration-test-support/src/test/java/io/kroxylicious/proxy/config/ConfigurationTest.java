@@ -713,6 +713,7 @@ class ConfigurationTest {
     }
 
     @Test
+    @SuppressWarnings("removal")
     void virtualClusterModelCreatedWithDeprecatedNetworkProvider() {
         // Given
         var filterDefinitions = List.of(new NamedFilterDefinition("foo", "Foo", ""));

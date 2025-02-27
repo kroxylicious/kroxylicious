@@ -45,6 +45,7 @@ public record PortIdentifiesNodeIdentificationStrategy(@NonNull @JsonProperty(re
     }
 
     @Override
+    @SuppressWarnings("removal")
     public ClusterNetworkAddressConfigProviderDefinition get() {
         // This code is bridging to the old model
         var ranges = Optional.ofNullable(nodeIdRanges)

@@ -84,6 +84,7 @@ public class DeprecatedConfigurationIT extends BaseIT {
         }
     }
 
+    @SuppressWarnings("removal")
     static Stream<Arguments> shouldSupportDeprecatedClusterNetworkAddressConfigProvider() {
         return Stream.of(argumentSet("PortPerBrokerClusterNetworkAddressConfigProvider", new ClusterNetworkAddressConfigProviderDefinitionBuilder(
                 PortPerBrokerClusterNetworkAddressConfigProvider.class.getName())

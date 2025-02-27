@@ -32,6 +32,7 @@ public record SniHostIdentifiesNodeIdentificationStrategy(@NonNull @JsonProperty
         Objects.requireNonNull(advertisedBrokerAddressPattern);
     }
 
+    @SuppressWarnings("removal")
     public ClusterNetworkAddressConfigProviderDefinition get() {
         // This code is bridging to the old model
         return new ClusterNetworkAddressConfigProviderDefinition(SniRoutingClusterNetworkAddressConfigProvider.class.getSimpleName(),

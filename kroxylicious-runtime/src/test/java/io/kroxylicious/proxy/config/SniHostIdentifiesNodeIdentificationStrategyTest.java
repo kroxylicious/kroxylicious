@@ -13,6 +13,7 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@SuppressWarnings("removal")
 class SniHostIdentifiesNodeIdentificationStrategyTest {
 
     private final SniRoutingClusterNetworkAddressConfigProvider service = new SniRoutingClusterNetworkAddressConfigProvider();

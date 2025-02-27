@@ -20,6 +20,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@SuppressWarnings("removal")
 class PortIdentifiesNodeIdentificationStrategyTest {
 
     private final RangeAwarePortPerNodeClusterNetworkAddressConfigProvider service = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider();

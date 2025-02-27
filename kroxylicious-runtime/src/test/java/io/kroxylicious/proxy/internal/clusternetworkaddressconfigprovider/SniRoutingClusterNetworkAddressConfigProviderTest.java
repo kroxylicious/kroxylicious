@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
+@SuppressWarnings("removal")
 class SniRoutingClusterNetworkAddressConfigProviderTest {
 
     private static final HostPort GOOD_HOST_PORT = parse("boot.kafka:1234");
@@ -114,7 +115,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @Test
     void getAdvertisedBrokerAddress() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", null));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, null, "broker-$(nodeId).kafka"));
         assertThat(provider.getAdvertisedBrokerAddress(0)).isEqualTo(HostPort.parse("broker-0.kafka:1234"));
     }
 

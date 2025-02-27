@@ -26,6 +26,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@SuppressWarnings("removal")
 class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
 
     private static final String BOOTSTRAP_HOST = "cluster.kafka.example.com";
