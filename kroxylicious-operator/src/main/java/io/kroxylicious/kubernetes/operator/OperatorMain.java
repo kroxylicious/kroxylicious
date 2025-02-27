@@ -12,6 +12,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.javaoperatorsdk.operator.Operator;
+import io.javaoperatorsdk.operator.monitoring.micrometer.MicrometerMetrics;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.prometheusmetrics.PrometheusConfig;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
@@ -36,7 +41,7 @@ public class OperatorMain {
     }
 
     static void run() {
-        Operator operator = new Operator();
+        Operator operator = new Operator(o -> o.withMetrics(enablePrometheusMetrics()));
         operator.installShutdownHook(Duration.ofSeconds(10));
         var registeredController = operator.register(new ProxyReconciler(runtimeDecl()));
         // TODO couple the health of the registeredController to the operator's HTTP healthchecks
@@ -49,5 +54,14 @@ public class OperatorMain {
         // TODO read these from some configuration CR
         return new RuntimeDecl(List.of(
                 new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "KafkaProtocolFilter")));
+    }
+
+    private static MicrometerMetrics enablePrometheusMetrics() {
+        MeterRegistry registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+        Metrics.addRegistry(registry);
+        return MicrometerMetrics.newPerResourceCollectingMicrometerMetricsBuilder(registry)
+                .withCleanUpDelayInSeconds(35)
+                .withCleaningThreadNumber(1)
+                .build();
     }
 }

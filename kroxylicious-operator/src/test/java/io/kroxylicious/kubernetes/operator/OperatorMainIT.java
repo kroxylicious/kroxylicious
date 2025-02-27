@@ -6,18 +6,45 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import org.assertj.core.api.Assumptions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 
-@Disabled
+import io.javaoperatorsdk.operator.OperatorException;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
+@EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class OperatorMainIT {
     // This is an IT because it depends on having a running Kube cluster
 
     @Test
     void run() {
-        Assumptions.assumeThat(OperatorTestUtils.isKubeClientAvailable()).describedAs("Test requires a viable kube client").isTrue();
-        OperatorMain.run();
+        try {
+            OperatorMain.run();
+        }
+        catch (OperatorException e) {
+            fail("Exception occurred starting operator: " + e.getMessage());
+        }
+
     }
 
+    @Test
+    void shouldRegisterMetrics() {
+        // Given
+
+        // When
+        OperatorMain.run();
+
+        // Then
+        assertThat(Metrics.globalRegistry.getRegistries())
+                .isNotEmpty()
+                .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class)
+                .element(0)
+                .satisfies(meterRegistry ->
+                        assertThat(meterRegistry.get("operator.sdk.reconciliations.success"))
+                                .isNotNull());
+    }
 }
