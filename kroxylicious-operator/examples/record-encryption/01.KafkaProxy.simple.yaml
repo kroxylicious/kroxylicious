@@ -10,12 +10,4 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: simple
   namespace: my-proxy
-spec:
-  clusters:
-    - name: "my-cluster"
-      upstream:
-        bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-      filters:
-      - group: filter.kroxylicious.io
-        kind: KafkaProtocolFilter
-        name: encryption
+spec: {}

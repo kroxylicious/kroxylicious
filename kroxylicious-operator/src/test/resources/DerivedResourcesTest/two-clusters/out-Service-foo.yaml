@@ -22,21 +22,26 @@ metadata:
       name: "twocluster"
 spec:
   ports:
-    - name: "foo-9292"
-      port: 9292
+    - name: "foo-9392"
+      port: 9392
       protocol: "TCP"
-      targetPort: 9292
-    - name: "foo-9293"
-      port: 9293
+      targetPort: 9392
+    - name: "foo-9393"
+      port: 9393
       protocol: "TCP"
-      targetPort: 9293
-    - name: "foo-9294"
-      port: 9294
+      targetPort: 9393
+    - name: "foo-9394"
+      port: 9394
       protocol: "TCP"
-      targetPort: 9294
-    - name: "foo-9295"
-      port: 9295
+      targetPort: 9394
+    - name: "foo-9395"
+      port: 9395
       protocol: "TCP"
-      targetPort: 9295
+      targetPort: 9395
   selector:
     app: "kroxylicious"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/instance: "twocluster"
+    app.kubernetes.io/component: "proxy"

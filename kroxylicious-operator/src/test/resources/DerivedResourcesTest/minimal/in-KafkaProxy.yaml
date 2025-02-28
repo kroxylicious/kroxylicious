@@ -10,8 +10,3 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: minimal
   namespace: proxy-ns
-spec:
-  clusters:
-  - name: "one"
-    upstream:
-      bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092

@@ -5,13 +5,14 @@
 #
 
 ---
-kind: KafkaProxy
+kind: VirtualKafkaCluster
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: use-pod-template-spec
-  namespace: proxy-ns
+  name: my-cluster
+  namespace: my-proxy
 spec:
-  podTemplate:
-    metadata:
-      labels:
-        environment: "production-from-podTemplate"
+  proxyRef:
+    name: simple
+  targetCluster:
+    bootstrapping:
+      bootstrapAddress: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
