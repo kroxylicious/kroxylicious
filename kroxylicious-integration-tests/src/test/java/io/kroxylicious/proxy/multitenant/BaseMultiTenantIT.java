@@ -100,7 +100,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
 
     static ConfigurationBuilder getConfig(KafkaCluster cluster, KeytoolCertificateGenerator certificateGenerator, NamedFilterDefinitionBuilder filterBuilder) {
         return new ConfigurationBuilder()
-                .addToVirtualClusters(TENANT_1_CLUSTER, new VirtualClusterBuilder()
+                .addToVirtualClusters(new VirtualClusterBuilder()
+                        .withName(TENANT_1_CLUSTER)
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
@@ -113,7 +114,8 @@ public abstract class BaseMultiTenantIT extends BaseIT {
                                 .endTls()
                                 .build())
                         .build())
-                .addToVirtualClusters(TENANT_2_CLUSTER, new VirtualClusterBuilder()
+                .addToVirtualClusters(new VirtualClusterBuilder()
+                        .withName(TENANT_2_CLUSTER)
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()

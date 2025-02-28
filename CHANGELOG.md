@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1847](https://github.com/kroxylicious/kroxylicious/pull/1847) Remodel virtual cluster map as a list (with explicit names).
 * [#1840](https://github.com/kroxylicious/kroxylicious/pull/1840) Refactor virtual cluster configuration model
 * [#1823](https://github.com/kroxylicious/kroxylicious/pull/1823) Allow VirtualClusters to express more than one listener
 * [#1868](https://github.com/kroxylicious/kroxylicious/pull/1868) Support use of `$()` in KEK selector templates, deprecating `${}`
@@ -23,6 +24,9 @@ Format `<github issue/pr number>: <short description>`.
   are deprecated.  Define a virtual cluster gateway with `portIdentifiesNode` to express your networking requirements.
 * The networking scheme `SniRoutingClusterNetworkAddressConfigProvider` is deprecated.  Define a virtual cluster gateway with
   `sniHostIdentifiesNode` to express your networking requirements.
+* The `virtualClusters` configuration property now expects a list of `virtualCluster` objects (rather than a mapping
+  of `name` to `virtualCluster`).  Furthermore, the `virtualCluster` object now requires a `name` configuration property.
+  For backward compatibility, support for the map (and values without `name`) continues, but this will be removed in a future release.
 
 ## 0.10.0
 

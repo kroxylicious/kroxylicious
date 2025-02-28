@@ -38,7 +38,7 @@ class VirtualClusterTest {
     @SuppressWarnings("removal")
     void supportsDeprecatedConfigProvider() {
         // Given/When
-        var vc = new VirtualCluster(targetCluster, provider, Optional.empty(), null, false, false, NO_FILTERS);
+        var vc = new VirtualCluster("mycluster", targetCluster, provider, Optional.empty(), null, false, false, NO_FILTERS);
 
         // Then
         assertThat(vc.clusterNetworkAddressConfigProvider()).isEqualTo(provider);
@@ -51,7 +51,7 @@ class VirtualClusterTest {
                 new VirtualClusterGateway("mygateway2", portIdentifiesNode2, null, Optional.empty()));
 
         // When
-        var vc = new VirtualCluster(targetCluster, null, null, gateways, false, false, NO_FILTERS);
+        var vc = new VirtualCluster("mycluster", targetCluster, null, null, gateways, false, false, NO_FILTERS);
 
         // Then
         assertThat(vc.gateways())
@@ -65,7 +65,7 @@ class VirtualClusterTest {
         var gateways = List.of(new VirtualClusterGateway("mygateway", portIdentifiesNode1, null, Optional.empty()));
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster(targetCluster, provider, null, gateways, false, false, NO_FILTERS))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, provider, null, gateways, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
@@ -76,14 +76,14 @@ class VirtualClusterTest {
         var tls = Optional.of(new Tls(null, null, null, null));
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster(targetCluster, null, tls, gateways, false, false, NO_FILTERS))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, tls, gateways, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
     @Test
     void disallowMissingGateways() {
         // Given/When/Then
-        assertThatThrownBy(() -> new VirtualCluster(targetCluster, null, null, null, false, false, NO_FILTERS))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, null, null, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
@@ -92,7 +92,7 @@ class VirtualClusterTest {
         // Given
         var noGateways = List.<VirtualClusterGateway> of();
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster(targetCluster, null, null, noGateways, false, false, NO_FILTERS))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, null, noGateways, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
@@ -102,7 +102,7 @@ class VirtualClusterTest {
         var gateways = List.of(new VirtualClusterGateway("dup", portIdentifiesNode1, null, Optional.empty()),
                 new VirtualClusterGateway("dup", portIdentifiesNode2, null, Optional.empty()));
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster(targetCluster, null, null, gateways, false, false, NO_FILTERS))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, null, gateways, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Gateway names for a virtual cluster must be unique. The following gateway names are duplicated: [dup]");
     }

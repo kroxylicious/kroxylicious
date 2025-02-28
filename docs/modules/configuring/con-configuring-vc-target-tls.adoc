@@ -24,7 +24,7 @@ certificate signed by a public CA and the platform's defaults are suitable.
 ----
 # ...
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     # ...
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
@@ -40,7 +40,7 @@ The example illustrates using PKCS #12 format. PEM format is supported too.
 ----
 # ...
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     # ...
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
@@ -65,7 +65,7 @@ PKCS #12 keystore format is supported too.
 ----
 # ...
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     # ...
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
@@ -85,7 +85,7 @@ The TLS protocols and cipher suites available to the TLS connection may also be 
 ----
 # ...
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     # ...
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
@@ -103,7 +103,7 @@ virtualClusters:
 [source,yaml]
 ----
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
@@ -119,7 +119,7 @@ virtualClusters:
 [source,yaml]
 ----
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
@@ -136,8 +136,7 @@ virtualClusters:
 [source,yaml]
 ----
 virtualClusters:
-  demo:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:
@@ -156,7 +155,7 @@ any Kafka cluster.
 [source,yaml]
 ----
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     targetCluster:
       bootstrapServers: dev-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
       tls:

@@ -14,7 +14,7 @@ The `logFrames` property controls logging of the decoded requests and responses.
 ----
 # ...
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     # ...
     logNetwork: true <1>
     logFrames: true <2>
