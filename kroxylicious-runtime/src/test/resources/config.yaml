@@ -15,8 +15,8 @@ virtualClusters:
   demo:
     targetCluster:
       bootstrapServers: localhost:9092
-    listeners:
-    - name: mylistener
+    gateways:
+    - name: mygateway
       portIdentifiesNode:
         bootstrapAddress: localhost:9192
     logNetwork: true

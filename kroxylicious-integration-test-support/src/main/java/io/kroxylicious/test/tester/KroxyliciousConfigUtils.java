@@ -19,8 +19,8 @@ import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterListener;
-import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterGateway;
+import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -37,7 +37,7 @@ public class KroxyliciousConfigUtils {
     }
 
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
-    public static final String DEFAULT_LISTENER_NAME = "default";
+    public static final String DEFAULT_GATEWAY_NAME = "default";
 
     static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
 
@@ -67,7 +67,7 @@ public class KroxyliciousConfigUtils {
                     .withNewTargetCluster()
                     .withBootstrapServers(clusterBootstrapServers)
                     .endTargetCluster()
-                    .addToListeners(defaultPortIdentifiesNodeListenerBuilder(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
+                    .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + i * 10))
                             .build());
             configurationBuilder
                     .addToVirtualClusters(virtualClusterName, vcb.build());
@@ -89,19 +89,19 @@ public class KroxyliciousConfigUtils {
      * Locate the bootstrap servers for a virtual cluster
      * @param virtualCluster virtual cluster
      * @param config config to retrieve the bootstrap from
-     * @param listener listener of the virtual cluster
+     * @param gateway gateway of the virtual cluster
      * @return bootstrap address
      * @throws IllegalStateException if we encounter an unknown endpoint config provider type for the virtualcluster
      * @throws IllegalArgumentException if the virtualCluster is not in the kroxylicious config
      */
-    static String bootstrapServersFor(String virtualCluster, Configuration config, String listener) {
+    static String bootstrapServersFor(String virtualCluster, Configuration config, String gateway) {
         var cluster = config.virtualClusters().get(virtualCluster);
         if (cluster == null) {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
-        var first = getVirtualClusterListenerStream(cluster).filter(l -> l.name().equals(listener)).map(VirtualClusterListener::clusterNetworkAddressConfigProvider)
+        var first = getVirtualClusterGatewayStream(cluster).filter(l -> l.name().equals(gateway)).map(VirtualClusterGateway::clusterNetworkAddressConfigProvider)
                 .findFirst();
-        var provider = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have listener named " + listener));
+        var provider = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
 
         // Need proper way to do this for embedded use-cases. We should have a way to query kroxy for the virtual cluster's
         // actual bootstrap after the proxy is started. The provider might support dynamic ports (port 0), so querying the
@@ -120,36 +120,36 @@ public class KroxyliciousConfigUtils {
         }
     }
 
-    public static VirtualClusterListenerBuilder defaultListenerBuilder() {
-        return new VirtualClusterListenerBuilder().withName(DEFAULT_LISTENER_NAME);
+    public static VirtualClusterGatewayBuilder defaultGatewayBuilder() {
+        return new VirtualClusterGatewayBuilder().withName(DEFAULT_GATEWAY_NAME);
     }
 
-    public static VirtualClusterListenerBuilder defaultPortIdentifiesNodeListenerBuilder(HostPort proxyAddress) {
-        return defaultListenerBuilder()
+    public static VirtualClusterGatewayBuilder defaultPortIdentifiesNodeGatewayBuilder(HostPort proxyAddress) {
+        return defaultGatewayBuilder()
                 .withNewPortIdentifiesNode()
                 .withBootstrapAddress(proxyAddress)
                 .endPortIdentifiesNode();
     }
 
-    public static VirtualClusterListenerBuilder defaultPortIdentifiesNodeListenerBuilder(String proxyAddress) {
-        return defaultPortIdentifiesNodeListenerBuilder(HostPort.parse(proxyAddress));
+    public static VirtualClusterGatewayBuilder defaultPortIdentifiesNodeGatewayBuilder(String proxyAddress) {
+        return defaultPortIdentifiesNodeGatewayBuilder(HostPort.parse(proxyAddress));
     }
 
-    public static VirtualClusterListenerBuilder defaultSniHostIdentifiesNodeListenerBuilder(HostPort bootstrapAddress, String advertisedBrokerAddressPattern) {
-        return defaultListenerBuilder()
+    public static VirtualClusterGatewayBuilder defaultSniHostIdentifiesNodeGatewayBuilder(HostPort bootstrapAddress, String advertisedBrokerAddressPattern) {
+        return defaultGatewayBuilder()
                 .withNewSniHostIdentifiesNode()
                 .withBootstrapAddress(bootstrapAddress)
                 .withAdvertisedBrokerAddressPattern(advertisedBrokerAddressPattern)
                 .endSniHostIdentifiesNode();
     }
 
-    public static VirtualClusterListenerBuilder defaultSniHostIdentifiesNodeListenerBuilder(String bootstrapAddress, String advertisedBrokerAddressPattern) {
-        return defaultSniHostIdentifiesNodeListenerBuilder(HostPort.parse(bootstrapAddress), advertisedBrokerAddressPattern);
+    public static VirtualClusterGatewayBuilder defaultSniHostIdentifiesNodeGatewayBuilder(String bootstrapAddress, String advertisedBrokerAddressPattern) {
+        return defaultSniHostIdentifiesNodeGatewayBuilder(HostPort.parse(bootstrapAddress), advertisedBrokerAddressPattern);
     }
 
     @SuppressWarnings("removal")
-    public static Stream<VirtualClusterListener> getVirtualClusterListenerStream(VirtualCluster cluster) {
-        return Optional.ofNullable(cluster.listeners())
+    public static Stream<VirtualClusterGateway> getVirtualClusterGatewayStream(VirtualCluster cluster) {
+        return Optional.ofNullable(cluster.gateways())
                 .filter(Predicate.not(List::isEmpty))
                 .map(Collection::stream)
                 .orElseGet(() -> {
@@ -160,7 +160,7 @@ public class KroxyliciousConfigUtils {
                                 pc.getBrokerStartPort(),
                                 null);
 
-                        return Stream.of(new VirtualClusterListener(DEFAULT_LISTENER_NAME,
+                        return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
                                 ppb, null, cluster.tls()));
                     }
                     else if (providerDefinition.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rc) {
@@ -172,14 +172,14 @@ public class KroxyliciousConfigUtils {
                                 rc.getNodeStartPort(),
                                 ranges);
 
-                        return Stream.of(new VirtualClusterListener(DEFAULT_LISTENER_NAME,
+                        return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
                                 rap, null, cluster.tls()));
                     }
                     else if (providerDefinition.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sc) {
                         var snp = new SniHostIdentifiesNodeIdentificationStrategy(sc.getBootstrapAddress(),
                                 sc.getBrokerAddressPattern());
 
-                        return Stream.of(new VirtualClusterListener(DEFAULT_LISTENER_NAME,
+                        return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
                                 null, snp, cluster.tls()));
                     }
                     throw new UnsupportedOperationException(providerDefinition.type() + " is unrecognised");

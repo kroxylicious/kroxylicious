@@ -106,7 +106,7 @@ public final class KroxyliciousConfigMapTemplates {
                     prometheus: {}
                 virtualClusters:
                   my-cluster-proxy:
-                    listeners:
+                    gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: localhost:9292
@@ -131,7 +131,7 @@ public final class KroxyliciousConfigMapTemplates {
                   demo:
                     targetCluster:
                       bootstrapServers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
-                    listeners:
+                    gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: localhost:9292
@@ -157,7 +157,7 @@ public final class KroxyliciousConfigMapTemplates {
                   demo:
                     targetCluster:
                       bootstrapServers: %s:9094
-                    listeners:
+                    gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: localhost:9292

@@ -65,7 +65,7 @@ class ConfigParserTest {
                           demo1:
                             targetCluster:
                               bootstrapServers: kafka.example:1234
-                            listeners:
+                            gateways:
                             - name: default
                               portIdentifiesNode:
                                   bootstrapAddress: cluster1:9192
@@ -75,7 +75,7 @@ class ConfigParserTest {
                           demo1:
                             targetCluster:
                               bootstrapServers: kafka.example:1234
-                            listeners:
+                            gateways:
                             - name: default
                               portIdentifiesNode:
                                   bootstrapAddress: cluster1:9192
@@ -87,7 +87,7 @@ class ConfigParserTest {
                           demo1:
                             targetCluster:
                               bootstrapServers: kafka.example:1234
-                            listeners:
+                            gateways:
                             - name: default
                               portIdentifiesNode:
                                 bootstrapAddress: cluster1:9192
@@ -104,7 +104,7 @@ class ConfigParserTest {
                           demo1:
                             targetCluster:
                               bootstrapServers: kafka.example:1234
-                            listeners:
+                            gateways:
                             - name: default
                               portIdentifiesNode:
                                 bootstrapAddress: cluster1:9192
@@ -120,7 +120,7 @@ class ConfigParserTest {
                           demo1:
                             targetCluster:
                               bootstrapServers: kafka.example:1234
-                            listeners:
+                            gateways:
                             - name: default
                               sniHostIdentifiesNode:
                                 bootstrapAddress: cluster1:9192
@@ -143,7 +143,7 @@ class ConfigParserTest {
                                  storePassword:
                                    password: password
                                  storeType: JKS
-                            listeners:
+                            gateways:
                             - name: default
                               sniHostIdentifiesNode:
                                 bootstrapAddress: cluster1:9192
@@ -166,7 +166,7 @@ class ConfigParserTest {
                                  storePassword:
                                     passwordFile: /tmp/password.txt
                                  storeType: JKS
-                            listeners:
+                            gateways:
                             - name: default
                               sniHostIdentifiesNode:
                                 bootstrapAddress: cluster1:9192
@@ -265,6 +265,7 @@ class ConfigParserTest {
     }
 
     @Test
+    @SuppressWarnings("removal")
     void testDeserializeFromYaml() {
         Configuration configuration = configParser.parseConfiguration(this.getClass().getClassLoader().getResourceAsStream("config.yaml"));
         assertThat(configuration.isUseIoUring()).isTrue();
@@ -284,10 +285,10 @@ class ConfigParserTest {
         assertThat(cluster.targetCluster()).isNotNull();
         assertThat(cluster.targetCluster().bootstrapServers()).isEqualTo("localhost:9092");
 
-        assertThat(cluster.listeners())
+        assertThat(cluster.gateways())
                 .singleElement()
                 .satisfies(vcl -> {
-                    assertThat(vcl.name()).isEqualTo("mylistener");
+                    assertThat(vcl.name()).isEqualTo("mygateway");
                     assertThat(vcl.clusterNetworkAddressConfigProvider())
                             .extracting(ClusterNetworkAddressConfigProviderDefinition::config)
                             .asInstanceOf(InstanceOfAssertFactories.type(RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig.class))
@@ -349,14 +350,14 @@ class ConfigParserTest {
                   demo1:
                     targetCluster:
                       bootstrapServers: kafka.example:1234
-                    listeners:
+                    gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: cluster1:9192
                   demo1:
                     targetCluster:
                       bootstrapServers: magic-kafka.example:1234
-                    listeners:
+                    gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: cluster1:9192
@@ -520,8 +521,8 @@ class ConfigParserTest {
         final Configuration configurationModel = configParser.parseConfiguration("""
                         virtualClusters:
                           demo1:
-                            listeners:
-                            - name: mylistener
+                            gateways:
+                            - name: mygateway
                               tls:
                                 key:
                                   storeFile: /tmp/store.txt
@@ -534,10 +535,10 @@ class ConfigParserTest {
         final var virtualCluster = configurationModel.virtualClusters().values().iterator().next();
 
         // Then
-        assertThat(virtualCluster.listeners())
+        assertThat(virtualCluster.gateways())
                 .singleElement()
                 .satisfies(vcl -> {
-                    assertThat(vcl.name()).isEqualTo("mylistener");
+                    assertThat(vcl.name()).isEqualTo("mygateway");
                     assertThat(vcl.tls())
                             .get()
                             .extracting(Tls::key)

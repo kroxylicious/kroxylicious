@@ -65,13 +65,13 @@ The _Virtual Cluster_ is the downstream representation of a Kafka Cluster.  At t
 connects to a Virtual Cluster.  Kroxylicious proxies all communications made to the Virtual Cluster through to a
 (physical) Kafka Cluster, passing it through the _Filter Chain_.
 
-=== Virtual cluster listener
+=== Virtual cluster gateway
 
-Each virtual cluster has one or more dedicated listeners, which Kafka clients use to establish connections.
+Each virtual cluster has one or more dedicated gateways, which Kafka clients use to establish connections.
 
-Each listener exposes a bootstrap endpoint, which the Kafka Client must specify in its configuration as the https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[`bootstrap.servers`] property.
+Each gateway exposes a bootstrap endpoint, which the Kafka Client must specify in its configuration as the https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[`bootstrap.servers`] property.
 
-In addition to the bootstrap endpoint, the listener automatically exposes broker endpoints. There is one broker endpoint
+In addition to the bootstrap endpoint, the gateway automatically exposes broker endpoints. There is one broker endpoint
 for each broker of the physical cluster.  When the Client connects to a broker endpoint, Kroxylicious proxies all
 communications to the corresponding broker of the (physical) Kafka Cluster.
 
@@ -79,8 +79,8 @@ Kroxylicious automatically intercepts all the Kafka RPC responses that contain a
 so that it refers to the corresponding broker endpoint of the Virtual Cluster.  This means when the Kafka Client
 goes to connect to, say broker 0, it does so through the Virtual Cluster.
 
-Defining multiple listeners for a virtual cluster is useful when exposing it across different network segments. 
-For example, in Kubernetes, you might configure one listener for on-cluster traffic and another for off-cluster traffic.
+Defining multiple gateways for a virtual cluster is useful when exposing it across different network segments.
+For example, in Kubernetes, you might configure one gateway for on-cluster traffic and another for off-cluster traffic.
 
 === Target cluster
 
@@ -104,9 +104,9 @@ filter.
 | '---------' :   |    '----------------------------'   |    :      '---------'   :   |
 |             :   |    |[Virtual Cluster]           |===+====|=====>|[Broker] |   :   |
 |             :   |    |                            |   |    :      |         |   :   |
-|             +===|===>| '-----------'              |   |    :      '---------'   :   |
-|             :   |    | |[Listener] |              |   |    :                    :   |
-|             +===|===>| '-----------'              |   |    :      '---------'   :   |
+|             +===|===>| '---------'                |   |    :      '---------'   :   |
+|             :   |    | |[Gateway]|                |   |    :                    :   |
+|             +===|===>| '---------'                |   |    :      '---------'   :   |
 |                 |    |                            |===+====:==+==>|[Broker] |   :   |
 |                 |    '----------------------------'   |    :      |         |   :   |
 |                 |                                     |    :      '---------'   :   |
@@ -125,18 +125,18 @@ filter.
 | |[Client] |=+   |                                     |    :                    :   |
 | '---------' :   |    '----------------------------'   |    :      '---------'   :   |
 |             :   |    |[Virtual Cluster A]         |===+=+==|==+==>|[Broker] |   :   |
-|             +===|===>| '-----------'              |   | :  :      |         |   :   |
-|             :   |    | |[Listener] |              |   | :  :      '---------'   :   |
-|             +===|===>| '-----------'              |   | :  :                    :   |
+|             +===|===>| '---------'                |   | :  :      |         |   :   |
+|             :   |    | |[Gateway]|                |   | :  :      '---------'   :   |
+|             +===|===>| '---------'                |   | :  :                    :   |
 |                 |    |                            |   | :  :      '---------'   :   |
 |                 |    |                            |===+====:==+==>|[Broker] |   :   |
 |                 |    '----------------------------'   | :  :  :   |         |   :   |
 | '---------'     |                                     | :  :  :   '---------'   :   |
 | |[Client] |=+   |    '----------------------------'   | :  :  :                 :   |
 | '---------' :   |    |[Virtual Cluster B]         |===+=+  '===================='   |
-|             +===|===>| '-----------'              |   |       :                     |
-|             :   |    | |[Listener] |              |   |       :                     |
-|             +===|===>| '-----------'              |   |       :                     |
+|             +===|===>| '---------'                |   |       :                     |
+|             :   |    | |[Gateway]|                |   |       :                     |
+|             +===|===>| '---------'                |   |       :                     |
 |                 |    |                            |   |       :                     |
 |                 |    |                            |===+=======+                     |
 |                 |    '----------------------------'   |                             |

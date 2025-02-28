@@ -17,7 +17,7 @@ public interface EndpointBinding {
      *
      * @return virtual cluster.
      */
-    EndpointListener endpointListener();
+    EndpointGateway endpointGateway();
 
     /**
      * The upstream target of this binding.

@@ -47,8 +47,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.getVirtualClusterListenerStream;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.getVirtualClusterGatewayStream;
 
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
@@ -58,7 +58,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     private final Configuration kroxyliciousConfig;
 
-    private final Map<ListenerId, KroxyliciousClients> clients;
+    private final Map<GatewayId, KroxyliciousClients> clients;
     private final Map<String, Set<String>> topicsPerVirtualCluster;
 
     private final ClientFactory clientFactory;
@@ -77,7 +77,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private KroxyliciousClients clients() {
-        return clients(onlyVirtualCluster(), DEFAULT_LISTENER_NAME);
+        return clients(onlyVirtualCluster(), DEFAULT_GATEWAY_NAME);
     }
 
     private String onlyVirtualCluster() {
@@ -91,38 +91,38 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         }
     }
 
-    private KroxyliciousClients clients(String virtualCluster, String listener) {
-        ListenerId key = new ListenerId(virtualCluster, listener);
+    private KroxyliciousClients clients(String virtualCluster, String gateway) {
+        GatewayId key = new GatewayId(virtualCluster, gateway);
         return clients.computeIfAbsent(key,
-                k -> clientFactory.build(key, buildDefaultClientConfiguration(virtualCluster, listener)));
+                k -> clientFactory.build(key, buildDefaultClientConfiguration(virtualCluster, gateway)));
     }
 
     @NonNull
-    private Map<String, Object> buildDefaultClientConfiguration(String virtualCluster, String listener) {
+    private Map<String, Object> buildDefaultClientConfiguration(String virtualCluster, String gateway) {
         Map<String, Object> defaultClientConfig = new HashMap<>();
-        defaultClientConfig.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapAddress(virtualCluster, listener));
-        configureClientTls(virtualCluster, defaultClientConfig, listener);
+        defaultClientConfig.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapAddress(virtualCluster, gateway));
+        configureClientTls(virtualCluster, defaultClientConfig, gateway);
         return defaultClientConfig;
     }
 
     @Override
     @NonNull
     public String getBootstrapAddress() {
-        return getBootstrapAddress(onlyVirtualCluster(), DEFAULT_LISTENER_NAME);
+        return getBootstrapAddress(onlyVirtualCluster(), DEFAULT_GATEWAY_NAME);
     }
 
     @Override
     @NonNull
-    public String getBootstrapAddress(String virtualCluster, String listener) {
-        return KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig, listener);
+    public String getBootstrapAddress(String virtualCluster, String gateway) {
+        return KroxyliciousConfigUtils.bootstrapServersFor(virtualCluster, kroxyliciousConfig, gateway);
     }
 
-    private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig, String listener) {
+    private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig, String gateway) {
         final VirtualCluster definedCluster = kroxyliciousConfig.virtualClusters().get(virtualCluster);
         if (definedCluster != null) {
 
-            var first = getVirtualClusterListenerStream(definedCluster).filter(l -> l.name().equals(listener)).findFirst();
-            var vcl = first.orElseThrow(() -> new IllegalArgumentException("cluster " + virtualCluster + " does not contain listener named " + listener));
+            var first = getVirtualClusterGatewayStream(definedCluster).filter(g -> g.name().equals(gateway)).findFirst();
+            var vcl = first.orElseThrow(() -> new IllegalArgumentException("cluster " + virtualCluster + " does not contain gateway named " + gateway));
             final Optional<Tls> tls = vcl.tls();
             if (tls.isPresent()) {
                 defaultClientConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name);
@@ -182,67 +182,67 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @Override
     public KafkaClient simpleTestClient(String virtualCluster) {
-        return clients(virtualCluster, DEFAULT_LISTENER_NAME).simpleTestClient();
+        return clients(virtualCluster, DEFAULT_GATEWAY_NAME).simpleTestClient();
     }
 
     @Override
     public Admin admin(String virtualCluster, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster, DEFAULT_LISTENER_NAME).admin(additionalConfig);
+        return clients(virtualCluster, DEFAULT_GATEWAY_NAME).admin(additionalConfig);
     }
 
     @Override
-    public Admin admin(String virtualCluster, String listenerName, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster, listenerName).admin(additionalConfig);
+    public Admin admin(String virtualCluster, String gatewayName, Map<String, Object> additionalConfig) {
+        return clients(virtualCluster, gatewayName).admin(additionalConfig);
     }
 
     @Override
     public Admin admin(String virtualCluster) {
-        return clients(virtualCluster, DEFAULT_LISTENER_NAME).admin();
+        return clients(virtualCluster, DEFAULT_GATEWAY_NAME).admin();
     }
 
     @Override
-    public Admin admin(String virtualCluster, String listener) {
-        return clients(virtualCluster, listener).admin();
+    public Admin admin(String virtualCluster, String gateway) {
+        return clients(virtualCluster, gateway).admin();
     }
 
     @Override
     public Producer<String, String> producer(String virtualCluster, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster, DEFAULT_LISTENER_NAME).producer(additionalConfig);
+        return clients(virtualCluster, DEFAULT_GATEWAY_NAME).producer(additionalConfig);
     }
 
     @Override
     public Producer<String, String> producer(String virtualCluster) {
-        return producer(virtualCluster, DEFAULT_LISTENER_NAME);
+        return producer(virtualCluster, DEFAULT_GATEWAY_NAME);
     }
 
     @Override
-    public Producer<String, String> producer(String virtualCluster, String listener) {
-        return clients(virtualCluster, listener).producer();
+    public Producer<String, String> producer(String virtualCluster, String gateway) {
+        return clients(virtualCluster, gateway).producer();
     }
 
     @Override
     public <U, V> Producer<U, V> producer(String virtualCluster, Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster, DEFAULT_LISTENER_NAME).producer(keySerde, valueSerde, additionalConfig);
+        return clients(virtualCluster, DEFAULT_GATEWAY_NAME).producer(keySerde, valueSerde, additionalConfig);
     }
 
     @Override
     public Consumer<String, String> consumer(String virtualCluster, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster, DEFAULT_LISTENER_NAME).consumer(additionalConfig);
+        return clients(virtualCluster, DEFAULT_GATEWAY_NAME).consumer(additionalConfig);
     }
 
     @Override
     public Consumer<String, String> consumer(String virtualCluster) {
-        return consumer(virtualCluster, DEFAULT_LISTENER_NAME);
+        return consumer(virtualCluster, DEFAULT_GATEWAY_NAME);
     }
 
     @Override
-    public Consumer<String, String> consumer(String virtualCluster, String listener) {
-        return clients(virtualCluster, listener).consumer();
+    public Consumer<String, String> consumer(String virtualCluster, String gateway) {
+        return clients(virtualCluster, gateway).consumer();
     }
 
     @Override
     public <U, V> Consumer<U, V> consumer(String virtualCluster, Serde<U> keySerde, Serde<V> valueSerde, Map<String, Object> additionalConfig) {
-        return clients(virtualCluster, DEFAULT_LISTENER_NAME).consumer(keySerde, valueSerde, additionalConfig);
+        return clients(virtualCluster, DEFAULT_GATEWAY_NAME).consumer(keySerde, valueSerde, additionalConfig);
     }
 
     public void restartProxy() {
@@ -298,7 +298,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @Override
     public Set<String> createTopics(String virtualCluster, int numberOfTopics) {
-        try (Admin admin = clients(virtualCluster, DEFAULT_LISTENER_NAME).admin()) {
+        try (Admin admin = clients(virtualCluster, DEFAULT_GATEWAY_NAME).admin()) {
             final List<NewTopic> newTopics = IntStream.range(0, numberOfTopics).mapToObj(ignored -> {
                 final String topicName = MobyNamesGenerator.getRandomName();
                 return new NewTopic(topicName, (short) 1, (short) 1);
@@ -325,7 +325,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @Override
     public void deleteTopics(String virtualCluster) {
-        try (Admin admin = clients(virtualCluster, DEFAULT_LISTENER_NAME).admin()) {
+        try (Admin admin = clients(virtualCluster, DEFAULT_GATEWAY_NAME).admin()) {
             final Set<String> topics = topicsForVirtualCluster(virtualCluster);
             if (!topics.isEmpty()) {
                 admin.deleteTopics(topics)
@@ -361,7 +361,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     @FunctionalInterface
     interface ClientFactory {
-        KroxyliciousClients build(ListenerId listener, Map<String, Object> defaultClientConfig);
+        KroxyliciousClients build(GatewayId gateway, Map<String, Object> defaultClientConfig);
     }
 
 }

@@ -47,8 +47,8 @@ import io.kroxylicious.net.PassthroughProxy;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterListener;
-import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterGateway;
+import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
@@ -62,10 +62,10 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultListenerBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeListenerBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeListenerBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -125,8 +125,8 @@ class ExpositionIT extends BaseIT {
         for (int i = 0; i < clusterProxyAddresses.size(); i++) {
             var bootstrap = HostPort.parse(clusterProxyAddresses.get(i));
             var virtualCluster = baseVirtualClusterBuilder(cluster)
-                    .addToListeners(new VirtualClusterListenerBuilder()
-                            .withName(DEFAULT_LISTENER_NAME)
+                    .addToGateways(new VirtualClusterGatewayBuilder()
+                            .withName(DEFAULT_GATEWAY_NAME)
                             .withNewPortIdentifiesNode()
                             .withBootstrapAddress(bootstrap)
                             .endPortIdentifiesNode()
@@ -146,22 +146,22 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesSingleClusterWithMultiplePortPerBrokerListeners(KafkaCluster cluster) throws Exception {
+    void exposesSingleClusterWithMultiplePortPerBrokerGateways(KafkaCluster cluster) throws Exception {
         var builder = new ConfigurationBuilder();
 
         VirtualClusterBuilder virtualClusterBuilder = baseVirtualClusterBuilder(cluster);
-        virtualClusterBuilder.addToListeners(portPerBrokerListener("localhost:9192", "listener1"),
-                portPerBrokerListener("localhost:9294", "listener2"));
+        virtualClusterBuilder.addToGateways(portPerBrokerGateway("localhost:9192", "gateway1"),
+                portPerBrokerGateway("localhost:9294", "gateway2"));
         var virtualCluster = virtualClusterBuilder.build();
         builder.addToVirtualClusters("cluster", virtualCluster);
 
         try (var tester = kroxyliciousTester(builder)) {
-            try (var admin = tester.admin("cluster", "listener1")) {
+            try (var admin = tester.admin("cluster", "gateway1")) {
                 createTopic(admin, TOPIC, 1);
                 Set<Integer> ports = getClusterNodePorts(admin);
                 assertThat(ports).containsExactly(9193);
             }
-            try (var admin = tester.admin("cluster", "listener2")) {
+            try (var admin = tester.admin("cluster", "gateway2")) {
                 createTopic(admin, TOPIC + "2", 1);
                 Set<Integer> ports = getClusterNodePorts(admin);
                 assertThat(ports).containsExactly(9295);
@@ -173,9 +173,9 @@ class ExpositionIT extends BaseIT {
         return admin.describeCluster().nodes().get(5, TimeUnit.SECONDS).stream().map(Node::port).collect(Collectors.toSet());
     }
 
-    private static VirtualClusterListener portPerBrokerListener(String bootstrapAddress, String listenerName) {
-        return new VirtualClusterListenerBuilder()
-                .withName(listenerName)
+    private static VirtualClusterGateway portPerBrokerGateway(String bootstrapAddress, String gatewayName) {
+        return new VirtualClusterGatewayBuilder()
+                .withName(gatewayName)
                 .withNewPortIdentifiesNode()
                 .withBootstrapAddress(HostPort.parse(bootstrapAddress))
                 .endPortIdentifiesNode()
@@ -208,7 +208,7 @@ class ExpositionIT extends BaseIT {
             var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern);
 
             var virtualCluster = baseVirtualClusterBuilder(cluster)
-                    .addToListeners(defaultSniHostIdentifiesNodeListenerBuilder(virtualClusterBootstrapPattern + ":9192",
+                    .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":9192",
                             virtualClusterBrokerAddressPattern + ":" + proxy.getLocalPort())
                             .withNewTls()
                             .withNewKeyStoreKey()
@@ -254,7 +254,7 @@ class ExpositionIT extends BaseIT {
             keystoreTrustStoreList.add(keystoreTrustStorePair);
 
             var virtualCluster = baseVirtualClusterBuilder(cluster)
-                    .addToListeners(defaultSniHostIdentifiesNodeListenerBuilder(virtualClusterFQDN + ":9192", virtualClusterBrokerAddressPattern.formatted(i))
+                    .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterFQDN + ":9192", virtualClusterBrokerAddressPattern.formatted(i))
                             .withNewTls()
                             .withNewKeyStoreKey()
                             .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
@@ -283,7 +283,7 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesSingleUpstreamClustersUsingMultipleSniListeners(KafkaCluster cluster) throws Exception {
+    void exposesSingleUpstreamClustersUsingMultipleSniGateways(KafkaCluster cluster) throws Exception {
         var keystoreTrustStoreList = new ArrayList<KeystoreTrustStorePair>();
         var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".virtualcluster%d");
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
@@ -291,15 +291,15 @@ class ExpositionIT extends BaseIT {
 
         var builder = new ConfigurationBuilder();
 
-        int numberOfListeners = 2;
+        int numberOfGateways = 2;
         VirtualClusterBuilder virtualClusterBuilder = baseVirtualClusterBuilder(cluster);
-        for (int i = 0; i < numberOfListeners; i++) {
+        for (int i = 0; i < numberOfGateways; i++) {
             var virtualClusterFQDN = virtualClusterBootstrapPattern.formatted(i);
             var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern.formatted(i));
             keystoreTrustStoreList.add(keystoreTrustStorePair);
             virtualClusterBuilder
-                    .addToListeners(new VirtualClusterListenerBuilder()
-                            .withName("listener-" + i)
+                    .addToGateways(new VirtualClusterGatewayBuilder()
+                            .withName("gateway-" + i)
                             .withNewSniHostIdentifiesNode()
                             .withBootstrapAddress(new HostPort(virtualClusterFQDN, 9192))
                             .withAdvertisedBrokerAddressPattern(virtualClusterBrokerAddressPattern.formatted(i))
@@ -318,9 +318,9 @@ class ExpositionIT extends BaseIT {
         builder.addToVirtualClusters("cluster", virtualClusterBuilder.build());
 
         try (var tester = kroxyliciousTester(builder)) {
-            for (int i = 0; i < numberOfListeners; i++) {
+            for (int i = 0; i < numberOfGateways; i++) {
                 var trust = keystoreTrustStoreList.get(i);
-                try (var admin = tester.admin("cluster", "listener-" + i, Map.of(
+                try (var admin = tester.admin("cluster", "gateway-" + i, Map.of(
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.clientTrustStore(),
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
@@ -340,7 +340,7 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(defaultListenerBuilder()
+                        .addToGateways(defaultGatewayBuilder()
                                 .withNewPortIdentifiesNode()
                                 .withBootstrapAddress(PROXY_ADDRESS)
                                 .withNodeIdRanges(new NamedRange("nodes", 0, 2))
@@ -372,7 +372,7 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(defaultListenerBuilder()
+                        .addToGateways(defaultGatewayBuilder()
                                 .withNewPortIdentifiesNode()
                                 .withBootstrapAddress(PROXY_ADDRESS)
                                 .withNodeIdRanges(new NamedRange("node-0", 0, 0), new NamedRange("node-2", 2, 2))
@@ -403,7 +403,7 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder(proxyAddress).build())
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(proxyAddress).build())
                         .build());
 
         var brokerEndpoints = Map.of(0, "localhost:" + (PROXY_ADDRESS.port() + 1), 1, "localhost:" + (PROXY_ADDRESS.port() + 2));
@@ -430,7 +430,7 @@ class ExpositionIT extends BaseIT {
                         new VirtualClusterBuilder()
                                 .withNewTargetCluster()
                                 .endTargetCluster()
-                                .addToListeners(defaultPortIdentifiesNodeListenerBuilder(PROXY_ADDRESS)
+                                .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                         .withNewTls()
                                         .withNewKeyStoreKey()
                                         .withStoreFile(portPerBrokerKeystoreTrustStorePair.brokerKeyStore())
@@ -445,7 +445,7 @@ class ExpositionIT extends BaseIT {
                         new VirtualClusterBuilder()
                                 .withNewTargetCluster()
                                 .endTargetCluster()
-                                .addToListeners(defaultSniHostIdentifiesNodeListenerBuilder(SNI_BOOTSTRAP.toString(), SNI_BROKER_ADDRESS_PATTERN)
+                                .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(SNI_BOOTSTRAP.toString(), SNI_BROKER_ADDRESS_PATTERN)
                                         .withNewTls()
                                         .withNewKeyStoreKey()
                                         .withStoreFile(sniKeystoreTrustStorePair.brokerKeyStore())
@@ -485,7 +485,7 @@ class ExpositionIT extends BaseIT {
                                                                               @BrokerCluster(numBrokers = 2) @SaslMechanism(principals = {
                                                                                       @SaslMechanism.Principal(user = SASL_USER, password = SASL_PASSWORD) }) KafkaCluster cluster) {
 
-        final Optional<Tls> tls = virtualClusterBuilder.buildFirstListener().tls();
+        final Optional<Tls> tls = virtualClusterBuilder.buildFirstGateway().tls();
         SecurityProtocol securityProtocol = tls.isPresent() ? SecurityProtocol.SASL_SSL : SecurityProtocol.SASL_PLAINTEXT;
         clientSecurityProtocolConfig = new HashMap<>(clientSecurityProtocolConfig);
         clientSecurityProtocolConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol.name);
@@ -555,7 +555,7 @@ class ExpositionIT extends BaseIT {
                 .addToVirtualClusters("demo", virtualClusterBuilder.build());
 
         final HostPort discoveryBrokerAddressToProbe;
-        if (virtualClusterBuilder.buildFirstListener().sniHostIdentifiesNode() != null) {
+        if (virtualClusterBuilder.buildFirstGateway().sniHostIdentifiesNode() != null) {
             discoveryBrokerAddressToProbe = new HostPort(SNI_BROKER_ADDRESS_PATTERN.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers())),
                     SNI_BOOTSTRAP.port());
         }
@@ -606,7 +606,7 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder(PROXY_ADDRESS)
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .build())
                         .build());
 
@@ -642,7 +642,7 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(defaultListenerBuilder()
+                        .addToGateways(defaultGatewayBuilder()
                                 .withNewPortIdentifiesNode()
                                 .withBootstrapAddress(PROXY_ADDRESS)
                                 .withNodeIdRanges(new NamedRange("myrange", 1, 2))
@@ -663,7 +663,7 @@ class ExpositionIT extends BaseIT {
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()
-                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder(PROXY_ADDRESS)
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .build())
                         .build());
 

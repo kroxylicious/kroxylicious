@@ -41,8 +41,8 @@ your Kafka client off-EC2.
        demo:
          targetCluster:
            bootstrapServers: localhost:9092
-         listeners:
-         - name: mylistener
+         gateways:
+         - name: mygateway
            portIdentifiesNode:
              bootstrapAddress: ec2-xx-xx-xx-xx.compute-1.amazonaws.com:9192
          logNetwork: false

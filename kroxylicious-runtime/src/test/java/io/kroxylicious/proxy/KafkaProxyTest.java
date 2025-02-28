@@ -56,7 +56,7 @@ class KafkaProxyTest {
         }
     }
 
-    public static Stream<Arguments> detectsConflictingPorts() {
+    static Stream<Arguments> detectsConflictingPorts() {
         return Stream.of(Arguments.of("bootstrap port conflict", """
                 virtualClusters:
                   demo1:
@@ -76,7 +76,7 @@ class KafkaProxyTest {
                         bootstrapAddress: localhost:9192 # Conflict
                         numberOfBrokerPorts: 1
                 """,
-                "exclusive TCP bind of <any>:9192 for listener 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9192 for listener 'default' of virtual cluster 'demo2': exclusive port collision"),
+                "exclusive TCP bind of <any>:9192 for gateway 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9192 for gateway 'default' of virtual cluster 'demo2': exclusive port collision"),
                 Arguments.of("broker port conflict", """
                         virtualClusters:
                           demo1:
@@ -98,7 +98,7 @@ class KafkaProxyTest {
                                 brokerStartPort: 9193 # Conflict
                                 numberOfBrokerPorts: 1
                         """,
-                        "exclusive TCP bind of <any>:9193 for listener 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9193 for listener 'default' of virtual cluster 'demo2': exclusive port collision"));
+                        "exclusive TCP bind of <any>:9193 for gateway 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9193 for gateway 'default' of virtual cluster 'demo2': exclusive port collision"));
     }
 
     @ParameterizedTest(name = "{0}")
@@ -123,7 +123,7 @@ class KafkaProxyTest {
                     targetCluster:
                       bootstrapServers: kafka.example:1234
                 """,
-                "Cluster endpoint provider requires ServerNameIndication, but virtual cluster listener 'default' does not configure TLS and provide a certificate for the server"));
+                "Cluster endpoint provider requires ServerNameIndication, but virtual cluster gateway 'default' does not configure TLS and provide a certificate for the server"));
     }
 
     @ParameterizedTest(name = "{0}")

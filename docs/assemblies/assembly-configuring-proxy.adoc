@@ -7,7 +7,7 @@ Fine-tune your deployment by configuring proxies to include additional features 
 include::../modules/configuring/con-configuration-outline.adoc[leveloffset=+1]
 include::../modules/configuring/con-configuring-filters.adoc[leveloffset=+1]
 include::../modules/configuring/con-configuring-virtual-clusters.adoc[leveloffset=+1]
-include::../modules/configuring/con-configuring-vc-listeners.adoc[leveloffset=+1]
+include::../modules/configuring/con-configuring-vc-gateways.adoc[leveloffset=+1]
 include::../modules/configuring/con-configuring-vc-client-tls.adoc[leveloffset=+1]
 include::../modules/configuring/con-configuring-vc-target-tls.adoc[leveloffset=+1]
 

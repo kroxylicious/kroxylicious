@@ -31,9 +31,9 @@ import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPe
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultListenerBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeListenerBuilder;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeListenerBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
@@ -41,7 +41,7 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 class ConfigurationTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory()).registerModule(new Jdk8Module());
-    private static final VirtualClusterListener VIRTUAL_CLUSTER_LISTENER = defaultListenerBuilder()
+    private static final VirtualClusterGateway VIRTUAL_CLUSTER_GATEWAY = defaultGatewayBuilder()
             .withNewPortIdentifiesNode()
             .withBootstrapAddress(HostPort.parse("example.com:1234"))
             .endPortIdentifiesNode()
@@ -54,7 +54,7 @@ class ConfigurationTest {
                 """
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
-                              listeners:
+                              gateways:
                               - name: default
                                 sniHostIdentifiesNode:
                                   bootstrapAddress: cluster1:9192
@@ -78,7 +78,7 @@ class ConfigurationTest {
                                   targetCluster:
                                     bootstrap_servers: kafka.example:1234
                                     bootstrapServers: kafka.example:1234
-                                  listeners:
+                                  gateways:
                                   - name: default
                                     portIdentifiesNode:
                                       bootstrapAddress: cluster1:9192
@@ -94,7 +94,7 @@ class ConfigurationTest {
             MAPPER.readValue(
                     """
                                 targetCluster: {}
-                                listeners:
+                                gateways:
                                 - name: default
                                   portIdentifiesNode:
                                     bootstrapAddress: cluster1:9192
@@ -105,7 +105,7 @@ class ConfigurationTest {
     }
 
     @Test
-    void shouldRejectVirtualClusterWithNoListeners() {
+    void shouldRejectVirtualClusterWithNoGateways() {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
@@ -114,35 +114,35 @@ class ConfigurationTest {
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("no listeners configured for virtualCluster");
+                .hasMessageContaining("no gateways configured for virtualCluster");
     }
 
     @Test
-    void shouldRejectVirtualClusterWithNullListeners() {
+    void shouldRejectVirtualClusterWithNullGateways() {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
-                              listeners: null
+                              gateways: null
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("no listeners configured for virtualCluster");
+                .hasMessageContaining("no gateways configured for virtualCluster");
     }
 
     @Test
-    void shouldRejectVirtualClusterNullListenerValue() {
+    void shouldRejectVirtualClusterNullGatewayValue() {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
-                              listeners: [null]
+                              gateways: [null]
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("one or more listeners were null");
+                .hasMessageContaining("one or more gateways were null");
     }
 
     @Test
@@ -185,13 +185,13 @@ class ConfigurationTest {
     }
 
     @Test
-    void shouldRejectVirtualClusterWithLegacyProviderAndNewListeners() {
+    void shouldRejectVirtualClusterWithLegacyProviderAndNewGateways() {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
-                              listeners:
+                              gateways:
                               - name: default
                                 sniHostIdentifiesNode:
                                     bootstrapAddress: cluster1:9192
@@ -208,7 +208,7 @@ class ConfigurationTest {
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("When using listeners, the virtualCluster properties 'clusterNetworkAddressConfigProvider' and 'tls' must be omitted");
+                .hasMessageContaining("When using gateways, the virtualCluster properties 'clusterNetworkAddressConfigProvider' and 'tls' must be omitted");
     }
 
     @Test
@@ -294,13 +294,13 @@ class ConfigurationTest {
                                     defaultFilters:
                                       - filter-1
                                 """),
-                argumentSet("With Virtual Cluster - single listener",
+                argumentSet("With Virtual Cluster - single gateway",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .addToListeners(KroxyliciousConfigUtils.defaultPortIdentifiesNodeListenerBuilder(HostPort.parse("cluster1:9192")).build())
+                                        .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(HostPort.parse("cluster1:9192")).build())
                                         .build())
                                 .build(),
                         """
@@ -308,25 +308,25 @@ class ConfigurationTest {
                                   demo:
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
-                                    listeners:
+                                    gateways:
                                     - name: default
                                       portIdentifiesNode:
                                         bootstrapAddress: cluster1:9192
                                 """),
-                argumentSet("With Virtual Cluster - multiple listeners",
+                argumentSet("With Virtual Cluster - multiple gateways",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters("demo", new VirtualClusterBuilder()
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .addToListeners(new VirtualClusterListenerBuilder()
-                                                .withName("listener1")
+                                        .addToGateways(new VirtualClusterGatewayBuilder()
+                                                .withName("gateway1")
                                                 .withNewPortIdentifiesNode()
                                                 .withBootstrapAddress(HostPort.parse("localhost:9192"))
                                                 .endPortIdentifiesNode()
                                                 .build())
-                                        .addToListeners(new VirtualClusterListenerBuilder()
-                                                .withName("listener2")
+                                        .addToGateways(new VirtualClusterGatewayBuilder()
+                                                .withName("gateway2")
                                                 .withNewPortIdentifiesNode()
                                                 .withBootstrapAddress(HostPort.parse("localhost:9292"))
                                                 .endPortIdentifiesNode()
@@ -338,11 +338,11 @@ class ConfigurationTest {
                                   demo:
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
-                                    listeners:
-                                    - name: listener1
+                                    gateways:
+                                    - name: gateway1
                                       portIdentifiesNode:
                                           bootstrapAddress: localhost:9192
-                                    - name: listener2
+                                    - name: gateway2
                                       portIdentifiesNode:
                                           bootstrapAddress: localhost:9292
                                 """),
@@ -352,7 +352,7 @@ class ConfigurationTest {
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .addToListeners(defaultSniHostIdentifiesNodeListenerBuilder("cluster1:9192", "broker-$(nodeId)")
+                                        .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder("cluster1:9192", "broker-$(nodeId)")
                                                 .withNewTls()
                                                 .withNewKeyPairKey()
                                                 .withCertificateFile("/tmp/cert")
@@ -368,7 +368,7 @@ class ConfigurationTest {
                                   demo:
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
-                                    listeners:
+                                    gateways:
                                     - name: default
                                       sniHostIdentifiesNode:
                                          bootstrapAddress: cluster1:9192
@@ -386,7 +386,7 @@ class ConfigurationTest {
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
-                                        .addToListeners(defaultSniHostIdentifiesNodeListenerBuilder("cluster1:9192", "broker-$(nodeId)")
+                                        .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder("cluster1:9192", "broker-$(nodeId)")
                                                 .withNewTls()
                                                 .withNewKeyPairKey()
                                                 .withCertificateFile("/tmp/cert")
@@ -407,7 +407,7 @@ class ConfigurationTest {
                                   demo:
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
-                                    listeners:
+                                    gateways:
                                     - name: default
                                       sniHostIdentifiesNode:
                                         bootstrapAddress: cluster1:9192
@@ -431,7 +431,7 @@ class ConfigurationTest {
                                         .withNewTls()
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder("cluster1:9192").build())
+                                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
                         """
@@ -440,7 +440,7 @@ class ConfigurationTest {
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
                                       tls: {}
-                                    listeners:
+                                    gateways:
                                     - name: default
                                       portIdentifiesNode:
                                         bootstrapAddress: cluster1:9192
@@ -458,7 +458,7 @@ class ConfigurationTest {
                                         .endTrustStoreTrust()
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder("cluster1:9192").build())
+                                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
                         """
@@ -472,7 +472,7 @@ class ConfigurationTest {
                                             storePassword:
                                               password: storepassword
                                             storeType: JKS
-                                    listeners:
+                                    gateways:
                                     - name: default
                                       portIdentifiesNode:
                                         bootstrapAddress: cluster1:9192
@@ -490,7 +490,7 @@ class ConfigurationTest {
                                         .endTrustStoreTrust()
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder("cluster1:9192").build())
+                                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
                         """
@@ -504,7 +504,7 @@ class ConfigurationTest {
                                             storePassword:
                                               passwordFile: /tmp/password.txt
                                             storeType: JKS
-                                    listeners:
+                                    gateways:
                                     - name: default
                                       portIdentifiesNode:
                                           bootstrapAddress: cluster1:9192
@@ -518,7 +518,7 @@ class ConfigurationTest {
                                         .withNewInsecureTlsTrust(true)
                                         .endTls()
                                         .endTargetCluster()
-                                        .addToListeners(defaultPortIdentifiesNodeListenerBuilder("cluster1:9192").build())
+                                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
                                         .build())
                                 .build(),
                         """
@@ -529,7 +529,7 @@ class ConfigurationTest {
                                       tls:
                                          trust:
                                             insecure: true
-                                    listeners:
+                                    gateways:
                                     - name: default
                                       portIdentifiesNode:
                                         bootstrapAddress: cluster1:9192
@@ -615,8 +615,8 @@ class ConfigurationTest {
     void shouldRejectMissingClusterFilter() {
         Optional<Map<String, Object>> development = Optional.empty();
         List<NamedFilterDefinition> filterDefinitions = List.of();
-        List<VirtualClusterListener> defaultListener = List.of(VIRTUAL_CLUSTER_LISTENER);
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultListener, false, false, List.of("missing")));
+        List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultGateway, false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
                 null, filterDefinitions,
                 null,
@@ -638,8 +638,8 @@ class ConfigurationTest {
         );
 
         List<String> defaultFilters = List.of("used1");
-        List<VirtualClusterListener> defaultListener = List.of(VIRTUAL_CLUSTER_LISTENER);
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultListener, false, false, List.of("used2")));
+        List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultGateway, false, false, List.of("used2")));
         assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
                 defaultFilters,
                 virtualClusters,
@@ -653,8 +653,8 @@ class ConfigurationTest {
     @SuppressWarnings("java:S5738")
     void shouldRejectVirtualClusterFiltersWhenTopLevelFilters() {
         Optional<Map<String, Object>> development = Optional.empty();
-        List<VirtualClusterListener> defaultListener = List.of(VIRTUAL_CLUSTER_LISTENER);
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultListener, false, false, List.of()));
+        List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
+        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultGateway, false, false, List.of()));
         assertThatThrownBy(() -> new Configuration(
                 null,
                 null,
@@ -675,7 +675,7 @@ class ConfigurationTest {
                 new NamedFilterDefinition("bar", "Bar", ""));
         VirtualCluster direct = new VirtualCluster(new TargetCluster("y:9092", Optional.empty()),
                 null, Optional.empty(),
-                List.of(new VirtualClusterListener("mylistener",
+                List.of(new VirtualClusterGateway("mygateway",
                         new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
                         null,
                         Optional.empty())),
@@ -686,7 +686,7 @@ class ConfigurationTest {
         VirtualCluster defaulted = new VirtualCluster(new TargetCluster("x:9092", Optional.empty()),
                 null,
                 Optional.empty(),
-                List.of(new VirtualClusterListener("mylistener",
+                List.of(new VirtualClusterGateway("mygateway",
                         new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
                         null,
                         Optional.empty())),
@@ -744,7 +744,7 @@ class ConfigurationTest {
         assertThat(models)
                 .singleElement()
                 .satisfies(m -> {
-                    assertThat(m.listeners())
+                    assertThat(m.gateways())
                             .hasEntrySatisfying("default", l -> {
                                 assertThat(l.getClusterBootstrapAddress()).isEqualTo(bootstrapAddress);
                             });

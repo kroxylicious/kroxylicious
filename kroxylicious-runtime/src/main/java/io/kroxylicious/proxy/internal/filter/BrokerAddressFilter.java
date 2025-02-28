@@ -37,7 +37,7 @@ import io.kroxylicious.proxy.filter.ProduceResponseFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ShareAcknowledgeResponseFilter;
 import io.kroxylicious.proxy.filter.ShareFetchResponseFilter;
-import io.kroxylicious.proxy.internal.net.EndpointListener;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -50,10 +50,10 @@ public class BrokerAddressFilter implements MetadataResponseFilter, FindCoordina
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BrokerAddressFilter.class);
 
-    private final EndpointListener listenerModel;
+    private final EndpointGateway listenerModel;
     private final EndpointReconciler reconciler;
 
-    public BrokerAddressFilter(EndpointListener listenerModel, EndpointReconciler reconciler) {
+    public BrokerAddressFilter(EndpointGateway listenerModel, EndpointReconciler reconciler) {
         this.listenerModel = listenerModel;
         this.reconciler = reconciler;
     }

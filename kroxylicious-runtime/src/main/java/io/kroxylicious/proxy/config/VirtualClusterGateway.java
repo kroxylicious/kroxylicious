@@ -24,12 +24,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param sniHostIdentifiesNode network config
  * @param tls tls settings
  */
-public record VirtualClusterListener(@NonNull @JsonProperty(required = true) String name,
-                                     @Nullable @JsonProperty(required = false) PortIdentifiesNodeIdentificationStrategy portIdentifiesNode,
-                                     @Nullable @JsonProperty(required = false) SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNode,
-                                     @NonNull Optional<Tls> tls) {
+public record VirtualClusterGateway(@NonNull @JsonProperty(required = true) String name,
+                                    @Nullable @JsonProperty(required = false) PortIdentifiesNodeIdentificationStrategy portIdentifiesNode,
+                                    @Nullable @JsonProperty(required = false) SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNode,
+                                    @NonNull Optional<Tls> tls) {
 
-    public VirtualClusterListener {
+    public VirtualClusterGateway {
         Objects.requireNonNull(name);
         Objects.requireNonNull(tls);
 

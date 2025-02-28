@@ -46,7 +46,7 @@ import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitio
 import io.kroxylicious.proxy.config.ClusterNetworkAddressConfigProviderDefinitionBuilder;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterListenerBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -54,7 +54,7 @@ import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_LISTENER_NAME;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_PROXY_BOOTSTRAP;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_VIRTUAL_CLUSTER;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
@@ -83,7 +83,7 @@ class DefaultKroxyliciousTesterTest {
     private static final String DEFAULT_CLUSTER = "demo";
     private static final String TLS_CLUSTER = "secureCluster";
     public static final int TOPIC_COUNT = 5;
-    public static final String CUSTOM_LISTENER_NAME = "listener";
+    public static final String CUSTOM_GATEWAY_NAME = "gateway";
     String backingCluster = "broker01.example.com:9090";
 
     @Mock(strictness = LENIENT)
@@ -110,12 +110,12 @@ class DefaultKroxyliciousTesterTest {
 
     @BeforeEach
     void setUp() {
-        when(clientFactory.build(eq(new ListenerId(DEFAULT_VIRTUAL_CLUSTER, DEFAULT_LISTENER_NAME)), anyMap())).thenReturn(kroxyliciousClients);
-        when(clientFactory.build(eq(new ListenerId(DEFAULT_VIRTUAL_CLUSTER, CUSTOM_LISTENER_NAME)), anyMap())).thenReturn(kroxyliciousClients);
-        when(clientFactory.build(eq(new ListenerId(TLS_CLUSTER, DEFAULT_LISTENER_NAME)), anyMap())).thenReturn(kroxyliciousClients);
-        when(clientFactory.build(eq(new ListenerId(VIRTUAL_CLUSTER_A, DEFAULT_LISTENER_NAME)), anyMap())).thenReturn(kroxyliciousClientsA);
-        when(clientFactory.build(eq(new ListenerId(VIRTUAL_CLUSTER_B, DEFAULT_LISTENER_NAME)), anyMap())).thenReturn(kroxyliciousClientsB);
-        when(clientFactory.build(eq(new ListenerId(VIRTUAL_CLUSTER_C, DEFAULT_LISTENER_NAME)), anyMap())).thenReturn(kroxyliciousClientsC);
+        when(clientFactory.build(eq(new GatewayId(DEFAULT_VIRTUAL_CLUSTER, DEFAULT_GATEWAY_NAME)), anyMap())).thenReturn(kroxyliciousClients);
+        when(clientFactory.build(eq(new GatewayId(DEFAULT_VIRTUAL_CLUSTER, CUSTOM_GATEWAY_NAME)), anyMap())).thenReturn(kroxyliciousClients);
+        when(clientFactory.build(eq(new GatewayId(TLS_CLUSTER, DEFAULT_GATEWAY_NAME)), anyMap())).thenReturn(kroxyliciousClients);
+        when(clientFactory.build(eq(new GatewayId(VIRTUAL_CLUSTER_A, DEFAULT_GATEWAY_NAME)), anyMap())).thenReturn(kroxyliciousClientsA);
+        when(clientFactory.build(eq(new GatewayId(VIRTUAL_CLUSTER_B, DEFAULT_GATEWAY_NAME)), anyMap())).thenReturn(kroxyliciousClientsB);
+        when(clientFactory.build(eq(new GatewayId(VIRTUAL_CLUSTER_C, DEFAULT_GATEWAY_NAME)), anyMap())).thenReturn(kroxyliciousClientsC);
         when(kroxyliciousClients.admin()).thenReturn(admin);
         when(kroxyliciousClients.producer()).thenReturn(producer);
         when(kroxyliciousClients.consumer()).thenReturn(consumer);
@@ -132,39 +132,39 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, DEFAULT_LISTENER_NAME)), anyMap());
+            verify(clientFactory).build(eq(new GatewayId(DEFAULT_CLUSTER, DEFAULT_GATEWAY_NAME)), anyMap());
             verify(kroxyliciousClients).admin();
         }
     }
 
     @SuppressWarnings("resource")
     @Test
-    void shouldCreateAdminForVirtualClusterAndDefaultListener() {
+    void shouldCreateAdminForVirtualClusterAndDefaultGateway() {
         // Given
         try (var tester = buildDefaultTester()) {
 
             // When
-            tester.admin(DEFAULT_CLUSTER, DEFAULT_LISTENER_NAME);
+            tester.admin(DEFAULT_CLUSTER, DEFAULT_GATEWAY_NAME);
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, DEFAULT_LISTENER_NAME)), anyMap());
+            verify(clientFactory).build(eq(new GatewayId(DEFAULT_CLUSTER, DEFAULT_GATEWAY_NAME)), anyMap());
             verify(kroxyliciousClients).admin();
         }
     }
 
     @SuppressWarnings("resource")
     @Test
-    void shouldCreateAdminForVirtualClusterAndCustomListener() {
+    void shouldCreateAdminForVirtualClusterAndCustomGateway() {
         // Given
-        try (var tester = buildMultiListenerTester()) {
+        try (var tester = buildMultiGatewayTester()) {
 
             // When
-            tester.admin(DEFAULT_CLUSTER, CUSTOM_LISTENER_NAME);
+            tester.admin(DEFAULT_CLUSTER, CUSTOM_GATEWAY_NAME);
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, CUSTOM_LISTENER_NAME)), anyMap());
+            verify(clientFactory).build(eq(new GatewayId(DEFAULT_CLUSTER, CUSTOM_GATEWAY_NAME)), anyMap());
             verify(kroxyliciousClients).admin();
         }
     }
@@ -180,7 +180,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, DEFAULT_LISTENER_NAME)), anyMap());
+            verify(clientFactory).build(eq(new GatewayId(DEFAULT_CLUSTER, DEFAULT_GATEWAY_NAME)), anyMap());
             verify(kroxyliciousClients).admin();
         }
     }
@@ -196,23 +196,23 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, DEFAULT_LISTENER_NAME)), anyMap());
+            verify(clientFactory).build(eq(new GatewayId(DEFAULT_CLUSTER, DEFAULT_GATEWAY_NAME)), anyMap());
             verify(kroxyliciousClients).producer();
         }
     }
 
     @SuppressWarnings("resource")
     @Test
-    void shouldCreateProducerForVirtualClusterCustomListener() {
+    void shouldCreateProducerForVirtualClusterCustomGateway() {
         // Given
-        try (var tester = buildMultiListenerTester()) {
+        try (var tester = buildMultiGatewayTester()) {
 
             // When
-            tester.producer(DEFAULT_CLUSTER, CUSTOM_LISTENER_NAME);
+            tester.producer(DEFAULT_CLUSTER, CUSTOM_GATEWAY_NAME);
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, CUSTOM_LISTENER_NAME)), anyMap());
+            verify(clientFactory).build(eq(new GatewayId(DEFAULT_CLUSTER, CUSTOM_GATEWAY_NAME)), anyMap());
             verify(kroxyliciousClients).producer();
         }
     }
@@ -228,7 +228,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, DEFAULT_LISTENER_NAME)), anyMap());
+            verify(clientFactory).build(eq(new GatewayId(DEFAULT_CLUSTER, DEFAULT_GATEWAY_NAME)), anyMap());
             verify(kroxyliciousClients).producer();
         }
     }
@@ -244,23 +244,23 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, DEFAULT_LISTENER_NAME)), anyMap());
+            verify(clientFactory).build(eq(new GatewayId(DEFAULT_CLUSTER, DEFAULT_GATEWAY_NAME)), anyMap());
             verify(kroxyliciousClients).consumer();
         }
     }
 
     @SuppressWarnings("resource")
     @Test
-    void shouldCreateConsumerForVirtualClusterAndCustomListener() {
+    void shouldCreateConsumerForVirtualClusterAndCustomGateway() {
         // Given
-        try (var tester = buildMultiListenerTester()) {
+        try (var tester = buildMultiGatewayTester()) {
 
             // When
-            tester.consumer(DEFAULT_CLUSTER, CUSTOM_LISTENER_NAME);
+            tester.consumer(DEFAULT_CLUSTER, CUSTOM_GATEWAY_NAME);
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, CUSTOM_LISTENER_NAME)), anyMap());
+            verify(clientFactory).build(eq(new GatewayId(DEFAULT_CLUSTER, CUSTOM_GATEWAY_NAME)), anyMap());
             verify(kroxyliciousClients).consumer();
         }
     }
@@ -276,7 +276,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
             // In theory the bootstrap address is predicable but asserting it is not part of this test
-            verify(clientFactory).build(eq(new ListenerId(DEFAULT_CLUSTER, DEFAULT_LISTENER_NAME)), anyMap());
+            verify(clientFactory).build(eq(new GatewayId(DEFAULT_CLUSTER, DEFAULT_GATEWAY_NAME)), anyMap());
             verify(kroxyliciousClients).consumer();
         }
     }
@@ -353,7 +353,7 @@ class DefaultKroxyliciousTesterTest {
 
             // Then
 
-            verify(clientFactory).build(eq(new ListenerId(TLS_CLUSTER, DEFAULT_LISTENER_NAME)), argThat(assertSslConfiguration(trustStorePath)));
+            verify(clientFactory).build(eq(new GatewayId(TLS_CLUSTER, DEFAULT_GATEWAY_NAME)), argThat(assertSslConfiguration(trustStorePath)));
         }
     }
 
@@ -369,7 +369,7 @@ class DefaultKroxyliciousTesterTest {
             tester.producer(TLS_CLUSTER);
 
             // Then
-            verify(clientFactory).build(eq(new ListenerId(TLS_CLUSTER, DEFAULT_LISTENER_NAME)), argThat(assertSslConfiguration(trustStorePath)));
+            verify(clientFactory).build(eq(new GatewayId(TLS_CLUSTER, DEFAULT_GATEWAY_NAME)), argThat(assertSslConfiguration(trustStorePath)));
         }
     }
 
@@ -385,7 +385,7 @@ class DefaultKroxyliciousTesterTest {
             tester.admin(TLS_CLUSTER);
 
             // Then
-            verify(clientFactory).build(eq(new ListenerId(TLS_CLUSTER, DEFAULT_LISTENER_NAME)), argThat(assertSslConfiguration(trustStorePath)));
+            verify(clientFactory).build(eq(new GatewayId(TLS_CLUSTER, DEFAULT_GATEWAY_NAME)), argThat(assertSslConfiguration(trustStorePath)));
         }
     }
 
@@ -665,16 +665,16 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @NonNull
-    private KroxyliciousTester buildMultiListenerTester() {
+    private KroxyliciousTester buildMultiGatewayTester() {
         final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
         String virtualClusterName = DEFAULT_VIRTUAL_CLUSTER;
         var vcb = new VirtualClusterBuilder()
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
-                .addToListeners(KroxyliciousConfigUtils.defaultPortIdentifiesNodeListenerBuilder(DEFAULT_PROXY_BOOTSTRAP).build())
-                .addToListeners(new VirtualClusterListenerBuilder()
-                        .withName(CUSTOM_LISTENER_NAME)
+                .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(DEFAULT_PROXY_BOOTSTRAP).build())
+                .addToGateways(new VirtualClusterGatewayBuilder()
+                        .withName(CUSTOM_GATEWAY_NAME)
                         .withNewPortIdentifiesNode()
                         .withBootstrapAddress(new HostPort(DEFAULT_PROXY_BOOTSTRAP.host(), DEFAULT_PROXY_BOOTSTRAP.port() + 10))
                         .endPortIdentifiesNode()
@@ -695,7 +695,7 @@ class DefaultKroxyliciousTesterTest {
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
-                .addToListeners(KroxyliciousConfigUtils.defaultPortIdentifiesNodeListenerBuilder(DEFAULT_PROXY_BOOTSTRAP)
+                .addToGateways(KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder(DEFAULT_PROXY_BOOTSTRAP)
                         .withNewTls()
                         .withNewKeyStoreKey()
                         .withStoreFile(keytoolCertificateGenerator.getKeyStoreLocation())

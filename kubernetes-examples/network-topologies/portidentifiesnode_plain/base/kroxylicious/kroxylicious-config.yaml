@@ -18,8 +18,8 @@ data:
       demo:
         targetCluster:
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-        listeners:
-          - name: mylistener
+        gateways:
+          - name: mygateway
             portIdentifiesNode:
               bootstrapAddress: localhost:9292
               advertisedBrokerAddressPattern: kroxylicious-service

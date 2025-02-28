@@ -23,8 +23,8 @@ data:
       devenv1:
         targetCluster:
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-        listeners:
-          - name: mylistener
+        gateways:
+          - name: mygateway
             portIdentifiesNode:
               bootstrapAddress: minikube:30192
         logNetwork: false
@@ -32,8 +32,8 @@ data:
       devenv2:
         targetCluster:
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-        listeners:
-          - name: mylistener
+        gateways:
+          - name: mygateway
             portIdentifiesNode:
               bootstrapAddress: minikube:30292
         logNetwork: false

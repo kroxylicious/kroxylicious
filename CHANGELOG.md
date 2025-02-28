@@ -18,10 +18,10 @@ Format `<github issue/pr number>: <short description>`.
 
 * In the `RecordEncryption` filter, `template` configuration property accepted by the `TemplateKekSelector` now supports the `$(topicName)` placeholder parameter. Use of `${topicName}` is deprecated and will be removed in a future release.
 * The virtual cluster configuration properties `clusterNetworkAddressConfigProvider` and `tls` are deprecated.
-  Define a named virtual cluster listener within the `listener` array.
+  Define a named virtual cluster gateway within the `gateways` array.
 * The networking schemes `PortPerNodeClusterNetworkAddressConfigProvider` and `RangeAwarePortPerNodeClusterNetworkAddressConfigProvider`
-  are deprecated.  Use a virtual cluster with `portIdentifiesNode` to express your networking requirements.
-* The networking scheme `SniRoutingClusterNetworkAddressConfigProvider` is deprecated.  Use a virtual cluster with
+  are deprecated.  Define a virtual cluster gateway with `portIdentifiesNode` to express your networking requirements.
+* The networking scheme `SniRoutingClusterNetworkAddressConfigProvider` is deprecated.  Define a virtual cluster gateway with
   `sniHostIdentifiesNode` to express your networking requirements.
 
 ## 0.10.0

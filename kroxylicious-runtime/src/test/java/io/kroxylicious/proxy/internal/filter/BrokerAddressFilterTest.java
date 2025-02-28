@@ -38,7 +38,7 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
-import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterListenerModel;
+import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.requestresponsetestdef.ApiMessageTestDef;
 import io.kroxylicious.test.requestresponsetestdef.RequestResponseTestDef;
@@ -70,7 +70,7 @@ class BrokerAddressFilterTest {
     }
 
     @Mock
-    private VirtualClusterListenerModel virtualClusterListenerModel;
+    private VirtualClusterGatewayModel virtualClusterListenerModel;
 
     @Mock
     private EndpointReconciler endpointReconciler;

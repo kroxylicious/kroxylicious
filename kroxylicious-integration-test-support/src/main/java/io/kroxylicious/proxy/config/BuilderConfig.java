@@ -15,7 +15,7 @@ import io.sundr.builder.annotations.ExternalBuildables;
         "io.kroxylicious.proxy.config.Configuration",
         "io.kroxylicious.proxy.config.TargetCluster",
         "io.kroxylicious.proxy.config.VirtualCluster",
-        "io.kroxylicious.proxy.config.VirtualClusterListener",
+        "io.kroxylicious.proxy.config.VirtualClusterGateway",
         "io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy",
         "io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy",
         "io.kroxylicious.proxy.config.NamedRange",

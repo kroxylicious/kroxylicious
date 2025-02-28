@@ -36,7 +36,7 @@ import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
-import io.kroxylicious.proxy.config.VirtualClusterListener;
+import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
@@ -216,7 +216,7 @@ public class ProxyConfigSecret
                 new TargetCluster(bootstrap, Optional.empty()),
                 null,
                 Optional.empty(),
-                List.of(new VirtualClusterListener("default",
+                List.of(new VirtualClusterGateway("default",
                         new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292 + (100 * clusterNum)),
                                 ClusterService.absoluteServiceHost(primary, cluster), null, null),
                         null,

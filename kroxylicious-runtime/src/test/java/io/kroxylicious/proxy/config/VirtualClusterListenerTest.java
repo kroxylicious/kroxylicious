@@ -35,7 +35,7 @@ class VirtualClusterListenerTest {
     void rejectsMissing() {
         var empty = Optional.<Tls> empty();
 
-        assertThatThrownBy(() -> new VirtualClusterListener("name", null, null, empty))
+        assertThatThrownBy(() -> new VirtualClusterGateway("name", null, null, empty))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
@@ -43,7 +43,7 @@ class VirtualClusterListenerTest {
     void rejectsBoth() {
         var empty = Optional.<Tls> empty();
 
-        assertThatThrownBy(() -> new VirtualClusterListener("name", portIdentifiesNode, sniHostIdentifiesNode, empty))
+        assertThatThrownBy(() -> new VirtualClusterGateway("name", portIdentifiesNode, sniHostIdentifiesNode, empty))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
@@ -51,7 +51,7 @@ class VirtualClusterListenerTest {
     void rejectsSniHostIdentifiesNodeWithoutTls() {
         var empty = Optional.<Tls> empty();
 
-        assertThatThrownBy(() -> new VirtualClusterListener("name", null, sniHostIdentifiesNode, empty))
+        assertThatThrownBy(() -> new VirtualClusterGateway("name", null, sniHostIdentifiesNode, empty))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
@@ -59,7 +59,7 @@ class VirtualClusterListenerTest {
     void acceptsPortIdentifiesNode() {
         var empty = Optional.<Tls> empty();
 
-        var listener = new VirtualClusterListener("name", portIdentifiesNode, null, empty);
+        var listener = new VirtualClusterGateway("name", portIdentifiesNode, null, empty);
         assertThat(listener).isNotNull();
     }
 
@@ -67,14 +67,14 @@ class VirtualClusterListenerTest {
     void acceptsSniHostIdentifiesNode() {
         var tls = Optional.of(new Tls(null, null, null, null));
 
-        var listener = new VirtualClusterListener("name", null, sniHostIdentifiesNode, tls);
+        var listener = new VirtualClusterGateway("name", null, sniHostIdentifiesNode, tls);
         assertThat(listener).isNotNull();
     }
 
     @Test
     void createsPortIdentifiesProvider() {
         when(portIdentifiesNode.get()).thenReturn(providerDefinition);
-        var listener = new VirtualClusterListener("name", portIdentifiesNode, null, Optional.empty());
+        var listener = new VirtualClusterGateway("name", portIdentifiesNode, null, Optional.empty());
         var provider = listener.clusterNetworkAddressConfigProvider();
         assertThat(provider).isEqualTo(providerDefinition);
     }
@@ -84,7 +84,7 @@ class VirtualClusterListenerTest {
         var tls = Optional.of(new Tls(null, null, null, null));
 
         when(sniHostIdentifiesNode.get()).thenReturn(providerDefinition);
-        var listener = new VirtualClusterListener("name", null, sniHostIdentifiesNode, tls);
+        var listener = new VirtualClusterGateway("name", null, sniHostIdentifiesNode, tls);
         var provider = listener.clusterNetworkAddressConfigProvider();
         assertThat(provider).isEqualTo(providerDefinition);
     }

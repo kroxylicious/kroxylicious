@@ -42,8 +42,8 @@ virtualClusters: # <5>
           storeFile: /opt/proxy/trust/ca.p12
           storePassword:
             passwordFile: /opt/proxy/trust/ca.password
-    listeners: # <9>
-    - name: mylistener
+    gateways: # <9>
+    - name: mygateway
       sniHostIdentifiesNode: # <10>
         bootstrapAddress: my-cluster-proxy.kafka:9092 # <11>
         advertisedBrokerAddressPattern: broker$(nodeId).my-cluster-proxy.kafka
@@ -61,7 +61,7 @@ virtualClusters: # <5>
 <6> The name of the virtual cluster.
 <7> The bootstrap address of the target physical Kafka Cluster being proxied.
 <8> TLS configuration for the connection to the target cluster.
-<9> The listeners of the virtual cluster defining how the virtual cluster is presented to the network.
+<9> The gateway of the virtual cluster defining how the virtual cluster is presented to the network.
 <10> The identification scheme used to route traffic to brokers, which can be `sniHostIdentifiesNode` or `portIdentifiesNode`.
 <11> The hostname and port of the bootstrap used by the Kafka clients to connect to this listener. The hostname must be resolved by the clients.
 <12> TLS encryption used by the listener for securing connections with the clients.

@@ -23,8 +23,8 @@ data:
               storeFile: /opt/kroxylicious/trust/ca.p12
               storePassword:
                 passwordFile: /opt/kroxylicious/trust/ca.password
-        listeners:
-          - name: mylistener
+        gateways:
+          - name: mygateway
             sniHostIdentifiesNode:
               bootstrapAddress: mycluster-proxy.kafka:9092
               advertisedBrokerAddressPattern: broker$(nodeId).mycluster-proxy.kafka
