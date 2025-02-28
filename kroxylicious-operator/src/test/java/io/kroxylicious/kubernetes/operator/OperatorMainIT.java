@@ -13,7 +13,6 @@ import org.junit.jupiter.api.condition.EnabledIf;
 
 import io.javaoperatorsdk.operator.OperatorException;
 import io.micrometer.core.instrument.Metrics;
-import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
