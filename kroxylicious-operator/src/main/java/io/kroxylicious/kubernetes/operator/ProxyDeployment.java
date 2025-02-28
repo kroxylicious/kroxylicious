@@ -41,7 +41,7 @@ public class ProxyDeployment
     public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     public static final int METRICS_PORT = 9190;
-    private static final String KROXYLICIOUS_IMAGE = getOperandImage();
+    private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
     public ProxyDeployment() {
@@ -111,12 +111,12 @@ public class ProxyDeployment
         // @formatter:on
     }
 
-    private static Container proxyContainer(KafkaProxy primary,
-                                            Context<KafkaProxy> context) {
+    private Container proxyContainer(KafkaProxy primary,
+                                     Context<KafkaProxy> context) {
         // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
-                .withImage(KROXYLICIOUS_IMAGE)
+                .withImage(kroxyliciousImage)
                 .withArgs("--config", ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
                 // volume mount
                 .addNewVolumeMount()

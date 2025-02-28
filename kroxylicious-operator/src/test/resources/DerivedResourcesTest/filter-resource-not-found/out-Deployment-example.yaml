@@ -33,17 +33,17 @@ spec:
     spec:
       containers:
         - name: "proxy"
-          image: "quay.io/kroxylicious/kroxylicious:${project.version}"
+          image: "quay.io/kroxylicious/kroxylicious:test"
           args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
           ports:
             - containerPort: 9190
               name: "metrics"
-            - containerPort: 9292
-            - containerPort: 9293
-            - containerPort: 9294
-            - containerPort: 9295
+            - containerPort: 9392
+            - containerPort: 9393
+            - containerPort: 9394
+            - containerPort: 9395
           volumeMounts:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
