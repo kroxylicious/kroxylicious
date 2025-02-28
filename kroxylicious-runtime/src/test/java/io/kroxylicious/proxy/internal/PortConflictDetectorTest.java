@@ -151,11 +151,15 @@ class PortConflictDetectorTest {
                         new HostPort(loopback, 9080),
                         List.of(createMockVirtualCluster("one", Set.of(9080), Set.of(), privateUse),
                                 createMockVirtualCluster("two", Set.of(9080), Set.of(), loopback))),
+                argumentSet("shared port which doesn't require server name indication",
+                        Set.of("shared TLS bind of 192.168.0.1:9080 for listener 'default' of virtual cluster 'one' is misconfigured, shared port bindings must use server name indication, or connections cannot be routed correctly"),
+                        new HostPort(loopback, 9080),
+                        List.of(createMockVirtualCluster("one", getVirtualClusterListenerModel(Set.of(), Set.of(9080), privateUse, true, "default", false)))),
                 argumentSet("any:single conflict within virtual cluster",
                         Set.of("exclusive TCP bind of <any>:9080 for listener 'listener1' of virtual cluster 'one' conflicts with exclusive TCP bind of <any>:9080 for listener 'listener2' of virtual cluster 'one': exclusive port collision"),
                         null,
-                        List.of(createMockVirtualCluster("one", getVirtualClusterListenerModel(Set.of(9080), Set.of(), any, false, "listener1"),
-                                getVirtualClusterListenerModel(Set.of(9080), Set.of(), any, false, "listener2")))));
+                        List.of(createMockVirtualCluster("one", getVirtualClusterListenerModel(Set.of(9080), Set.of(), any, false, "listener1", true),
+                                getVirtualClusterListenerModel(Set.of(9080), Set.of(), any, false, "listener2", true)))));
     }
 
     @ParameterizedTest
@@ -179,7 +183,7 @@ class PortConflictDetectorTest {
 
     private static VirtualClusterModel createMockVirtualCluster(String clusterName, Set<Integer> exclusivePorts, Set<Integer> sharedPorts, String bindAddress,
                                                                 boolean tls) {
-        return createMockVirtualCluster(clusterName, getVirtualClusterListenerModel(exclusivePorts, sharedPorts, bindAddress, tls, "default"));
+        return createMockVirtualCluster(clusterName, getVirtualClusterListenerModel(exclusivePorts, sharedPorts, bindAddress, tls, "default", true));
     }
 
     private static VirtualClusterModel createMockVirtualCluster(String clusterName, VirtualClusterListenerModel... listenerModel) {
@@ -193,12 +197,13 @@ class PortConflictDetectorTest {
 
     @NonNull
     private static VirtualClusterListenerModel getVirtualClusterListenerModel(Set<Integer> exclusivePorts, Set<Integer> sharedPorts, String bindAddress, boolean tls,
-                                                                              String listenerName) {
+                                                                              String listenerName, boolean requiresServerNameIndication) {
         var cluster = mock(VirtualClusterListenerModel.class);
         when(cluster.getExclusivePorts()).thenReturn(exclusivePorts);
         when(cluster.getSharedPorts()).thenReturn(sharedPorts);
         when(cluster.getBindAddress()).thenReturn(Optional.ofNullable(bindAddress));
         when(cluster.isUseTls()).thenReturn(tls);
+        when(cluster.requiresServerNameIndication()).thenReturn(requiresServerNameIndication);
         when(cluster.name()).thenReturn(listenerName);
         return cluster;
     }
