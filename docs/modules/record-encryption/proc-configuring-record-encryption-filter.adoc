@@ -34,7 +34,7 @@ filters:
         # ...
       selector: <KEK_selector_service_name> # <3>
       selectorConfig:
-        template: "KEK_${topicName}" # <4>
+        template: "KEK_$(topicName)" # <4>
       unresolvedKeyPolicy: PASSTHROUGH_UNENCRYPTED # <5>
       experimental:
         encryptionDekRefreshAfterWriteSeconds: 3600 # <6>
@@ -43,8 +43,8 @@ filters:
 ----
 <1> The KMS service name.
 <2> Configuration specific to the KMS provider.
-<3> The Key Encryption Key (KEK) selector to use. The `${topicName}` is a literal understood by the proxy. 
-For example, if using the `TemplateKekSelector` with the template `KEK_$\{topicName}`, create a key for every topic that
+<3> The Key Encryption Key (KEK) selector to use. The `$(topicName)` is a literal understood by the proxy.
+For example, if using the `TemplateKekSelector` with the template `KEK_$(topicName)`, create a key for every topic that
 is to be encrypted with the key name matching the topic name, prefixed by the string `KEK_`.
 <4> The template for deriving the KEK, based on a specific topic name.
 <5> Optional policy governing the behaviour when the KMS does not contain a key. The default is `PASSTHROUGH_UNENCRYPTED` which

@@ -39,6 +39,6 @@ data:
             password: myroottoken
         selector: TemplateKekSelector
         selectorConfig:
-          template: "${topicName}"
+          template: "$(topicName)"
     defaultFilters:
       - encrypt

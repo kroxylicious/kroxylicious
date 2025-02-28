@@ -86,7 +86,7 @@ import static org.hamcrest.Matchers.contains;
 @ExtendWith(TestKmsFacadeInvocationContextProvider.class)
 class RecordEncryptionFilterIT {
 
-    private static final String TEMPLATE_KEK_SELECTOR_PATTERN = "${topicName}";
+    private static final String TEMPLATE_KEK_SELECTOR_PATTERN = "$(topicName)";
     private static final String HELLO_WORLD = "hello world";
     private static final String HELLO_SECRET = "hello secret";
 

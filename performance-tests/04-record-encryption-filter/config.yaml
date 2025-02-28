@@ -29,6 +29,6 @@ filterDefinitions:
         password: token
     selector: TemplateKekSelector
     selectorConfig:
-      template: "KEK_${topicName}"
+      template: "KEK_$(topicName)"
 defaultFilters:
   - encrypt
