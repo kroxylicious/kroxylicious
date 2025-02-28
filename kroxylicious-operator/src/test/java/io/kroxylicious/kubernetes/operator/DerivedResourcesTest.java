@@ -27,6 +27,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import org.mockito.stubbing.Answer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -47,6 +48,7 @@ import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kubernetes.operator.ProxyDeployment.KROXYLICIOUS_IMAGE_ENV_VAR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -144,6 +146,7 @@ class DerivedResourcesTest {
     }
 
     @TestFactory
+    @SetEnvironmentVariable(key = KROXYLICIOUS_IMAGE_ENV_VAR, value = "quay.io/kroxylicious/kroxylicious:test")
     Stream<DynamicContainer> dependentResourcesShouldEqual() {
         // Note that the order in this list should reflect the dependency order declared in the ProxyReconciler's
         // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that
