@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -21,9 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.spi.LoggingEventBuilder;
 
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
-import io.fabric8.kubernetes.api.model.KubernetesResourceList;
-import io.fabric8.kubernetes.client.dsl.MixedOperation;
-import io.fabric8.kubernetes.client.dsl.Resource;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.AggregatedOperatorException;
 import io.javaoperatorsdk.operator.api.config.informer.InformerConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -38,6 +37,7 @@ import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.Dependent;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
+import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
@@ -302,25 +302,10 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     }
 
     private static InformerEventSource<?, KafkaProxy> buildVirtualKafkaClusterInformer(EventSourceContext<KafkaProxy> context) {
-        InformerConfiguration<VirtualKafkaCluster> configuration = InformerConfiguration.from(VirtualKafkaCluster.class).withSecondaryToPrimaryMapper(resource -> {
-            // we need to reconcile all proxies when a virtual kafka cluster changes in case the proxyRef is updated, we need to update
-            // the previously referenced proxy too.
-            Set<ResourceID> proxyIds = context.getClient().resources(KafkaProxy.class)
-                    .inNamespace(resource.getMetadata().getNamespace())
-                    .list().getItems().stream()
-                    .map(ResourceID::fromResource)
-                    .collect(Collectors.toSet());
-            LOGGER.debug("Event source VirtualKafkaCluster SecondaryToPrimaryMapper got {}", proxyIds);
-            return proxyIds;
-        }).withPrimaryToSecondaryMapper(primary -> {
-            Set<ResourceID> virtualClustersInProxyNamespace = context.getClient().resources(VirtualKafkaCluster.class)
-                    .inNamespace(primary.getMetadata().getNamespace())
-                    .list().getItems().stream().filter(i -> i.getSpec().getProxyRef().getName().equals(primary.getMetadata().getName()))
-                    .map(ResourceID::fromResource)
-                    .collect(Collectors.toSet());
-            LOGGER.debug("Event source VirtualKafkaCluster PrimaryToSecondaryMapper got {}", virtualClustersInProxyNamespace);
-            return virtualClustersInProxyNamespace;
-        }).build();
+        InformerConfiguration<VirtualKafkaCluster> configuration = InformerConfiguration.from(VirtualKafkaCluster.class)
+                .withSecondaryToPrimaryMapper(clusterToProxyMapper(context))
+                .withPrimaryToSecondaryMapper(proxyToClusterMapper(context))
+                .build();
         return new InformerEventSource<>(configuration, context);
     }
 
@@ -329,31 +314,47 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
                                                                                                    EventSourceContext<KafkaProxy> context,
                                                                                                    FilterApiDecl filterApiDecl) {
 
-        SecondaryToPrimaryMapper<GenericKubernetesResource> filterToProxy = (GenericKubernetesResource filter) -> {
-            // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
-            // so when a filter changes we reconcile all the proxies in the same namespace
-            Set<ResourceID> proxiesInFilterNamespace = context.getClient().resources(KafkaProxy.class)
-                    .inNamespace(filter.getMetadata().getNamespace())
-                    .list().getItems().stream()
-                    .map(ResourceID::fromResource)
-                    .collect(Collectors.toSet());
-            LOGGER.debug("Event source SecondaryToPrimaryMapper got {}", proxiesInFilterNamespace);
-            return proxiesInFilterNamespace;
-        };
-
         var configuration = InformerConfiguration.from(filterApiDecl.groupVersionKind(), context)
-                .withSecondaryToPrimaryMapper(filterToProxy)
+                .withSecondaryToPrimaryMapper(filterToProxy(context))
                 .withPrimaryToSecondaryMapper((KafkaProxy proxy) -> proxyToFilterRefs(proxy, context))
                 .build();
 
         return new InformerEventSource<>(configuration, context);
     }
 
+    private static @NonNull PrimaryToSecondaryMapper<HasMetadata> proxyToClusterMapper(EventSourceContext<KafkaProxy> context) {
+        return primary -> {
+            Set<ResourceID> virtualClustersInProxyNamespace = filteredResourceIdsInSameNamespace(context, primary, VirtualKafkaCluster.class, matchesPrimary(primary));
+            LOGGER.debug("Event source VirtualKafkaCluster PrimaryToSecondaryMapper got {}", virtualClustersInProxyNamespace);
+            return virtualClustersInProxyNamespace;
+        };
+    }
+
+    private static @NonNull SecondaryToPrimaryMapper<VirtualKafkaCluster> clusterToProxyMapper(EventSourceContext<KafkaProxy> context) {
+        return cluster -> {
+            // we need to reconcile all proxies when a virtual kafka cluster changes in case the proxyRef is updated, we need to update
+            // the previously referenced proxy too.
+            Set<ResourceID> proxyIds = filteredResourceIdsInSameNamespace(context, cluster, KafkaProxy.class, proxy -> true);
+            LOGGER.debug("Event source VirtualKafkaCluster SecondaryToPrimaryMapper got {}", proxyIds);
+            return proxyIds;
+        };
+    }
+
+    private static @NonNull SecondaryToPrimaryMapper<GenericKubernetesResource> filterToProxy(
+                                                                                              EventSourceContext<KafkaProxy> context) {
+        return (GenericKubernetesResource filter) -> {
+            // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
+            // so when a filter changes we reconcile all the proxies in the same namespace
+            Set<ResourceID> proxiesInFilterNamespace = filteredResourceIdsInSameNamespace(context, filter, KafkaProxy.class, proxy -> true);
+            LOGGER.debug("Event source SecondaryToPrimaryMapper got {}", proxiesInFilterNamespace);
+            return proxiesInFilterNamespace;
+        };
+    }
+
     @NonNull
     private static Set<ResourceID> proxyToFilterRefs(KafkaProxy proxy, EventSourceContext<KafkaProxy> context) {
-        MixedOperation<VirtualKafkaCluster, KubernetesResourceList<VirtualKafkaCluster>, Resource<VirtualKafkaCluster>> resources = context.getClient()
-                .resources(VirtualKafkaCluster.class);
-        Set<ResourceID> filterReferences = clustersMatchingProxy(proxy, resources)
+        Set<ResourceID> filterReferences = resourcesInSameNamespace(context, proxy, VirtualKafkaCluster.class)
+                .filter(matchesPrimary(proxy))
                 .flatMap(cluster -> cluster.getSpec().getFilters().stream())
                 .map(filter -> new ResourceID(filter.getName(), proxy.getMetadata().getNamespace()))
                 .collect(Collectors.toSet());
@@ -361,9 +362,25 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         return filterReferences;
     }
 
-    private static @NonNull Stream<VirtualKafkaCluster> clustersMatchingProxy(KafkaProxy proxy,
-                                                                              MixedOperation<VirtualKafkaCluster, KubernetesResourceList<VirtualKafkaCluster>, Resource<VirtualKafkaCluster>> resources) {
-        return resources.list().getItems().stream().filter(cluster -> cluster.getSpec().getProxyRef().getName().equals(proxy.getMetadata().getName()));
+    private static <T extends HasMetadata> Set<ResourceID> filteredResourceIdsInSameNamespace(EventSourceContext<KafkaProxy> context, HasMetadata primary, Class<T> clazz,
+                                                                                              Predicate<T> predicate) {
+        return resourcesInSameNamespace(context, primary, clazz)
+                .filter(predicate)
+                .map(ResourceID::fromResource)
+                .collect(Collectors.toSet());
+    }
+
+    private static <T extends HasMetadata> Stream<T> resourcesInSameNamespace(EventSourceContext<KafkaProxy> context, HasMetadata primary, Class<T> clazz) {
+        return context.getClient()
+                .resources(clazz)
+                .inNamespace(primary.getMetadata().getNamespace())
+                .list()
+                .getItems()
+                .stream();
+    }
+
+    private static @NonNull Predicate<VirtualKafkaCluster> matchesPrimary(HasMetadata primary) {
+        return cluster -> cluster.getSpec().getProxyRef().getName().equals(primary.getMetadata().getName());
     }
 
 }
