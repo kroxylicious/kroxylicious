@@ -30,7 +30,7 @@ filterDefinitions: # <1>
             storeType: PKCS12
       selector: TemplateKekSelector
       selectorConfig:
-        template: "${topicName}"
+        template: "$(topicName)"
 defaultFilters:
   - encryption
 virtualClusters: # <5>
