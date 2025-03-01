@@ -325,13 +325,10 @@ class ConfigParserTest {
                   myAwesomeCluster:
                     targetCluster:
                       bootstrapServers: kafka.example:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
                         bootstrapAddress: cluster1:9192
-                        numberOfBrokerPorts: 1
-                        brokerAddressPattern: localhost
-                        brokerStartPort: 9193
                 """);
         // When
         var actualValidClusters = configurationModel.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());

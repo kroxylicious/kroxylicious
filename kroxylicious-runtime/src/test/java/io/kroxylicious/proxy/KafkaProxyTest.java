@@ -26,10 +26,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
 
 class KafkaProxyTest {
 
@@ -40,11 +37,10 @@ class KafkaProxyTest {
                      demo1:
                        targetCluster:
                          bootstrapServers: kafka.example:1234
-                       clusterNetworkAddressConfigProvider:
-                         type: PortPerBrokerClusterNetworkAddressConfigProvider
-                         config:
-                           bootstrapAddress: localhost:9192
-                           numberOfBrokerPorts: 1
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: cluster1:9192
                    filters:
                    - type: RequiresConfigFactory
                 """;
@@ -62,19 +58,17 @@ class KafkaProxyTest {
                   demo1:
                     targetCluster:
                       bootstrapServers: kafka.example:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
                         bootstrapAddress: localhost:9192
-                        numberOfBrokerPorts: 1
                   demo2:
                     targetCluster:
                       bootstrapServers: kafka.example:1234
-                    clusterNetworkAddressConfigProvider:
-                      type: PortPerBrokerClusterNetworkAddressConfigProvider
-                      config:
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
                         bootstrapAddress: localhost:9192 # Conflict
-                        numberOfBrokerPorts: 1
                 """,
                 "exclusive TCP bind of <any>:9192 for gateway 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9192 for gateway 'default' of virtual cluster 'demo2': exclusive port collision"),
                 Arguments.of("broker port conflict", """
@@ -82,21 +76,19 @@ class KafkaProxyTest {
                           demo1:
                             targetCluster:
                               bootstrapServers: kafka.example:1234
-                            clusterNetworkAddressConfigProvider:
-                              type: PortPerBrokerClusterNetworkAddressConfigProvider
-                              config:
+                            gateways:
+                            - name: default
+                              portIdentifiesNode:
                                 bootstrapAddress: localhost:9192
-                                brokerStartPort: 9193
-                                numberOfBrokerPorts: 2
+                                nodeStartPort: 9193
                           demo2:
                             targetCluster:
                               bootstrapServers: kafka.example:1234
-                            clusterNetworkAddressConfigProvider:
-                              type: PortPerBrokerClusterNetworkAddressConfigProvider
-                              config:
+                            gateways:
+                            - name: default
+                              portIdentifiesNode:
                                 bootstrapAddress: localhost:8192
-                                brokerStartPort: 9193 # Conflict
-                                numberOfBrokerPorts: 1
+                                nodeStartPort: 9193 # Conflict
                         """,
                         "exclusive TCP bind of <any>:9193 for gateway 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9193 for gateway 'default' of virtual cluster 'demo2': exclusive port collision"));
     }
@@ -106,38 +98,32 @@ class KafkaProxyTest {
     void detectsConflictingPorts(String name, String config, String expectedMessage) throws Exception {
         ConfigParser configParser = new ConfigParser();
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-            var illegalStateException = assertThrows(IllegalStateException.class, kafkaProxy::startup);
-            assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
+            assertThatThrownBy(kafkaProxy::startup).hasMessageContaining(expectedMessage);
         }
     }
 
-    public static Stream<Arguments> missingTls() {
+    static Stream<Arguments> missingTls() {
         return Stream.of(Arguments.of("tls mismatch", """
                 virtualClusters:
                   demo1:
-                    clusterNetworkAddressConfigProvider:
-                      type: SniRoutingClusterNetworkAddressConfigProvider
-                      config:
-                        bootstrapAddress: cluster1:9192
-                        advertisedBrokerAddressPattern:  broker-$(nodeId)
+                    gateways:
+                    - name: default
+                      sniHostIdentifiesNode:
+                        bootstrapAddress: localhost:8192
+                        advertisedBrokerAddressPattern: broker-$(nodeId)
                     targetCluster:
                       bootstrapServers: kafka.example:1234
                 """,
-                "Cluster endpoint provider requires ServerNameIndication, but virtual cluster gateway 'default' does not configure TLS and provide a certificate for the server"));
+                "When using 'sniHostIdentifiesNode', 'tls' must be provided (virtual cluster listener default)"));
     }
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void missingTls(String name, String config, String expectedMessage) {
-
         ConfigParser configParser = new ConfigParser();
-        final Configuration parsedConfiguration = configParser.parseConfiguration(config);
-        var illegalStateException = assertThrows(IllegalStateException.class, () -> {
-            try (var ignored = new KafkaProxy(configParser, parsedConfiguration, Features.defaultFeatures())) {
-                fail("The proxy started, but a failure was expected.");
-            }
-        });
-        assertThat(illegalStateException).hasStackTraceContaining(expectedMessage);
+
+        assertThatThrownBy(() -> configParser.parseConfiguration(config))
+                .hasStackTraceContaining(expectedMessage);
     }
 
     public static Stream<Arguments> parametersNonNullable() {
@@ -148,10 +134,9 @@ class KafkaProxyTest {
 
     @ParameterizedTest
     @MethodSource
+    @SuppressWarnings("resource")
     void parametersNonNullable(@NonNull PluginFactoryRegistry pfr, @NonNull Configuration config, @NonNull Features features) {
-        assertThatThrownBy(() -> {
-            new KafkaProxy(pfr, config, features);
-        }).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new KafkaProxy(pfr, config, features)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
