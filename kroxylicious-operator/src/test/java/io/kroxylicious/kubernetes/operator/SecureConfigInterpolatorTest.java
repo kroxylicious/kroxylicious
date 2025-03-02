@@ -22,33 +22,235 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SecureConfigInterpolatorTest {
 
+    private static final YAMLMapper YAML_MAPPER = new YAMLMapper()
+            .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
+            .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
+            .enable(YAMLGenerator.Feature.INDENT_ARRAYS_WITH_INDICATOR);
+
     @Test
-    void shouldInterpolate() throws JsonProcessingException {
+    void shouldInterpolateInAnArray() throws JsonProcessingException {
+        // given
+        Map<String, SecureConfigProvider> secret = Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER);
+        var i = new SecureConfigInterpolator("/base", secret);
+
+        var jsonValue = YAML_MAPPER.readValue("""
+                kms: AwsKms
+                array:
+                  - 1
+                  - ${secret:aws:access-key}
+                  - true
+                """, Map.class);
+
+        // when
+        var result = i.interpolate(jsonValue);
+
+        // then
+        assertThat(result.volumes()).singleElement().extracting(Volume::getName).isEqualTo("secrets-aws");
+        assertThat(result.volumes()).singleElement().extracting(Volume::getSecret).extracting(SecretVolumeSource::getSecretName).isEqualTo("aws");
+
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getName).isEqualTo("secrets-aws");
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/aws");
+
+        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
+                kms: AwsKms
+                array:
+                  - 1
+                  - /base/secret/aws/access-key
+                  - true
+                """);
+
+    }
+
+    @Test
+    void shouldInterpolateInAnObject() throws JsonProcessingException {
+        // given
+        Map<String, SecureConfigProvider> secret = Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER);
+        var i = new SecureConfigInterpolator("/base", secret);
+
+        var jsonValue = YAML_MAPPER.readValue("""
+                kms: AwsKms
+                object:
+                  one: 1
+                  accessKey: ${secret:aws:access-key}
+                  yarp: true
+                """, Map.class);
+
+        // when
+        var result = i.interpolate(jsonValue);
+
+        // then
+        assertThat(result.volumes()).singleElement().extracting(Volume::getName).isEqualTo("secrets-aws");
+        assertThat(result.volumes()).singleElement().extracting(Volume::getSecret).extracting(SecretVolumeSource::getSecretName).isEqualTo("aws");
+
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getName).isEqualTo("secrets-aws");
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/aws");
+
+        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
+                kms: AwsKms
+                object:
+                  one: 1
+                  accessKey: /base/secret/aws/access-key
+                  yarp: true
+                """);
+    }
+
+    @Test
+    void shouldInterpolateTopLevelString() throws JsonProcessingException {
+        // given
+        Map<String, SecureConfigProvider> secret = Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER);
+        var i = new SecureConfigInterpolator("/base", secret);
+
+        var jsonValue = YAML_MAPPER.readValue("\"${secret:aws:access-key}\"", String.class);
+
+        // when
+        var result = i.interpolate(jsonValue);
+
+        // then
+        assertThat(result.volumes()).singleElement().extracting(Volume::getName).isEqualTo("secrets-aws");
+        assertThat(result.volumes()).singleElement().extracting(Volume::getSecret).extracting(SecretVolumeSource::getSecretName).isEqualTo("aws");
+
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getName).isEqualTo("secrets-aws");
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/aws");
+
+        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("/base/secret/aws/access-key\n");
+    }
+
+    @Test
+    void shouldNotTnterpolateWhenPrefixed() throws JsonProcessingException {
         // given
         var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
-        YAMLMapper yamlMapper = new YAMLMapper()
-                .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-                .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES);
-        var jsonValue = yamlMapper.readValue("""
+        var jsonValue = YAML_MAPPER.readValue("""
+                kms: AwsKms
+                kmsConfig:
+                  prefixed:
+                    prefix ${secret:different-secret:a-key}
+                  suffixed:
+                    ${secret:different-secret:a-key} suffix
+                """, Map.class);
+
+        // when
+        var result = i.interpolate(jsonValue);
+
+        // then
+        assertThat(result.volumes()).isEmpty();
+        assertThat(result.mounts()).isEmpty();
+        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
+                kms: AwsKms
+                kmsConfig:
+                  prefixed: "prefix ${secret:different-secret:a-key}"
+                  suffixed: "${secret:different-secret:a-key} suffix"
+                """);
+
+    }
+
+    @Test
+    void shouldNotTnterpolateWhenUnknownProvider() throws JsonProcessingException {
+        // given
+        var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
+        var jsonValue = YAML_MAPPER.readValue("""
+                kms: AwsKms
+                kmsConfig:
+                  knownProvider: ${secret:aws:a-key}
+                  unknownProvider: ${unknow:aws:a-key}
+                """, Map.class);
+
+        // when
+        var result = i.interpolate(jsonValue);
+
+        // then
+        assertThat(result.volumes()).singleElement().extracting(Volume::getName).isEqualTo("secrets-aws");
+        assertThat(result.volumes()).singleElement().extracting(Volume::getSecret).extracting(SecretVolumeSource::getSecretName).isEqualTo("aws");
+
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getName).isEqualTo("secrets-aws");
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/aws");
+
+        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
+                kms: AwsKms
+                kmsConfig:
+                  knownProvider: /base/secret/aws/a-key
+                  unknownProvider: "${unknow:aws:a-key}"
+                """);
+
+    }
+
+    @Test
+    void shouldGetOneVolumeAndMountForMultipleIdenticalPlaceholders() throws JsonProcessingException {
+        // given
+        var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
+        var jsonValue = YAML_MAPPER.readValue("""
+                kms: AwsKms
+                kmsConfig:
+                  accessKey:
+                    password: ${secret:aws:access-key}
+                  alsoAccessKey:
+                    password: ${secret:aws:access-key}
+                """, Map.class);
+
+        // when
+        var result = i.interpolate(jsonValue);
+
+        // then
+        assertThat(result.volumes()).singleElement().extracting(Volume::getName).isEqualTo("secrets-aws");
+        assertThat(result.volumes()).singleElement().extracting(Volume::getSecret).extracting(SecretVolumeSource::getSecretName).isEqualTo("aws");
+
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getName).isEqualTo("secrets-aws");
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/aws");
+
+        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
+                kms: AwsKms
+                kmsConfig:
+                  accessKey:
+                    password: /base/secret/aws/access-key
+                  alsoAccessKey:
+                    password: /base/secret/aws/access-key
+                """);
+    }
+
+    @Test
+    void shouldGetOneVolumeAndMountForPlaceholdersWithDifferentKeys() throws JsonProcessingException {
+        // given
+        var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
+        var jsonValue = YAML_MAPPER.readValue("""
                 kms: AwsKms
                 kmsConfig:
                   accessKey:
                     password: ${secret:aws:access-key}
                   secretKey:
                     password: ${secret:aws:secret-key}
+                """, Map.class);
+
+        // when
+        var result = i.interpolate(jsonValue);
+
+        // then
+        assertThat(result.volumes()).singleElement().extracting(Volume::getName).isEqualTo("secrets-aws");
+        assertThat(result.volumes()).singleElement().extracting(Volume::getSecret).extracting(SecretVolumeSource::getSecretName).isEqualTo("aws");
+
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getName).isEqualTo("secrets-aws");
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/aws");
+
+        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
+                kms: AwsKms
+                kmsConfig:
+                  accessKey:
+                    password: /base/secret/aws/access-key
+                  secretKey:
+                    password: /base/secret/aws/secret-key
+                """);
+    }
+
+    @Test
+    void shouldGetTwoVolumesAndMountsForTwoSecretes() throws JsonProcessingException {
+        // given
+        var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
+
+        var jsonValue = YAML_MAPPER.readValue("""
+                kms: AwsKms
+                kmsConfig:
+                  accessKey:
+                    password: ${secret:aws:access-key}
                   anotherKey:
-                    password: ${secret:different-secret:a-key}
-                  notInterpolated:
-                    - ${unknown:different-secret:a-key}
-                    - prefixed ${secret:different-secret:a-key}
-                    - ${secret:different-secret:a-key} suffixed
-                array:
-                  - ${secret:aws:access-key}
-                  - ${secret:different-secret:a-key}
-                  - 1
-                  - true
-                  - null
-                  - 3.141
+                    password: ${secret:different-secret:access-key}
                 """, Map.class);
 
         // when
@@ -67,26 +269,14 @@ class SecureConfigInterpolatorTest {
         assertThat(result.mounts()).element(0).extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/aws");
         assertThat(result.mounts()).element(1).extracting(VolumeMount::getName).isEqualTo("secrets-different-secret");
         assertThat(result.mounts()).element(1).extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/different-secret");
-        assertThat(yamlMapper.writeValueAsString(result.config())).isEqualTo("""
+
+        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
                 kms: AwsKms
                 kmsConfig:
                   accessKey:
                     password: /base/secret/aws/access-key
-                  secretKey:
-                    password: /base/secret/aws/secret-key
                   anotherKey:
-                    password: /base/secret/different-secret/a-key
-                  notInterpolated:
-                  - "${unknown:different-secret:a-key}"
-                  - "prefixed ${secret:different-secret:a-key}"
-                  - "${secret:different-secret:a-key} suffixed"
-                array:
-                - /base/secret/aws/access-key
-                - /base/secret/different-secret/a-key
-                - 1
-                - true
-                - null
-                - 3.141
+                    password: /base/secret/different-secret/access-key
                 """);
 
     }
