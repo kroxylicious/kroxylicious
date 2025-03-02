@@ -31,7 +31,7 @@ class OperatorMainIT {
     @AfterEach
     void afterEach() {
         if (operatorMain != null) {
-            operatorMain.close();
+            operatorMain.stop();
         }
         assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
     }
