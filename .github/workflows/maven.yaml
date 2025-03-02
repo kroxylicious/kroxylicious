@@ -44,6 +44,12 @@ jobs:
         with:
           java-version: 21
           distribution: 'temurin'
+      - name: Setup Minikube
+        uses: manusa/actions-setup-minikube@v2.13.1
+        with:
+          minikube version: 'v1.35.0'
+          kubernetes version: 'v1.32.0'
+          github token: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Test for unpublished reference release (japicmp)'
         run: |
           REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)

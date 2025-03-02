@@ -10,6 +10,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.assertj.core.api.AbstractStringAssert;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.Volume;
@@ -58,6 +60,19 @@ class ProxyReconcilerIT {
     static void checkKubeAvailable() {
         client = OperatorTestUtils.kubeClientIfAvailable();
         Assumptions.assumeThat(client).describedAs("Test requires a viable kube client").isNotNull();
+        preloadOperatorImage();
+    }
+
+    // the initial operator image pull can take a long time and interfere with the tests
+    private static void preloadOperatorImage() {
+        String operandImage = ProxyDeployment.getOperandImage();
+        Pod pod = client.run().withName("preload-operator-image")
+                .withNewRunConfig()
+                .withImage(operandImage)
+                .withRestartPolicy("Never")
+                .withCommand("ls").done();
+        client.resource(pod).waitUntilCondition(it -> it.getStatus().getPhase().equals("Succeeded"), 2, TimeUnit.MINUTES);
+        client.resource(pod).delete();
     }
 
     @RegisterExtension
@@ -95,9 +110,22 @@ class ProxyReconcilerIT {
 
         assertProxyConfigContents(proxy, Set.of(CLUSTER_FOO_BOOTSTRAP, CLUSTER_BAR_BOOTSTRAP), Set.of());
         assertDeploymentMountsConfigSecret(proxy);
+        assertDeploymentBecomesReady(proxy);
         assertServiceTargetsProxyInstances(proxy, clusters);
-
         return new CreatedResources(proxy, clusters);
+    }
+
+    private void assertDeploymentBecomesReady(KafkaProxy proxy) {
+        // wait longer for initial operator image download
+        await().alias("Deployment as expected").untilAsserted(() -> {
+            var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
+            assertThat(deployment).isNotNull()
+                    .extracting(Deployment::getStatus)
+                    .describedAs("All deployment replicas should become ready")
+                    .satisfies(status -> {
+                        assertThat(status.getReplicas()).isEqualTo(status.getReadyReplicas());
+                    });
+        });
     }
 
     private void assertServiceTargetsProxyInstances(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters) {
@@ -171,6 +199,7 @@ class ProxyReconcilerIT {
         VirtualKafkaCluster cluster = createdResources.cluster(CLUSTER_FOO).edit().editSpec().editTargetCluster().editBootstrapping().withBootstrapAddress(NEW_BOOTSTRAP)
                 .endBootstrapping().endTargetCluster().endSpec().build();
         extension.replace(cluster);
+        assertDeploymentBecomesReady(proxy);
         await().untilAsserted(() -> {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
             assertThat(secret)
@@ -204,6 +233,7 @@ class ProxyReconcilerIT {
                     .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING)
                     .contains(CLUSTER_BAZ_BOOTSTRAP);
         });
+        assertDeploymentBecomesReady(proxy);
 
         await().untilAsserted(() -> {
             assertClusterServiceExists(proxy, CLUSTER_FOO);
@@ -229,6 +259,7 @@ class ProxyReconcilerIT {
                     .doesNotContain(CLUSTER_FOO_BOOTSTRAP)
                     .contains(CLUSTER_BAR_BOOTSTRAP);
         });
+        assertDeploymentBecomesReady(proxy);
 
         await().untilAsserted(() -> {
             var service = extension.get(Service.class, CLUSTER_FOO);
@@ -259,6 +290,8 @@ class ProxyReconcilerIT {
         // when
         extension.replace(virtualKafkaCluster(CLUSTER_BAR, CLUSTER_BAR_BOOTSTRAP, proxyB));
         // then
+        assertDeploymentBecomesReady(proxyA);
+        assertDeploymentBecomesReady(proxyB);
         Set<String> doesNotContain = Set.of(CLUSTER_BAR_BOOTSTRAP);
         assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP), doesNotContain);
         assertProxyConfigContents(proxyB, Set.of(CLUSTER_BAZ_BOOTSTRAP, CLUSTER_BAR_BOOTSTRAP), Set.of());
