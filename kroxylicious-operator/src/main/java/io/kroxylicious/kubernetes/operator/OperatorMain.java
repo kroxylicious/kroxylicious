@@ -55,7 +55,7 @@ public class OperatorMain {
         LOGGER.info("Operator started.");
     }
 
-    public void close() {
+    void stop() {
         // remove the meters we contributed to the global registry.
         var copy = List.copyOf(registry.getMeters());
         copy.forEach(Metrics.globalRegistry::remove);
