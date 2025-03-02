@@ -52,6 +52,7 @@ public class MountedResourceConfigProvider implements SecureConfigProvider {
             VolumeMount mount = new VolumeMountBuilder()
                     .withName(volumeName)
                     .withMountPath(mountPath.toString())
+                    .withReadOnly(true)
                     .build();
             return new ContainerFileReference(
                     volume,

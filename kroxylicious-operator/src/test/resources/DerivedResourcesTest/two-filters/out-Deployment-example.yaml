@@ -60,6 +60,7 @@ spec:
               subPath: "proxy-config.yaml"
             - mountPath: "/opt/kroxylicious/secure/secret/my-secret"
               name: "secrets-my-secret"
+              readOnly: true
       volumes:
         - name: "config-volume"
           secret:

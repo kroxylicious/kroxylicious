@@ -60,12 +60,16 @@ spec:
               subPath: "proxy-config.yaml"
             - mountPath: "/opt/kroxylicious/secure/secret/foo"
               name: "secrets-foo"
+              readOnly: true
             - mountPath: "/opt/kroxylicious/secure/secret/bar"
               name: "secrets-bar"
+              readOnly: true
             - mountPath: "/opt/kroxylicious/secure/configmap/foo"
               name: "configmaps-foo"
+              readOnly: true
             - mountPath: "/opt/kroxylicious/secure/configmap/bar"
               name: "configmaps-bar"
+              readOnly: true
       volumes:
         - name: "config-volume"
           secret:
