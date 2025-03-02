@@ -21,6 +21,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.SSLSocket;
+
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -67,8 +71,10 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_GATEWA
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
@@ -170,6 +176,20 @@ class ExpositionIT extends BaseIT {
                 assertThat(ports).containsExactly(9295);
             }
         }
+    }
+
+    @Test
+    void shouldFailFastWhenConnectWithSSLToPlainListener(KafkaCluster cluster) {
+        assertThatThrownBy(() -> {
+            try (var tester = kroxyliciousTester(proxy(cluster))) {
+                String bootstrap = tester.getBootstrapAddress();
+                String[] split = bootstrap.split(":");
+                try (SSLSocket socket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket(split[0], Integer.parseInt(split[1]))) {
+                    socket.setSoTimeout(5000);
+                    socket.startHandshake();
+                }
+            }
+        }).isInstanceOf(SSLHandshakeException.class).hasMessageContaining("Remote host terminated the handshake");
     }
 
     private static @NonNull Set<Integer> getClusterNodePorts(Admin admin) throws InterruptedException, ExecutionException, TimeoutException {
