@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -95,9 +97,22 @@ class ProxyReconcilerIT {
 
         assertProxyConfigContents(proxy, Set.of(CLUSTER_FOO_BOOTSTRAP, CLUSTER_BAR_BOOTSTRAP), Set.of());
         assertDeploymentMountsConfigSecret(proxy);
+        assertDeploymentBecomesReady(proxy);
         assertServiceTargetsProxyInstances(proxy, clusters);
-
         return new CreatedResources(proxy, clusters);
+    }
+
+    private void assertDeploymentBecomesReady(KafkaProxy proxy) {
+        // wait longer for initial operator image download
+        await().atMost(Duration.of(120, ChronoUnit.SECONDS)).alias("Deployment as expected").untilAsserted(() -> {
+            var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
+            assertThat(deployment).isNotNull()
+                    .extracting(Deployment::getStatus)
+                    .describedAs("All deployment replicas should become ready")
+                    .satisfies(status -> {
+                        assertThat(status.getReplicas()).isEqualTo(status.getReadyReplicas());
+                    });
+        });
     }
 
     private void assertServiceTargetsProxyInstances(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters) {
@@ -171,6 +186,7 @@ class ProxyReconcilerIT {
         VirtualKafkaCluster cluster = createdResources.cluster(CLUSTER_FOO).edit().editSpec().editTargetCluster().editBootstrapping().withBootstrapAddress(NEW_BOOTSTRAP)
                 .endBootstrapping().endTargetCluster().endSpec().build();
         extension.replace(cluster);
+        assertDeploymentBecomesReady(proxy);
         await().untilAsserted(() -> {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
             assertThat(secret)
@@ -204,6 +220,7 @@ class ProxyReconcilerIT {
                     .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING)
                     .contains(CLUSTER_BAZ_BOOTSTRAP);
         });
+        assertDeploymentBecomesReady(proxy);
 
         await().untilAsserted(() -> {
             assertClusterServiceExists(proxy, CLUSTER_FOO);
@@ -229,6 +246,7 @@ class ProxyReconcilerIT {
                     .doesNotContain(CLUSTER_FOO_BOOTSTRAP)
                     .contains(CLUSTER_BAR_BOOTSTRAP);
         });
+        assertDeploymentBecomesReady(proxy);
 
         await().untilAsserted(() -> {
             var service = extension.get(Service.class, CLUSTER_FOO);
@@ -259,6 +277,8 @@ class ProxyReconcilerIT {
         // when
         extension.replace(virtualKafkaCluster(CLUSTER_BAR, CLUSTER_BAR_BOOTSTRAP, proxyB));
         // then
+        assertDeploymentBecomesReady(proxyA);
+        assertDeploymentBecomesReady(proxyB);
         Set<String> doesNotContain = Set.of(CLUSTER_BAR_BOOTSTRAP);
         assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP), doesNotContain);
         assertProxyConfigContents(proxyB, Set.of(CLUSTER_BAZ_BOOTSTRAP, CLUSTER_BAR_BOOTSTRAP), Set.of());
