@@ -12,7 +12,7 @@ metadata:
   namespace: my-proxy
 spec:
   type: io.kroxylicious.filter.encryption.RecordEncryption
-  config:
+  configTemplate:
     kms: Foo
     kmsConfig: {}
     selector: Bar

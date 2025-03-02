@@ -12,5 +12,5 @@ metadata:
   namespace: proxy-ns
 spec:
   type: org.example.some.java.Class
-  config:
+  configTemplate:
     filterOneConfig: true
