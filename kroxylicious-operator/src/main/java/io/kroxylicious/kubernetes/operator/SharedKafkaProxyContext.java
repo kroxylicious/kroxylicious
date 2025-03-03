@@ -14,7 +14,7 @@ import java.util.Optional;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 /**
@@ -46,18 +46,18 @@ public class SharedKafkaProxyContext {
     /**
      * Associate a condition with a specific cluster.
      */
-    static void addClusterCondition(Context<KafkaProxy> context, Clusters cluster, ClusterCondition clusterCondition) {
+    static void addClusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ClusterCondition clusterCondition) {
         Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(null);
         if (map == null) {
             map = Collections.synchronizedMap(new HashMap<>());
             context.managedDependentResourceContext().put(CLUSTER_CONDITIONS_KEY, map);
         }
-        map.put(cluster.getName(), clusterCondition);
+        map.put(cluster.getMetadata().getName(), clusterCondition);
     }
 
-    static boolean isBroken(Context<KafkaProxy> context, Clusters cluster) {
+    static boolean isBroken(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
         Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(Map.of());
-        return map.containsKey(cluster.getName());
+        return map.containsKey(cluster.getMetadata().getName());
     }
 
     /**
@@ -66,9 +66,9 @@ public class SharedKafkaProxyContext {
      * @param cluster The cluster
      * @return The conditions specific to the given cluster; or empty if there were none.
      */
-    static ClusterCondition clusterCondition(Context<KafkaProxy> context, Clusters cluster) {
+    static ClusterCondition clusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
         Optional<Map<String, ClusterCondition>> map = (Optional) context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class);
-        return map.orElse(Map.of()).getOrDefault(cluster.getName(), ClusterCondition.accepted(cluster.getName()));
+        return map.orElse(Map.of()).getOrDefault(cluster.getMetadata().getName(), ClusterCondition.accepted(cluster.getMetadata().getName()));
     }
 
 }

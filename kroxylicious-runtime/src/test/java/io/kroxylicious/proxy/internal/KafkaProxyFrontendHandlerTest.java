@@ -52,7 +52,7 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.RequestDecoderTest;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterListenerModel;
+import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.RequestFactory;
 
@@ -145,7 +145,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testMessageHandledAfterConnectingBeforeConnected() {
         // Given
-        VirtualClusterListenerModel virtualClusterListenerModel = mock(VirtualClusterListenerModel.class);
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(mock(VirtualClusterModel.class));
         KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), virtualClusterListenerModel);
         givenHandlerIsConnecting(handler, "initial");
@@ -161,7 +161,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testMessageHandledAfterConnectedBeforeOutboundActive() {
         // Given
-        VirtualClusterListenerModel virtualClusterListenerModel = mock(VirtualClusterListenerModel.class);
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(mock(VirtualClusterModel.class));
         KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), virtualClusterListenerModel);
         givenHandlerIsConnected(handler);
@@ -177,7 +177,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testUnexpectedMessageReceivedBeforeConnected() {
         // Given
-        VirtualClusterListenerModel virtualClusterListenerModel = mock(VirtualClusterListenerModel.class);
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(mock(VirtualClusterModel.class));
         KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), virtualClusterListenerModel);
         givenHandlerIsConnecting(handler, "initial");
@@ -195,10 +195,10 @@ class KafkaProxyFrontendHandlerTest {
         // Given
 
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
-        VirtualClusterListenerModel virtualClusterListenerModel = mock(VirtualClusterListenerModel.class);
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
         when(virtualClusterListenerModel.getDownstreamSslContext()).thenReturn(Optional.empty());
-        when(virtualClusterModel.listeners()).thenReturn(Map.of("default", virtualClusterListenerModel));
+        when(virtualClusterModel.gateways()).thenReturn(Map.of("default", virtualClusterListenerModel));
 
         KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), virtualClusterListenerModel);
         ChannelPipeline pipeline = inboundChannel.pipeline();
@@ -220,10 +220,10 @@ class KafkaProxyFrontendHandlerTest {
     void testHandleFrameOversizedExceptionDownstreamTlsEnabled() throws Exception {
         // Given
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
-        VirtualClusterListenerModel virtualClusterListenerModel = mock(VirtualClusterListenerModel.class);
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
         when(virtualClusterListenerModel.getDownstreamSslContext()).thenReturn(Optional.of(SslContextBuilder.forClient().build()));
-        when(virtualClusterModel.listeners()).thenReturn(Map.of("default", virtualClusterListenerModel));
+        when(virtualClusterModel.gateways()).thenReturn(Map.of("default", virtualClusterListenerModel));
 
         KafkaProxyFrontendHandler handler = handler(connectContext::set, new SaslDecodePredicate(false), virtualClusterListenerModel);
         ChannelPipeline pipeline = inboundChannel.pipeline();
@@ -244,7 +244,7 @@ class KafkaProxyFrontendHandlerTest {
     @Test
     void testUnexpectedMessageReceivedBeforeOutboundActive() {
         // Given
-        VirtualClusterListenerModel virtualClusterListenerModel = mock(VirtualClusterListenerModel.class);
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(mock(VirtualClusterModel.class));
         KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), virtualClusterListenerModel);
         givenHandlerIsConnected(handler);
@@ -262,8 +262,8 @@ class KafkaProxyFrontendHandlerTest {
                 .setClientSoftwareName(clientSoftwareName).setClientSoftwareVersion("1.0.0"));
     }
 
-    KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, VirtualClusterListenerModel endpointListener) {
-        return new KafkaProxyFrontendHandler(filter, dp, endpointListener, proxyChannelStateMachine) {
+    KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, VirtualClusterGatewayModel gatewayModel) {
+        return new KafkaProxyFrontendHandler(filter, dp, gatewayModel, proxyChannelStateMachine) {
 
             @NonNull
             @Override
@@ -313,7 +313,7 @@ class KafkaProxyFrontendHandlerTest {
         ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
         var filter = mock(NetFilter.class);
         var virtualCluster = mock(VirtualClusterModel.class);
-        var virtualClusterListenerModel = mock(VirtualClusterListenerModel.class);
+        var virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualCluster);
         when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
 
@@ -422,7 +422,7 @@ class KafkaProxyFrontendHandlerTest {
     @MethodSource("requests")
     void shouldTransitionToFailedOnException(Short version, ApiMessage apiMessage) {
         // Given
-        VirtualClusterListenerModel virtualClusterListenerModel = mock(VirtualClusterListenerModel.class);
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(mock(VirtualClusterModel.class));
 
         KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), virtualClusterListenerModel);
@@ -450,7 +450,7 @@ class KafkaProxyFrontendHandlerTest {
     @MethodSource("requests")
     void shouldTransitionToFailedOnExceptionForFrameOversizedException(Short version, ApiMessage apiMessage) {
         // Given
-        VirtualClusterListenerModel virtualClusterListenerModel = mock(VirtualClusterListenerModel.class);
+        VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(mock(VirtualClusterModel.class));
         KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), virtualClusterListenerModel);
         initialiseInboundChannel(handler);
@@ -571,7 +571,7 @@ class KafkaProxyFrontendHandlerTest {
         var dp = new SaslDecodePredicate(saslOffloadConfigured);
         var filter = mock(NetFilter.class);
         var virtualCluster = mock(VirtualClusterModel.class);
-        var virtualClusterListenerModel = mock(VirtualClusterListenerModel.class);
+        var virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualCluster);
         when(virtualCluster.getUpstreamSslContext()).thenReturn(Optional.empty());
 

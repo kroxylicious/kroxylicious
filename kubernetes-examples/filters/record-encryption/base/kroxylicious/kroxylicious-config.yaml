@@ -18,12 +18,11 @@ data:
       my-cluster-proxy:
         # the virtual cluster is kafka proxy that sits between kafka clients and the real kafka cluster.  clients
         # connect to the virtual cluster rather than real cluster.
-        clusterNetworkAddressConfigProvider:
-          # this is the networking scheme used to present the virtual cluster on the network
-          type: PortPerBrokerClusterNetworkAddressConfigProvider
-          config:
-            # this is the address the clients will refer to in their bootstrap.servers configuration.
-            bootstrapAddress: minikube:30192
+        gateways:
+          - name: mygateway
+            # this is the networking scheme used to present the virtual cluster on the network
+            portIdentifiesNode:
+              bootstrapAddress: minikube:30192
         targetCluster:
           # declares the kafka cluster that is being proxied
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
@@ -39,6 +38,6 @@ data:
             password: myroottoken
         selector: TemplateKekSelector
         selectorConfig:
-          template: "${topicName}"
+          template: "$(topicName)"
     defaultFilters:
       - encrypt

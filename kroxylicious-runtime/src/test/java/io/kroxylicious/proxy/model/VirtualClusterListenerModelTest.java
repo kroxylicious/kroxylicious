@@ -35,7 +35,7 @@ import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
-import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterListenerModel;
+import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -80,7 +80,7 @@ class VirtualClusterListenerModelTest {
     @Test
     void delegatesToProviderForAdvertisedPort() {
         var mock = mock(ClusterNetworkAddressConfigProvider.class);
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         var advertisedHostPort = new HostPort("broker", 55);
         when(mock.getAdvertisedBrokerAddress(0)).thenReturn(advertisedHostPort);
         assertThat(listener.getAdvertisedBrokerAddress(0)).isEqualTo(advertisedHostPort);
@@ -89,7 +89,7 @@ class VirtualClusterListenerModelTest {
     @Test
     void delegatesToProviderForBrokerAddress() {
         var mock = mock(ClusterNetworkAddressConfigProvider.class);
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         var brokerAddress = new HostPort("broker", 55);
         when(mock.getBrokerAddress(0)).thenReturn(brokerAddress);
         assertThat(listener.getBrokerAddress(0)).isEqualTo(brokerAddress);
@@ -98,7 +98,7 @@ class VirtualClusterListenerModelTest {
     @Test
     void delegatesToProviderForBrokerIdFromBrokerAddress() {
         var mock = mock(ClusterNetworkAddressConfigProvider.class);
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         var brokerAddress = new HostPort("broker", 55);
         when(mock.getBrokerIdFromBrokerAddress(brokerAddress)).thenReturn(1);
         assertThat(listener.getBrokerIdFromBrokerAddress(brokerAddress)).isEqualTo(1);
@@ -107,8 +107,7 @@ class VirtualClusterListenerModelTest {
     @Test
     void delegatesToProviderForServerNameIndication() {
         var mock = mock(ClusterNetworkAddressConfigProvider.class);
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
-        var brokerAddress = new HostPort("broker", 55);
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         when(mock.requiresServerNameIndication()).thenReturn(true);
         assertThat(listener.requiresServerNameIndication()).isTrue();
     }
@@ -122,7 +121,7 @@ class VirtualClusterListenerModelTest {
         var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
 
         // When
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, downstreamTls, "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, downstreamTls, "default");
 
         // Then
         assertThat(listener).isNotNull().extracting("downstreamSslContext").isNotNull();
@@ -161,7 +160,7 @@ class VirtualClusterListenerModelTest {
         var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
 
         // When
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, downstreamTls, "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, downstreamTls, "default");
 
         // Then
         assertThat(listener)
@@ -194,7 +193,7 @@ class VirtualClusterListenerModelTest {
         var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
 
         // When
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, tls, "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, tls, "default");
 
         // Then
         assertThat(listener)
@@ -227,7 +226,7 @@ class VirtualClusterListenerModelTest {
         var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
 
         // When
-        var listener = new VirtualClusterListenerModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, tls, "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, tls, "default");
 
         // Then
         assertThat(listener)
@@ -258,10 +257,10 @@ class VirtualClusterListenerModelTest {
         when(provider.requiresServerNameIndication()).thenReturn(true);
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualClusterListenerModel(model, provider, downstreamTls, "mylistener"))
+        assertThatThrownBy(() -> new VirtualClusterGatewayModel(model, provider, downstreamTls, "mygateway"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(
-                        "Cluster endpoint provider requires ServerNameIndication, but virtual cluster listener 'mylistener' does not configure TLS and provide a certificate for the server");
+                        "Cluster endpoint provider requires ServerNameIndication, but virtual cluster gateway 'mygateway' does not configure TLS and provide a certificate for the server");
     }
 
     @Test
@@ -274,13 +273,14 @@ class VirtualClusterListenerModelTest {
         when(provider.getExclusivePorts()).thenReturn(Set.of(9080));
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualClusterListenerModel(model, provider, tls, "mylistener"))
+        assertThatThrownBy(() -> new VirtualClusterGatewayModel(model, provider, tls, "mygateway"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(
                         "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: [9080]");
     }
 
     @NonNull
+    @SuppressWarnings("removal")
     private ClusterNetworkAddressConfigProvider createTestClusterNetworkAddressConfigProvider() {
         final PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),

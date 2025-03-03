@@ -40,8 +40,11 @@ import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider
  *    resolvable by the client.  Optionally these properties can specify a port which will be advertised to the clients.  One pattern is supported: {@code $(nodeId)}
  *    which interpolates the node id into the address.
  * </ul>
+ *
+ * @deprecated use {@link io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy} instead
  */
 @Plugin(configType = SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig.class)
+@Deprecated(since = "0.11.0", forRemoval = true)
 public class SniRoutingClusterNetworkAddressConfigProvider implements
         ClusterNetworkAddressConfigProviderService<SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig> {
     @NonNull
@@ -66,7 +69,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
             this.bootstrapAddress = config.bootstrapAddress;
             this.brokerAddressPattern = config.parsedBrokerAddressPattern;
             this.brokerAddressNodeIdCapturingRegex = config.brokerAddressNodeIdCapturingRegex;
-            advertisedPort = config.getAdvertisedPort();
+            this.advertisedPort = config.getAdvertisedPort();
         }
 
         @Override
@@ -137,6 +140,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
         private final Pattern brokerAddressNodeIdCapturingRegex;
         @JsonIgnore
         private final Integer advertisedPort;
+
         // present for serialize/deserialize fidelity
         @SuppressWarnings("unused")
         private final String brokerAddressPattern;
@@ -200,9 +204,14 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
             return bootstrapAddress;
         }
 
+        public String getBrokerAddressPattern() {
+            return brokerAddressPattern;
+        }
+
         public int getAdvertisedPort() {
             return advertisedPort;
         }
+
     }
 
 }

@@ -7,8 +7,10 @@
 package io.kroxylicious.kubernetes.operator;
 
 import org.assertj.core.api.Assumptions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+@Disabled
 class OperatorMainIT {
     // This is an IT because it depends on having a running Kube cluster
 

@@ -174,30 +174,30 @@ public record Configuration(
                 virtualCluster.logFrames(),
                 filterDefinitions);
 
-        Optional.ofNullable(virtualCluster.listeners())
+        Optional.ofNullable(virtualCluster.gateways())
                 .filter(Predicate.not(List::isEmpty))
-                .ifPresentOrElse(listeners -> addListeners(pfr, listeners, virtualClusterModel),
-                        () -> addListenerFromDeprecatedConfig(virtualCluster, pfr, virtualClusterModel));
+                .ifPresentOrElse(gateways -> addGateways(pfr, gateways, virtualClusterModel),
+                        () -> addGatewayFromDeprecatedConfig(virtualCluster, pfr, virtualClusterModel));
         virtualClusterModel.logVirtualClusterSummary();
 
         return virtualClusterModel;
     }
 
-    private static void addListeners(@NonNull PluginFactoryRegistry pfr, List<VirtualClusterListener> listeners, VirtualClusterModel virtualClusterModel) {
-        listeners.forEach(listener -> {
-            var networkAddress = buildNetworkAddressProviderService(listener.clusterNetworkAddressConfigProvider(), pfr);
-            var tls = listener.tls();
-            virtualClusterModel.addListener(listener.name(), networkAddress, tls);
+    private static void addGateways(@NonNull PluginFactoryRegistry pfr, List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
+        gateways.forEach(gateway -> {
+            var networkAddress = buildNetworkAddressProviderService(gateway.clusterNetworkAddressConfigProvider(), pfr);
+            var tls = gateway.tls();
+            virtualClusterModel.addGateway(gateway.name(), networkAddress, tls);
         });
     }
 
     @SuppressWarnings("removal")
-    private static void addListenerFromDeprecatedConfig(@NonNull VirtualCluster virtualCluster, @NonNull PluginFactoryRegistry pfr,
-                                                        VirtualClusterModel virtualClusterModel) {
+    private static void addGatewayFromDeprecatedConfig(@NonNull VirtualCluster virtualCluster, @NonNull PluginFactoryRegistry pfr,
+                                                       VirtualClusterModel virtualClusterModel) {
         // VirtualCluster config validation should mean this we always have a provider if we reach this point.
         Objects.requireNonNull(virtualCluster.clusterNetworkAddressConfigProvider(), "provider unexpectedly null");
         var networkAddress = buildNetworkAddressProviderService(virtualCluster.clusterNetworkAddressConfigProvider(), pfr);
-        virtualClusterModel.addListener(VirtualCluster.DEFAULT_LISTENER_NAME, networkAddress, virtualCluster.tls());
+        virtualClusterModel.addGateway(VirtualCluster.DEFAULT_GATEWAY_NAME, networkAddress, virtualCluster.tls());
     }
 
     private static ClusterNetworkAddressConfigProvider buildNetworkAddressProviderService(@NonNull ClusterNetworkAddressConfigProviderDefinition definition,

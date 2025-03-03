@@ -6,17 +6,16 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.stream.Collector;
+import java.util.Comparator;
+import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Clusters;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 public class ResourcesUtil {
     private ResourcesUtil() {
@@ -31,17 +30,9 @@ public class ResourcesUtil {
                 .build();
     }
 
-    static List<Clusters> distinctClusters(KafkaProxy primary) {
-        return distinctClusters(primary.getSpec().getClusters());
+    static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
+        return context.getSecondaryResources(VirtualKafkaCluster.class)
+                .stream().sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName()));
     }
 
-    static List<Clusters> distinctClusters(List<Clusters> clusters) {
-        return new ArrayList<>(clusters.stream().collect(Collector.of(
-                () -> new LinkedHashMap<String, Clusters>(),
-                (set, cluster) -> set.putIfAbsent(cluster.getName(), cluster),
-                (setA, setB) -> {
-                    setA.putAll(setB);
-                    return setA;
-                })).values());
-    }
 }

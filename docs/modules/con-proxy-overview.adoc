@@ -65,19 +65,22 @@ The _Virtual Cluster_ is the downstream representation of a Kafka Cluster.  At t
 connects to a Virtual Cluster.  Kroxylicious proxies all communications made to the Virtual Cluster through to a
 (physical) Kafka Cluster, passing it through the _Filter Chain_.
 
-So far, this explanation has elided the detail of Kafka Brokers.  Let's talk about that now.
+=== Virtual cluster gateway
 
-The Virtual Cluster automatically exposes a bootstrap endpoint for the Virtual Cluster.  This is what the Kafka Client
-must specify as the https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[bootstrap.servers] property
-in the client configuration.
+Each virtual cluster has one or more dedicated gateways, which Kafka clients use to establish connections.
 
-In addition to the bootstrap endpoint, Kroxylicious automatically exposes broker endpoints.  There is one broker endpoint
+Each gateway exposes a bootstrap endpoint, which the Kafka Client must specify in its configuration as the https://kafka.apache.org/documentation/#producerconfigs_bootstrap.servers[`bootstrap.servers`] property.
+
+In addition to the bootstrap endpoint, the gateway automatically exposes broker endpoints. There is one broker endpoint
 for each broker of the physical cluster.  When the Client connects to a broker endpoint, Kroxylicious proxies all
 communications to the corresponding broker of the (physical) Kafka Cluster.
 
 Kroxylicious automatically intercepts all the Kafka RPC responses that contain a broker address.  It rewrites the address
 so that it refers to the corresponding broker endpoint of the Virtual Cluster.  This means when the Kafka Client
 goes to connect to, say broker 0, it does so through the Virtual Cluster.
+
+Defining multiple gateways for a virtual cluster is useful when exposing it across different network segments.
+For example, in Kubernetes, you might configure one gateway for on-cluster traffic and another for off-cluster traffic.
 
 === Target cluster
 
@@ -87,7 +90,7 @@ A _Virtual Cluster_ has exactly one _Target Cluster_.
 
 There can be a _one-to-one_ relationship between Virtual Clusters and Target Clusters.
 The other possibility is _many-to-one_, where many Virtual Clusters point to the same Target Cluster.  The
-many-to-one pattern is exploited by filters such as the xref:available-filters.adoc#_multi_tenancy[Multi-tenancy]
+many-to-one pattern is exploited by filters such as the xref:multi-tenancy/proc-multi-tenancy.adoc#proc-multi-tenancy-{context}[Multi-tenancy]
 filter.
 
 .One-to-One relationship between Virtual Cluster and Target Cluster
@@ -100,10 +103,10 @@ filter.
 | |[Client] |=+   |                                     |    :                    :   |
 | '---------' :   |    '----------------------------'   |    :      '---------'   :   |
 |             :   |    |[Virtual Cluster]           |===+====|=====>|[Broker] |   :   |
-|             +===|===>|                            |   |    :      |         |   :   |
-|             :   |    |                            |   |    :      '---------'   :   |
-|             +===|===>|                            |   |    :                    :   |
-|                 |    |                            |   |    :      '---------'   :   |
+|             :   |    |                            |   |    :      |         |   :   |
+|             +===|===>| '---------'                |   |    :      '---------'   :   |
+|             :   |    | |[Gateway]|                |   |    :                    :   |
+|             +===|===>| '---------'                |   |    :      '---------'   :   |
 |                 |    |                            |===+====:==+==>|[Broker] |   :   |
 |                 |    '----------------------------'   |    :      |         |   :   |
 |                 |                                     |    :      '---------'   :   |
@@ -122,18 +125,18 @@ filter.
 | |[Client] |=+   |                                     |    :                    :   |
 | '---------' :   |    '----------------------------'   |    :      '---------'   :   |
 |             :   |    |[Virtual Cluster A]         |===+=+==|==+==>|[Broker] |   :   |
-|             +===|===>|                            |   | :  :      |         |   :   |
-|             :   |    |                            |   | :  :      '---------'   :   |
-|             +===|===>|                            |   | :  :                    :   |
+|             +===|===>| '---------'                |   | :  :      |         |   :   |
+|             :   |    | |[Gateway]|                |   | :  :      '---------'   :   |
+|             +===|===>| '---------'                |   | :  :                    :   |
 |                 |    |                            |   | :  :      '---------'   :   |
 |                 |    |                            |===+====:==+==>|[Broker] |   :   |
 |                 |    '----------------------------'   | :  :  :   |         |   :   |
 | '---------'     |                                     | :  :  :   '---------'   :   |
 | |[Client] |=+   |    '----------------------------'   | :  :  :                 :   |
 | '---------' :   |    |[Virtual Cluster B]         |===+=+  '===================='   |
-|             +===|===>|                            |   |       :                     |
-|             :   |    |                            |   |       :                     |
-|             +===|===>|                            |   |       :                     |
+|             +===|===>| '---------'                |   |       :                     |
+|             :   |    | |[Gateway]|                |   |       :                     |
+|             +===|===>| '---------'                |   |       :                     |
 |                 |    |                            |   |       :                     |
 |                 |    |                            |===+=======+                     |
 |                 |    '----------------------------'   |                             |

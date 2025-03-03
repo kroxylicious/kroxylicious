@@ -18,6 +18,7 @@ rules:
       - "kroxylicious.io"
     resources:
       - kafkaproxies
+      - virtualkafkaclusters
     verbs:
       - get
       - list

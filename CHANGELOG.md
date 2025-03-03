@@ -7,9 +7,22 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1840](https://github.com/kroxylicious/kroxylicious/pull/1840) Refactor virtual cluster configuration model
+* [#1823](https://github.com/kroxylicious/kroxylicious/pull/1823) Allow VirtualClusters to express more than one listener
+* [#1868](https://github.com/kroxylicious/kroxylicious/pull/1868) Support use of `$()` in KEK selector templates, deprecating `${}`
 * [#1819](https://github.com/kroxylicious/kroxylicious/pull/1819) Bump io.netty:netty-bom from 4.1.117.Final to 4.1.118.Final
 * [#1820](https://github.com/kroxylicious/kroxylicious/pull/1820) Bump io.micrometer:micrometer-bom from 1.14.3 to 1.14.4
 * [#1768](https://github.com/kroxylicious/kroxylicious/pull/1768) Record Encryption: enable user to specify policy when we cannot resolve a Key for a topic
+
+### Changes, deprecations and removals
+
+* In the `RecordEncryption` filter, `template` configuration property accepted by the `TemplateKekSelector` now supports the `$(topicName)` placeholder parameter. Use of `${topicName}` is deprecated and will be removed in a future release.
+* The virtual cluster configuration properties `clusterNetworkAddressConfigProvider` and `tls` are deprecated.
+  Define a named virtual cluster gateway within the `gateways` array.
+* The networking schemes `PortPerNodeClusterNetworkAddressConfigProvider` and `RangeAwarePortPerNodeClusterNetworkAddressConfigProvider`
+  are deprecated.  Define a virtual cluster gateway with `portIdentifiesNode` to express your networking requirements.
+* The networking scheme `SniRoutingClusterNetworkAddressConfigProvider` is deprecated.  Define a virtual cluster gateway with
+  `sniHostIdentifiesNode` to express your networking requirements.
 
 ## 0.10.0
 

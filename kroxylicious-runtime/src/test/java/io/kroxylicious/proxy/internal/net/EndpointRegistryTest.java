@@ -61,9 +61,9 @@ class EndpointRegistryTest {
     private final TestNetworkBindingOperationProcessor bindingOperationProcessor = new TestNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     @Mock(strictness = LENIENT)
-    private EndpointListener virtualClusterModel1;
+    private EndpointGateway virtualClusterModel1;
     @Mock(strictness = LENIENT)
-    private EndpointListener virtualClusterModel2;
+    private EndpointGateway virtualClusterModel2;
 
     @Test
     void registerVirtualCluster() throws Exception {
@@ -415,11 +415,11 @@ class EndpointRegistryTest {
 
         var rsf1 = endpointRegistry.resolve(Endpoint.createEndpoint(bindingAddress1, 9192, false), null).toCompletableFuture().get();
         assertThat(rsf1).isNotNull();
-        assertThat(rsf1.endpointListener()).isEqualTo(virtualClusterModel1);
+        assertThat(rsf1.endpointGateway()).isEqualTo(virtualClusterModel1);
 
         var rsf2 = endpointRegistry.resolve(Endpoint.createEndpoint(bindingAddress2, 9192, false), null).toCompletableFuture().get();
         assertThat(rsf2).isNotNull();
-        assertThat(rsf2.endpointListener()).isEqualTo(virtualClusterModel2);
+        assertThat(rsf2.endpointGateway()).isEqualTo(virtualClusterModel2);
 
         var executionException = assertThrows(ExecutionException.class,
                 () -> endpointRegistry.resolve(Endpoint.createEndpoint(9192, false), null).toCompletableFuture().get());
@@ -653,7 +653,7 @@ class EndpointRegistryTest {
         doReconcileFailsDueToExternalPortConflict(DOWNSTREAM_BROKER_0, UPSTREAM_BROKER_0);
     }
 
-    private EndpointListener doReconcileFailsDueToExternalPortConflict(HostPort downstreamBroker0, HostPort upstreamBroker0) {
+    private EndpointGateway doReconcileFailsDueToExternalPortConflict(HostPort downstreamBroker0, HostPort upstreamBroker0) {
         configureVirtualClusterMock(virtualClusterModel1, DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, false);
 
         var rgf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
@@ -725,11 +725,11 @@ class EndpointRegistryTest {
         };
     }
 
-    private void configureVirtualClusterMock(EndpointListener cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls) {
+    private void configureVirtualClusterMock(EndpointGateway cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls) {
         configureVirtualClusterMock(cluster, downstreamBootstrap, upstreamBootstrap, tls, tls, null);
     }
 
-    private void configureVirtualClusterMock(EndpointListener cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
+    private void configureVirtualClusterMock(EndpointGateway cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,
                                              Map<Integer, HostPort> discoveryAddressMap) {
         when(cluster.getClusterBootstrapAddress()).thenReturn(downstreamBootstrap);
         when(cluster.isUseTls()).thenReturn(tls);

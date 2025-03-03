@@ -42,7 +42,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyBackendHandlerTest {
 
-    public static final ClusterNetworkAddressConfigProvider ADDRESS_CONFIG_PROVIDER = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
+    @SuppressWarnings("removal")
+    private static final ClusterNetworkAddressConfigProvider ADDRESS_CONFIG_PROVIDER = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
             new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("localhost", 9090), "broker-", 9190,
                     0, 10));
     @Mock
@@ -57,7 +58,7 @@ class KafkaProxyBackendHandlerTest {
         outboundChannel = new EmbeddedChannel();
         var virtualClusterModel = new VirtualClusterModel("wibble", new TargetCluster("localhost:9090", Optional.empty()), false, false,
                 List.of());
-        virtualClusterModel.addListener("default", ADDRESS_CONFIG_PROVIDER, Optional.empty());
+        virtualClusterModel.addGateway("default", ADDRESS_CONFIG_PROVIDER, Optional.empty());
         kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine,
                 virtualClusterModel);
         outboundChannel.pipeline().addFirst(kafkaProxyBackendHandler);

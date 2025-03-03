@@ -22,5 +22,5 @@ public interface EndpointReconciler {
      * @param upstreamNodes  current set of node ids
      * @return CompletionStage that is used to signal completion of the work.
      */
-    CompletionStage<Void> reconcile(EndpointListener virtualClusterModel, Map<Integer, HostPort> upstreamNodes);
+    CompletionStage<Void> reconcile(EndpointGateway virtualClusterModel, Map<Integer, HostPort> upstreamNodes);
 }

@@ -195,7 +195,7 @@ class RecordEncryptionDeserializationCompatibilityIT {
                 .withConfig("kms", UnitTestingKmsService.class.getSimpleName())
                 .withConfig("kmsConfig", new UnitTestingKmsService.Config(12, 128, existingKeks))
                 .withConfig("selector", TemplateKekSelector.class.getSimpleName())
-                .withConfig("selectorConfig", Map.of("template", "${topicName}"))
+                .withConfig("selectorConfig", Map.of("template", "$(topicName)"))
                 .build();
     }
 }

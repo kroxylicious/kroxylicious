@@ -48,6 +48,6 @@ public class OperatorMain {
     static RuntimeDecl runtimeDecl() {
         // TODO read these from some configuration CR
         return new RuntimeDecl(List.of(
-                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "Filter")));
+                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "KafkaProtocolFilter")));
     }
 }

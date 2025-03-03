@@ -12,10 +12,10 @@ virtualClusters:
   demo:
     targetCluster:
       bootstrapServers: broker1:9092
-    clusterNetworkAddressConfigProvider:
-      type: PortPerBrokerClusterNetworkAddressConfigProvider
-      config:
-        bootstrapAddress: kroxylicious:9092
+    gateways:
+      - name: mygateway
+        portIdentifiesNode:
+          bootstrapAddress: kroxylicious:9092
     logNetwork: false
     logFrames: false
 filterDefinitions:
@@ -29,6 +29,6 @@ filterDefinitions:
         password: token
     selector: TemplateKekSelector
     selectorConfig:
-      template: "KEK_${topicName}"
+      template: "KEK_$(topicName)"
 defaultFilters:
   - encrypt
