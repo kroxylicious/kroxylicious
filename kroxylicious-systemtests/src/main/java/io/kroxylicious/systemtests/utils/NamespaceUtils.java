@@ -208,7 +208,7 @@ public class NamespaceUtils {
      * @return  list of Namespaces for the test-class and test-case
      */
     public static List<String> getListOfNamespacesForTestClassAndTestCase(String testClass, String testCase) {
-        List<String> namespaces = new ArrayList<>(getMapWithSuiteNamespaces().get(new CollectorElement(testClass)));
+        List<String> namespaces = new ArrayList<>(getMapWithSuiteNamespaces().get(new CollectorElement(testClass, "")));
 
         if (testCase != null) {
             Set<String> namespacesForTestCase = getMapWithSuiteNamespaces().get(new CollectorElement(testClass, testCase));

@@ -227,6 +227,5 @@ public class TestLogCollector {
         List<String> namespaces = NamespaceUtils.getListOfNamespacesForTestClassAndTestCase(testClass, testCase);
 
         testCaseCollector.collectFromNamespaces(namespaces.toArray(new String[0]));
-        NamespaceUtils.deleteNamespacesFromSet(namespaces, testClass, testCase);
     }
 }

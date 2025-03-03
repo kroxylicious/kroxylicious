@@ -68,7 +68,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     public void beforeAll(ExtensionContext extensionContext) {
         String testClassName = extensionContext.getRequiredTestClass().getName();
         ResourceManager.setTestContext(extensionContext);
-        NamespaceUtils.addNamespaceToSet(Environment.STRIMZI_NAMESPACE, CollectorElement.createCollectorElement(testClassName, ""));
+        NamespaceUtils.addNamespaceToSet(Environment.STRIMZI_NAMESPACE, new CollectorElement(testClassName, ""));
     }
 
     @Override
@@ -91,7 +91,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
             });
         }
         finally {
-            NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(namespace, CollectorElement.createCollectorElement(testClassName, testMethodName));
+            NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(namespace, new CollectorElement(testClassName, testMethodName));
         }
     }
 

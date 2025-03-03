@@ -75,7 +75,7 @@ public class LocalStack implements AwsKmsClient {
         String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
         String testCaseName = ResourceManager.getTestContext().getTestMethod().orElse(null) == null ? ""
                 : ResourceManager.getTestContext().getRequiredTestMethod().getName();
-        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, CollectorElement.createCollectorElement(testSuiteName, testCaseName));
+        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, new CollectorElement(testSuiteName, testCaseName));
     }
 
     @Override
