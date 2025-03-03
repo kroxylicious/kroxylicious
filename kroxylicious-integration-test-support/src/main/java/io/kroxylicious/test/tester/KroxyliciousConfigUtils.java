@@ -25,6 +25,8 @@ import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeA
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 
@@ -147,42 +149,45 @@ public class KroxyliciousConfigUtils {
         return defaultSniHostIdentifiesNodeGatewayBuilder(HostPort.parse(bootstrapAddress), advertisedBrokerAddressPattern);
     }
 
-    @SuppressWarnings("removal")
     public static Stream<VirtualClusterGateway> getVirtualClusterGatewayStream(VirtualCluster cluster) {
         return Optional.ofNullable(cluster.gateways())
                 .filter(Predicate.not(List::isEmpty))
                 .map(Collection::stream)
-                .orElseGet(() -> {
-                    var providerDefinition = cluster.clusterNetworkAddressConfigProvider();
-                    if (providerDefinition.config() instanceof PortPerBrokerClusterNetworkAddressConfigProviderConfig pc) {
-                        var ppb = new PortIdentifiesNodeIdentificationStrategy(pc.getBootstrapAddress(),
-                                pc.getBrokerAddressPattern(),
-                                pc.getBrokerStartPort(),
-                                null);
+                .orElseGet(() -> buildGatewayFromDeprecatedNetworkProvider(cluster));
+    }
 
-                        return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
-                                ppb, null, cluster.tls()));
-                    }
-                    else if (providerDefinition.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rc) {
-                        var ranges = rc.getNodeIdRanges().stream()
-                                .map(nir -> new NamedRange(nir.name(), nir.rangeSpec().startInclusive(), nir.rangeSpec().endExclusive() - 1))
-                                .toList();
-                        var rap = new PortIdentifiesNodeIdentificationStrategy(rc.getBootstrapAddress(),
-                                rc.getNodeAddressPattern(),
-                                rc.getNodeStartPort(),
-                                ranges);
+    @NonNull
+    @SuppressWarnings("removal")
+    private static Stream<VirtualClusterGateway> buildGatewayFromDeprecatedNetworkProvider(VirtualCluster cluster) {
+        var providerDefinition = cluster.clusterNetworkAddressConfigProvider();
+        if (providerDefinition.config() instanceof PortPerBrokerClusterNetworkAddressConfigProviderConfig pc) {
+            var strategy = new PortIdentifiesNodeIdentificationStrategy(pc.getBootstrapAddress(),
+                    pc.getBrokerAddressPattern(),
+                    pc.getBrokerStartPort(),
+                    null);
 
-                        return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
-                                rap, null, cluster.tls()));
-                    }
-                    else if (providerDefinition.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sc) {
-                        var snp = new SniHostIdentifiesNodeIdentificationStrategy(sc.getBootstrapAddress(),
-                                sc.getBrokerAddressPattern());
+            return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
+                    strategy, null, cluster.tls()));
+        }
+        else if (providerDefinition.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rc) {
+            var ranges = rc.getNodeIdRanges().stream()
+                    .map(nir -> new NamedRange(nir.name(), nir.rangeSpec().startInclusive(), nir.rangeSpec().endExclusive() - 1))
+                    .toList();
+            var strategy = new PortIdentifiesNodeIdentificationStrategy(rc.getBootstrapAddress(),
+                    rc.getNodeAddressPattern(),
+                    rc.getNodeStartPort(),
+                    ranges);
 
-                        return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
-                                null, snp, cluster.tls()));
-                    }
-                    throw new UnsupportedOperationException(providerDefinition.type() + " is unrecognised");
-                });
+            return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
+                    strategy, null, cluster.tls()));
+        }
+        else if (providerDefinition.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sc) {
+            var strategy = new SniHostIdentifiesNodeIdentificationStrategy(sc.getBootstrapAddress(),
+                    sc.getBrokerAddressPattern());
+
+            return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
+                    null, strategy, cluster.tls()));
+        }
+        throw new UnsupportedOperationException(providerDefinition.type() + " is unrecognised");
     }
 }

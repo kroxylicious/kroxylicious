@@ -44,7 +44,8 @@ class NamedRangeTest {
                 arguments(new NamedRange("myrange", 3, 4), new NamedRange("myrange", 2, 3), false),
                 arguments(new NamedRange("myrange", 0, 1), new NamedRange("myrange", 1, 1), false),
                 arguments(new NamedRange("myrange", 0, 2), new NamedRange("myrange", 1, 1), false),
-                arguments(new NamedRange("myrange", 0, 3), new NamedRange("myrange", 1, 1), false));
+                arguments(new NamedRange("myrange", 0, 3), new NamedRange("myrange", 1, 1), false),
+                arguments(new NamedRange("myrange", 0, 3), new NamedRange("myrange", 0, 3), false));
     }
 
     @ParameterizedTest
@@ -61,7 +62,8 @@ class NamedRangeTest {
                 arguments(new NamedRange("myrange", 3, 3), new NamedRange("myrange", 2, 3), false),
                 arguments(new NamedRange("myrange", 0, 1), new NamedRange("myrange", 1, 1), false),
                 arguments(new NamedRange("myrange", 0, 2), new NamedRange("myrange", 1, 1), false),
-                arguments(new NamedRange("myrange", 0, 3), new NamedRange("myrange", 1, 1), false));
+                arguments(new NamedRange("myrange", 0, 3), new NamedRange("myrange", 1, 1), false),
+                arguments(new NamedRange("myrange", 0, 3), new NamedRange("myrange", 0, 3), false));
     }
 
     @ParameterizedTest

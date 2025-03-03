@@ -7,7 +7,7 @@ Clients communicate with the virtual cluster rather than the actual cluster.
 When Kroxylicious is deployed, it includes configuration to create virtual clusters. 
 
 A virtual cluster has exactly one target cluster, but many virtual clusters can target the same cluster.
-Each virtual cluster targets a single gateway on the target cluster, so multiple gateways on the Kafka side are represented as multiple virtual clusters by the proxy.
+Each virtual cluster targets a single listener on the target cluster, so multiple listeners on the Kafka side are represented as multiple virtual clusters by the proxy.
 Clients connect to a virtual cluster using a `bootstrapServers` address.
 The virtual cluster has a bootstrap address that maps to each broker in the target cluster.
 When a client connects to the proxy, communication is proxied to the target broker by rewriting the address.
