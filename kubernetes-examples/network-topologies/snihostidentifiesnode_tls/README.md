@@ -1,6 +1,6 @@
-# SNI Networking Scheme with Kubernetes LoadBalancer services
+# SNI Host Identifies Node Network Scheme with Kubernetes LoadBalancer services
 
-This examples illustrates Kroxylicious's SNI networking scheme working in consort with the
+This examples illustrates Kroxylicious's SNI Host Identifies Node scheme working in consort with the
 LoadBalancer service type of Kubernetes.  The virtual cluster is exposed to the host's network utilising 
 a single port.
 

@@ -108,14 +108,14 @@ class KafkaProxyInitializerTest {
         when(channel.localAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 9099));
 
         when(serverSocketChannel.localAddress()).thenReturn(localhost);
-        when(vcb.endpointListener()).thenReturn(virtualClusterModel.listeners().values().iterator().next());
+        when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
     }
 
     private VirtualClusterModel buildVirtualCluster(boolean logNetwork, boolean logFrames) {
         final Optional<Tls> tls = Optional.empty();
         VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", new TargetCluster("localhost:9090", tls), logNetwork,
                 logFrames, List.of());
-        testCluster.addListener("defaullt", mock(ClusterNetworkAddressConfigProvider.class), tls);
+        testCluster.addGateway("defaullt", mock(ClusterNetworkAddressConfigProvider.class), tls);
         return testCluster;
 
     }
@@ -173,8 +173,8 @@ class KafkaProxyInitializerTest {
     @ValueSource(booleans = { true, false })
     void shouldAddCommonHandlersOnBindingComplete(boolean tls) {
         // Given
-        when(vcb.endpointListener())
-                .thenReturn(virtualClusterModel.listeners().values().iterator().next());
+        when(vcb.endpointGateway())
+                .thenReturn(virtualClusterModel.gateways().values().iterator().next());
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
 
         // When
@@ -194,7 +194,7 @@ class KafkaProxyInitializerTest {
     void shouldAddFrameLoggerOnBindingComplete(boolean tls) {
         // Given
         virtualClusterModel = buildVirtualCluster(false, true);
-        when(vcb.endpointListener()).thenReturn(virtualClusterModel.listeners().values().iterator().next());
+        when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
 
         // When
@@ -215,7 +215,7 @@ class KafkaProxyInitializerTest {
     void shouldAddNetworkLoggerOnBindingComplete(boolean tls) {
         // Given
         virtualClusterModel = buildVirtualCluster(true, false);
-        when(vcb.endpointListener()).thenReturn(virtualClusterModel.listeners().values().iterator().next());
+        when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of());
 
         // When
@@ -236,7 +236,7 @@ class KafkaProxyInitializerTest {
     void shouldAddAuthnHandlersOnBindingComplete(boolean tls) {
         // Given
         virtualClusterModel = buildVirtualCluster(false, false);
-        when(vcb.endpointListener()).thenReturn(virtualClusterModel.listeners().values().iterator().next());
+        when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
         final AuthenticateCallbackHandler plainHandler = mock(AuthenticateCallbackHandler.class);
         kafkaProxyInitializer = createKafkaProxyInitializer(tls, (endpoint, sniHostname) -> bindingStage, Map.of(KafkaAuthnHandler.SaslMechanism.PLAIN, plainHandler));
 

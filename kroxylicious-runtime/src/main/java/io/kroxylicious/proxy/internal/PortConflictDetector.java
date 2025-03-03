@@ -13,7 +13,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import io.kroxylicious.proxy.internal.net.EndpointListener;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -47,7 +47,7 @@ public class PortConflictDetector {
         }
     }
 
-    private record CandidateBinding(EndpointListener listener, int port, BindAddress bindAddress, BindingScope scope) {
+    private record CandidateBinding(EndpointGateway gateway, int port, BindAddress bindAddress, BindingScope scope) {
         void validateNonConflicting(CandidateBinding other) {
             if (this.port == other.port && bindAddress.overlaps(other.bindAddress)) {
                 if (scope == BindingScope.EXCLUSIVE || other.scope == BindingScope.EXCLUSIVE) {
@@ -56,7 +56,7 @@ public class PortConflictDetector {
                 if (!bindAddress.equals(other.bindAddress)) {
                     throw conflictException(other, "shared port cannot bind to different hosts");
                 }
-                if (listener.isUseTls() != other.listener.isUseTls()) {
+                if (gateway.isUseTls() != other.gateway.isUseTls()) {
                     throw conflictException(other, "shared port cannot be both TLS and non-TLS");
                 }
             }
@@ -76,8 +76,8 @@ public class PortConflictDetector {
 
         @Override
         public String toString() {
-            return scope.name().toLowerCase(Locale.ENGLISH) + " " + (listener.isUseTls() ? "TLS" : "TCP") + " bind of " + bindAddress + ":" + port +
-                    " for listener '" + listener.name() + "' of virtual cluster '" + listener.virtualCluster().getClusterName() + "'";
+            return scope.name().toLowerCase(Locale.ENGLISH) + " " + (gateway.isUseTls() ? "TLS" : "TCP") + " bind of " + bindAddress + ":" + port +
+                    " for gateway '" + gateway.name() + "' of virtual cluster '" + gateway.virtualCluster().getClusterName() + "'";
         }
     }
 
@@ -96,7 +96,7 @@ public class PortConflictDetector {
 
     private void validateSharedPortsRequireServerNameIndication(List<CandidateBinding> candidateBindings) {
         candidateBindings.stream().filter(binding -> binding.scope == BindingScope.SHARED).forEach(binding -> {
-            if (!binding.listener.requiresServerNameIndication()) {
+            if (!binding.gateway.requiresServerNameIndication()) {
                 throw new IllegalStateException(
                         binding + " is misconfigured, shared port bindings must use server name indication, or connections cannot be routed correctly");
             }
@@ -119,11 +119,11 @@ public class PortConflictDetector {
     private static @NonNull List<CandidateBinding> candidateBindings(Collection<VirtualClusterModel> virtualClusterModelMap) {
         return virtualClusterModelMap.stream().sorted(
                 Comparator.comparing(VirtualClusterModel::getClusterName))
-                .flatMap(m -> m.listeners().values().stream().sorted(Comparator.comparing(EndpointListener::name))).flatMap(listener -> {
-                    Stream<CandidateBinding> exclusiveBindings = listener.getExclusivePorts().stream().sorted()
-                            .map(exclusivePort -> new CandidateBinding(listener, exclusivePort, new BindAddress(listener.getBindAddress()), BindingScope.EXCLUSIVE));
-                    Stream<CandidateBinding> sharedBindings = listener.getSharedPorts().stream().sorted()
-                            .map(sharedPort -> new CandidateBinding(listener, sharedPort, new BindAddress(listener.getBindAddress()), BindingScope.SHARED));
+                .flatMap(m -> m.gateways().values().stream().sorted(Comparator.comparing(EndpointGateway::name))).flatMap(gateway -> {
+                    Stream<CandidateBinding> exclusiveBindings = gateway.getExclusivePorts().stream().sorted()
+                            .map(exclusivePort -> new CandidateBinding(gateway, exclusivePort, new BindAddress(gateway.getBindAddress()), BindingScope.EXCLUSIVE));
+                    Stream<CandidateBinding> sharedBindings = gateway.getSharedPorts().stream().sorted()
+                            .map(sharedPort -> new CandidateBinding(gateway, sharedPort, new BindAddress(gateway.getBindAddress()), BindingScope.SHARED));
                     return Stream.concat(exclusiveBindings, sharedBindings);
                 }).toList();
     }

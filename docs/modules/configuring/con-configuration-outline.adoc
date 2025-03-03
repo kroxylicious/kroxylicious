@@ -20,7 +20,8 @@ virtualClusters: # <6>
   my-cluster-proxy:
     targetCluster: # <7>
       # ...
-    clusterNetworkAddressConfigProvider: # <8>
+    gateways: # <8>
+    - name: ...
       # ...
 # ...
 ----
@@ -31,6 +32,6 @@ virtualClusters: # <6>
 <5> A list of default filters. It's possible to override this list at the virtual cluster level.
 <6> List of virtual clusters specified by name, with cluster-specific configurations.
 <7> Configuration of the actual Kafka cluster that is proxied by the 'my-cluster-proxy' virtual cluster.
-<8> Configuration of the networking model for this virtual cluster.
+<8> Configuration of the gateways for this virtual cluster.
 
 

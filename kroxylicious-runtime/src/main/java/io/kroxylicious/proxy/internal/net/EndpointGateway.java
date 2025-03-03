@@ -17,9 +17,9 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
- * A listener to an endpoint.
+ * A gateway to an endpoint.
  */
-public interface EndpointListener {
+public interface EndpointGateway {
     /**
      * Target cluster associated with this listener.
      * @return target cluster
@@ -103,7 +103,7 @@ public interface EndpointListener {
     Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress);
 
     /**
-     * Get the listeners name
+     * Get the gateways name
      * @return name
      */
     String name();

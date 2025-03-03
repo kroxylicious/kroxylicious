@@ -17,21 +17,22 @@ data:
     virtualClusters:
       my-cluster-proxy:
         targetCluster:
-          bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
+          bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
           tls:
             trust:
               storeFile: /opt/kroxylicious/trust/ca.p12
               storePassword:
                 passwordFile: /opt/kroxylicious/trust/ca.password
-        clusterNetworkAddressConfigProvider:
-          type: SniRoutingClusterNetworkAddressConfigProvider
-          config:
-            bootstrapAddress: mycluster-proxy.kafka:9092
-            advertisedBrokerAddressPattern: broker$(nodeId).mycluster-proxy.kafka
+        gateways: 
+          - name: mygateway
+            sniHostIdentifiesNode:
+              bootstrapAddress: my-cluster-proxy.kroxylicious:9092
+              advertisedBrokerAddressPattern: my-cluster-proxy-broker-$(nodeId).kroxylicious
+            tls:
+              key:
+                storeFile: /opt/kroxylicious/server/key-material/keystore.p12
+                storePassword:
+                  passwordFile: /opt/kroxylicious/server/keystore-password/storePassword
         logNetwork: false
         logFrames: false
-        tls:
-          key:
-            storeFile: /opt/kroxylicious/server/key-material/keystore.p12
-            storePassword:
-              passwordFile: /opt/kroxylicious/server/keystore-password/storePassword
+

@@ -13,20 +13,20 @@ import io.kroxylicious.proxy.service.HostPort;
 /**
  * A bootstrap binding.
  *
- * @param endpointListener the endpoint listener
+ * @param endpointGateway the endpoint gateway
  * @param upstreamTarget the upstream bootstrap target
  */
-public record BootstrapEndpointBinding(EndpointListener endpointListener, HostPort upstreamTarget) implements EndpointBinding {
+public record BootstrapEndpointBinding(EndpointGateway endpointGateway, HostPort upstreamTarget) implements EndpointBinding {
 
     public BootstrapEndpointBinding {
-        Objects.requireNonNull(endpointListener, "endpointListener cannot be null");
+        Objects.requireNonNull(endpointGateway, "endpointGateway cannot be null");
         Objects.requireNonNull(upstreamTarget, "upstreamTarget cannot be null");
     }
 
     @Override
     public String toString() {
         return "BootstrapEndpointBinding[" +
-                "endpointListener=" + this.endpointListener() + ", " +
+                "endpointGateway=" + this.endpointGateway() + ", " +
                 "upstreamTarget=" + this.upstreamTarget() + ']';
     }
 

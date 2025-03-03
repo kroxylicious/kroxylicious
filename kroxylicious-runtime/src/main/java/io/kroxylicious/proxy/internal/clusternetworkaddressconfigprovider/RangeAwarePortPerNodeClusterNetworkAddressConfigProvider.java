@@ -48,8 +48,11 @@ import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider
  *    the port number of {@code bootstrapAddress + 1}.</li>
  *    <li>{@code nodeIdRanges} (required) defines the node id ranges present in the target cluster</li>
  * </ul>
+ *
+ * @deprecated use {@link io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy} instead
  */
 @Plugin(configType = RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig.class)
+@Deprecated(since = "0.11.0", forRemoval = true)
 public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
         ClusterNetworkAddressConfigProviderService<RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig> {
 
@@ -119,6 +122,7 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
         private final int nodeStartPort;
         @JsonIgnore
         private final Map<Integer, Integer> nodeIdToPort;
+
         @SuppressWarnings("java:S1068") // included so Jackson can serialize/deserialize this with fidelity
         private final List<NamedRangeSpec> nodeIdRanges;
 
@@ -195,6 +199,18 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
 
         public HostPort getBootstrapAddress() {
             return bootstrapAddress;
+        }
+
+        public String getNodeAddressPattern() {
+            return nodeAddressPattern;
+        }
+
+        public int getNodeStartPort() {
+            return nodeStartPort;
+        }
+
+        public List<NamedRangeSpec> getNodeIdRanges() {
+            return nodeIdRanges;
         }
 
         private record RangeCollision(NamedRange a, NamedRange b) {

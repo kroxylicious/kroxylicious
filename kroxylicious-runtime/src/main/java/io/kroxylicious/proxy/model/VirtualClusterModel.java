@@ -37,7 +37,7 @@ import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
-import io.kroxylicious.proxy.internal.net.EndpointListener;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -58,7 +58,7 @@ public class VirtualClusterModel {
 
     private final boolean logFrames;
 
-    private final Map<String, VirtualClusterListenerModel> listeners = new HashMap<>();
+    private final Map<String, VirtualClusterGatewayModel> gateways = new HashMap<>();
 
     private final List<NamedFilterDefinition> filters;
 
@@ -83,13 +83,13 @@ public class VirtualClusterModel {
         var upstreamHostPort = targetCluster.bootstrapServersList().get(0);
         var upstreamTlsSummary = generateTlsSummary(targetCluster.tls());
 
-        LOGGER.info("Virtual Cluster '{}' - listener summary", clusterName);
+        LOGGER.info("Virtual Cluster '{}' - gateway summary", clusterName);
 
-        listeners.forEach((name, listener) -> {
-            var downstreamBootstrap = listener.getClusterBootstrapAddress();
-            var downstreamTlsSummary = generateTlsSummary(listener.getTls());
+        gateways.forEach((name, gateway) -> {
+            var downstreamBootstrap = gateway.getClusterBootstrapAddress();
+            var downstreamTlsSummary = generateTlsSummary(gateway.getTls());
 
-            LOGGER.info("Listener: {}, Downstream {}{} => Upstream {}{}",
+            LOGGER.info("Gateway: {}, Downstream {}{} => Upstream {}{}",
                     name, downstreamBootstrap, downstreamTlsSummary, upstreamHostPort, upstreamTlsSummary);
         });
     }
@@ -115,8 +115,8 @@ public class VirtualClusterModel {
         return tls + cipherSuitesAllowed + cipherSuitesDenied + protocolsAllowed + protocolsDenied;
     }
 
-    public void addListener(String name, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
-        listeners.put(name, new VirtualClusterListenerModel(this, provider, tls, name));
+    public void addGateway(String name, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls) {
+        gateways.put(name, new VirtualClusterGatewayModel(this, provider, tls, name));
     }
 
     public TargetCluster targetCluster() {
@@ -144,7 +144,7 @@ public class VirtualClusterModel {
         return "VirtualClusterModel{" +
                 "clusterName='" + clusterName + '\'' +
                 ", targetCluster=" + targetCluster +
-                ", listeners=" + listeners +
+                ", gateways=" + gateways +
                 ", logNetwork=" + logNetwork +
                 ", logFrames=" + logFrames +
                 ", upstreamSslContext=" + upstreamSslContext +
@@ -252,12 +252,12 @@ public class VirtualClusterModel {
         return filters;
     }
 
-    public Map<String, EndpointListener> listeners() {
-        return Collections.unmodifiableMap(listeners);
+    public Map<String, EndpointGateway> gateways() {
+        return Collections.unmodifiableMap(gateways);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    public static class VirtualClusterListenerModel implements EndpointListener {
+    public static class VirtualClusterGatewayModel implements EndpointGateway {
         private final VirtualClusterModel virtualCluster;
         private final ClusterNetworkAddressConfigProvider provider;
         private final Optional<Tls> tls;
@@ -265,7 +265,7 @@ public class VirtualClusterModel {
         private final String name;
 
         @VisibleForTesting
-        VirtualClusterListenerModel(VirtualClusterModel virtualCluster, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls, String name) {
+        VirtualClusterGatewayModel(VirtualClusterModel virtualCluster, ClusterNetworkAddressConfigProvider provider, Optional<Tls> tls, String name) {
             this.virtualCluster = virtualCluster;
             this.provider = provider;
             this.tls = tls;
@@ -289,7 +289,7 @@ public class VirtualClusterModel {
         private void validateTLsSettings(ClusterNetworkAddressConfigProvider clusterNetworkAddressConfigProvider, Optional<Tls> tls) {
             if (clusterNetworkAddressConfigProvider.requiresServerNameIndication() && (tls.isEmpty() || !tls.get().definesKey())) {
                 throw new IllegalStateException(
-                        "Cluster endpoint provider requires ServerNameIndication, but virtual cluster listener '%s' does not configure TLS and provide a certificate for the server"
+                        "Cluster endpoint provider requires ServerNameIndication, but virtual cluster gateway '%s' does not configure TLS and provide a certificate for the server"
                                 .formatted(name()));
             }
         }
@@ -391,7 +391,7 @@ public class VirtualClusterModel {
 
         @Override
         public String toString() {
-            return "VirtualClusterListenerModel[" +
+            return "VirtualClusterGatewayModel[" +
                     "virtualCluster=" + virtualCluster + ", " +
                     "name=" + name + ", " +
                     "provider=" + provider + ", " +

@@ -23,18 +23,18 @@ data:
       devenv1:
         targetCluster:
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-        clusterNetworkAddressConfigProvider:
-          type: PortPerBrokerClusterNetworkAddressConfigProvider
-          config:
-            bootstrapAddress: minikube:30192
+        gateways:
+          - name: mygateway
+            portIdentifiesNode:
+              bootstrapAddress: minikube:30192
         logNetwork: false
         logFrames: false
       devenv2:
         targetCluster:
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-        clusterNetworkAddressConfigProvider:
-          type: PortPerBrokerClusterNetworkAddressConfigProvider
-          config:
-            bootstrapAddress: minikube:30292
+        gateways:
+          - name: mygateway
+            portIdentifiesNode:
+              bootstrapAddress: minikube:30292
         logNetwork: false
         logFrames: false

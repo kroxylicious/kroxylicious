@@ -6,4 +6,4 @@
 
 package io.kroxylicious.test.tester;
 
-record ListenerId(String virtualCluster, String listener) {}
+record GatewayId(String virtualCluster, String gateway) {}

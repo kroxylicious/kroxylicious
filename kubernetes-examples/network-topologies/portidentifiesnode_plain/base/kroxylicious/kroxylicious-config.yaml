@@ -18,10 +18,17 @@ data:
       demo:
         targetCluster:
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-        clusterNetworkAddressConfigProvider:
-          type: PortPerBrokerClusterNetworkAddressConfigProvider
-          config:
-            bootstrapAddress: localhost:9292
-            brokerAddressPattern: kroxylicious-service
+        gateways:
+          - name: mygateway
+            portIdentifiesNode:
+              bootstrapAddress: localhost:9292
+              advertisedBrokerAddressPattern: kroxylicious-service
+              nodeIdRanges:
+                - name: pool-1
+                  start: 0
+                  end: 4
+                - name: pool-2
+                  start: 10
+                  end: 14
         logNetwork: false
         logFrames: false

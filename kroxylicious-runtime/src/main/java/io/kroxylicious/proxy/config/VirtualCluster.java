@@ -24,9 +24,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * A virtual cluster.
  *
  * @param targetCluster the cluster being proxied
- * @param clusterNetworkAddressConfigProvider virtual cluster network config - deprecated - use a named listener
- * @param tls deprecated - tls settings for the virtual cluster - deprecated - use a named listener
- * @param listeners virtual cluster listeners
+ * @param clusterNetworkAddressConfigProvider virtual cluster network config - deprecated - use a named gateway
+ * @param tls deprecated - tls settings for the virtual cluster - deprecated - use a named gateway
+ * @param gateways virtual cluster gateways
  * @param logNetwork if true, network will be logged
  * @param logFrames if true, kafka rpcs will be logged
  * @param filters filers.
@@ -36,7 +36,7 @@ public record VirtualCluster(TargetCluster targetCluster,
                              @Deprecated(forRemoval = true, since = "0.11.0") ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider,
                              @Deprecated(forRemoval = true, since = "0.11.0") @JsonProperty() Optional<Tls> tls,
 
-                             @JsonProperty(required = false) List<VirtualClusterListener> listeners,
+                             @JsonProperty(required = false) List<VirtualClusterGateway> gateways,
                              boolean logNetwork,
                              boolean logFrames,
                              @Nullable List<String> filters) {
@@ -44,10 +44,10 @@ public record VirtualCluster(TargetCluster targetCluster,
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualCluster.class);
 
     /**
-     * Name given to the listener defined using the deprecated fields.
+     * Name given to the gateway defined using the deprecated fields.
      */
     @Deprecated(forRemoval = true, since = "0.11.0")
-    static final String DEFAULT_LISTENER_NAME = "default";
+    static final String DEFAULT_GATEWAY_NAME = "default";
 
     @SuppressWarnings({ "removal", "java:S2789" }) // S2789 - checking for null tls is the intent
     public VirtualCluster {
@@ -55,36 +55,36 @@ public record VirtualCluster(TargetCluster targetCluster,
             if (clusterNetworkAddressConfigProvider == null) {
                 throw new IllegalConfigurationException("Deprecated virtualCluster property 'tls' supplied, but 'clusterNetworkAddressConfigProvider' is null");
             }
-            if (listeners == null || listeners.isEmpty()) {
+            if (gateways == null || gateways.isEmpty()) {
                 LOGGER.warn(
-                        "The 'clusterNetworkAddressConfigProvider' and 'tls' configuration properties are deprecated and will be removed in a future release.  Configurations should be updated to use 'listeners'.");
+                        "The 'clusterNetworkAddressConfigProvider' and 'tls' configuration properties are deprecated and will be removed in a future release.  Configurations should be updated to use 'gateways'.");
             }
             else {
                 throw new IllegalConfigurationException(
-                        "When using listeners, the virtualCluster properties 'clusterNetworkAddressConfigProvider' and 'tls' must be omitted");
+                        "When using gateways, the virtualCluster properties 'clusterNetworkAddressConfigProvider' and 'tls' must be omitted");
             }
         }
         else {
-            if (listeners == null || listeners.isEmpty()) {
-                throw new IllegalConfigurationException("no listeners configured for virtualCluster");
+            if (gateways == null || gateways.isEmpty()) {
+                throw new IllegalConfigurationException("no gateways configured for virtualCluster");
             }
-            if (listeners.stream().anyMatch(Objects::isNull)) {
-                throw new IllegalConfigurationException("one or more listeners were null");
+            if (gateways.stream().anyMatch(Objects::isNull)) {
+                throw new IllegalConfigurationException("one or more gateways were null");
             }
-            validateNoDuplicatedListenerNames(listeners);
+            validateNoDuplicatedGatewayNames(gateways);
         }
     }
 
-    private void validateNoDuplicatedListenerNames(List<VirtualClusterListener> listeners) {
-        var names = listeners.stream()
-                .map(VirtualClusterListener::name)
+    private void validateNoDuplicatedGatewayNames(List<VirtualClusterGateway> gateways) {
+        var names = gateways.stream()
+                .map(VirtualClusterGateway::name)
                 .toList();
         var duplicates = names.stream()
                 .filter(i -> Collections.frequency(names, i) > 1)
                 .collect(Collectors.toSet());
         if (!duplicates.isEmpty()) {
             throw new IllegalConfigurationException(
-                    "Listener names for a virtual cluster must be unique. The following listener names are duplicated: [%s]".formatted(
+                    "Gateway names for a virtual cluster must be unique. The following gateway names are duplicated: [%s]".formatted(
                             String.join(", ", duplicates)));
         }
     }
