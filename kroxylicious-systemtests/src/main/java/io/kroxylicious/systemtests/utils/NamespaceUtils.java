@@ -143,7 +143,7 @@ public class NamespaceUtils {
      */
     private static synchronized void removeNamespaceFromSet(String namespaceName, CollectorElement collectorElement) {
         // dynamically removing from the map
-        if(!MAP_WITH_SUITE_NAMESPACES.containsKey(collectorElement)) {
+        if (!MAP_WITH_SUITE_NAMESPACES.containsKey(collectorElement)) {
             LOGGER.debug("collector already deleted!");
             return;
         }
@@ -229,7 +229,7 @@ public class NamespaceUtils {
      * @param testCase the test case
      */
     public static void deleteNamespacesFromSet(List<String> namespaces, String testClass, String testCase) {
-        for(String namespace : namespaces) {
+        for (String namespace : namespaces) {
             removeNamespaceFromSet(namespace, new CollectorElement(testClass, testCase));
         }
     }

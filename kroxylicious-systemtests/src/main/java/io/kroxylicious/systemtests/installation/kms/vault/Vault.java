@@ -104,8 +104,8 @@ public class Vault {
     public void delete() throws IOException {
         LOGGER.info("Deleting Vault in {} namespace", deploymentNamespace);
         String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
-        String testCaseName = ResourceManager.getTestContext().getTestMethod().orElse(null) == null ?
-                "" : ResourceManager.getTestContext().getRequiredTestMethod().getName();
+        String testCaseName = ResourceManager.getTestContext().getTestMethod().orElse(null) == null ? ""
+                : ResourceManager.getTestContext().getRequiredTestMethod().getName();
         NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, CollectorElement.createCollectorElement(testSuiteName, testCaseName));
     }
 

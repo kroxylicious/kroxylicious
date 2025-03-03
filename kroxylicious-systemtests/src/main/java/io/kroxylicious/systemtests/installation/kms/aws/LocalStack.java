@@ -73,8 +73,8 @@ public class LocalStack implements AwsKmsClient {
     public void delete() {
         LOGGER.info("Deleting Aws in {} namespace", deploymentNamespace);
         String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
-        String testCaseName = ResourceManager.getTestContext().getTestMethod().orElse(null) == null ?
-                "" : ResourceManager.getTestContext().getRequiredTestMethod().getName();
+        String testCaseName = ResourceManager.getTestContext().getTestMethod().orElse(null) == null ? ""
+                : ResourceManager.getTestContext().getRequiredTestMethod().getName();
         NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, CollectorElement.createCollectorElement(testSuiteName, testCaseName));
     }
 
