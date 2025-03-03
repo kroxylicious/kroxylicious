@@ -10,7 +10,7 @@ import java.util.Objects;
 
 public class CollectorElement {
 
-    private String testClassName;
+    private final String testClassName;
     private String testMethodName;
 
     public CollectorElement(String testClass, String testTest) {
@@ -23,40 +23,22 @@ public class CollectorElement {
         this.testMethodName = "";
     }
 
-    public static CollectorElement emptyElement() {
-        return new CollectorElement("", "");
-    }
-
-    public static CollectorElement createCollectorElement(String testClass) {
-        return new CollectorElement(testClass);
-    }
-
     public static CollectorElement createCollectorElement(String testClass, String testMethod) {
         return new CollectorElement(testClass, testMethod);
     }
 
-    public String getTestClassName() {
-        return testClassName;
-    }
-
-    public String getTestMethodName() {
-        return testMethodName;
-    }
-
-    public void setTestMethodName(String testMethodName) {
-        this.testMethodName = testMethodName;
-    }
-
     public boolean isEmpty() {
-        return this.testClassName.equals("") && this.testMethodName.equals("");
+        return this.testClassName.isEmpty() && this.testMethodName.isEmpty();
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
+        if (this == o) {
             return true;
-        if (o == null || getClass() != o.getClass())
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
+        }
         CollectorElement that = (CollectorElement) o;
         return Objects.equals(testClassName, that.testClassName) && Objects.equals(testMethodName, that.testMethodName);
     }
