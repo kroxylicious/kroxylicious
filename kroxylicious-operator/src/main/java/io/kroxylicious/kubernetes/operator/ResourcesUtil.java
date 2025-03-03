@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
@@ -76,7 +77,14 @@ public class ResourcesUtil {
 
     static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
         return context.getSecondaryResources(VirtualKafkaCluster.class)
-                .stream().sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName()));
+                .stream()
+                .sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName()));
+    }
+
+    static Stream<KafkaClusterRef> clusterRefsInNameOrder(Context<KafkaProxy> context) {
+        return context.getSecondaryResources(KafkaClusterRef.class)
+                .stream()
+                .sorted(Comparator.comparing(clusterRef -> clusterRef.getMetadata().getName()));
     }
 
 }
