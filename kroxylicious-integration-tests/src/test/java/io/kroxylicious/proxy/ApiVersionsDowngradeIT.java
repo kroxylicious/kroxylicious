@@ -74,7 +74,7 @@ public class ApiVersionsDowngradeIT {
     public static final short API_VERSIONS_ID = ApiKeys.API_VERSIONS.id;
     public static final String SASL_USER = "alice";
     public static final String SASL_PASSWORD = "foo";
-    private static final DockerImageName OLD_REDPANDA_USING_API_VER0_2 = DockerImageName.parse("docker.redpanda.com/redpandadata/redpanda:v22.1.11");
+    private static final DockerImageName OLD_REDPANDA_USING_API_VER0_2 = DockerImageName.parse("redpandadata/redpanda:v22.1.11");
 
     @Test
     void clientAheadOfProxy() {
