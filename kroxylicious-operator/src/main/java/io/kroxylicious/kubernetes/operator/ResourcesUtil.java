@@ -7,13 +7,18 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.Comparator;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
@@ -76,7 +81,14 @@ public class ResourcesUtil {
 
     static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
         return context.getSecondaryResources(VirtualKafkaCluster.class)
-                .stream().sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName()));
+                .stream()
+                .sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName()));
+    }
+
+    static Map<ResourceID, KafkaClusterRef> clusterRefs(Context<KafkaProxy> context) {
+        return context.getSecondaryResources(KafkaClusterRef.class)
+                .stream()
+                .collect(Collectors.toMap(ResourceID::fromResource, Function.identity()));
     }
 
 }
