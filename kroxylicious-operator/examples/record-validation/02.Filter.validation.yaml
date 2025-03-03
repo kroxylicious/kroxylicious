@@ -5,7 +5,7 @@
 #
 
 ---
-kind: Filter
+kind: KafkaProtocolFilter
 apiVersion: filter.kroxylicious.io/v1alpha1
 metadata:
   name: validation

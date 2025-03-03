@@ -17,7 +17,7 @@ rules:
   - apiGroups:
       - "filter.kroxylicious.io"
     resources:
-      - filters
+      - kafkaprotocolfilters
     verbs:
       - get
       - list

@@ -2,67 +2,72 @@
 = Securing connections from clients
 
 [role="_abstract"]
-To secure client connections to virtual clusters, configure TLS within the virtual cluster by doing the following:
+To secure client connections to virtual clusters, configure TLS within the virtual cluster gateway by doing the following:
 
 * Obtain a server certificate for the virtual cluster from a Certificate Authority (CA). +
-Ensure the certificate matches the names of the virtual cluster's bootstrap and broker addresses. +
+Ensure the certificate matches the names of the virtual cluster gateway's bootstrap and broker addresses. +
 This may require wildcard certificates and Subject Alternative Names (SANs).
 
-* Provide the TLS configuration using the `tls` properties in the virtual cluster's configuration to enable it to present the certificate to clients. 
+* Provide the TLS configuration using the `tls` properties in the virtual cluster gateway's configuration to enable it to present the certificate to clients.
 Depending on your certificate format, apply one of the following examples.
 
-* For mutual TLS, use the `trust` properties to configure the virtual cluster to use TLS client authentication.
+* For mutual TLS, use the `trust` properties to configure the virtual cluster gateway to use TLS client authentication.
 
 * If required, you can restrict the TLS protocols and cipher suites that are used to form the TLS connection.
 
 Examples below illustrate how these steps may be done.
 
-NOTE: TLS is recommended on Kafka clients and virtual clusters for production configurations.
+NOTE: TLS is recommended for production configurations.
 
-.Example applying a PKCS #12 server certificate to a virtual cluster
+.Example applying a PKCS #12 server certificate to a virtual cluster gateway
 [source,yaml]
 ----
 # ...
 virtualClusters:
   my-cluster-proxy:
     # ...
-    tls:
-      key:
-        storeFile: <path>/server.p12  # <1>             
-        storePassword:
-          passwordFile: <path>/store.password # <2>    
-        keyPassword:
-          passwordFile: <path>/key.password # <3>       
-        storeType: PKCS12 # <4>                            
+    gateways:
+    - name: mygateway
       # ...
+      tls:
+        key:
+          storeFile: <path>/server.p12  # <1>
+          storePassword:
+            passwordFile: <path>/store.password # <2>
+          keyPassword:
+            passwordFile: <path>/key.password # <3>
+          storeType: PKCS12 # <4>
 # ...
 ----
-<1> PKCS #12 store containing the private-key and certificate/intermediates of the virtual cluster.
+<1> PKCS #12 store containing the private-key and certificate/intermediates of the virtual cluster gateway.
 <2> Password to protect the PKCS #12 store.
 <3> (Optional) Password for the key. If a password is not specified, the keystore’s password is used to decrypt the key too.
 <4> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
 
-.Example applying a PEM server certificate and key pair to a virtual cluster
+.Example applying a PEM server certificate and key pair to a virtual cluster gateway
 [source,yaml]
 ----
 # ...
 virtualClusters:
   my-cluster-proxy:
     # ...
-    tls:
-      key:
-        privateKeyFile: <path>/server.key   # <1>       
-        certificateFile: <path>/server.crt # <2> 
-        keyPassword:
-          passwordFile: <path>/key.password # <3>
+    gateways:
+    - name: mygateway
+      # ...
+      tls:
+        key:
+          privateKeyFile: <path>/server.key   # <1>
+          certificateFile: <path>/server.crt # <2>
+          keyPassword:
+            passwordFile: <path>/key.password # <3>
 # ...
 ----
-<1> Private key of the virtual cluster.
-<2> Public certificate of the virtual cluster.
+<1> Private key of the virtual cluster gateway.
+<2> Public certificate of the virtual cluster gateway.
 <3> (Optional) Password for the key.
 
-You can configure the virtual cluster to require that clients present a certificate for authentication. 
-The virtual cluster verifies that the client's certificate is signed by one of the CA certificates contained in a trust store.  
+You can configure the virtual cluster gateway to require that clients present a certificate for authentication.
+The virtual cluster gateway verifies that the client's certificate is signed by one of the CA certificates contained in a trust store.
 If verification fails, the client's connection is refused.
 
 .Example applying TLS client authentication using a PKCS #12 truststore
@@ -70,18 +75,21 @@ If verification fails, the client's connection is refused.
 ----
 # ...
 virtualClusters:
-  demo:
+  my-cluster-proxy:
     # ...
-    tls:
-      key:
-        # ...
-      trust:
-        storeFile: <path>/trust.p12 # <1>
-        storePassword:
-          passwordFile: <path>/trust.password # <2>
-        storeType: PKCS12 # <3>
-        trustOptions:
-          clientAuth: REQUIRED # <4>
+    gateways:
+    - name: mygateway
+      # ...
+      tls:
+        key:
+           # ...
+        trust:
+          storeFile: <path>/trust.p12 # <1>
+          storePassword:
+            passwordFile: <path>/trust.password # <2>
+          storeType: PKCS12 # <3>
+          trustOptions:
+            clientAuth: REQUIRED # <4>
 # ...
 ----
 <1> PKCS #12 store containing CA certificate(s) used to verify that the client's certificate is trusted.
@@ -111,13 +119,17 @@ The names of the TLS protocols are defined by {java-17-specs}/security/standard-
 [source,yaml]
 ----
 virtualClusters:
-  demo:
-    tls:
+  my-cluster-proxy:
+    # ...
+    gateways:
+    - name: mygateway
       # ...
-      protocols:
-        allowed:  # <1>
-        - TLSv1.3
-        - TLSv1.2
+      tls:
+        # ...
+        protocols:
+          allowed:  # <1>
+          - TLSv1.3
+          - TLSv1.2
 ----
 <1> List of allowed TLS protocols.
 
@@ -126,12 +138,16 @@ virtualClusters:
 [source,yaml]
 ----
 virtualClusters:
-  demo:
-    tls:
+  my-cluster-proxy:
+    # ...
+    gateways:
+    - name: mygateway
       # ...
-      protocols:
-        denied:  # <1>
-        - TLSv1.1
+      tls:
+        # ...
+        protocols:
+          denied:  # <1>
+          - TLSv1.1
 ----
 <1> List of disallowed TLS protocols.
 
@@ -151,13 +167,16 @@ The names of the cipher suite are defined by {java-17-specs}/security/standard-n
 [source,yaml]
 ----
 virtualClusters:
-  demo:
-    tls:
+    # ...
+    gateways:
+    - name: mygateway
       # ...
-      protocols:
-        allowed:  # <1>
-        - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
-        - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
+      tls:
+        # ...
+        cipherSuites:
+          allowed:  # <1>
+          - TLS_ECDHE_ECDSA_WITH_AES_256_CCM
+          - TLS_ECDHE_ECDSA_WITH_AES_128_CCM
 ----
 <1> List of allowed cipher suites in preference order.
 
@@ -166,11 +185,14 @@ virtualClusters:
 [source,yaml]
 ----
 virtualClusters:
-  demo:
-    tls:
+    # ...
+    gateways:
+    - name: mygateway
       # ...
-      protocols:
-        denied:  # <1>
-        - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
+      tls:
+        # ...
+        cipherSuites:
+          denied:  # <1>
+          - TLS_KRB5_WITH_3DES_EDE_CBC_MD5
 ----
 <1> List of disallowed cipher suites.

@@ -66,8 +66,8 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  * added support for OAUTH authentication"
  * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate">KIP-365: Allow SASL Connections to Periodically Re-Authenticate</a>
  * added time-based reauthentication requirements for clients"
- * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-684+-+Support+mutual+TLS+authentication+on+SASL_SSL+listeners">KIP-684: Support mTLS authentication on SASL_SSL listeners</a>
- * added support for mutual TLS authentication even on SASL_SSL listeners (which was previously ignored)"
+ * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-684+-+Support+mutual+TLS+authentication+on+SASL_SSL+listeners">KIP-684: Support mTLS authentication on SASL_SSL gateways</a>
+ * added support for mutual TLS authentication even on SASL_SSL gateways (which was previously ignored)"
  */
 public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
 

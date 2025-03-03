@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
 import java.util.Map;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -20,43 +19,71 @@ import io.kroxylicious.proxy.service.HostPort;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
 import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+@SuppressWarnings("removal")
 class PortPerBrokerClusterNetworkAddressConfigProviderTest {
 
     @ParameterizedTest
-    @CsvSource({ "0,1", "-1,1", "4,-1", "10,0" })
-    void badBrokerPortDefinition(int brokerStartPort, int numberOfBrokerPorts) {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
-                    "localhost", brokerStartPort, 0, numberOfBrokerPorts);
-        });
+    @ValueSource(ints = { -1, 0 })
+    void badBrokerStartPort(int brokerStartPort) {
+        var bootstrap = parse("localhost:1235");
+        assertThatThrownBy(() -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap,
+                "localhost", brokerStartPort, 0, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("brokerStartPort cannot be less than 1");
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { -1, 0 })
+    void badNumberOfBrokerPorts(int numberOfBrokerPorts) {
+        var bootstrap = parse("localhost:1235");
+        assertThatThrownBy(() -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap,
+                "localhost", null, 0, numberOfBrokerPorts))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("numberOfBrokerPorts cannot be less than 1");
     }
 
     @ParameterizedTest
     @CsvSource({ "1235,1", "1234,3" })
     void bootstrapBrokerAddressCollision(int brokerStartPort, int numberOfBrokerPorts) {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
-                    "localhost", brokerStartPort, 0, numberOfBrokerPorts);
-        });
+        var bootstrap = parse("localhost:1235");
+        assertThatThrownBy(() -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap,
+                "localhost", brokerStartPort, 0, numberOfBrokerPorts))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
     @ValueSource(strings = { "portnotallowedinbrokerpattern:1234", "unrecognizedpattern$(foo)", "badpatterncapitalisedbadtoo$(NODEID)" })
     @EmptySource
     void invalidBrokerAddressPatterns(String input) {
-        assertThrows(IllegalArgumentException.class,
-                () -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("good:1235"), input, 1, 0, 5));
+        var bootstrap = parse("good:1235");
+        assertThatThrownBy(() -> new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap, input, null, null, null))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
     @ValueSource(strings = { "localhost", "127.0.0.1", "[2001:db8::1]", "kafka.example.com", "mybroker$(nodeId)", "mybroker$(nodeId).example.com",
             "twice$(nodeId)allowed$(nodeId)too" })
     void validBrokerAddressPatterns(String input) {
-        var config = new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("good:1235"), input, 1, 0, 5);
-        assertThat(config).isNotNull();
+        var bootstrap = parse("good:1235");
+        var config = new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap, input, 1, 0, 5);
+        assertThat(config.getBrokerAddressPattern()).isEqualTo(input);
 
+    }
+
+    @Test
+    void getBootstrapAddress() {
+        var bootstrap = parse("good:1235");
+        var config = new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap, "localhost", 1, 0, 5);
+        assertThat(config.getBootstrapAddress()).isEqualTo(bootstrap);
+    }
+
+    @Test
+    void getBrokerStartPort() {
+        var bootstrap = parse("good:1235");
+        var config = new PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrap, "localhost", 2345, 0, 5);
+        assertThat(config.getBrokerStartPort()).isEqualTo(2345);
     }
 
     @Test
@@ -65,9 +92,8 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
                         "localhost", 1236, 0, 1));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("localhost:1236"));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            provider.getBrokerAddress(1);
-        });
+        assertThatThrownBy(() -> provider.getBrokerAddress(1))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -96,9 +122,8 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
         assertThat(provider.getBrokerAddress(2)).isEqualTo(parse("mycluster:1238"));
         Map<Integer, HostPort> expectedDiscovery = Map.of(0, parse("mycluster:1236"), 1, parse("mycluster:1237"), 2, parse("mycluster:1238"));
         assertThat(provider.discoveryAddressMap()).containsExactlyInAnyOrderEntriesOf(expectedDiscovery);
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            provider.getBrokerAddress(3);
-        });
+        assertThatThrownBy(() -> provider.getBrokerAddress(3))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -111,12 +136,8 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
         assertThat(provider.getBrokerAddress(4)).isEqualTo(parse("mycluster:1238"));
         Map<Integer, HostPort> expectedDiscovery = Map.of(2, parse("mycluster:1236"), 3, parse("mycluster:1237"), 4, parse("mycluster:1238"));
         assertThat(provider.discoveryAddressMap()).containsExactlyInAnyOrderEntriesOf(expectedDiscovery);
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            provider.getBrokerAddress(5);
-        });
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            provider.getBrokerAddress(1);
-        });
+        assertThatThrownBy(() -> provider.getBrokerAddress(5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> provider.getBrokerAddress(1)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

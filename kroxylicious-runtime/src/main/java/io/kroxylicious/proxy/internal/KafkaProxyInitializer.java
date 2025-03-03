@@ -41,7 +41,7 @@ import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
-import io.kroxylicious.proxy.internal.net.EndpointListener;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -143,10 +143,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                             promise.setFailure(t);
                             return null;
                         }
-                        var listener = binding.endpointListener();
-                        var sslContext = listener.getDownstreamSslContext();
+                        var gateway = binding.endpointGateway();
+                        var sslContext = gateway.getDownstreamSslContext();
                         if (sslContext.isEmpty()) {
-                            promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(listener)));
+                            promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
                         }
                         else {
                             KafkaProxyInitializer.this.addHandlers(ch, binding);
@@ -175,7 +175,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     @VisibleForTesting
     void addHandlers(SocketChannel ch, EndpointBinding binding) {
-        var virtualCluster = binding.endpointListener().virtualCluster();
+        var virtualCluster = binding.endpointGateway().virtualCluster();
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
         if (virtualCluster.isLogNetwork()) {
@@ -214,7 +214,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding.endpointListener());
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding.endpointGateway());
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);
@@ -231,7 +231,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
         private final SaslDecodePredicate decodePredicate;
         private final SocketChannel ch;
-        private final EndpointListener listener;
+        private final EndpointGateway gateway;
         private final EndpointBinding binding;
         private final PluginFactoryRegistry pfr;
         private final FilterChainFactory filterChainFactory;
@@ -251,7 +251,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                             ApiVersionsDowngradeFilter apiVersionsDowngradeFilter) {
             this.decodePredicate = decodePredicate;
             this.ch = ch;
-            this.listener = binding.endpointListener();
+            this.gateway = binding.endpointGateway();
             this.binding = binding;
             this.pfr = pfr;
             this.filterChainFactory = filterChainFactory;
@@ -268,7 +268,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
             List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
-            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(listener, endpointReconciler));
+            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(gateway, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
             filters.addAll(FilterAndInvoker.build(apiVersionsDowngradeFilter));
             filters.addAll(filterChain);

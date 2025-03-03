@@ -47,7 +47,7 @@ import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
-import io.kroxylicious.proxy.internal.net.EndpointListener;
+import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -72,7 +72,7 @@ public class KafkaProxyFrontendHandler
     private final boolean logNetwork;
     private final boolean logFrames;
     private final VirtualClusterModel virtualClusterModel;
-    private final EndpointListener endpointListener;
+    private final EndpointGateway endpointGateway;
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
@@ -105,20 +105,20 @@ public class KafkaProxyFrontendHandler
     KafkaProxyFrontendHandler(
                               @NonNull NetFilter netFilter,
                               @NonNull SaslDecodePredicate dp,
-                              EndpointListener endpointListener) {
-        this(netFilter, dp, endpointListener, new ProxyChannelStateMachine());
+                              EndpointGateway endpointGateway) {
+        this(netFilter, dp, endpointGateway, new ProxyChannelStateMachine());
     }
 
     @VisibleForTesting
     KafkaProxyFrontendHandler(
                               @NonNull NetFilter netFilter,
                               @NonNull SaslDecodePredicate dp,
-                              @NonNull EndpointListener endpointListener,
+                              @NonNull EndpointGateway endpointGateway,
                               @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
-        this.endpointListener = endpointListener;
-        this.virtualClusterModel = endpointListener.virtualCluster();
+        this.endpointGateway = endpointGateway;
+        this.virtualClusterModel = endpointGateway.virtualCluster();
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
@@ -309,7 +309,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        proxyChannelStateMachine.onClientException(cause, endpointListener.getDownstreamSslContext().isPresent());
+        proxyChannelStateMachine.onClientException(cause, endpointGateway.getDownstreamSslContext().isPresent());
     }
 
     /**

@@ -3,7 +3,7 @@
 
 [role="_abstract"]
 A Kafka cluster is represented by the proxy as a virtual cluster. 
-Clients connect to the virtual cluster rather than the actual cluster.
+Clients communicate with the virtual cluster rather than the actual cluster.
 When Kroxylicious is deployed, it includes configuration to create virtual clusters. 
 
 A virtual cluster has exactly one target cluster, but many virtual clusters can target the same cluster.
@@ -15,4 +15,4 @@ Responses back to clients are rewritten to reflect the appropriate network addre
 
 You can secure virtual cluster connections from clients and to target clusters.
 
-Kroxylicious accepts keys and certificates in  PEM (Privacy Enhanced Mail), PKCS #12 (Public-Key Cryptography Standards), or JKS (Java KeyStore) keystore format.
+Kroxylicious accepts keys and certificates in PEM (Privacy Enhanced Mail), PKCS #12 (Public-Key Cryptography Standards), or JKS (Java KeyStore) keystore format.

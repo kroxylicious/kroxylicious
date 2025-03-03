@@ -215,7 +215,7 @@ class FilterIT {
                         "forwardingStyle", forwardingStyle)
                 .build();
         try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
+                .addToFilterDefinitions(rejectFilter)
                 .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name()));
                 var requestClient = tester.simpleTestClient()) {
 

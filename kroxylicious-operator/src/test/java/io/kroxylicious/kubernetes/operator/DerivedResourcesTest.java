@@ -27,6 +27,7 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DynamicContainer;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import org.mockito.stubbing.Answer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -42,11 +43,13 @@ import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kubernetes.operator.ProxyDeployment.KROXYLICIOUS_IMAGE_ENV_VAR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -66,6 +69,23 @@ class DerivedResourcesTest {
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    public static List<VirtualKafkaCluster> virtualKafkaClustersFromFiles(Set<Path> paths) {
+        // TODO should validate against the CRD schema, because the DependentResource
+        // should never see an invalid resource in production
+        List<VirtualKafkaCluster> clusters = paths.stream().map(path -> {
+            try {
+                return YAML_MAPPER.readValue(path.toFile(), VirtualKafkaCluster.class);
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }).sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName())).toList();
+        long uniqueResources = clusters.stream().map(s -> s.getMetadata().getNamespace() + ":" + s.getMetadata().getName()).distinct().count();
+        // sanity check that the identifiers are unique
+        assertThat(uniqueResources).isEqualTo(paths.size());
+        return clusters;
     }
 
     public static RuntimeDecl configFromFile(Path path) {
@@ -144,6 +164,7 @@ class DerivedResourcesTest {
     }
 
     @TestFactory
+    @SetEnvironmentVariable(key = KROXYLICIOUS_IMAGE_ENV_VAR, value = "quay.io/kroxylicious/kroxylicious:test")
     Stream<DynamicContainer> dependentResourcesShouldEqual() {
         // Note that the order in this list should reflect the dependency order declared in the ProxyReconciler's
         // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that
@@ -201,6 +222,7 @@ class DerivedResourcesTest {
             String inFileName = "in-KafkaProxy.yaml";
             Path input = testDir.resolve(inFileName);
             KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
+            List<VirtualKafkaCluster> virtualKafkaClusters = virtualKafkaClustersFromFiles(childFilesMatching(testDir, "in-VirtualKafkaCluster-*"));
             assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
 
             unusedFiles.remove(input);
@@ -208,7 +230,7 @@ class DerivedResourcesTest {
 
             Context<KafkaProxy> context;
             try {
-                context = buildContext(kafkaProxy, testDir);
+                context = buildContext(testDir, virtualKafkaClusters);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -239,7 +261,7 @@ class DerivedResourcesTest {
                                 unusedFiles.remove(expectedFile);
                             }));
                 }
-                for (var cluster : kafkaProxy.getSpec().getClusters()) {
+                for (var cluster : virtualKafkaClusters) {
                     ClusterCondition actualClusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
                     if (actualClusterCondition.type() == ConditionType.Accepted && actualClusterCondition.status().equals(Conditions.Status.TRUE)) {
                         continue;
@@ -300,7 +322,7 @@ class DerivedResourcesTest {
     }
 
     @NonNull
-    private static Context<KafkaProxy> buildContext(KafkaProxy kafkaProxy, Path testDir) throws IOException {
+    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters) throws IOException {
         Answer throwOnUnmockedInvocation = invocation -> {
             throw new RuntimeException("Unmocked method: " + invocation.getMethod());
         };
@@ -323,6 +345,7 @@ class DerivedResourcesTest {
             }
         }
         doReturn(filterInstances).when(context).getSecondaryResources(GenericKubernetesResource.class);
+        doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
         return context;
     }

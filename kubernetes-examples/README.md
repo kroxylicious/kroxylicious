@@ -17,11 +17,11 @@ The instructions for running the examples are given below.
 
 ## Examples demonstrating network-topologies
 
-| example                                                                   | showcases                                                                              |
-|---------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
-| [portperbroker_plain](network-topologies/portperbroker_plain/README.md)   | kroxylicious+strimzi using plain connections upstream/downstream.                      |
-| [rangeawareportperbroker_plain](network-topologies/rangeawareportperbroker_plain/README.md) | kroxylicious+strimzi with node pools                                                   |
-| [snirouting_tls](network-topologies/snirouting_tls/README.md)             | kroxylicious+strimzi using TLS upstream/downstream connections with SNI based routing. |
+| example                                                                                                   | showcases                                                                                                  |
+|-----------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| [portidentifiesnode_plain](network-topologies/portidentifiesnode_plain/README.md)                         | kroxylicious+strimzi using plain connections upstream/downstream.                                          |
+| [snihostidentifiesnode_tls](network-topologies/snihostidentifiesnode_tls/README.md)                       | kroxylicious+strimzi using TLS upstream/downstream connections with SNI based routing exposed off-cluster. |
+| [snihostidentifiesnode_tls_in_cluster](network-topologies/snihostidentifiesnode_tls_in_cluster/README.md) | kroxylicious+strimzi using TLS upstream/downstream connections with SNI based routing exposed in-cluster.  |
 
 ## Prerequisites to run the kubernetes-examples
 

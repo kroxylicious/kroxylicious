@@ -6,6 +6,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -25,6 +26,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -41,7 +43,7 @@ public class ProxyDeployment
     public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     public static final int METRICS_PORT = 9190;
-    private static final String KROXYLICIOUS_IMAGE = getOperandImage();
+    private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
     public ProxyDeployment() {
@@ -70,7 +72,7 @@ public class ProxyDeployment
                 .editOrNewSpec()
                     .withReplicas(1)
                     .editOrNewSelector()
-                        .withMatchLabels(deploymentSelector())
+                        .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
                     .withTemplate(podTemplate(primary, context))
                 .endSpec()
@@ -78,28 +80,30 @@ public class ProxyDeployment
         // @formatter:on
     }
 
-    private static Map<String, String> deploymentSelector() {
-        return APP_KROXY;
+    private static Map<String, String> deploymentSelector(KafkaProxy primary) {
+        return podLabels(primary);
     }
 
-    static Map<String, String> podLabels() {
-        return APP_KROXY;
+    static Map<String, String> podLabels(KafkaProxy primary) {
+        Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec()).map(KafkaProxySpec::getPodTemplate)
+                .map(PodTemplateSpec::getMetadata)
+                .map(ObjectMeta::getLabels)
+                .orElse(Map.of());
+        HashMap<String, String> result = new HashMap<>(APP_KROXY);
+        result.putAll(labelsFromSpec);
+        result.putAll(standardLabels(primary));
+        return result;
     }
 
     private PodTemplateSpec podTemplate(KafkaProxy primary,
                                         Context<KafkaProxy> context) {
-        Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec().getPodTemplate())
-                .map(PodTemplateSpec::getMetadata)
-                .map(ObjectMeta::getLabels)
-                .orElse(Map.of());
         // @formatter:off
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
-                    .addToLabels(labelsFromSpec)
-                    .addToLabels(podLabels())
+                    .addToLabels(podLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
-                    .withContainers(proxyContainer(primary, context))
+                    .withContainers(proxyContainer( context))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewSecret()
@@ -111,12 +115,11 @@ public class ProxyDeployment
         // @formatter:on
     }
 
-    private static Container proxyContainer(KafkaProxy primary,
-                                            Context<KafkaProxy> context) {
+    private Container proxyContainer(Context<KafkaProxy> context) {
         // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
-                .withImage(KROXYLICIOUS_IMAGE)
+                .withImage(kroxyliciousImage)
                 .withArgs("--config", ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
                 // volume mount
                 .addNewVolumeMount()
@@ -130,16 +133,15 @@ public class ProxyDeployment
                     .withName("metrics")
                 .endPort();
         // broker ports
-        for (var cluster : primary.getSpec().getClusters()) {
-            if (!SharedKafkaProxyContext.isBroken(context, cluster)) {
-                for (var portEntry : ClusterService.clusterPorts(primary, context, cluster).entrySet()) {
+        ResourcesUtil.clustersInNameOrder(context).forEach(virtualKafkaCluster -> {
+            if (!SharedKafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
+                for (var portEntry : ClusterService.clusterPorts( context, virtualKafkaCluster).entrySet()) {
                     containerBuilder.addNewPort()
                             .withContainerPort(portEntry.getKey())
-                            // .withName(portEntry.getValue())
                             .endPort();
                 }
             }
-        }
+        });
         return containerBuilder.build();
         // @formatter:on
     }

@@ -1,0 +1,26 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: VirtualKafkaCluster
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: foo
+  namespace: proxy-ns
+spec:
+  proxyRef:
+    name: example
+  targetCluster:
+      # This cluster should be absent from the output proxy-operator-operator-operator-config.yaml, because there is no Two with name missing
+    bootstrapping:
+      bootstrapAddress: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+  filters:
+    - group: filter.kroxylicious.io
+      kind: KafkaProtocolFilter
+      name: filter-one
+    - group: filter.kroxylicious.io
+      kind: KafkaProtocolFilter
+      name: missing # this does not exist
