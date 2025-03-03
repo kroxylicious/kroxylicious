@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
@@ -35,6 +36,8 @@ public class SecureConfigInterpolator {
             + ":(?<key>[a-zA-Z0-9_.-]+)"
             + "}$");
 
+    private static final Interpolated NULL_INTERPOLATED = new Interpolated(null, List.of());
+
     private final Map<String, SecureConfigProvider> providers;
     private final Path mountPathBase;
 
@@ -45,56 +48,75 @@ public class SecureConfigInterpolator {
 
     InterpolationResult interpolate(Object configTemplate) {
         // use sets so that it doesn't matter is two providers require the same volume or mount (with exactly the same definition)
-        var volumes = new LinkedHashSet<Volume>();
-        var mounts = new LinkedHashSet<VolumeMount>();
 
-        var interpolated = interpolateRecursive(configTemplate, volumes, mounts);
+        var interpolated = interpolateRecursive(configTemplate);
+        var volumes = interpolated.containerFileReferences().stream()
+                .map(ContainerFileReference::volume)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        var mounts = interpolated.containerFileReferences().stream()
+                .map(ContainerFileReference::mount)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        return new InterpolationResult(interpolated,
+        return new InterpolationResult(interpolated.interpolatedObject(),
                 volumes, mounts);
     }
 
-    private @Nullable Object interpolateRecursive(
-                                                  @Nullable final Object jsonValue,
-                                                  @NonNull Set<Volume> volumes,
-                                                  @NonNull Set<VolumeMount> mounts) {
+    private record Interpolated(@Nullable Object interpolatedObject, @NonNull List<ContainerFileReference> containerFileReferences) {
+
+    }
+
+    private @NonNull Interpolated interpolateRecursive(@Nullable final Object jsonValue) {
         if (jsonValue == null) {
-            return jsonValue;
+            return NULL_INTERPOLATED;
         }
         else if (jsonValue instanceof Map<?, ?> object) {
-            var newObject = new LinkedHashMap<>(1 + (int) (object.size() / 0.75f));
-            for (var entry : object.entrySet()) {
-                String fieldName = entry.getKey().toString();
-                Object v = interpolateRecursive(entry.getValue(), volumes, mounts);
-                newObject.put(fieldName, v);
-            }
-            return newObject;
+            return interpolateObject(object);
         }
         else if (jsonValue instanceof List<?> array) {
-            var newArray = new ArrayList<>(array.size());
-            for (var value : array) {
-                newArray.add(interpolateRecursive(value, volumes, mounts));
-            }
-            return newArray;
+            return interpolateArray(array);
         }
         else if (jsonValue instanceof String text) {
-            return maybeInterpolateString(volumes, mounts, text);
+            return maybeInterpolateString(text);
         }
         else if (jsonValue instanceof Number) {
-            return jsonValue;
+            return new Interpolated(jsonValue, List.of());
         }
         else if (jsonValue instanceof Boolean) {
-            return jsonValue;
+            return new Interpolated(jsonValue, List.of());
         }
         else {
             throw new IllegalStateException(jsonValue + " is not a valid JSON object");
         }
     }
 
+    private @NonNull Interpolated interpolateArray(List<?> array) {
+        var values = new ArrayList<>(array.size());
+        var containerFiles = new ArrayList<ContainerFileReference>(array.size());
+        for (var value : array) {
+            Interpolated interpolated = interpolateRecursive(value);
+            values.add(interpolated.interpolatedObject());
+            containerFiles.addAll(interpolated.containerFileReferences());
+        }
+        return new Interpolated(values, containerFiles);
+    }
+
+    private @NonNull Interpolated interpolateObject(Map<?, ?> object) {
+        var newObject = new LinkedHashMap<>(1 + (int) (object.size() / 0.75f));
+        List<ContainerFileReference> containerFileReferences = new ArrayList<>();
+        for (var entry : object.entrySet()) {
+            String fieldName = entry.getKey().toString();
+            Interpolated v = interpolateRecursive(entry.getValue());
+            containerFileReferences.addAll(v.containerFileReferences());
+            newObject.put(fieldName, v.interpolatedObject());
+        }
+        return new Interpolated(newObject, containerFileReferences);
+    }
+
     @NonNull
-    private String maybeInterpolateString(@NonNull Set<Volume> volumes, @NonNull Set<VolumeMount> mounts, String text) {
+    private Interpolated maybeInterpolateString(String text) {
         Matcher matcher = PATTERN.matcher(text);
         String replacement;
+        ArrayList<ContainerFileReference> containerFileReferences = new ArrayList<>();
         if (matcher.matches()) {
             String providerName = matcher.group("providerName");
             String path = matcher.group("path");
@@ -105,22 +127,15 @@ public class SecureConfigInterpolator {
             }
             else {
                 var containerFile = provider.containerFile(providerName, path, key, mountPathBase);
-                Volume volume = containerFile.volume();
-                VolumeMount mount = containerFile.mount();
                 Path containerPath = containerFile.containerPath();
-                if (volume != null) {
-                    volumes.add(volume);
-                }
-                if (mount != null) {
-                    mounts.add(mount);
-                }
+                containerFileReferences.add(containerFile);
                 replacement = containerPath.toString();
             }
         }
         else {
             replacement = text;
         }
-        return replacement;
+        return new Interpolated(replacement, containerFileReferences);
     }
 
     record InterpolationResult(@Nullable Object config,
