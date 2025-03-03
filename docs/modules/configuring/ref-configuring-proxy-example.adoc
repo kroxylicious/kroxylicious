@@ -63,6 +63,6 @@ virtualClusters: # <5>
 <8> TLS configuration for the connection to the target cluster.
 <9> The gateway of the virtual cluster defining how the virtual cluster is presented to the network.
 <10> The identification scheme used to route traffic to brokers, which can be `sniHostIdentifiesNode` or `portIdentifiesNode`.
-<11> The hostname and port of the bootstrap used by the Kafka clients to connect to this listener. The hostname must be resolved by the clients.
-<12> TLS encryption used by the listener for securing connections with the clients.
+<11> The hostname and port of the bootstrap used by the Kafka clients to connect to the gateway. The hostname must be resolved by the clients.
+<12> TLS encryption used by the gateway for securing connections with the clients.
 
