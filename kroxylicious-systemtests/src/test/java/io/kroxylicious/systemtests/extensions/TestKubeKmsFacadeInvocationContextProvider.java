@@ -27,7 +27,7 @@ import io.kroxylicious.systemtests.logs.TestLogCollector;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider {
-    private static final TestLogCollector LOG_COLLECTOR = new TestLogCollector();
+    private static final TestLogCollector logCollector = TestLogCollector.getInstance();
 
     @Override
     public boolean supportsTestTemplate(ExtensionContext context) {
@@ -69,7 +69,7 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                         try {
                             Optional<Throwable> exception = extensionContext.getExecutionException();
                             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
-                                LOG_COLLECTOR.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
+                                logCollector.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
                                 NamespaceUtils.deleteNamespacesFromSet(extensionContext.getRequiredTestClass().getName(),
                                         extensionContext.getRequiredTestMethod().getName());
                             });

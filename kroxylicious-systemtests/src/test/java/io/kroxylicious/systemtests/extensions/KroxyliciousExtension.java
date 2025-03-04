@@ -36,7 +36,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     private static final String K8S_NAMESPACE_KEY = "namespace";
     private static final String EXTENSION_STORE_NAME = "io.kroxylicious.systemtests";
     private final ExtensionContext.Namespace junitNamespace;
-    private static final TestLogCollector LOG_COLLECTOR = new TestLogCollector();
+    private final TestLogCollector logCollector = TestLogCollector.getInstance();
 
     /**
      * Instantiates a new Kroxylicious extension.
@@ -87,7 +87,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
-                LOG_COLLECTOR.collectLogs(testClassName, testMethodName);
+                logCollector.collectLogs(testClassName, testMethodName);
             });
         }
         finally {

@@ -93,6 +93,7 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
 public class TestLogCollector {
     private static final String CURRENT_DATE_TIME;
     private final LogCollector logCollector;
+    private static TestLogCollector instance;
 
     static {
         // Get current date to create a unique folder
@@ -106,6 +107,18 @@ public class TestLogCollector {
      */
     public TestLogCollector() {
         this.logCollector = defaultLogCollector();
+    }
+
+    /**
+     * Gets instance.
+     *
+     * @return the instance
+     */
+    public static synchronized TestLogCollector getInstance() {
+        if (instance == null) {
+            instance = new TestLogCollector();
+        }
+        return instance;
     }
 
     /**
