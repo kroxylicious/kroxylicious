@@ -26,18 +26,18 @@ spec:
   selector:
     matchLabels:
       app: "kroxylicious"
+      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/managed-by: "kroxylicious-operator"
       app.kubernetes.io/name: "kroxylicious-proxy"
-      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/instance: "example"
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
       labels:
         app: "kroxylicious"
+        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/managed-by: "kroxylicious-operator"
         app.kubernetes.io/name: "kroxylicious-proxy"
-        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/instance: "example"
         app.kubernetes.io/component: "proxy"
     spec:
@@ -58,13 +58,31 @@ spec:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
               subPath: "proxy-config.yaml"
-            - mountPath: "/opt/kroxylicious/secure/secret/my-secret"
-              name: "secrets-my-secret"
+            - mountPath: "/opt/kroxylicious/secure/secret/foo"
+              name: "secrets-foo"
+              readOnly: true
+            - mountPath: "/opt/kroxylicious/secure/secret/bar"
+              name: "secrets-bar"
+              readOnly: true
+            - mountPath: "/opt/kroxylicious/secure/configmap/foo"
+              name: "configmaps-foo"
+              readOnly: true
+            - mountPath: "/opt/kroxylicious/secure/configmap/bar"
+              name: "configmaps-bar"
               readOnly: true
       volumes:
         - name: "config-volume"
           secret:
             secretName: "example"
-        - name: "secrets-my-secret"
+        - name: "secrets-foo"
           secret:
-            secretName: "my-secret"
+            secretName: "foo"
+        - name: "secrets-bar"
+          secret:
+            secretName: "bar"
+        - configMap:
+            name: "foo"
+          name: "configmaps-foo"
+        - configMap:
+            name: "bar"
+          name: "configmaps-bar"

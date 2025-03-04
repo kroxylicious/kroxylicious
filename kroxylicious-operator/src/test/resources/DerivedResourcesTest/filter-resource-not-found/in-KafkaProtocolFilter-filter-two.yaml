@@ -12,5 +12,5 @@ metadata:
   namespace: proxy-ns
 spec:
   type: com.example.what.Ever
-  config:
+  configTemplate:
     filterTwoConfig: 42

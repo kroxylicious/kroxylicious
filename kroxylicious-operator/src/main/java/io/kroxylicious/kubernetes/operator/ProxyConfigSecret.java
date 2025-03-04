@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,7 +24,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
@@ -55,6 +59,14 @@ import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 public class ProxyConfigSecret
         extends CRUDKubernetesDependentResource<Secret, KafkaProxy> {
 
+    /**
+     * The key of the {@code config.yaml} entry in the desired {@code Secret}.
+     */
+    public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
+
+    public static final String SECURE_VOLUME_KEY = "secure-volumes";
+    public static final String SECURE_VOLUME_MOUNT_KEY = "secure-volume-mounts";
+
     private static final ObjectMapper OBJECT_MAPPER = ConfigParser.createObjectMapper();
 
     private static String toYaml(Object filterDefs) {
@@ -66,13 +78,14 @@ public class ProxyConfigSecret
         }
     }
 
-    /**
-     * The key of the {@code config.yaml} entry in the desired {@code Secret}.
-     */
-    public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
+    private final SecureConfigInterpolator secureConfigInterpolator;
 
     public ProxyConfigSecret() {
         super(Secret.class);
+        var providerMap = Map.<String, SecureConfigProvider> of(
+                "secret", MountedResourceConfigProvider.SECRET_PROVIDER,
+                "configmap", MountedResourceConfigProvider.CONFIGMAP_PROVIDER);
+        secureConfigInterpolator = new SecureConfigInterpolator("/opt/kroxylicious/secure", providerMap);
     }
 
     /**
@@ -80,6 +93,22 @@ public class ProxyConfigSecret
      */
     static String secretName(KafkaProxy primary) {
         return primary.getMetadata().getName();
+    }
+
+    public static List<Volume> secureVolumes(ManagedDependentResourceContext managedDependentResourceContext) {
+        Set<Volume> volumes = managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_KEY, Set.class).orElse(Set.of());
+        if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
+            throw new IllegalStateException("Two volumes with different definitions share the same name");
+        }
+        return volumes.stream().toList();
+    }
+
+    public static List<VolumeMount> secureVolumeMounts(ManagedDependentResourceContext managedDependentResourceContext) {
+        Set<VolumeMount> mounts = managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_MOUNT_KEY, Set.class).orElse(Set.of());
+        if (mounts.stream().map(VolumeMount::getMountPath).distinct().count() != mounts.size()) {
+            throw new IllegalStateException("Two volume mounts with different definitions share the same mount path");
+        }
+        return mounts.stream().toList();
     }
 
     @Override
@@ -132,12 +161,13 @@ public class ProxyConfigSecret
     }
 
     @NonNull
-    private static List<NamedFilterDefinition> buildFilterDefinitions(Context<KafkaProxy> context, List<VirtualKafkaCluster> clusters) {
+
+    private List<NamedFilterDefinition> buildFilterDefinitions(Context<KafkaProxy> context, List<VirtualKafkaCluster> clusters) {
         List<NamedFilterDefinition> filterDefinitions = new ArrayList<>();
         Set<NamedFilterDefinition> uniqueValues = new HashSet<>();
         for (VirtualKafkaCluster cluster1 : clusters) {
             try {
-                for (NamedFilterDefinition namedFilterDefinition : filterDefinitions(cluster1, context)) {
+                for (NamedFilterDefinition namedFilterDefinition : filterDefinitions(context, cluster1)) {
                     if (uniqueValues.add(namedFilterDefinition)) {
                         filterDefinitions.add(namedFilterDefinition);
                     }
@@ -165,7 +195,7 @@ public class ProxyConfigSecret
     }
 
     @NonNull
-    private static List<NamedFilterDefinition> filterDefinitions(VirtualKafkaCluster cluster, Context<KafkaProxy> context)
+    private List<NamedFilterDefinition> filterDefinitions(Context<KafkaProxy> context, VirtualKafkaCluster cluster)
             throws InvalidClusterException {
 
         return Optional.ofNullable(cluster.getSpec().getFilters()).orElse(List.of()).stream().map(filterCrRef -> {
@@ -175,14 +205,39 @@ public class ProxyConfigSecret
             var filterCr = filterResourceFromRef(cluster, context, filterCrRef);
             if (filterCr.getAdditionalProperties().get("spec") instanceof Map<?, ?> spec) {
                 String type = (String) spec.get("type");
-                Object config = spec.get("config");
-                return new NamedFilterDefinition(filterDefinitionName, type, config);
+                SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
+                var ctx = context.managedDependentResourceContext();
+                putOrMerged(ctx, SECURE_VOLUME_KEY, interpolationResult.volumes());
+                putOrMerged(ctx, SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
+                return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
             }
             else {
                 throw new InvalidClusterException(ClusterCondition.filterInvalid(cluster.getMetadata().getName(), filterDefinitionName, "`spec` was not an `object`."));
             }
 
         }).toList();
+    }
+
+    private static <T> void putOrMerged(ManagedDependentResourceContext ctx, String ctxKey, Set<T> set) {
+        Optional<Set<T>> ctxVolumes = (Optional) ctx.get(ctxKey, Set.class);
+        if (ctxVolumes.isPresent()) {
+            ctxVolumes.get().addAll(set);
+        }
+        else {
+            ctx.put(ctxKey, new LinkedHashSet<>(set));
+        }
+    }
+
+    private @NonNull SecureConfigInterpolator.InterpolationResult interpolateConfig(Map<?, ?> spec) {
+        SecureConfigInterpolator.InterpolationResult result;
+        Object configTemplate = spec.get("configTemplate");
+        if (configTemplate != null) {
+            result = secureConfigInterpolator.interpolate(configTemplate);
+        }
+        else {
+            result = new SecureConfigInterpolator.InterpolationResult(spec.get("config"), Set.of(), Set.of());
+        }
+        return result;
     }
 
     @NonNull
