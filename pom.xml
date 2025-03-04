@@ -47,7 +47,7 @@
         <log4j.version>2.24.3</log4j.version>
         <caffeine.version>3.2.0</caffeine.version>
         <picocli.version>4.7.6</picocli.version>
-        <netty.version>4.1.118.Final</netty.version>
+        <netty.version>4.1.119.Final</netty.version>
         <netty.io_uring.version>0.0.26.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
@@ -55,7 +55,7 @@
         <assertj-core.version>3.27.3</assertj-core.version>
         <mockito.version>5.15.2</mockito.version>
         <micrometer.version>1.14.4</micrometer.version>
-        <slf4j.version>2.0.16</slf4j.version>
+        <slf4j.version>2.0.17</slf4j.version>
         <sundr-builder-annotations.version>0.200.0</sundr-builder-annotations.version>
         <spotbugs-annotations.version>4.9.2</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
