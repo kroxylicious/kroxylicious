@@ -19,6 +19,7 @@ import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SecureConfigInterpolatorTest {
 
@@ -116,6 +117,45 @@ class SecureConfigInterpolatorTest {
     }
 
     @Test
+    void shouldNotTnterpolateWhenQuoted() throws JsonProcessingException {
+        // given
+        var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
+        var jsonValue = YAML_MAPPER.readValue("""
+                kms: AwsKms
+                kmsConfig:
+                  quoted:              \\${secret:different-secret:a-key}
+                  notQuoted:         \\\\${secret:different-secret:a-key}
+                  alsoQuoted:      \\\\\\${secret:different-secret:a-key}
+                  alsoNotQuoted: \\\\\\\\${secret:different-secret:a-key}
+                """, Map.class);
+
+        // when
+        var result = i.interpolate(jsonValue);
+
+        // then
+        assertThat(result.volumes()).singleElement().extracting(Volume::getName).isEqualTo("secrets-different-secret");
+        assertThat(result.volumes()).singleElement().extracting(Volume::getSecret).extracting(SecretVolumeSource::getSecretName).isEqualTo("different-secret");
+
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getName).isEqualTo("secrets-different-secret");
+        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/different-secret");
+
+        // Note that in YAML itself \ functions as an escape character, but only in double-quoted strings.
+        // Then we have to quote \ for Java source code
+        // So in the below `notQuoted` and `alsoQuoted` only feature a single \ in YAML-space
+        // and `alsoNotQuoted` features a two \ in YAML-space.
+        assertThat(new YAMLMapper(YAML_MAPPER).disable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
+                .writeValueAsString(result.config())).isEqualTo("""
+                kms: "AwsKms"
+                kmsConfig:
+                  quoted: "${secret:different-secret:a-key}"
+                  notQuoted: "\\\\/base/secret/different-secret/a-key"
+                  alsoQuoted: "\\\\${secret:different-secret:a-key}"
+                  alsoNotQuoted: "\\\\\\\\/base/secret/different-secret/a-key"
+                """);
+
+    }
+
+    @Test
     void shouldNotTnterpolateWhenPrefixed() throws JsonProcessingException {
         // given
         var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
@@ -144,7 +184,7 @@ class SecureConfigInterpolatorTest {
     }
 
     @Test
-    void shouldNotTnterpolateWhenUnknownProvider() throws JsonProcessingException {
+    void shouldThrowFromInterpolateWhenUnknownProvider() throws JsonProcessingException {
         // given
         var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
         var jsonValue = YAML_MAPPER.readValue("""
@@ -154,22 +194,10 @@ class SecureConfigInterpolatorTest {
                   unknownProvider: ${unknow:aws:a-key}
                 """, Map.class);
 
-        // when
-        var result = i.interpolate(jsonValue);
-
         // then
-        assertThat(result.volumes()).singleElement().extracting(Volume::getName).isEqualTo("secrets-aws");
-        assertThat(result.volumes()).singleElement().extracting(Volume::getSecret).extracting(SecretVolumeSource::getSecretName).isEqualTo("aws");
-
-        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getName).isEqualTo("secrets-aws");
-        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/aws");
-
-        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
-                kms: AwsKms
-                kmsConfig:
-                  knownProvider: /base/secret/aws/a-key
-                  unknownProvider: "${unknow:aws:a-key}"
-                """);
+        assertThatThrownBy(() -> i.interpolate(jsonValue))
+                .isInstanceOf(InterpolationException.class)
+                .hasMessage("Unknown config provider 'unknow', known providers are: [secret]");
 
     }
 

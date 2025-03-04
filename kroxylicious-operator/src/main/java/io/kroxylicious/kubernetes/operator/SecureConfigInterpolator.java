@@ -30,7 +30,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class SecureConfigInterpolator {
 
-    private static final Pattern PATTERN = Pattern.compile("^\\$\\{"
+    private static final Pattern PATTERN = Pattern.compile("^(?<escape>[\\\\]*)\\$\\{"
             + "(?<providerName>[a-z]+)"
             + ":(?<path>[a-zA-Z0-9_.-]+)"
             + ":(?<key>[a-zA-Z0-9_.-]+)"
@@ -124,18 +124,25 @@ public class SecureConfigInterpolator {
         String replacement;
         ArrayList<ContainerFileReference> containerFileReferences = new ArrayList<>();
         if (matcher.matches()) {
+            String escape = matcher.group("escape");
             String providerName = matcher.group("providerName");
             String path = matcher.group("path");
             String key = matcher.group("key");
-            var provider = providers.get(providerName);
-            if (provider == null) {
-                replacement = text;
+
+            if (escape.length() % 2 == 1) {
+                replacement = "\\".repeat(escape.length() / 2) + "${" + providerName + ":" + path + ":" + key + "}";
             }
             else {
-                var containerFile = provider.containerFile(providerName, path, key, mountPathBase);
-                Path containerPath = containerFile.containerPath();
-                containerFileReferences.add(containerFile);
-                replacement = containerPath.toString();
+                var provider = providers.get(providerName);
+                if (provider == null) {
+                    throw new InterpolationException("Unknown config provider '" + providerName + "', known providers are: " + providers.keySet());
+                }
+                else {
+                    var containerFile = provider.containerFile(providerName, path, key, mountPathBase);
+                    Path containerPath = containerFile.containerPath();
+                    containerFileReferences.add(containerFile);
+                    replacement = "\\".repeat(escape.length() / 2) + containerPath.toString();
+                }
             }
         }
         else {
