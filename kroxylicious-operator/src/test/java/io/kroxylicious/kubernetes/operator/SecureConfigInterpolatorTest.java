@@ -127,6 +127,9 @@ class SecureConfigInterpolatorTest {
                   notQuoted:         \\\\${secret:different-secret:a-key}
                   alsoQuoted:      \\\\\\${secret:different-secret:a-key}
                   alsoNotQuoted: \\\\\\\\${secret:different-secret:a-key}
+                  prefixed:              hello \\${secret:different-secret:a-key}
+                  suffixed:              \\${secret:different-secret:a-key} goodbye
+                  multiple:              \\${secret:different-secret:a-key}\\${secret:different-secret:a-key}
                 """, Map.class);
 
         // when
@@ -151,12 +154,15 @@ class SecureConfigInterpolatorTest {
                   notQuoted: "\\\\/base/secret/different-secret/a-key"
                   alsoQuoted: "\\\\${secret:different-secret:a-key}"
                   alsoNotQuoted: "\\\\\\\\/base/secret/different-secret/a-key"
+                  prefixed: "hello ${secret:different-secret:a-key}"
+                  suffixed: "${secret:different-secret:a-key} goodbye"
+                  multiple: "${secret:different-secret:a-key}${secret:different-secret:a-key}"
                 """);
 
     }
 
     @Test
-    void shouldNotTnterpolateWhenPrefixed() throws JsonProcessingException {
+    void shouldThrowFromTnterpolateWhenPrefixed() throws JsonProcessingException {
         // given
         var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
         var jsonValue = YAML_MAPPER.readValue("""
@@ -164,23 +170,25 @@ class SecureConfigInterpolatorTest {
                 kmsConfig:
                   prefixed:
                     prefix ${secret:different-secret:a-key}
+                """, Map.class);
+
+        // then
+        assertThatThrownBy(() -> i.interpolate(jsonValue)).isInstanceOf(InterpolationException.class).hasMessage("Config provider placeholders cannot be preceded or followed by other characters");
+    }
+
+    @Test
+    void shouldThrowFromTnterpolateWhenSuffixed() throws JsonProcessingException {
+        // given
+        var i = new SecureConfigInterpolator("/base", Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER));
+        var jsonValue = YAML_MAPPER.readValue("""
+                kms: AwsKms
+                kmsConfig:
                   suffixed:
                     ${secret:different-secret:a-key} suffix
                 """, Map.class);
 
-        // when
-        var result = i.interpolate(jsonValue);
-
         // then
-        assertThat(result.volumes()).isEmpty();
-        assertThat(result.mounts()).isEmpty();
-        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
-                kms: AwsKms
-                kmsConfig:
-                  prefixed: "prefix ${secret:different-secret:a-key}"
-                  suffixed: "${secret:different-secret:a-key} suffix"
-                """);
-
+        assertThatThrownBy(() -> i.interpolate(jsonValue)).isInstanceOf(InterpolationException.class).hasMessage("Config provider placeholders cannot be preceded or followed by other characters");
     }
 
     @Test

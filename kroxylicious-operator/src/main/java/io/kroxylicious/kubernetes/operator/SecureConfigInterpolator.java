@@ -30,11 +30,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class SecureConfigInterpolator {
 
-    private static final Pattern PATTERN = Pattern.compile("^(?<escape>[\\\\]*)\\$\\{"
+    private static final Pattern PATTERN = Pattern.compile("(?<quoting>\\\\*)\\$\\{"
             + "(?<providerName>[a-z]+)"
             + ":(?<path>[a-zA-Z0-9_.-]+)"
             + ":(?<key>[a-zA-Z0-9_.-]+)"
-            + "}$");
+            + "}");
 
     private record InterpolatedValue(@Nullable Object interpolatedValue, @NonNull List<ContainerFileReference> containerFileReferences) {
 
@@ -121,18 +121,23 @@ public class SecureConfigInterpolator {
     @NonNull
     private InterpolatedValue maybeInterpolateString(String text) {
         Matcher matcher = PATTERN.matcher(text);
-        String replacement;
         ArrayList<ContainerFileReference> containerFileReferences = new ArrayList<>();
-        if (matcher.matches()) {
-            String escape = matcher.group("escape");
+        var sb = new StringBuilder();
+        while (matcher.find()) {
+            String quoting = matcher.group("quoting");
             String providerName = matcher.group("providerName");
             String path = matcher.group("path");
             String key = matcher.group("key");
 
-            if (escape.length() % 2 == 1) {
-                replacement = "\\".repeat(escape.length() / 2) + "${" + providerName + ":" + path + ":" + key + "}";
+            if (quoting.length() % 2 == 1) {
+
+                String replacement = Matcher.quoteReplacement("\\".repeat(quoting.length() / 2) + "${" + providerName + ":" + path + ":" + key + "}");
+                matcher.appendReplacement(sb, replacement);
             }
             else {
+                if (matcher.start() != 0 || matcher.end() != text.length()) {
+                    throw new InterpolationException("Config provider placeholders cannot be preceded or followed by other characters");
+                }
                 var provider = providers.get(providerName);
                 if (provider == null) {
                     throw new InterpolationException("Unknown config provider '" + providerName + "', known providers are: " + providers.keySet());
@@ -141,14 +146,13 @@ public class SecureConfigInterpolator {
                     var containerFile = provider.containerFile(providerName, path, key, mountPathBase);
                     Path containerPath = containerFile.containerPath();
                     containerFileReferences.add(containerFile);
-                    replacement = "\\".repeat(escape.length() / 2) + containerPath.toString();
+                    String replacement = Matcher.quoteReplacement("\\".repeat(quoting.length() / 2) + containerPath);
+                    matcher.appendReplacement(sb, replacement);
                 }
             }
         }
-        else {
-            replacement = text;
-        }
-        return new InterpolatedValue(replacement, containerFileReferences);
+        matcher.appendTail(sb);
+        return new InterpolatedValue(sb.toString(), containerFileReferences);
     }
 
     record InterpolationResult(@Nullable Object config,
