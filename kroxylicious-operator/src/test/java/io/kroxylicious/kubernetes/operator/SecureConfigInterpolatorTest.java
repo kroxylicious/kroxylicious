@@ -148,16 +148,16 @@ class SecureConfigInterpolatorTest {
         // and `alsoNotQuoted` features a two \ in YAML-space.
         assertThat(new YAMLMapper(YAML_MAPPER).disable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
                 .writeValueAsString(result.config())).isEqualTo("""
-                kms: "AwsKms"
-                kmsConfig:
-                  quoted: "${secret:different-secret:a-key}"
-                  notQuoted: "\\\\/base/secret/different-secret/a-key"
-                  alsoQuoted: "\\\\${secret:different-secret:a-key}"
-                  alsoNotQuoted: "\\\\\\\\/base/secret/different-secret/a-key"
-                  prefixed: "hello ${secret:different-secret:a-key}"
-                  suffixed: "${secret:different-secret:a-key} goodbye"
-                  multiple: "${secret:different-secret:a-key}${secret:different-secret:a-key}"
-                """);
+                        kms: "AwsKms"
+                        kmsConfig:
+                          quoted: "${secret:different-secret:a-key}"
+                          notQuoted: "\\\\/base/secret/different-secret/a-key"
+                          alsoQuoted: "\\\\${secret:different-secret:a-key}"
+                          alsoNotQuoted: "\\\\\\\\/base/secret/different-secret/a-key"
+                          prefixed: "hello ${secret:different-secret:a-key}"
+                          suffixed: "${secret:different-secret:a-key} goodbye"
+                          multiple: "${secret:different-secret:a-key}${secret:different-secret:a-key}"
+                        """);
 
     }
 
@@ -173,7 +173,8 @@ class SecureConfigInterpolatorTest {
                 """, Map.class);
 
         // then
-        assertThatThrownBy(() -> i.interpolate(jsonValue)).isInstanceOf(InterpolationException.class).hasMessage("Config provider placeholders cannot be preceded or followed by other characters");
+        assertThatThrownBy(() -> i.interpolate(jsonValue)).isInstanceOf(InterpolationException.class)
+                .hasMessage("Config provider placeholders cannot be preceded or followed by other characters");
     }
 
     @Test
@@ -188,7 +189,8 @@ class SecureConfigInterpolatorTest {
                 """, Map.class);
 
         // then
-        assertThatThrownBy(() -> i.interpolate(jsonValue)).isInstanceOf(InterpolationException.class).hasMessage("Config provider placeholders cannot be preceded or followed by other characters");
+        assertThatThrownBy(() -> i.interpolate(jsonValue)).isInstanceOf(InterpolationException.class)
+                .hasMessage("Config provider placeholders cannot be preceded or followed by other characters");
     }
 
     @Test
