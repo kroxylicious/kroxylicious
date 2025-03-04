@@ -7,8 +7,10 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +19,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -89,6 +92,31 @@ class ResourcesUtilTest {
         assertThatThrownBy(() -> {
             findOnlyResourceNamed(RESOURCE_NAME, withMultipleSameName);
         }).isInstanceOf(IllegalStateException.class).hasMessage("collection contained more than one resource named " + RESOURCE_NAME);
+    }
+
+    @Test
+    void toByNameMapEmptyStream() {
+        Map<String, HasMetadata> hasMetadataMap = Stream.<HasMetadata> empty().collect(toByNameMap());
+        assertThat(hasMetadataMap).isNotNull().isEmpty();
+    }
+
+    @Test
+    void toByNameMapWithElements() {
+        Secret a = new SecretBuilder().withNewMetadata().withName("a").endMetadata().build();
+        Secret b = new SecretBuilder().withNewMetadata().withName("b").endMetadata().build();
+        Map<String, Secret> hasMetadataMap = Stream.of(a, b).collect(toByNameMap());
+        assertThat(hasMetadataMap).isNotNull().containsEntry("a", a).containsEntry("b", b);
+    }
+
+    @Test
+    void toByNameMapDoesNotTolerateDuplicateKeys() {
+        Secret a = new SecretBuilder().withNewMetadata().withName("a").endMetadata().build();
+        Secret b = new SecretBuilder().withNewMetadata().withName("b").endMetadata().build();
+        Secret c = new SecretBuilder().withNewMetadata().withName("b").endMetadata().build();
+        Stream<Secret> stream = Stream.of(a, b, c);
+        assertThatThrownBy(() -> stream.collect(toByNameMap()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Duplicate key b");
     }
 
     @Test

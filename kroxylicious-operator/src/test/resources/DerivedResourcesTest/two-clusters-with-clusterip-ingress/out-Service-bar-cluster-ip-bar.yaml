@@ -12,29 +12,29 @@ metadata:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "example"
+    app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"
-  name: "foo"
+  name: "bar-cluster-ip-bar"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "example"
+      name: "twocluster"
 spec:
   ports:
-    - name: "foo-9292"
+    - name: "bar-9292"
       port: 9292
       protocol: "TCP"
       targetPort: 9292
-    - name: "foo-9293"
+    - name: "bar-9293"
       port: 9293
       protocol: "TCP"
       targetPort: 9293
-    - name: "foo-9294"
+    - name: "bar-9294"
       port: 9294
       protocol: "TCP"
       targetPort: 9294
-    - name: "foo-9295"
+    - name: "bar-9295"
       port: 9295
       protocol: "TCP"
       targetPort: 9295
@@ -43,5 +43,5 @@ spec:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "example"
+    app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"

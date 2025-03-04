@@ -72,5 +72,4 @@ public class SharedKafkaProxyContext {
         Optional<Map<String, ClusterCondition>> map = (Optional) context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class);
         return map.orElse(Map.of()).getOrDefault(name(cluster), ClusterCondition.accepted(name(cluster)));
     }
-
 }

@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -34,24 +33,26 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Filters;
+import io.kroxylicious.kubernetes.operator.ingress.IngressAllocator;
+import io.kroxylicious.kubernetes.operator.ingress.IngressConflictException;
+import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressModel;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
-import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
-import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.clusterRefs;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
@@ -125,7 +126,7 @@ public class ProxyConfigSecret
                     .withName(secretName(primary))
                     .withNamespace(namespace(primary))
                     .addToLabels(standardLabels(primary))
-                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
+                    .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
                 .withStringData(Map.of(CONFIG_YAML_KEY, generateProxyConfig(primary, context)))
                 .build();
@@ -136,12 +137,19 @@ public class ProxyConfigSecret
                                Context<KafkaProxy> context) {
 
         List<VirtualKafkaCluster> virtualKafkaClusters = ResourcesUtil.clustersInNameOrder(context).toList();
+        Set<KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class);
+        ProxyIngressModel ingressModel = getProxyIngressModel(primary, context, virtualKafkaClusters, ingresses);
 
-        Map<ResourceID, KafkaClusterRef> clusterRefs = ResourcesUtil.clusterRefs(context);
+        Map<ResourceID, KafkaClusterRef> clusterRefs = clusterRefs(context);
 
+        // TODO fix this double invocation of buildFilterDefinitions which is a workaround for https://github.com/kroxylicious/kroxylicious/issues/1916
+        // first invocation rejects some virtual clusters with unresolved refs
+        buildFilterDefinitions(context, virtualKafkaClusters);
+
+        var virtualClusters = buildVirtualClusters(context, virtualKafkaClusters, clusterRefs, ingressModel);
+
+        // second invocation excludes filters that belong to clusters broken in `buildVirtualClusters`
         List<NamedFilterDefinition> filterDefinitions = buildFilterDefinitions(context, virtualKafkaClusters);
-
-        var virtualClusters = buildVirtualClusters(primary, context, virtualKafkaClusters, clusterRefs);
 
         Configuration configuration = new Configuration(
                 new AdminHttpConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())), filterDefinitions,
@@ -154,11 +162,24 @@ public class ProxyConfigSecret
         return toYaml(configuration);
     }
 
-    @NonNull
-    private static List<VirtualCluster> buildVirtualClusters(KafkaProxy primary, Context<KafkaProxy> context, List<VirtualKafkaCluster> clusters,
-                                                             Map<ResourceID, KafkaClusterRef> clusterRefs) {
-        AtomicInteger clusterNum = new AtomicInteger(0);
+    private static @NonNull ProxyIngressModel getProxyIngressModel(KafkaProxy primary, Context<KafkaProxy> context, List<VirtualKafkaCluster> virtualKafkaClusters,
+                                                                   Set<KafkaProxyIngress> ingresses) {
+        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, virtualKafkaClusters, ingresses);
+        for (ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel : ingressModel.clusters()) {
+            Set<IngressConflictException> exceptions = virtualClusterIngressModel.ingressExceptions();
+            if (!exceptions.isEmpty()) {
+                VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
+                SharedKafkaProxyContext.addClusterCondition(context, cluster, ClusterCondition.ingressConflict(name(cluster), exceptions));
+            }
+        }
+        return ingressModel;
+    }
 
+    @NonNull
+    private static List<VirtualCluster> buildVirtualClusters(Context<KafkaProxy> context,
+                                                             List<VirtualKafkaCluster> clusters,
+                                                             Map<ResourceID, KafkaClusterRef> clusterRefs,
+                                                             ProxyIngressModel ingressModel) {
         Map<VirtualKafkaCluster, Optional<KafkaClusterRef>> clusterToRefMap = clusters.stream()
                 .collect(Collectors.toMap(
                         Function.identity(),
@@ -173,7 +194,7 @@ public class ProxyConfigSecret
 
         return clusters.stream()
                 .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
-                .map(cluster -> getVirtualCluster(primary, cluster, clusterToRefMap.get(cluster).get(), clusterNum.getAndIncrement()))
+                .map(cluster -> getVirtualCluster(cluster, clusterToRefMap.get(cluster).get(), ingressModel))
                 .toList();
     }
 
@@ -183,6 +204,9 @@ public class ProxyConfigSecret
         List<NamedFilterDefinition> filterDefinitions = new ArrayList<>();
         Set<NamedFilterDefinition> uniqueValues = new HashSet<>();
         for (VirtualKafkaCluster cluster1 : clusters) {
+            if (SharedKafkaProxyContext.isBroken(context, cluster1)) {
+                continue;
+            }
             try {
                 for (NamedFilterDefinition namedFilterDefinition : filterDefinitions(context, cluster1)) {
                     if (uniqueValues.add(namedFilterDefinition)) {
@@ -285,20 +309,17 @@ public class ProxyConfigSecret
                 .orElseThrow(() -> filterResourceNotFound(cluster, filterRef));
     }
 
-    private static VirtualCluster getVirtualCluster(KafkaProxy primary,
-                                                    VirtualKafkaCluster cluster,
-                                                    KafkaClusterRef kafkaClusterRef, int clusterNum) {
+    private static VirtualCluster getVirtualCluster(VirtualKafkaCluster cluster,
+                                                    KafkaClusterRef kafkaClusterRef,
+                                                    ProxyIngressModel ingressModel) {
 
+        ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(cluster).orElseThrow();
         String bootstrap = kafkaClusterRef.getSpec().getBootstrapServers();
         return new VirtualCluster(
                 name(cluster), new TargetCluster(bootstrap, Optional.empty()),
                 null,
                 Optional.empty(),
-                List.of(new VirtualClusterGateway("default",
-                        new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292 + (100 * clusterNum)),
-                                ClusterService.absoluteServiceHost(primary, cluster), null, null),
-                        null,
-                        Optional.empty())),
+                virtualClusterIngressModel.gateways(),
                 false, false,
                 filterNamesForCluster(cluster));
     }
