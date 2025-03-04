@@ -10,9 +10,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import io.javaoperatorsdk.operator.OperatorException;
+import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.micrometer.core.instrument.Metrics;
+
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
@@ -21,6 +26,13 @@ import static org.assertj.core.api.Assertions.fail;
 class OperatorMainIT {
     private OperatorMain operatorMain;
     // This is an IT because it depends on having a running Kube cluster
+
+    @RegisterExtension
+    static final LocallyRunOperatorExtension operatorExtension = LocallyRunOperatorExtension.builder()
+            .withAdditionalCustomResourceDefinition(KafkaProtocolFilter.class)
+            .withAdditionalCustomResourceDefinition(KafkaProxy.class)
+            .withKubernetesClient(OperatorTestUtils.kubeClientIfAvailable())
+            .build();
 
     @BeforeEach
     void beforeEach() {
