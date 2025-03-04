@@ -40,6 +40,7 @@ import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import lombok.SneakyThrows;
@@ -65,7 +66,8 @@ class OperatorMainTest {
     void setUp() {
         expectApiResources();
 
-        expectWatchOn("/apis/kroxylicious.io/v1alpha1/kafkaproxies", KafkaProxy.class, "kafkaproxie", "kroxylicious.io/v1alpha1", 1000);
+        expectWatchOn("/apis/kroxylicious.io/v1alpha1/kafkaproxies", KafkaProxy.class, "kafkaproxy", "kroxylicious.io/v1alpha1", 1000);
+        expectWatchOn("/apis/kroxylicious.io/v1alpha1/virtualkafkaclusters", VirtualKafkaCluster.class, "virtualkafkacluster", "kroxylicious.io/v1alpha1", 1000);
         expectWatchOn("/apis/filter.kroxylicious.io/v1alpha1/kafkaprotocolfilters", KafkaProtocolFilter.class, "kafkaprotocolfilter", "kroxylicious.io/v1alpha1", 0);
         expectWatchOn("/apis/apps/v1/deployments", Deployment.class, "deployment", "v1", 1000);
         expectWatchOn("/api/v1/secrets", Secret.class, "secret", "v1", 1000);
