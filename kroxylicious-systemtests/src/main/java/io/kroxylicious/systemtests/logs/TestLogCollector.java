@@ -13,8 +13,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 import io.skodjob.testframe.LogCollector;
 import io.skodjob.testframe.LogCollectorBuilder;
@@ -89,14 +91,14 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
  * ...
  */
 public class TestLogCollector {
-    private static final String CURRENT_DATE;
+    private static final String CURRENT_DATE_TIME;
     private final LogCollector logCollector;
 
     static {
         // Get current date to create a unique folder
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss");
         dateTimeFormatter = dateTimeFormatter.withZone(ZoneId.of("GMT"));
-        CURRENT_DATE = dateTimeFormatter.format(LocalDateTime.now());
+        CURRENT_DATE_TIME = dateTimeFormatter.format(LocalDateTime.now());
     }
 
     /**
@@ -142,7 +144,7 @@ public class TestLogCollector {
      *
      * @return  full path to logs directory built from specified root path and index
      */
-    private Path checkPathAndReturnFullRootPathWithIndexFolder(Path rootPathToLogsForTestCase) {
+    private Path getSequentiallyNextTargetDirectory(Path rootPathToLogsForTestCase) {
         File logsForTestCase = rootPathToLogsForTestCase.toFile();
         int index = 1;
 
@@ -150,22 +152,19 @@ public class TestLogCollector {
             String[] filesInLogsDir = logsForTestCase.list();
 
             if (filesInLogsDir != null && filesInLogsDir.length > 0) {
-                index = Integer.parseInt(
-                        Arrays
-                                .stream(filesInLogsDir)
-                                .filter(file -> {
-                                    try {
-                                        Integer.parseInt(file);
-                                        return true;
-                                    }
-                                    catch (NumberFormatException e) {
-                                        return false;
-                                    }
-                                })
-                                .sorted()
-                                .toList()
-                                .get(filesInLogsDir.length - 1))
-                        + 1;
+                Optional<String> lastDirNumber = Arrays
+                        .stream(filesInLogsDir)
+                        .filter(file -> {
+                            try {
+                                Integer.parseInt(file);
+                                return true;
+                            }
+                            catch (NumberFormatException e) {
+                                return false;
+                            }
+                        }).max(Comparator.naturalOrder());
+
+                index = Integer.parseInt(lastDirNumber.orElse("0")) + 1;
             }
         }
 
@@ -181,13 +180,13 @@ public class TestLogCollector {
      * @return full path to the logs for test-class and test-case, together with index
      */
     private Path buildFullPathToLogs(String testClass, String testCase) {
-        Path rootPathToLogsForTestCase = Path.of(Environment.CLUSTER_DUMP_DIR, CURRENT_DATE, testClass);
+        Path rootPathToLogsForTestCase = Path.of(Environment.CLUSTER_DUMP_DIR, CURRENT_DATE_TIME, testClass);
 
         if (testCase != null) {
             rootPathToLogsForTestCase = rootPathToLogsForTestCase.resolve(testCase);
         }
 
-        return checkPathAndReturnFullRootPathWithIndexFolder(rootPathToLogsForTestCase);
+        return getSequentiallyNextTargetDirectory(rootPathToLogsForTestCase);
     }
 
     /**

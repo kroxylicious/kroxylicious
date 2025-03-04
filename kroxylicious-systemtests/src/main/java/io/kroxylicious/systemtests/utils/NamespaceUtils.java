@@ -224,12 +224,11 @@ public class NamespaceUtils {
     /**
      * Delete namespaces from set.
      *
-     * @param namespaces the namespaces
      * @param testClass the test class
      * @param testCase the test case
      */
-    public static void deleteNamespacesFromSet(List<String> namespaces, String testClass, String testCase) {
-        for (String namespace : namespaces) {
+    public static void deleteNamespacesFromSet(String testClass, String testCase) {
+        for (String namespace : getListOfNamespacesForTestClassAndTestCase(testClass, testCase)) {
             removeNamespaceFromSet(namespace, new CollectorElement(testClass, testCase));
         }
     }

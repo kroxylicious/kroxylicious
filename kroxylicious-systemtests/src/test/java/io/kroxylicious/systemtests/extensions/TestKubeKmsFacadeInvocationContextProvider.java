@@ -24,6 +24,7 @@ import org.junit.jupiter.api.extension.support.TypeBasedParameterResolver;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeFactory;
 import io.kroxylicious.systemtests.logs.TestLogCollector;
+import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateInvocationContextProvider {
     private static final TestLogCollector LOG_COLLECTOR = new TestLogCollector();
@@ -69,6 +70,7 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                             Optional<Throwable> exception = extensionContext.getExecutionException();
                             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
                                 LOG_COLLECTOR.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
+                                NamespaceUtils.deleteNamespacesFromSet(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
                             });
                         }
                         finally {
