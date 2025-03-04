@@ -16,3 +16,5 @@ spec:
   targetCluster:
     clusterRef:
       name: my-cluster
+  ingresses:
+    - name: cluster-ip

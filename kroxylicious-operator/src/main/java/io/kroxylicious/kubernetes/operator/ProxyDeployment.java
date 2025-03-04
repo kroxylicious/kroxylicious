@@ -7,9 +7,11 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +28,10 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressLayout;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -43,6 +48,7 @@ public class ProxyDeployment
     public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     public static final int METRICS_PORT = 9190;
+    public static final int PROXY_PORT_START = 9292;
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
@@ -60,6 +66,9 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
+        List<VirtualKafkaCluster> virtualKafkaClusters = ResourcesUtil.clustersInNameOrder(context).toList();
+        Set<KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class);
+        ProxyIngressLayout layout = ProxyIngressLayout.layout(primary, virtualKafkaClusters, ingresses);
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -74,7 +83,7 @@ public class ProxyDeployment
                     .editOrNewSelector()
                         .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
-                    .withTemplate(podTemplate(primary, context))
+                    .withTemplate(podTemplate(primary, context, layout, virtualKafkaClusters))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -84,7 +93,7 @@ public class ProxyDeployment
         return podLabels(primary);
     }
 
-    static Map<String, String> podLabels(KafkaProxy primary) {
+    public static Map<String, String> podLabels(KafkaProxy primary) {
         Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec()).map(KafkaProxySpec::getPodTemplate)
                 .map(PodTemplateSpec::getMetadata)
                 .map(ObjectMeta::getLabels)
@@ -96,14 +105,14 @@ public class ProxyDeployment
     }
 
     private PodTemplateSpec podTemplate(KafkaProxy primary,
-                                        Context<KafkaProxy> context) {
+                                        Context<KafkaProxy> context, ProxyIngressLayout layout, List<VirtualKafkaCluster> virtualKafkaClusters) {
         // @formatter:off
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
                     .addToLabels(podLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
-                    .withContainers(proxyContainer( context))
+                    .withContainers(proxyContainer( context, layout, virtualKafkaClusters))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewSecret()
@@ -116,7 +125,7 @@ public class ProxyDeployment
         // @formatter:on
     }
 
-    private Container proxyContainer(Context<KafkaProxy> context) {
+    private Container proxyContainer(Context<KafkaProxy> context, ProxyIngressLayout layout, List<VirtualKafkaCluster> virtualKafkaClusters) {
         // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
@@ -135,12 +144,12 @@ public class ProxyDeployment
                     .withName("metrics")
                 .endPort();
         // broker ports
-        ResourcesUtil.clustersInNameOrder(context).forEach(virtualKafkaCluster -> {
+        virtualKafkaClusters.forEach(virtualKafkaCluster -> {
             if (!SharedKafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
-                for (var portEntry : ClusterService.clusterPorts( context, virtualKafkaCluster).entrySet()) {
-                    containerBuilder.addNewPort()
-                            .withContainerPort(portEntry.getKey())
-                            .endPort();
+                Optional<ProxyIngressLayout.VirtualClusterLayout> virtualClusterLayout1 = layout.clusterLayout(virtualKafkaCluster);
+                ProxyIngressLayout.VirtualClusterLayout virtualClusterLayout = virtualClusterLayout1.orElseThrow();
+                for (ProxyIngressLayout.IngressLayout ingressLayout : virtualClusterLayout.ingressLayouts()) {
+                    ingressLayout.proxyContainerPorts().forEach(containerBuilder::addToPorts);
                 }
             }
         });

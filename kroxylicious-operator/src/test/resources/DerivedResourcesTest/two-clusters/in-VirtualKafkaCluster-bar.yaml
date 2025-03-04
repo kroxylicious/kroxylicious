@@ -16,3 +16,5 @@ spec:
   targetCluster:
     clusterRef:
       name: barref
+  ingresses:
+    - name: cluster-ip-bar

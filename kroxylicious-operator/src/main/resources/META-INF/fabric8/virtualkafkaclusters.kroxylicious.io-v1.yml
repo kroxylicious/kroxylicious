@@ -37,7 +37,7 @@ spec:
               type: object
             spec:
               type: object
-              required: ["proxyRef", "targetCluster"]
+              required: ["proxyRef", "targetCluster", "ingresses"]
               properties:
                 proxyRef:
                   type: object
@@ -79,6 +79,17 @@ spec:
                           maxLength: 253
                           minLength: 1
                           type: string
+                ingresses:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [ "name" ]
+                    properties:
+                      name:
+                        maxLength: 253
+                        minLength: 1
+                        type: string
                 filters:
                   description: The filters to be used for this cluster. Each filter is a separate resource.
                   type: array

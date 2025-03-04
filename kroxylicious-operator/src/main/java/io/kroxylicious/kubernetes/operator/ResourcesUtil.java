@@ -70,7 +70,7 @@ public class ResourcesUtil {
         return string;
     }
 
-    static <O extends HasMetadata> OwnerReference ownerReferenceTo(O owner) {
+    public static <O extends HasMetadata> OwnerReference ownerReferenceTo(O owner) {
         return new OwnerReferenceBuilder()
                 .withKind(owner.getKind())
                 .withApiVersion(owner.getApiVersion())
@@ -79,7 +79,7 @@ public class ResourcesUtil {
                 .build();
     }
 
-    static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
+    public static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
         return context.getSecondaryResources(VirtualKafkaCluster.class)
                 .stream()
                 .sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName()));
