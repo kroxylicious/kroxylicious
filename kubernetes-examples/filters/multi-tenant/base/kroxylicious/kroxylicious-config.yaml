@@ -20,7 +20,7 @@ data:
       endpoints:
         prometheus: {}
     virtualClusters:
-      devenv1:
+      - name: devenv1
         targetCluster:
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
         gateways:
@@ -29,7 +29,7 @@ data:
               bootstrapAddress: minikube:30192
         logNetwork: false
         logFrames: false
-      devenv2:
+      - name: devenv2
         targetCluster:
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
         gateways:

@@ -34,7 +34,7 @@ class KafkaProxyTest {
     void shouldFailToStartIfRequireFilterConfigIsMissing() throws Exception {
         var config = """
                    virtualClusters:
-                     demo1:
+                     - name: demo1
                        targetCluster:
                          bootstrapServers: kafka.example:1234
                        gateways:
@@ -55,14 +55,14 @@ class KafkaProxyTest {
     static Stream<Arguments> detectsConflictingPorts() {
         return Stream.of(Arguments.of("bootstrap port conflict", """
                 virtualClusters:
-                  demo1:
+                  - name: demo1
                     targetCluster:
                       bootstrapServers: kafka.example:1234
                     gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: localhost:9192
-                  demo2:
+                  - name: demo2
                     targetCluster:
                       bootstrapServers: kafka.example:1234
                     gateways:
@@ -73,7 +73,7 @@ class KafkaProxyTest {
                 "exclusive TCP bind of <any>:9192 for gateway 'default' of virtual cluster 'demo1' conflicts with exclusive TCP bind of <any>:9192 for gateway 'default' of virtual cluster 'demo2': exclusive port collision"),
                 Arguments.of("broker port conflict", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             gateways:
@@ -81,7 +81,7 @@ class KafkaProxyTest {
                               portIdentifiesNode:
                                 bootstrapAddress: localhost:9192
                                 nodeStartPort: 9193
-                          demo2:
+                          - name: demo2
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             gateways:
@@ -105,7 +105,7 @@ class KafkaProxyTest {
     static Stream<Arguments> missingTls() {
         return Stream.of(Arguments.of("tls mismatch", """
                 virtualClusters:
-                  demo1:
+                  - name: demo1
                     gateways:
                     - name: default
                       sniHostIdentifiesNode:

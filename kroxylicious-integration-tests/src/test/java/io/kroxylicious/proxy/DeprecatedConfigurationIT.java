@@ -103,7 +103,8 @@ public class DeprecatedConfigurationIT extends BaseIT {
     void shouldSupportDeprecatedClusterNetworkAddressConfigProvider(ClusterNetworkAddressConfigProviderDefinition provider, KafkaCluster cluster) {
 
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                .addToVirtualClusters(new VirtualClusterBuilder()
+                        .withName("demo")
                         .withNewTargetCluster()
                         .withBootstrapServers(cluster.getBootstrapServers())
                         .endTargetCluster()

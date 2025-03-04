@@ -15,7 +15,7 @@ data:
       endpoints:
         prometheus: {}
     virtualClusters:
-      my-cluster-proxy:
+      - name: my-cluster-proxy
         targetCluster:
           bootstrap_servers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
           tls:

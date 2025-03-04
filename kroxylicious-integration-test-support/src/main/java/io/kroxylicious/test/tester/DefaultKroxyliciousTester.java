@@ -83,7 +83,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private String onlyVirtualCluster() {
         int numVirtualClusters = kroxyliciousConfig.virtualClusters().size();
         if (numVirtualClusters == 1) {
-            return kroxyliciousConfig.virtualClusters().keySet().stream().findFirst().orElseThrow();
+            return kroxyliciousConfig.virtualClusters().stream().map(VirtualCluster::name).findFirst().orElseThrow();
         }
         else {
             throw new AmbiguousVirtualClusterException(
@@ -118,10 +118,10 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig, String gateway) {
-        final VirtualCluster definedCluster = kroxyliciousConfig.virtualClusters().get(virtualCluster);
-        if (definedCluster != null) {
+        var definedCluster = kroxyliciousConfig.virtualClusters().stream().filter(v -> v.name().equals(virtualCluster)).findFirst();
+        definedCluster.ifPresent(cluster -> {
 
-            var first = getVirtualClusterGatewayStream(definedCluster).filter(g -> g.name().equals(gateway)).findFirst();
+            var first = getVirtualClusterGatewayStream(cluster).filter(g -> g.name().equals(gateway)).findFirst();
             var vcl = first.orElseThrow(() -> new IllegalArgumentException("cluster " + virtualCluster + " does not contain gateway named " + gateway));
             final Optional<Tls> tls = vcl.tls();
             if (tls.isPresent()) {
@@ -132,7 +132,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
                     defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, storeConfiguration.trustStorePassword());
                 }
             }
-        }
+        });
     }
 
     @Override

@@ -9,7 +9,7 @@ adminHttp:
   endpoints:
     prometheus: {}
 virtualClusters:
-  demo:
+  - name: demo
     targetCluster:
       bootstrapServers: broker1:9092
     gateways:

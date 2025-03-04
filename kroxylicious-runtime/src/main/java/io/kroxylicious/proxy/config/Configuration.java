@@ -5,8 +5,10 @@
  */
 package io.kroxylicious.proxy.config;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -23,6 +25,15 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -40,7 +51,7 @@ public record Configuration(
                             @Nullable AdminHttpConfiguration adminHttp,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
-                            Map<String, VirtualCluster> virtualClusters,
+                            @JsonDeserialize(using = VirtualClusterContainerDeserializer.class) List<VirtualCluster> virtualClusters,
                             @Deprecated @Nullable List<FilterDefinition> filters,
                             List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
@@ -63,7 +74,7 @@ public record Configuration(
 
     /**
      * Specifying {@code filters} is deprecated.
-     * Use the {@link Configuration#Configuration(AdminHttpConfiguration, List, List, Map, List, boolean, Optional)} constructor instead.
+     * Use the {@link Configuration#Configuration(AdminHttpConfiguration, List, List, List, List, boolean, Optional)} constructor instead.
      * @param adminHttp admin http
      * @param filterDefinitions A list of named filter definitions (names must be unique)
      * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filters()}.
@@ -96,10 +107,9 @@ public record Configuration(
                 Collectors.toSet());
         checkNamedFiltersAreDefined(filterDefsByName, defaultFilters, "defaultFilters");
         if (virtualClusters != null) {
-            for (var entry : virtualClusters.entrySet()) {
-                var virtualClusterName = entry.getKey();
-                var virtualCluster = entry.getValue();
-                checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualClusterName + ".filters");
+            validateNoDuplicatedClusterNames(virtualClusters);
+            for (var virtualCluster : virtualClusters) {
+                checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualCluster.name() + ".filters");
             }
         }
 
@@ -110,7 +120,7 @@ public record Configuration(
                 defaultFilters.forEach(defined::remove);
             }
             if (virtualClusters != null) {
-                virtualClusters.values().stream()
+                virtualClusters.stream()
                         .map(VirtualCluster::filters)
                         .filter(Objects::nonNull)
                         .flatMap(Collection::stream)
@@ -122,7 +132,7 @@ public record Configuration(
             }
         }
 
-        if (filters != null && virtualClusters != null && virtualClusters.values().stream()
+        if (filters != null && virtualClusters != null && virtualClusters.stream()
                 .map(VirtualCluster::filters)
                 .anyMatch(Objects::nonNull)) {
             throw new IllegalConfigurationException(
@@ -135,14 +145,28 @@ public record Configuration(
         }
     }
 
+    private void validateNoDuplicatedClusterNames(List<VirtualCluster> clusters) {
+        var names = clusters.stream()
+                .map(VirtualCluster::name)
+                .toList();
+        var duplicates = names.stream()
+                .filter(i -> Collections.frequency(names, i) > 1)
+                .collect(Collectors.toSet());
+        if (!duplicates.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "Virtual cluster must be unique. The following virtual cluster names are duplicated: [%s]".formatted(
+                            String.join(", ", duplicates)));
+        }
+    }
+
     /**
      * @deprecated This constructor is currently retained to be source compatible the call sites that are passing the deprecated `filters` parameter.
-     * Replaced by {@link #Configuration(AdminHttpConfiguration, List, List, Map, List, boolean, Optional)}.
+     * Replaced by {@link #Configuration(AdminHttpConfiguration, List, List, List, List, boolean, Optional)}.
      */
     @Deprecated(since = "0.10.0", forRemoval = true)
     public Configuration(
                          @Nullable AdminHttpConfiguration adminHttp,
-                         Map<String, VirtualCluster> virtualClusters,
+                         @NonNull List<VirtualCluster> virtualClusters,
                          @Nullable List<FilterDefinition> filters,
                          List<MicrometerDefinition> micrometer,
                          boolean useIoUring,
@@ -156,7 +180,7 @@ public record Configuration(
     public Configuration(
                          @Nullable AdminHttpConfiguration adminHttp, @Nullable List<NamedFilterDefinition> filterDefinitions,
                          @Nullable List<String> defaultFilters,
-                         Map<String, VirtualCluster> virtualClusters,
+                         @NonNull List<VirtualCluster> virtualClusters,
                          List<MicrometerDefinition> micrometer,
                          boolean useIoUring,
                          @NonNull Optional<Map<String, Object>> development) {
@@ -165,10 +189,9 @@ public record Configuration(
 
     private static VirtualClusterModel toVirtualClusterModel(@NonNull VirtualCluster virtualCluster,
                                                              @NonNull PluginFactoryRegistry pfr,
-                                                             @NonNull List<NamedFilterDefinition> filterDefinitions,
-                                                             @NonNull String virtualClusterNodeName) {
+                                                             @NonNull List<NamedFilterDefinition> filterDefinitions) {
 
-        VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualClusterNodeName,
+        VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
                 virtualCluster.targetCluster(),
                 virtualCluster.logNetwork(),
                 virtualCluster.logFrames(),
@@ -267,11 +290,10 @@ public record Configuration(
                 .stream()
                 .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
 
-        return virtualClusters.entrySet().stream()
-                .map(entry -> {
-                    VirtualCluster virtualCluster = entry.getValue();
+        return virtualClusters.stream()
+                .map(virtualCluster -> {
                     List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
-                    return toVirtualClusterModel(virtualCluster, pfr, filterDefinitions, entry.getKey());
+                    return toVirtualClusterModel(virtualCluster, pfr, filterDefinitions);
                 })
                 .toList();
     }
@@ -296,8 +318,54 @@ public record Configuration(
     @NonNull
     private List<NamedFilterDefinition> resolveFilterNames(Map<String, NamedFilterDefinition> filterDefinitionsByName, List<String> filterNames) {
         return filterNames.stream()
-                // Note: filterDefinitionsByName.get() returns non-null because of constructor post cindition
+                // Note: filterDefinitionsByName.get() returns non-null because of constructor post condition
                 .map(filterDefinitionsByName::get)
                 .toList();
+    }
+
+    /**
+     * Custom deserializer that handles the possibility that the virtualClusters node may contain a list.
+     * This deserializer can be removed once the deprecated map support is removed.
+     */
+    public static class VirtualClusterContainerDeserializer extends StdDeserializer<List<VirtualCluster>> {
+        public VirtualClusterContainerDeserializer() {
+            super(TypeFactory.defaultInstance().constructParametricType(List.class, VirtualCluster.class));
+        }
+
+        @Override
+        public List<VirtualCluster> deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
+            JsonNode node = jp.getCodec().readTree(jp);
+            if (node instanceof ObjectNode clusterMap) {
+                return convertDeprecatedMapToList(ctxt, clusterMap);
+            }
+            else {
+                return ctxt.readTreeAsValue(node, getValueType(ctxt));
+            }
+        }
+
+        private List<VirtualCluster> convertDeprecatedMapToList(DeserializationContext ctxt, ObjectNode clusterMap) throws IOException {
+            LOGGER.warn("The 'virtualCluster' configuration property with a map as a value is deprecated and support be removed in a future release. "
+                    + "Configurations should be updated to define 'virtualCluster' with a list objects, including a 'name' property.");
+            var clusterArrays = new ArrayNode(ctxt.getNodeFactory());
+            var clusterNames = clusterMap.fieldNames();
+            clusterNames.forEachRemaining(clusterName -> {
+                JsonNode value = clusterMap.get(clusterName);
+                if (value instanceof ObjectNode cluster) {
+                    var currentName = cluster.get("name");
+                    if (currentName == null) {
+                        cluster.set("name", new TextNode(clusterName));
+                    }
+                    else if (!currentName.asText().equals(clusterName)) {
+                        throw new IllegalConfigurationException(
+                                ("Inconsistent virtual cluster configuration. "
+                                        + "Configuration property 'virtualClusters' refers to a map, but the key name '%s' is different to the value of the 'name' field '%s' in the value.")
+                                        .formatted(
+                                                clusterName, currentName.asText()));
+                    }
+                    clusterArrays.add(cluster);
+                }
+            });
+            return ctxt.readTreeAsValue(clusterArrays, _valueType);
+        }
     }
 }

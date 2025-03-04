@@ -52,6 +52,7 @@ class ConfigurationTest {
     void shouldAcceptOldBootstrapServers() throws IOException {
         var vc = MAPPER.readValue(
                 """
+                              name: cluster
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
                               gateways:
@@ -109,6 +110,7 @@ class ConfigurationTest {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
+                              name: cluster
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
                             """, VirtualCluster.class);
@@ -122,6 +124,7 @@ class ConfigurationTest {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
+                              name: cluster
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
                               gateways: null
@@ -136,6 +139,7 @@ class ConfigurationTest {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
+                              name: cluster
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
                               gateways: [null]
@@ -150,6 +154,7 @@ class ConfigurationTest {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
+                              name: cluster
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
                               tls:
@@ -169,6 +174,7 @@ class ConfigurationTest {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
+                              name: cluster
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
                               tls:
@@ -189,6 +195,7 @@ class ConfigurationTest {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
+                              name: cluster
                               targetCluster:
                                 bootstrap_servers: kafka.example:1234
                               gateways:
@@ -216,6 +223,7 @@ class ConfigurationTest {
     void shouldAcceptDeprecatedTopLevelNetworkConfigProvider() throws IOException {
         var vc = MAPPER.readValue(
                 """
+                                  name: cluster
                                   targetCluster:
                                     bootstrap_servers: kafka.example:1234
                                   clusterNetworkAddressConfigProvider:
@@ -234,6 +242,7 @@ class ConfigurationTest {
     void shouldAcceptDeprecatedTopLevelTls() throws IOException {
         var vc = MAPPER.readValue(
                 """
+                                  name: cluster
                                   targetCluster:
                                     bootstrap_servers: kafka.example:1234
                                   clusterNetworkAddressConfigProvider:
@@ -296,7 +305,8 @@ class ConfigurationTest {
                                 """),
                 argumentSet("With Virtual Cluster - single gateway",
                         new ConfigurationBuilder()
-                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                .addToVirtualClusters(new VirtualClusterBuilder()
+                                        .withName("demo")
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
@@ -305,7 +315,7 @@ class ConfigurationTest {
                                 .build(),
                         """
                                 virtualClusters:
-                                  demo:
+                                  - name: demo
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
                                     gateways:
@@ -315,7 +325,8 @@ class ConfigurationTest {
                                 """),
                 argumentSet("With Virtual Cluster - multiple gateways",
                         new ConfigurationBuilder()
-                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                .addToVirtualClusters(new VirtualClusterBuilder()
+                                        .withName("demo")
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
@@ -335,7 +346,7 @@ class ConfigurationTest {
                                 .build(),
                         """
                                 virtualClusters:
-                                  demo:
+                                  - name: demo
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
                                     gateways:
@@ -348,7 +359,8 @@ class ConfigurationTest {
                                 """),
                 argumentSet("Downstream TLS - default client auth",
                         new ConfigurationBuilder()
-                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                .addToVirtualClusters(new VirtualClusterBuilder()
+                                        .withName("demo")
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
@@ -365,7 +377,7 @@ class ConfigurationTest {
                                 .build(),
                         """
                                 virtualClusters:
-                                  demo:
+                                  - name: demo
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
                                     gateways:
@@ -382,7 +394,8 @@ class ConfigurationTest {
                                 """),
                 argumentSet("Downstream TLS - required client auth",
                         new ConfigurationBuilder()
-                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                .addToVirtualClusters(new VirtualClusterBuilder()
+                                        .withName("demo")
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .endTargetCluster()
@@ -404,7 +417,7 @@ class ConfigurationTest {
                                 .build(),
                         """
                                 virtualClusters:
-                                  demo:
+                                  - name: demo
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
                                     gateways:
@@ -425,7 +438,8 @@ class ConfigurationTest {
                                 """),
                 argumentSet("Upstream TLS - platform trust",
                         new ConfigurationBuilder()
-                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                .addToVirtualClusters(new VirtualClusterBuilder()
+                                        .withName("demo")
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .withNewTls()
@@ -436,7 +450,7 @@ class ConfigurationTest {
                                 .build(),
                         """
                                 virtualClusters:
-                                  demo:
+                                  - name: demo
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
                                       tls: {}
@@ -447,7 +461,8 @@ class ConfigurationTest {
                                 """),
                 argumentSet("Upstream TLS - trust from truststore",
                         new ConfigurationBuilder()
-                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                .addToVirtualClusters(new VirtualClusterBuilder()
+                                        .withName("demo")
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .withNewTls()
@@ -463,7 +478,7 @@ class ConfigurationTest {
                                 .build(),
                         """
                                 virtualClusters:
-                                  demo:
+                                  - name: demo
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
                                       tls:
@@ -479,7 +494,8 @@ class ConfigurationTest {
                                 """),
                 argumentSet("Upstream TLS - trust from truststore, password from file",
                         new ConfigurationBuilder()
-                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                .addToVirtualClusters(new VirtualClusterBuilder()
+                                        .withName("demo")
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .withNewTls()
@@ -495,7 +511,7 @@ class ConfigurationTest {
                                 .build(),
                         """
                                 virtualClusters:
-                                  demo:
+                                  - name: demo
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
                                       tls:
@@ -511,7 +527,8 @@ class ConfigurationTest {
                                 """),
                 argumentSet("Upstream TLS - insecure",
                         new ConfigurationBuilder()
-                                .addToVirtualClusters("demo", new VirtualClusterBuilder()
+                                .addToVirtualClusters(new VirtualClusterBuilder()
+                                        .withName("demo")
                                         .withNewTargetCluster()
                                         .withBootstrapServers("kafka.example:1234")
                                         .withNewTls()
@@ -523,7 +540,7 @@ class ConfigurationTest {
                                 .build(),
                         """
                                 virtualClusters:
-                                  demo:
+                                  - name: demo
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
                                       tls:
@@ -561,7 +578,7 @@ class ConfigurationTest {
     }
 
     @Test
-    @SuppressWarnings("java:S5738")
+    @SuppressWarnings({ "java:S5738", "removal" })
     void shouldRejectBothFiltersAndFilterDefinitions() {
         List<NamedFilterDefinition> filterDefinitions = List.of(new NamedFilterDefinition("foo", "", ""));
         List<FilterDefinition> filters = List.of(new FilterDefinition("", ""));
@@ -579,7 +596,7 @@ class ConfigurationTest {
     }
 
     @Test
-    @SuppressWarnings("java:S5738")
+    @SuppressWarnings({ "java:S5738", "removal" })
     void shouldRejectFilterDefinitionsWithSameName() {
         List<NamedFilterDefinition> filterDefinitions = List.of(
                 new NamedFilterDefinition("foo", "", ""),
@@ -616,7 +633,9 @@ class ConfigurationTest {
         Optional<Map<String, Object>> development = Optional.empty();
         List<NamedFilterDefinition> filterDefinitions = List.of();
         List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultGateway, false, false, List.of("missing")));
+        TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
+        List<VirtualCluster> virtualClusters = List
+                .of(new VirtualCluster("vc1", targetCluster, null, Optional.empty(), defaultGateway, false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
                 null, filterDefinitions,
                 null,
@@ -639,7 +658,8 @@ class ConfigurationTest {
 
         List<String> defaultFilters = List.of("used1");
         List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultGateway, false, false, List.of("used2")));
+        TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
+        List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, null, Optional.empty(), defaultGateway, false, false, List.of("used2")));
         assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
                 defaultFilters,
                 virtualClusters,
@@ -650,11 +670,12 @@ class ConfigurationTest {
     }
 
     @Test
-    @SuppressWarnings("java:S5738")
+    @SuppressWarnings({ "java:S5738", "removal" })
     void shouldRejectVirtualClusterFiltersWhenTopLevelFilters() {
         Optional<Map<String, Object>> development = Optional.empty();
         List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
-        Map<String, VirtualCluster> virtualClusters = Map.of("vc1", new VirtualCluster(null, null, Optional.empty(), defaultGateway, false, false, List.of()));
+        TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
+        List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, null, Optional.empty(), defaultGateway, false, false, List.of()));
         assertThatThrownBy(() -> new Configuration(
                 null,
                 null,
@@ -673,7 +694,7 @@ class ConfigurationTest {
         List<NamedFilterDefinition> filterDefinitions = List.of(
                 new NamedFilterDefinition("foo", "Foo", ""),
                 new NamedFilterDefinition("bar", "Bar", ""));
-        VirtualCluster direct = new VirtualCluster(new TargetCluster("y:9092", Optional.empty()),
+        VirtualCluster direct = new VirtualCluster("direct", new TargetCluster("y:9092", Optional.empty()),
                 null, Optional.empty(),
                 List.of(new VirtualClusterGateway("mygateway",
                         new PortIdentifiesNodeIdentificationStrategy(new HostPort("example.com", 3), null, null, null),
@@ -683,7 +704,7 @@ class ConfigurationTest {
                 false,
                 List.of("foo")); // filters defined on cluster
 
-        VirtualCluster defaulted = new VirtualCluster(new TargetCluster("x:9092", Optional.empty()),
+        VirtualCluster defaulted = new VirtualCluster("defaulted", new TargetCluster("x:9092", Optional.empty()),
                 null,
                 Optional.empty(),
                 List.of(new VirtualClusterGateway("mygateway",
@@ -697,8 +718,7 @@ class ConfigurationTest {
         Configuration configuration = new Configuration(
                 null, filterDefinitions,
                 List.of("bar"),
-                Map.of("direct", direct,
-                        "defaulted", defaulted),
+                List.of(direct, defaulted),
                 null, false,
                 Optional.empty());
 
@@ -720,7 +740,7 @@ class ConfigurationTest {
 
         var targetCluster = new TargetCluster("y:9092", Optional.empty());
         var bootstrapAddress = new HostPort("example.com", 3);
-        var cluster = new VirtualCluster(targetCluster,
+        var cluster = new VirtualCluster("myvc", targetCluster,
                 new ClusterNetworkAddressConfigProviderDefinition("PortPerBrokerClusterNetworkAddressConfigProvider",
                         new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(bootstrapAddress, null,
                                 null, null, null)),
@@ -733,7 +753,7 @@ class ConfigurationTest {
         Configuration configuration = new Configuration(
                 null, filterDefinitions,
                 List.of("foo"),
-                Map.of("myvc", cluster),
+                List.of(cluster),
                 null, false,
                 Optional.empty());
 

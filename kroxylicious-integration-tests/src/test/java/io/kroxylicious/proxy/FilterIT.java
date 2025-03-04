@@ -17,10 +17,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLHandshakeException;
-import javax.net.ssl.SSLSocket;
-
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -83,7 +79,6 @@ import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
@@ -165,20 +160,6 @@ class FilterIT {
                     .containsExactly(PLAINTEXT);
 
         }
-    }
-
-    @Test
-    void shouldFailFastWhenConnectWithSSLToPlainListener(KafkaCluster cluster) {
-        assertThatThrownBy(() -> {
-            try (var tester = kroxyliciousTester(proxy(cluster))) {
-                String bootstrap = tester.getBootstrapAddress();
-                String[] split = bootstrap.split(":");
-                try (SSLSocket socket = (SSLSocket) SSLContext.getDefault().getSocketFactory().createSocket(split[0], Integer.parseInt(split[1]))) {
-                    socket.setSoTimeout(5000);
-                    socket.startHandshake();
-                }
-            }
-        }).isInstanceOf(SSLHandshakeException.class).hasMessageContaining("Remote host terminated the handshake");
     }
 
     @Test

@@ -34,7 +34,7 @@ filterDefinitions: # <1>
 defaultFilters:
   - encryption
 virtualClusters: # <5>
-  my-cluster-proxy: # <6>
+  - name: my-cluster-proxy # <6>
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093 # <7>
       tls: # <8>

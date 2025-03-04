@@ -15,7 +15,7 @@ data:
       endpoints:
         prometheus: {}
     virtualClusters:
-      my-cluster-proxy:
+      - name: my-cluster-proxy
         # the virtual cluster is kafka proxy that sits between kafka clients and the real kafka cluster.  clients
         # connect to the virtual cluster rather than real cluster.
         gateways:

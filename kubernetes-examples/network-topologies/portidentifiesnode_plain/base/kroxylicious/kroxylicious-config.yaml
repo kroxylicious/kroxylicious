@@ -15,7 +15,7 @@ data:
       endpoints:
         prometheus: {}
     virtualClusters:
-      demo:
+      - name: demo
         targetCluster:
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
         gateways:

@@ -18,11 +18,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.Tls;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A virtual cluster.
  *
+ * @param name virtual cluster name
  * @param targetCluster the cluster being proxied
  * @param clusterNetworkAddressConfigProvider virtual cluster network config - deprecated - use a named gateway
  * @param tls deprecated - tls settings for the virtual cluster - deprecated - use a named gateway
@@ -32,7 +34,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param filters filers.
  */
 @SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
-public record VirtualCluster(TargetCluster targetCluster,
+public record VirtualCluster(@NonNull @JsonProperty(required = true) String name,
+                             @NonNull @JsonProperty(required = true) TargetCluster targetCluster,
                              @Deprecated(forRemoval = true, since = "0.11.0") ClusterNetworkAddressConfigProviderDefinition clusterNetworkAddressConfigProvider,
                              @Deprecated(forRemoval = true, since = "0.11.0") @JsonProperty() Optional<Tls> tls,
 
@@ -51,6 +54,9 @@ public record VirtualCluster(TargetCluster targetCluster,
 
     @SuppressWarnings({ "removal", "java:S2789" }) // S2789 - checking for null tls is the intent
     public VirtualCluster {
+        Objects.requireNonNull(name);
+        Objects.requireNonNull(targetCluster);
+
         if (clusterNetworkAddressConfigProvider != null || (tls != null && tls.isPresent())) {
             if (clusterNetworkAddressConfigProvider == null) {
                 throw new IllegalConfigurationException("Deprecated virtualCluster property 'tls' supplied, but 'clusterNetworkAddressConfigProvider' is null");
@@ -100,4 +106,5 @@ public record VirtualCluster(TargetCluster targetCluster,
     public Optional<Tls> tls() {
         return tls;
     }
+
 }
