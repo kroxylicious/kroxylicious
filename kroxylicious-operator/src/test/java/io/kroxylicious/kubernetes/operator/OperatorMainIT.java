@@ -25,7 +25,7 @@ class OperatorMainIT {
     @BeforeEach
     void beforeEach() {
         assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
-        operatorMain = new OperatorMain();
+        operatorMain = new OperatorMain(() -> Metrics.globalRegistry);
     }
 
     @AfterEach
