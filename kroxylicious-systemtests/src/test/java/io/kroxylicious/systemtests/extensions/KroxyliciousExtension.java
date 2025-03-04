@@ -85,6 +85,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     public void afterEach(ExtensionContext extensionContext) {
         ResourceManager.setTestContext(extensionContext);
         String namespace = extractK8sNamespace(extensionContext);
+        LOGGER.warn("KWDEBUG extractK8sNamespace is {}", namespace);
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
