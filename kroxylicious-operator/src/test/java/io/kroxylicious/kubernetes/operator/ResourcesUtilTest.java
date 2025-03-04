@@ -7,8 +7,10 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -89,6 +91,30 @@ class ResourcesUtilTest {
         assertThatThrownBy(() -> {
             findOnlyResourceNamed(RESOURCE_NAME, withMultipleSameName);
         }).isInstanceOf(IllegalStateException.class).hasMessage("collection contained more than one resource named " + RESOURCE_NAME);
+    }
+
+    @Test
+    void indexByNameEmptyCollection() {
+        Map<String, HasMetadata> hasMetadataMap = ResourcesUtil.indexByName(Stream.empty());
+        assertThat(hasMetadataMap).isNotNull().isEmpty();
+    }
+
+    @Test
+    void indexByName() {
+        Secret a = new SecretBuilder().withNewMetadata().withName("a").endMetadata().build();
+        Secret b = new SecretBuilder().withNewMetadata().withName("b").endMetadata().build();
+        Map<String, Secret> hasMetadataMap = ResourcesUtil.indexByName(Stream.of(a, b));
+        assertThat(hasMetadataMap).isNotNull().containsEntry("a", a).containsEntry("b", b);
+    }
+
+    @Test
+    void indexByNameDoesNotTolerateDuplicateKeys() {
+        Secret a = new SecretBuilder().withNewMetadata().withName("a").endMetadata().build();
+        Secret b = new SecretBuilder().withNewMetadata().withName("b").endMetadata().build();
+        Secret c = new SecretBuilder().withNewMetadata().withName("b").endMetadata().build();
+        assertThatThrownBy(() -> {
+            ResourcesUtil.indexByName(Stream.of(a, b, c));
+        }).isInstanceOf(IllegalStateException.class).hasMessageContaining("Duplicate key b");
     }
 
     @Test

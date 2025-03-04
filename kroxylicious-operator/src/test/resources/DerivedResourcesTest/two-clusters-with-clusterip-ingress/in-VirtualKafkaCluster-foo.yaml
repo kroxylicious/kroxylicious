@@ -8,17 +8,13 @@
 kind: VirtualKafkaCluster
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: my-cluster
-  namespace: my-proxy
+  name: foo
+  namespace: proxy-ns
 spec:
   proxyRef:
-    name: simple
+    name: twocluster
   targetCluster:
     clusterRef:
-      name: my-cluster
-  filters:
-    - group: filter.kroxylicious.io
-      kind: KafkaProtocolFilter
-      name: encryption
+      name: fooref
   ingressRefs:
-    - name: cluster-ip
+    - name: cluster-ip-foo

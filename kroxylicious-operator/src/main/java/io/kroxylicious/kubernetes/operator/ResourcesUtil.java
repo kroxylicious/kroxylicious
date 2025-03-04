@@ -76,7 +76,7 @@ public class ResourcesUtil {
         return string;
     }
 
-    static <O extends HasMetadata> OwnerReference ownerReferenceTo(O owner) {
+    public static <O extends HasMetadata> OwnerReference ownerReferenceTo(O owner) {
         return new OwnerReferenceBuilder()
                 .withKind(owner.getKind())
                 .withApiVersion(owner.getApiVersion())
@@ -85,7 +85,7 @@ public class ResourcesUtil {
                 .build();
     }
 
-    static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
+    public static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
         return context.getSecondaryResources(VirtualKafkaCluster.class)
                 .stream()
                 .sorted(Comparator.comparing(ResourcesUtil::name));
@@ -130,5 +130,17 @@ public class ResourcesUtil {
             throw new IllegalStateException("collection contained more than one resource named " + name);
         }
         return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+    }
+
+    /**
+     * Index elements of stream by name
+     *
+     * @param <T> resource type
+     * @param stream stream to index
+     * @return a Map where every element of the input stream has an entry with the metadata.name as key and the element as value
+     * @throws IllegalStateException if there are multiple elements in the stream with the same metadata.name
+     */
+    public static <T extends HasMetadata> Map<String, T> indexByName(Stream<T> stream) {
+        return stream.collect(Collectors.toMap(ResourcesUtil::name, Function.identity()));
     }
 }
