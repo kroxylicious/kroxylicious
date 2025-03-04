@@ -14,7 +14,13 @@ import io.fabric8.kubernetes.api.model.ContainerBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class ContainerTemplates {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ContainerTemplates.class);
+
 
     private static final List<String> SNAPSHOT_STRINGS = List.of("latest", "snapshot");
 
@@ -36,6 +42,7 @@ public class ContainerTemplates {
             imagePullPolicy = Constants.PULL_IMAGE_ALWAYS;
             snapshotImagesPulledOnce.add(image);
         }
+        LOGGER.info("Using image {} (pull policy: {})", image, imagePullPolicy);
         return new ContainerBuilder()
                 .withName(containerName)
                 .withImage(image)
