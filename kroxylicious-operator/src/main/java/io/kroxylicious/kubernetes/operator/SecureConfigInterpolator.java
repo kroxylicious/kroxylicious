@@ -30,9 +30,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class SecureConfigInterpolator {
 
+    @SuppressWarnings("java:S5852")
+    // This regex is vulnerable to polynomial runtime due to backtracking
+    // because it's used with `Matcher.find()`,
+    // however the input is controlled only by RBAC-authorized users
     private static final Pattern PATTERN = Pattern.compile("(?<quoting>\\^*)\\$\\{"
-            + "(?<providerName>[a-z]+)"
-            + ":(?<path>[a-zA-Z0-9_.-]+)"
+            + "(?<providerName>[a-z]{1,63})"
+            + ":(?<path>[a-zA-Z0-9_.-]{1,63})"
             + ":(?<key>[a-zA-Z0-9_.-]+)"
             + "}");
 
