@@ -6,6 +6,9 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.concurrent.TimeUnit;
+
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +18,7 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.search.MeterNotFoundException;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -84,7 +88,10 @@ class OperatorMainIT {
         operatorMain.run();
 
         // Then
-        assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull();
+        Awaitility.await()
+                .atMost(10, TimeUnit.SECONDS)
+                .ignoreException(MeterNotFoundException.class)
+                .untilAsserted(() -> assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull());
     }
 
     @Test
