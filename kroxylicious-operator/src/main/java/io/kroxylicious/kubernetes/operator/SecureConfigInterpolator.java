@@ -30,7 +30,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class SecureConfigInterpolator {
 
-    private static final Pattern PATTERN = Pattern.compile("(?<quoting>\\\\*)\\$\\{"
+    private static final Pattern PATTERN = Pattern.compile("(?<quoting>\\^*)\\$\\{"
             + "(?<providerName>[a-z]+)"
             + ":(?<path>[a-zA-Z0-9_.-]+)"
             + ":(?<key>[a-zA-Z0-9_.-]+)"
@@ -131,7 +131,7 @@ public class SecureConfigInterpolator {
 
             if (quoting.length() % 2 == 1) {
 
-                String replacement = Matcher.quoteReplacement("\\".repeat(quoting.length() / 2) + "${" + providerName + ":" + path + ":" + key + "}");
+                String replacement = Matcher.quoteReplacement("^".repeat(quoting.length() / 2) + "${" + providerName + ":" + path + ":" + key + "}");
                 matcher.appendReplacement(sb, replacement);
             }
             else {
@@ -146,7 +146,7 @@ public class SecureConfigInterpolator {
                     var containerFile = provider.containerFile(providerName, path, key, mountPathBase);
                     Path containerPath = containerFile.containerPath();
                     containerFileReferences.add(containerFile);
-                    String replacement = Matcher.quoteReplacement("\\".repeat(quoting.length() / 2) + containerPath);
+                    String replacement = Matcher.quoteReplacement("^".repeat(quoting.length() / 2) + containerPath);
                     matcher.appendReplacement(sb, replacement);
                 }
             }

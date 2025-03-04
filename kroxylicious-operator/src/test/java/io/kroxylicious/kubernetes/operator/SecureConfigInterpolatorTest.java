@@ -123,13 +123,13 @@ class SecureConfigInterpolatorTest {
         var jsonValue = YAML_MAPPER.readValue("""
                 kms: AwsKms
                 kmsConfig:
-                  quoted:              \\${secret:different-secret:a-key}
-                  notQuoted:         \\\\${secret:different-secret:a-key}
-                  alsoQuoted:      \\\\\\${secret:different-secret:a-key}
-                  alsoNotQuoted: \\\\\\\\${secret:different-secret:a-key}
-                  prefixed:              hello \\${secret:different-secret:a-key}
-                  suffixed:              \\${secret:different-secret:a-key} goodbye
-                  multiple:              \\${secret:different-secret:a-key}\\${secret:different-secret:a-key}
+                  quoted:           ^${secret:different-secret:a-key}
+                  notQuoted:       ^^${secret:different-secret:a-key}
+                  alsoQuoted:     ^^^${secret:different-secret:a-key}
+                  alsoNotQuoted: ^^^^${secret:different-secret:a-key}
+                  prefixed:      hello ^${secret:different-secret:a-key}
+                  suffixed:      ^${secret:different-secret:a-key} goodbye
+                  multiple:      ^${secret:different-secret:a-key}^${secret:different-secret:a-key}
                 """, Map.class);
 
         // when
@@ -146,14 +146,13 @@ class SecureConfigInterpolatorTest {
         // Then we have to quote \ for Java source code
         // So in the below `notQuoted` and `alsoQuoted` only feature a single \ in YAML-space
         // and `alsoNotQuoted` features a two \ in YAML-space.
-        assertThat(new YAMLMapper(YAML_MAPPER).disable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
-                .writeValueAsString(result.config())).isEqualTo("""
-                        kms: "AwsKms"
+        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
+                        kms: AwsKms
                         kmsConfig:
                           quoted: "${secret:different-secret:a-key}"
-                          notQuoted: "\\\\/base/secret/different-secret/a-key"
-                          alsoQuoted: "\\\\${secret:different-secret:a-key}"
-                          alsoNotQuoted: "\\\\\\\\/base/secret/different-secret/a-key"
+                          notQuoted: ^/base/secret/different-secret/a-key
+                          alsoQuoted: "^${secret:different-secret:a-key}"
+                          alsoNotQuoted: ^^/base/secret/different-secret/a-key
                           prefixed: "hello ${secret:different-secret:a-key}"
                           suffixed: "${secret:different-secret:a-key} goodbye"
                           multiple: "${secret:different-secret:a-key}${secret:different-secret:a-key}"
