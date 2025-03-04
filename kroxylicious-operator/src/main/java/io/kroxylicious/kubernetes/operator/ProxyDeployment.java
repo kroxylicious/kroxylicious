@@ -110,6 +110,7 @@ public class ProxyDeployment
                             .withSecretName(ProxyConfigSecret.secretName(primary))
                         .endSecret()
                     .endVolume()
+                    .addAllToVolumes(ProxyConfigSecret.secureVolumes(context.managedDependentResourceContext()))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -127,6 +128,7 @@ public class ProxyDeployment
                     .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
                     .withSubPath(ProxyConfigSecret.CONFIG_YAML_KEY)
                 .endVolumeMount()
+                .addAllToVolumeMounts(ProxyConfigSecret.secureVolumeMounts(context.managedDependentResourceContext()))
                 // metrics port
                 .addNewPort()
                     .withContainerPort(METRICS_PORT)
