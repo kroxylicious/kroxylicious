@@ -70,7 +70,8 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                             Optional<Throwable> exception = extensionContext.getExecutionException();
                             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
                                 LOG_COLLECTOR.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
-                                NamespaceUtils.deleteNamespacesFromSet(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
+                                NamespaceUtils.deleteNamespacesFromSet(extensionContext.getRequiredTestClass().getName(),
+                                        extensionContext.getRequiredTestMethod().getName());
                             });
                         }
                         finally {

@@ -6,5 +6,4 @@
 
 package io.kroxylicious.systemtests.logs;
 
-public record CollectorElement(String testClassName, String testMethodName) {
-}
+public record CollectorElement(String testClassName, String testMethodName) {}
