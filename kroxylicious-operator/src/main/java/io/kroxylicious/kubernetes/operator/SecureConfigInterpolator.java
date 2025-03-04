@@ -36,7 +36,11 @@ public class SecureConfigInterpolator {
             + ":(?<key>[a-zA-Z0-9_.-]+)"
             + "}$");
 
-    private static final Interpolated NULL_INTERPOLATED = new Interpolated(null, List.of());
+    private record InterpolatedValue(@Nullable Object interpolatedValue, @NonNull List<ContainerFileReference> containerFileReferences) {
+
+    }
+
+    private static final InterpolatedValue NULL_INTERPOLATED_VALUE = new InterpolatedValue(null, List.of());
 
     private final Map<String, SecureConfigProvider> providers;
     private final Path mountPathBase;
@@ -49,7 +53,7 @@ public class SecureConfigInterpolator {
     InterpolationResult interpolate(Object configTemplate) {
         // use sets so that it doesn't matter is two providers require the same volume or mount (with exactly the same definition)
 
-        var interpolated = interpolateRecursive(configTemplate);
+        var interpolated = interpolateValue(configTemplate);
         var volumes = interpolated.containerFileReferences().stream()
                 .map(ContainerFileReference::volume)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
@@ -57,17 +61,19 @@ public class SecureConfigInterpolator {
                 .map(ContainerFileReference::mount)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        return new InterpolationResult(interpolated.interpolatedObject(),
+        return new InterpolationResult(interpolated.interpolatedValue(),
                 volumes, mounts);
     }
 
-    private record Interpolated(@Nullable Object interpolatedObject, @NonNull List<ContainerFileReference> containerFileReferences) {
-
-    }
-
-    private @NonNull Interpolated interpolateRecursive(@Nullable final Object jsonValue) {
+    /**
+     * Interpolate a JSON value.
+     * Note this method is indirectly recursive.
+     * @param jsonValue The json value (could be any of array, object, string, etc)
+     * @return The interpolated value
+     */
+    private @NonNull InterpolatedValue interpolateValue(@Nullable final Object jsonValue) {
         if (jsonValue == null) {
-            return NULL_INTERPOLATED;
+            return NULL_INTERPOLATED_VALUE;
         }
         else if (jsonValue instanceof Map<?, ?> object) {
             return interpolateObject(object);
@@ -79,41 +85,41 @@ public class SecureConfigInterpolator {
             return maybeInterpolateString(text);
         }
         else if (jsonValue instanceof Number) {
-            return new Interpolated(jsonValue, List.of());
+            return new InterpolatedValue(jsonValue, List.of());
         }
         else if (jsonValue instanceof Boolean) {
-            return new Interpolated(jsonValue, List.of());
+            return new InterpolatedValue(jsonValue, List.of());
         }
         else {
             throw new IllegalStateException(jsonValue + " is not a valid JSON object");
         }
     }
 
-    private @NonNull Interpolated interpolateArray(List<?> array) {
+    private @NonNull InterpolatedValue interpolateArray(List<?> array) {
         var values = new ArrayList<>(array.size());
         var containerFiles = new ArrayList<ContainerFileReference>(array.size());
         for (var value : array) {
-            Interpolated interpolated = interpolateRecursive(value);
-            values.add(interpolated.interpolatedObject());
-            containerFiles.addAll(interpolated.containerFileReferences());
+            InterpolatedValue interpolatedValue = interpolateValue(value);
+            values.add(interpolatedValue.interpolatedValue());
+            containerFiles.addAll(interpolatedValue.containerFileReferences());
         }
-        return new Interpolated(values, containerFiles);
+        return new InterpolatedValue(values, containerFiles);
     }
 
-    private @NonNull Interpolated interpolateObject(Map<?, ?> object) {
+    private @NonNull InterpolatedValue interpolateObject(Map<?, ?> object) {
         var newObject = new LinkedHashMap<>(1 + (int) (object.size() / 0.75f));
         List<ContainerFileReference> containerFileReferences = new ArrayList<>();
         for (var entry : object.entrySet()) {
             String fieldName = entry.getKey().toString();
-            Interpolated v = interpolateRecursive(entry.getValue());
+            InterpolatedValue v = interpolateValue(entry.getValue());
             containerFileReferences.addAll(v.containerFileReferences());
-            newObject.put(fieldName, v.interpolatedObject());
+            newObject.put(fieldName, v.interpolatedValue());
         }
-        return new Interpolated(newObject, containerFileReferences);
+        return new InterpolatedValue(newObject, containerFileReferences);
     }
 
     @NonNull
-    private Interpolated maybeInterpolateString(String text) {
+    private InterpolatedValue maybeInterpolateString(String text) {
         Matcher matcher = PATTERN.matcher(text);
         String replacement;
         ArrayList<ContainerFileReference> containerFileReferences = new ArrayList<>();
@@ -135,7 +141,7 @@ public class SecureConfigInterpolator {
         else {
             replacement = text;
         }
-        return new Interpolated(replacement, containerFileReferences);
+        return new InterpolatedValue(replacement, containerFileReferences);
     }
 
     record InterpolationResult(@Nullable Object config,
