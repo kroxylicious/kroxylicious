@@ -114,12 +114,12 @@ public final class Constants {
     public static final String DEPLOYMENT_TYPE = "deployment-type";
     public static final String CUSTOM_RESOURCE_DEFINITION = "CustomResourceDefinition";
     public static final String CLUSTER_ROLE = "ClusterRole";
-    public static final String CONFIG_MAP_KIND = "ConfigMap";
+    public static final String CONFIG_MAP = "ConfigMap";
     public static final String JOB = "Job";
     public static final String NAMESPACE = "Namespace";
-    public static final String POD_KIND = "Pod";
-    public static final String SECRET_KIND = "Secret";
-    public static final String SERVICE_KIND = "Service";
+    public static final String POD = "Pod";
+    public static final String SECRET = "Secret";
+    public static final String SERVICE = "Service";
     public static final String SERVICE_ACCOUNT = "ServiceAccount";
 
     /**
