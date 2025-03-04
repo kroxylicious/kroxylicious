@@ -6,18 +6,79 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import org.assertj.core.api.Assumptions;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 
-@Disabled
+import io.javaoperatorsdk.operator.OperatorException;
+import io.micrometer.core.instrument.Metrics;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+
+@EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class OperatorMainIT {
+    private OperatorMain operatorMain;
     // This is an IT because it depends on having a running Kube cluster
+
+    @BeforeEach
+    void beforeEach() {
+        assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
+        operatorMain = new OperatorMain(() -> Metrics.globalRegistry);
+    }
+
+    @AfterEach
+    void afterEach() {
+        if (operatorMain != null) {
+            operatorMain.stop();
+        }
+        assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
+    }
 
     @Test
     void run() {
-        Assumptions.assumeThat(OperatorTestUtils.isKubeClientAvailable()).describedAs("Test requires a viable kube client").isTrue();
-        OperatorMain.run();
+        try {
+            operatorMain.run();
+        }
+        catch (OperatorException e) {
+            fail("Exception occurred starting operator: " + e.getMessage());
+        }
+
     }
 
+    @Test
+    void shouldRegisterPrometheusMetricsInGlobalRegistry() {
+        // Given
+
+        // When
+        operatorMain.run();
+
+        // Then
+        assertThat(Metrics.globalRegistry.getRegistries())
+                .isNotEmpty()
+                .contains(operatorMain.getRegistry());
+    }
+
+    @Test
+    void shouldRegisterOperatorMetrics() {
+        // Given
+
+        // When
+        operatorMain.run();
+
+        // Then
+        assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull();
+    }
+
+    @Test
+    void shouldRegisterMetricsForProxyReconciler() {
+        // Given
+
+        // When
+        operatorMain.run();
+
+        // Then
+        assertThat(operatorMain.getRegistry().get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
+    }
 }
