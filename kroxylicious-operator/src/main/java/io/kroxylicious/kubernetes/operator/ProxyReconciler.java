@@ -332,7 +332,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             var proxyNames = resourcesInSameNamespace(context, kafkaClusterRef, VirtualKafkaCluster.class)
                     .filter(vkc -> vkc.getSpec().getTargetCluster().getClusterRef().getName().equals(kafkaClusterRef.getMetadata().getName()))
                     .map(VirtualKafkaCluster::getSpec)
-                    .map(VirtualKafkaClusterSpec::getProxyRef) // TODO be picky about group, kind etc
+                    .map(VirtualKafkaClusterSpec::getProxyRef)
                     .map(ProxyRef::getName)
                     .collect(Collectors.toSet());
 
@@ -356,7 +356,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
                     .map(VirtualKafkaCluster::getSpec)
                     .map(VirtualKafkaClusterSpec::getTargetCluster)
                     .map(TargetCluster::getClusterRef)
-                    .map(ClusterRef::getName) // TODO be picky about group, kind etc
+                    .map(ClusterRef::getName)
                     .collect(Collectors.toSet());
 
             Set<ResourceID> kafkaClusterRefs = filteredResourceIdsInSameNamespace(context, primary, KafkaClusterRef.class,

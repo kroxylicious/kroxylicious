@@ -329,8 +329,8 @@ class DerivedResourcesTest {
     @NonNull
     private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters, List<KafkaClusterRef> kafkaClusterRefs)
             throws IOException {
-        Answer throwOnUnmockedInvocation = invocation -> {
-            var stringifiedArgs = Arrays.stream(invocation.getArguments()).map(a -> String.valueOf(a)).collect(
+        Answer<?> throwOnUnmockedInvocation = invocation -> {
+            var stringifiedArgs = Arrays.stream(invocation.getArguments()).map(String::valueOf).collect(
                     Collectors.joining(", "));
             throw new RuntimeException("Unmocked method: " + invocation.getMethod() + "(" + stringifiedArgs + ")");
         };
