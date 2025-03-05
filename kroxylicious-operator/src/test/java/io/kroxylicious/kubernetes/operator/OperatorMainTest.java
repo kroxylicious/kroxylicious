@@ -32,9 +32,6 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
-import io.fabric8.mockwebserver.dsl.Emitable;
-import io.fabric8.mockwebserver.dsl.EventDoneable;
-import io.fabric8.mockwebserver.dsl.TimesOnceableOrHttpHeaderable;
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
@@ -43,14 +40,14 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
-import lombok.SneakyThrows;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 
+import lombok.SneakyThrows;
+
 @ExtendWith(MockitoExtension.class)
-@EnableKubernetesMockClient()
+@EnableKubernetesMockClient(crud = true)
 class OperatorMainTest {
 
     private static final String START_RESOURCE_VERSION = "1000";
@@ -158,11 +155,11 @@ class OperatorMainTest {
                 .withPath(path + "?resourceVersion=0")
                 .andReturn(HttpURLConnection.HTTP_OK, getList(resultType, kind, apiVersion))
                 .always();
-        final EventDoneable<TimesOnceableOrHttpHeaderable<Void>> websocket = mockServer.expect()
+        mockServer.expect()
                 .withPath(path + "?allowWatchBookmarks=true&resourceVersion=" + START_RESOURCE_VERSION + "&timeoutSeconds=600&watch=true")
                 .andUpgradeToWebSocket()
-                .open();
-        configureDelay(delayMs, websocket)
+                .open()
+                .waitFor(delayMs)
                 .andEmit(new WatchEvent(new GenericKubernetesResourceBuilder()
                         .withKind(kind)
                         .withApiVersion(apiVersion)
@@ -173,16 +170,6 @@ class OperatorMainTest {
                         .build(), "ADDED"))
                 .done()
                 .always();
-    }
-
-    private static Emitable<EventDoneable<TimesOnceableOrHttpHeaderable<Void>>> configureDelay(int delayMs,
-                                                                                               EventDoneable<TimesOnceableOrHttpHeaderable<Void>> websocket) {
-        if (delayMs > 0) {
-            return websocket.waitFor(delayMs);
-        }
-        else {
-            return websocket.immediately();
-        }
     }
 
     @SuppressWarnings("unused")
