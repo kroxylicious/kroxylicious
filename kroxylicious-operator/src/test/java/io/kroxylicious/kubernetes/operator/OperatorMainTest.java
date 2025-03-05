@@ -86,9 +86,10 @@ class OperatorMainTest {
     @Test
     void shouldRegisterOperatorMetrics() {
         // Given
+        operatorMain.run();
 
         // When
-        operatorMain.run();
+
 
         // Then
         Awaitility.await()
@@ -130,19 +131,6 @@ class OperatorMainTest {
                 .get()
                 .withPath("/apis/filter.kroxylicious.io/v1alpha1")
                 .andReturn(HttpURLConnection.HTTP_OK, apiResourceList)
-                .always();
-
-        mockServer.expect()
-                .get()
-                .withPath("/apis/kroxylicious.io/v1alpha1/namespaces/randomNs/kafkaproxies")
-                .andReturn(HttpURLConnection.HTTP_OK, new GenericKubernetesResourceBuilder()
-                        .withKind("KafkProxy")
-                        .withApiVersion("kroxylicious.io/v1alpha1")
-                        .withNewMetadata()
-                        .withName("random")
-                        .withNamespace("randomNs")
-                        .endMetadata()
-                        .build())
                 .always();
     }
 
