@@ -37,7 +37,7 @@ Configuration:
         AppenderRef:
           - ref: STDOUT
       - name: io.fabric8.kubernetes.client.http
-        level: TRACE
+        level: INFO
         additivity: true
         AppenderRef:
           - ref: STDOUT
