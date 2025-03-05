@@ -36,3 +36,8 @@ Configuration:
         additivity: false
         AppenderRef:
           - ref: STDOUT
+      - name: io.fabric8.kubernetes.client.http
+        level: TRACE
+        additivity: true
+        AppenderRef:
+          - ref: STDOUT
