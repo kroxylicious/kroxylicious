@@ -44,8 +44,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 
-import lombok.SneakyThrows;
-
 @ExtendWith(MockitoExtension.class)
 @EnableKubernetesMockClient(crud = true)
 class OperatorMainTest {
@@ -148,7 +146,6 @@ class OperatorMainTest {
                 .always();
     }
 
-    @SneakyThrows
     private <T extends HasMetadata> void expectWatchOn(String path, Class<T> resultType, String kind, String apiVersion, int delayMs) {
         mockServer.expect()
                 .get()
