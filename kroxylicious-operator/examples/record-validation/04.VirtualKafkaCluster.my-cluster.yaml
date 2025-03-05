@@ -14,10 +14,9 @@ spec:
   proxyRef:
     name: simple
   targetCluster:
-    bootstrapping:
-      bootstrapAddress:
-        my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+    clusterRef:
+      name: my-cluster
   filters:
     - group: filter.kroxylicious.io
-      kind: KafkaProtocolFilter
-      name: encryption
+      kind: RecordValidation
+      name: validation
