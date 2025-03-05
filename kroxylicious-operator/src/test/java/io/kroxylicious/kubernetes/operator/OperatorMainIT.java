@@ -38,7 +38,7 @@ class OperatorMainIT {
         LocallyRunOperatorExtension.applyCrd(KafkaProxy.class, OperatorTestUtils.kubeClientIfAvailable());
         LocallyRunOperatorExtension.applyCrd(VirtualKafkaCluster.class, OperatorTestUtils.kubeClientIfAvailable());
         assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
-        operatorMain = new OperatorMain(() -> Metrics.globalRegistry);
+        operatorMain = new OperatorMain();
     }
 
     @AfterEach

@@ -38,8 +38,8 @@ public class OperatorMain {
     private final Operator operator;
     private final Supplier<CompositeMeterRegistry> globalRegistrySupplier;
 
-    public OperatorMain(Supplier<CompositeMeterRegistry> globalRegistrySupplier) {
-        this(globalRegistrySupplier, null);
+    public OperatorMain() {
+        this(() -> Metrics.globalRegistry, null);
     }
 
     @VisibleForTesting
@@ -57,7 +57,7 @@ public class OperatorMain {
 
     public static void main(String[] args) {
         try {
-            new OperatorMain(() -> Metrics.globalRegistry).run();
+            new OperatorMain().run();
         }
         catch (Exception e) {
             LOGGER.error("Operator has thrown exception during startup. Will now exit.", e);
