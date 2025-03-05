@@ -37,6 +37,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRefBuilder;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
@@ -169,17 +170,12 @@ class ProxyReconcilerIT {
 
     private void assertProxyConfigContents(KafkaProxy cr, Set<String> contains, Set<String> notContains) {
         await().alias("Secret as expected").untilAsserted(() -> {
-            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(cr));
-            AbstractStringAssert<?> extracting = assertThat(secret)
-                    .isNotNull()
-                    .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
-                    .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
-                    .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING);
+            AbstractStringAssert<?> proxyConfig = assertThatProxyConfigFor(cr);
             if (!contains.isEmpty()) {
-                extracting.contains(contains);
+                proxyConfig.contains(contains);
             }
             if (!notContains.isEmpty()) {
-                extracting.doesNotContain(notContains);
+                proxyConfig.doesNotContain(notContains);
             }
         });
     }
@@ -222,6 +218,37 @@ class ProxyReconcilerIT {
                     .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
                     .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
                     .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING)
+                    .doesNotContain(CLUSTER_FOO_BOOTSTRAP)
+                    .contains(NEW_BOOTSTRAP);
+        });
+
+        await().untilAsserted(() -> {
+            assertClusterServiceExists(proxy, CLUSTER_FOO);
+            assertClusterServiceExists(proxy, CLUSTER_BAR);
+        });
+
+        LOGGER.atInfo().log("Test finished");
+    }
+
+    @Test
+    void testUpdateVirtualClusterClusterRef() {
+        // given
+        final var createdResources = doCreate();
+        KafkaProxy proxy = createdResources.proxy;
+
+        String newClusterRefName = "new-cluster-ref";
+        extension.create(clusterRef(newClusterRefName, NEW_BOOTSTRAP));
+
+        ClusterRef newClusterRef = new ClusterRefBuilder().withName(newClusterRefName).build();
+        var cluster = createdResources.cluster(CLUSTER_FOO).edit().editSpec().editTargetCluster().withClusterRef(newClusterRef).endTargetCluster().endSpec().build();
+
+        // when
+        extension.replace(cluster);
+
+        // then
+        assertDeploymentBecomesReady(proxy);
+        await().untilAsserted(() -> {
+            assertThatProxyConfigFor(proxy)
                     .doesNotContain(CLUSTER_FOO_BOOTSTRAP)
                     .contains(NEW_BOOTSTRAP);
         });
@@ -324,6 +351,15 @@ class ProxyReconcilerIT {
         assertClusterServiceExists(proxyA, CLUSTER_FOO);
         assertClusterServiceExists(proxyB, CLUSTER_BAR);
         assertClusterServiceExists(proxyB, CLUSTER_BAZ);
+    }
+
+    private AbstractStringAssert<?> assertThatProxyConfigFor(KafkaProxy proxy) {
+        var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
+        return assertThat(secret)
+                .isNotNull()
+                .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
+                .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
+                .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING);
     }
 
     private static VirtualKafkaCluster virtualKafkaCluster(String clusterName, KafkaProxy proxy, KafkaClusterRef clusterRef) {
