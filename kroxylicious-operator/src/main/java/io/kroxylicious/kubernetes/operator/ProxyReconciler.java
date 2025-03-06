@@ -41,11 +41,16 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ConditionsBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRef;
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -299,6 +304,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             }
         }
         eventSources.add(buildVirtualKafkaClusterInformer(context));
+        eventSources.add(buildKafkaClusterRefInformer(context));
         return EventSourceInitializer.nameEventSources(eventSources.toArray(new EventSource[0]));
     }
 
@@ -308,6 +314,56 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
                 .withPrimaryToSecondaryMapper(proxyToClusterMapper(context))
                 .build();
         return new InformerEventSource<>(configuration, context);
+    }
+
+    private static InformerEventSource<?, KafkaProxy> buildKafkaClusterRefInformer(EventSourceContext<KafkaProxy> context) {
+        InformerConfiguration<KafkaClusterRef> configuration = InformerConfiguration.from(KafkaClusterRef.class)
+                .withSecondaryToPrimaryMapper(kafkaClusterRefToProxyMapper(context))
+                .withPrimaryToSecondaryMapper(proxyToKafkaClusterRefMapper(context))
+                .build();
+        return new InformerEventSource<>(configuration, context);
+    }
+
+    @VisibleForTesting
+    static @NonNull SecondaryToPrimaryMapper<KafkaClusterRef> kafkaClusterRefToProxyMapper(EventSourceContext<KafkaProxy> context) {
+        return kafkaClusterRef -> {
+            // find all virtual clusters that reference this kafkaClusterRef
+
+            var proxyNames = resourcesInSameNamespace(context, kafkaClusterRef, VirtualKafkaCluster.class)
+                    .filter(vkc -> vkc.getSpec().getTargetCluster().getClusterRef().getName().equals(kafkaClusterRef.getMetadata().getName()))
+                    .map(VirtualKafkaCluster::getSpec)
+                    .map(VirtualKafkaClusterSpec::getProxyRef)
+                    .map(ProxyRef::getName)
+                    .collect(Collectors.toSet());
+
+            Set<ResourceID> proxyIds = filteredResourceIdsInSameNamespace(context, kafkaClusterRef, KafkaProxy.class,
+                    proxy -> proxyNames.contains(proxy.getMetadata().getName()));
+            LOGGER.debug("Event source KafkaClusterRef SecondaryToPrimaryMapper got {}", proxyIds);
+            return proxyIds;
+        };
+    }
+
+    /**
+     * @param context context
+     * @return mapper
+     */
+    @VisibleForTesting
+    static @NonNull PrimaryToSecondaryMapper<HasMetadata> proxyToKafkaClusterRefMapper(EventSourceContext<KafkaProxy> context) {
+        return primary -> {
+            // Load all the virtual clusters for the KafkaProxy, then extract all the referenced KafkaClusterRef resource ids.
+            var clusterRefNames = resourcesInSameNamespace(context, primary, VirtualKafkaCluster.class)
+                    .filter(vkc -> vkc.getSpec().getProxyRef().getName().equals(primary.getMetadata().getName()))
+                    .map(VirtualKafkaCluster::getSpec)
+                    .map(VirtualKafkaClusterSpec::getTargetCluster)
+                    .map(TargetCluster::getClusterRef)
+                    .map(ClusterRef::getName)
+                    .collect(Collectors.toSet());
+
+            Set<ResourceID> kafkaClusterRefs = filteredResourceIdsInSameNamespace(context, primary, KafkaClusterRef.class,
+                    cluster -> clusterRefNames.contains(cluster.getMetadata().getName()));
+            LOGGER.debug("Event source KafkaClusterRef PrimaryToSecondaryMapper got {}", kafkaClusterRefs);
+            return kafkaClusterRefs;
+        };
     }
 
     @NonNull

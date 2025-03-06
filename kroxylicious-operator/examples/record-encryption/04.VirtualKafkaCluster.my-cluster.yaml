@@ -8,18 +8,15 @@
 kind: VirtualKafkaCluster
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: foo
-  namespace: proxy-ns
+  name: my-cluster
+  namespace: my-proxy
 spec:
   proxyRef:
-    name: example
+    name: simple
   targetCluster:
     clusterRef:
-      name: myref
+      name: my-cluster
   filters:
     - group: filter.kroxylicious.io
       kind: KafkaProtocolFilter
-      name: filter-one
-    - group: filter.kroxylicious.io
-      kind: KafkaProtocolFilter
-      name: filter-two
+      name: encryption

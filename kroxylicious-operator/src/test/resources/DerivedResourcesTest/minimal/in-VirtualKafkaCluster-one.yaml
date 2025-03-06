@@ -14,5 +14,5 @@ spec:
   proxyRef:
     name: minimal
   targetCluster:
-    bootstrapping:
-      bootstrapAddress: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+    clusterRef:
+      name: myref

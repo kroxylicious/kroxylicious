@@ -58,15 +58,27 @@ spec:
                       type: string
                 targetCluster:
                   type: object
-                  required: [ "bootstrapping" ]
+                  required: ["clusterRef"]
                   properties:
-                    bootstrapping:
+                    clusterRef:
                       type: object
-                      required: [ "bootstrapAddress" ]
+                      required: [ "name" ]
                       properties:
-                        bootstrapAddress:
+                        group:
                           type: string
+                          maxLength: 253
+                          pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+                          default: kroxylicious.io
+                        kind:
+                          type: string
+                          maxLength: 63
                           minLength: 1
+                          pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
+                          default: KafkaClusterRef
+                        name:
+                          maxLength: 253
+                          minLength: 1
+                          type: string
                 filters:
                   description: The filters to be used for this cluster. Each filter is a separate resource.
                   type: array

@@ -19,6 +19,7 @@ rules:
     resources:
       - kafkaproxies
       - virtualkafkaclusters
+      - kafkaclusterrefs
     verbs:
       - get
       - list

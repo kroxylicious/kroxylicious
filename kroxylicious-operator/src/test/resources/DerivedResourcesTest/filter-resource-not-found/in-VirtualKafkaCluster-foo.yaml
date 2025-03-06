@@ -14,9 +14,9 @@ spec:
   proxyRef:
     name: example
   targetCluster:
-      # This cluster should be absent from the output proxy-operator-operator-operator-config.yaml, because there is no Two with name missing
-    bootstrapping:
-      bootstrapAddress: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+    # This cluster should be absent from the output proxy-operator-operator-operator-config.yaml, because there is no Two with name missing
+    clusterRef:
+      name: myref
   filters:
     - group: filter.kroxylicious.io
       kind: KafkaProtocolFilter
