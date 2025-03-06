@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.concurrent.TimeUnit;
+
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,8 +20,6 @@ import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
-
-import java.util.concurrent.TimeUnit;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
@@ -75,9 +75,9 @@ class OperatorMainTest {
 
         // Then
         Awaitility.await()
-                  .atMost(10, TimeUnit.SECONDS)
-                  .ignoreException(MeterNotFoundException.class)
-                  .untilAsserted(() -> assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull());
+                .atMost(10, TimeUnit.SECONDS)
+                .ignoreException(MeterNotFoundException.class)
+                .untilAsserted(() -> assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull());
 
     }
 
@@ -94,12 +94,12 @@ class OperatorMainTest {
 
     private void expectApiResources() {
         final CustomResourceDefinition kafkaProtocolFilterCrd = CustomResourceDefinitionContext.v1CRDFromCustomResourceType(KafkaProtocolFilter.class).withNewMetadata()
-                                                                                               .endMetadata()
-                                                                                               .build();
+                .endMetadata()
+                .build();
         mockServer.expectCustomResource(CustomResourceDefinitionContext.fromCrd(kafkaProtocolFilterCrd));
         final CustomResourceDefinition kafkaProxyCrd = CustomResourceDefinitionContext.v1CRDFromCustomResourceType(KafkaProtocolFilter.class).withNewMetadata()
-                                                                                      .endMetadata()
-                                                                                      .build();
+                .endMetadata()
+                .build();
         mockServer.expectCustomResource(CustomResourceDefinitionContext.fromCrd(kafkaProxyCrd));
     }
 }
