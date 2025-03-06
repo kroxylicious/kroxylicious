@@ -10,7 +10,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.awaitility.Awaitility;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -22,6 +24,7 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
@@ -37,11 +40,27 @@ class OperatorMainIT {
 
     private final Logger log = getLogger(OperatorMainIT.class);
 
-    @BeforeEach
-    void beforeEach() {
+    @BeforeAll
+    static void beforeAll() {
         LocallyRunOperatorExtension.applyCrd(KafkaProtocolFilter.class, OperatorTestUtils.kubeClientIfAvailable());
         LocallyRunOperatorExtension.applyCrd(KafkaProxy.class, OperatorTestUtils.kubeClientIfAvailable());
         LocallyRunOperatorExtension.applyCrd(VirtualKafkaCluster.class, OperatorTestUtils.kubeClientIfAvailable());
+        LocallyRunOperatorExtension.applyCrd(KafkaClusterRef.class, OperatorTestUtils.kubeClientIfAvailable());
+    }
+
+    @AfterAll
+    static void afterAll() {
+        try (KubernetesClient kubernetesClient = OperatorTestUtils.kubeClientIfAvailable()) {
+            if (kubernetesClient != null) {
+                kubernetesClient.resources(KafkaProtocolFilter.class).delete();
+                kubernetesClient.resources(KafkaProxy.class).delete();
+                kubernetesClient.resources(VirtualKafkaCluster.class).delete();
+            }
+        }
+    }
+
+    @BeforeEach
+    void beforeEach() {
         assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
         operatorMain = new OperatorMain();
     }
@@ -52,13 +71,6 @@ class OperatorMainIT {
             operatorMain.stop();
         }
         assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
-        try (KubernetesClient kubernetesClient = OperatorTestUtils.kubeClientIfAvailable()) {
-            if (kubernetesClient != null) {
-                kubernetesClient.resources(KafkaProtocolFilter.class).delete();
-                kubernetesClient.resources(KafkaProxy.class).delete();
-                kubernetesClient.resources(VirtualKafkaCluster.class).delete();
-            }
-        }
     }
 
     @Test
