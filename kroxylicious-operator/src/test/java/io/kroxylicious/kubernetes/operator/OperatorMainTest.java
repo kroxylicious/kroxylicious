@@ -6,32 +6,26 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.util.concurrent.TimeUnit;
-
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
-import io.micrometer.core.instrument.composite.CompositeMeterRegistry;
+import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+
+import java.util.concurrent.TimeUnit;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.verify;
 
-@ExtendWith(MockitoExtension.class)
 @EnableKubernetesMockClient(crud = true)
 class OperatorMainTest {
 
@@ -40,13 +34,10 @@ class OperatorMainTest {
 
     private OperatorMain operatorMain;
 
-    @Mock
-    CompositeMeterRegistry globalRegistry;
-
     @BeforeEach
     void setUp() {
         expectApiResources();
-        operatorMain = new OperatorMain(() -> globalRegistry, kubeClient);
+        operatorMain = new OperatorMain();
     }
 
     @Test
@@ -57,8 +48,20 @@ class OperatorMainTest {
         operatorMain.start();
 
         // Then
-        verify(globalRegistry).add(argThat(PrometheusMeterRegistry.class::isInstance));
-        mockServer.shutdown();
+        assertThat(Metrics.globalRegistry.getRegistries())
+                .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class);
+    }
+
+    @Test
+    void shouldRegisterPrometheusMeterRegistryViaDefaultConstructor() {
+        // Given
+
+        // When
+        new OperatorMain().start();
+
+        // Then
+        assertThat(Metrics.globalRegistry.getRegistries())
+                .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class);
     }
 
     @Test
@@ -72,9 +75,9 @@ class OperatorMainTest {
 
         // Then
         Awaitility.await()
-                .atMost(10, TimeUnit.SECONDS)
-                .ignoreException(MeterNotFoundException.class)
-                .untilAsserted(() -> assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull());
+                  .atMost(10, TimeUnit.SECONDS)
+                  .ignoreException(MeterNotFoundException.class)
+                  .untilAsserted(() -> assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull());
 
     }
 
@@ -91,12 +94,12 @@ class OperatorMainTest {
 
     private void expectApiResources() {
         final CustomResourceDefinition kafkaProtocolFilterCrd = CustomResourceDefinitionContext.v1CRDFromCustomResourceType(KafkaProtocolFilter.class).withNewMetadata()
-                .endMetadata()
-                .build();
+                                                                                               .endMetadata()
+                                                                                               .build();
         mockServer.expectCustomResource(CustomResourceDefinitionContext.fromCrd(kafkaProtocolFilterCrd));
         final CustomResourceDefinition kafkaProxyCrd = CustomResourceDefinitionContext.v1CRDFromCustomResourceType(KafkaProtocolFilter.class).withNewMetadata()
-                .endMetadata()
-                .build();
+                                                                                      .endMetadata()
+                                                                                      .build();
         mockServer.expectCustomResource(CustomResourceDefinitionContext.fromCrd(kafkaProxyCrd));
     }
 }
