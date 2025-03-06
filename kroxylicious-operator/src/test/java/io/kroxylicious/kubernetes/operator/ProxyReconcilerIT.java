@@ -104,6 +104,7 @@ class ProxyReconcilerIT {
     @AfterEach
     void stopOperator() {
         extension.getOperator().stop();
+        LOGGER.atInfo().log("Test finished");
     }
 
     @Test
@@ -157,9 +158,7 @@ class ProxyReconcilerIT {
             assertThat(deployment).isNotNull()
                     .extracting(Deployment::getStatus)
                     .describedAs("All deployment replicas should become ready")
-                    .satisfies(status -> {
-                        assertThat(status.getReplicas()).isEqualTo(status.getReadyReplicas());
-                    });
+                    .satisfies(status -> assertThat(status.getReplicas()).isEqualTo(status.getReadyReplicas()));
         });
     }
 
@@ -219,7 +218,6 @@ class ProxyReconcilerIT {
                 assertThat(service).isNull();
             }
         });
-        LOGGER.atInfo().log("Test finished");
     }
 
     @Test
@@ -245,8 +243,6 @@ class ProxyReconcilerIT {
             assertServiceTargetsProxyInstances(proxy, createdResources.cluster(CLUSTER_FOO), createdResources.ingress(CLUSTER_FOO_CLUSTERIP_INGRESS));
             assertServiceTargetsProxyInstances(proxy, createdResources.cluster(CLUSTER_BAR), createdResources.ingress(CLUSTER_BAR_CLUSTERIP_INGRESS));
         });
-
-        LOGGER.atInfo().log("Test finished");
     }
 
     @Test
@@ -266,18 +262,14 @@ class ProxyReconcilerIT {
 
         // then
         assertDeploymentBecomesReady(proxy);
-        await().untilAsserted(() -> {
-            assertThatProxyConfigFor(proxy)
-                    .doesNotContain(CLUSTER_FOO_BOOTSTRAP)
-                    .contains(NEW_BOOTSTRAP);
-        });
+        await().untilAsserted(() -> assertThatProxyConfigFor(proxy)
+                .doesNotContain(CLUSTER_FOO_BOOTSTRAP)
+                .contains(NEW_BOOTSTRAP));
 
         await().untilAsserted(() -> {
             assertServiceTargetsProxyInstances(proxy, cluster, createdResources.ingress(CLUSTER_FOO_CLUSTERIP_INGRESS));
             assertServiceTargetsProxyInstances(proxy, createdResources.cluster(CLUSTER_BAR), createdResources.ingress(CLUSTER_BAR_CLUSTERIP_INGRESS));
         });
-
-        LOGGER.atInfo().log("Test finished");
     }
 
     @Test
@@ -303,8 +295,6 @@ class ProxyReconcilerIT {
             assertServiceTargetsProxyInstances(proxy, createdResources.cluster(CLUSTER_BAR), createdResources.ingress(CLUSTER_BAR_CLUSTERIP_INGRESS));
             assertServiceTargetsProxyInstances(proxy, clusterBaz, ingress);
         });
-
-        LOGGER.atInfo().log("Test finished");
     }
 
     @Test
@@ -331,10 +321,7 @@ class ProxyReconcilerIT {
                     .isNull();
         });
 
-        await().untilAsserted(() -> {
-            assertServiceTargetsProxyInstances(proxy, createdResources.cluster(CLUSTER_BAR), createdResources.ingress(CLUSTER_BAR_CLUSTERIP_INGRESS));
-        });
-        LOGGER.atInfo().log("Test finished");
+        await().untilAsserted(() -> assertServiceTargetsProxyInstances(proxy, createdResources.cluster(CLUSTER_BAR), createdResources.ingress(CLUSTER_BAR_CLUSTERIP_INGRESS)));
     }
 
     @Test
@@ -360,7 +347,7 @@ class ProxyReconcilerIT {
         assertServiceTargetsProxyInstances(proxyA, barCluster, ingressBar);
         assertServiceTargetsProxyInstances(proxyB, clusterBaz, ingressBaz);
         // when
-        KafkaProxyIngress movedIngress = extension.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxyB));
+        extension.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxyB));
         var updatedBarCluster = new VirtualKafkaClusterBuilder(barCluster).editSpec().editProxyRef().withName(proxyB.getMetadata().getName()).endProxyRef().endSpec()
                 .build();
         extension.replace(updatedBarCluster);
