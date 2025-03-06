@@ -9,7 +9,7 @@ kind: KafkaProxyIngress
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: cluster-ip
-  namespace: proxy-ns
+  namespace: my-proxy
 spec:
   proxyRef:
     name: simple

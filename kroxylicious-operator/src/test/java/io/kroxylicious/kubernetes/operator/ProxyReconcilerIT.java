@@ -321,7 +321,8 @@ class ProxyReconcilerIT {
                     .isNull();
         });
 
-        await().untilAsserted(() -> assertServiceTargetsProxyInstances(proxy, createdResources.cluster(CLUSTER_BAR), createdResources.ingress(CLUSTER_BAR_CLUSTERIP_INGRESS)));
+        await().untilAsserted(
+                () -> assertServiceTargetsProxyInstances(proxy, createdResources.cluster(CLUSTER_BAR), createdResources.ingress(CLUSTER_BAR_CLUSTERIP_INGRESS)));
     }
 
     @Test
