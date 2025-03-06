@@ -7,12 +7,14 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
+import org.slf4j.Logger;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.OperatorException;
@@ -26,11 +28,14 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.slf4j.LoggerFactory.getLogger;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class OperatorMainIT {
     private OperatorMain operatorMain;
     // This is an IT because it depends on having a running Kube cluster
+
+    private final Logger log = getLogger(OperatorMainIT.class);
 
     @BeforeEach
     void beforeEach() {
@@ -91,7 +96,16 @@ class OperatorMainIT {
         Awaitility.await()
                 .atMost(10, TimeUnit.SECONDS)
                 .ignoreException(MeterNotFoundException.class)
-                .untilAsserted(() -> assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull());
+                .untilAsserted(() -> {
+                    log.info("looking for `\"operator.sdk.events.received\"` in meters: {}",
+                            operatorMain.getRegistry()
+                                    .getMeters()
+                                    .stream()
+                                    .map(meter -> meter.getId().getName())
+                                    .distinct()
+                                    .collect(Collectors.joining(", ", "[", "]")));
+                    assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull();
+                });
     }
 
     @Test

@@ -38,6 +38,6 @@ Configuration:
           - ref: STDOUT
       - name: io.fabric8.kubernetes.client.http
         level: INFO
-        additivity: true
+        additivity: false
         AppenderRef:
           - ref: STDOUT
