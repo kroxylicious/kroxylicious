@@ -26,6 +26,7 @@ import io.micrometer.core.instrument.search.MeterNotFoundException;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
@@ -100,9 +101,11 @@ class OperatorMainIT {
     @Test
     void shouldRegisterOperatorMetrics() {
         // Given
+        final KafkaProxyBuilder proxyBuilder = new KafkaProxyBuilder().withKind("KafkaProxy").withNewMetadata().withName("mycoolproxy").endMetadata();
+        operatorMain.start();
 
         // When
-        operatorMain.start();
+        OperatorTestUtils.kubeClientIfAvailable().resource(proxyBuilder.build()).create();
 
         // Then
         Awaitility.await()

@@ -64,7 +64,7 @@ class OperatorMainTest {
     @Test
     void shouldRegisterOperatorMetrics() {
         // Given
-        final KafkaProxyBuilder proxyBuilder = new KafkaProxyBuilder().withKind("KafkaProxy").withNewMetadata().withName("myCoolProxy").endMetadata();
+        final KafkaProxyBuilder proxyBuilder = new KafkaProxyBuilder().withKind("KafkaProxy").withNewMetadata().withName("mycoolproxy").endMetadata();
         operatorMain.start();
 
         // When
