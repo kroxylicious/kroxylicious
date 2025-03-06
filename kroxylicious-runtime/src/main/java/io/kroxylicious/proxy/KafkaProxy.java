@@ -10,15 +10,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
@@ -85,7 +87,6 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig adminEventGroup;
     private @Nullable EventGroupConfig serverEventGroup;
-    private @Nullable Channel metricsChannel;
 
     public KafkaProxy(@NonNull PluginFactoryRegistry pfr, @NonNull Configuration config, @NonNull Features features) {
         this.pfr = requireNonNull(pfr);
@@ -111,7 +112,7 @@ public final class KafkaProxy implements AutoCloseable {
      * @return This proxy.
      */
     @SuppressWarnings("java:S5738")
-    public KafkaProxy startup() throws InterruptedException {
+    public KafkaProxy startup() {
         if (running.getAndSet(true)) {
             throw new IllegalStateException("This proxy is already running");
         }
@@ -119,7 +120,7 @@ public final class KafkaProxy implements AutoCloseable {
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is starting");
 
             var portConflictDefector = new PortConflictDetector();
-            Optional<HostPort> adminHttpHostPort = Optional.ofNullable(shouldBindAdminEndpoint() ? new HostPort(adminHttpConfig.host(), adminHttpConfig.port()) : null);
+            Optional<HostPort> adminHttpHostPort = Optional.ofNullable(adminHttpConfig != null ? new HostPort(adminHttpConfig.host(), adminHttpConfig.port()) : null);
             portConflictDefector.validate(virtualClusterModels, adminHttpHostPort);
 
             var availableCores = Runtime.getRuntime().availableProcessors();
@@ -128,7 +129,7 @@ public final class KafkaProxy implements AutoCloseable {
             this.adminEventGroup = buildNettyEventGroups("admin", availableCores, config.isUseIoUring());
             this.serverEventGroup = buildNettyEventGroups("server", availableCores, config.isUseIoUring());
 
-            maybeStartMetricsListener(adminEventGroup, meterRegistries);
+            var managementFuture = maybeStartManagementListener(adminEventGroup, meterRegistries);
 
             var overrideMap = getApiKeyMaxVersionOverride(config);
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
@@ -143,9 +144,11 @@ public final class KafkaProxy implements AutoCloseable {
 
             // TODO: startup/shutdown should return a completionstage
             CompletableFuture.allOf(
-                    virtualClusterModels.stream()
-                            .flatMap(vc -> vc.gateways().values().stream())
-                            .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture()).toArray(CompletableFuture[]::new))
+                    Stream.concat(Stream.of(managementFuture),
+                            virtualClusterModels.stream()
+                                    .flatMap(vc -> vc.gateways().values().stream())
+                                    .map(vcl -> endpointRegistry.registerVirtualCluster(vcl).toCompletableFuture()))
+                            .toArray(CompletableFuture[]::new))
                     .join();
 
             // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
@@ -154,7 +157,7 @@ public final class KafkaProxy implements AutoCloseable {
             Metrics.inboundDownstreamDecodedMessagesCounter();
             return this;
         }
-        catch (RuntimeException | InterruptedException e) {
+        catch (RuntimeException e) {
             shutdown();
             throw e;
         }
@@ -212,22 +215,29 @@ public final class KafkaProxy implements AutoCloseable {
         return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
     }
 
-    private void maybeStartMetricsListener(EventGroupConfig eventGroupConfig,
-                                           MeterRegistries meterRegistries)
-            throws InterruptedException {
-        if (shouldBindAdminEndpoint()) {
-            ServerBootstrap metricsBootstrap = new ServerBootstrap().group(eventGroupConfig.bossGroup(), eventGroupConfig.workerGroup())
-                    .option(ChannelOption.SO_REUSEADDR, true)
-                    .channel(eventGroupConfig.clazz())
-                    .childHandler(new AdminHttpInitializer(meterRegistries, adminHttpConfig));
-            LOGGER.info("Binding metrics endpoint: {}:{}", adminHttpConfig.host(), adminHttpConfig.port());
-            metricsChannel = metricsBootstrap.bind(adminHttpConfig.host(), adminHttpConfig.port()).sync().channel();
-        }
-    }
+    @NonNull
+    private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {
+        return Optional.ofNullable(adminHttpConfig)
+                .map(c -> {
+                    var metricsBootstrap = new ServerBootstrap().group(eventGroupConfig.bossGroup(), eventGroupConfig.workerGroup())
+                            .option(ChannelOption.SO_REUSEADDR, true)
+                            .channel(eventGroupConfig.clazz())
+                            .childHandler(new AdminHttpInitializer(meterRegistries, c));
+                    LOGGER.info("Binding management endpoint: {}:{}", c.host(), c.port());
 
-    private boolean shouldBindAdminEndpoint() {
-        return adminHttpConfig != null
-                && adminHttpConfig.endpoints().maybePrometheus().isPresent();
+                    var future = new CompletableFuture<Void>();
+                    metricsBootstrap.bind(adminHttpConfig.host(), adminHttpConfig.port())
+                            .addListener((ChannelFutureListener) channelFuture -> ForkJoinPool.commonPool().execute(() -> {
+                                // we complete on a separate thread so that any chained work won't get run on the Netty thread.
+                                if (channelFuture.cause() != null) {
+                                    future.completeExceptionally(channelFuture.cause());
+                                }
+                                else {
+                                    future.complete(null);
+                                }
+                            }));
+                    return future;
+                }).orElseGet(() -> CompletableFuture.completedFuture(null));
     }
 
     /**
@@ -244,9 +254,8 @@ public final class KafkaProxy implements AutoCloseable {
 
     /**
      * Shuts down a running proxy.
-     * @throws InterruptedException
      */
-    public void shutdown() throws InterruptedException {
+    public void shutdown() {
         if (!running.getAndSet(false)) {
             throw new IllegalStateException("This proxy is not running");
         }
@@ -282,7 +291,6 @@ public final class KafkaProxy implements AutoCloseable {
         finally {
             adminEventGroup = null;
             serverEventGroup = null;
-            metricsChannel = null;
             meterRegistries = null;
             filterChainFactory = null;
             shutdown.complete(null);
