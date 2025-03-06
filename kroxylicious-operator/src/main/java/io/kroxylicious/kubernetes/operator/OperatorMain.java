@@ -57,7 +57,7 @@ public class OperatorMain {
 
     public static void main(String[] args) {
         try {
-            new OperatorMain().run();
+            new OperatorMain().start();
         }
         catch (Exception e) {
             LOGGER.error("Operator has thrown exception during startup. Will now exit.", e);
@@ -65,7 +65,10 @@ public class OperatorMain {
         }
     }
 
-    void run() {
+    /**
+     * Starts the operator instance and returns once that has completed successfully.
+     */
+    void start() {
         operator.installShutdownHook(Duration.ofSeconds(10));
         var registeredController = operator.register(new ProxyReconciler(runtimeDecl()));
         // TODO couple the health of the registeredController to the operator's HTTP healthchecks

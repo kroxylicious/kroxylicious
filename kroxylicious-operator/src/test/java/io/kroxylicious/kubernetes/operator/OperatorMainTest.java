@@ -54,7 +54,7 @@ class OperatorMainTest {
         // Given
 
         // When
-        operatorMain.run();
+        operatorMain.start();
 
         // Then
         verify(globalRegistry).add(argThat(PrometheusMeterRegistry.class::isInstance));
@@ -65,7 +65,7 @@ class OperatorMainTest {
     void shouldRegisterOperatorMetrics() {
         // Given
         final KafkaProxyBuilder proxyBuilder = new KafkaProxyBuilder().withKind("KafkaProxy").withNewMetadata().withName("myCoolProxy").endMetadata();
-        operatorMain.run();
+        operatorMain.start();
 
         // When
         kubeClient.resource(proxyBuilder.build()).create();
@@ -83,7 +83,7 @@ class OperatorMainTest {
         // Given
 
         // When
-        operatorMain.run();
+        operatorMain.start();
 
         // Then
         assertThat(operatorMain.getRegistry().get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();

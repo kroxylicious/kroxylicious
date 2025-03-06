@@ -62,9 +62,9 @@ class OperatorMainIT {
     }
 
     @Test
-    void run() {
+    void start() {
         try {
-            operatorMain.run();
+            operatorMain.start();
         }
         catch (OperatorException e) {
             fail("Exception occurred starting operator: " + e.getMessage());
@@ -77,7 +77,7 @@ class OperatorMainIT {
         // Given
 
         // When
-        operatorMain.run();
+        operatorMain.start();
 
         // Then
         assertThat(Metrics.globalRegistry.getRegistries())
@@ -90,7 +90,7 @@ class OperatorMainIT {
         // Given
 
         // When
-        operatorMain.run();
+        operatorMain.start();
 
         // Then
         Awaitility.await()
@@ -113,7 +113,7 @@ class OperatorMainIT {
         // Given
 
         // When
-        operatorMain.run();
+        operatorMain.start();
 
         // Then
         assertThat(operatorMain.getRegistry().get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
