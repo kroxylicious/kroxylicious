@@ -259,12 +259,12 @@ public class ProxyConfigSecret
 
     @NonNull
     private static InvalidClusterException filterResourceNotFound(VirtualKafkaCluster cluster, Filters filterRef) {
-        return new InvalidClusterException(ClusterCondition.filterNotExists(name(cluster), filterRef.getName()));
+        return new InvalidClusterException(ClusterCondition.filterNotFound(name(cluster), filterRef.getName()));
     }
 
     @NonNull
     private static InvalidClusterException targetClusterResourceNotFound(VirtualKafkaCluster cluster) {
-        return new InvalidClusterException(ClusterCondition.targetClusterRefNotExists(cluster.getMetadata().getName(), cluster.getSpec().getTargetCluster()));
+        return new InvalidClusterException(ClusterCondition.targetClusterRefNotFound(cluster.getMetadata().getName(), cluster.getSpec().getTargetCluster()));
     }
 
     /**
