@@ -26,9 +26,4 @@ public record ClusterCondition(String cluster, ConditionType type, Status status
                 String.format("Filter \"%s\" does not exist.", filterName));
     }
 
-    static ClusterCondition filterKindNotKnown(String cluster, String filterName, String kind) {
-        return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
-                String.format("Filter \"%s\" has a kind %s that is not known to this operator.", filterName, kind));
-    }
-
 }

@@ -22,6 +22,9 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
+import static io.kroxylicious.kubernetes.operator.Resources.name;
+import static io.kroxylicious.kubernetes.operator.Resources.uid;
+
 public class ResourcesUtil {
     private ResourcesUtil() {
     }
@@ -70,19 +73,19 @@ public class ResourcesUtil {
         return string;
     }
 
-    static <O extends HasMetadata> OwnerReference ownerReferenceTo(O owner) {
+    public static <O extends HasMetadata> OwnerReference ownerReferenceTo(O owner) {
         return new OwnerReferenceBuilder()
                 .withKind(owner.getKind())
                 .withApiVersion(owner.getApiVersion())
-                .withName(owner.getMetadata().getName())
-                .withUid(owner.getMetadata().getUid())
+                .withName(name(owner))
+                .withUid(uid(owner))
                 .build();
     }
 
-    static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
+    public static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
         return context.getSecondaryResources(VirtualKafkaCluster.class)
                 .stream()
-                .sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName()));
+                .sorted(Comparator.comparing(Resources::name));
     }
 
     static Map<ResourceID, KafkaClusterRef> clusterRefs(Context<KafkaProxy> context) {

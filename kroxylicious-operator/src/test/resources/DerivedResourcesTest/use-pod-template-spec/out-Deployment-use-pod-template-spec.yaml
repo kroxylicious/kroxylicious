@@ -10,9 +10,9 @@ kind: "Deployment"
 metadata:
   labels:
     app: "kroxylicious"
+    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/instance: "use-pod-template-spec"
     app.kubernetes.io/component: "proxy"
   name: "use-pod-template-spec"
@@ -26,10 +26,10 @@ spec:
   selector:
     matchLabels:
       app: "kroxylicious"
+      app.kubernetes.io/part-of: "kafka"
       environment: "production-from-podTemplate"
       app.kubernetes.io/managed-by: "kroxylicious-operator"
       app.kubernetes.io/name: "kroxylicious-proxy"
-      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/instance: "use-pod-template-spec"
       app.kubernetes.io/component: "proxy"
   template:
@@ -37,9 +37,9 @@ spec:
       labels:
         environment: "production-from-podTemplate"
         app: "kroxylicious"
+        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/managed-by: "kroxylicious-operator"
         app.kubernetes.io/name: "kroxylicious-proxy"
-        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/instance: "use-pod-template-spec"
         app.kubernetes.io/component: "proxy"
     spec:
@@ -53,9 +53,13 @@ spec:
             - containerPort: 9190
               name: "metrics"
             - containerPort: 9292
+              name: "9292-bootstrap"
             - containerPort: 9293
+              name: "9293-node"
             - containerPort: 9294
+              name: "9294-node"
             - containerPort: 9295
+              name: "9295-node"
           volumeMounts:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
