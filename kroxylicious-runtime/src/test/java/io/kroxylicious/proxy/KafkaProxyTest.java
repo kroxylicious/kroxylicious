@@ -6,6 +6,10 @@
 
 package io.kroxylicious.proxy;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,6 +30,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaProxyTest {
@@ -142,7 +147,7 @@ class KafkaProxyTest {
     @Test
     void invalidConfigurationForFeatures() {
         Optional<Map<String, Object>> a = Optional.of(Map.of("a", "b"));
-        Configuration configuration = new Configuration(null, List.of(), null, null, null, false, a);
+        Configuration configuration = new Configuration(null, List.of(), null, List.of(), null, false, a);
         Features features = Features.defaultFeatures();
         assertThatThrownBy(() -> {
             KafkaProxy.validate(configuration, features);
@@ -150,4 +155,29 @@ class KafkaProxyTest {
                 .hasMessage("invalid configuration: test-only configuration for proxy present, but loading test-only configuration not enabled");
     }
 
+    @Test
+    void supportsLivezEndpoint() throws Exception {
+        var config = """
+                   adminHttp:
+                    port: 9190
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                   filters: []
+                """;
+        var configParser = new ConfigParser();
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+            proxy.startup();
+
+            var client = HttpClient.newHttpClient();
+            var uri = URI.create("http://localhost:9190/livez");
+            var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
+            assertThat(response.statusCode()).isEqualTo(200);
+        }
+    }
 }

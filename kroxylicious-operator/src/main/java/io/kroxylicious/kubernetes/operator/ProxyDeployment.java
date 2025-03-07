@@ -40,11 +40,11 @@ public class ProxyDeployment
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeployment.class);
-    public static final String CONFIG_VOLUME = "config-volume";
-    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
-    public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
-    public static final int MANAGEMENT_PORT = 9190;
-    public static final String MANAGEMENT_PORT_NAME = "management";
+    private static final String CONFIG_VOLUME = "config-volume";
+    private static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
+    private static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
+    private static final int MANAGEMENT_PORT = 9190;
+    private static final String MANAGEMENT_PORT_NAME = "management";
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
@@ -141,7 +141,7 @@ public class ProxyDeployment
                     .withSubPath(ProxyConfigSecret.CONFIG_YAML_KEY)
                 .endVolumeMount()
                 .addAllToVolumeMounts(ProxyConfigSecret.secureVolumeMounts(context.managedDependentResourceContext()))
-                // metrics port
+                // management port
                 .addNewPort()
                     .withContainerPort(MANAGEMENT_PORT)
                     .withName(MANAGEMENT_PORT_NAME)

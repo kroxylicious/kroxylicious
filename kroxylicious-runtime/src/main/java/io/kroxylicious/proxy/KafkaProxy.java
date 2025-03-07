@@ -243,9 +243,8 @@ public final class KafkaProxy implements AutoCloseable {
     /**
      * Blocks while this proxy is running.
      * This should only be called after a successful call to {@link #startup()}.
-     * @throws InterruptedException
      */
-    public void block() throws Exception {
+    public void block() {
         if (!running.get()) {
             throw new IllegalStateException("This proxy is not running");
         }
