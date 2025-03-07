@@ -148,8 +148,7 @@ public class ProxyDeployment
         // broker ports
         virtualKafkaClusters.forEach(virtualKafkaCluster -> {
             if (!SharedKafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
-                Optional<ProxyIngressLayout.VirtualClusterLayout> virtualClusterLayout1 = layout.clusterLayout(virtualKafkaCluster);
-                ProxyIngressLayout.VirtualClusterLayout virtualClusterLayout = virtualClusterLayout1.orElseThrow();
+                ProxyIngressLayout.VirtualClusterLayout virtualClusterLayout = layout.clusterLayout(virtualKafkaCluster).orElseThrow();
                 for (ProxyIngressLayout.IngressLayout ingressLayout : virtualClusterLayout.ingressLayouts()) {
                     ingressLayout.proxyContainerPorts().forEach(containerBuilder::addToPorts);
                 }

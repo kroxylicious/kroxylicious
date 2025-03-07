@@ -16,6 +16,9 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 // Utility methods for working with fabric8 generated Custom Resource classes
 public class Resources {
 
+    private Resources() {
+    }
+
     public static String name(HasMetadata resource) {
         return resource.getMetadata().getName();
     }
