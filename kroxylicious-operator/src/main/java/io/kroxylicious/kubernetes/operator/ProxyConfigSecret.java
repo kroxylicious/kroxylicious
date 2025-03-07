@@ -139,7 +139,7 @@ public class ProxyConfigSecret
 
         List<NamedFilterDefinition> filterDefinitions = buildFilterDefinitions(context, virtualKafkaClusters);
 
-        var virtualClusters = buildVirtualClusters(primary, context, virtualKafkaClusters, clusterRefs, layout);
+        var virtualClusters = buildVirtualClusters(context, virtualKafkaClusters, clusterRefs, layout);
 
         Configuration configuration = new Configuration(
                 new AdminHttpConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())), filterDefinitions,
@@ -153,11 +153,11 @@ public class ProxyConfigSecret
     }
 
     @NonNull
-    private static List<VirtualCluster> buildVirtualClusters(KafkaProxy primary, Context<KafkaProxy> context, List<VirtualKafkaCluster> clusters,
+    private static List<VirtualCluster> buildVirtualClusters(Context<KafkaProxy> context, List<VirtualKafkaCluster> clusters,
                                                              Map<ResourceID, KafkaClusterRef> clusterRefs, ProxyIngressLayout layout) {
         return clusters.stream()
                 .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
-                .map(cluster -> getVirtualCluster(primary, cluster, clusterRefs, layout))
+                .map(cluster -> getVirtualCluster(cluster, clusterRefs, layout))
                 .toList();
     }
 
@@ -264,8 +264,7 @@ public class ProxyConfigSecret
                 .orElseThrow(() -> resourceNotFound(cluster, filterRef));
     }
 
-    private static VirtualCluster getVirtualCluster(KafkaProxy primary,
-                                                    VirtualKafkaCluster cluster,
+    private static VirtualCluster getVirtualCluster(VirtualKafkaCluster cluster,
                                                     Map<ResourceID, KafkaClusterRef> clusterRefs,
                                                     ProxyIngressLayout layout) {
 

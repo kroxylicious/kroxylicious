@@ -379,9 +379,9 @@ class ProxyReconcilerTest {
 
     @Test
     void proxyToIngressMapper() {
-        EventSourceContext<KafkaProxy> context = mock();
+        EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
-        when(context.getClient()).thenReturn(client);
+        when(eventSourceContext.getClient()).thenReturn(client);
         MixedOperation<KafkaProxyIngress, KubernetesResourceList<KafkaProxyIngress>, Resource<KafkaProxyIngress>> mockOperation = mock();
         when(client.resources(KafkaProxyIngress.class)).thenReturn(mockOperation);
         KubernetesResourceList<KafkaProxyIngress> mockList = mock();
@@ -394,7 +394,7 @@ class ProxyReconcilerTest {
                 .withName("anotherProxy")
                 .endProxyRef().endSpec().build();
         when(mockList.getItems()).thenReturn(List.of(ingress, ingressForAnotherProxy));
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToIngressMapper(context);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToIngressMapper(eventSourceContext);
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(ingress));
@@ -438,9 +438,9 @@ class ProxyReconcilerTest {
 
     @Test
     void ingressToProxyMapper() {
-        EventSourceContext<KafkaProxy> context = mock();
+        EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
-        when(context.getClient()).thenReturn(client);
+        when(eventSourceContext.getClient()).thenReturn(client);
         MixedOperation<KafkaProxy, KubernetesResourceList<KafkaProxy>, Resource<KafkaProxy>> mockOperation = mock();
         when(client.resources(KafkaProxy.class)).thenReturn(mockOperation);
         KubernetesResourceList<KafkaProxy> mockList = mock();
@@ -448,7 +448,7 @@ class ProxyReconcilerTest {
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
         when(mockList.getItems()).thenReturn(List.of(proxy));
-        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = ProxyReconciler.ingressToProxyMapper(context);
+        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = ProxyReconciler.ingressToProxyMapper(eventSourceContext);
         KafkaProxyIngress cluster = new KafkaProxyIngressBuilder().withNewMetadata().withName("ingress").endMetadata().withNewSpec().withNewProxyRef()
                 .withName("proxy")
                 .endProxyRef().endSpec().build();
