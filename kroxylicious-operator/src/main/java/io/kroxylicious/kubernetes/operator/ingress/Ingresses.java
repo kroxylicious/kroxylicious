@@ -23,7 +23,7 @@ public class Ingresses {
     public static Stream<Ingress> ingressesFor(KafkaProxy primary, VirtualKafkaCluster cluster, Set<KafkaProxyIngress> ingressResources) {
         Map<String, KafkaProxyIngress> namedIngresses = ingressResources.stream()
                 .collect(Collectors.toMap(i -> i.getMetadata().getName(), i -> i));
-        return cluster.getSpec().getIngresses().stream().map(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses::getName).map(
+        return cluster.getSpec().getIngressRefs().stream().map(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs::getName).map(
                 ingressName -> {
                     if (!namedIngresses.containsKey(ingressName)) {
                         throw new IllegalStateException(

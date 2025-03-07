@@ -380,7 +380,7 @@ class ProxyReconcilerIT {
                 .withClusterRef(new ClusterRefBuilder().withName(clusterRef.getMetadata().getName()).build())
                 .endTargetCluster()
                 .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
-                .addNewIngress().withName(ingress.getMetadata().getName()).endIngress()
+                .addNewIngressRef().withName(ingress.getMetadata().getName()).endIngressRef()
                 .withFilters()
                 .endSpec().build();
     }

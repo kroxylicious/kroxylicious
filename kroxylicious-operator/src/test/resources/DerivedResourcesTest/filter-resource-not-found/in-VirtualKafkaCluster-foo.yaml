@@ -24,5 +24,5 @@ spec:
     - group: filter.kroxylicious.io
       kind: KafkaProtocolFilter
       name: missing # this does not exist
-  ingresses:
+  ingressRefs:
     - name: cluster-ip-foo
