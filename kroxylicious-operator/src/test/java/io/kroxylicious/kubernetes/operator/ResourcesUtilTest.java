@@ -6,11 +6,23 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
 import org.junit.jupiter.api.Test;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
+
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ResourcesUtilTest {
+
+    public static final String RESOURCE_NAME = "name";
 
     @Test
     void rfc1035DnsLabel() {
@@ -48,6 +60,62 @@ class ResourcesUtilTest {
         assertThat(ResourcesUtil.isDnsLabel("-1", false)).isFalse();
         assertThat(ResourcesUtil.isDnsLabel("a".repeat(63), false)).isTrue();
         assertThat(ResourcesUtil.isDnsLabel("a".repeat(64), false)).isFalse();
+    }
+
+    @Test
+    void findOnlyResourceNamedWithEmptyCollection() {
+        Optional<HasMetadata> resource = findOnlyResourceNamed(RESOURCE_NAME, Set.of());
+        assertThat(resource).isEmpty();
+    }
+
+    @Test
+    void findOnlyResourceNamedWithNoMatches() {
+        Secret other = new SecretBuilder().withNewMetadata().withName("other").endMetadata().build();
+        Optional<HasMetadata> resource = findOnlyResourceNamed(RESOURCE_NAME, Set.of(other));
+        assertThat(resource).isEmpty();
+    }
+
+    @Test
+    void findOnlyResourceNamedWithMatch() {
+        Secret other = new SecretBuilder().withNewMetadata().withName(RESOURCE_NAME).endMetadata().build();
+        Optional<HasMetadata> resource = findOnlyResourceNamed(RESOURCE_NAME, Set.of(other));
+        assertThat(resource).isNotEmpty().contains(other);
+    }
+
+    @Test
+    void findOnlyResourceNamedWithMultipleMatch() {
+        Secret other = new SecretBuilder().withNewMetadata().withName(RESOURCE_NAME).endMetadata().build();
+        List<HasMetadata> withMultipleSameName = List.of(other, other);
+        assertThatThrownBy(() -> {
+            findOnlyResourceNamed(RESOURCE_NAME, withMultipleSameName);
+        }).isInstanceOf(IllegalStateException.class).hasMessage("collection contained more than one resource named " + RESOURCE_NAME);
+    }
+
+    @Test
+    void name() {
+        Secret secret = new SecretBuilder().withNewMetadata().withName(RESOURCE_NAME).endMetadata().build();
+        assertThat(ResourcesUtil.name(secret)).isEqualTo(RESOURCE_NAME);
+    }
+
+    @Test
+    void namespace() {
+        String namespace = "namespace";
+        Secret secret = new SecretBuilder().withNewMetadata().withNamespace(namespace).endMetadata().build();
+        assertThat(ResourcesUtil.namespace(secret)).isEqualTo(namespace);
+    }
+
+    @Test
+    void uid() {
+        String uid = "uid";
+        Secret secret = new SecretBuilder().withNewMetadata().withUid(uid).endMetadata().build();
+        assertThat(ResourcesUtil.uid(secret)).isEqualTo(uid);
+    }
+
+    @Test
+    void generation() {
+        long generation = 123L;
+        Secret secret = new SecretBuilder().withNewMetadata().withGeneration(generation).endMetadata().build();
+        assertThat(ResourcesUtil.generation(secret)).isEqualTo(generation);
     }
 
 }

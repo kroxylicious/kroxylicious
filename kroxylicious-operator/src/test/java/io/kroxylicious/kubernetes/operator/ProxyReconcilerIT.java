@@ -41,6 +41,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetclu
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRefBuilder;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -106,11 +107,11 @@ class ProxyReconcilerIT {
 
     private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters, Set<KafkaClusterRef> clusterRefs) {
         public VirtualKafkaCluster cluster(String name) {
-            return clusters.stream().filter(c -> c.getMetadata().getName().equals(name)).findFirst().orElseThrow();
+            return findOnlyResourceNamed(name, clusters).orElseThrow();
         }
 
         public KafkaClusterRef clusterRef(String name) {
-            return clusterRefs.stream().filter(c -> c.getMetadata().getName().equals(name)).findFirst().orElseThrow();
+            return findOnlyResourceNamed(name, clusterRefs).orElseThrow();
         }
     }
 
