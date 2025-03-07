@@ -19,6 +19,7 @@ import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
+import io.micrometer.core.instrument.search.RequiredSearch;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import java.util.concurrent.TimeUnit;
@@ -102,8 +103,8 @@ class OperatorMainTest {
         operatorMain.stop();
 
         // Then
-        assertThatThrownBy(() -> Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.proxyreconciler")
-                .meter()).isInstanceOf(MeterNotFoundException.class);
+        final RequiredSearch metricSearch = Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.proxyreconciler");
+        assertThatThrownBy(metricSearch::meter).isInstanceOf(MeterNotFoundException.class);
     }
 
     private void expectApiResources() {
