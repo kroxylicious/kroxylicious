@@ -11,6 +11,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.monitoring.micrometer.MicrometerMetrics;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -23,6 +24,7 @@ import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * The {@code main} method entrypoint for the operator
@@ -34,10 +36,17 @@ public class OperatorMain {
     private final Operator operator;
 
     public OperatorMain() {
+        this(null);
+    }
+
+    public OperatorMain(@Nullable KubernetesClient kubeClient) {
         final MicrometerMetrics metrics = enablePrometheusMetrics();
         // o.withMetrics is invoked multiple times so can cause issues with enabling metrics.
         operator = new Operator(o -> {
             o.withMetrics(metrics);
+            if (kubeClient != null) {
+                o.withKubernetesClient(kubeClient);
+            }
         });
     }
 
@@ -63,13 +72,8 @@ public class OperatorMain {
     }
 
     void stop() {
-        // remove the meters we contributed to the global registry.
-        var copy = List.copyOf(registry.getMeters());
-        copy.forEach(Metrics.globalRegistry::remove);
-        Metrics.removeRegistry(registry);
-        registry.close();
-        LOGGER.info("Operator closed.");
-        registry = null;
+        operator.stop();
+        LOGGER.info("Operator stopped.");
     }
 
     @VisibleForTesting
@@ -87,7 +91,7 @@ public class OperatorMain {
     private MicrometerMetrics enablePrometheusMetrics() {
         registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
         Metrics.globalRegistry.add(registry);
-        return MicrometerMetrics.newPerResourceCollectingMicrometerMetricsBuilder(registry)
+        return MicrometerMetrics.newPerResourceCollectingMicrometerMetricsBuilder(Metrics.globalRegistry)
                 .withCleanUpDelayInSeconds(35)
                 .withCleaningThreadNumber(1)
                 .build();

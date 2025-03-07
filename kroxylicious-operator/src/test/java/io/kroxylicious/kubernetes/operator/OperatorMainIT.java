@@ -56,6 +56,7 @@ class OperatorMainIT {
                 kubernetesClient.resources(KafkaProtocolFilter.class).delete();
                 kubernetesClient.resources(KafkaProxy.class).delete();
                 kubernetesClient.resources(VirtualKafkaCluster.class).delete();
+                kubernetesClient.resources(KafkaClusterRef.class).delete();
             }
         }
     }
