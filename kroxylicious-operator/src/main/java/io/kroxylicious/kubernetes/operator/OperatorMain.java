@@ -21,7 +21,6 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -74,11 +73,6 @@ public class OperatorMain {
     void stop() {
         operator.stop();
         LOGGER.info("Operator stopped.");
-    }
-
-    @VisibleForTesting
-    MeterRegistry getRegistry() {
-        return registry;
     }
 
     @NonNull

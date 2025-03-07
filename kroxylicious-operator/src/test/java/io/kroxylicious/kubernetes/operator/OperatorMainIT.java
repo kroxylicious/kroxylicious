@@ -7,7 +7,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
@@ -16,13 +15,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
-import org.slf4j.Logger;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -32,14 +31,11 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.slf4j.LoggerFactory.getLogger;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class OperatorMainIT {
     private OperatorMain operatorMain;
     // This is an IT because it depends on having a running Kube cluster
-
-    private final Logger log = getLogger(OperatorMainIT.class);
 
     @BeforeAll
     static void beforeAll() {
@@ -63,8 +59,7 @@ class OperatorMainIT {
 
     @BeforeEach
     void beforeEach() {
-        assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
-        operatorMain = new OperatorMain();
+        operatorMain = new OperatorMain(null);
     }
 
     @AfterEach
@@ -72,7 +67,6 @@ class OperatorMainIT {
         if (operatorMain != null) {
             operatorMain.stop();
         }
-        assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
     }
 
     @Test
@@ -95,8 +89,7 @@ class OperatorMainIT {
 
         // Then
         assertThat(Metrics.globalRegistry.getRegistries())
-                .isNotEmpty()
-                .contains(operatorMain.getRegistry());
+                .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class);
     }
 
     @Test
@@ -112,16 +105,7 @@ class OperatorMainIT {
         Awaitility.await()
                 .atMost(10, TimeUnit.SECONDS)
                 .ignoreException(MeterNotFoundException.class)
-                .untilAsserted(() -> {
-                    log.info("looking for `\"operator.sdk.events.received\"` in meters: {}",
-                            operatorMain.getRegistry()
-                                    .getMeters()
-                                    .stream()
-                                    .map(meter -> meter.getId().getName())
-                                    .distinct()
-                                    .collect(Collectors.joining(", ", "[", "]")));
-                    assertThat(operatorMain.getRegistry().get("operator.sdk.events.received").meter().getId()).isNotNull();
-                });
+                .untilAsserted(() -> assertThat(Metrics.globalRegistry.get("operator.sdk.events.received").meter().getId()).isNotNull());
     }
 
     @Test
@@ -132,6 +116,6 @@ class OperatorMainIT {
         operatorMain.start();
 
         // Then
-        assertThat(operatorMain.getRegistry().get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
+        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
     }
 }

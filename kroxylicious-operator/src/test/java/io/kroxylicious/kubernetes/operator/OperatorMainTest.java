@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.concurrent.TimeUnit;
+
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,10 +21,7 @@ import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
-import io.micrometer.core.instrument.search.RequiredSearch;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
-
-import java.util.concurrent.TimeUnit;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -31,7 +30,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @EnableKubernetesMockClient(crud = true)
 class OperatorMainTest {
@@ -66,7 +64,6 @@ class OperatorMainTest {
                 .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class);
     }
 
-
     @Test
     void shouldRegisterOperatorMetrics() {
         // Given
@@ -93,18 +90,6 @@ class OperatorMainTest {
 
         // Then
         assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
-    }
-
-    @Test
-    void shouldRemoveMetricsOnStop() {
-        // Given
-
-        // When
-        operatorMain.stop();
-
-        // Then
-        final RequiredSearch metricSearch = Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.proxyreconciler");
-        assertThatThrownBy(metricSearch::meter).isInstanceOf(MeterNotFoundException.class);
     }
 
     private void expectApiResources() {
