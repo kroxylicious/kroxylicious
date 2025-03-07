@@ -20,9 +20,11 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.Resources.name;
 
-public class Ingresses {
+class Ingresses {
+    private Ingresses() {
+    }
 
-    public static Stream<Ingress> ingressesFor(KafkaProxy primary, VirtualKafkaCluster cluster, Set<KafkaProxyIngress> ingressResources) {
+    static Stream<Ingress> ingressesFor(KafkaProxy primary, VirtualKafkaCluster cluster, Set<KafkaProxyIngress> ingressResources) {
         Map<String, KafkaProxyIngress> namedIngresses = Resources.indexByName(ingressResources.stream());
         return cluster.getSpec().getIngressRefs().stream().map(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs::getName).map(
                 ingressName -> {

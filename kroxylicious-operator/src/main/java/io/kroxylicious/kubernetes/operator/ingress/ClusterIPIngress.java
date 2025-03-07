@@ -31,7 +31,7 @@ import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.Resources.name;
 import static io.kroxylicious.kubernetes.operator.Resources.namespace;
 
-public record ClusterIPIngress(KafkaProxyIngress resource, VirtualKafkaCluster cluster, KafkaProxy primary) implements Ingress {
+record ClusterIPIngress(KafkaProxyIngress resource, VirtualKafkaCluster cluster, KafkaProxy primary) implements Ingress {
 
     // TODO replace with nodeid declaration in CRD
     private static final int NUM_BROKERS = 3;
