@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import org.awaitility.Awaitility;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -43,6 +44,13 @@ class OperatorMainTest {
     void setUp() {
         expectApiResources();
         operatorMain = new OperatorMain(kubeClient);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (operatorMain != null) {
+            operatorMain.stop();
+        }
     }
 
     @Test
