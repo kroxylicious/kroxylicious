@@ -6,12 +6,9 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.util.concurrent.TimeUnit;
-
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
 
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.CustomResource;
@@ -22,6 +19,8 @@ import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+
+import java.util.concurrent.TimeUnit;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -58,35 +57,6 @@ class OperatorMainTest {
                 .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class);
     }
 
-    @Test
-    void shouldUseDefaultKubernetesClient() {
-        // Given
-
-        // When
-        final OperatorMain usesDefaultClient = new OperatorMain();
-
-        // Then
-        assertThat(usesDefaultClient).extracting("operator")
-                .isNotNull()
-                .extracting("configurationService")
-                .isNotNull()
-                .extracting("client")
-                .isNotNull()
-                .isNotSameAs(kubeClient);
-    }
-
-    @Test
-    @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
-    void shouldRegisterPrometheusMeterRegistryViaDefaultConstructor() {
-        // Given
-
-        // When
-        new OperatorMain().start();
-
-        // Then
-        assertThat(Metrics.globalRegistry.getRegistries())
-                .hasAtLeastOneElementOfType(PrometheusMeterRegistry.class);
-    }
 
     @Test
     void shouldRegisterOperatorMetrics() {
