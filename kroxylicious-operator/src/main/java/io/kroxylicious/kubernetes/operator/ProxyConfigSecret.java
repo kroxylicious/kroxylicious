@@ -48,6 +48,8 @@ import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
+import static io.kroxylicious.kubernetes.operator.Resources.name;
+import static io.kroxylicious.kubernetes.operator.Resources.namespace;
 
 /**
  * Generates a Kube {@code Secret} containing the proxy config YAML.
@@ -91,7 +93,7 @@ public class ProxyConfigSecret
      * @return The {@code metadata.name} of the desired Secret {@code Secret}.
      */
     static String secretName(KafkaProxy primary) {
-        return primary.getMetadata().getName();
+        return name(primary);
     }
 
     public static List<Volume> secureVolumes(ManagedDependentResourceContext managedDependentResourceContext) {
@@ -117,7 +119,7 @@ public class ProxyConfigSecret
         return new SecretBuilder()
                 .editOrNewMetadata()
                     .withName(secretName(primary))
-                    .withNamespace(primary.getMetadata().getNamespace())
+                    .withNamespace(namespace(primary))
                     .addToLabels(standardLabels(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
@@ -211,7 +213,7 @@ public class ProxyConfigSecret
                 return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
             }
             else {
-                throw new InvalidClusterException(ClusterCondition.filterInvalid(cluster.getMetadata().getName(), filterDefinitionName, "`spec` was not an `object`."));
+                throw new InvalidClusterException(ClusterCondition.filterInvalid(name(cluster), filterDefinitionName, "`spec` was not an `object`."));
             }
 
         }).toList();
@@ -241,7 +243,7 @@ public class ProxyConfigSecret
 
     @NonNull
     private static InvalidClusterException resourceNotFound(VirtualKafkaCluster cluster, Filters filterRef) {
-        return new InvalidClusterException(ClusterCondition.filterNotExists(cluster.getMetadata().getName(), filterRef.getName()));
+        return new InvalidClusterException(ClusterCondition.filterNotExists(name(cluster), filterRef.getName()));
     }
 
     /**
@@ -256,7 +258,7 @@ public class ProxyConfigSecret
                     var filterResourceGroup = apiVersion.substring(0, apiVersion.indexOf("/"));
                     return filterResourceGroup.equals(filterRef.getGroup())
                             && filterResource.getKind().equals(filterRef.getKind())
-                            && filterResource.getMetadata().getName().equals(filterRef.getName());
+                            && name(filterResource).equals(filterRef.getName());
                 })
                 .findFirst()
                 .orElseThrow(() -> resourceNotFound(cluster, filterRef));
@@ -276,7 +278,7 @@ public class ProxyConfigSecret
         ProxyIngressLayout.VirtualClusterLayout virtualClusterLayout = layout.clusterLayout(cluster).orElseThrow();
         String bootstrap = kafkaClusterRef.get().getSpec().getBootstrapServers();
         return new VirtualCluster(
-                cluster.getMetadata().getName(), new TargetCluster(bootstrap, Optional.empty()),
+                name(cluster), new TargetCluster(bootstrap, Optional.empty()),
                 null,
                 Optional.empty(),
                 virtualClusterLayout.gateways(),
@@ -285,10 +287,9 @@ public class ProxyConfigSecret
     }
 
     private static Optional<ResourceID> clusterTargetClusterResourceID(VirtualKafkaCluster cluster) {
-        var namespace = cluster.getMetadata().getNamespace();
         return Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getTargetCluster)
                 .map(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetCluster::getClusterRef)
-                .map(r -> new ResourceID(r.getName(), namespace));
+                .map(r -> new ResourceID(r.getName(), namespace(cluster)));
     }
 }

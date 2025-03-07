@@ -8,26 +8,27 @@ package io.kroxylicious.kubernetes.operator.ingress;
 
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
+import io.kroxylicious.kubernetes.operator.Resources;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.kubernetes.operator.Resources.name;
 
 public class Ingresses {
 
     public static Stream<Ingress> ingressesFor(KafkaProxy primary, VirtualKafkaCluster cluster, Set<KafkaProxyIngress> ingressResources) {
-        Map<String, KafkaProxyIngress> namedIngresses = ingressResources.stream()
-                .collect(Collectors.toMap(i -> i.getMetadata().getName(), i -> i));
+        Map<String, KafkaProxyIngress> namedIngresses = Resources.indexByName(ingressResources.stream());
         return cluster.getSpec().getIngressRefs().stream().map(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs::getName).map(
                 ingressName -> {
                     if (!namedIngresses.containsKey(ingressName)) {
                         throw new IllegalStateException(
-                                "VirtualKafkaCluster " + cluster.getMetadata().getName() + " references an Ingress " + ingressName
+                                "VirtualKafkaCluster " + name(cluster) + " references an Ingress " + ingressName
                                         + "that isn't associated with the proxy");
                     }
                     else {

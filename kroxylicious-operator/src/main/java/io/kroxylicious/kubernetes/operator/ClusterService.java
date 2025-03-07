@@ -24,6 +24,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressLayout;
 
+import static io.kroxylicious.kubernetes.operator.Resources.name;
+
 /**
  * Generates the Kube {@code Service} for a single virtual cluster.
  * This is named like {@code ${cluster.name}}, which allows clusters to migrate between proxy
@@ -43,7 +45,7 @@ public class ClusterService
      */
     static String serviceName(VirtualKafkaCluster cluster) {
         Objects.requireNonNull(cluster);
-        return cluster.getMetadata().getName();
+        return name(cluster);
     }
 
     @Override
@@ -53,13 +55,10 @@ public class ClusterService
         List<VirtualKafkaCluster> clusters = ResourcesUtil.clustersInNameOrder(context).toList();
         Set<KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class);
         ProxyIngressLayout layout = ProxyIngressLayout.layout(primary, clusters, ingresses);
-        Map<String, Service> services = clusters.stream()
+        Stream<Service> serviceStream = clusters.stream()
                 .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
-                .flatMap(cluster -> layout.clusterLayout(cluster).map(ProxyIngressLayout.VirtualClusterLayout::services).orElse(Stream.empty()))
-                .collect(Collectors.toMap(
-                        service -> service.getMetadata().getName(),
-                        service -> service));
-        return services;
+                .flatMap(cluster -> layout.clusterLayout(cluster).map(ProxyIngressLayout.VirtualClusterLayout::services).orElse(Stream.empty()));
+        return Resources.indexByName(serviceStream);
     }
 
     @Override
@@ -70,7 +69,7 @@ public class ClusterService
                 .getSecondaryResources(primary);
         return secondaryResources.stream()
                 .collect(Collectors.toMap(
-                        service -> service.getMetadata().getName(),
+                        Resources::name,
                         Function.identity()));
     }
 }

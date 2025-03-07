@@ -35,6 +35,8 @@ import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressLayout;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
+import static io.kroxylicious.kubernetes.operator.Resources.name;
+import static io.kroxylicious.kubernetes.operator.Resources.namespace;
 
 /**
  * Generates the Kube {@code Deployment} for the proxy
@@ -60,7 +62,7 @@ public class ProxyDeployment
      * @return The {@code metadata.name} of the desired {@code Deployment}.
      */
     static String deploymentName(KafkaProxy primary) {
-        return primary.getMetadata().getName();
+        return name(primary);
     }
 
     @Override
@@ -73,7 +75,7 @@ public class ProxyDeployment
         return new DeploymentBuilder()
                 .editOrNewMetadata()
                     .withName(deploymentName(primary))
-                    .withNamespace(primary.getMetadata().getNamespace())
+                    .withNamespace(namespace(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
                     .addToLabels(APP_KROXY)
                     .addToLabels(standardLabels(primary))

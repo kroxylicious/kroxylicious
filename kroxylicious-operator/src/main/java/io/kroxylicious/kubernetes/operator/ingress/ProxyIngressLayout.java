@@ -22,12 +22,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeployment.PROXY_PORT_START;
+import static io.kroxylicious.kubernetes.operator.Resources.name;
 
 public record ProxyIngressLayout(List<VirtualClusterLayout> clusterLayouts) {
 
     public Optional<VirtualClusterLayout> clusterLayout(VirtualKafkaCluster cluster) {
         return clusterLayouts.stream()
-                .filter(c -> c.cluster.getMetadata().getName().equals(cluster.getMetadata().getName()))
+                .filter(c -> name(c.cluster).equals(name(cluster)))
                 .findFirst();
     }
 

@@ -44,6 +44,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetclu
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TCP;
+import static io.kroxylicious.kubernetes.operator.Resources.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -114,15 +115,15 @@ class ProxyReconcilerIT {
 
     private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters, Set<KafkaClusterRef> clusterRefs, Set<KafkaProxyIngress> ingresses) {
         public VirtualKafkaCluster cluster(String name) {
-            return clusters.stream().filter(c -> c.getMetadata().getName().equals(name)).findFirst().orElseThrow();
+            return clusters.stream().filter(c -> name(c).equals(name)).findFirst().orElseThrow();
         }
 
         public KafkaClusterRef clusterRef(String name) {
-            return clusterRefs.stream().filter(c -> c.getMetadata().getName().equals(name)).findFirst().orElseThrow();
+            return clusterRefs.stream().filter(c -> name(c).equals(name)).findFirst().orElseThrow();
         }
 
         public KafkaProxyIngress ingress(String name) {
-            return ingresses.stream().filter(i -> i.getMetadata().getName().equals(name)).findFirst().orElseThrow();
+            return ingresses.stream().filter(i -> name(i).equals(name)).findFirst().orElseThrow();
         }
     }
 
@@ -148,7 +149,7 @@ class ProxyReconcilerIT {
 
     private KafkaProxyIngress clusterIpIngress(String ingressName, KafkaProxy proxy) {
         return new KafkaProxyIngressBuilder().withNewMetadata().withName(ingressName).endMetadata()
-                .withNewSpec().withNewClusterIP().withProtocol(TCP).endClusterIP().withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef().endSpec()
+                .withNewSpec().withNewClusterIP().withProtocol(TCP).endClusterIP().withNewProxyRef().withName(name(proxy)).endProxyRef().endSpec()
                 .build();
     }
 
@@ -164,11 +165,11 @@ class ProxyReconcilerIT {
 
     private void assertServiceTargetsProxyInstances(KafkaProxy proxy, VirtualKafkaCluster cluster, KafkaProxyIngress ingress) {
         await().alias("cluster Services as expected").untilAsserted(() -> {
-            String serviceName = cluster.getMetadata().getName() + "-" + ingress.getMetadata().getName();
+            String serviceName = name(cluster) + "-" + name(ingress);
             var service = extension.get(Service.class, serviceName);
             assertThat(service).isNotNull()
                     .describedAs(
-                            "Expect Service for cluster '" + cluster.getMetadata().getName() + "' and ingress '" + ingress.getMetadata().getName() + "' to still exist")
+                            "Expect Service for cluster '" + name(cluster) + "' and ingress '" + name(ingress) + "' to still exist")
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
                     .isEqualTo(ProxyDeployment.podLabels(proxy));
@@ -349,7 +350,7 @@ class ProxyReconcilerIT {
         assertServiceTargetsProxyInstances(proxyB, clusterBaz, ingressBaz);
         // when
         extension.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxyB));
-        var updatedBarCluster = new VirtualKafkaClusterBuilder(barCluster).editSpec().editProxyRef().withName(proxyB.getMetadata().getName()).endProxyRef().endSpec()
+        var updatedBarCluster = new VirtualKafkaClusterBuilder(barCluster).editSpec().editProxyRef().withName(name(proxyB)).endProxyRef().endSpec()
                 .build();
         extension.replace(updatedBarCluster);
         // then
@@ -377,10 +378,10 @@ class ProxyReconcilerIT {
         return new VirtualKafkaClusterBuilder().withNewMetadata().withName(clusterName).endMetadata()
                 .withNewSpec()
                 .withNewTargetCluster()
-                .withClusterRef(new ClusterRefBuilder().withName(clusterRef.getMetadata().getName()).build())
+                .withClusterRef(new ClusterRefBuilder().withName(name(clusterRef)).build())
                 .endTargetCluster()
-                .withNewProxyRef().withName(proxy.getMetadata().getName()).endProxyRef()
-                .addNewIngressRef().withName(ingress.getMetadata().getName()).endIngressRef()
+                .withNewProxyRef().withName(name(proxy)).endProxyRef()
+                .addNewIngressRef().withName(name(ingress)).endIngressRef()
                 .withFilters()
                 .endSpec().build();
     }

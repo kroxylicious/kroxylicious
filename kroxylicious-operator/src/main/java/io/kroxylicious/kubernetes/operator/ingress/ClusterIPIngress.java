@@ -28,6 +28,8 @@ import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
+import static io.kroxylicious.kubernetes.operator.Resources.name;
+import static io.kroxylicious.kubernetes.operator.Resources.namespace;
 
 public record ClusterIPIngress(KafkaProxyIngress resource, VirtualKafkaCluster cluster, KafkaProxy primary) implements Ingress {
 
@@ -49,7 +51,7 @@ public record ClusterIPIngress(KafkaProxyIngress resource, VirtualKafkaCluster c
         var serviceSpecBuilder = new ServiceBuilder()
                 .withNewMetadata()
                 .withName(serviceName(cluster, resource))
-                .withNamespace(cluster.getMetadata().getNamespace())
+                .withNamespace(namespace(cluster))
                 .addToLabels(standardLabels(primary))
                 .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
@@ -58,7 +60,7 @@ public record ClusterIPIngress(KafkaProxyIngress resource, VirtualKafkaCluster c
         for (int i = proxyPortRangeStart; i <= proxyPortRangeEndInc; i++) {
             serviceSpecBuilder = serviceSpecBuilder
                     .addNewPort()
-                    .withName(cluster.getMetadata().getName() + "-" + i)
+                    .withName(name(cluster) + "-" + i)
                     .withPort(i)
                     .withTargetPort(new IntOrString(i))
                     .withProtocol("TCP")
@@ -90,7 +92,7 @@ public record ClusterIPIngress(KafkaProxyIngress resource, VirtualKafkaCluster c
     public static String serviceName(VirtualKafkaCluster cluster, KafkaProxyIngress resource) {
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(resource);
-        return cluster.getMetadata().getName() + "-" + resource.getMetadata().getName();
+        return name(cluster) + "-" + name(resource);
     }
 
     @Override
@@ -100,6 +102,6 @@ public record ClusterIPIngress(KafkaProxyIngress resource, VirtualKafkaCluster c
     }
 
     String absoluteServiceHost() {
-        return cluster.getMetadata().getName() + "-" + resource.getMetadata().getName() + "." + cluster.getMetadata().getNamespace() + ".svc.cluster.local";
+        return name(cluster) + "-" + name(resource) + "." + namespace(resource) + ".svc.cluster.local";
     }
 }
