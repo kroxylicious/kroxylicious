@@ -10,9 +10,9 @@ kind: "Deployment"
 metadata:
   labels:
     app: "kroxylicious"
+    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/instance: "use-pod-template-spec"
     app.kubernetes.io/component: "proxy"
   name: "use-pod-template-spec"
@@ -27,19 +27,19 @@ spec:
     matchLabels:
       app: "kroxylicious"
       environment: "production-from-podTemplate"
+      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/managed-by: "kroxylicious-operator"
       app.kubernetes.io/name: "kroxylicious-proxy"
-      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/instance: "use-pod-template-spec"
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
       labels:
-        environment: "production-from-podTemplate"
         app: "kroxylicious"
+        environment: "production-from-podTemplate"
+        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/managed-by: "kroxylicious-operator"
         app.kubernetes.io/name: "kroxylicious-proxy"
-        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/instance: "use-pod-template-spec"
         app.kubernetes.io/component: "proxy"
     spec:
