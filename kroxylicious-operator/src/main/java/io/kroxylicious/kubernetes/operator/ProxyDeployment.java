@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
@@ -39,10 +40,11 @@ public class ProxyDeployment
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeployment.class);
-    public static final String CONFIG_VOLUME = "config-volume";
-    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
-    public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
-    public static final int METRICS_PORT = 9190;
+    private static final String CONFIG_VOLUME = "config-volume";
+    private static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
+    private static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
+    private static final int MANAGEMENT_PORT = 9190;
+    private static final String MANAGEMENT_PORT_NAME = "management";
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
@@ -120,6 +122,16 @@ public class ProxyDeployment
         // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
+                .withNewLivenessProbe()
+                .withNewHttpGet()
+                .withPath("/livez")
+                .withPort(new IntOrString(MANAGEMENT_PORT_NAME))
+                .endHttpGet()
+                .withInitialDelaySeconds(10)
+                .withSuccessThreshold(1)
+                .withTimeoutSeconds(1)
+                .withFailureThreshold(3)
+                .endLivenessProbe()
                 .withImage(kroxyliciousImage)
                 .withArgs("--config", ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
                 // volume mount
@@ -129,10 +141,10 @@ public class ProxyDeployment
                     .withSubPath(ProxyConfigSecret.CONFIG_YAML_KEY)
                 .endVolumeMount()
                 .addAllToVolumeMounts(ProxyConfigSecret.secureVolumeMounts(context.managedDependentResourceContext()))
-                // metrics port
+                // management port
                 .addNewPort()
-                    .withContainerPort(METRICS_PORT)
-                    .withName("metrics")
+                    .withContainerPort(MANAGEMENT_PORT)
+                    .withName(MANAGEMENT_PORT_NAME)
                 .endPort();
         // broker ports
         ResourcesUtil.clustersInNameOrder(context).forEach(virtualKafkaCluster -> {

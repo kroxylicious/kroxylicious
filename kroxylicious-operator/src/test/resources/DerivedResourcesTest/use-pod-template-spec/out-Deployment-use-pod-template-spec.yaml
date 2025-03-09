@@ -49,9 +49,17 @@ spec:
           args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/livez"
+              port: "management"
+            initialDelaySeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
           ports:
             - containerPort: 9190
-              name: "metrics"
+              name: "management"
             - containerPort: 9292
             - containerPort: 9293
             - containerPort: 9294

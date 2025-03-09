@@ -287,12 +287,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     static KafkaProxy spawnProxy(Configuration config, Features features) {
         KafkaProxy kafkaProxy = new KafkaProxy(new ServiceBasedPluginFactoryRegistry(), config, features);
-        try {
-            kafkaProxy.startup();
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        kafkaProxy.startup();
         return kafkaProxy;
     }
 
