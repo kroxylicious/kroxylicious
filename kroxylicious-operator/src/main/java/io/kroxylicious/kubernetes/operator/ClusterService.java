@@ -26,6 +26,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
  * Generates the Kube {@code Service} for a single virtual cluster.
@@ -46,14 +48,14 @@ public class ClusterService
      */
     static String serviceName(VirtualKafkaCluster cluster) {
         Objects.requireNonNull(cluster);
-        return cluster.getMetadata().getName();
+        return name(cluster);
     }
 
     /**
      * @return the fully qualified service hostname
      */
     static String absoluteServiceHost(KafkaProxy primary, VirtualKafkaCluster cluster) {
-        return serviceName(cluster) + "." + primary.getMetadata().getNamespace() + ".svc.cluster.local";
+        return serviceName(cluster) + "." + namespace(primary) + ".svc.cluster.local";
     }
 
     /**
@@ -62,13 +64,13 @@ public class ClusterService
      * @return  The name of the cluster corresponding to the given Service
      */
     static String clusterName(Service service) {
-        return service.getMetadata().getName();
+        return name(service);
     }
 
     static Map<Integer, String> clusterPorts(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
         List<VirtualKafkaCluster> clusters = ResourcesUtil.clustersInNameOrder(context).toList();
         for (int clusterNum = 0; clusterNum < clusters.size(); clusterNum++) {
-            if (clusters.get(clusterNum).getMetadata().getName().equals(cluster.getMetadata().getName())) {
+            if (name(clusters.get(clusterNum)).equals(name(cluster))) {
                 if (SharedKafkaProxyContext.isBroken(context, cluster)) {
                     return Map.of();
                 }
@@ -77,14 +79,14 @@ public class ClusterService
                 return IntStream.range(startPort, startPort + numBrokerPorts).boxed()
                         .collect(Collectors.<Integer, Integer, String, TreeMap<Integer, String>> toMap(
                                 portNum -> portNum,
-                                portNum -> cluster.getMetadata().getName() + "-" + portNum,
+                                portNum -> name(cluster) + "-" + portNum,
                                 (v1, v2) -> {
                                     throw new IllegalStateException();
                                 },
                                 TreeMap::new));
             }
         }
-        throw new IllegalArgumentException("Couldn't find cluster with name " + cluster.getMetadata().getName());
+        throw new IllegalArgumentException("Couldn't find cluster with name " + name(cluster));
     }
 
     protected Service clusterService(KafkaProxy primary,
@@ -94,7 +96,7 @@ public class ClusterService
         var serviceSpecBuilder = new ServiceBuilder()
                 .withNewMetadata()
                     .withName(serviceName(cluster))
-                    .withNamespace(primary.getMetadata().getNamespace())
+                    .withNamespace(namespace(primary))
                     .addToLabels(standardLabels(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
@@ -123,7 +125,7 @@ public class ClusterService
         return ResourcesUtil.clustersInNameOrder(context)
                 .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
                 .collect(Collectors.toMap(
-                        cluster -> cluster.getMetadata().getName(),
+                        ResourcesUtil::name,
                         cluster -> clusterService(primary, context, cluster)));
     }
 

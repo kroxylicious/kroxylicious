@@ -46,6 +46,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -647,7 +648,7 @@ class ProxyReconcilerTest {
                 .editOrNewSpec()
                 .withNewTargetCluster()
                 .withNewClusterRef()
-                .withName(clusterRef.getMetadata().getName())
+                .withName(name(clusterRef))
                 .endClusterRef()
                 .endTargetCluster()
                 .endSpec()
@@ -661,7 +662,7 @@ class ProxyReconcilerTest {
                 .endMetadata()
                 .withNewSpec()
                 .withNewProxyRef()
-                .withName(kafkaProxy.getMetadata().getName())
+                .withName(name(kafkaProxy))
                 .endProxyRef().endSpec();
     }
 

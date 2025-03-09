@@ -52,6 +52,8 @@ import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeployment.KROXYLICIOUS_IMAGE_ENV_VAR;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -83,8 +85,8 @@ class DerivedResourcesTest {
             catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-        }).sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName())).toList();
-        long uniqueResources = resources.stream().map(s -> s.getMetadata().getNamespace() + ":" + s.getMetadata().getName()).distinct().count();
+        }).sorted(Comparator.comparing(ResourcesUtil::name)).toList();
+        long uniqueResources = resources.stream().map(s -> namespace(s) + ":" + name(s)).distinct().count();
         // sanity check that the identifiers are unique
         assertThat(uniqueResources)
                 .overridingErrorMessage("unexpected number of unique resources from files: %s", paths)
@@ -142,7 +144,7 @@ class DerivedResourcesTest {
         @Override
         public Map<String, R> invokeDesired(P primary, Context<P> context) {
             R apply = fn.apply(dependentResource, primary, context);
-            return Map.of(apply.getMetadata().getName(), apply);
+            return Map.of(name(apply), apply);
         }
     }
 
@@ -250,13 +252,13 @@ class DerivedResourcesTest {
                     .stream()
                     .collect(Collectors.toMap(Map.Entry::getKey,
                             e -> e.getValue().stream().map(Map.Entry::getValue).collect(Collectors.toCollection(() -> new TreeSet<>(
-                                    Comparator.comparing(hasMetadata -> hasMetadata.getMetadata().getName()))))));
+                                    Comparator.comparing(ResourcesUtil::name))))));
             for (var entry : dr.entrySet()) {
                 var resourceType = entry.getKey();
                 var actualResources = entry.getValue();
                 for (var actualResource : actualResources) {
                     String kind = resourceType.getSimpleName();
-                    String name = actualResource.getMetadata().getName();
+                    String name = name(actualResource);
                     var expectedFile = testDir.resolve("out-" + kind + "-" + name + ".yaml");
                     tests.add(DynamicTest.dynamicTest(kind + " '" + name + "' should have the same content as " + testDir.relativize(expectedFile),
                             () -> {

@@ -6,8 +6,12 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -21,6 +25,8 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class ResourcesUtil {
     private ResourcesUtil() {
@@ -74,15 +80,15 @@ public class ResourcesUtil {
         return new OwnerReferenceBuilder()
                 .withKind(owner.getKind())
                 .withApiVersion(owner.getApiVersion())
-                .withName(owner.getMetadata().getName())
-                .withUid(owner.getMetadata().getUid())
+                .withName(name(owner))
+                .withUid(uid(owner))
                 .build();
     }
 
     static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
         return context.getSecondaryResources(VirtualKafkaCluster.class)
                 .stream()
-                .sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName()));
+                .sorted(Comparator.comparing(ResourcesUtil::name));
     }
 
     static Map<ResourceID, KafkaClusterRef> clusterRefs(Context<KafkaProxy> context) {
@@ -91,4 +97,38 @@ public class ResourcesUtil {
                 .collect(Collectors.toMap(ResourceID::fromResource, Function.identity()));
     }
 
+    public static String name(@NonNull HasMetadata resource) {
+        return resource.getMetadata().getName();
+    }
+
+    public static String namespace(@NonNull HasMetadata resource) {
+        return resource.getMetadata().getNamespace();
+    }
+
+    public static Long generation(@NonNull HasMetadata resource) {
+        return resource.getMetadata().getGeneration();
+    }
+
+    public static String uid(@NonNull HasMetadata resource) {
+        return resource.getMetadata().getUid();
+    }
+
+    /**
+     * Find the only element in the collection with metadata.name matching the search name.
+     *
+     * @param <T> resource type
+     * @param name name to search for
+     * @param collection collection to search
+     * @return an Optional containing the only element matching, empty if there is no matching element
+     * @throws IllegalStateException if there are multiple elements matching
+     */
+    public static <T extends HasMetadata> Optional<T> findOnlyResourceNamed(@NonNull String name, @NonNull Collection<T> collection) {
+        Objects.requireNonNull(collection);
+        Objects.requireNonNull(name);
+        List<T> list = collection.stream().filter(item -> name(item).equals(name)).toList();
+        if (list.size() > 1) {
+            throw new IllegalStateException("collection contained more than one resource named " + name);
+        }
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+    }
 }
