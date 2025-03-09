@@ -6,7 +6,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -91,7 +91,7 @@ public class ProxyDeployment
                 .map(PodTemplateSpec::getMetadata)
                 .map(ObjectMeta::getLabels)
                 .orElse(Map.of());
-        HashMap<String, String> result = new HashMap<>(APP_KROXY);
+        Map<String, String> result = new LinkedHashMap<>(APP_KROXY);
         result.putAll(labelsFromSpec);
         result.putAll(standardLabels(primary));
         return result;
