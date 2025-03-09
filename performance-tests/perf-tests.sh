@@ -17,7 +17,8 @@ WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 COMMIT_ID=${COMMIT_ID:=$(git rev-parse --short HEAD)}
 
 
-PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/results"}
+PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/perf-test/results"}
+LOGS_OUTPUT_DIRECTORY=${logs_OUTPUT_DIRECTORY:-"/tmp/perf-test/logs"}
 
 ON_SHUTDOWN=()
 GREEN='\033[0;32m'
@@ -247,6 +248,7 @@ doPerfTest () {
 }
 
 onExit() {
+  trigger_code=$?
   for cmd in "${ON_SHUTDOWN[@]}"
   do
     eval "${cmd}"
@@ -256,6 +258,7 @@ onExit() {
 trap onExit EXIT
 
 TMP=$(mktemp -d)
+ON_SHUTDOWN+=("if [ ${trigger_code} -ne 0 ]; then ${CONTAINER_ENGINE} compose logs kafka > ${LOGS_OUTPUT_DIRECTORY}/kafka.log; fi")
 ON_SHUTDOWN+=("rm -rf ${TMP}")
 
 # Bring up Kafka
