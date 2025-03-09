@@ -9,16 +9,16 @@ package io.kroxylicious.kubernetes.operator;
 import java.util.concurrent.TimeUnit;
 
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIf;
 
+import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
+import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.javaoperatorsdk.operator.OperatorException;
-import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
+import io.fabric8.kubernetes.client.dsl.base.CustomResourceDefinitionContext;
+import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
+import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
@@ -30,58 +30,30 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
-@EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
-class OperatorMainIT {
+@EnableKubernetesMockClient(crud = true)
+class OperatorMainTest {
+
+    KubernetesClient kubeClient;
+    KubernetesMockServer mockServer;
+
     private OperatorMain operatorMain;
-    // This is an IT because it depends on having a running Kube cluster
-
-    @BeforeAll
-    static void beforeAll() {
-        LocallyRunOperatorExtension.applyCrd(KafkaProtocolFilter.class, OperatorTestUtils.kubeClientIfAvailable());
-        LocallyRunOperatorExtension.applyCrd(KafkaProxy.class, OperatorTestUtils.kubeClientIfAvailable());
-        LocallyRunOperatorExtension.applyCrd(VirtualKafkaCluster.class, OperatorTestUtils.kubeClientIfAvailable());
-        LocallyRunOperatorExtension.applyCrd(KafkaClusterRef.class, OperatorTestUtils.kubeClientIfAvailable());
-    }
-
-    @AfterAll
-    static void afterAll() {
-        try (KubernetesClient kubernetesClient = OperatorTestUtils.kubeClientIfAvailable()) {
-            if (kubernetesClient != null) {
-                kubernetesClient.resources(KafkaProtocolFilter.class).delete();
-                kubernetesClient.resources(KafkaProxy.class).delete();
-                kubernetesClient.resources(VirtualKafkaCluster.class).delete();
-                kubernetesClient.resources(KafkaClusterRef.class).delete();
-            }
-        }
-    }
 
     @BeforeEach
-    void beforeEach() {
-        operatorMain = new OperatorMain(null);
+    void setUp() {
+        expectApiResources();
+        operatorMain = new OperatorMain(kubeClient);
     }
 
     @AfterEach
-    void afterEach() {
+    void tearDown() {
         if (operatorMain != null) {
             operatorMain.stop();
         }
     }
 
     @Test
-    void start() {
-        try {
-            operatorMain.start();
-        }
-        catch (OperatorException e) {
-            fail("Exception occurred starting operator: " + e.getMessage());
-        }
-
-    }
-
-    @Test
-    void shouldRegisterPrometheusMetricsInGlobalRegistry() {
+    void shouldRegisterPrometheusMeterRegistry() {
         // Given
 
         // When
@@ -99,13 +71,14 @@ class OperatorMainIT {
         operatorMain.start();
 
         // When
-        OperatorTestUtils.kubeClientIfAvailable().resource(proxyBuilder.build()).create();
+        kubeClient.resource(proxyBuilder.build()).create();
 
         // Then
         Awaitility.await()
                 .atMost(10, TimeUnit.SECONDS)
                 .ignoreException(MeterNotFoundException.class)
                 .untilAsserted(() -> assertThat(Metrics.globalRegistry.get("operator.sdk.events.received").meter().getId()).isNotNull());
+
     }
 
     @Test
@@ -117,5 +90,18 @@ class OperatorMainIT {
 
         // Then
         assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
+    }
+
+    private void expectApiResources() {
+        expectCrd(KafkaProtocolFilter.class);
+        expectCrd(KafkaProxy.class);
+        expectCrd(VirtualKafkaCluster.class);
+        expectCrd(KafkaClusterRef.class);
+    }
+
+    private void expectCrd(Class<? extends CustomResource<?, ?>> crdClass) {
+        final CustomResourceDefinition resourceDefinition = CustomResourceDefinitionContext.v1CRDFromCustomResourceType(crdClass)
+                .build();
+        mockServer.expectCustomResource(CustomResourceDefinitionContext.fromCrd(resourceDefinition));
     }
 }
