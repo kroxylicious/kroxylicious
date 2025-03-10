@@ -31,6 +31,7 @@ import com.flipkart.zjsonpatch.JsonDiff;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.KeyStore;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.internal.filter.ConstructorInjectionConfig;
@@ -617,6 +618,63 @@ class ConfigParserTest {
         assertEquals(
                 "Couldn't find @PluginImplName on member referred to by @PluginImplConfig on [parameter #1, annotations: {interface io.kroxylicious.proxy.plugin.PluginImplConfig=@io.kroxylicious.proxy.plugin.PluginImplConfig(implNameProperty=\"id\")}]",
                 pde.getMessage());
+    }
+
+    @Test
+    void virtualClusterModelCreationWithSniHostIdentifiesNodeStrategy() {
+
+        var bootstrapAddress = HostPort.parse("cluster1.example:9192");
+        var keyStore = TlsTestConstants.getResourceLocationOnFilesystem("server.p12");
+        var configurationModel = configParser.parseConfiguration("""
+                        virtualClusters:
+                          - name: demo1
+                            targetCluster:
+                              bootstrapServers: magic-kafka.example:1234
+                            gateways:
+                            - name: mygateway
+                              tls:
+                                key:
+                                  storeFile: %s
+                                  storePassword:
+                                     password: %s
+                              sniHostIdentifiesNode:
+                                bootstrapAddress: "%s"
+                                advertisedBrokerAddressPattern: cluster1-broker-$(nodeId).example:9192
+                """.formatted(keyStore, TlsTestConstants.STOREPASS.getProvidedPassword(), bootstrapAddress));
+        // When
+        var models = configurationModel.virtualClusterModel(null);
+
+        // Then
+        assertThat(models)
+                .singleElement()
+                .satisfies(vcm -> assertThat(vcm.gateways())
+                        .hasEntrySatisfying("mygateway", g -> assertThat(g.getClusterBootstrapAddress())
+                                .isEqualTo(bootstrapAddress)));
+    }
+
+    @Test
+    void virtualClusterModelCreationWithPortIdentifiesNodeStrategy() {
+
+        var bootstrapAddress = HostPort.parse("cluster1.example:9192");
+        var configurationModel = configParser.parseConfiguration("""
+                        virtualClusters:
+                          - name: demo1
+                            targetCluster:
+                              bootstrapServers: magic-kafka.example:1234
+                            gateways:
+                            - name: mygateway
+                              portIdentifiesNode:
+                                bootstrapAddress: "%s"
+                """.formatted(bootstrapAddress));
+        // When
+        var models = configurationModel.virtualClusterModel(null);
+
+        // Then
+        assertThat(models)
+                .singleElement()
+                .satisfies(vcm -> assertThat(vcm.gateways())
+                        .hasEntrySatisfying("mygateway", g -> assertThat(g.getClusterBootstrapAddress())
+                                .isEqualTo(bootstrapAddress)));
     }
 
     @Test

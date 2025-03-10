@@ -36,6 +36,10 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
@@ -208,10 +212,26 @@ public record Configuration(
 
     private static void addGateways(@NonNull PluginFactoryRegistry pfr, List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
         gateways.forEach(gateway -> {
-            var networkAddress = buildNetworkAddressProviderService(gateway.clusterNetworkAddressConfigProvider(), pfr);
+            var config = gateway.clusterNetworkAddressConfigProvider().config();
+            var networkAddress = createDeprecatedProvider(config);
             var tls = gateway.tls();
             virtualClusterModel.addGateway(gateway.name(), networkAddress, tls);
         });
+    }
+
+    @NonNull
+    @SuppressWarnings("removal")
+    private static ClusterNetworkAddressConfigProvider createDeprecatedProvider(Object config) {
+        // We avoid using the buildNetworkAddressProviderService in order to avoid the deprecation notice it will produce.
+        if (config instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sniConfig) {
+            return new SniRoutingClusterNetworkAddressConfigProvider().build(sniConfig);
+        }
+        else if (config instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rangeConfig) {
+            return new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(rangeConfig);
+        }
+        else {
+            throw new IllegalStateException("unexpected provider config type : " + config.getClass().getName());
+        }
     }
 
     @SuppressWarnings("removal")
