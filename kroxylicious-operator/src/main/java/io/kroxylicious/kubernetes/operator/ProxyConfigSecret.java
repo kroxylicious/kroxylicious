@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -156,9 +158,22 @@ public class ProxyConfigSecret
     private static List<VirtualCluster> buildVirtualClusters(KafkaProxy primary, Context<KafkaProxy> context, List<VirtualKafkaCluster> clusters,
                                                              Map<ResourceID, KafkaClusterRef> clusterRefs) {
         AtomicInteger clusterNum = new AtomicInteger(0);
+
+        Map<VirtualKafkaCluster, Optional<KafkaClusterRef>> clusterToRefMap = clusters.stream()
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        cluster -> clusterTargetClusterResourceID(cluster).map(clusterRefs::get)));
+
+        clusterToRefMap.entrySet().stream()
+                .filter(e -> e.getValue().isEmpty())
+                .forEach(e -> {
+                    var cluster = e.getKey();
+                    SharedKafkaProxyContext.addClusterCondition(context, cluster, targetClusterResourceNotFound(cluster).accepted());
+                });
+
         return clusters.stream()
                 .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
-                .map(cluster -> getVirtualCluster(primary, cluster, clusterNum.getAndIncrement(), clusterRefs))
+                .map(cluster -> getVirtualCluster(primary, cluster, clusterToRefMap.get(cluster).get(), clusterNum.getAndIncrement()))
                 .toList();
     }
 
@@ -243,8 +258,13 @@ public class ProxyConfigSecret
     }
 
     @NonNull
-    private static InvalidClusterException resourceNotFound(VirtualKafkaCluster cluster, Filters filterRef) {
-        return new InvalidClusterException(ClusterCondition.filterNotExists(name(cluster), filterRef.getName()));
+    private static InvalidClusterException filterResourceNotFound(VirtualKafkaCluster cluster, Filters filterRef) {
+        return new InvalidClusterException(ClusterCondition.filterNotFound(name(cluster), filterRef.getName()));
+    }
+
+    @NonNull
+    private static InvalidClusterException targetClusterResourceNotFound(VirtualKafkaCluster cluster) {
+        return new InvalidClusterException(ClusterCondition.targetClusterRefNotFound(name(cluster), cluster.getSpec().getTargetCluster()));
     }
 
     /**
@@ -262,21 +282,14 @@ public class ProxyConfigSecret
                             && name(filterResource).equals(filterRef.getName());
                 })
                 .findFirst()
-                .orElseThrow(() -> resourceNotFound(cluster, filterRef));
+                .orElseThrow(() -> filterResourceNotFound(cluster, filterRef));
     }
 
     private static VirtualCluster getVirtualCluster(KafkaProxy primary,
                                                     VirtualKafkaCluster cluster,
-                                                    int clusterNum, Map<ResourceID, KafkaClusterRef> clusterRefs) {
+                                                    KafkaClusterRef kafkaClusterRef, int clusterNum) {
 
-        var kafkaClusterRef = clusterTargetClusterResourceID(cluster).map(clusterRefs::get);
-
-        if (kafkaClusterRef.isEmpty()) {
-            // I should be a condition
-            throw new IllegalStateException("boom!");
-        }
-
-        String bootstrap = kafkaClusterRef.get().getSpec().getBootstrapServers();
+        String bootstrap = kafkaClusterRef.getSpec().getBootstrapServers();
         return new VirtualCluster(
                 name(cluster), new TargetCluster(bootstrap, Optional.empty()),
                 null,
