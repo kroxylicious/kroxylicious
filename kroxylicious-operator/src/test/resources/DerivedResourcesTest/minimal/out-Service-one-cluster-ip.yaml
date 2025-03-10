@@ -14,7 +14,7 @@ metadata:
     app.kubernetes.io/name: "kroxylicious-proxy"
     app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
-  name: "one"
+  name: "one-cluster-ip"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"

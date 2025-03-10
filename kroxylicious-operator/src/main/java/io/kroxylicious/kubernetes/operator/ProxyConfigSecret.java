@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -32,20 +31,20 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Filters;
+import io.kroxylicious.kubernetes.operator.ingress.IngressConflictException;
+import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressLayout;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
-import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
-import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -134,12 +133,14 @@ public class ProxyConfigSecret
                                Context<KafkaProxy> context) {
 
         List<VirtualKafkaCluster> virtualKafkaClusters = ResourcesUtil.clustersInNameOrder(context).toList();
+        Set<KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class);
+        ProxyIngressLayout layout = getProxyIngressLayout(primary, context, virtualKafkaClusters, ingresses);
 
         Map<ResourceID, KafkaClusterRef> clusterRefs = ResourcesUtil.clusterRefs(context);
 
         List<NamedFilterDefinition> filterDefinitions = buildFilterDefinitions(context, virtualKafkaClusters);
 
-        var virtualClusters = buildVirtualClusters(primary, context, virtualKafkaClusters, clusterRefs);
+        var virtualClusters = buildVirtualClusters(context, virtualKafkaClusters, clusterRefs, layout);
 
         Configuration configuration = new Configuration(
                 new AdminHttpConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())), filterDefinitions,
@@ -152,13 +153,25 @@ public class ProxyConfigSecret
         return toYaml(configuration);
     }
 
+    private static @NonNull ProxyIngressLayout getProxyIngressLayout(KafkaProxy primary, Context<KafkaProxy> context, List<VirtualKafkaCluster> virtualKafkaClusters,
+                                                                     Set<KafkaProxyIngress> ingresses) {
+        ProxyIngressLayout layout = ProxyIngressLayout.layout(primary, virtualKafkaClusters, ingresses);
+        for (ProxyIngressLayout.VirtualClusterLayout virtualClusterLayout : layout.clusterLayouts()) {
+            Set<IngressConflictException> exceptions = virtualClusterLayout.ingressExceptions();
+            if (!exceptions.isEmpty()) {
+                VirtualKafkaCluster cluster = virtualClusterLayout.cluster();
+                SharedKafkaProxyContext.addClusterCondition(context, cluster, ClusterCondition.ingressConflict(name(cluster), exceptions));
+            }
+        }
+        return layout;
+    }
+
     @NonNull
-    private static List<VirtualCluster> buildVirtualClusters(KafkaProxy primary, Context<KafkaProxy> context, List<VirtualKafkaCluster> clusters,
-                                                             Map<ResourceID, KafkaClusterRef> clusterRefs) {
-        AtomicInteger clusterNum = new AtomicInteger(0);
+    private static List<VirtualCluster> buildVirtualClusters(Context<KafkaProxy> context, List<VirtualKafkaCluster> clusters,
+                                                             Map<ResourceID, KafkaClusterRef> clusterRefs, ProxyIngressLayout layout) {
         return clusters.stream()
                 .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
-                .map(cluster -> getVirtualCluster(primary, cluster, clusterNum.getAndIncrement(), clusterRefs))
+                .map(cluster -> getVirtualCluster(cluster, clusterRefs, layout))
                 .toList();
     }
 
@@ -265,9 +278,9 @@ public class ProxyConfigSecret
                 .orElseThrow(() -> resourceNotFound(cluster, filterRef));
     }
 
-    private static VirtualCluster getVirtualCluster(KafkaProxy primary,
-                                                    VirtualKafkaCluster cluster,
-                                                    int clusterNum, Map<ResourceID, KafkaClusterRef> clusterRefs) {
+    private static VirtualCluster getVirtualCluster(VirtualKafkaCluster cluster,
+                                                    Map<ResourceID, KafkaClusterRef> clusterRefs,
+                                                    ProxyIngressLayout layout) {
 
         var kafkaClusterRef = clusterTargetClusterResourceID(cluster).map(clusterRefs::get);
 
@@ -275,17 +288,13 @@ public class ProxyConfigSecret
             // I should be a condition
             throw new IllegalStateException("boom!");
         }
-
+        ProxyIngressLayout.VirtualClusterLayout virtualClusterLayout = layout.clusterLayout(cluster).orElseThrow();
         String bootstrap = kafkaClusterRef.get().getSpec().getBootstrapServers();
         return new VirtualCluster(
                 name(cluster), new TargetCluster(bootstrap, Optional.empty()),
                 null,
                 Optional.empty(),
-                List.of(new VirtualClusterGateway("default",
-                        new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292 + (100 * clusterNum)),
-                                ClusterService.absoluteServiceHost(primary, cluster), null, null),
-                        null,
-                        Optional.empty())),
+                virtualClusterLayout.gateways(),
                 false, false,
                 filterNamesForCluster(cluster));
     }

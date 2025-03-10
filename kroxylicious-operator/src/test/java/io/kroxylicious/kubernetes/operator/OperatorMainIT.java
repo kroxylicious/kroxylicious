@@ -26,6 +26,7 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
@@ -43,6 +44,7 @@ class OperatorMainIT {
         LocallyRunOperatorExtension.applyCrd(KafkaProxy.class, OperatorTestUtils.kubeClientIfAvailable());
         LocallyRunOperatorExtension.applyCrd(VirtualKafkaCluster.class, OperatorTestUtils.kubeClientIfAvailable());
         LocallyRunOperatorExtension.applyCrd(KafkaClusterRef.class, OperatorTestUtils.kubeClientIfAvailable());
+        LocallyRunOperatorExtension.applyCrd(KafkaProxyIngress.class, OperatorTestUtils.kubeClientIfAvailable());
     }
 
     @AfterAll
@@ -50,6 +52,7 @@ class OperatorMainIT {
         try (KubernetesClient kubernetesClient = OperatorTestUtils.kubeClientIfAvailable()) {
             if (kubernetesClient != null) {
                 kubernetesClient.resources(KafkaProtocolFilter.class).delete();
+                kubernetesClient.resources(KafkaProxyIngress.class).delete();
                 kubernetesClient.resources(KafkaProxy.class).delete();
                 kubernetesClient.resources(VirtualKafkaCluster.class).delete();
                 kubernetesClient.resources(KafkaClusterRef.class).delete();

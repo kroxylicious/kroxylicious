@@ -23,3 +23,5 @@ spec:
     - group: filter.kroxylicious.io
       kind: KafkaProtocolFilter
       name: filter-two
+  ingressRefs:
+    - name: cluster-ip
