@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.Assumptions;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -29,6 +31,7 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
@@ -49,20 +52,21 @@ class ProxyReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconcilerIT.class);
 
-    public static final String PROXY_A = "proxy-a";
-    public static final String PROXY_B = "proxy-b";
-    public static final String CLUSTER_FOO_REF = "fooref";
-    public static final String CLUSTER_FOO = "foo";
-    public static final String CLUSTER_FOO_BOOTSTRAP = "my-cluster-kafka-bootstrap.foo.svc.cluster.local:9092";
-    public static final String CLUSTER_BAR_REF = "barref";
-    public static final String CLUSTER_BAR = "bar";
-    public static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
-    public static final String NEW_BOOTSTRAP = "new-bootstrap:9092";
-    public static final String CLUSTER_BAZ = "baz";
-    public static final String CLUSTER_BAZ_REF = "bazref";
-    public static final String CLUSTER_BAZ_BOOTSTRAP = "my-cluster-kafka-bootstrap.baz.svc.cluster.local:9092";
+    private static final String PROXY_A = "proxy-a";
+    private static final String PROXY_B = "proxy-b";
+    private static final String CLUSTER_FOO_REF = "fooref";
+    private static final String CLUSTER_FOO = "foo";
+    private static final String CLUSTER_FOO_BOOTSTRAP = "my-cluster-kafka-bootstrap.foo.svc.cluster.local:9092";
+    private static final String CLUSTER_BAR_REF = "barref";
+    private static final String CLUSTER_BAR = "bar";
+    private static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
+    private static final String NEW_BOOTSTRAP = "new-bootstrap:9092";
+    private static final String CLUSTER_BAZ = "baz";
+    private static final String CLUSTER_BAZ_REF = "bazref";
+    private static final String CLUSTER_BAZ_BOOTSTRAP = "my-cluster-kafka-bootstrap.baz.svc.cluster.local:9092";
 
-    static KubernetesClient client;
+    private static KubernetesClient client;
+    private final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(20));
 
     @BeforeAll
     static void checkKubeAvailable() {
@@ -134,19 +138,16 @@ class ProxyReconcilerIT {
 
     private void assertDeploymentBecomesReady(KafkaProxy proxy) {
         // wait longer for initial operator image download
-        await().alias("Deployment as expected").untilAsserted(() -> {
+        AWAIT.alias("Deployment as expected").untilAsserted(() -> {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
-            assertThat(deployment).isNotNull()
-                    .extracting(Deployment::getStatus)
+            assertThat(deployment)
                     .describedAs("All deployment replicas should become ready")
-                    .satisfies(status -> {
-                        assertThat(status.getReplicas()).isEqualTo(status.getReadyReplicas());
-                    });
+                    .returns(true, Readiness::isDeploymentReady);
         });
     }
 
     private void assertServiceTargetsProxyInstances(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters) {
-        await().alias("cluster Services as expected").untilAsserted(() -> {
+        AWAIT.alias("cluster Services as expected").untilAsserted(() -> {
             for (var cluster : clusters) {
                 var service = extension.get(Service.class, ClusterService.serviceName(cluster));
                 assertThat(service).isNotNull()
@@ -159,7 +160,7 @@ class ProxyReconcilerIT {
     }
 
     private void assertDeploymentMountsConfigSecret(KafkaProxy proxy) {
-        await().alias("Deployment as expected").untilAsserted(() -> {
+        AWAIT.alias("Deployment as expected").untilAsserted(() -> {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
             assertThat(deployment).isNotNull()
                     .extracting(dep -> dep.getSpec().getTemplate().getSpec().getVolumes(), InstanceOfAssertFactories.list(Volume.class))
@@ -170,7 +171,7 @@ class ProxyReconcilerIT {
     }
 
     private void assertProxyConfigContents(KafkaProxy cr, Set<String> contains, Set<String> notContains) {
-        await().alias("Secret as expected").untilAsserted(() -> {
+        AWAIT.alias("Secret as expected").untilAsserted(() -> {
             AbstractStringAssert<?> proxyConfig = assertThatProxyConfigFor(cr);
             if (!contains.isEmpty()) {
                 proxyConfig.contains(contains);
@@ -187,15 +188,15 @@ class ProxyReconcilerIT {
         KafkaProxy proxy = createdResources.proxy;
         extension.delete(proxy);
 
-        await().alias("Secret was deleted").untilAsserted(() -> {
+        AWAIT.alias("Secret was deleted").untilAsserted(() -> {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
             assertThat(secret).isNull();
         });
-        await().alias("Deployment was deleted").untilAsserted(() -> {
+        AWAIT.alias("Deployment was deleted").untilAsserted(() -> {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
             assertThat(deployment).isNull();
         });
-        await().alias("Services were deleted").untilAsserted(() -> {
+        AWAIT.alias("Services were deleted").untilAsserted(() -> {
             for (var cluster : createdResources.clusters) {
                 var service = extension.get(Service.class, ClusterService.serviceName(cluster));
                 assertThat(service).isNull();
@@ -212,7 +213,7 @@ class ProxyReconcilerIT {
         extension.replace(clusterRef);
 
         assertDeploymentBecomesReady(proxy);
-        await().untilAsserted(() -> {
+        AWAIT.untilAsserted(() -> {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
             assertThat(secret)
                     .isNotNull()
@@ -223,7 +224,7 @@ class ProxyReconcilerIT {
                     .contains(NEW_BOOTSTRAP);
         });
 
-        await().untilAsserted(() -> {
+        AWAIT.untilAsserted(() -> {
             assertClusterServiceExists(proxy, CLUSTER_FOO);
             assertClusterServiceExists(proxy, CLUSTER_BAR);
         });
@@ -248,13 +249,13 @@ class ProxyReconcilerIT {
 
         // then
         assertDeploymentBecomesReady(proxy);
-        await().untilAsserted(() -> {
+        AWAIT.untilAsserted(() -> {
             assertThatProxyConfigFor(proxy)
                     .doesNotContain(CLUSTER_FOO_BOOTSTRAP)
                     .contains(NEW_BOOTSTRAP);
         });
 
-        await().untilAsserted(() -> {
+        AWAIT.untilAsserted(() -> {
             assertClusterServiceExists(proxy, CLUSTER_FOO);
             assertClusterServiceExists(proxy, CLUSTER_BAR);
         });
@@ -268,7 +269,7 @@ class ProxyReconcilerIT {
         KafkaProxy proxy = createdResources.proxy;
         KafkaClusterRef bazClusterRef = extension.create(clusterRef(CLUSTER_BAZ_REF, CLUSTER_BAZ_BOOTSTRAP));
         extension.create(virtualKafkaCluster(CLUSTER_BAZ, proxy, bazClusterRef));
-        await().untilAsserted(() -> {
+        AWAIT.untilAsserted(() -> {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
             assertThat(secret)
                     .isNotNull()
@@ -279,7 +280,7 @@ class ProxyReconcilerIT {
         });
         assertDeploymentBecomesReady(proxy);
 
-        await().untilAsserted(() -> {
+        AWAIT.untilAsserted(() -> {
             assertClusterServiceExists(proxy, CLUSTER_FOO);
             assertClusterServiceExists(proxy, CLUSTER_BAR);
             assertClusterServiceExists(proxy, CLUSTER_BAZ);
@@ -293,7 +294,7 @@ class ProxyReconcilerIT {
         final var createdResources = doCreate();
         KafkaProxy proxy = createdResources.proxy;
         extension.delete(createdResources.cluster(CLUSTER_FOO));
-        await().untilAsserted(() -> {
+        AWAIT.untilAsserted(() -> {
             var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
             assertThat(secret)
                     .isNotNull()
@@ -305,14 +306,14 @@ class ProxyReconcilerIT {
         });
         assertDeploymentBecomesReady(proxy);
 
-        await().untilAsserted(() -> {
+        AWAIT.untilAsserted(() -> {
             var service = extension.get(Service.class, CLUSTER_FOO);
             assertThat(service)
                     .describedAs("Expect Service for cluster 'foo' to have been deleted")
                     .isNull();
         });
 
-        await().untilAsserted(() -> {
+        AWAIT.untilAsserted(() -> {
             assertClusterServiceExists(proxy, CLUSTER_BAR);
         });
         LOGGER.atInfo().log("Test finished");
@@ -398,7 +399,7 @@ class ProxyReconcilerIT {
     }
 
     private void assertClusterServiceExists(KafkaProxy proxy, String clusterName) {
-        await().alias("Service as expected").untilAsserted(() -> {
+        AWAIT.alias("Service as expected").untilAsserted(() -> {
             var service = extension.get(Service.class, clusterName);
             assertThat(service)
                     .describedAs("Expect Service for cluster '" + clusterName + "' to still exist")
