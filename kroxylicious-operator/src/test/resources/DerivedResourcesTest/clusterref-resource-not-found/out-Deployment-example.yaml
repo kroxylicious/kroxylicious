@@ -10,9 +10,9 @@ kind: "Deployment"
 metadata:
   labels:
     app: "kroxylicious"
+    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
   name: "example"
@@ -26,30 +26,38 @@ spec:
   selector:
     matchLabels:
       app: "kroxylicious"
+      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/managed-by: "kroxylicious-operator"
       app.kubernetes.io/name: "kroxylicious-proxy"
-      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/instance: "example"
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
       labels:
         app: "kroxylicious"
+        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/managed-by: "kroxylicious-operator"
         app.kubernetes.io/name: "kroxylicious-proxy"
-        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/instance: "example"
         app.kubernetes.io/component: "proxy"
     spec:
       containers:
-        - name: "proxy"
-          image: "quay.io/kroxylicious/kroxylicious:test"
-          args:
+        - args:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
+          image: "quay.io/kroxylicious/kroxylicious:test"
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/livez"
+              port: "management"
+            initialDelaySeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: "proxy"
           ports:
             - containerPort: 9190
-              name: "metrics"
+              name: "management"
             - containerPort: 9392
             - containerPort: 9393
             - containerPort: 9394

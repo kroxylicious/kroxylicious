@@ -264,7 +264,7 @@ public class ProxyConfigSecret
 
     @NonNull
     private static InvalidClusterException targetClusterResourceNotFound(VirtualKafkaCluster cluster) {
-        return new InvalidClusterException(ClusterCondition.targetClusterRefNotFound(cluster.getMetadata().getName(), cluster.getSpec().getTargetCluster()));
+        return new InvalidClusterException(ClusterCondition.targetClusterRefNotFound(name(cluster), cluster.getSpec().getTargetCluster()));
     }
 
     /**
