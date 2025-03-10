@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 
@@ -18,6 +19,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+import io.prometheus.metrics.exporter.httpserver.HTTPServer;
 
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
@@ -33,6 +35,7 @@ public class OperatorMain {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorMain.class);
     private MeterRegistry registry;
     private final Operator operator;
+    private HTTPServer metricsServer;
 
     public OperatorMain() {
         this(null);
@@ -64,30 +67,34 @@ public class OperatorMain {
      */
     void start() {
         operator.installShutdownHook(Duration.ofSeconds(10));
-        var registeredController = operator.register(new ProxyReconciler(runtimeDecl()));
-        // TODO couple the health of the registeredController to the operator's HTTP healthchecks
-        operator.start();
-        LOGGER.info("Operator started.");
+        try {
+            metricsServer = HTTPServer.builder().port(8080).buildAndStart();
+            var registeredController = operator.register(new ProxyReconciler(runtimeDecl()));
+            // TODO couple the health of the registeredController to the operator's HTTP healthchecks
+            operator.start();
+            LOGGER.info("Operator started.");
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     void stop() {
         operator.stop();
+        metricsServer.stop();
         LOGGER.info("Operator stopped.");
     }
 
     @NonNull
     static RuntimeDecl runtimeDecl() {
         // TODO read these from some configuration CR
-        return new RuntimeDecl(List.of(
-                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "KafkaProtocolFilter")));
+        return new RuntimeDecl(List.of(new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "KafkaProtocolFilter")));
     }
 
     private MicrometerMetrics enablePrometheusMetrics() {
         registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
         Metrics.globalRegistry.add(registry);
-        return MicrometerMetrics.newPerResourceCollectingMicrometerMetricsBuilder(Metrics.globalRegistry)
-                .withCleanUpDelayInSeconds(35)
-                .withCleaningThreadNumber(1)
+        return MicrometerMetrics.newPerResourceCollectingMicrometerMetricsBuilder(Metrics.globalRegistry).withCleanUpDelayInSeconds(35).withCleaningThreadNumber(1)
                 .build();
     }
 }
