@@ -185,6 +185,10 @@
             <groupId>io.skodjob</groupId>
             <artifactId>test-frame-kubernetes</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.skodjob</groupId>
+            <artifactId>test-frame-log-collector</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

@@ -12,11 +12,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -43,8 +39,6 @@ import io.fabric8.openshift.client.OpenShiftClient;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.executor.Exec;
-import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
 
@@ -128,7 +122,7 @@ public class DeploymentUtils {
      */
     public static boolean checkLoadBalancerIsWorking(String namespace) {
         Service service = new ServiceBuilder()
-                .withKind(Constants.SERVICE_KIND)
+                .withKind(Constants.SERVICE)
                 .withNewMetadata()
                 .withName(TEST_LOAD_BALANCER_NAME)
                 .withNamespace(namespace)
@@ -245,31 +239,6 @@ public class DeploymentUtils {
             }
             kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).create();
             await().atMost(Duration.ofSeconds(10)).until(() -> kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).get() != null);
-        }
-    }
-
-    /**
-     * Collect cluster info.
-     *
-     * @param namespace the namespace
-     * @param testClassName the test class name
-     * @param testMethodName the test method name
-     */
-    public static void collectClusterInfo(String namespace, String testClassName, String testMethodName) {
-        String formattedDate = DateTimeFormatter.ofPattern("yyyy_MM_dd_HH_mm_ss")
-                .withZone(ZoneOffset.UTC)
-                .format(Instant.now());
-        List<String> executableCommand = List.of(cmdKubeClient(namespace).toString(), "cluster-info", "dump",
-                "--namespaces", String.join(",", namespace, Constants.KAFKA_DEFAULT_NAMESPACE, Environment.STRIMZI_NAMESPACE),
-                "--output-directory", Environment.CLUSTER_DUMP_DIR + "/" + testClassName.replace(".", "_") + "_" +
-                        testMethodName + "_cluster_dump_" + formattedDate);
-        ExecResult result = Exec.exec(null, executableCommand, Duration.ofSeconds(20), true, false, null);
-        if (result.isSuccess()) {
-            LOGGER.atInfo().log(result.out());
-        }
-        else {
-            throw new KubeClusterException("Unable to collect cluster info from namespaces '" + namespace + "' and '" + Constants.KAFKA_DEFAULT_NAMESPACE +
-                    "': " + result.err());
         }
     }
 
