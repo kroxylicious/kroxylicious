@@ -74,9 +74,9 @@ spec:
               name: "secrets-my-secret"
               readOnly: true
       volumes:
-        - name: "config-volume"
-          secret:
-            secretName: "example"
+        - configMap:
+            name: "example"
+          name: "config-volume"
         - name: "secrets-my-secret"
           secret:
             secretName: "my-secret"

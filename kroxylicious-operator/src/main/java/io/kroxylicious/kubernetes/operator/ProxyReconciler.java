@@ -64,7 +64,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 @Workflow(dependents = {
         @Dependent(
                 name = ProxyReconciler.CONFIG_DEP,
-                type = ProxyConfigSecret.class
+                type = ProxyConfigConfigMap.class
         ),
         @Dependent(
                 name = ProxyReconciler.DEPLOYMENT_DEP,

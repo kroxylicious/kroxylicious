@@ -6,35 +6,35 @@
 
 ---
 apiVersion: "v1"
-kind: "Secret"
+kind: "ConfigMap"
 metadata:
   labels:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "use-pod-template-spec"
+    app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"
-  name: "use-pod-template-spec"
-  namespace: proxy-ns
+  name: "twocluster"
+  namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "use-pod-template-spec"
-stringData:
+      name: "twocluster"
+data:
   proxy-config.yaml: | 
     ---
     management:
       endpoints:
         prometheus: {}
     virtualClusters:
-    - name: "one"
+    - name: "bar"
       targetCluster:
-        bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+        bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
       gateways:
       - name: "default"
         portIdentifiesNode:
           bootstrapAddress: "localhost:9292"
-          advertisedBrokerAddressPattern: "one-cluster-ip.proxy-ns.svc.cluster.local"
+          advertisedBrokerAddressPattern: "bar-cluster-ip-bar.proxy-ns.svc.cluster.local"
           nodeIdRanges:
           - name: "default"
             start: 0
