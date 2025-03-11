@@ -341,10 +341,10 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
-    public AdminHttpClient getAdminHttpClient() {
-        var client = Optional.ofNullable(kroxyliciousConfig.adminHttpConfig())
-                .map(ahc -> URI.create("http://localhost:" + ahc.port()))
-                .map(AdminHttpClient::new)
+    public ManagementClient getManagementClient() {
+        var client = Optional.ofNullable(kroxyliciousConfig.management())
+                .map(ahc -> URI.create("http://localhost:" + ahc.getEffectivePort()))
+                .map(ManagementClient::new)
                 .orElseThrow(() -> new IllegalStateException("admin http interface not configured"));
         closeables.add(client);
         return client;

@@ -13,19 +13,19 @@ Add the following to the `ConfigMap` resource that defines the Kroxylicious conf
 .Minimal metrics configuration
 [source,yaml]
 ----
-adminHttp:
+management:
   endpoints:
     prometheus: {}
 ----
 
 By default, the HTTP endpoint listens on `0.0.0.0:9190`.
-You can change the hostname and port as follows:
+You can change the bind address and port as follows:
 
-.Example metrics configuration with hostname and port
+.Example metrics configuration with bind address and port
 [source,yaml]
 ----
-adminHttp:
-  host: localhost
+management:
+  bindAddress: 127.0.0.1
   port: 9999
   endpoints:
     prometheus: {}
@@ -52,5 +52,5 @@ spec:
       - proxy
   podMetricsEndpoints:
   - path: /metrics
-    port: metrics
+    port: management
 ----

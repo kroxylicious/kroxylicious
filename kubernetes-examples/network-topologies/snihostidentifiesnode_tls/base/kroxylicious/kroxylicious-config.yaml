@@ -11,7 +11,7 @@ metadata:
   name: kroxylicious-config
 data:
   config.yaml: |
-    adminHttp:
+    management:
       endpoints:
         prometheus: {}
     virtualClusters:

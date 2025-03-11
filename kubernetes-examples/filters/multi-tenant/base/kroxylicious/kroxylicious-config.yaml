@@ -16,7 +16,7 @@ data:
       type: MultiTenant
     defaultFilters:
       - multi-tenant
-    adminHttp:
+    management:
       endpoints:
         prometheus: {}
     virtualClusters:

@@ -26,6 +26,9 @@ import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
+import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
+import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
+import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
@@ -226,11 +229,19 @@ class ConfigParserTest {
                         filters:
                         - type: TestFilterFactory
                         """),
-                Arguments.argumentSet("Admin", """
-                        adminHttp:
-                          host: 0.0.0.0
-                          port: 9193
+                Arguments.argumentSet("Management minimal", """
+                        management: {}
+                        """),
+                Arguments.argumentSet("Management", """
+                        management:
+                          bindAddress: 164.0.0.0
+                          port: 1000
                           endpoints: {}
+                        """),
+                Arguments.argumentSet("Management with Prometheus", """
+                        management:
+                          endpoints:
+                            prometheus: {}
                         """),
                 Arguments.argumentSet("Micrometer", """
                         micrometer:
@@ -239,13 +250,6 @@ class ConfigParserTest {
                             commonTags:
                               zone: "euc-1a"
                               owner: "becky"
-                        """),
-                Arguments.argumentSet("AdminHttp", """
-                        adminHttp:
-                          host: kroxy
-                          port: 9093
-                          endpoints:
-                            prometheus: {}
                         """));
     }
 
@@ -266,10 +270,10 @@ class ConfigParserTest {
     void testDeserializeFromYaml() {
         Configuration configuration = configParser.parseConfiguration(this.getClass().getClassLoader().getResourceAsStream("config.yaml"));
         assertThat(configuration.isUseIoUring()).isTrue();
-        assertThat(configuration.adminHttpConfig())
+        assertThat(configuration.management())
                 .isNotNull()
                 .satisfies(ahc -> {
-                    assertThat(ahc.host()).isEqualTo("kroxy");
+                    assertThat(ahc.bindAddress()).isEqualTo("127.0.0.1");
                     assertThat(ahc.port()).isEqualTo(9093);
                     assertThat(ahc.endpoints().maybePrometheus()).isPresent();
                 });
@@ -670,6 +674,46 @@ class ConfigParserTest {
                 .satisfies(vcm -> assertThat(vcm.gateways())
                         .hasEntrySatisfying("mygateway", g -> assertThat(g.getClusterBootstrapAddress())
                                 .isEqualTo(bootstrapAddress)));
+    }
+
+    @Test
+    void shouldSupportDeprecatedManagementConfiguration() {
+        // When
+        var configurationModel = configParser.parseConfiguration("""
+                adminHttp:
+                   host: 1.1.1.1
+                   port: 1234
+                   endpoints:
+                     prometheus: {}
+                """);
+
+        // Then
+        assertThat(configurationModel)
+                .extracting(Configuration::management)
+                .satisfies(m -> {
+                    assertThat(m.getEffectivePort()).isEqualTo(1234);
+                    assertThat(m.getEffectiveBindAddress()).isEqualTo("1.1.1.1");
+                    assertThat(m.endpoints())
+                            .extracting(EndpointsConfiguration::maybePrometheus, InstanceOfAssertFactories.optional(PrometheusMetricsConfig.class))
+                            .isPresent();
+                });
+    }
+
+    @Test
+    void shouldSupportDeprecatedManagementConfigurationDefaults() {
+        // When
+        var configurationModel = configParser.parseConfiguration("""
+                management: {}
+                """);
+
+        // Then
+        assertThat(configurationModel)
+                .extracting(Configuration::management)
+                .satisfies(m -> {
+                    assertThat(m.getEffectivePort()).isEqualTo(ManagementConfiguration.DEFAULT_MANAGEMENT_PORT);
+                    assertThat(m.getEffectiveBindAddress()).isEqualTo(ManagementConfiguration.DEFAULT_BIND_ADDRESS);
+                    assertThat(m.endpoints()).isNull();
+                });
     }
 
     private record NonSerializableConfig(String id) {
