@@ -7,9 +7,11 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +29,11 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.ingress.IngressAllocator;
+import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -42,11 +48,12 @@ public class ProxyDeployment
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeployment.class);
-    private static final String CONFIG_VOLUME = "config-volume";
-    private static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
-    private static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
+    public static final String CONFIG_VOLUME = "config-volume";
+    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
+    public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     private static final int MANAGEMENT_PORT = 9190;
     private static final String MANAGEMENT_PORT_NAME = "management";
+    public static final int PROXY_PORT_START = 9292;
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
@@ -64,12 +71,15 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
+        List<VirtualKafkaCluster> virtualKafkaClusters = ResourcesUtil.clustersInNameOrder(context).toList();
+        Set<KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class);
+        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, virtualKafkaClusters, ingresses);
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
                     .withName(deploymentName(primary))
                     .withNamespace(namespace(primary))
-                    .addNewOwnerReferenceLike(ResourcesUtil.ownerReferenceTo(primary)).endOwnerReference()
+                    .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                     .addToLabels(APP_KROXY)
                     .addToLabels(standardLabels(primary))
                 .endMetadata()
@@ -78,7 +88,7 @@ public class ProxyDeployment
                     .editOrNewSelector()
                         .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
-                    .withTemplate(podTemplate(primary, context))
+                    .withTemplate(podTemplate(primary, context, ingressModel, virtualKafkaClusters))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -88,7 +98,7 @@ public class ProxyDeployment
         return podLabels(primary);
     }
 
-    static Map<String, String> podLabels(KafkaProxy primary) {
+    public static Map<String, String> podLabels(KafkaProxy primary) {
         Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec()).map(KafkaProxySpec::getPodTemplate)
                 .map(PodTemplateSpec::getMetadata)
                 .map(ObjectMeta::getLabels)
@@ -100,14 +110,14 @@ public class ProxyDeployment
     }
 
     private PodTemplateSpec podTemplate(KafkaProxy primary,
-                                        Context<KafkaProxy> context) {
+                                        Context<KafkaProxy> context, ProxyIngressModel ingressModel, List<VirtualKafkaCluster> virtualKafkaClusters) {
         // @formatter:off
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
                     .addToLabels(podLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
-                    .withContainers(proxyContainer( context))
+                    .withContainers(proxyContainer( context, ingressModel, virtualKafkaClusters))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewSecret()
@@ -120,7 +130,7 @@ public class ProxyDeployment
         // @formatter:on
     }
 
-    private Container proxyContainer(Context<KafkaProxy> context) {
+    private Container proxyContainer(Context<KafkaProxy> context, ProxyIngressModel ingressModel, List<VirtualKafkaCluster> virtualKafkaClusters) {
         // @formatter:off
         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
@@ -149,12 +159,11 @@ public class ProxyDeployment
                     .withName(MANAGEMENT_PORT_NAME)
                 .endPort();
         // broker ports
-        ResourcesUtil.clustersInNameOrder(context).forEach(virtualKafkaCluster -> {
+        virtualKafkaClusters.forEach(virtualKafkaCluster -> {
             if (!SharedKafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
-                for (var portEntry : ClusterService.clusterPorts( context, virtualKafkaCluster).entrySet()) {
-                    containerBuilder.addNewPort()
-                            .withContainerPort(portEntry.getKey())
-                            .endPort();
+                ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(virtualKafkaCluster).orElseThrow();
+                for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
+                    ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);
                 }
             }
         });

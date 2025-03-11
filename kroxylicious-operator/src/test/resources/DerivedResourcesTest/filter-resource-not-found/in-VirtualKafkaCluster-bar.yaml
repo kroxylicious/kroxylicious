@@ -22,4 +22,6 @@ spec:
       name: filter-one
     - group: filter.kroxylicious.io
       kind: KafkaProtocolFilter
-      name: filter-two
+      name: missing # this does not exist
+  ingressRefs:
+    - name: cluster-ip-bar

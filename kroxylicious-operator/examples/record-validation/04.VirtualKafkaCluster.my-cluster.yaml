@@ -20,3 +20,5 @@ spec:
     - group: filter.kroxylicious.io
       kind: RecordValidation
       name: validation
+  ingressRefs:
+    - name: cluster-ip

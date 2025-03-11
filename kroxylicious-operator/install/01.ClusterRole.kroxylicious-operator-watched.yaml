@@ -20,6 +20,7 @@ rules:
       - kafkaproxies
       - virtualkafkaclusters
       - kafkaclusterrefs
+      - kafkaproxyingresses
     verbs:
       - get
       - list

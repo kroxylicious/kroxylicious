@@ -58,10 +58,6 @@ spec:
           ports:
             - containerPort: 9190
               name: "management"
-            - containerPort: 9292
-            - containerPort: 9293
-            - containerPort: 9294
-            - containerPort: 9295
           volumeMounts:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"

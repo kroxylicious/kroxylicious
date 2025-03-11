@@ -45,6 +45,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
@@ -92,6 +93,23 @@ class DerivedResourcesTest {
                 .overridingErrorMessage("unexpected number of unique resources from files: %s", paths)
                 .isEqualTo(paths.size());
         return resources;
+    }
+
+    public static List<KafkaProxyIngress> kafkaProxyIngressesFromFiles(Set<Path> paths) {
+        // TODO should validate against the CRD schema, because the DependentResource
+        // should never see an invalid resource in production
+        List<KafkaProxyIngress> ingresses = paths.stream().map(path -> {
+            try {
+                return YAML_MAPPER.readValue(path.toFile(), KafkaProxyIngress.class);
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }).sorted(Comparator.comparing(ResourcesUtil::name)).toList();
+        long uniqueResources = ingresses.stream().map(ingress -> namespace(ingress) + ":" + name(ingress)).distinct().count();
+        // sanity check that the identifiers are unique
+        assertThat(uniqueResources).isEqualTo(paths.size());
+        return ingresses;
     }
 
     public static RuntimeDecl configFromFile(Path path) {
@@ -231,13 +249,14 @@ class DerivedResourcesTest {
             List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(childFilesMatching(testDir, "in-VirtualKafkaCluster-*"), VirtualKafkaCluster.class);
             List<KafkaClusterRef> kafkaClusterRefs = resourcesFromFiles(childFilesMatching(testDir, "in-KafkaClusterRef-*"), KafkaClusterRef.class);
             assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
+            List<KafkaProxyIngress> ingresses = kafkaProxyIngressesFromFiles(childFilesMatching(testDir, "in-KafkaProxyIngress-*"));
 
             unusedFiles.remove(input);
             unusedFiles.removeAll(childFilesMatching(testDir, "in-*"));
 
             Context<KafkaProxy> context;
             try {
-                context = buildContext(testDir, virtualKafkaClusters, kafkaClusterRefs);
+                context = buildContext(testDir, virtualKafkaClusters, kafkaClusterRefs, ingresses);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -329,7 +348,8 @@ class DerivedResourcesTest {
     }
 
     @NonNull
-    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters, List<KafkaClusterRef> kafkaClusterRefs)
+    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters, List<KafkaClusterRef> kafkaClusterRefs,
+                                                    List<KafkaProxyIngress> ingresses)
             throws IOException {
         Answer<?> throwOnUnmockedInvocation = invocation -> {
             var stringifiedArgs = Arrays.stream(invocation.getArguments()).map(String::valueOf).collect(
@@ -357,6 +377,7 @@ class DerivedResourcesTest {
         doReturn(filterInstances).when(context).getSecondaryResources(GenericKubernetesResource.class);
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         doReturn(Set.copyOf(kafkaClusterRefs)).when(context).getSecondaryResources(KafkaClusterRef.class);
+        doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);
         SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
         return context;
     }

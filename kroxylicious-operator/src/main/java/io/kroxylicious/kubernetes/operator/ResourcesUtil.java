@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -65,10 +66,6 @@ public class ResourcesUtil {
         return true;
     }
 
-    static String requireIsDnsLabel(String string, boolean rfc1035) {
-        return requireIsDnsLabel(string, rfc1035, string + " is not a " + (rfc1035 ? "RFC 1035" : "RFC 1123") + " DNS label");
-    }
-
     static String requireIsDnsLabel(String string, boolean rfc1035, String message) {
         if (!isDnsLabel(string, rfc1035)) {
             throw new IllegalArgumentException(message);
@@ -76,7 +73,7 @@ public class ResourcesUtil {
         return string;
     }
 
-    static <O extends HasMetadata> OwnerReference ownerReferenceTo(O owner) {
+    public static <O extends HasMetadata> OwnerReference newOwnerReferenceTo(O owner) {
         return new OwnerReferenceBuilder()
                 .withKind(owner.getKind())
                 .withApiVersion(owner.getApiVersion())
@@ -85,7 +82,7 @@ public class ResourcesUtil {
                 .build();
     }
 
-    static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
+    public static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
         return context.getSecondaryResources(VirtualKafkaCluster.class)
                 .stream()
                 .sorted(Comparator.comparing(ResourcesUtil::name));
@@ -130,5 +127,15 @@ public class ResourcesUtil {
             throw new IllegalStateException("collection contained more than one resource named " + name);
         }
         return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+    }
+
+    /**
+     * Collector that collects elements of stream to a map keyed by name of the element
+     *
+     * @param <T> resource type
+     * @return a Collector that collects a Map from element name to element
+     */
+    public static <T extends HasMetadata> @NonNull Collector<T, ?, Map<String, T>> toByNameMap() {
+        return Collectors.toMap(ResourcesUtil::name, Function.identity());
     }
 }
