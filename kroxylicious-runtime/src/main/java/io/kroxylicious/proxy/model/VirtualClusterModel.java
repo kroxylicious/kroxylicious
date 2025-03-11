@@ -392,10 +392,10 @@ public class VirtualClusterModel {
         @Override
         public String toString() {
             return "VirtualClusterGatewayModel[" +
-                    "virtualCluster=" + virtualCluster + ", " +
                     "name=" + name + ", " +
+                    "virtualCluster=" + virtualCluster.getClusterName() + ", " +
                     "provider=" + provider + ", " +
-                    "tls=" + tls + ']';
+                    "tls=" + isUseTls() + ']';
         }
     }
 }
