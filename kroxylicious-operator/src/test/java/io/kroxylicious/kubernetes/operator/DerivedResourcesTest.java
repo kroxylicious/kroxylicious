@@ -45,6 +45,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
@@ -52,6 +53,8 @@ import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeployment.KROXYLICIOUS_IMAGE_ENV_VAR;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -83,13 +86,30 @@ class DerivedResourcesTest {
             catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-        }).sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName())).toList();
-        long uniqueResources = resources.stream().map(s -> s.getMetadata().getNamespace() + ":" + s.getMetadata().getName()).distinct().count();
+        }).sorted(Comparator.comparing(ResourcesUtil::name)).toList();
+        long uniqueResources = resources.stream().map(s -> namespace(s) + ":" + name(s)).distinct().count();
         // sanity check that the identifiers are unique
         assertThat(uniqueResources)
                 .overridingErrorMessage("unexpected number of unique resources from files: %s", paths)
                 .isEqualTo(paths.size());
         return resources;
+    }
+
+    public static List<KafkaProxyIngress> kafkaProxyIngressesFromFiles(Set<Path> paths) {
+        // TODO should validate against the CRD schema, because the DependentResource
+        // should never see an invalid resource in production
+        List<KafkaProxyIngress> ingresses = paths.stream().map(path -> {
+            try {
+                return YAML_MAPPER.readValue(path.toFile(), KafkaProxyIngress.class);
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }).sorted(Comparator.comparing(ResourcesUtil::name)).toList();
+        long uniqueResources = ingresses.stream().map(ingress -> namespace(ingress) + ":" + name(ingress)).distinct().count();
+        // sanity check that the identifiers are unique
+        assertThat(uniqueResources).isEqualTo(paths.size());
+        return ingresses;
     }
 
     public static RuntimeDecl configFromFile(Path path) {
@@ -142,7 +162,7 @@ class DerivedResourcesTest {
         @Override
         public Map<String, R> invokeDesired(P primary, Context<P> context) {
             R apply = fn.apply(dependentResource, primary, context);
-            return Map.of(apply.getMetadata().getName(), apply);
+            return Map.of(name(apply), apply);
         }
     }
 
@@ -229,13 +249,14 @@ class DerivedResourcesTest {
             List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(childFilesMatching(testDir, "in-VirtualKafkaCluster-*"), VirtualKafkaCluster.class);
             List<KafkaClusterRef> kafkaClusterRefs = resourcesFromFiles(childFilesMatching(testDir, "in-KafkaClusterRef-*"), KafkaClusterRef.class);
             assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
+            List<KafkaProxyIngress> ingresses = kafkaProxyIngressesFromFiles(childFilesMatching(testDir, "in-KafkaProxyIngress-*"));
 
             unusedFiles.remove(input);
             unusedFiles.removeAll(childFilesMatching(testDir, "in-*"));
 
             Context<KafkaProxy> context;
             try {
-                context = buildContext(testDir, virtualKafkaClusters, kafkaClusterRefs);
+                context = buildContext(testDir, virtualKafkaClusters, kafkaClusterRefs, ingresses);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -250,13 +271,13 @@ class DerivedResourcesTest {
                     .stream()
                     .collect(Collectors.toMap(Map.Entry::getKey,
                             e -> e.getValue().stream().map(Map.Entry::getValue).collect(Collectors.toCollection(() -> new TreeSet<>(
-                                    Comparator.comparing(hasMetadata -> hasMetadata.getMetadata().getName()))))));
+                                    Comparator.comparing(ResourcesUtil::name))))));
             for (var entry : dr.entrySet()) {
                 var resourceType = entry.getKey();
                 var actualResources = entry.getValue();
                 for (var actualResource : actualResources) {
                     String kind = resourceType.getSimpleName();
-                    String name = actualResource.getMetadata().getName();
+                    String name = name(actualResource);
                     var expectedFile = testDir.resolve("out-" + kind + "-" + name + ".yaml");
                     tests.add(DynamicTest.dynamicTest(kind + " '" + name + "' should have the same content as " + testDir.relativize(expectedFile),
                             () -> {
@@ -327,7 +348,8 @@ class DerivedResourcesTest {
     }
 
     @NonNull
-    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters, List<KafkaClusterRef> kafkaClusterRefs)
+    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters, List<KafkaClusterRef> kafkaClusterRefs,
+                                                    List<KafkaProxyIngress> ingresses)
             throws IOException {
         Answer<?> throwOnUnmockedInvocation = invocation -> {
             var stringifiedArgs = Arrays.stream(invocation.getArguments()).map(String::valueOf).collect(
@@ -355,6 +377,7 @@ class DerivedResourcesTest {
         doReturn(filterInstances).when(context).getSecondaryResources(GenericKubernetesResource.class);
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         doReturn(Set.copyOf(kafkaClusterRefs)).when(context).getSecondaryResources(KafkaClusterRef.class);
+        doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);
         SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
         return context;
     }

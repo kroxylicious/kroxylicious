@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1573](https://github.com/kroxylicious/kroxylicious/issues/1573) Minimal proxy health probe (livez)
 * [#1847](https://github.com/kroxylicious/kroxylicious/pull/1847) Remodel virtual cluster map as a list (with explicit names).
 * [#1840](https://github.com/kroxylicious/kroxylicious/pull/1840) Refactor virtual cluster configuration model
 * [#1823](https://github.com/kroxylicious/kroxylicious/pull/1823) Allow VirtualClusters to express more than one listener

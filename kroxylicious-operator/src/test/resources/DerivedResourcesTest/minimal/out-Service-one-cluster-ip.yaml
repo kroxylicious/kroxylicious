@@ -9,39 +9,39 @@ apiVersion: "v1"
 kind: "Service"
 metadata:
   labels:
+    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/part-of: "kafka"
-    app.kubernetes.io/instance: "twocluster"
+    app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
-  name: "foo"
+  name: "one-cluster-ip"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "twocluster"
+      name: "minimal"
 spec:
   ports:
-    - name: "foo-9392"
-      port: 9392
+    - name: "one-9292"
+      port: 9292
       protocol: "TCP"
-      targetPort: 9392
-    - name: "foo-9393"
-      port: 9393
+      targetPort: 9292
+    - name: "one-9293"
+      port: 9293
       protocol: "TCP"
-      targetPort: 9393
-    - name: "foo-9394"
-      port: 9394
+      targetPort: 9293
+    - name: "one-9294"
+      port: 9294
       protocol: "TCP"
-      targetPort: 9394
-    - name: "foo-9395"
-      port: 9395
+      targetPort: 9294
+    - name: "one-9295"
+      port: 9295
       protocol: "TCP"
-      targetPort: 9395
+      targetPort: 9295
   selector:
     app: "kroxylicious"
+    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/part-of: "kafka"
-    app.kubernetes.io/instance: "twocluster"
+    app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"

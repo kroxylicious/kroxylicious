@@ -39,6 +39,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
@@ -46,6 +48,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -328,7 +331,7 @@ class ProxyReconcilerTest {
         doReturn(mdrc).when(context).managedDependentResourceContext();
         doReturn(Set.of(new VirtualKafkaClusterBuilder().withNewMetadata().withName("my-cluster").withNamespace("my-ns").endMetadata().withNewSpec().withNewProxyRef()
                 .withName("my-proxy").endProxyRef().endSpec().build())).when(context).getSecondaryResources(VirtualKafkaCluster.class);
-        doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.filterNotExists("my-cluster", "MissingFilter")))).when(mdrc).get(
+        doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.filterNotFound("my-cluster", "MissingFilter")))).when(mdrc).get(
                 SharedKafkaProxyContext.CLUSTER_CONDITIONS_KEY,
                 Map.class);
         doReturn(new RuntimeDecl(List.of())).when(mdrc).getMandatory(SharedKafkaProxyContext.RUNTIME_DECL_KEY, Map.class);
@@ -375,6 +378,29 @@ class ProxyReconcilerTest {
     }
 
     @Test
+    void proxyToIngressMapper() {
+        EventSourceContext<KafkaProxy> eventSourceContext = mock();
+        KubernetesClient client = mock();
+        when(eventSourceContext.getClient()).thenReturn(client);
+        MixedOperation<KafkaProxyIngress, KubernetesResourceList<KafkaProxyIngress>, Resource<KafkaProxyIngress>> mockOperation = mock();
+        when(client.resources(KafkaProxyIngress.class)).thenReturn(mockOperation);
+        KubernetesResourceList<KafkaProxyIngress> mockList = mock();
+        when(mockOperation.list()).thenReturn(mockList);
+        when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
+        KafkaProxyIngress ingress = new KafkaProxyIngressBuilder().withNewMetadata().withName("ingress").endMetadata().withNewSpec().withNewProxyRef()
+                .withName("proxy")
+                .endProxyRef().endSpec().build();
+        KafkaProxyIngress ingressForAnotherProxy = new KafkaProxyIngressBuilder().withNewMetadata().withName("ingress2").endMetadata().withNewSpec().withNewProxyRef()
+                .withName("anotherProxy")
+                .endProxyRef().endSpec().build();
+        when(mockList.getItems()).thenReturn(List.of(ingress, ingressForAnotherProxy));
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = ProxyReconciler.proxyToIngressMapper(eventSourceContext);
+        KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
+        Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
+        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(ingress));
+    }
+
+    @Test
     void proxyToClusterMapper_NoMatchedClusters() {
         EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
@@ -406,6 +432,26 @@ class ProxyReconcilerTest {
         when(mockList.getItems()).thenReturn(List.of(proxy));
         SecondaryToPrimaryMapper<VirtualKafkaCluster> mapper = ProxyReconciler.clusterToProxyMapper(eventSourceContext);
         VirtualKafkaCluster cluster = baseVirtualKafkaClusterBuilder(proxy, "cluster").build();
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(cluster);
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(proxy));
+    }
+
+    @Test
+    void ingressToProxyMapper() {
+        EventSourceContext<KafkaProxy> eventSourceContext = mock();
+        KubernetesClient client = mock();
+        when(eventSourceContext.getClient()).thenReturn(client);
+        MixedOperation<KafkaProxy, KubernetesResourceList<KafkaProxy>, Resource<KafkaProxy>> mockOperation = mock();
+        when(client.resources(KafkaProxy.class)).thenReturn(mockOperation);
+        KubernetesResourceList<KafkaProxy> mockList = mock();
+        when(mockOperation.list()).thenReturn(mockList);
+        when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
+        KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
+        when(mockList.getItems()).thenReturn(List.of(proxy));
+        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = ProxyReconciler.ingressToProxyMapper(eventSourceContext);
+        KafkaProxyIngress cluster = new KafkaProxyIngressBuilder().withNewMetadata().withName("ingress").endMetadata().withNewSpec().withNewProxyRef()
+                .withName("proxy")
+                .endProxyRef().endSpec().build();
         Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(cluster);
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(proxy));
     }
@@ -647,7 +693,7 @@ class ProxyReconcilerTest {
                 .editOrNewSpec()
                 .withNewTargetCluster()
                 .withNewClusterRef()
-                .withName(clusterRef.getMetadata().getName())
+                .withName(name(clusterRef))
                 .endClusterRef()
                 .endTargetCluster()
                 .endSpec()
@@ -661,7 +707,7 @@ class ProxyReconcilerTest {
                 .endMetadata()
                 .withNewSpec()
                 .withNewProxyRef()
-                .withName(kafkaProxy.getMetadata().getName())
+                .withName(name(kafkaProxy))
                 .endProxyRef().endSpec();
     }
 

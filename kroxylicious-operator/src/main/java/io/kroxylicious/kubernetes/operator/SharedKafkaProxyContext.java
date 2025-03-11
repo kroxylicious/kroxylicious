@@ -17,6 +17,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+
 /**
  * Encapsulates access to the mutable state in the {@link Context<KafkaProxy>} shared between
  * {@link ProxyReconciler} its dependent resources.
@@ -52,12 +54,12 @@ public class SharedKafkaProxyContext {
             map = Collections.synchronizedMap(new HashMap<>());
             context.managedDependentResourceContext().put(CLUSTER_CONDITIONS_KEY, map);
         }
-        map.put(cluster.getMetadata().getName(), clusterCondition);
+        map.put(name(cluster), clusterCondition);
     }
 
     static boolean isBroken(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
         Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(Map.of());
-        return map.containsKey(cluster.getMetadata().getName());
+        return map.containsKey(name(cluster));
     }
 
     /**
@@ -68,7 +70,6 @@ public class SharedKafkaProxyContext {
      */
     static ClusterCondition clusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
         Optional<Map<String, ClusterCondition>> map = (Optional) context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class);
-        return map.orElse(Map.of()).getOrDefault(cluster.getMetadata().getName(), ClusterCondition.accepted(cluster.getMetadata().getName()));
+        return map.orElse(Map.of()).getOrDefault(name(cluster), ClusterCondition.accepted(name(cluster)));
     }
-
 }

@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.admin;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpServerExpectContinueHandler;
 
@@ -16,6 +17,7 @@ import io.kroxylicious.proxy.internal.MeterRegistries;
 
 public class AdminHttpInitializer extends ChannelInitializer<SocketChannel> {
 
+    private static final String LIVEZ = "/livez";
     private final MeterRegistries registries;
     private final AdminHttpConfiguration adminHttpConfiguration;
 
@@ -30,6 +32,7 @@ public class AdminHttpInitializer extends ChannelInitializer<SocketChannel> {
         p.addLast(new HttpServerCodec());
         p.addLast(new HttpServerExpectContinueHandler());
         RoutingHttpServer.RoutingHttpServerBuilder builder = RoutingHttpServer.builder();
+        builder.withRoute(LIVEZ, httpRequest -> RoutingHttpServer.responseWithStatus(httpRequest, HttpResponseStatus.OK));
         adminHttpConfiguration.endpoints().maybePrometheus().ifPresent(prometheusMetricsConfig -> {
             builder.withRoute(PrometheusMetricsEndpoint.PATH, new PrometheusMetricsEndpoint(registries));
         });

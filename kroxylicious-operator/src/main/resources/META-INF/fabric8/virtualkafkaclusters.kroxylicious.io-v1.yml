@@ -37,7 +37,7 @@ spec:
               type: object
             spec:
               type: object
-              required: ["proxyRef", "targetCluster"]
+              required: ["proxyRef", "targetCluster", "ingressRefs"]
               properties:
                 proxyRef:
                   type: object
@@ -79,6 +79,21 @@ spec:
                           maxLength: 253
                           minLength: 1
                           type: string
+                ingressRefs:
+                  type: array
+                  minItems: 1
+                  description: -|
+                    IngressRefs specifies an array of references to KafkaProxyIngresses. It must contain at
+                    least one element.
+                  items:
+                    type: object
+                    required: [ "name" ]
+                    properties:
+                      name:
+                        description: Name is the name of the referent
+                        maxLength: 253
+                        minLength: 1
+                        type: string
                 filters:
                   description: The filters to be used for this cluster. Each filter is a separate resource.
                   type: array
