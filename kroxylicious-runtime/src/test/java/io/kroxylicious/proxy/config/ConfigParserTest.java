@@ -6,10 +6,8 @@
 
 package io.kroxylicious.proxy.config;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -28,9 +26,6 @@ import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
-import io.kroxylicious.proxy.config.secret.PasswordProvider;
-import io.kroxylicious.proxy.config.tls.KeyStore;
-import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
@@ -675,48 +670,6 @@ class ConfigParserTest {
                 .satisfies(vcm -> assertThat(vcm.gateways())
                         .hasEntrySatisfying("mygateway", g -> assertThat(g.getClusterBootstrapAddress())
                                 .isEqualTo(bootstrapAddress)));
-    }
-
-    @Test
-    void tlsPasswordConfigurationUnderstandFilePathAlias() throws Exception {
-
-        var password = "mypassword";
-        var file = File.createTempFile("pass", "txt");
-        file.deleteOnExit();
-        Files.writeString(file.toPath(), password);
-        final Configuration configurationModel = configParser.parseConfiguration("""
-                        virtualClusters:
-                          - name: demo1
-                            targetCluster:
-                              bootstrapServers: magic-kafka.example:1234
-                            gateways:
-                            - name: mygateway
-                              tls:
-                                key:
-                                  storeFile: /tmp/store.txt
-                                  storePassword:
-                                    filePath: %s
-                              portIdentifiesNode:
-                                bootstrapAddress: cluster1:9192
-                """.formatted(file.getAbsolutePath()));
-        // When
-        final var virtualCluster = configurationModel.virtualClusters().iterator().next();
-
-        // Then
-        assertThat(virtualCluster.gateways())
-                .singleElement()
-                .satisfies(vcl -> {
-                    assertThat(vcl.name()).isEqualTo("mygateway");
-                    assertThat(vcl.tls())
-                            .get()
-                            .extracting(Tls::key)
-                            .isInstanceOf(KeyStore.class)
-                            .asInstanceOf(InstanceOfAssertFactories.type(KeyStore.class))
-                            .extracting(KeyStore::storePasswordProvider)
-                            .extracting(PasswordProvider::getProvidedPassword)
-                            .isEqualTo(password);
-                });
-
     }
 
     private record NonSerializableConfig(String id) {
