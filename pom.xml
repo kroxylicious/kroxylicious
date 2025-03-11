@@ -816,7 +816,7 @@
                 </dependencies>
                 <executions>
                     <execution>
-                        <id>convert-to-html</id>
+                        <id>convert-kroxylicious-proxy-to-html</id>
                         <goals>
                             <goal>process-asciidoc</goal>
                         </goals>
@@ -824,6 +824,8 @@
                             <requires>
                                 <require>asciidoctor-diagram</require>
                             </requires>
+                            <sourceDirectory>docs/kroxylicious-proxy</sourceDirectory>
+                            <sourceDocumentName>kroxylicious-proxy.adoc</sourceDocumentName>
                             <outputDirectory>${project.build.directory}/kroxylicious-proxy/html</outputDirectory>
                             <outputFile>index.html</outputFile>
                             <attributes>
@@ -835,8 +837,6 @@
                                 <attribute>revdate!</attribute>
                                 <attribute>revremark!</attribute>
                             </attributes>
-                            <sourceDirectory>docs</sourceDirectory>
-                            <sourceDocumentName>kroxylicious-proxy.adoc</sourceDocumentName>
                         </configuration>
                     </execution>
                 </executions>
