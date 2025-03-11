@@ -19,10 +19,11 @@ US (global) English is used throughout.
 
 ## Kroxylicious guide
 
-The Kroxylicious documentation is organized into a single **Kroxylicious** guide.
-The content for the guide is encapsulated in a main index file:
+The Kroxylicious documentation is organized into a several **Kroxylicious** guides.
 
-- [Index file](index.adoc)
+The content for the guide to the proxy is encapsulated in a main index file:
+
+- [kroxylicious-proxy.adoc](kroxylicious-proxy.adoc)
 
 ## Documentation folder structure
 
@@ -32,6 +33,7 @@ An assembly is like a sub-section or chapter in a book.
 A module contain a procedure (`proc-`), concepts (`con-`), or reference (`ref-`) content.
 
 **Documentation folders**
+
 | Folder                   | Description                                          |
 | --------------           | -------------------------------------------------    |
 | `assemblies/`            | Assemblies (chapters) group related content          |
