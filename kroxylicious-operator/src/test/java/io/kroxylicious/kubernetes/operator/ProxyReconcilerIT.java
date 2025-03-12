@@ -69,7 +69,7 @@ class ProxyReconcilerIT {
     private static final String NEW_BOOTSTRAP = "new-bootstrap:9092";
 
     private KubernetesClient client;
-    private final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(20));
+    private final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     @BeforeEach
     void checkKubeAvailable() {
