@@ -39,7 +39,7 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedDependentResourceContext;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
@@ -358,9 +358,9 @@ class DerivedResourcesTest {
         };
         Context<KafkaProxy> context = mock(Context.class, throwOnUnmockedInvocation);
 
-        var resourceContext = new DefaultManagedDependentResourceContext();
+        var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);
 
-        doReturn(resourceContext).when(context).managedDependentResourceContext();
+        doReturn(resourceContext).when(context).managedWorkflowAndDependentResourceContext();
 
         var runtimeDecl = OperatorMain.runtimeDecl();
         Set<GenericKubernetesResource> filterInstances = new HashSet<>();

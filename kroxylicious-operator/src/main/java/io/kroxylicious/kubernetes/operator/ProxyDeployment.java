@@ -65,7 +65,7 @@ public class ProxyDeployment
      * @return The {@code metadata.name} of the desired {@code Deployment}.
      */
     static String deploymentName(KafkaProxy primary) {
-        return name(primary);
+        return ResourcesUtil.name(primary);
     }
 
     @Override
@@ -124,7 +124,7 @@ public class ProxyDeployment
                             .withSecretName(ProxyConfigSecret.secretName(primary))
                         .endSecret()
                     .endVolume()
-                    .addAllToVolumes(ProxyConfigSecret.secureVolumes(context.managedDependentResourceContext()))
+                    .addAllToVolumes(ProxyConfigSecret.secureVolumes(context.managedWorkflowAndDependentResourceContext()))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -152,7 +152,7 @@ public class ProxyDeployment
                     .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
                     .withSubPath(ProxyConfigSecret.CONFIG_YAML_KEY)
                 .endVolumeMount()
-                .addAllToVolumeMounts(ProxyConfigSecret.secureVolumeMounts(context.managedDependentResourceContext()))
+                .addAllToVolumeMounts(ProxyConfigSecret.secureVolumeMounts(context.managedWorkflowAndDependentResourceContext()))
                 // management port
                 .addNewPort()
                     .withContainerPort(MANAGEMENT_PORT)

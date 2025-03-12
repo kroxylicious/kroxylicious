@@ -10,7 +10,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -24,16 +23,14 @@ import org.slf4j.spi.LoggingEventBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.AggregatedOperatorException;
-import io.javaoperatorsdk.operator.api.config.informer.InformerConfiguration;
+import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
-import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
-import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusHandler;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
-import io.javaoperatorsdk.operator.api.reconciler.EventSourceInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+import io.javaoperatorsdk.operator.api.reconciler.Workflow;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.Dependent;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
@@ -64,7 +61,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 // @formatter:off
-@ControllerConfiguration(dependents = {
+@Workflow(dependents = {
         @Dependent(
                 name = ProxyReconciler.CONFIG_DEP,
                 type = ProxyConfigSecret.class
@@ -82,10 +79,9 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
         )
 })
 // @formatter:on
-public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
+public class ProxyReconciler implements
         ContextInitializer<KafkaProxy>,
-        Reconciler<KafkaProxy>,
-        ErrorStatusHandler<KafkaProxy> {
+        Reconciler<KafkaProxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconciler.class);
 
@@ -293,8 +289,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     }
 
     @Override
-    public Map<String, EventSource> prepareEventSources(EventSourceContext<KafkaProxy> context) {
-        var eventSources = new ArrayList<InformerEventSource<?, KafkaProxy>>(this.runtimeDecl.filterApis().size());
+    public List<EventSource<?, KafkaProxy>> prepareEventSources(EventSourceContext<KafkaProxy> context) {
+        var eventSources = new ArrayList<EventSource<?, KafkaProxy>>(this.runtimeDecl.filterApis().size());
         for (var filterKind : this.runtimeDecl.filterApis()) {
             try {
                 eventSources.add(eventSourceForFilter(context, filterKind));
@@ -311,11 +307,11 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         eventSources.add(buildVirtualKafkaClusterInformer(context));
         eventSources.add(buildKafkaClusterRefInformer(context));
         eventSources.add(buildKafkaProxyIngressInformer(context));
-        return EventSourceInitializer.nameEventSources(eventSources.toArray(new EventSource[0]));
+        return eventSources;
     }
 
     private static InformerEventSource<?, KafkaProxy> buildVirtualKafkaClusterInformer(EventSourceContext<KafkaProxy> context) {
-        InformerConfiguration<VirtualKafkaCluster> configuration = InformerConfiguration.from(VirtualKafkaCluster.class)
+        InformerEventSourceConfiguration<VirtualKafkaCluster> configuration = InformerEventSourceConfiguration.from(VirtualKafkaCluster.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(clusterToProxyMapper(context))
                 .withPrimaryToSecondaryMapper(proxyToClusterMapper(context))
                 .build();
@@ -323,7 +319,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     }
 
     private static InformerEventSource<?, KafkaProxy> buildKafkaProxyIngressInformer(EventSourceContext<KafkaProxy> context) {
-        InformerConfiguration<KafkaProxyIngress> configuration = InformerConfiguration.from(KafkaProxyIngress.class)
+        InformerEventSourceConfiguration<KafkaProxyIngress> configuration = InformerEventSourceConfiguration.from(KafkaProxyIngress.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(ingressToProxyMapper(context))
                 .withPrimaryToSecondaryMapper(proxyToIngressMapper(context))
                 .build();
@@ -331,7 +327,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     }
 
     private static InformerEventSource<?, KafkaProxy> buildKafkaClusterRefInformer(EventSourceContext<KafkaProxy> context) {
-        InformerConfiguration<KafkaClusterRef> configuration = InformerConfiguration.from(KafkaClusterRef.class)
+        InformerEventSourceConfiguration<KafkaClusterRef> configuration = InformerEventSourceConfiguration.from(KafkaClusterRef.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(kafkaClusterRefToProxyMapper(context))
                 .withPrimaryToSecondaryMapper(proxyToKafkaClusterRefMapper(context))
                 .build();
@@ -385,7 +381,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
                                                                                                    EventSourceContext<KafkaProxy> context,
                                                                                                    FilterApiDecl filterApiDecl) {
 
-        var configuration = InformerConfiguration.from(filterApiDecl.groupVersionKind(), context)
+        var configuration = InformerEventSourceConfiguration.from(filterApiDecl.groupVersionKind(), KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(filterToProxy(context))
                 .withPrimaryToSecondaryMapper(proxyToFilters(context))
                 .build();
