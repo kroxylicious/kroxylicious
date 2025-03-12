@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,10 +28,8 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.operator.ingress.IngressAllocator;
 import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -71,9 +68,7 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
-        List<VirtualKafkaCluster> virtualKafkaClusters = ResourcesUtil.clustersInNameOrder(context).toList();
-        Set<KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class);
-        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, virtualKafkaClusters, ingresses);
+        ProxyModel model = ProxyModel.build(primary, context);
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -88,7 +83,7 @@ public class ProxyDeployment
                     .editOrNewSelector()
                         .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
-                    .withTemplate(podTemplate(primary, context, ingressModel, virtualKafkaClusters))
+                    .withTemplate(podTemplate(primary, context, model.ingressModel(), model.clustersWithValidIngresses()))
                 .endSpec()
                 .build();
         // @formatter:on

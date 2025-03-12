@@ -1,0 +1,33 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.kubernetes.operator;
+
+import java.util.List;
+import java.util.Set;
+
+import io.javaoperatorsdk.operator.api.reconciler.Context;
+
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.ingress.IngressAllocator;
+import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
+import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
+
+public record ProxyModel(ResolutionResult resolutionResult, ProxyIngressModel ingressModel, List<VirtualKafkaCluster> clustersWithValidIngresses) {
+
+    static ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
+        ResolutionResult resolutionResult = DependencyResolver.deepResolve(context);
+        Set<KafkaProxyIngress> ingresses = resolutionResult.getIngresses();
+        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult.allClustersInNameOrder(), ingresses, context);
+        List<VirtualKafkaCluster> clustersWithValidIngresses = resolutionResult.fullyResolvedClustersInNameOrder().stream()
+                .filter(cluster -> ingressModel.clusterIngressModel(cluster).map(i -> i.ingressExceptions().isEmpty()).orElse(false)).toList();
+        return new ProxyModel(resolutionResult, ingressModel, clustersWithValidIngresses);
+    }
+
+}

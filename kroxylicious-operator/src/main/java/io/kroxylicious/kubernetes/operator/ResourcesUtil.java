@@ -21,9 +21,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
@@ -86,12 +84,6 @@ public class ResourcesUtil {
         return context.getSecondaryResources(VirtualKafkaCluster.class)
                 .stream()
                 .sorted(Comparator.comparing(ResourcesUtil::name));
-    }
-
-    static Map<ResourceID, KafkaClusterRef> clusterRefs(Context<KafkaProxy> context) {
-        return context.getSecondaryResources(KafkaClusterRef.class)
-                .stream()
-                .collect(Collectors.toMap(ResourceID::fromResource, Function.identity()));
     }
 
     public static String name(@NonNull HasMetadata resource) {
