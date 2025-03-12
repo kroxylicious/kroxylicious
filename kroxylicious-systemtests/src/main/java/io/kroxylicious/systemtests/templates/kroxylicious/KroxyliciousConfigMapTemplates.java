@@ -101,7 +101,7 @@ public final class KroxyliciousConfigMapTemplates {
         String configYaml = buildEncryptionFilter(testKmsFacade, experimentalKmsConfig);
 
         return """
-                adminHttp:
+                management:
                   endpoints:
                     prometheus: {}
                 virtualClusters:
@@ -124,7 +124,7 @@ public final class KroxyliciousConfigMapTemplates {
 
     private static String getDefaultKroxyliciousConfigMap(String clusterName) {
         return """
-                adminHttp:
+                management:
                   endpoints:
                     prometheus: {}
                 virtualClusters:
@@ -150,7 +150,7 @@ public final class KroxyliciousConfigMapTemplates {
      */
     public static String getDefaultExternalKroxyliciousConfigMap(String clusterExternalIP) {
         return """
-                adminHttp:
+                management:
                   endpoints:
                     prometheus: {}
                 virtualClusters:

@@ -6,8 +6,8 @@
 
 ---
 useIoUring: true
-adminHttp:
-  host: kroxy
+management:
+  bindAddress: 127.0.0.1
   port: 9093
   endpoints:
     prometheus: {}

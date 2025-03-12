@@ -5,7 +5,7 @@
 #
 
 ---
-adminHttp:
+management:
   endpoints:
     prometheus: { }
 virtualClusters:

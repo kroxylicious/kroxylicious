@@ -158,7 +158,7 @@ class KafkaProxyTest {
     @Test
     void supportsLivezEndpoint() throws Exception {
         var config = """
-                   adminHttp:
+                   management:
                     port: 9190
                    virtualClusters:
                      - name: demo1

@@ -4,21 +4,21 @@
 == Management HTTP endpoints
 
 The proxy can run an HTTP server for exposing basic management information.
-This is configured with the top level `adminHttp` property.
+This is configured with the top level `management` property.
 
 [id='con-configuring-admin-http-{context}']
-.Configuration fragment showing the `adminHttp` property
+.Configuration fragment showing the `management` property
 [source,yaml]
 ----
 # ... (filterDefinitions, virtualClusters etc)
-adminHttp:
-  host: 0.0.0.0 <1>
+management:
+  bindAddress: 0.0.0.0 <1>
   port: 9190 <2>
   endpoints: # <3>
     prometheus: {} # <4>
 ----
 <1> The address the HTTP server should bind to. Defaults to `0.0.0.0`.
-<2> The port the HTTP server should bind to.
+<2> The port the HTTP server should bind to. Defaults to `9190`.
 <3> Control over the exposed endpoints
 <4> If present and not null, exposes a Prometheus scrape endpoint at path `/metrics`.
 

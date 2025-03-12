@@ -45,8 +45,8 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
-import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
+import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -151,7 +151,7 @@ public class ProxyConfigSecret
         List<NamedFilterDefinition> filterDefinitions = buildFilterDefinitions(context, virtualKafkaClusters);
 
         Configuration configuration = new Configuration(
-                new AdminHttpConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())), filterDefinitions,
+                new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())), filterDefinitions,
                 null, // no defaultFilters <= each of the virtualClusters specifies its own
                 virtualClusters,
                 List.of(), false,

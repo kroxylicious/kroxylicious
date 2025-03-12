@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.core.JsonParser;
@@ -35,7 +36,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
-import io.kroxylicious.proxy.config.admin.AdminHttpConfiguration;
+import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
@@ -49,10 +50,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * The root of the proxy configuration.
+ * <br>
+ * <br>
+ * Note that {@code adminHttp} is accepted as an alias for {@code management}.  Use of {@code adminHttp} is deprecated since 0.11.0
+ * and will be removed in a future release.
  */
-@JsonPropertyOrder({ "adminHttp", "filterDefinitions", "defaultFilters", "virtualClusters", "filters", "micrometer", "useIoUring", "development" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "filters", "micrometer", "useIoUring", "development" })
 public record Configuration(
-                            @Nullable AdminHttpConfiguration adminHttp,
+                            @Nullable @JsonAlias("adminHttp") @JsonDeserialize(using = AdminHttpDeprecationLoggingDeserializer.class) ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
                             @JsonDeserialize(using = VirtualClusterContainerDeserializer.class) List<VirtualCluster> virtualClusters,
@@ -78,8 +83,8 @@ public record Configuration(
 
     /**
      * Specifying {@code filters} is deprecated.
-     * Use the {@link Configuration#Configuration(AdminHttpConfiguration, List, List, List, List, boolean, Optional)} constructor instead.
-     * @param adminHttp admin http
+     * Use the {@link Configuration#Configuration(ManagementConfiguration, List, List, List, List, boolean, Optional)} constructor instead.
+     * @param management management configuration
      * @param filterDefinitions A list of named filter definitions (names must be unique)
      * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filters()}.
      * @param virtualClusters The virtual clusters
@@ -87,6 +92,7 @@ public record Configuration(
      * @param micrometer The micrometer config
      * @param useIoUring true to use iouring
      * @param development Development options
+     *
      */
     @Deprecated(since = "0.10.0", forRemoval = true)
     @JsonCreator
@@ -165,30 +171,31 @@ public record Configuration(
 
     /**
      * @deprecated This constructor is currently retained to be source compatible the call sites that are passing the deprecated `filters` parameter.
-     * Replaced by {@link #Configuration(AdminHttpConfiguration, List, List, List, List, boolean, Optional)}.
+     * Replaced by {@link #Configuration(ManagementConfiguration, List, List, List, List, boolean, Optional)}.
      */
     @Deprecated(since = "0.10.0", forRemoval = true)
     public Configuration(
-                         @Nullable AdminHttpConfiguration adminHttp,
+                         @Nullable @JsonAlias("adminHttp") ManagementConfiguration management,
                          @NonNull List<VirtualCluster> virtualClusters,
                          @Nullable List<FilterDefinition> filters,
                          List<MicrometerDefinition> micrometer,
                          boolean useIoUring,
                          @NonNull Optional<Map<String, Object>> development) {
-        this(adminHttp, null, null, virtualClusters, filters, micrometer, useIoUring, development);
+        this(management, null, null, virtualClusters, filters, micrometer, useIoUring, development);
     }
 
     /**
      * This constructor uses the new style `defaultFilters` and `filterDefinitions` parameters instead of the deprecated `filters`.
      */
     public Configuration(
-                         @Nullable AdminHttpConfiguration adminHttp, @Nullable List<NamedFilterDefinition> filterDefinitions,
+                         @Nullable @JsonAlias("adminHttp") ManagementConfiguration management,
+                         @Nullable List<NamedFilterDefinition> filterDefinitions,
                          @Nullable List<String> defaultFilters,
                          @NonNull List<VirtualCluster> virtualClusters,
                          List<MicrometerDefinition> micrometer,
                          boolean useIoUring,
                          @NonNull Optional<Map<String, Object>> development) {
-        this(adminHttp, filterDefinitions, defaultFilters, virtualClusters, null, micrometer, useIoUring, development);
+        this(management, filterDefinitions, defaultFilters, virtualClusters, null, micrometer, useIoUring, development);
     }
 
     private static VirtualClusterModel toVirtualClusterModel(@NonNull VirtualCluster virtualCluster,
@@ -248,10 +255,6 @@ public record Configuration(
         var provider = registry.pluginFactory(ClusterNetworkAddressConfigProviderService.class)
                 .pluginInstance(definition.type());
         return provider.build(definition.config());
-    }
-
-    public @Nullable AdminHttpConfiguration adminHttpConfig() {
-        return adminHttp();
     }
 
     public List<MicrometerDefinition> getMicrometer() {
@@ -347,8 +350,8 @@ public record Configuration(
      * Custom deserializer that handles the possibility that the virtualClusters node may contain a list.
      * This deserializer can be removed once the deprecated map support is removed.
      */
-    public static class VirtualClusterContainerDeserializer extends StdDeserializer<List<VirtualCluster>> {
-        public VirtualClusterContainerDeserializer() {
+    static class VirtualClusterContainerDeserializer extends StdDeserializer<List<VirtualCluster>> {
+        VirtualClusterContainerDeserializer() {
             super(TypeFactory.defaultInstance().constructParametricType(List.class, VirtualCluster.class));
         }
 
@@ -386,6 +389,30 @@ public record Configuration(
                 }
             });
             return ctxt.readTreeAsValue(clusterArrays, _valueType);
+        }
+    }
+
+    /**
+     * Custom deserializer that reports the use of the deprecated configuration property
+     * names {@code adminHttp} and {@code host}.
+     */
+    static class AdminHttpDeprecationLoggingDeserializer extends StdDeserializer<ManagementConfiguration> {
+        AdminHttpDeprecationLoggingDeserializer() {
+            super(TypeFactory.defaultInstance().constructType(ManagementConfiguration.class));
+        }
+
+        @Override
+        public ManagementConfiguration deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
+            JsonNode node = jp.getCodec().readTree(jp);
+            if ("adminHttp".equals(jp.currentName())) {
+                LOGGER.warn("The 'adminHttp' configuration property is deprecated and will be removed in a future release. "
+                        + "Configurations should replace 'adminHttp' with 'management'.");
+            }
+            if (node.has("host")) {
+                LOGGER.warn("The 'host' configuration property within the '{}' object  is deprecated and will be removed in a future release. "
+                        + "Configurations should replace 'host' with 'bindAddress'.", jp.currentName());
+            }
+            return ctxt.readTreeAsValue(node, getValueType(ctxt));
         }
     }
 }

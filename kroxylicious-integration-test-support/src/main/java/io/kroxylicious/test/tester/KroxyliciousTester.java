@@ -310,5 +310,5 @@ public interface KroxyliciousTester extends Closeable {
      * @return the Admin Http Client
      * @throws IllegalStateException admin interface not available
      */
-    AdminHttpClient getAdminHttpClient();
+    ManagementClient getManagementClient();
 }

@@ -12,7 +12,7 @@ The following example shows how to define the `CommonTagsHook` and `StandardBind
 .Example proxy configuration for Micrometer integration
 [source,yaml]
 ----
-adminHttp:
+management:
   endpoints:
     prometheus: {}
 micrometer:
