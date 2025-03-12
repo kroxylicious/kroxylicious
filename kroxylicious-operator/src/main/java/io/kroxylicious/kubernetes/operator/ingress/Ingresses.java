@@ -17,7 +17,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 
 class Ingresses {
@@ -26,16 +25,13 @@ class Ingresses {
 
     public static Stream<IngressDefinition> ingressesFor(KafkaProxy primary, VirtualKafkaCluster cluster, Set<KafkaProxyIngress> ingressResources) {
         Map<String, KafkaProxyIngress> namedIngresses = ingressResources.stream().collect(toByNameMap());
-        return cluster.getSpec().getIngressRefs().stream().map(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs::getName).map(
+        return cluster.getSpec().getIngressRefs().stream().map(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs::getName).flatMap(
                 ingressName -> {
-                    if (!namedIngresses.containsKey(ingressName)) {
-                        // TODO use cluster conditions to mark the cluster as broken
-                        throw new IllegalStateException(
-                                "VirtualKafkaCluster " + name(cluster) + " references an Ingress " + ingressName
-                                        + "that isn't associated with the proxy");
+                    if (namedIngresses.containsKey(ingressName)) {
+                        return Stream.of(toIngress(primary, cluster, namedIngresses.get(ingressName)));
                     }
                     else {
-                        return toIngress(primary, cluster, namedIngresses.get(ingressName));
+                        return Stream.empty();
                     }
                 });
     }
