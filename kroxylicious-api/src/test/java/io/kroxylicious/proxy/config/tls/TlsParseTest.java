@@ -168,7 +168,7 @@ class TlsParseTest {
                         "trust": {
                             "storeFile": "/tmp/file",
                             "storePassword": {
-                                "filePath": null
+                                "passwordFile": null
                             }
                         }
                     }
@@ -194,29 +194,13 @@ class TlsParseTest {
     }
 
     @Test
-    void testTrustStoreStoreFilePathPassword() throws IOException {
-        String json = """
-                {
-                    "trust": {
-                        "storeFile": "/tmp/file",
-                        "storePassword": {
-                            "filePath": "/tmp/pass"
-                        }
-                    }
-                }
-                """;
-        Tls tls = readTls(json);
-        assertThat(tls).isEqualTo(new Tls(null, new TrustStore("/tmp/file", new FilePassword("/tmp/pass"), null), null, null));
-    }
-
-    @Test
     void testTrustStoreStoreWithClientAuth() throws IOException {
         String json = """
                 {
                     "trust": {
                         "storeFile": "/tmp/file",
                         "storePassword": {
-                            "filePath": "/tmp/pass"
+                            "passwordFile": "/tmp/pass"
                         },
                         "trustOptions": {
                             "clientAuth": "REQUIRED"
