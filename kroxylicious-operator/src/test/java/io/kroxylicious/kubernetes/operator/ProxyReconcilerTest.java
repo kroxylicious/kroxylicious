@@ -94,7 +94,8 @@ class ProxyReconcilerTest {
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
-        var statusAssert = assertThat(updateControl.getResource()).get()
+        var statusAssert = assertThat(updateControl.getResource())
+                .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
         ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
@@ -124,8 +125,8 @@ class ProxyReconcilerTest {
         var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
-        var statusAssert = assertThat(updateControl.getResource()).isNotNull()
-                .isPresent().get()
+        var statusAssert = assertThat(updateControl.getResource())
+                .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
         ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
@@ -166,7 +167,8 @@ class ProxyReconcilerTest {
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
-        var statusAssert = assertThat(updateControl.getResource()).get()
+        var statusAssert = assertThat(updateControl.getResource())
+                .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
         ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
@@ -206,7 +208,8 @@ class ProxyReconcilerTest {
         var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
-        var statusAssert = assertThat(updateControl.getResource()).isNotNull().isPresent().get()
+        var statusAssert = assertThat(updateControl.getResource())
+                .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
         ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
@@ -246,7 +249,8 @@ class ProxyReconcilerTest {
         var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
-        var statusAssert = assertThat(updateControl.getResource()).isNotNull().isPresent().get()
+        var statusAssert = assertThat(updateControl.getResource())
+                .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
         ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
@@ -287,7 +291,8 @@ class ProxyReconcilerTest {
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
-        var statusAssert = assertThat(updateControl.getResource()).get()
+        var statusAssert = assertThat(updateControl.getResource())
+                .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
         ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
@@ -339,7 +344,7 @@ class ProxyReconcilerTest {
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
         var statusAssert = assertThat(updateControl.getResource())
-                .get()
+                .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.observedGeneration().isEqualTo(generation);
         statusAssert.singleCondition()
