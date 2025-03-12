@@ -20,9 +20,9 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
-import io.fabric8.kubernetes.api.model.Secret;
-import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -56,13 +56,11 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.clusterRefs;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
- * Generates a Kube {@code Secret} containing the proxy config YAML.
- * We use a {@code Secret} (rather than a {@code ConfigMap})
- * because the config might contain sensitive settings like passwords
+ * Generates a Kube {@code ConfigMap} containing the proxy config YAML.
  */
 @KubernetesDependent
-public class ProxyConfigSecret
-        extends CRUDKubernetesDependentResource<Secret, KafkaProxy> {
+public class ProxyConfigConfigMap
+        extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
 
     /**
      * The key of the {@code config.yaml} entry in the desired {@code Secret}.
@@ -85,8 +83,8 @@ public class ProxyConfigSecret
 
     private final SecureConfigInterpolator secureConfigInterpolator;
 
-    public ProxyConfigSecret() {
-        super(Secret.class);
+    public ProxyConfigConfigMap() {
+        super(ConfigMap.class);
         var providerMap = Map.<String, SecureConfigProvider> of(
                 "secret", MountedResourceConfigProvider.SECRET_PROVIDER,
                 "configmap", MountedResourceConfigProvider.CONFIGMAP_PROVIDER);
@@ -94,14 +92,14 @@ public class ProxyConfigSecret
     }
 
     /**
-     * @return The {@code metadata.name} of the desired Secret {@code Secret}.
+     * @return The {@code metadata.name} of the desired ConfigMap {@code Secret}.
      */
-    static String secretName(KafkaProxy primary) {
+    static String configMapName(KafkaProxy primary) {
         return ResourcesUtil.name(primary);
     }
 
     public static List<Volume> secureVolumes(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {
-        Set<Volume> volumes = managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_KEY, Set.class).orElse(Set.of());
+        Set<Volume> volumes = managedDependentResourceContext.get(ProxyConfigConfigMap.SECURE_VOLUME_KEY, Set.class).orElse(Set.of());
         if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
             throw new IllegalStateException("Two volumes with different definitions share the same name");
         }
@@ -109,7 +107,7 @@ public class ProxyConfigSecret
     }
 
     public static List<VolumeMount> secureVolumeMounts(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {
-        Set<VolumeMount> mounts = managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_MOUNT_KEY, Set.class).orElse(Set.of());
+        Set<VolumeMount> mounts = managedDependentResourceContext.get(ProxyConfigConfigMap.SECURE_VOLUME_MOUNT_KEY, Set.class).orElse(Set.of());
         if (mounts.stream().map(VolumeMount::getMountPath).distinct().count() != mounts.size()) {
             throw new IllegalStateException("Two volume mounts with different definitions share the same mount path");
         }
@@ -117,17 +115,17 @@ public class ProxyConfigSecret
     }
 
     @Override
-    protected Secret desired(KafkaProxy primary,
-                             Context<KafkaProxy> context) {
+    protected ConfigMap desired(KafkaProxy primary,
+                                Context<KafkaProxy> context) {
         // @formatter:off
-        return new SecretBuilder()
+        return new ConfigMapBuilder()
                 .editOrNewMetadata()
-                    .withName(secretName(primary))
+                    .withName(configMapName(primary))
                     .withNamespace(namespace(primary))
                     .addToLabels(standardLabels(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
-                .withStringData(Map.of(CONFIG_YAML_KEY, generateProxyConfig(primary, context)))
+                .withData(Map.of(CONFIG_YAML_KEY, generateProxyConfig(primary, context)))
                 .build();
         // @formatter:on
     }
@@ -225,7 +223,7 @@ public class ProxyConfigSecret
         return Optional.ofNullable(cluster.getSpec().getFilters())
                 .orElse(List.of())
                 .stream()
-                .map(ProxyConfigSecret::filterDefinitionName)
+                .map(ProxyConfigConfigMap::filterDefinitionName)
                 .toList();
     }
 

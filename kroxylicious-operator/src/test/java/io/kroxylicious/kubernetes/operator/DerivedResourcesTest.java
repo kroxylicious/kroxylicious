@@ -194,7 +194,7 @@ class DerivedResourcesTest {
         // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that
         // later DependentResource can depend on Context state created by earlier DependentResources.
         var list = List.<DesiredFn<KafkaProxy, ?>> of(
-                new SingletonDependentResourceDesiredFn<>(new ProxyConfigSecret(), "Secret", ProxyConfigSecret::desired),
+                new SingletonDependentResourceDesiredFn<>(new ProxyConfigConfigMap(), "ConfigMap", ProxyConfigConfigMap::desired),
                 new SingletonDependentResourceDesiredFn<>(new ProxyDeployment(), "Deployment", ProxyDeployment::desired),
                 new BulkDependentResourceDesiredFn<>(new ClusterService(), "Service", ClusterService::desiredResources));
         return dependentResourcesShouldEqual(list);

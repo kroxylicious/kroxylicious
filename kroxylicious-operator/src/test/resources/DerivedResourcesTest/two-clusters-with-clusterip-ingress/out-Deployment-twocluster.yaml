@@ -71,6 +71,6 @@ spec:
               name: "config-volume"
               subPath: "proxy-config.yaml"
       volumes:
-        - name: "config-volume"
-          secret:
-            secretName: "twocluster"
+        - configMap:
+            name: "twocluster"
+          name: "config-volume"
