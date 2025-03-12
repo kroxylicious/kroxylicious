@@ -26,7 +26,7 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedDependentResourceContext;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
@@ -53,7 +53,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.clusterRefs;
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
@@ -98,10 +97,10 @@ public class ProxyConfigSecret
      * @return The {@code metadata.name} of the desired Secret {@code Secret}.
      */
     static String secretName(KafkaProxy primary) {
-        return name(primary);
+        return ResourcesUtil.name(primary);
     }
 
-    public static List<Volume> secureVolumes(ManagedDependentResourceContext managedDependentResourceContext) {
+    public static List<Volume> secureVolumes(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {
         Set<Volume> volumes = managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_KEY, Set.class).orElse(Set.of());
         if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
             throw new IllegalStateException("Two volumes with different definitions share the same name");
@@ -109,7 +108,7 @@ public class ProxyConfigSecret
         return volumes.stream().toList();
     }
 
-    public static List<VolumeMount> secureVolumeMounts(ManagedDependentResourceContext managedDependentResourceContext) {
+    public static List<VolumeMount> secureVolumeMounts(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {
         Set<VolumeMount> mounts = managedDependentResourceContext.get(ProxyConfigSecret.SECURE_VOLUME_MOUNT_KEY, Set.class).orElse(Set.of());
         if (mounts.stream().map(VolumeMount::getMountPath).distinct().count() != mounts.size()) {
             throw new IllegalStateException("Two volume mounts with different definitions share the same mount path");
@@ -169,7 +168,7 @@ public class ProxyConfigSecret
             Set<IngressConflictException> exceptions = virtualClusterIngressModel.ingressExceptions();
             if (!exceptions.isEmpty()) {
                 VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
-                SharedKafkaProxyContext.addClusterCondition(context, cluster, ClusterCondition.ingressConflict(name(cluster), exceptions));
+                SharedKafkaProxyContext.addClusterCondition(context, cluster, ClusterCondition.ingressConflict(ResourcesUtil.name(cluster), exceptions));
             }
         }
         return ingressModel;
@@ -247,19 +246,19 @@ public class ProxyConfigSecret
             if (filterCr.getAdditionalProperties().get("spec") instanceof Map<?, ?> spec) {
                 String type = (String) spec.get("type");
                 SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
-                var ctx = context.managedDependentResourceContext();
+                ManagedWorkflowAndDependentResourceContext ctx = context.managedWorkflowAndDependentResourceContext();
                 putOrMerged(ctx, SECURE_VOLUME_KEY, interpolationResult.volumes());
                 putOrMerged(ctx, SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
                 return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
             }
             else {
-                throw new InvalidClusterException(ClusterCondition.filterInvalid(name(cluster), filterDefinitionName, "`spec` was not an `object`."));
+                throw new InvalidClusterException(ClusterCondition.filterInvalid(ResourcesUtil.name(cluster), filterDefinitionName, "`spec` was not an `object`."));
             }
 
         }).toList();
     }
 
-    private static <T> void putOrMerged(ManagedDependentResourceContext ctx, String ctxKey, Set<T> set) {
+    private static <T> void putOrMerged(ManagedWorkflowAndDependentResourceContext ctx, String ctxKey, Set<T> set) {
         Optional<Set<T>> ctxVolumes = (Optional) ctx.get(ctxKey, Set.class);
         if (ctxVolumes.isPresent()) {
             ctxVolumes.get().addAll(set);
@@ -283,12 +282,12 @@ public class ProxyConfigSecret
 
     @NonNull
     private static InvalidClusterException filterResourceNotFound(VirtualKafkaCluster cluster, Filters filterRef) {
-        return new InvalidClusterException(ClusterCondition.filterNotFound(name(cluster), filterRef.getName()));
+        return new InvalidClusterException(ClusterCondition.filterNotFound(ResourcesUtil.name(cluster), filterRef.getName()));
     }
 
     @NonNull
     private static InvalidClusterException targetClusterResourceNotFound(VirtualKafkaCluster cluster) {
-        return new InvalidClusterException(ClusterCondition.targetClusterRefNotFound(name(cluster), cluster.getSpec().getTargetCluster()));
+        return new InvalidClusterException(ClusterCondition.targetClusterRefNotFound(ResourcesUtil.name(cluster), cluster.getSpec().getTargetCluster()));
     }
 
     /**
@@ -303,7 +302,7 @@ public class ProxyConfigSecret
                     var filterResourceGroup = apiVersion.substring(0, apiVersion.indexOf("/"));
                     return filterResourceGroup.equals(filterRef.getGroup())
                             && filterResource.getKind().equals(filterRef.getKind())
-                            && name(filterResource).equals(filterRef.getName());
+                            && ResourcesUtil.name(filterResource).equals(filterRef.getName());
                 })
                 .findFirst()
                 .orElseThrow(() -> filterResourceNotFound(cluster, filterRef));
@@ -316,7 +315,7 @@ public class ProxyConfigSecret
         ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(cluster).orElseThrow();
         String bootstrap = kafkaClusterRef.getSpec().getBootstrapServers();
         return new VirtualCluster(
-                name(cluster), new TargetCluster(bootstrap, Optional.empty()),
+                ResourcesUtil.name(cluster), new TargetCluster(bootstrap, Optional.empty()),
                 null,
                 Optional.empty(),
                 virtualClusterIngressModel.gateways(),

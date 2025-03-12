@@ -23,7 +23,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ingress.IngressAllocator;
 import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressModel;
 
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 
 /**
@@ -45,7 +44,7 @@ public class ClusterService
      */
     static String serviceName(VirtualKafkaCluster cluster) {
         Objects.requireNonNull(cluster);
-        return name(cluster);
+        return ResourcesUtil.name(cluster);
     }
 
     @Override
@@ -65,7 +64,7 @@ public class ClusterService
     public Map<String, Service> getSecondaryResources(
                                                       KafkaProxy primary,
                                                       Context<KafkaProxy> context) {
-        Set<Service> secondaryResources = context.eventSourceRetriever().getResourceEventSourceFor(Service.class)
+        Set<Service> secondaryResources = context.eventSourceRetriever().getEventSourceFor(Service.class)
                 .getSecondaryResources(primary);
         return secondaryResources.stream().collect(toByNameMap());
     }

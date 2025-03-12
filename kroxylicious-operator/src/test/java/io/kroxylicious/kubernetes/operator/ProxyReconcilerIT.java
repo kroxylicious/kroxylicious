@@ -19,7 +19,7 @@ import org.assertj.core.api.Assumptions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
@@ -68,18 +68,18 @@ class ProxyReconcilerIT {
     private static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
     private static final String NEW_BOOTSTRAP = "new-bootstrap:9092";
 
-    private static KubernetesClient client;
+    private KubernetesClient client;
     private final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(20));
 
-    @BeforeAll
-    static void checkKubeAvailable() {
+    @BeforeEach
+    void checkKubeAvailable() {
         client = OperatorTestUtils.kubeClientIfAvailable();
         Assumptions.assumeThat(client).describedAs("Test requires a viable kube client").isNotNull();
         preloadOperatorImage();
     }
 
     // the initial operator image pull can take a long time and interfere with the tests
-    private static void preloadOperatorImage() {
+    private void preloadOperatorImage() {
         String operandImage = ProxyDeployment.getOperandImage();
         Pod pod = client.run().withName("preload-operator-image")
                 .withNewRunConfig()
