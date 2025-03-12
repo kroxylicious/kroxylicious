@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetCluster;
-import io.kroxylicious.kubernetes.operator.ingress.IngressConflictException;
+import io.kroxylicious.kubernetes.operator.model.ingress.IngressConflictException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -36,9 +36,14 @@ public record ClusterCondition(@NonNull String cluster,
                 String.format("Filter \"%s\" is invalid: %s", filterName, detail));
     }
 
-    static ClusterCondition filterNotFound(String cluster, String filterName) {
+    public static ClusterCondition filterNotFound(String cluster, String filterName) {
         return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
                 String.format("Filter \"%s\" does not exist.", filterName));
+    }
+
+    public static ClusterCondition ingressNotFound(String cluster, String ingressName) {
+        return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
+                String.format("KafkaProxyIngress \"%s\" does not exist.", ingressName));
     }
 
     public static ClusterCondition ingressConflict(String cluster, Set<IngressConflictException> ingressConflictExceptions) {
@@ -49,7 +54,7 @@ public record ClusterCondition(@NonNull String cluster,
                 String.format("Ingress(es) [%s] of cluster conflicts with another ingress", ingresses));
     }
 
-    static ClusterCondition targetClusterRefNotFound(String cluster, TargetCluster targetCluster) {
+    public static ClusterCondition targetClusterRefNotFound(String cluster, TargetCluster targetCluster) {
         return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
                 String.format("Target Cluster \"%s\" does not exist.", kubeName(targetCluster).orElse("<unknown>")));
     }
