@@ -57,7 +57,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 @JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "filters", "micrometer", "useIoUring", "development" })
 public record Configuration(
-                            @Nullable @JsonAlias("adminHttp") ManagementConfiguration management,
+                            @Nullable @JsonAlias("adminHttp") @JsonDeserialize(using = AdminHttpDeprecationLoggingDeserializer.class) ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
                             @JsonDeserialize(using = VirtualClusterContainerDeserializer.class) List<VirtualCluster> virtualClusters,
@@ -350,8 +350,8 @@ public record Configuration(
      * Custom deserializer that handles the possibility that the virtualClusters node may contain a list.
      * This deserializer can be removed once the deprecated map support is removed.
      */
-    public static class VirtualClusterContainerDeserializer extends StdDeserializer<List<VirtualCluster>> {
-        public VirtualClusterContainerDeserializer() {
+    static class VirtualClusterContainerDeserializer extends StdDeserializer<List<VirtualCluster>> {
+        VirtualClusterContainerDeserializer() {
             super(TypeFactory.defaultInstance().constructParametricType(List.class, VirtualCluster.class));
         }
 
@@ -389,6 +389,30 @@ public record Configuration(
                 }
             });
             return ctxt.readTreeAsValue(clusterArrays, _valueType);
+        }
+    }
+
+    /**
+     * Custom deserializer that reports the use of the deprecated configuration property
+     * names {@code adminHttp} and {@code host}.
+     */
+    static class AdminHttpDeprecationLoggingDeserializer extends StdDeserializer<ManagementConfiguration> {
+        AdminHttpDeprecationLoggingDeserializer() {
+            super(TypeFactory.defaultInstance().constructType(ManagementConfiguration.class));
+        }
+
+        @Override
+        public ManagementConfiguration deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
+            JsonNode node = jp.getCodec().readTree(jp);
+            if ("adminHttp".equals(jp.currentName())) {
+                LOGGER.warn("The 'adminHttp' configuration property is deprecated and will be removed in a future release. "
+                        + "Configurations should replace 'adminHttp' with 'management'.");
+            }
+            if (node.has("host")) {
+                LOGGER.warn("The 'host' configuration property within the '{}' object  is deprecated and will be removed in a future release. "
+                        + "Configurations should replace 'host' with 'bindAddress'.", jp.currentName());
+            }
+            return ctxt.readTreeAsValue(node, getValueType(ctxt));
         }
     }
 }

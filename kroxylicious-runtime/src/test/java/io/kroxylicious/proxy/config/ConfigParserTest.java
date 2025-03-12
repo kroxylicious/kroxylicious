@@ -703,7 +703,7 @@ class ConfigParserTest {
     void shouldSupportDeprecatedManagementConfigurationDefaults() {
         // When
         var configurationModel = configParser.parseConfiguration("""
-                management: {}
+                adminHttp: {}
                 """);
 
         // Then
