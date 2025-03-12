@@ -22,6 +22,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ingress.IngressAllocator;
 import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
+import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
@@ -52,11 +54,14 @@ public class ClusterService
     public Map<String, Service> desiredResources(
                                                  KafkaProxy primary,
                                                  Context<KafkaProxy> context) {
-        List<VirtualKafkaCluster> clusters = ResourcesUtil.clustersInNameOrder(context).toList();
-        Set<KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class);
-        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, clusters, ingresses);
-        Stream<Service> serviceStream = clusters.stream()
-                .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
+        ResolutionResult resolutionResult = DependencyResolver.deepResolve(context);
+        Set<KafkaProxyIngress> ingresses = resolutionResult.getIngresses();
+        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult.allClustersInNameOrder(), ingresses, context);
+        List<VirtualKafkaCluster> clusters = resolutionResult.fullyResolvedClustersInNameOrder();
+        List<VirtualKafkaCluster> clustersWithValidIngresses = clusters.stream()
+                .filter(cluster -> ingressModel.clusterIngressModel(cluster).map(i -> i.ingressExceptions().isEmpty()).orElse(false)).toList();
+
+        Stream<Service> serviceStream = clustersWithValidIngresses.stream()
                 .flatMap(cluster -> ingressModel.clusterIngressModel(cluster).map(ProxyIngressModel.VirtualClusterIngressModel::services).orElse(Stream.empty()));
         return serviceStream.collect(toByNameMap());
     }

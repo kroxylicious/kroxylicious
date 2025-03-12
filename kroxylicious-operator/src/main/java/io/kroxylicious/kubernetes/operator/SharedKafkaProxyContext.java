@@ -48,18 +48,13 @@ public class SharedKafkaProxyContext {
     /**
      * Associate a condition with a specific cluster.
      */
-    static void addClusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ClusterCondition clusterCondition) {
+    public static void addClusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ClusterCondition clusterCondition) {
         Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(null);
         if (map == null) {
             map = Collections.synchronizedMap(new HashMap<>());
             context.managedDependentResourceContext().put(CLUSTER_CONDITIONS_KEY, map);
         }
         map.put(name(cluster), clusterCondition);
-    }
-
-    static boolean isBroken(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
-        Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(Map.of());
-        return map.containsKey(name(cluster));
     }
 
     /**
@@ -72,4 +67,5 @@ public class SharedKafkaProxyContext {
         Optional<Map<String, ClusterCondition>> map = (Optional) context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class);
         return map.orElse(Map.of()).getOrDefault(name(cluster), ClusterCondition.accepted(name(cluster)));
     }
+
 }

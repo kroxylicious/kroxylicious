@@ -34,6 +34,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ingress.IngressAllocator;
 import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
+import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -71,9 +73,13 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
-        List<VirtualKafkaCluster> virtualKafkaClusters = ResourcesUtil.clustersInNameOrder(context).toList();
-        Set<KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class);
-        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, virtualKafkaClusters, ingresses);
+        ResolutionResult resolutionResult = DependencyResolver.deepResolve(context);
+        Set<KafkaProxyIngress> ingresses = resolutionResult.getIngresses();
+        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult.allClustersInNameOrder(), ingresses, context);
+        List<VirtualKafkaCluster> virtualKafkaClusters = resolutionResult.fullyResolvedClustersInNameOrder();
+        List<VirtualKafkaCluster> clustersWithValidIngresses = virtualKafkaClusters.stream()
+                .filter(cluster -> ingressModel.clusterIngressModel(cluster).map(i -> i.ingressExceptions().isEmpty()).orElse(false)).toList();
+
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -88,7 +94,7 @@ public class ProxyDeployment
                     .editOrNewSelector()
                         .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
-                    .withTemplate(podTemplate(primary, context, ingressModel, virtualKafkaClusters))
+                    .withTemplate(podTemplate(primary, context, ingressModel, clustersWithValidIngresses))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -160,11 +166,9 @@ public class ProxyDeployment
                 .endPort();
         // broker ports
         virtualKafkaClusters.forEach(virtualKafkaCluster -> {
-            if (!SharedKafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
-                ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(virtualKafkaCluster).orElseThrow();
-                for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
-                    ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);
-                }
+            ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(virtualKafkaCluster).orElseThrow();
+            for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
+                ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);
             }
         });
         return containerBuilder.build();

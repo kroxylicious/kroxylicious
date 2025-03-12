@@ -281,7 +281,7 @@ class DerivedResourcesTest {
                     var expectedFile = testDir.resolve("out-" + kind + "-" + name + ".yaml");
                     tests.add(DynamicTest.dynamicTest(kind + " '" + name + "' should have the same content as " + testDir.relativize(expectedFile),
                             () -> {
-                                assertThat(Files.exists(expectedFile)).isTrue();
+                                assertThat(Files.exists(expectedFile)).describedAs("file " + expectedFile + " should exist").isTrue();
                                 var expected = loadExpected(expectedFile, resourceType);
                                 assertSameYaml(actualResource, expected);
                                 unusedFiles.remove(expectedFile);
