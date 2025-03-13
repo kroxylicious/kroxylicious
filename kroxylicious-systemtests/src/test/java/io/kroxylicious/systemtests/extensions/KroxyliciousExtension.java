@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.logs.CollectorElement;
 import io.kroxylicious.systemtests.logs.TestLogCollector;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
@@ -68,7 +67,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     public void beforeAll(ExtensionContext extensionContext) {
         String testClassName = extensionContext.getRequiredTestClass().getName();
         ResourceManager.setTestContext(extensionContext);
-        NamespaceUtils.addNamespaceToSet(Environment.STRIMZI_NAMESPACE, new CollectorElement(testClassName, ""));
+        NamespaceUtils.addNamespaceToSet(Environment.STRIMZI_NAMESPACE, testClassName);
     }
 
     @Override
@@ -90,9 +89,10 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
                 logCollector.collectLogs(testClassName, testMethodName);
             });
+            logCollector.collectLogs(testClassName, testMethodName);
         }
         finally {
-            NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(namespace, new CollectorElement(testClassName, testMethodName));
+            NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(namespace, testClassName);
         }
     }
 

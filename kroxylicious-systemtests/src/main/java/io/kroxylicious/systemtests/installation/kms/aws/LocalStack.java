@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.logs.CollectorElement;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
@@ -73,9 +72,7 @@ public class LocalStack implements AwsKmsClient {
     public void delete() {
         LOGGER.info("Deleting Aws in {} namespace", deploymentNamespace);
         String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
-        String testCaseName = ResourceManager.getTestContext().getTestMethod().orElse(null) == null ? ""
-                : ResourceManager.getTestContext().getRequiredTestMethod().getName();
-        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, new CollectorElement(testSuiteName, testCaseName));
+        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, testSuiteName);
     }
 
     @Override

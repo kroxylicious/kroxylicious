@@ -14,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.logs.CollectorElement;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -74,18 +73,13 @@ public class NamespaceUtils {
     }
 
     /**
-     * Overloads {@link #createNamespaceAndPrepare(String, CollectorElement)}, but it creates a new {@link CollectorElement} for
-     * test class and test method automatically. The {@link CollectorElement} is needed for {@link io.kroxylicious.systemtests.logs.TestLogCollector} to
-     * correctly collect logs from all the Namespaces -> even those that are created manually in the test cases.
+     * Overloads {@link #createNamespaceAndPrepare(String, String)}
      *
      * @param namespaceName name of Namespace that should be created
      */
     public static void createNamespaceAndPrepare(String namespaceName) {
         final String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
-        final String testCaseName = ResourceManager.getTestContext().getTestMethod().orElse(null) == null ? ""
-                : ResourceManager.getTestContext().getRequiredTestMethod().getName();
-
-        createNamespaceAndPrepare(namespaceName, new CollectorElement(testSuiteName, testCaseName));
+        createNamespaceAndPrepare(namespaceName, testSuiteName);
     }
 
     /**
@@ -95,10 +89,10 @@ public class NamespaceUtils {
      *  - copies image pull secrets from `default` Namespace
      *
      * @param namespaceName name of the Namespace that should be created and prepared
-     * @param collectorElement the collector element
+     * @param testSuiteName the test suite name
      */
-    public static void createNamespaceAndPrepare(String namespaceName, CollectorElement collectorElement) {
-        createNamespaceAndAddToSet(namespaceName, collectorElement);
+    public static void createNamespaceAndPrepare(String namespaceName, String testSuiteName) {
+        createNamespaceAndAddToSet(namespaceName, testSuiteName);
         DeploymentUtils.registryCredentialsSecret(namespaceName);
     }
 
@@ -112,40 +106,40 @@ public class NamespaceUtils {
         return ResourceManager.getTestContext().getStore(ExtensionContext.Namespace.create(storeName));
     }
 
-    private static String getStoreName(CollectorElement collectorElement) {
-        return collectorElement.testClassName();
-    }
-
     /**
      * Add namespace to set.
      *
      * @param namespaceName the namespace name
-     * @param collectorElement the collector element
+     * @param testSuiteName the test suite name
      */
-    public static synchronized void addNamespaceToSet(String namespaceName, CollectorElement collectorElement) {
-        String storeName = getStoreName(collectorElement);
-        if (!isNamespaceStored(storeName, namespaceName)) {
-            Set<String> namespacesList = getNamespacesFromStore(storeName);
+    public static synchronized void addNamespaceToSet(String namespaceName, String testSuiteName) {
+        if (!isNamespaceStored(testSuiteName, namespaceName)) {
+            Set<String> namespacesList = getNamespacesForTestClass(testSuiteName);
             namespacesList.add(namespaceName);
-            getStore(storeName).put(NAMESPACES_KEY, namespacesList);
+            getStore(testSuiteName).put(NAMESPACES_KEY, namespacesList);
         }
     }
 
     private static boolean isNamespaceStored(String storeName, String namespace) {
-        Set<String> namespaces = getNamespacesFromStore(storeName);
+        Set<String> namespaces = getNamespacesForTestClass(storeName);
         return namespaces.contains(namespace);
     }
 
-    private static Set<String> getNamespacesFromStore(String storeName) {
-        Set<String> namespaces = getStore(storeName).get(NAMESPACES_KEY, Set.class);
+    /**
+     * Gets namespaces for test class.
+     *
+     * @param testClass the test class
+     * @return the namespaces for test class
+     */
+    public static Set<String> getNamespacesForTestClass(String testClass) {
+        Set<String> namespaces = getStore(testClass).get(NAMESPACES_KEY, Set.class);
         return namespaces != null ? namespaces : new HashSet<>();
     }
 
-    private static synchronized void deleteNamespaceFromSet(String namespaceName, CollectorElement collectorElement) {
-        String storeName = getStoreName(collectorElement);
-        Set<String> namespaceList = getNamespacesFromStore(storeName);
+    private static synchronized void deleteNamespaceFromSet(String namespaceName, String testSuiteName) {
+        Set<String> namespaceList = getNamespacesForTestClass(testSuiteName);
         namespaceList.remove(namespaceName);
-        getStore(storeName).put(NAMESPACES_KEY, namespaceList);
+        getStore(testSuiteName).put(NAMESPACES_KEY, namespaceList);
     }
 
     /**
@@ -155,11 +149,10 @@ public class NamespaceUtils {
      */
     public static void deleteAllNamespacesFromSet() {
         final String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
-        String storeName = getStoreName(new CollectorElement(testSuiteName, ""));
-        Set<String> namespaceList = getNamespacesFromStore(storeName);
+        Set<String> namespaceList = getNamespacesForTestClass(testSuiteName);
         namespaceList.forEach(NamespaceUtils::deleteNamespaceWithWait);
         if(!namespaceList.isEmpty()) {
-            getStore(storeName).remove(NAMESPACES_KEY);
+            getStore(testSuiteName).remove(NAMESPACES_KEY);
         }
     }
 
@@ -168,14 +161,11 @@ public class NamespaceUtils {
      * is not {@code null}, removes the Namespace from the store.
      *
      * @param namespaceName Name of the Namespace that should be deleted
-     * @param collectorElement Collector element for removing the Namespace from the set
+     * @param testSuiteName the test suite name
      */
-    public static void deleteNamespaceWithWaitAndRemoveFromSet(String namespaceName, CollectorElement collectorElement) {
+    public static void deleteNamespaceWithWaitAndRemoveFromSet(String namespaceName, String testSuiteName) {
         deleteNamespaceWithWait(namespaceName);
-
-        if (collectorElement != null) {
-            deleteNamespaceFromSet(namespaceName, collectorElement);
-        }
+        deleteNamespaceFromSet(namespaceName, testSuiteName);
     }
 
     /**
@@ -184,31 +174,10 @@ public class NamespaceUtils {
      * The last step is done only in case that {@param collectorElement} is not {@code null}
      *
      * @param namespaceName name of Namespace that should be created and added to the Set
-     * @param collectorElement "key" for accessing the particular Set of Namespaces
+     * @param testSuiteName the test suite name
      */
-    public static void createNamespaceAndAddToSet(String namespaceName, CollectorElement collectorElement) {
+    public static void createNamespaceAndAddToSet(String namespaceName, String testSuiteName) {
         createNamespaceWithWait(namespaceName);
-
-        if (collectorElement != null) {
-            addNamespaceToSet(namespaceName, collectorElement);
-        }
-    }
-
-    /**
-     * This method returns all Namespaces that are created for particular test-class and test-case.
-     *
-     * @param testClass name of the test-class where the test-case is running (for test-class-wide Namespaces)
-     * @param testCase name of the test-case (for test-case Namespaces)
-     * @return list of Namespaces for the test-class and test-case
-     */
-    public static Set<String> getListOfNamespacesForTestClassAndTestCase(String testClass, String testCase) {
-        Set<String> namespaces = getNamespacesFromStore(getStoreName(new CollectorElement(testClass, "")));
-
-        if (testCase != null) {
-            Set<String> namespacesForTestCase = getNamespacesFromStore(getStoreName(new CollectorElement(testClass, testCase)));
-            namespaces.addAll(namespacesForTestCase);
-        }
-
-        return namespaces;
+        addNamespaceToSet(namespaceName, testSuiteName);
     }
 }

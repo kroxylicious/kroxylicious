@@ -237,7 +237,7 @@ public class TestLogCollector {
                 .withRootFolderPath(rootPathToLogsForTestCase.toString())
                 .build();
 
-        Set<String> namespaces = NamespaceUtils.getListOfNamespacesForTestClassAndTestCase(testClass, testCase);
+        Set<String> namespaces = NamespaceUtils.getNamespacesForTestClass(testClass);
 
         testCaseCollector.collectFromNamespaces(namespaces.toArray(new String[0]));
     }

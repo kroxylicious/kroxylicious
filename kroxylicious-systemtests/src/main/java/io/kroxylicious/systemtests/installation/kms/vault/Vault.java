@@ -19,7 +19,6 @@ import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
 import io.fabric8.openshift.client.OpenShiftClient;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.logs.CollectorElement;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
@@ -104,9 +103,7 @@ public class Vault {
     public void delete() throws IOException {
         LOGGER.info("Deleting Vault in {} namespace", deploymentNamespace);
         String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
-        String testCaseName = ResourceManager.getTestContext().getTestMethod().orElse(null) == null ? ""
-                : ResourceManager.getTestContext().getRequiredTestMethod().getName();
-        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, new CollectorElement(testSuiteName, testCaseName));
+        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, testSuiteName);
     }
 
     /**
