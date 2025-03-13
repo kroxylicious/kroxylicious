@@ -13,6 +13,8 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * Callback that reports unresolved dependencies for a virtual cluster
  */
@@ -22,7 +24,7 @@ public interface UnresolvedDependencyReporter {
      * @param cluster cluster
      * @param unresolvedDependencies non-empty list of unresolved dependencies
      */
-    void reportUnresolvedDependencies(VirtualKafkaCluster cluster, Set<ResolutionResult.UnresolvedDependency> unresolvedDependencies);
+    void reportUnresolvedDependencies(@NonNull VirtualKafkaCluster cluster, @NonNull Set<ResolutionResult.UnresolvedDependency> unresolvedDependencies);
 
     static UnresolvedDependencyReporter contextClusterConditionReporter(Context<KafkaProxy> proxyContext) {
         return new ClusterConditionUnresolvedDependencyReporter(proxyContext);

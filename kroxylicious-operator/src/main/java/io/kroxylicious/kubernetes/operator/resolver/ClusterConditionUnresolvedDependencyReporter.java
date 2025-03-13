@@ -16,13 +16,18 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ClusterCondition;
 import io.kroxylicious.kubernetes.operator.SharedKafkaProxyContext;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static io.kroxylicious.kubernetes.operator.ClusterCondition.ingressNotFound;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
 record ClusterConditionUnresolvedDependencyReporter(Context<KafkaProxy> context) implements UnresolvedDependencyReporter {
 
     @Override
-    public void reportUnresolvedDependencies(VirtualKafkaCluster cluster, Set<ResolutionResult.UnresolvedDependency> unresolvedDependencies) {
+    public void reportUnresolvedDependencies(@NonNull VirtualKafkaCluster cluster, @NonNull Set<ResolutionResult.UnresolvedDependency> unresolvedDependencies) {
+        if (unresolvedDependencies.isEmpty()) {
+            throw new IllegalStateException("reporter should not be invoked if there are no unresolved dependencies");
+        }
         ResolutionResult.UnresolvedDependency firstUnresolvedDependency = unresolvedDependencies.stream()
                 .sorted(Comparator.comparing(ResolutionResult.UnresolvedDependency::type).thenComparing(ResolutionResult.UnresolvedDependency::name)).findFirst()
                 .orElseThrow();
