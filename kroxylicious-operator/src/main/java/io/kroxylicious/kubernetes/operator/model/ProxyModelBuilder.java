@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.model;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -20,19 +21,37 @@ import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.UnresolvedDependencyReporter;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.kubernetes.operator.resolver.UnresolvedDependencyReporter.contextClusterConditionReporter;
+
 /**
- * Takes a KafkaProxy, resolves all it's dependencies, and then computes a logical ProxyModel
+ * Takes a KafkaProxy, resolves all it's dependencies, and then computes a ProxyModel
  * which is a logical abstraction of the resources that should be manifested in kubernetes.
  */
 public class ProxyModelBuilder {
 
+    private final DependencyResolver resolver;
+    private final UnresolvedDependencyReporter reporter;
+
+    public ProxyModelBuilder(@NonNull DependencyResolver resolver, @NonNull UnresolvedDependencyReporter reporter) {
+        Objects.requireNonNull(resolver);
+        Objects.requireNonNull(reporter);
+        this.resolver = resolver;
+        this.reporter = reporter;
+    }
+
     public ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(context, UnresolvedDependencyReporter.contextClusterConditionReporter(context));
+        ResolutionResult resolutionResult = resolver.deepResolve(context, reporter);
         Set<KafkaProxyIngress> ingresses = resolutionResult.getIngresses();
         ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult.allClustersInNameOrder(), ingresses, context);
         List<VirtualKafkaCluster> clustersWithValidIngresses = resolutionResult.fullyResolvedClustersInNameOrder().stream()
                 .filter(cluster -> ingressModel.clusterIngressModel(cluster).map(i -> i.ingressExceptions().isEmpty()).orElse(false)).toList();
         return new ProxyModel(resolutionResult, ingressModel, clustersWithValidIngresses);
+    }
+
+    public static ProxyModelBuilder contextBuilder(Context<KafkaProxy> context) {
+        return new ProxyModelBuilder(DependencyResolver.create(), contextClusterConditionReporter(context));
     }
 
 }

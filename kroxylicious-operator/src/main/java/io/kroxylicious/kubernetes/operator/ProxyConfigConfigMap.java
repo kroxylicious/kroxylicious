@@ -129,7 +129,8 @@ public class ProxyConfigConfigMap
 
     String generateProxyConfig(KafkaProxy primary,
                                Context<KafkaProxy> context) {
-        ProxyModel model = new ProxyModelBuilder().build(primary, context);
+        ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder(context);
+        ProxyModel model = proxyModelBuilder.build(primary, context);
         List<NamedFilterDefinition> allFilterDefinitions = buildFilterDefinitions(context, model);
         Map<String, NamedFilterDefinition> namedDefinitions = allFilterDefinitions.stream().collect(Collectors.toMap(NamedFilterDefinition::name, f -> f));
 

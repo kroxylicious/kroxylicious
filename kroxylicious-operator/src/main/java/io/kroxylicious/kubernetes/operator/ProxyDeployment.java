@@ -69,7 +69,8 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
-        ProxyModel model = new ProxyModelBuilder().build(primary, context);
+        ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder(context);
+        ProxyModel model = proxyModelBuilder.build(primary, context);
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
