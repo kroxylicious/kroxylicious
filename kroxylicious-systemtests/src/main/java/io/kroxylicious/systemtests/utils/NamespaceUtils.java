@@ -151,7 +151,7 @@ public class NamespaceUtils {
         final String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
         Set<String> namespaceList = getNamespacesForTestClass(testSuiteName);
         namespaceList.forEach(NamespaceUtils::deleteNamespaceWithWait);
-        if(!namespaceList.isEmpty()) {
+        if (!namespaceList.isEmpty()) {
             getStore(testSuiteName).remove(NAMESPACES_KEY);
         }
     }
