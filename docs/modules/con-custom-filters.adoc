@@ -1,6 +1,6 @@
 // Assembly included in the following:
 //
-// index.adoc
+// kroxylicious-proxy.adoc
 
 [id='con-custom-filters-{context}']
 = Custom filters

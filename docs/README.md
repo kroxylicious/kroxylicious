@@ -19,35 +19,38 @@ US (global) English is used throughout.
 
 ## Kroxylicious guide
 
-The Kroxylicious documentation is organized into a single **Kroxylicious** guide.
-The content for the guide is encapsulated in a main index file:
+The Kroxylicious documentation is organized into specific **Kroxylicious** guides.
 
-- [Index file](index.adoc)
+The content for the guide to the proxy is encapsulated in a main index file:
+
+- [kroxylicious-proxy.adoc](kroxylicious-proxy/kroxylicious-proxy.adoc)
 
 ## Documentation folder structure
 
 The index file is used to build the documentation.
 Documentation folders contain the content that's incorporated into the main source files.
 An assembly is like a sub-section or chapter in a book.
-A module contain a procedure (`proc-`), concepts (`con-`), or reference (`ref-`) content.
+A module contains a procedure (`proc-`), concepts (`con-`), or reference (`ref-`) content.
 
 **Documentation folders**
-| Folder                   | Description                                          |
-| --------------           | -------------------------------------------------    |
-| `assemblies/`            | Assemblies (chapters) group related content          |
-| `modules/`               | Modules provide content for assemblies               |
-| `_assets/`               | Content common to all doc files                      |
-| `shared/attributes.adoc` | Global book attributes                               |
+
+| Folder                   | Description                                 |
+|--------------------------|---------------------------------------------|
+| `assemblies/`            | Assemblies (chapters) group related content |
+| `modules/`               | Modules provide content for assemblies      |
+| `_assets/`               | Content common to all doc files             |
+| `shared/attributes.adoc` | Global book attributes                      |
+| `kroxylicious-proxy/`    | The Kroxylicious Proxy guide                |
 
 ## Generating the guide
 
 To generate the guide in HTML, run the following Maven command:
 
 ```shell
-mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-to-html
+mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-kroxylicious-proxy-to-html
 ```
 
-The HTML is output to `target/html/index.html`. 
+The HTML is output to `target/kroxylicious-proxy/html/index.html`. 
 
 ## Contributing to the documentation
 

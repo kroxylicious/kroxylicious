@@ -37,6 +37,6 @@ jobs:
       - name: asciidoctor-ghpages
         uses: manoelcampos/asciidoctor-ghpages-action@v2
         with:
-          source_dir: docs/
+          source_dir: docs/kroxylicous-proxy
           asciidoctor_params: "--require asciidoctor-diagram --attribute=sectlinks --attribute=sectanchors"
           post_build: 'find . -name "*.svg" -exec git add -f {} \;'
