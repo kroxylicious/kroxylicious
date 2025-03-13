@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kubernetes.operator;
+package io.kroxylicious.kubernetes.operator.model;
 
 import java.util.List;
 import java.util.Set;
@@ -20,9 +20,13 @@ import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.UnresolvedDependencyReporter;
 
-public record ProxyModel(ResolutionResult resolutionResult, ProxyIngressModel ingressModel, List<VirtualKafkaCluster> clustersWithValidIngresses) {
+/**
+ * Takes a KafkaProxy, resolves all it's dependencies, and then computes a logical ProxyModel
+ * which is a logical abstraction of the resources that should be manifested in kubernetes.
+ */
+public class ProxyModelBuilder {
 
-    static ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
+    public ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(context, UnresolvedDependencyReporter.contextClusterConditionReporter(context));
         Set<KafkaProxyIngress> ingresses = resolutionResult.getIngresses();
         ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult.allClustersInNameOrder(), ingresses, context);

@@ -34,6 +34,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Filters;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
+import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.config.ConfigParser;
@@ -127,7 +129,7 @@ public class ProxyConfigConfigMap
 
     String generateProxyConfig(KafkaProxy primary,
                                Context<KafkaProxy> context) {
-        ProxyModel model = ProxyModel.build(primary, context);
+        ProxyModel model = new ProxyModelBuilder().build(primary, context);
         List<NamedFilterDefinition> allFilterDefinitions = buildFilterDefinitions(context, model);
         Map<String, NamedFilterDefinition> namedDefinitions = allFilterDefinitions.stream().collect(Collectors.toMap(NamedFilterDefinition::name, f -> f));
 

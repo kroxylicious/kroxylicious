@@ -30,6 +30,8 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
+import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -67,7 +69,7 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
-        ProxyModel model = ProxyModel.build(primary, context);
+        ProxyModel model = new ProxyModelBuilder().build(primary, context);
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()

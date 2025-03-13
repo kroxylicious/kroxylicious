@@ -18,6 +18,8 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
+import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
@@ -48,7 +50,7 @@ public class ClusterService
     public Map<String, Service> desiredResources(
                                                  KafkaProxy primary,
                                                  Context<KafkaProxy> context) {
-        ProxyModel model = ProxyModel.build(primary, context);
+        ProxyModel model = new ProxyModelBuilder().build(primary, context);
         Stream<Service> serviceStream = model.clustersWithValidIngresses().stream()
                 .filter(cluster -> !SharedKafkaProxyContext.isBroken(context, cluster))
                 .flatMap(cluster -> model.ingressModel().clusterIngressModel(cluster).map(ProxyIngressModel.VirtualClusterIngressModel::services).orElse(Stream.empty()));
