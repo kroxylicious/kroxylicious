@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -20,6 +21,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static java.util.Comparator.comparing;
 
@@ -34,11 +37,14 @@ public class ResolutionResult {
     private final Map<String, KafkaClusterRef> kafkaClusterRefs;
     private final Map<String, ClusterResolutionResult> clusterResolutionResults;
 
-    ResolutionResult(Map<String, GenericKubernetesResource> filters,
-                     Map<String, KafkaProxyIngress> kafkaProxyIngresses,
-                     Map<String, KafkaClusterRef> kafkaClusterRefs,
-                     Map<String, ClusterResolutionResult> clusterResolutionResults) {
-
+    ResolutionResult(@NonNull Map<String, GenericKubernetesResource> filters,
+                     @NonNull Map<String, KafkaProxyIngress> kafkaProxyIngresses,
+                     @NonNull Map<String, KafkaClusterRef> kafkaClusterRefs,
+                     @NonNull Map<String, ClusterResolutionResult> clusterResolutionResults) {
+        Objects.requireNonNull(filters);
+        Objects.requireNonNull(kafkaProxyIngresses);
+        Objects.requireNonNull(kafkaClusterRefs);
+        Objects.requireNonNull(clusterResolutionResults);
         this.filters = filters;
         this.kafkaProxyIngresses = kafkaProxyIngresses;
         this.kafkaClusterRefs = kafkaClusterRefs;
@@ -61,11 +67,25 @@ public class ResolutionResult {
         return filters.values();
     }
 
-    public record UnresolvedDependency(Dependency type, String name) {}
+    public record UnresolvedDependency(@NonNull Dependency type, @NonNull String name) {
+        public UnresolvedDependency {
+            Objects.requireNonNull(type);
+            Objects.requireNonNull(name);
+        }
+    }
 
-    public record ClusterResolutionResult(VirtualKafkaCluster cluster, Set<UnresolvedDependency> unresolvedDependencySet) {
+    public record ClusterResolutionResult(@NonNull VirtualKafkaCluster cluster, @NonNull Set<UnresolvedDependency> unresolvedDependencySet) {
+        public ClusterResolutionResult {
+            Objects.requireNonNull(cluster);
+            Objects.requireNonNull(unresolvedDependencySet);
+        }
+
         public boolean isAnyDependencyUnresolved() {
             return !unresolvedDependencySet.isEmpty();
+        }
+
+        public boolean isFullyResolved() {
+            return !isAnyDependencyUnresolved();
         }
 
     }
@@ -83,7 +103,7 @@ public class ResolutionResult {
     }
 
     public List<VirtualKafkaCluster> fullyResolvedClustersInNameOrder() {
-        return clusterResolutionResults.values().stream().filter(v -> !v.isAnyDependencyUnresolved()).map(ClusterResolutionResult::cluster)
+        return clusterResolutionResults.values().stream().filter(ClusterResolutionResult::isFullyResolved).map(ClusterResolutionResult::cluster)
                 .sorted(comparing(ResourcesUtil::name)).toList();
     }
 
