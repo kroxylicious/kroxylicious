@@ -74,6 +74,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     @Override
     public void afterAll(ExtensionContext extensionContext) {
         if (!Environment.SKIP_TEARDOWN) {
+            ResourceManager.setTestContext(extensionContext);
             NamespaceUtils.deleteAllNamespacesFromSet();
         }
     }

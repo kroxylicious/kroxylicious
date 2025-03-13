@@ -17,6 +17,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 import io.skodjob.testframe.LogCollector;
 import io.skodjob.testframe.LogCollectorBuilder;
@@ -236,7 +237,7 @@ public class TestLogCollector {
                 .withRootFolderPath(rootPathToLogsForTestCase.toString())
                 .build();
 
-        List<String> namespaces = NamespaceUtils.getListOfNamespacesForTestClassAndTestCase(testClass, testCase);
+        Set<String> namespaces = NamespaceUtils.getListOfNamespacesForTestClassAndTestCase(testClass, testCase);
 
         testCaseCollector.collectFromNamespaces(namespaces.toArray(new String[0]));
     }

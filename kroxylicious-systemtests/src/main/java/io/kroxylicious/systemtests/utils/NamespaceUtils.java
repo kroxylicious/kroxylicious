@@ -6,13 +6,10 @@
 
 package io.kroxylicious.systemtests.utils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
+import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +26,7 @@ import static org.awaitility.Awaitility.await;
 public class NamespaceUtils {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NamespaceUtils.class);
-    private static final Map<CollectorElement, Set<String>> MAP_WITH_SUITE_NAMESPACES = new HashMap<>();
+    private static final String NAMESPACES_KEY = "namespaces";
 
     private NamespaceUtils() {
     }
@@ -66,7 +63,7 @@ public class NamespaceUtils {
     public static void createNamespaceWithWait(String namespace) {
         LOGGER.info("Creating namespace: {}", namespace);
         if (isNamespaceCreated(namespace)) {
-            LOGGER.warn("Namespace was already created!");
+            LOGGER.warn("{} Namespace was already created!", namespace);
             return;
         }
         kubeClient().createNamespace(namespace);
@@ -98,6 +95,7 @@ public class NamespaceUtils {
      *  - copies image pull secrets from `default` Namespace
      *
      * @param namespaceName name of the Namespace that should be created and prepared
+     * @param collectorElement the collector element
      */
     public static void createNamespaceAndPrepare(String namespaceName, CollectorElement collectorElement) {
         createNamespaceAndAddToSet(namespaceName, collectorElement);
@@ -105,87 +103,84 @@ public class NamespaceUtils {
     }
 
     /**
-     * @return {@link #MAP_WITH_SUITE_NAMESPACES}
+     * Gets store.
+     *
+     * @param storeName the store name
+     * @return the store
      */
-    public static Map<CollectorElement, Set<String>> getMapWithSuiteNamespaces() {
-        return MAP_WITH_SUITE_NAMESPACES;
+    public static ExtensionContext.Store getStore(String storeName) {
+        return ResourceManager.getTestContext().getStore(ExtensionContext.Namespace.create(storeName));
+    }
+
+    private static String getStoreName(CollectorElement collectorElement) {
+        return collectorElement.testClassName();
     }
 
     /**
-     * Adds Namespace with {@param namespaceName} to the {@code MAP_WITH_SUITE_NAMESPACES} based on the {@param collectorElement}
-     * The Map of these Namespaces is then used in LogCollector for logs collection or in
-     * {@code AbstractST.afterAllMayOverride} method for deleting all Namespaces after all test cases
+     * Add namespace to set.
      *
-     * @param namespaceName name of the Namespace that should be added into the Set
-     * @param collectorElement "key" for accessing the particular Set of Namespaces
+     * @param namespaceName the namespace name
+     * @param collectorElement the collector element
      */
     public static synchronized void addNamespaceToSet(String namespaceName, CollectorElement collectorElement) {
-        if (MAP_WITH_SUITE_NAMESPACES.containsKey(collectorElement)) {
-            Set<String> testSuiteNamespaces = MAP_WITH_SUITE_NAMESPACES.get(collectorElement);
-            testSuiteNamespaces.add(namespaceName);
-            MAP_WITH_SUITE_NAMESPACES.put(collectorElement, testSuiteNamespaces);
+        String storeName = getStoreName(collectorElement);
+        if (!isNamespaceStored(storeName, namespaceName)) {
+            Set<String> namespacesList = getNamespacesFromStore(storeName);
+            namespacesList.add(namespaceName);
+            getStore(storeName).put(NAMESPACES_KEY, namespacesList);
         }
-        else {
-            // test-suite is new
-            MAP_WITH_SUITE_NAMESPACES.put(collectorElement, new HashSet<>(Set.of(namespaceName)));
-        }
+    }
 
-        LOGGER.trace("SUITE_NAMESPACE_MAP: {}", MAP_WITH_SUITE_NAMESPACES);
+    private static boolean isNamespaceStored(String storeName, String namespace) {
+        Set<String> namespaces = getNamespacesFromStore(storeName);
+        return namespaces.contains(namespace);
+    }
+
+    private static Set<String> getNamespacesFromStore(String storeName) {
+        Set<String> namespaces = getStore(storeName).get(NAMESPACES_KEY, Set.class);
+        return namespaces != null ? namespaces : new HashSet<>();
+    }
+
+    private static synchronized void deleteNamespaceFromSet(String namespaceName, CollectorElement collectorElement) {
+        String storeName = getStoreName(collectorElement);
+        Set<String> namespaceList = getNamespacesFromStore(storeName);
+        namespaceList.remove(namespaceName);
+        getStore(storeName).put(NAMESPACES_KEY, namespaceList);
     }
 
     /**
-     * Removes Namespace with {@param namespaceName} from the {@link #MAP_WITH_SUITE_NAMESPACES} based on the {@param collectorElement}.
-     * After the Namespace is deleted, it is removed also from the Set -> so we know that we should not collect logs from there and that
-     * everything should be cleared after a test case
-     *
-     * @param namespaceName name of the Namespace that should be added into the Set
-     * @param collectorElement "key" for accessing the particular Set of Namespaces
-     */
-    private static synchronized void removeNamespaceFromSet(String namespaceName, CollectorElement collectorElement) {
-        // dynamically removing from the map
-        if (!MAP_WITH_SUITE_NAMESPACES.containsKey(collectorElement)) {
-            LOGGER.debug("collector already deleted!");
-            return;
-        }
-        Set<String> testSuiteNamespaces = new HashSet<>(MAP_WITH_SUITE_NAMESPACES.get(collectorElement));
-        testSuiteNamespaces.remove(namespaceName);
-
-        MAP_WITH_SUITE_NAMESPACES.put(collectorElement, testSuiteNamespaces);
-
-        LOGGER.trace("SUITE_NAMESPACE_MAP after deletion: {}", MAP_WITH_SUITE_NAMESPACES);
-    }
-
-    /**
-     * For all entries inside the {@link #MAP_WITH_SUITE_NAMESPACES} it deletes all Namespaces in the particular Set
+     * For all entries inside the store it deletes all Namespaces in the particular Set
      * After that, it clears the whole Map
      * It is used mainly in {@code AbstractST.afterAllMayOverride} to remove everything after all test cases are executed
      */
     public static void deleteAllNamespacesFromSet() {
-        MAP_WITH_SUITE_NAMESPACES.values()
-                .forEach(setOfNamespaces -> setOfNamespaces.parallelStream()
-                        .forEach(NamespaceUtils::deleteNamespaceWithWait));
-
-        MAP_WITH_SUITE_NAMESPACES.clear();
+        final String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
+        String storeName = getStoreName(new CollectorElement(testSuiteName, ""));
+        Set<String> namespaceList = getNamespacesFromStore(storeName);
+        namespaceList.forEach(NamespaceUtils::deleteNamespaceWithWait);
+        if(!namespaceList.isEmpty()) {
+            getStore(storeName).remove(NAMESPACES_KEY);
+        }
     }
 
     /**
      * Deletes Namespace with {@param namespaceName}, waits for its deletion, and in case that {@param collectorElement}
-     * is not {@code null}, removes the Namespace from the {@link #MAP_WITH_SUITE_NAMESPACES}.
+     * is not {@code null}, removes the Namespace from the store.
      *
-     * @param namespaceName     Name of the Namespace that should be deleted
-     * @param collectorElement  Collector element for removing the Namespace from the set
+     * @param namespaceName Name of the Namespace that should be deleted
+     * @param collectorElement Collector element for removing the Namespace from the set
      */
     public static void deleteNamespaceWithWaitAndRemoveFromSet(String namespaceName, CollectorElement collectorElement) {
         deleteNamespaceWithWait(namespaceName);
 
         if (collectorElement != null) {
-            removeNamespaceFromSet(namespaceName, collectorElement);
+            deleteNamespaceFromSet(namespaceName, collectorElement);
         }
     }
 
     /**
      * Method for creating Namespace with {@param namespaceName}, waiting for its creation, and adding it
-     * to the {@link #MAP_WITH_SUITE_NAMESPACES}.
+     * to the store.
      * The last step is done only in case that {@param collectorElement} is not {@code null}
      *
      * @param namespaceName name of Namespace that should be created and added to the Set
@@ -202,34 +197,18 @@ public class NamespaceUtils {
     /**
      * This method returns all Namespaces that are created for particular test-class and test-case.
      *
-     * @param testClass     name of the test-class where the test-case is running (for test-class-wide Namespaces)
-     * @param testCase      name of the test-case (for test-case Namespaces)
-     *
-     * @return  list of Namespaces for the test-class and test-case
+     * @param testClass name of the test-class where the test-case is running (for test-class-wide Namespaces)
+     * @param testCase name of the test-case (for test-case Namespaces)
+     * @return list of Namespaces for the test-class and test-case
      */
-    public static List<String> getListOfNamespacesForTestClassAndTestCase(String testClass, String testCase) {
-        List<String> namespaces = new ArrayList<>(getMapWithSuiteNamespaces().get(new CollectorElement(testClass, "")));
+    public static Set<String> getListOfNamespacesForTestClassAndTestCase(String testClass, String testCase) {
+        Set<String> namespaces = getNamespacesFromStore(getStoreName(new CollectorElement(testClass, "")));
 
         if (testCase != null) {
-            Set<String> namespacesForTestCase = getMapWithSuiteNamespaces().get(new CollectorElement(testClass, testCase));
-
-            if (namespacesForTestCase != null) {
-                namespaces.addAll(getMapWithSuiteNamespaces().get(new CollectorElement(testClass, testCase)));
-            }
+            Set<String> namespacesForTestCase = getNamespacesFromStore(getStoreName(new CollectorElement(testClass, testCase)));
+            namespaces.addAll(namespacesForTestCase);
         }
 
         return namespaces;
-    }
-
-    /**
-     * Delete namespaces from set.
-     *
-     * @param testClass the test class
-     * @param testCase the test case
-     */
-    public static void deleteNamespacesFromSet(String testClass, String testCase) {
-        for (String namespace : getListOfNamespacesForTestClassAndTestCase(testClass, testCase)) {
-            removeNamespaceFromSet(namespace, new CollectorElement(testClass, testCase));
-        }
     }
 }
