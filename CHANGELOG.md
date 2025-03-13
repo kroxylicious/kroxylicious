@@ -8,6 +8,7 @@ Format `<github issue/pr number>: <short description>`.
 ## SNAPSHOT
 ## 0.11.0
 
+* [#1928](https://github.com/kroxylicious/kroxylicious/pull/1928) Make Kroxylicious Operator metrics available for collection
 * [#1810](https://github.com/kroxylicious/kroxylicious/issues/1810) Run operator/operand image as non-root user
 * [#1903](https://github.com/kroxylicious/kroxylicious/issues/1903) Rename `adminHttp` to `management` in the config model.
 * [#1918](https://github.com/kroxylicious/kroxylicious/pull/1918)  Removes support for the deprecated config property `filePath`.
@@ -20,7 +21,6 @@ Format `<github issue/pr number>: <short description>`.
 * [#1820](https://github.com/kroxylicious/kroxylicious/pull/1820) Bump io.micrometer:micrometer-bom from 1.14.3 to 1.14.4
 * [#1768](https://github.com/kroxylicious/kroxylicious/pull/1768) Record Encryption: enable user to specify policy when we cannot resolve a Key for a topic
 * [#1867](https://github.com/kroxylicious/kroxylicious/pull/1867) Capture metrics about the operation of the Kroxylicious Operator
-* [#1928](https://github.com/kroxylicious/kroxylicious/pull/1928) Make Kroxylicious Operator metrics available for collection
 
 ### Changes, deprecations and removals
 
