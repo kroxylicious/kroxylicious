@@ -14,4 +14,5 @@ spec:
   bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
   tls:
     certificateRef:
-      name: kafka-secret
+      kind: ThisKindDoesNotExist
+      name: kafka-client-secret

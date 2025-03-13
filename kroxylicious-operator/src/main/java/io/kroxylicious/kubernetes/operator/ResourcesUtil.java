@@ -22,6 +22,7 @@ import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -153,5 +154,12 @@ public class ResourcesUtil {
 
     public static String group(HasMetadata resource) {
         return resource.getApiVersion().substring(0, resource.getApiVersion().indexOf("/"));
+    }
+
+    public static AnyLocalRef applyDefaults(AnyLocalRef anyLocalRef, String group, String kind) {
+        return new AnyLocalRefBuilder()
+                .withGroup(Optional.ofNullable(anyLocalRef.getGroup()).orElse(group))
+                .withKind(Optional.ofNullable(anyLocalRef.getKind()).orElse(kind))
+                .withName(anyLocalRef.getName()).build();
     }
 }
