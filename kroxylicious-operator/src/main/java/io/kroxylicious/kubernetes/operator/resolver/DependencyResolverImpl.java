@@ -22,14 +22,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Filters;
-import io.kroxylicious.kubernetes.operator.ClusterCondition;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-import io.kroxylicious.kubernetes.operator.SharedKafkaProxyContext;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedDependency;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.kubernetes.operator.ClusterCondition.ingressNotFound;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 import static io.kroxylicious.kubernetes.operator.resolver.Dependency.FILTER;
@@ -42,7 +39,7 @@ class DependencyResolverImpl implements DependencyResolver {
 
     @NonNull
     @Override
-    public ResolutionResult deepResolve(@NonNull Context<KafkaProxy> context) {
+    public ResolutionResult deepResolve(@NonNull Context<KafkaProxy> context, UnresolvedDependencyReporter unresolvedDependencyReporter) {
         Objects.requireNonNull(context);
         Set<VirtualKafkaCluster> virtualKafkaClusters = context.getSecondaryResources(VirtualKafkaCluster.class);
         if (virtualKafkaClusters.isEmpty()) {
@@ -70,7 +67,7 @@ class DependencyResolverImpl implements DependencyResolver {
             return new ResolutionResult.ClusterResolutionResult(cluster, unresolvedDependencies);
         }).collect(Collectors.toMap(result -> ResourcesUtil.name(result.cluster()), r -> r));
         ResolutionResult result = new ResolutionResult(filters, ingresses, clusterRefs, resolutionResult);
-        reportClustersThatDidNotFullyResolve(context, result);
+        reportClustersThatDidNotFullyResolve(result, unresolvedDependencyReporter);
         return result;
     }
 
@@ -82,21 +79,12 @@ class DependencyResolverImpl implements DependencyResolver {
                 && name(filterResource).equals(filterRef.getName());
     }
 
-    public static void reportClustersThatDidNotFullyResolve(Context<KafkaProxy> context, ResolutionResult resolutionResult) {
+    public static void reportClustersThatDidNotFullyResolve(ResolutionResult resolutionResult,
+                                                            UnresolvedDependencyReporter unresolvedDependencyReporter) {
         resolutionResult.clusterResult()
                 .filter(ResolutionResult.ClusterResolutionResult::isAnyDependencyUnresolved)
-                .forEach(clusterResolutionResult -> reportResolutionFailure(context, clusterResolutionResult));
+                .forEach(clusterResolutionResult -> unresolvedDependencyReporter.reportUnresolvedDependencies(clusterResolutionResult.cluster(),
+                        clusterResolutionResult.unresolvedDependencySet()));
     }
 
-    private static void reportResolutionFailure(Context<KafkaProxy> context, ResolutionResult.ClusterResolutionResult clusterResolutionResult) {
-        clusterResolutionResult.firstUnresolvedDependency().ifPresent(unresolved -> {
-            VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
-            switch (unresolved.type()) {
-                case KAFKA_PROXY_INGRESS -> SharedKafkaProxyContext.addClusterCondition(context, cluster, ingressNotFound(name(cluster), unresolved.name()));
-                case FILTER -> SharedKafkaProxyContext.addClusterCondition(context, cluster, ClusterCondition.filterNotFound(name(cluster), unresolved.name()));
-                case KAFKA_CLUSTER_REF -> SharedKafkaProxyContext.addClusterCondition(context, cluster,
-                        ClusterCondition.targetClusterRefNotFound(name(cluster), cluster.getSpec().getTargetCluster()));
-            }
-        });
-    }
 }

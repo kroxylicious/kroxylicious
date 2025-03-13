@@ -23,6 +23,11 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import static java.util.Comparator.comparing;
 
+/**
+ * The result of a deep resolution of the dependencies of a single KafkaProxy. Contains all
+ * Filters, KafkaProxyIngresses and KafkaClusterRefs that were successfully resolved. Contains
+ * a list of unresolved references per VirtualKafkaCluster.
+ */
 public class ResolutionResult {
     private final Map<String, GenericKubernetesResource> filters;
     private final Map<String, KafkaProxyIngress> kafkaProxyIngresses;
@@ -63,9 +68,6 @@ public class ResolutionResult {
             return !unresolvedDependencySet.isEmpty();
         }
 
-        public Optional<UnresolvedDependency> firstUnresolvedDependency() {
-            return unresolvedDependencySet.stream().findFirst();
-        }
     }
 
     public Optional<KafkaClusterRef> kafkaClusterRef(String name) {
