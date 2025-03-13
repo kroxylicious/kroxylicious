@@ -14,18 +14,13 @@ metadata:
     app.kubernetes.io/name: "kroxylicious-proxy"
     app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"
-  name: "twocluster"
+  name: "twocluster-config-state"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
       name: "twocluster"
 data:
-  proxy-config.yaml: |-
-    ---
-    management:
-      endpoints:
-        prometheus: {}
   cluster-bar: |-
     ---
     metadata:

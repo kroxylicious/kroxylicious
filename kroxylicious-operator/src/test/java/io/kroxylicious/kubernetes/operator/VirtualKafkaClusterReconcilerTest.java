@@ -279,7 +279,7 @@ class VirtualKafkaClusterReconcilerTest {
 
         Context<VirtualKafkaCluster> context = mock(Context.class);
         when(context.getSecondaryResource(KafkaProxy.class, VirtualKafkaClusterReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(existingProxy);
-        when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.PROXY_CONFIG_MAP_EVENT_SOURCE_NAME)).thenReturn(existingProxyConfigMap);
+        when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.PROXY_CONFIG_STATE_SOURCE_NAME)).thenReturn(existingProxyConfigMap);
         when(context.getSecondaryResource(KafkaService.class, VirtualKafkaClusterReconciler.SERVICES_EVENT_SOURCE_NAME)).thenReturn(existingService);
         when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(existingIngresses);
         when(context.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(existingFilters);

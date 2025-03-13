@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -26,6 +27,7 @@ import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
@@ -45,6 +47,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kubernetes.operator.ProxyConfigStateConfigMap.CONFIG_STATE_SUFFIX;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
@@ -59,7 +62,7 @@ public final class VirtualKafkaClusterReconciler implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconciler.class);
     public static final String PROXY_EVENT_SOURCE_NAME = "proxy";
-    public static final String PROXY_CONFIG_MAP_EVENT_SOURCE_NAME = "proxy-config-map";
+    public static final String PROXY_CONFIG_STATE_SOURCE_NAME = "proxy-config-state";
     public static final String SERVICES_EVENT_SOURCE_NAME = "services";
     public static final String INGRESSES_EVENT_SOURCE_NAME = "ingresses";
     public static final String FILTERS_EVENT_SOURCE_NAME = "filters";
@@ -139,7 +142,7 @@ public final class VirtualKafkaClusterReconciler implements
                     && unresolvedFilters.isEmpty()
                     && mismatchedIngressProxyRef.isEmpty()) {
                 uc = context
-                        .getSecondaryResource(ConfigMap.class, PROXY_CONFIG_MAP_EVENT_SOURCE_NAME)
+                        .getSecondaryResource(ConfigMap.class, PROXY_CONFIG_STATE_SOURCE_NAME)
                         .flatMap(cm -> Optional.ofNullable(cm.getData()))
                         .map(ProxyConfigData::new)
                         .flatMap(data -> data.getStatusPatchForCluster(ResourcesUtil.name(cluster)))
@@ -215,15 +218,21 @@ public final class VirtualKafkaClusterReconciler implements
                         cluster -> cluster.getSpec().getProxyRef()))
                 .build();
 
-        InformerEventSourceConfiguration<ConfigMap> clusterToProxyConfigMap = InformerEventSourceConfiguration.from(
+        InformerEventSourceConfiguration<ConfigMap> clusterToProxyConfigState = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 VirtualKafkaCluster.class)
-                .withName(PROXY_CONFIG_MAP_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefAsResourceId(cluster, cluster.getSpec().getProxyRef()))
+                .withName(PROXY_CONFIG_STATE_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> {
+                    Set<ResourceID> resourceIDS = ResourcesUtil.localRefAsResourceId(cluster, cluster.getSpec().getProxyRef());
+
+                    // FIXME
+                    return resourceIDS.stream().map(x -> new ResourceID(x.getName() + CONFIG_STATE_SUFFIX, x.getNamespace().orElse(null))).collect(Collectors.toSet());
+                })
                 .withSecondaryToPrimaryMapper(configMap -> ResourcesUtil.findReferrers(context,
                         configMap,
                         VirtualKafkaCluster.class,
-                        cluster -> new AnyLocalRefBuilder().withGroup("").withKind("ConfigMap").withName(cluster.getSpec().getProxyRef().getName()).build()))
+                        cluster -> new AnyLocalRefBuilder().withGroup("").withKind("ConfigMap").withName(cluster.getSpec().getProxyRef().getName() + CONFIG_STATE_SUFFIX)
+                                .build()))
                 .build();
 
         InformerEventSourceConfiguration<KafkaService> clusterToService = InformerEventSourceConfiguration.from(
@@ -264,7 +273,7 @@ public final class VirtualKafkaClusterReconciler implements
 
         return List.of(
                 new InformerEventSource<>(clusterToProxy, context),
-                new InformerEventSource<>(clusterToProxyConfigMap, context),
+                new InformerEventSource<>(clusterToProxyConfigState, context),
                 new InformerEventSource<>(clusterToIngresses, context),
                 new InformerEventSource<>(clusterToService, context),
                 new InformerEventSource<>(clusterToFilters, context));

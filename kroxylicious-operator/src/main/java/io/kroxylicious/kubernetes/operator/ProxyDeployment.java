@@ -45,7 +45,7 @@ public class ProxyDeployment
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeployment.class);
     public static final String CONFIG_VOLUME = "config-volume";
-    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigData.CONFIG_YAML_KEY;
+    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigConfigMap.CONFIG_YAML_KEY;
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     private static final int MANAGEMENT_PORT = 9190;
     private static final String MANAGEMENT_PORT_NAME = "management";
@@ -144,7 +144,7 @@ public class ProxyDeployment
                 .addNewVolumeMount()
                     .withName(CONFIG_VOLUME)
                     .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
-                    .withSubPath(ProxyConfigData.CONFIG_YAML_KEY)
+                    .withSubPath(ProxyConfigConfigMap.CONFIG_YAML_KEY)
                 .endVolumeMount()
                 .addAllToVolumeMounts(ProxyConfigConfigMap.secureVolumeMounts(context.managedWorkflowAndDependentResourceContext()))
                 // management port

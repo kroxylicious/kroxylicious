@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -60,9 +61,9 @@ public record Configuration(
                             @Nullable @JsonAlias("adminHttp") @JsonDeserialize(using = AdminHttpDeprecationLoggingDeserializer.class) ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
-                            @JsonDeserialize(using = VirtualClusterContainerDeserializer.class) List<VirtualCluster> virtualClusters,
+                            @NonNull @JsonProperty(required = true) @JsonDeserialize(using = VirtualClusterContainerDeserializer.class) List<VirtualCluster> virtualClusters,
                             @Deprecated @Nullable List<FilterDefinition> filters,
-                            List<MicrometerDefinition> micrometer,
+                            @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             @NonNull Optional<Map<String, Object>> development) {
 
@@ -98,6 +99,10 @@ public record Configuration(
     @JsonCreator
     public Configuration {
         Objects.requireNonNull(development);
+        if (virtualClusters == null || virtualClusters.isEmpty()) {
+            throw new IllegalConfigurationException("At least one virtual cluster must be defined.");
+        }
+
         // Enforce post condition: filters and filterDefinitions are not both set
         if (filters != null && filterDefinitions != null) {
             throw new IllegalConfigurationException("'filters' and 'filterDefinitions' can't both be set");
