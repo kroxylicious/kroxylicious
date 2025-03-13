@@ -8,18 +8,17 @@
 kind: VirtualKafkaCluster
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: bar
+  name: one
   namespace: proxy-ns
 spec:
   proxyRef:
-    name: twocluster
+    name: minimal
   targetCluster:
     clusterRef:
-      name: barref
+      name: myref
     tls:
       certificateRef:
-        kind: Secret
-        group: ""
-        name: foo-cluster-cert
+        kind: ThisKindDoesNotExist
+        name: kafka-client-secret
   ingressRefs:
-    - name: cluster-ip-bar
+    - name: cluster-ip
