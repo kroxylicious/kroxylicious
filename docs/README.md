@@ -19,7 +19,7 @@ US (global) English is used throughout.
 
 ## Kroxylicious guide
 
-The Kroxylicious documentation is organized into a several **Kroxylicious** guides.
+The Kroxylicious documentation is organized into specific **Kroxylicious** guides.
 
 The content for the guide to the proxy is encapsulated in a main index file:
 
@@ -30,7 +30,7 @@ The content for the guide to the proxy is encapsulated in a main index file:
 The index file is used to build the documentation.
 Documentation folders contain the content that's incorporated into the main source files.
 An assembly is like a sub-section or chapter in a book.
-A module contain a procedure (`proc-`), concepts (`con-`), or reference (`ref-`) content.
+A module contains a procedure (`proc-`), concepts (`con-`), or reference (`ref-`) content.
 
 **Documentation folders**
 
