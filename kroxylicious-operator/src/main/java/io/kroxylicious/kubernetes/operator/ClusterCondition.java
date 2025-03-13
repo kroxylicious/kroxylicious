@@ -11,7 +11,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetCluster;
-import io.kroxylicious.kubernetes.operator.ingress.IngressConflictException;
+import io.kroxylicious.kubernetes.operator.model.ingress.IngressConflictException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
